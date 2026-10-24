@@ -78,6 +78,8 @@ jobs:
           agent-env gridsim tasks generate --pack ercot-dam-v1-eval --tier blind --bundle oneshot
           agent-env run results/bundles/ercot-dam-v1-eval-foresight-full --dry-run
           agent-env run results/bundles/ercot-dam-v1-eval-blind-oneshot --dry-run
+          agent-env gridsim tasks generate --pack gridsim-live-eval --tier foresight
+          agent-env run results/bundles/gridsim-live-eval-foresight --dry-run
       - name: The image passes the parity and no-leak gates
         run: |
           docker run -d -p 18765:18765 agentenv-gridsim-env
@@ -86,3 +88,10 @@ jobs:
       - name: A scripted agent plays full and oneshot end to end with no model spend, into Episode JSON
         timeout-minutes: 10
         run: PYTHONPATH=tests/plugin python scripts/scripted_e2e.py --out e2e
+      - name: The live wiring day scores 0 with its audit passing, and naive live days replay byte for byte
+        timeout-minutes: 15
+        run: |
+          agent-env run gridsim-live --task wiring-noplay | tee live-wiring.log
+          grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' live-wiring.log
+          python scripts/live_e2e.py
+          python scripts/live_e2e.py --tier blind

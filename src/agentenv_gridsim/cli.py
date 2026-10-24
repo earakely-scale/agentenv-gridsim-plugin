@@ -11,6 +11,8 @@ from agent_env.a2a_agent import A2AAgent
 from agent_env.artifact import DockerImageArtifact
 from agent_env.env import MCPServerEnv
 
+from gridsim_core.live import LIVE_ENV
+
 from .episodes import episodes_command
 from .record import record_command
 from .sweep import sweep_group
@@ -87,8 +89,8 @@ def _register_agent(root: str, build_platform: str) -> None:
                    "GitHub commit a git install came from.")
 @click.option("--agent", is_flag=True, help="Also build the gridsim-llm agent for the same platform and register it.")
 def setup(build_platform: str | None, source: Path | None, agent: bool):
-    """Build the env image and register it as the MCP server env `gridsim` on the `server` provider; with --agent,
-    the gridsim-llm agent too."""
+    """Build the env image and register it as the MCP server env `gridsim` on the `server` provider and as
+    `gridsim-live` on the `gateway` provider; with --agent, the gridsim-llm agent too."""
     root = _checkout(source)
     build_platform = build_platform or _docker_platform()
     click.echo(f"Building {IMAGE} for {build_platform} from {root}")
@@ -99,6 +101,9 @@ def setup(build_platform: str | None, source: Path | None, agent: bool):
                                        description="GridSim env: the battery-desk MCP server and the ERCOT DAM packs")
     env = MCPServerEnv.put(id=ENV, docker_image_artifact=artifact, environment_name=ENV, env_provider_type="server")
     click.echo(f"Registered env {env.id!r} version {env.version} (image {artifact.image_name})")
+    live = MCPServerEnv.put(id=LIVE_ENV, docker_image_artifact=artifact, environment_name=LIVE_ENV,
+                            env_provider_type="gateway")
+    click.echo(f"Registered env {live.id!r} version {live.version} (image {artifact.image_name})")
     if agent:
         _register_agent(root, build_platform)
     click.echo("Next: agent-env run gridsim --task smoke")

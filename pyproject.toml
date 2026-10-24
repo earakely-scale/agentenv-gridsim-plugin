@@ -30,6 +30,7 @@ Source = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 
 [project.entry-points."agent_env.bundles"]
 gridsim = "agentenv_gridsim.bundles"
+gridsim-live = "agentenv_gridsim.bundles"
 
 [project.entry-points."agent_env.cli_plugins"]
 gridsim = "agentenv_gridsim.cli:gridsim"

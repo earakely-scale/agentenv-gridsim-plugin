@@ -3,7 +3,9 @@ endpoint, on the API each provider serves best. Cost is usage times PRICES, or t
 usage is lost (it failed, or the harness cut its stream); when GRIDSIM_MAX_COST_USD is set, an episode stops before a
 request that could take it past that. The summary also gives the cost without the failed requests, which may not have
 been billed, and how many failed. MCP has no done flag, so the episode ends on submit_schedule's submitted, at
-MAX_TOOL_CALLS calls, or after max_turns."""
+MAX_TOOL_CALLS calls, or after max_turns. An env that lists advance is a live day in watches (gridsim-live): the
+episode ends on advance's done, with no tool-call cap, or once a turn would start within TIME_MARGIN of the time
+limit, the day then graded on what was committed; Anthropic requests carry one rolling cache breakpoint."""
 
 import json
 import logging
@@ -36,6 +38,7 @@ log = logging.getLogger("gridsim-llm")
 REQUEST_TIMEOUT = 900.0
 NOTES_CHARS = 8000
 MAX_TOOL_CALLS = 24
+TIME_MARGIN = 1200
 HARNESS_CAP = "length (harness cap)"
 PRICES = {  # USD per 1M tokens: input, output, cache read. LiteLLM public price map, 2026-10-06 to 2026-10-21.
     "anthropic/claude-opus-5-5": (4.00, 20.00, 0.40),
@@ -59,6 +62,22 @@ NO_CALL = ("No tool was called. Schedules only count through the tools: call sub
            "actions.")
 CUT_OFF = ("Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
            "reasoning short now and call submit_schedule with your best schedule.")
+
+
+@dataclass(frozen=True)
+class Mode:
+    last_turn: str
+    no_call: str
+    cut_off: str
+
+
+V1 = Mode(LAST_TURN, NO_CALL, CUT_OFF)
+LIVE = Mode("This is your last turn: commit now if your schedule needs a change (commit_da at watch 0, else "
+            "commit_schedule); the rest of the day then runs on what you committed.",
+            "No tool was called. Only the tools count: commit_da and commit_schedule commit your position and "
+            "schedule, advance moves to the next watch.",
+            "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+            "reasoning short now and call commit_schedule with your current draft, or advance.")
 
 
 class GridSimConfig(AgentConfig):
@@ -134,10 +153,10 @@ class AnthropicAgent:
     route = "messages"
 
     def __init__(self, model: str, tools, system: str, max_tokens: int, base_url: str, api_key: str,
-                 effort: str | None = None):
+                 effort: str | None = None, cache: bool = False):
         self.client = anthropic.AsyncAnthropic(base_url=base_url, auth_token=api_key, max_retries=4,
                                                timeout=REQUEST_TIMEOUT)
-        self.model, self.system, self.max_tokens = model, system, max_tokens
+        self.model, self.system, self.max_tokens, self.cache = model, system, max_tokens, cache
         self.extra = ({"extra_body": {"output_config": {"effort": effort}}} if effort in ("low", "medium", "high")
                       else {})
         self.tools = [{"name": t.name, "description": t.description or "",
@@ -160,7 +179,12 @@ class AnthropicAgent:
         if self._pending:
             self.messages.append({"role": "user", "content": self._pending})
             self._pending = []
-        return {"model": self.model, "system": self.system, "messages": self.messages, "tools": self.tools,
+        messages = self.messages
+        if self.cache:
+            *blocks, newest = messages[-1]["content"]
+            messages = [*messages[:-1], {**messages[-1], "content": [
+                *blocks, {**newest, "cache_control": {"type": "ephemeral"}}]}]
+        return {"model": self.model, "system": self.system, "messages": messages, "tools": self.tools,
                 "max_tokens": self.max_tokens, **self.extra}
 
     async def step(self, request: dict) -> Turn:
@@ -348,9 +372,10 @@ def effort_of(model: str, effort: str | None) -> str | None:
     return effort or ("medium" if route(model) == "responses" else None)
 
 
-def make_agent(model: str, tools, system: str, max_tokens: int, effort: str | None, root: str, key: str):
+def make_agent(model: str, tools, system: str, max_tokens: int, effort: str | None, root: str, key: str,
+               cache: bool = False):
     if route(model) == "messages":
-        return AnthropicAgent(model, tools, system, max_tokens, root, key, effort)
+        return AnthropicAgent(model, tools, system, max_tokens, root, key, effort, cache)
     if route(model) == "responses":
         return OpenAIResponsesAgent(model, tools, system, max_tokens, f"{root}/v1", key, effort or "medium")
     return ChatAgent(model, tools, system, max_tokens, f"{root}/v1", key, effort)
@@ -396,6 +421,8 @@ class Episode:
                                        "final": {"submitted": False, "schedule": None},
                                        "usage": {"input_tokens": 0, "output_tokens": 0}, "turns": 0,
                                        "end_reason": None, "errors": []}
+        self.live = False
+        self.reward: float | None = None
         self.tool_calls = self.checks = self.cached = self.written = 0
         self.spent = self.unbilled = 0.0
         self.failed_requests = 0
@@ -436,25 +463,31 @@ class Episode:
         tools = await env.tools()
         self.record["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.input_schema}
                                 for t in tools]
+        self.live = any(t.name == "advance" for t in tools)
         limit = self.config.model_params["max_tokens"]
         agent = make_agent(self.model, tools, system, min(limit, MAX_OUTPUT.get(self.model, limit)), self.effort,
-                           self.base.rstrip("/").removesuffix("/v1"), self.key)
+                           self.base.rstrip("/").removesuffix("/v1"), self.key, self.live)
         agent.user(opening)
         async with agent.client:
             await self.turns(env, agent)
 
     async def turns(self, env: EnvSession, agent) -> None:
         config, record, price = self.config, self.record, PRICES[self.model]
+        mode = LIVE if self.live else V1
         max_turns = config.max_turns
         empty = 0
         for turn in range(max_turns):
-            if time.time() - self.started > config.timeout_seconds:
+            elapsed = time.time() - self.started
+            if self.live and elapsed > config.timeout_seconds - TIME_MARGIN:
+                record["end_reason"] = "time_limit"
+                break
+            if elapsed > config.timeout_seconds:
                 return self.fail("wall_clock",
                                  f"turn {turn + 1} would start after the {config.timeout_seconds} s limit")
             last = turn == max_turns - 1
             if last:
-                agent.user(LAST_TURN)
-                record["messages"].append({"role": "user", "content": LAST_TURN})
+                agent.user(mode.last_turn)
+                record["messages"].append({"role": "user", "content": mode.last_turn})
             request = agent.request()
             most = bound(agent, request, price)
             if self.max_cost is not None and self.spent + most > self.max_cost:
@@ -493,9 +526,9 @@ class Episode:
                     break
                 if t.stop.startswith("length") and t.reasoning:
                     agent.notes(t.reasoning[-NOTES_CHARS:])
-                    nudge = CUT_OFF
+                    nudge = mode.cut_off
                 else:
-                    nudge = NO_CALL
+                    nudge = mode.no_call
                 agent.user(nudge)
                 record["messages"].append({"role": "user", "content": nudge})
                 continue
@@ -514,11 +547,16 @@ class Episode:
                     self.tool_calls += 1
                     if c.name == "check_schedule":
                         self.checks += 1
-                    if c.name == SUBMIT and isinstance(res, dict) and res.get("submitted") is True:
+                    if self.live and c.name == "advance" and isinstance(res, dict) and res.get("done") is True:
+                        done = True
+                        self.reward = float(res["reward"])
+                        record["final"] = {"done": True, "reward": self.reward}
+                        record["end_reason"] = "done"
+                    elif c.name == SUBMIT and isinstance(res, dict) and res.get("submitted") is True:
                         done = True
                         record["final"] = {"submitted": True, "schedule": c.arguments.get("actions")}
                         record["end_reason"] = "submitted"
-                    elif self.tool_calls >= MAX_TOOL_CALLS:
+                    elif not self.live and self.tool_calls >= MAX_TOOL_CALLS:
                         done = True
                         record["end_reason"] = "tool_call_limit"
                 left = max_turns - turn - 1
@@ -542,6 +580,8 @@ class Episode:
                    "cached_tokens": self.cached, "cache_write_tokens": self.written, "cost_usd": round(self.spent, 6),
                    "max_cost_usd": self.max_cost, "priced_cost_usd": round(self.spent - self.unbilled, 6),
                    "failed_requests": self.failed_requests, "seconds": record["seconds"], "error": self.error}
+        if self.live:
+            summary |= {"live": True, "reward": self.reward}
         text = (f"{record['end_reason']}: {record['turns']} turns, {self.tool_calls} tool calls, ${self.spent:.4f} "
                 f"({self.model})")
         builder = TaskResult.builder()

@@ -1,6 +1,8 @@
 """`agent-env gridsim sweep`: a pack's battery-days over models and reps at one tier and harness under a spend cap, one
 `agent-env run` process per attempt, retried and resumed from results.jsonl; and the report: results/eval-v1.json (the
-FineEnvs eval card with the baselines from the pack's references) and results/board.md."""
+FineEnvs eval card with the baselines from the pack's references) and results/board.md. With --env gridsim-live, a
+live pack's days played live (the harness is "live"), reported to results/eval-v2.json and results/board-v2.md
+against the live references (live_report.py)."""
 
 import json
 import re
@@ -21,15 +23,23 @@ from agent_env.task.store import get_task_instance_store
 
 from gridsim_core import CONTRACT_VERSION
 from gridsim_core.grade import grade
+from gridsim_core.live import LIVE_ENV, LIVE_VERSION, MAX_TURNS, PLANNING_CALLS, TOOLS
+from gridsim_core.live import TIERS as LIVE_TIERS
 
-from . import tasks
+from . import live_tasks, tasks
+from .live import LIVE_PACK_NAMES
 from .server import PACK_NAMES, TIERS
 
 AGENT_ENV = [sys.executable, "-m", "agent_env.cli"]
 RUNS = Path("results/runs")
 CARD = Path("results/eval-v1.json")
 BOARD = Path("results/board.md")
+LIVE_CARD = Path("results/eval-v2.json")
+LIVE_BOARD = Path("results/board-v2.md")
 EVAL_PACK = "ercot-dam-v1-eval"
+LIVE_EVAL_PACK = "gridsim-live-eval"
+ENVS = ("gridsim", LIVE_ENV)
+LIVE_ERRORS = ("no_commit", "refused", "end_short", "clipped", "no_replanning")
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,40}")
 INSTANCE = re.compile(r"(\d+(?:\.\d+)?)s, instance (\S+)")
 STOPS = ("model_endpoint", "unpriced_model")
@@ -59,6 +69,15 @@ class Sweep:
     tier: str = "foresight"
     bundle: str = "full"
     pack: str = EVAL_PACK
+    env: str = "gridsim"
+
+    @property
+    def live(self) -> bool:
+        return self.env == LIVE_ENV
+
+    def spec(self) -> dict:
+        """sweep.json: the fields, without env for a v1 sweep, so v1 sweeps resume as they were written."""
+        return {k: v for k, v in asdict(self).items() if k != "env" or self.live}
 
     @property
     def out(self) -> Path:
@@ -127,7 +146,8 @@ def trajectory(uri: str) -> bytes:
 
 def task_ids(spec: str, pack: str = EVAL_PACK, tier: str = "foresight") -> list[str]:
     """``all``, the first N, or comma-separated ids, of the pack's tasks the tier can play, in the pack's order."""
-    known = [r["task_id"] for r in tasks.eligible(tasks.pack_rows(pack), tier)]
+    module = live_tasks if pack in LIVE_PACK_NAMES else tasks
+    known = [r["task_id"] for r in module.eligible(module.pack_rows(pack), tier)]
     if spec == "all":
         return known
     if spec.isdigit():
@@ -144,13 +164,17 @@ def prepare(sweep: Sweep) -> None:
         raise click.UsageError("a sweep's name is 1 to 41 lowercase letters, digits and dashes, starting with no dash")
     path = sweep.out / "sweep.json"
     if path.is_file():
-        if json.loads(path.read_text()) != asdict(sweep):
+        if {"env": "gridsim", **json.loads(path.read_text())} != asdict(sweep):
             raise click.UsageError(f"{path} is another sweep; run it with its own models, tasks, k, episode cap, "
-                                   f"tier, bundle and pack: {path.read_text().strip()}")
+                                   f"tier, bundle, pack and env: {path.read_text().strip()}")
         return
-    tasks.generate(sweep.pack, sweep.out / "bundle", tier=sweep.tier, bundle=sweep.bundle, task_ids=sweep.tasks,
-                   episode_cap_usd=sweep.episode_cap_usd)
-    path.write_text(json.dumps(asdict(sweep), indent=2) + "\n")
+    if sweep.live:
+        live_tasks.generate(sweep.pack, sweep.out / "bundle", tier=sweep.tier, task_ids=sweep.tasks,
+                            episode_cap_usd=sweep.episode_cap_usd)
+    else:
+        tasks.generate(sweep.pack, sweep.out / "bundle", tier=sweep.tier, bundle=sweep.bundle, task_ids=sweep.tasks,
+                       episode_cap_usd=sweep.episode_cap_usd)
+    path.write_text(json.dumps(sweep.spec(), indent=2) + "\n")
 
 
 def preflight(sweep: Sweep, task: str) -> str | None:
@@ -185,6 +209,35 @@ def errors_of(episode: dict) -> list[str]:
     if not any(episode.get("schedule") or []):
         found.append("all_idle")
     return found
+
+
+def live_errors(day: dict) -> list[str]:
+    """A live day's error taxonomy: nothing committed, a refused commit, an end-of-day shortfall, clipped execution,
+    no planning call after watch 0."""
+    g = day.get("grade") or {}
+    found = [] if g.get("submitted") else ["no_commit"]
+    if day.get("refusals"):
+        found.append("refused")
+    if g.get("end_shortfall_units"):
+        found.append("end_short")
+    if (day.get("excused") or {}).get("rows"):
+        found.append("clipped")
+    if not sum((day.get("planning_calls") or [0])[1:]):
+        found.append("no_replanning")
+    return found
+
+
+def live_fields(day: dict) -> dict:
+    """A scored live run's row fields from its day (data/get): the grade, references and play counts."""
+    g = day["grade"]
+    return {"profit": g["profit_usd"], "profit_idle": g["p_idle"], "profit_anchor": g["p_roll"],
+            "profit_opt": g["p_hind"], "profit_naive": g["p_naive"], "naive_reward": g["naive_reward"],
+            "capture": g["capture_vs_hindsight"], "regret_usd_per_mw": g["regret_usd_per_mw"],
+            "excused_usd": g["excused_usd"], "commits": g["commits"], "watches": day["watches"],
+            "watch_reached": day["frozen"][-1]["watch"] if day["frozen"] else None,
+            "checks": sum(day["planning_calls"]), "planning_calls": day["planning_calls"],
+            "da_position": day["da_position"], "schedule": day["executed"], "errors": live_errors(day),
+            "audit_ok": day["audit"]["ok"]}
 
 
 def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bool = False, read: bool = True) -> dict:
@@ -240,6 +293,8 @@ def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bo
                                           "output_tokens", "cached_tokens", "cache_write_tokens")},
            "cost_usd": spent, "priced_cost_usd": s.get("priced_cost_usd"), "failed_requests": s.get("failed_requests"),
            "transcript": transcript}
+    if sweep.live and scored:
+        row |= live_fields(episode)
     row["retryable"] = not final([*earlier, row])
     return row
 
@@ -670,6 +725,118 @@ def board_md(c: dict, intro: str = "") -> str:
     return "\n".join(lines) + "\n"
 
 
+# ================================================================ live report
+def _live_capture(r: dict, p: float) -> float | None:
+    head = r["p_hind"] - r["p_idle"]
+    return (p - r["p_idle"]) / head if head > 1e-9 else None
+
+
+def live_baselines(rows: list[dict], tier: str) -> dict:
+    """The references' means over these days at one tier: naive's reward under the shared contract, and naive's and
+    the anchor's hindsight capture."""
+    refs = [r["refs"] for r in rows if (r["refs"]["roll"].get(tier) or {}).get("p_roll") is not None]
+    nc = [x for x in (_live_capture(r, r["p_naive"]) for r in refs) if x is not None]
+    ac = [x for x in (_live_capture(r, r["roll"][tier]["p_roll"]) for r in refs) if x is not None]
+    return {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0,
+            "naive": _r(_mean([r["roll"][tier]["naive_reward"] for r in refs])), "naive_capture": _r(_mean(nc)),
+            "anchor_capture": _r(_mean(ac)),
+            "anchor_commits": _r(_mean([r["roll"][tier]["commits"] for r in refs]), 2)}
+
+
+def live_model(board: Board, cell) -> dict:
+    name, _, tier, bundle = cell
+    by_task = board.scored(cell)
+    mean = {t: statistics.mean(r["reward"] for r in rs) for t, rs in by_task.items()}
+    runs = [r for rs in by_task.values() for r in rs]
+    rewards = list(mean.values())
+    lo_hi = ci(rewards) if rewards else None
+    capture = [statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()]
+    costs = [priced(r) for r in runs if priced(r) is not None]
+    attempts = board.attempts(cell)
+    known, unknown = sum(r["cost_usd"] or 0.0 for r in attempts), sum(r["cost_usd"] is None for r in attempts)
+    effort = sorted({r.get("effort") for r in runs if r.get("effort")})
+    return {"model": name, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
+            "runs": len(runs), "planned": board.planned(cell), "tasks": len(mean),
+            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
+            "hindsight_capture": _r(_mean(capture)),
+            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
+            "beats_naive": _r(_mean([float(r["reward"] > r["naive_reward"]) for r in runs])),
+            "valid": _r(_mean([float(r["valid"]) for r in runs])),
+            "submitted": _r(_mean([float(r["submitted"]) for r in runs])),
+            "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in LIVE_ERRORS},
+            "planning_calls": _r(_mean([r["checks"] for r in runs]), 2),
+            "commits": _r(_mean([r["commits"] for r in runs]), 2),
+            "finished_by_agent": _r(_mean([float(r["end_reason"] == "done") for r in runs])),
+            "turns": _r(_mean([r["turns"] for r in runs if r["turns"] is not None]), 1),
+            "usd_per_episode": _r(_mean(costs)), "spend_usd": round(known, 4), "unknown_spend_attempts": unknown}
+
+
+def live_card(board: Board) -> dict:
+    models = [live_model(board, cell) for cell in board.cells]
+    rows = board.task_rows()
+    split = sorted({r.get("split") for r in rows if r.get("split")})
+    tiers = sorted({s.tier for s in board.sweeps})
+    return {
+        "env": "gridsim-live", "version": "v2", "live_version": LIVE_VERSION,
+        "authors": [{"name": "Edgar Arakelyan", "github": "earakely-scale", "affiliation": "Scale AI"},
+                    {"name": "Adithya S Kolavi", "github": "adithya-s-k", "affiliation": "Hugging Face"}],
+        "framework": "agentenv",
+        "tasks": {"split": split[0] if len(split) == 1 else split, "n": len(rows), "unit": "live battery-days",
+                  "packs": sorted({s.pack for s in board.sweeps}),
+                  "source": "ERCOT NP4-180-ER DAM and NP6-785-ER RT hub/LZ SPPs; EIA-860 archetypes",
+                  "selection": "the live eligibility filter (RT-DA divergence, anchor over naive, hindsight headroom)"},
+        "harness": {"agent": live_tasks.AGENT, "env": "gridsim-live", "tools": [*TOOLS, "get_time"],
+                    "max_turns": MAX_TURNS, "planning_calls_per_watch": PLANNING_CALLS,
+                    "max_tokens": live_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
+                    "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"},
+        "grading": {"reference": "exact DPs on the true day; LP bound reported",
+                    "reward": "clip(0.2+0.8(P-P_idle)/(P_roll-P_idle),0,1); no accepted commit scores 0",
+                    "anchor": "P_roll: the notice-blind rolling re-planner under the agent's freeze, budget, DA rule",
+                    "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
+                    "audit": "weight 0; a failed audit makes the run unscored",
+                    "excused": "derate clipping inside the freeze", "judge": False},
+        "baselines": {t: live_baselines(rows, t) for t in tiers},
+        "models": models,
+        "errors": {"taxonomy": list(LIVE_ERRORS),
+                   "meaning": {"no_commit": "no accepted commit_da or commit_schedule (scores 0)",
+                               "refused": "a refused commit", "end_short": "SoC at 24:00 below s_end_min",
+                               "clipped": "an interval executed clipped", "no_replanning": "no planning call after "
+                                                                                           "watch 0"}},
+        "sweeps": [asdict(s) | {"tasks": len(s.tasks)} for s in board.sweeps],
+        "links": {"runs": "hf dataset", "replays": "hf space", "code": "github"},
+    }
+
+
+def live_board_md(c: dict) -> str:
+    h = c["harness"]
+    lines = ["# GridSim v2 live board", "",
+             f"Tasks: {c['tasks']['n']} live battery-days ({', '.join(c['tasks']['packs'])}). Harness: {h['agent']} "
+             f"on {h['env']}, {h['max_turns']} turns, {h['planning_calls_per_watch']} planning calls a watch, "
+             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: {c['grading']['reward']}; the "
+             "anchor (1.0) is the notice-blind rolling re-planner. Mean R over days with a 95% bootstrap CI.", ""]
+    for tier, b in c["baselines"].items():
+        lines.append(f"Baselines ({tier}, {b['n']} days): idle {_f(b['idle'])}, naive (v1's plan, never re-planned) "
+                     f"{_f(b['naive'])}, anchor {_f(b['anchor'])}; hindsight capture naive "
+                     f"{_f(b['naive_capture'])}, anchor {_f(b['anchor_capture'])}.")
+    lines += ["", "| Model | Tier | Days | Runs/planned | Mean R (95% CI) | Hindsight capture | Beats anchor "
+              "| Beats naive | Valid | Planning calls | Commits | Finished | $/episode | Spend |",
+              "|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for m in c["models"]:
+        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
+        lines.append(" | ".join([
+            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", _f(m["mean"]) + ci95,
+            _f(m["hindsight_capture"]), _f(m["beats_anchor"]), _f(m["beats_naive"]), _f(m["valid"]),
+            _f(m["planning_calls"], ".2f"), _f(m["commits"], ".2f"), _f(m["finished_by_agent"]),
+            "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
+            f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
+                                        else "")]) + " |")
+    lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
+              "| Model | Tier | " + " | ".join(LIVE_ERRORS) + " |", "|---|---|" + "---:|" * len(LIVE_ERRORS)]
+    lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in LIVE_ERRORS) + " |"
+              for m in c["models"]]
+    return "\n".join(lines) + "\n"
+
+
 def unscored(board: Board) -> list[str]:
     """Every pre-registered run with no scored attempt, and how its amendment, if any, ended."""
     out = []
@@ -692,18 +859,24 @@ def unscored(board: Board) -> list[str]:
              "|---|---|---:|---:|---|---|---|", *out] if out else ["None."])
 
 
-def report(sweeps: list[Sweep], card_path: Path = CARD, board_path: Path = BOARD,
+def report(sweeps: list[Sweep], card_path: Path | None = None, board_path: Path | None = None,
            amend: dict[str, Sweep] | None = None, columns: dict[str, str] | None = None, narrate=None) -> dict:
-    """Writes the eval card and the board; ``narrate(card, board)`` returns the fields to add to the card and the text
-    to put under the board's title and after its tables."""
+    """v1 sweeps to results/eval-v1.json and board.md, live sweeps to eval-v2.json and board-v2.md; ``narrate(card,
+    board)`` returns the fields to add to the card and the text to put under the board's title and after its tables."""
+    if len({s.live for s in sweeps}) > 1:
+        raise click.UsageError("report v1 and live sweeps separately: their references differ")
+    live = sweeps[0].live
     board = Board(sweeps, amend, columns)
-    c = card(board)
+    c = live_card(board) if live else card(board)
     extra, intro, outro = narrate(c, board) if narrate else ({}, "", "")
     c |= extra
+    card_path = card_path or (LIVE_CARD if live else CARD)
+    board_path = board_path or (LIVE_BOARD if live else BOARD)
     card_path.parent.mkdir(parents=True, exist_ok=True)
     card_path.write_text(json.dumps(c, indent=2) + "\n")
     board_path.parent.mkdir(parents=True, exist_ok=True)
-    board_path.write_text(board_md(c, intro) + (f"\n{outro}\n" if outro else "") + "\n## Unscored runs\n\n"
+    board_path.write_text((live_board_md(c) if live else board_md(c, intro)) + (f"\n{outro}\n" if outro else "")
+                          + "\n## Unscored runs\n\n"
                           + "\n".join(unscored(board)) + "\n")
     return c
 
@@ -720,10 +893,14 @@ def sweep_group():
 @click.option("--models", required=True, help="Comma-separated LiteLLM model ids, e.g. openai/gpt-6.1-sol.")
 @click.option("--tasks", "task_spec", required=True,
               help="all, N (the pack's first N), or comma-separated task ids of the pack the tier can play.")
-@click.option("--pack", type=click.Choice(PACK_NAMES), default=EVAL_PACK, show_default=True, help="The task pack.")
-@click.option("--tier", type=click.Choice(TIERS), default="foresight", show_default=True)
+@click.option("--env", type=click.Choice(ENVS), default="gridsim", show_default=True,
+              help=f"gridsim: the v1 battery desk; {LIVE_ENV}: a live pack's days played live in watches.")
+@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES),
+              help=f"The task pack. Default: {EVAL_PACK}, or {LIVE_EVAL_PACK} with --env {LIVE_ENV}.")
+@click.option("--tier", type=click.Choice(LIVE_TIERS), default="foresight", show_default=True,
+              help="foresight or blind; live days also take short and freeze6h.")
 @click.option("--bundle", type=click.Choice(list(tasks.BUNDLES)), default="full", show_default=True,
-              help="full: three checks; oneshot: submit_schedule only.")
+              help="full: three checks; oneshot: submit_schedule only. Not for live days.")
 @click.option("--cap-usd", type=float, required=True,
               help="The model spend the sweep stays within: no attempt starts that could take it past this at the "
                    "episode cap.")
@@ -731,14 +908,24 @@ def sweep_group():
 @click.option("--episode-cap-usd", type=float, default=1.0, show_default=True,
               help="An episode's cost cap, passed to the agent as GRIDSIM_MAX_COST_USD.")
 @click.option("--parallel", type=click.IntRange(min=1), default=4, show_default=True, help="Attempts at a time.")
-def run_command(name: str, models: str, task_spec: str, pack: str, tier: str, bundle: str, cap_usd: float, k: int,
-                episode_cap_usd: float, parallel: int):
+def run_command(name: str, models: str, task_spec: str, env: str, pack: str | None, tier: str, bundle: str,
+                cap_usd: float, k: int, episode_cap_usd: float, parallel: int):
     """Play each model on each task k times, one `agent-env run` per attempt, logged under results/runs/<name>/raw/logs.
     Each attempt is a line of results.jsonl; a failed one is retried up to twice, and running the sweep again plays
     the runs that aren't final yet. Ctrl-C tears the running attempts down."""
     if "" in models.split(","):
         raise click.UsageError("--models takes comma-separated model ids, none empty")
-    sweep = Sweep(name, models.split(","), task_ids(task_spec, pack, tier), k, episode_cap_usd, tier, bundle, pack)
+    live = env == LIVE_ENV
+    pack = pack or (LIVE_EVAL_PACK if live else EVAL_PACK)
+    if live != (pack in LIVE_PACK_NAMES):
+        raise click.UsageError(f"{pack} is {'not ' if live else ''}a live pack; {env} plays "
+                               f"{'live' if live else 'v1'} packs")
+    if live and bundle != "full":
+        raise click.UsageError("--bundle is for v1 sweeps; a live day has one harness")
+    if not live and tier not in TIERS:
+        raise click.UsageError(f"the v1 packs have the tiers {', '.join(TIERS)}, not {tier}")
+    sweep = Sweep(name, models.split(","), task_ids(task_spec, pack, tier), k, episode_cap_usd, tier,
+                  "live" if live else bundle, pack, env)
     if not sweep.tasks:
         raise click.UsageError(f"no {tier} tasks in {pack} for --tasks {task_spec}")
     prepare(sweep)
@@ -747,19 +934,22 @@ def run_command(name: str, models: str, task_spec: str, pack: str, tier: str, bu
 
 @sweep_group.command("report")
 @click.argument("names", nargs=-1, required=True)
-@click.option("--card", "card_path", type=click.Path(dir_okay=False, path_type=Path), default=CARD, show_default=True,
-              help="The eval card to write.")
-@click.option("--board", "board_path", type=click.Path(dir_okay=False, path_type=Path), default=BOARD,
-              show_default=True, help="The Markdown board to write.")
+@click.option("--card", "card_path", type=click.Path(dir_okay=False, path_type=Path),
+              help=f"The eval card to write. Default: {CARD}, or {LIVE_CARD} for live sweeps.")
+@click.option("--board", "board_path", type=click.Path(dir_okay=False, path_type=Path),
+              help=f"The Markdown board to write. Default: {BOARD}, or {LIVE_BOARD} for live sweeps.")
 @click.option("--amend", multiple=True, metavar="SWEEP=AMENDMENT",
               help="A sweep of NAMES and the sweep that re-ran some of its tasks under an amendment: the headline "
                    "takes each run's score from either, and `prereg` reports the sweep alone. Repeatable.")
-def report_command(names: tuple[str, ...], card_path: Path, board_path: Path, amend: tuple[str, ...]):
+def report_command(names: tuple[str, ...], card_path: Path | None, board_path: Path | None, amend: tuple[str, ...]):
     """Report the sweeps NAMES: each model at each pack, tier and harness, its mean reward with a 95% bootstrap CI,
     hindsight capture, optimal and valid rates, error taxonomy, checks used, the breakdowns by battery class, binding
-    constraint and day type, and cost, next to the baselines graded on the same tasks."""
+    constraint and day type, and cost, next to the baselines graded on the same tasks. Live sweeps report against the
+    live references: naive, the rolling anchor and hindsight."""
     if bad := [a for a in amend if a.count("=") != 1]:
         raise click.UsageError(f"--amend takes SWEEP=AMENDMENT, not {bad[0]}")
-    c = report([load(name) for name in names], card_path, board_path,
-               {k: load(v) for k, v in (a.split("=") for a in amend)})
-    click.echo(f"Wrote {card_path} and {board_path}: {len(c['models'])} model rows over {c['tasks']['n']} tasks")
+    sweeps = [load(name) for name in names]
+    c = report(sweeps, card_path, board_path, {k: load(v) for k, v in (a.split("=") for a in amend)})
+    live = sweeps[0].live
+    click.echo(f"Wrote {card_path or (LIVE_CARD if live else CARD)} and {board_path or (LIVE_BOARD if live else BOARD)}"
+               f": {len(c['models'])} model rows over {c['tasks']['n']} tasks")

@@ -1,0 +1,169 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim-live"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim-live",
+    "directives": [
+      {
+        "service": "gridsim-live",
+        "uri": "urn:gridsim:live-load/v1",
+        "args": {
+          "task_id": "live-v2-2024-01-02-LZ_CPS-1h-g-notice",
+          "tier": "foresight"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hide-grid-notice",
+    "type": "modify_env_tool_access",
+    "env_id": "gridsim-live",
+    "action": "disable",
+    "role": "default",
+    "tools": [
+      "grid_notice"
+    ]
+  },
+  {
+    "id": "watches",
+    "type": "register_env_triggers",
+    "env_id": "gridsim-live",
+    "watch_roles": [
+      "default"
+    ],
+    "triggers": [
+      {
+        "id": "watch-1",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 1
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-2",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 2
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-3",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 3
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-4",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 4
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "fixture-appeal-1",
+              "name": "ERCOT",
+              "text": "Synthetic CI fixture, not an ERCOT notice: conserve power from 16:00 to 21:00.",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-5",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 5
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      }
+    ]
+  },
+  {
+    "id": "clock",
+    "type": "sync_env_clock",
+    "env_id": "gridsim-live",
+    "virtual_time": "2024-01-01T20:00:00Z",
+    "virtual_seconds_per_real_second": 0,
+    "tolerate_missing_sync_time": false
+  },
+  {
+    "id": "end-day",
+    "type": "apply_server_config",
+    "env_id": "gridsim-live",
+    "directives": [
+      {
+        "service": "gridsim-live",
+        "uri": "urn:gridsim:end-day/v1",
+        "args": {}
+      }
+    ]
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim-live",
+    "file_artifact_id": "gridsim-live-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]
