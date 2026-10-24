@@ -177,7 +177,7 @@ function levelUp(root, man, ds, stage, q) {
     const prev = ki > 0 ? rewards[ki - 1] : null;
     const show = hold && k >= 0 && !end;
     toast.style.opacity = show ? Math.min(fade(INTRO + ki * SEG + DAY, INTRO + ki * SEG + DAY + 0.2), 1 - fade(INTRO + (ki + 1) * SEG - 0.15, INTRO + (ki + 1) * SEG)) : end ? fade(INTRO + n * SEG, INTRO + n * SEG + 0.4) : 0;
-    if (show) toast.innerHTML = `<div class="t">${prev == null || rewards[ki] > prev + 1e-9 ? "LEVEL UP" : rewards[ki] < prev - 1e-9 ? "SETBACK" : "HOLDS"}</div><div class="v">${esc(frameName(f))} · reward ${prev == null ? "" : `${prev.toFixed(2)} → `}<b>${rewards[ki].toFixed(2)}</b></div>`;
+    if (show) toast.innerHTML = `<div class="t">${prev == null ? "START" : rewards[ki] > prev + 1e-9 ? "LEVEL UP" : rewards[ki] < prev - 1e-9 ? "SETBACK" : "HOLDS"}</div><div class="v">${esc(frameName(f))} · reward ${prev == null ? "" : `${prev.toFixed(2)} → `}<b>${rewards[ki].toFixed(2)}</b></div>`;
     else if (end) {
       const c = man.context;
       toast.innerHTML = `<div class="t">TRAINED</div><div class="v">${esc(name)} on this day: reward <b>${rewards[0].toFixed(2)}</b> → <b>${rewards[n - 1].toFixed(2)}</b>${man.total_steps ? ` in ${man.total_steps} GRPO steps` : ""}</div>${man.note ? `<div class="note">${esc(man.note)}</div>` : ""}${c?.trained != null ? `<div class="all">Over all ${c.tasks || ""} held-out days: <b>${c.base.toFixed(2)} → ${c.sft.toFixed(2)} → ${c.trained.toFixed(2)}</b>${c.greedy != null ? `; the greedy rule scores ${c.greedy.toFixed(2)}` : ""}. Valid plans now, not yet the simple rules.</div>` : ""}`;
