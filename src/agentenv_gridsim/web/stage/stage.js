@@ -109,17 +109,22 @@ export class GridStage {
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.shimmer = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, uAmt: { value: 0 }, uH: { value: 0.5 }, uT: { value: 0 } },
+      uniforms: { tDiffuse: { value: null }, uAmt: { value: 0 }, uH: { value: 0.5 }, uT: { value: 0 }, uNight: { value: 0 } },
       vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
       fragmentShader: /* glsl */ `
         uniform sampler2D tDiffuse;
-        uniform float uAmt, uH, uT;
+        uniform float uAmt, uH, uT, uNight;
         varying vec2 vUv;
+        vec4 grade(vec4 c) {
+          if (any(isnan(c)) || any(isinf(c))) return vec4(0.0, 0.0, 0.0, 1.0);
+          float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+          c.rgb = mix(c.rgb, l * vec3(0.9, 0.97, 1.12), uNight * 0.32 * (1.0 - smoothstep(0.4, 3.0, l)));
+          return min(c, vec4(80.0));
+        }
         void main() {
           vec2 uv = vUv;
           if (uAmt <= 0.0) {
-            vec4 c0 = texture2D(tDiffuse, uv);
-            gl_FragColor = (any(isnan(c0)) || any(isinf(c0))) ? vec4(0.0, 0.0, 0.0, 1.0) : min(c0, vec4(80.0));
+            gl_FragColor = grade(texture2D(tDiffuse, uv));
             return;
           }
           float dy = (uv.y - uH) / 0.035;
@@ -127,8 +132,7 @@ export class GridStage {
           float n = sin(uv.y * 1100.0 + uT * 7.0) * 0.6 + sin(uv.y * 1900.0 - uT * 11.0 + uv.x * 35.0) * 0.4;
           uv.x += n * uAmt * band * 0.0011;
           uv.y += n * uAmt * band * 0.0005;
-          vec4 c = texture2D(tDiffuse, uv);
-          gl_FragColor = (any(isnan(c)) || any(isinf(c))) ? vec4(0.0, 0.0, 0.0, 1.0) : min(c, vec4(80.0));
+          gl_FragColor = grade(texture2D(tDiffuse, uv));
         }`,
     });
     this.composer.addPass(this.shimmer);
@@ -191,6 +195,7 @@ export class GridStage {
     this.sky.focus(this.camera, this.controls?.target || this.camera.position.clone().add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(60)));
     const heat = this.reduced ? 0 : Math.min(1, Math.max(0, ((w.temp ?? 20) - 31) / 6)) * Math.min(1, Math.max(0, (s.el - 20) / 20)) * (1 - w.cover * 0.8) * (1 - w.rain);
     this.shimmer.uniforms.uAmt.value = 0;
+    this.shimmer.uniforms.uNight.value = s.night;
     if (heat > 0.02) {
       const f = this.camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(20000).add(this.camera.position);
       f.y = this.camera.position.y * 0.98;
