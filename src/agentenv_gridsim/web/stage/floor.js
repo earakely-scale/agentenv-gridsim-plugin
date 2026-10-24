@@ -518,7 +518,7 @@ export function buildFloor(d, { sky, fog, background }) {
     merit: (u) => ({ pos: [0, 2.3, -2.75 + 0.3 * u], look: [0, 2.12, WALL.z], fov: 34 }),
     clock: (u) => ({ pos: [-2 * WALL.pw + 0.35 - 0.3 * u, 2.3, -2.95 + 0.25 * u], look: [-2 * WALL.pw, 2.12, WALL.z], fov: 32 }),
     prices: (u) => ({ pos: [2 * WALL.pw - 0.35 + 0.3 * u, 2.3, -2.95 + 0.25 * u], look: [2 * WALL.pw, 2.12, WALL.z], fov: 32 }),
-    deal: (u) => ({ pos: [-1.7 + 0.2 * u, 1.38, A_DESK.z + 0.25], look: [0.15, 1.12, A_DESK.z + 0.1], fov: 44 }),
+    deal: (u) => ({ pos: [-2.05 + 0.15 * u, 1.55, A_DESK.z + 0.95], look: [0.1, 1.08, A_DESK.z - 0.05], fov: 40 }),
     window: (u) => ({ pos: [10.4, 1.65, 7.2 - 0.6 * u], look: [7.5, 1.0, -6], fov: 52 }),
   };
   return { scene, update, cams, wall: WALL, aDesk: A_DESK, sun, hemi };
