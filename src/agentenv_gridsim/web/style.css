@@ -112,18 +112,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .timeline { position: absolute; left: 50%; transform: translateX(-50%); width: min(1500px, calc(100% - 2 * var(--gap))); bottom: calc(var(--gap) + 12px); height: var(--tl); z-index: 5; padding: 8px 14px 6px 14px; display: grid; grid-template-columns: 196px 1fr; gap: 14px; background: rgba(252, 251, 248, 0.88); }
 .ctl { display: flex; flex-direction: column; gap: 7px; justify-content: center; }
-.ctl .back { align-self: center; white-space: nowrap; }
+.ctl .back { white-space: nowrap; font-size: 12px; }
 .ctl .row { display: flex; gap: 6px; }
 .ctl button { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 5px 9px; font-size: 12.5px; }
 .ctl button.on { background: #2c3440; color: #fff; border-color: #2c3440; }
 .ctl .play { font-size: 15px; font-weight: 650; min-width: 74px; }
-.tl { position: relative; cursor: pointer; user-select: none; padding-bottom: 16px; }
+.tl { position: relative; cursor: pointer; user-select: none; padding-bottom: 16px; padding-top: 14px; }
 .tl .hours { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; font-size: 11px; color: var(--faint); pointer-events: none; }
 .tl .hours span { position: absolute; transform: translateX(2px); white-space: nowrap; }
 .tl svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.tl .ph { position: absolute; top: 6px; bottom: 18px; width: 2px; background: #1c2329; border-radius: 1px; pointer-events: none; }
+.tl .ph { position: absolute; top: 18px; bottom: 18px; width: 2px; background: #1c2329; border-radius: 1px; pointer-events: none; }
 .tl .ph::before { content: ""; position: absolute; top: -5px; left: -5px; width: 12px; height: 12px; border-radius: 50%; background: #1c2329; }
-.legend { position: absolute; right: 0; top: -2px; display: flex; gap: 12px; font-size: 11px; color: var(--faint); }
+.legend { position: absolute; right: 0; top: -4px; display: flex; gap: 12px; font-size: 11px; color: var(--faint); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .attrib { position: absolute; left: 0; right: 0; bottom: 6px; z-index: 6; text-align: center; font-size: 11.5px; color: rgba(255, 255, 255, 0.86); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); pointer-events: none; }
 
@@ -189,3 +189,5 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .ep.bare .card, .ep.bare .news, .ep.bare .timeline, .ep.bare .right, .ep.bare .drawer, .ep.bare .intro, .ep.bare .settings { display: none !important; }
 .place .bill { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: #fbeceb; border: 1px solid #f1c9c5; font-size: 12.5px; color: #8a2a22; }
 .place .bill b { font-size: 15px; }
+.back-link { position: absolute; left: var(--gap); bottom: 6px; z-index: 6; font-size: 12px; color: rgba(255, 255, 255, 0.9); text-decoration: none; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.ep.bare .back-link { display: none; }

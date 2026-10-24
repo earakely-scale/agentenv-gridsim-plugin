@@ -77,7 +77,7 @@ export function buildDirector(d, L, { night }) {
     city(u) {
       const b = ((d.region.city.bearing - d.region.line + 540) % 360) - 180;
       const a = (b * Math.PI) / 180;
-      return { pos: [L.sx + 40 + 10 * u, 9, 70], look: [L.sx + 40 + Math.cos(a) * 4000, 70, 70 + Math.sin(a) * 4000], fov: 13 };
+      return { pos: [L.sx + 40 + 10 * u, 32, 70], look: [L.sx + 40 + Math.cos(a) * 4000, 60, 70 + Math.sin(a) * 4000], fov: 13 };
     },
     sub(u) {
       return { pos: [L.sx - 34 + 12 * u, 11, 36], look: [L.sx + 4, 5, -2], fov: 48 };

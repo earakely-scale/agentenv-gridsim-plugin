@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         with session(url, chrome, width, height) as (page, ready, gl):
             print(f"renderer: {gl}; shots: {[s['kind'] for s in ready['shots']]}")
             if args.still or args.thumb:
-                t = args.t if args.still else telling_hour(ep)
+                t = args.t if args.still or args.t != 19.5 else telling_hour(ep)
                 for w in (0, 1 / 30, 1 / 30):
                     page.js(f"gridsim.time({t}, {{dt: {w}}})")
                 out = args.still or args.thumb

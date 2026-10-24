@@ -109,11 +109,12 @@ def main(argv: list[str] | None = None) -> int:
     if hero:
         hero["hero"] = True
         hero["blurb"] = blurb(json.loads((out / "runs" / hero["url"]).read_text()))
+        hero["hero_moment"] = "the evening ramp"
         if args.thumbs:
             thumb = out / "thumbs" / f"{hero['id']}.jpg"
             subprocess.run([sys.executable, str(ROOT / "scripts" / "record.py"), "--episode", str(out / "runs" / hero["url"]),
                             "--weather", str(out / "weather" / f"{hero['date']}_{hero['point']}.json"), "--thumb",
-                            str(thumb)], check=True)
+                            str(thumb), "--t", str(evening(out / "runs" / hero["url"])), "--extra", "ui=0&shot=ramp"], check=True)
             hero["thumb"] = f"thumbs/{thumb.name}"
     (out / "runs" / "index.json").write_text(json.dumps({"schema": "gridsim.runs/v1", "episodes": entries}, indent=1))
     models = sorted({e["model"] for e in entries})
@@ -152,7 +153,14 @@ def entry(ep: dict, url: str) -> dict:
             "checkpoint_step": ep.get("checkpoint_step"), "reward": ep.get("reward"), "r_opt": ep.get("r_opt"),
             "profit": ep.get("profit_usd"), "p_opt": (ep.get("references") or {}).get("p_opt"), "date": t["date"],
             "point": t["settlement_point"], "region": t["region"], "archetype": b.get("archetype"),
-            "battery": f"{b['p_dis_mw']:g} MW / {b['energy_mwh']:g} MWh", "truncated": ep.get("truncated_at") is not None}
+            "battery": f"{b['p_dis_mw']:g} MW / {b['energy_mwh']:g} MWh", "truncated": ep.get("truncated_at") is not None,
+            "interest": interest(t["prices"])}
+
+
+def interest(p: list[float]) -> float:
+    """How much a day shows: negative midday hours and an evening ramp well above the median."""
+    med = sorted(p)[12]
+    return sum(1 for x in p[9:17] if x < 0) + min(4.0, max(p[16:22]) / max(10.0, med))
 
 
 def pick_hero(entries: list[dict], wanted: str | None) -> dict | None:
@@ -160,8 +168,19 @@ def pick_hero(entries: list[dict], wanted: str | None) -> dict | None:
         return next((e for e in entries if e["id"] == wanted), None)
     day = [e for e in entries if e["task_id"] == HERO_TASK]
     real = [e for e in day if not e["model"].startswith("reference/")]
-    pool = real or [e for e in day if e["model"] == "reference/dp-optimum"] or entries
+    if real:
+        return max(real, key=lambda e: e["reward"] or 0)
+    others = [e for e in entries if not e["model"].startswith("reference/") and e["tier"] == "foresight"]
+    if others:
+        return max(others, key=lambda e: ((e["reward"] or 0) >= 0.85, e["interest"], e["reward"] or 0))
+    pool = [e for e in day if e["model"] == "reference/dp-optimum"] or entries
     return max(pool, key=lambda e: e["reward"] or 0, default=None)
+
+
+def evening(path: Path) -> float:
+    """The hour the thumbnail shows: the evening peak (4 pm to 10 pm), a little past the half hour."""
+    p = json.loads(path.read_text())["task"]["prices"]
+    return max(range(16, 22), key=lambda h: p[h]) + 0.6
 
 
 def blurb(ep: dict) -> str:

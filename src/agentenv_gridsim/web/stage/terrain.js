@@ -26,7 +26,11 @@ export function heightFn(region) {
   return (x, z) => {
     const r = Math.hypot(x, z);
     let h = (fbm2(x * 0.0011 + 3, z * 0.0011 + 9, 3) - 0.5) * 6 * smooth(350, 1500, r);
-    if (region.hills) h += Math.max(0, fbm2(x * 0.00042 + 11, z * 0.00042 + 5, 4) - 0.32) * 210 * region.hills * smooth(500, 3800, r);
+    if (region.hills) {
+      const b = Math.atan2(x, -z) / DEG;
+      const off = Math.abs(((b - region.city.bearing + 540) % 360) - 180);
+      h += Math.max(0, fbm2(x * 0.00042 + 11, z * 0.00042 + 5, 4) - 0.32) * 210 * region.hills * smooth(500, 3800, r) * (0.15 + 0.85 * smooth(6, 20, off));
+    }
     if (cap) {
       const b = ((Math.atan2(x, -z) / DEG) + 360) % 360;
       const [a0, a1] = cap.span;
@@ -127,10 +131,15 @@ function shrubGeometry(kind, r) {
     s.translate(0, 1.0, 0);
     parts.push(s);
   } else {
-    const s = new THREE.IcosahedronGeometry(0.5, 0);
-    s.scale(1.2, 0.45, 1.2);
-    s.translate(0, 0.18, 0);
-    parts.push(s);
+    for (let i = 0; i < 9; i++) {
+      const b = new THREE.ConeGeometry(0.05 + r() * 0.04, 0.5 + r() * 0.5, 3);
+      b.translate(0, 0.3, 0);
+      b.rotateZ((r() - 0.5) * 0.7);
+      b.rotateX((r() - 0.5) * 0.7);
+      const a = r() * Math.PI * 2, rr = r() * 0.3;
+      b.translate(Math.cos(a) * rr, 0, Math.sin(a) * rr);
+      parts.push(b);
+    }
   }
   return mergeGeometries(parts.map((p) => p.toNonIndexed()));
 }
@@ -189,7 +198,7 @@ function scatter(group, { n, kind, r: [r0, r1] }, heightAt, avoid, seed, geomOf,
   return mesh;
 }
 
-const SHRUB = { creosote: ["#6f7444", "#7a7a4a", "#65693e", "#858353"], mesquite: ["#4a4f31", "#545a37", "#5d5b3a", "#46482f", "#6a6544"], grass: ["#8a8a52", "#9a9258", "#7b8048"], juniper: ["#3c4a2e", "#36452c", "#465538"] };
+const SHRUB = { creosote: ["#6f7444", "#7a7a4a", "#65693e", "#858353"], mesquite: ["#4a4f31", "#545a37", "#5d5b3a", "#46482f", "#6a6544"], grass: ["#8e8c55", "#a09a62", "#7d8249", "#b0a66e"], juniper: ["#3c4a2e", "#36452c", "#465538"] };
 const TREE = { oak: ["#4e6233", "#56693a", "#46592f"], pine: ["#3a4f2c", "#344828", "#40562f"] };
 
 /** The land: the ground out to the horizon, the gravel pad, the access road, shrubs and trees. */

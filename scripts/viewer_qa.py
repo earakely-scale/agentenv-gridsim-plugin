@@ -93,7 +93,8 @@ def main(argv: list[str] | None = None) -> int:
                 for r in rows:
                     print(f"t={r['t']:.1f} shot={r['shot']} p50={r['frameMsP50']:.1f}ms p95={r['frameMsP95']:.1f}ms "
                           f"calls={r['calls']} tris={r['tris']} geo={r['geometries']} tex={r['textures']} heap={r['heap']:.0f}MB")
-    sheet(stills, args.out / "qa-contact.jpg")
+    if stills:
+        sheet(stills, args.out / "qa-contact.jpg")
     for f in failures:
         print("FAIL", f)
     print(f"{len(stills)} stills, {len(failures)} failures -> {args.out / 'qa-contact.jpg'}")

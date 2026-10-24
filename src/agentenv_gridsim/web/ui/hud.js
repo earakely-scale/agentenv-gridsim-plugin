@@ -29,7 +29,9 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   right.append(race, think);
   const timeline = el("section", "card timeline");
   const attrib = el("div", "attrib", ATTRIBUTION);
-  root.append(place, news, right, timeline, attrib);
+  const back = el("a", "back-link", "← All runs");
+  back.href = "./index.html";
+  root.append(place, news, right, timeline, attrib, back);
 
   const ghosts = d.ghosts;
   const same = (g) => g && JSON.stringify(g.sched) === JSON.stringify(d.ep.final_schedule);
@@ -51,7 +53,7 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   think.innerHTML = reasoning(d);
   timeline.innerHTML = `<div class="ctl"><div class="row"><button class="play" data-a="play">▶ Play</button><button data-a="director" class="on" title="Automatic camera (D)">Director</button></div>
     <div class="row speeds">${[0.5, 1, 2, 4].map((s, i) => `<button data-s="${s}" title="${i + 1}">${s === 0.5 ? "½" : s}×</button>`).join("")}</div>
-    <div class="row"><button data-a="charts" title="C">Charts</button><button data-a="settings">Settings</button><a class="back" href="./index.html">All runs</a></div></div>
+    <div class="row"><button data-a="charts" title="C">Charts</button><button data-a="settings">Settings</button><button data-a="link" title="Copy a link to this hour">Link</button></div></div>
     <div class="tl"><div class="hours">${[0, 3, 6, 9, 12, 15, 18, 21].map((h) => `<span style="left:${(h / 24) * 100}%">${hourLabel(h)}</span>`).join("")}</div><div class="legend"><span><i style="background:var(--charge-l)"></i>charge</span><span><i style="background:var(--discharge-l)"></i>discharge</span><span><i style="background:var(--ghost)"></i>optimum (ghost)</span><span><i style="border:1.5px dashed #1c2329"></i>differs</span></div>${tlSvg(d)}<div class="ph"></div></div>`;
   const tl = timeline.querySelector(".tl");
   const ph = tl.querySelector(".ph");

@@ -58,7 +58,7 @@ function pulseMaterial() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float d = -mv.z;
         vA = aA * exp(-d * uFog * 1.2);
-        gl_PointSize = clamp(uSize * uScale / d, 3.5, 72.0);
+        gl_PointSize = clamp(uSize * uScale / d, 3.5, 40.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `

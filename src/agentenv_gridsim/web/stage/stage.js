@@ -38,6 +38,7 @@ export class GridStage {
     r.setPixelRatio(pixelRatio);
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
+    r.info.autoReset = false;
     r.domElement.className = "stage-canvas";
     container.appendChild(r.domElement);
     this.scene = new THREE.Scene();
@@ -154,6 +155,7 @@ export class GridStage {
   /** Render hour t; dt and wall are presentation seconds (fans, rotors, rain, pulses move on these). */
   frame({ t, dt = 1 / 60, wall = 0 }) {
     const t0 = performance.now();
+    this.renderer.info.reset();
     const { d } = this;
     const tt = Math.max(0, Math.min(24, t));
     const w = weatherAt(d.weather, tt);

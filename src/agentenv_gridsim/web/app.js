@@ -7,6 +7,7 @@ import { buildSound } from "./ui/sound.js";
 
 const SECONDS_PER_HOUR = 3;
 const INTRO = -2;
+const FPS = { n: 0, t0: performance.now() };
 const q = new URLSearchParams(location.search);
 const app = document.getElementById("app");
 
@@ -60,6 +61,13 @@ async function main() {
       else if (a === "director") stage.direct(!stage.directing);
       else if (a === "charts") charts.toggle();
       else if (a === "settings") settings.hidden = !settings.hidden;
+      else if (a === "link") {
+        const u = new URL(location.href);
+        u.searchParams.delete("t");
+        u.searchParams.set("hour", String(Math.min(24, Math.max(1, Math.floor(P.t) + 1))));
+        history.replaceState(null, "", u);
+        navigator.clipboard?.writeText(u.href).catch(() => {});
+      }
     },
   });
   addEventListener("keydown", (e) => {
@@ -91,11 +99,14 @@ async function main() {
       return P.t;
     },
     state: () => ({ t: P.t, ...stage.state() }),
+    fps: () => FPS.n / Math.max(1e-3, (performance.now() - FPS.t0) / 1000),
+    play: (speed = 1) => ((P.playing = true), (P.speed = speed), (FPS.n = 0), (FPS.t0 = performance.now())),
     stage,
   };
   if (!manual) {
     let last = performance.now();
     const loop = (now) => {
+      FPS.n++;
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       P.wall += dt;
