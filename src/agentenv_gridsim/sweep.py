@@ -552,6 +552,10 @@ class Board:
     def planned(self, cell) -> int:
         return sum(1 for s in self.cells[cell] for run in s.runs() if run[0] == cell[0])
 
+    def spend(self, cell) -> tuple[float, int]:
+        attempts = self.attempts(cell)
+        return sum(r["cost_usd"] or 0.0 for r in attempts), sum(r["cost_usd"] is None for r in attempts)
+
     def played(self, cell) -> list[dict]:
         return [self.tasks[t] for t in dict.fromkeys(t for s in self.cells[cell] for t in s.tasks)]
 
@@ -632,7 +636,7 @@ class Board:
     def tier_rows(self, tier: str) -> list[dict]:
         """The days played at ``tier``, which its baselines are averaged over when sweeps at two tiers share a
         board."""
-        cells = [cell for cell in self.cells if cell[1] == tier]
+        cells = [cell for cell in self.cells if cell[2] == tier]
         ids = {t for cell in cells for t in self.scored(cell)} or {t for s in self.sweeps if s.tier == tier
                                                                    for t in s.tasks}
         return [self.tasks[t] for t in sorted(ids) if t in self.tasks]
@@ -804,8 +808,7 @@ def live_model(board: Board, cell) -> dict:
     lo_hi = ci(rewards) if rewards else None
     capture = [statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()]
     costs = [priced(r) for r in runs if priced(r) is not None]
-    attempts = board.attempts(cell)
-    known, unknown = sum(r["cost_usd"] or 0.0 for r in attempts), sum(r["cost_usd"] is None for r in attempts)
+    known, unknown = board.spend(cell)
     effort = sorted({r.get("effort") for r in runs if r.get("effort")})
     return {"model": name, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
             "runs": len(runs), "planned": board.planned(cell), "tasks": len(mean),
@@ -914,8 +917,7 @@ def hybrid_model(board: Board, cell) -> dict:
     rewards = list(mean.values())
     lo_hi = ci(rewards) if rewards else None
     costs = [priced(r) for r in runs if priced(r) is not None]
-    attempts = board.attempts(cell)
-    known, unknown = sum(r["cost_usd"] or 0.0 for r in attempts), sum(r["cost_usd"] is None for r in attempts)
+    known, unknown = board.spend(cell)
     effort = sorted({r.get("effort") for r in runs if r.get("effort")})
     sponge = {t: ((board.tasks.get(t, {}).get("refs") or {}).get(tier) or {}).get("baselines", {}).get("sponge")
               for t in mean}
@@ -1070,9 +1072,8 @@ def report(sweeps: list[Sweep], card_path: Path | None = None, board_path: Path 
     card_path.parent.mkdir(parents=True, exist_ok=True)
     card_path.write_text(json.dumps(c, indent=2) + "\n")
     board_path.parent.mkdir(parents=True, exist_ok=True)
-    board_path.write_text((make_board(c, intro) if make_board is board_md else make_board(c))
-                          + (f"\n{outro}\n" if outro else "") + "\n## Unscored runs\n\n"
-                          + "\n".join(unscored(board)) + "\n")
+    board_path.write_text((make_board(c, intro) if intro else make_board(c)) + (f"\n{outro}\n" if outro else "")
+                          + "\n## Unscored runs\n\n" + "\n".join(unscored(board)) + "\n")
     return c
 
 

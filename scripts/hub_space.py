@@ -38,7 +38,8 @@ LIVE_PACKS = ("gridsim-live-showcase", "gridsim-live-eval", "gridsim-live-test-2
 LIVE_HERO_TASK = "live-v2-2023-09-06-HB_NORTH-2h-l"
 HYBRID_PACKS = ("ercot-hybrid-v3-showcase", "ercot-hybrid-v3-eval", "ercot-hybrid-v3-rtcb", "fixtures-hybrid",
                 "ercot-hybrid-v3-train")
-HYBRID_HERO_TASK = "hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150"
+HYBRID_HERO_TASKS = ("hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150",
+                     "hyb-v3-2024-03-29-HB_WEST-pv150-b100x2h-poi150")
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
           "reference/naive": "naive (reference)", "reference/as-hog": "AS-hog (reference)",
           "reference/solar-sponge": "the solar sponge (reference)",
@@ -353,12 +354,13 @@ def hybrid_entry(ep: dict, url: str) -> dict:
 
 
 def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
-    """The v3 preview's featured day: the best real run on the hero day, else its rolling anchor, else the v3 day with
-    the most deployments."""
+    """The v3 preview's featured day: the best real reserves-tier run on the first hero day that has one, else the first
+    hero day's rolling anchor, else the v3 day with the most deployments."""
     pool = [e for e in entries if e["version"] == "v3"]
-    day = [e for e in pool if e["task_id"] == HYBRID_HERO_TASK]
-    e = (max([x for x in day if real(x)], key=lambda x: x["reward"] or 0, default=None)
-         or next((x for x in day if x["model"] == "reference/rolling-anchor"), None)
+    runs = [[x for x in pool if x["task_id"] == t and x["tier"] == "reserves" and real(x)] for t in HYBRID_HERO_TASKS]
+    e = (next((max(rs, key=lambda x: x["reward"] or 0) for rs in runs if rs), None)
+         or next((x for x in pool if x["task_id"] == HYBRID_HERO_TASKS[0] and x["model"] == "reference/rolling-anchor"),
+                 None)
          or max(pool, key=lambda x: x["interest"], default=None))
     if e is None:
         return None
