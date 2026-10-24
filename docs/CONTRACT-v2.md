@@ -130,7 +130,9 @@ every agent tool's output and serialises it. `s.transcript` records every `call`
 
 ## Tools (agent role `default`; outputs are the dicts below plus `"messages"`)
 
-Common errors (no state change, no planning call used): `{"error": "...", "planning_calls_left": n}`.
+Errors return `{"error": "...", "planning_calls_left": n}` and change nothing: a planning tool after the day or with
+no calls left uses no call; a planning tool with a missing or unexpected argument uses one (L-D7). Refusals (`accepted:
+false`, `feasible: false`) use one.
 
 - `get_situation()` (free; answers after the day too):
 
@@ -250,6 +252,16 @@ other notices recomputes them. Packs: `gridsim-live-train` (~4,000, 2019–2024 
 `heather-0116`, `aug23-0820`, `fern-0126`; every showcase day ±3 days is out of every split) and `data/fixtures-live/`
 (20 CI tasks, including a derate fixture). `scripts/build_live_pack.py --merge-notices data/notices/notices.jsonl`
 re-attaches notices and recomputes refs, eligibility and tags without re-parsing.
+
+Lane N's `notices.jsonl` rows are the notice shape above plus an optional `points` list (null = system-wide; NWS
+county alerts list the settlement points they cover). A task gets the rows issued from 24 h before watch 0 to D 24:00
+that are system-wide or list its point; unknown keys are dropped and text is trimmed to 600 characters.
+
+**Eligibility** (FD-4321, measured and tuned in `data/live-stats.md`): RT–DA divergence Σ|RT_t − DA_h(t)|·0.25 ≥
+$40/MW; P_hind − P_idle ≥ $10/MW; P_roll − P_naive ≥ $5/MW and ≥ a share of (P_hind − P_idle) that V2-D5 raises from
+5% in 2.5-point steps until naive's mean R on the eval pool is ≤ 0.7 (cap 15%). Because the anchor beats naive by that
+margin on only ~2–4% of battery-days, each point-day is drawn with several batteries (train 8, eval 12, test and rtcb
+3) and selection takes one battery per point-day before a second.
 
 ## Episode JSON `gridsim.episode/v2` (path A, path B' and references write the same shape)
 
