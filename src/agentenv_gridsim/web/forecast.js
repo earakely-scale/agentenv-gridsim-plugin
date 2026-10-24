@@ -33,7 +33,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function buildForecast(ep, weather = null) {
-  const task = ep.task, d1 = task.d1, n = task.days || (ep.tier === "front-lite" ? 2 : 3), H = 24 * n, E = H;
+  const task = ep.task, d1 = task.d1, n = ep.hours.length / 24, H = 24 * n, E = H;
   const lite = ep.tier === "front-lite";
   const site = task.site, bess = site.bess, era = task.era || "B", dur = DURATION[era];
   const offered = lite ? [] : Object.keys(task.mcpc_da || {}).filter((k) => dur[k] != null);
@@ -46,7 +46,6 @@ export function buildForecast(ep, weather = null) {
   const tz = tzOffsetMinutes(d1);
   const d1ms = Date.parse(`${d1}T00:00:00Z`) - tz * 60000;
   const tOf = (iso) => (Date.parse(iso) - d1ms) / 3600000;
-  const dates = Array.from({ length: n }, (_, k) => new Date(Date.parse(`${d1}T12:00:00Z`) + k * DAY_MS));
   const dayName = (k) => {
     const x = new Date(Date.parse(`${d1}T12:00:00Z`) + k * DAY_MS);
     return `${DAY_NAMES[x.getUTCDay()]} ${MONTHS[x.getUTCMonth()]} ${x.getUTCDate()}`;
@@ -54,7 +53,7 @@ export function buildForecast(ep, weather = null) {
 
   const watches = ep.watches.map((w) => {
     const min = minuteOf(w.time, d1), fz = minuteOf(w.freeze_line, d1);
-    return { ...w, min, t: min / 60, freezeMin: fz, freezeH: clamp(Math.ceil(fz / 60), 0, H), calls: [], reads: [], refused: [], dam: [], gate: null, results: null };
+    return { ...w, min, t: min / 60, freezeMin: fz, freezeH: clamp(Math.ceil(fz / 60), 0, H), calls: [], reads: [], refused: [], dam: [], gate: null };
   });
   const notices = (ep.notices || []).map((x) => {
     const w = x.watch != null ? watches[x.watch] : null;
@@ -64,14 +63,12 @@ export function buildForecast(ep, weather = null) {
   for (let k = 0; k < n; k++) {
     const g = watches.find((w) => w.min === gateMin(k));
     if (g) g.gate = k;
-    const r = watches.find((w) => w.min >= resultsMin(k));
-    if (r && r.results == null) r.results = k;
   }
 
   const realized = {};
   let book = { energy: Array(H).fill(0) };
   let xda = Array(H).fill(null), eda = Array(H).fill(null), awards = Object.fromEntries(offered.map((k) => [k, Array(H).fill(0)]));
-  const snaps = [], vintagesNew = [];
+  const snaps = [];
   for (const w of watches) {
     for (const s of ep.steps.filter((x) => x.watch === w.index)) {
       const out = s.output || {};
@@ -96,7 +93,6 @@ export function buildForecast(ep, weather = null) {
       if ((s.tool === "get_forecast" || s.tool === "get_forecast_drift") && !out.error) w.reads.push(s);
     }
     snaps.push({ book, xda, eda, awards });
-    vintagesNew.push(w.new_vintages || []);
   }
 
   const wins = notices.filter((x) => x.deploy && dur[x.deploy.product] != null).map((x) => {
@@ -140,15 +136,14 @@ export function buildForecast(ep, weather = null) {
 
   const d = {
     hybrid: true, live: true, forecast: true, lite, ep, task: { ...task, date: d1 }, site, b, E: Ebat, P, eta, L, Limp, era, dur, offered,
-    prices: da, rt, place, region, weather, watches, notices, snaps, vintagesNew, hours, agentCum, wins, peakH, median: sorted[Math.floor(H / 2)],
+    prices: da, rt, place, region, weather, watches, notices, snaps, hours, agentCum, wins, peakH, median: sorted[Math.floor(H / 2)],
     firstNeg: hours.findIndex((x) => x.neg && x.pvAvail > 1), trunc: null, reward: ep.reward, capture: ep.r_hind, n, H, end: E, t0: OPEN,
-    pvPeak: Math.max(...hours.map((x) => x.pvAvail)), pvMwac: lite ? 0 : site.pv_mwac, d1, dates, dayName, tz, d1ms, tOf, vint, wx, front, frost, hub,
-    lanes: (ep.race || []).map((l) => ({ ...l })), dam: ep.dam || [],
+    pvPeak: Math.max(...hours.map((x) => x.pvAvail)), pvMwac: lite ? 0 : site.pv_mwac, d1, dayName, tOf, vint, wx, front,
+    lanes: (ep.race || []).map((l) => ({ ...l })),
     dateLabel: dayName(0),
     message: (ep.messages || []).filter((m) => m.role === "assistant").map((m) => m.content).join("\n\n"),
   };
   d.s0 = bess.s0_mwh;
-  d.clockH = (t) => t;
   d.at = (t) => at(d, t);
   d.pre = (t) => preAt(d, t);
   d.watchAt = (t) => {
@@ -164,7 +159,7 @@ export function buildForecast(ep, weather = null) {
   return d;
 }
 
-/** A series sampled every quarter hour from t = -16, read at t with linear interpolation. */
+/** A series sampled every dt hours from t0, read at t with linear interpolation. */
 function sample(s, t) {
   const x = (t - s.t0) / s.dt, i = clamp(Math.floor(x), 0, s.v.length - 2), u = clamp(x - i, 0, 1);
   return s.v[i] + (s.v[i + 1] - s.v[i]) * u;

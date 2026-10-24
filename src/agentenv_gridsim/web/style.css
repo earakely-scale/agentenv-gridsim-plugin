@@ -567,8 +567,8 @@ span.gl2.off { border-color: #c5cbcf; color: var(--faint); background: transpare
 .ep.is-forecast .race.ended .lane { margin: 2px 0; }
 .ep.is-forecast .right.ended .planlog { display: none; }
 .ep.is-forecast .race.ended svg.spark { display: none; }
-.tl.fc { padding-bottom: 20px; }
-.tl.fc .hours.fc { left: 40px; height: 16px; }
+.tl.fc { padding-bottom: 22px; }
+.tl.fc .hours.fc { left: 40px; height: 16px; bottom: 3px; }
 .tl.fc .hours.fc span { transform: translateX(3px); }
 .tl.fc .hours.fc span.day { font-weight: 650; color: var(--ink2); }
 .tl.fc .hours.fc span.gt { font-size: 9.5px; font-weight: 700; color: #8a5200; transform: translateX(-50%); top: -1px; padding: 0 4px; border-radius: 3px; background: #fdf3e3; border: 1px solid rgba(180, 105, 14, 0.45); line-height: 13px; }
@@ -593,6 +593,10 @@ span.gl2.off { border-color: #c5cbcf; color: var(--faint); background: transpare
   .ep.is-forecast .bulletins .bul:not(:first-child) { display: none; }
   .ep.is-forecast .race svg.spark { height: 36px; }
   .fan .cap { min-height: 0; }
+}
+@media (max-height: 780px) and (min-width: 901px) {
+  .ep.is-forecast .right .planlog { display: none; }
+  .ep.is-forecast .fan .cap { display: none; }
 }
 @media (max-width: 900px) {
   .ep.is-forecast { --tl: 176px; }

@@ -442,7 +442,7 @@ def drift(ep: dict) -> float:
             continue
         h0 = round((datetime.fromisoformat(v["start"].replace("Z", "+00:00")) - d1).total_seconds() / 3600)
         for i, x in enumerate(v["fields"].get("rt_p50") or []):
-            if 0 <= h0 + i < 24 * t["days"]:
+            if 0 <= h0 + i < len(ep["hours"]):
                 by.setdefault(h0 + i, []).append(x)
     spans = [max(x) - min(x) for x in by.values() if len(x) > 1]
     return round(sum(spans) / len(spans), 2) if spans else 0.0
@@ -458,8 +458,9 @@ def forecast_entry(ep: dict, url: str, task: dict) -> dict:
             "model_label": ep.get("model_label"), "version": "v4", "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"), "r_opt": ep.get("r_hind"),
             "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"), "p_anchor": r.get("p_anchor"),
-            "p_blind": r.get("p_blind"), "beats_anchor": ep.get("beats_anchor"), "date": t["d1"], "days": t["days"],
-            "point": t["settlement_point"], "region": t["region"], "era": t.get("era"), "source": ep.get("source"),
+            "p_blind": r.get("p_blind"), "beats_anchor": ep.get("beats_anchor"), "date": t["d1"],
+            "days": len(ep["hours"]) // 24, "point": t["settlement_point"], "region": t["region"], "era": t.get("era"),
+            "source": ep.get("source"),
             "battery": (f"{st['bess']['p_mw']:g} MW / {st['bess']['e_mwh']:g} MWh" if lite else
                         f"PV {st['pv_mwac']:g} MWac · {st['bess']['p_mw']:g} MW / {st['bess']['e_mwh']:g} MWh"),
             "watches": len(ep["watches"]), "deployments": len(deps), "top_notice": top and top.get("level"),
@@ -500,8 +501,9 @@ def forecast_blurb(ep: dict, e: dict) -> str:
     gates = sum(1 for x in ep.get("dam") or [] if not x.get("missed"))
     synth = (" The forecast vintages in this CI window are synthetic; prices, PV and the weather are real."
              if e["synthetic"] else "")
-    return (f"{region}, {t['days']} operating days from {t['d1']}: {who} bids each day's book at the 10 am DAM gate "
-            f"the day before ({gates} of {t['days']} gates) and re-plans at {len(ep['watches'])} watches as weather "
+    days = len(ep["hours"]) // 24
+    return (f"{region}, {days} operating days from {t['d1']}: {who} bids each day's book at the 10 am DAM gate "
+            f"the day before ({gates} of {days} gates) and re-plans at {len(ep['watches'])} watches as weather "
             f"runs and bulletins arrive. The price guide moves ${e['drift']:,.0f}/MWh between runs on an average hour; "
             f"real time reaches ${t['rt'][h]:,.0f}/MWh on day {h // 24 + 1}. It makes ${ep['profit_usd']:,.0f} "
             f"against the blind re-planner's ${r.get('p_blind', 0):,.0f} and hindsight's ${r.get('p_hind', 0):,.0f}."

@@ -59,7 +59,7 @@ export class GridStage {
     this.site = new THREE.Group();
     this.site.rotation.y = this.yaw;
     const U = { uWet: { value: 0 } };
-    const hyb = !!d.hybrid;
+    const hyb = !!d.hybrid && !d.lite;
     this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed, ...(hyb ? { bands: true } : {}) });
     const L = this.yard.layout;
     this.plantL = hyb ? plantLayout(d.site, L, this.yaw, seed) : null;
@@ -103,7 +103,7 @@ export class GridStage {
       U.uFrost = { value: 0 };
       U.uSnowD = { value: 0 };
       U.uRime = { value: 0 };
-      if (hyb && !d.lite) for (const mesh of this.plant.panels) frostOn(mesh.material[2], U);
+      if (hyb) for (const mesh of this.plant.panels) frostOn(mesh.material[2], U);
       if (d.cold) this.scene.traverse((o) => {
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of ms) if (m?.isMeshStandardMaterial) coverOn(m, U, !m.userData.frost);
@@ -219,7 +219,7 @@ export class GridStage {
       const e = x.exp;
       this.line.update({ dir: e > 1 ? 1 : e < -1 ? -1 : 0, load: Math.abs(e) / Math.max(1, d.L), color: e < 0 ? COLORS.charge : x.net > 0.5 ? COLORS.discharge : SOLAR, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
       const sun = this.sky.sunAt(clock);
-      this.plant.update({ tilt: trackerAngle(sun.el, sun.az), off: x.off, pv: x.pvUsed, net: x.net, exp: e, head: x.upMw, night: s.night, dt, height, fog: this.scene.fog.density, day: s.day, reduced: this.reduced });
+      this.plant?.update({ tilt: trackerAngle(sun.el, sun.az), off: x.off, pv: x.pvUsed, net: x.net, exp: e, head: x.upMw, night: s.night, dt, height, fog: this.scene.fog.density, day: s.day, reduced: this.reduced });
     } else {
       this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind });
       this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });

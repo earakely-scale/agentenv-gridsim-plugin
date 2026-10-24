@@ -39,7 +39,7 @@ RENDERER = ("(() => { const g = document.createElement('canvas').getContext('web
             "return x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'webgl2'; })()")
 ANSWER_SECONDS = 180
 INTRO, DAY, OUTRO = 5.0, 72.0, 7.0
-INTRO_V4, OPEN_V4 = 9.0, -14.0
+INTRO_V4, HOLD_V4, OPEN_V4 = 11.0, 5.5, -14.0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
         ep = json.loads(args.episode.read_text())
     tk = ep["task"]
     pt = tk["settlement_point"]
-    side = f"{tk['d1']}_{pt}_{tk['days']}d" if "d1" in tk else f"{tk['date']}_{pt}"
+    side = f"{tk['d1']}_{pt}_{len(ep['hours']) // 24}d" if "d1" in tk else f"{tk['date']}_{pt}"
     wx = args.weather or ROOT / "cache" / "weather" / f"{side}.json"
     with serve(ROOT) as port:
         url = (view_url(port, kind, Path(manifest), wx, args.reduced, args.extra) if args.view
@@ -147,8 +147,8 @@ def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: st
 
 def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | None = None) -> None:
     """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score; a training view plays its own
-    duration in seconds. A v4 window plays the day before (from the 10 am gate) in INTRO_V4 seconds and each of its days
-    at seconds per 24 h."""
+    duration in seconds. A v4 window holds on the opening card for HOLD_V4 seconds, plays the rest of the day before by
+    INTRO_V4 and each of its days at seconds per 24 h."""
     out.parent.mkdir(parents=True, exist_ok=True)
     if ep.get("schema") == "gridsim.episode/v4":
         return film_window(page, out, fps, seconds, ep)
@@ -174,16 +174,22 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | 
 
 
 def film_window(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
-    hours = 24 * ep["task"]["days"]
-    span = seconds * ep["task"]["days"]
+    hours = len(ep["hours"])
+    span = seconds * hours / 24
     frames = round((INTRO_V4 + span + OUTRO) * fps)
     encoder = subprocess.Popen(ffmpeg_args(find("ffmpeg"), out, fps, ep["episode_id"]), stdin=subprocess.PIPE)
     t0 = time.monotonic()
     try:
         for i in range(frames):
             s = i / fps
-            t = (OPEN_V4 * (1 - s / INTRO_V4) if s < INTRO_V4 else min(hours, (s - INTRO_V4) / span * hours)
-                 if s < INTRO_V4 + span else hours + (s - INTRO_V4 - span) / 4)
+            if s < HOLD_V4:
+                t = OPEN_V4 + 1.4 * s / HOLD_V4
+            elif s < INTRO_V4:
+                t = (OPEN_V4 + 1.4) * (1 - (s - HOLD_V4) / (INTRO_V4 - HOLD_V4))
+            elif s < INTRO_V4 + span:
+                t = min(hours, (s - INTRO_V4) / span * hours)
+            else:
+                t = hours + (s - INTRO_V4 - span) / 4
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
             shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
             encoder.stdin.write(base64.b64decode(shot["data"]))

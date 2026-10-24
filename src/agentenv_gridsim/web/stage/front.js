@@ -13,6 +13,7 @@ export function buildFront(radius = 58000) {
     uniforms: {
       uP: { value: 0 }, uDir: { value: new THREE.Vector2(0, -1) }, uSun: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color() },
       uDay: { value: 1 }, uNight: { value: 0 }, uHaze: { value: new THREE.Color() }, uTime: { value: 0 }, uA: { value: 0 },
+      uDist: { value: 80 }, uZt: { value: 4 }, uZb: { value: 1 },
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -24,7 +25,7 @@ export function buildFront(radius = 58000) {
     fragmentShader: /* glsl */ `
       uniform vec3 uSun, uSunCol, uHaze;
       uniform vec2 uDir;
-      uniform float uP, uDay, uNight, uTime, uA;
+      uniform float uP, uDay, uNight, uTime, uA, uDist, uZt, uZb;
       varying vec3 vDir;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p) {
@@ -41,38 +42,40 @@ export function buildFront(radius = 58000) {
         vec3 d = normalize(vDir);
         float h = d.y;
         if (h < -0.02 || uA <= 0.0) discard;
-        vec2 hz = normalize(d.xz + 1e-5);
-        float al = dot(hz, normalize(uDir));
-        float az = atan(hz.y, hz.x);
-        float span = smoothstep(-0.45, 0.35, al);
-        float p = pow(uP, 1.5);
-        float arc = 0.3 + 0.7 * smoothstep(-0.45, 1.0, al);
-        float top = mix(0.02, 0.58, p) * arc;
-        float base = mix(0.004, 0.035, p) * arc;
-        float wave = (noise(vec2(az * 2.2, 1.0)) - 0.5) * 0.35 + (fbm(vec2(az * 9.0 + uTime * 0.003, 4.0)) - 0.5) * 0.18;
-        float edge = top * (1.0 + wave);
-        float body = (1.0 - smoothstep(edge - 0.012 - 0.02 * p, edge + 0.004, h)) * smoothstep(base - 0.004, base + 0.006, h);
-        float r = clamp((h - base) / max(0.004, edge - base), 0.0, 1.0);
-        vec2 q = vec2(az * 5.0, h * 60.0 / (0.25 + p));
-        float tex = fbm(q + vec2(uTime * 0.006, 0.0));
-        float scud = fbm(vec2(az * 11.0 + uTime * 0.01, h * 140.0 / (0.25 + p)));
-        float shelfR = r + (tex - 0.5) * 0.18;
-        float tier = smoothstep(0.55, 0.75, shelfR) * (1.0 - smoothstep(0.8, 0.95, shelfR));
-        float capR = smoothstep(0.86, 1.0, shelfR);
+        float rr = max(1e-4, length(d.xz));
+        vec2 hz = d.xz / rr;
+        vec2 fd = normalize(uDir);
+        float al = dot(hz, fd);
+        if (al <= 0.02) discard;
+        float lat = (hz.x * fd.y - hz.y * fd.x) / al * uDist;
+        float te = h / rr;
+        float z = te * uDist / al;
+        float zt = uZt + (fbm(vec2(lat * 0.22 + 3.0, uTime * 0.002)) - 0.5) * 1.6 + (noise(vec2(lat * 1.3, 2.0)) - 0.5) * 0.35;
+        float zb = uZb + (noise(vec2(lat * 0.5, 5.0)) - 0.5) * 0.25;
+        float body = (1.0 - smoothstep(zt - 0.12, zt + 0.02, z)) * smoothstep(zb - 0.05, zb + 0.05, z);
+        float r = clamp((z - zb) / max(0.1, zt - zb), 0.0, 1.0);
+        float tex = fbm(vec2(lat * 0.5 + uTime * 0.01, z * 2.2));
+        float scud = fbm(vec2(lat * 1.4 + uTime * 0.02, z * 7.0));
+        float shelfR = r + (tex - 0.5) * 0.2;
+        float tier = smoothstep(0.5, 0.7, shelfR) * (1.0 - smoothstep(0.78, 0.92, shelfR));
+        float capR = smoothstep(0.84, 1.0, shelfR);
         vec3 sd = normalize(uSun);
-        float lit = clamp(dot(normalize(vec3(uDir.x, 0.35, uDir.y)), sd) * 0.5 + 0.5, 0.0, 1.0) * step(-0.05, sd.y);
-        vec3 under = mix(vec3(0.13, 0.145, 0.17), vec3(0.22, 0.24, 0.28), scud * 0.8 + r * 0.25);
-        vec3 shelf = mix(vec3(0.3, 0.33, 0.37), vec3(0.4, 0.43, 0.47), tex);
-        vec3 cap = mix(vec3(0.46, 0.49, 0.53), vec3(0.58, 0.6, 0.63) + uSunCol * 0.06, lit);
+        float lit = clamp(dot(normalize(vec3(fd.x, 0.35, fd.y)), sd) * 0.5 + 0.5, 0.0, 1.0) * step(-0.05, sd.y);
+        vec3 under = mix(vec3(0.12, 0.135, 0.16), vec3(0.23, 0.25, 0.29), scud * 0.75 + r * 0.25);
+        vec3 shelf = mix(vec3(0.3, 0.33, 0.37), vec3(0.42, 0.45, 0.49), tex);
+        vec3 cap = mix(vec3(0.46, 0.49, 0.53), vec3(0.6, 0.62, 0.65) + uSunCol * 0.06, lit);
         vec3 col = mix(under, shelf, tier * 0.55);
         col = mix(col, cap, capR * 0.7);
         col *= 0.2 + 0.8 * uDay;
         col = mix(col, vec3(0.025, 0.03, 0.04) + vec3(0.05, 0.035, 0.025) * smoothstep(0.3, 0.0, r), uNight * 0.9);
-        col = mix(col, uHaze, (1.0 - smoothstep(0.0, 0.04 + 0.05 * (1.0 - p), h)) * 0.55);
-        float a = body * span * uA * (0.86 + 0.14 * tex);
-        float slot = smoothstep(0.0, base, h) * (1.0 - smoothstep(base, base + 0.01, h)) * span * uA * uDay;
+        float far = 1.0 - smoothstep(0.0, 0.06, te);
+        col = mix(col, uHaze, far * 0.5 * (1.0 - uP));
+        float below = smoothstep(0.58, 0.72, fbm(vec2(lat * 0.9 + uTime * 0.015, z * 3.2))) * smoothstep(zb - 0.5, zb - 0.15, z) * (1.0 - smoothstep(zb - 0.06, zb + 0.04, z));
+        col = mix(col, under * (0.2 + 0.8 * uDay) * 0.9, below * (1.0 - body));
+        float a = max(body, below * 0.75) * uA * (0.86 + 0.14 * tex) * smoothstep(0.02, 0.2, al);
+        float slot = (1.0 - smoothstep(zb * 0.6, zb, z)) * smoothstep(0.0, 0.004, te) * uA * uDay * smoothstep(0.02, 0.3, al);
         col = mix(col, uHaze * 1.08, slot * (1.0 - body));
-        a = max(a, slot * 0.3);
+        a = max(a, slot * 0.25);
         gl_FragColor = vec4(col, a);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -91,6 +94,7 @@ export function buildFront(radius = 58000) {
       mesh.visible = a > 0.002;
       if (!mesh.visible) return 0;
       U.uP.value = Math.min(1, p);
+      U.uDist.value = 80 * Math.max(0, 1 - p) + 0.6;
       const b = (bearing * Math.PI) / 180;
       U.uDir.value.set(Math.sin(b), -Math.cos(b));
       U.uSun.value.copy(s.sunDir);
@@ -101,8 +105,9 @@ export function buildFront(radius = 58000) {
       U.uTime.value = reduced ? 0 : wall;
       const sb = Math.atan2(s.sunDir.x, -s.sunDir.z);
       const toward = Math.max(0, Math.cos(sb - b));
-      const top = 0.02 + 0.56 * Math.pow(Math.min(1, p), 1.5);
-      return a * smooth(0.3, 0.9, toward) * (s.sunDir.y < top ? 1 : 0.3);
+      const top = (4 / U.uDist.value) * toward;
+      const el = s.sunDir.y / Math.max(1e-3, Math.hypot(s.sunDir.x, s.sunDir.z));
+      return a * smooth(0.3, 0.9, toward) * (el < top ? 1 : 0.3);
     },
   };
 }

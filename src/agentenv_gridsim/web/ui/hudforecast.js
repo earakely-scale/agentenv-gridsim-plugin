@@ -372,7 +372,7 @@ function newsEvents(d) {
     if (o.dam_results) {
       const r = o.dam_results, k = Math.round(minuteOf(`${r.operating_day} 00:00`, d.d1) / 1440);
       const pk = r.da_usd.indexOf(Math.max(...r.da_usd));
-      ev.push({ t: w.t + 0.02, until: w.t + 2, kind: "dam", badge: ["DAM results", "dam"], text: `${d.dayName(k)} clears day-ahead: peak ${price(r.da_usd[pk])}/MWh at ${whenText(d, pk * 60, { day: false })}${r.value_usd != null ? `; the book is worth ${money(r.value_usd)} at these prices` : ""}` });
+      ev.push({ t: w.t + 0.02, until: w.t + 2, kind: "dam", badge: ["DAM results", "dam"], text: `${d.dayName(k)} clears day-ahead: peak ${price(r.da_usd[pk])}/MWh at ${whenText(d, pk * 60, { day: false })}${r.value_usd ? `; the book earns ${money((r.value_usd.energy || 0) + (r.value_usd.as || 0))} at these prices${r.value_usd.as ? `, ${money(r.value_usd.as)} of it reserves` : ""}` : ""}` });
     }
   }
   for (const w of d.watches) {

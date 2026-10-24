@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
             wx = sidecar(e)
             with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, gl):
                 rows = []
-                t0, span = (-14, 24 * e["task"]["days"] + 16) if "d1" in e["task"] else (-2, 26)
+                t0, span = (-14, len(e["hours"]) + 16) if "d1" in e["task"] else (-2, 26)
                 for i in range(0, 2161):
                     t = t0 + i * span / 2160
                     page.js(f"gridsim.time({t:.4f}, {{dt: 1 / 30}})")
@@ -178,7 +178,8 @@ def episode(eid: str) -> Path:
 
 def sidecar(e: dict) -> Path:
     t = e["task"]
-    name = f"{t['d1']}_{t['settlement_point']}_{t['days']}d" if "d1" in t else f"{t['date']}_{t['settlement_point']}"
+    name = (f"{t['d1']}_{t['settlement_point']}_{len(e['hours']) // 24}d" if "d1" in t
+            else f"{t['date']}_{t['settlement_point']}")
     return ROOT / "cache" / "weather" / f"{name}.json"
 
 

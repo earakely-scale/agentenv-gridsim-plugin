@@ -37,7 +37,7 @@ async function main() {
   }
   const ep = await json(epUrl);
   const v4 = ep.schema === "gridsim.episode/v4";
-  const wxUrl = q.get("weather") || `${q.get("wxbase") || "weather"}/${v4 ? `${ep.task.d1}_${ep.task.settlement_point}_${ep.task.days}d` : `${ep.task.date}_${ep.task.settlement_point}`}.json`;
+  const wxUrl = q.get("weather") || `${q.get("wxbase") || "weather"}/${v4 ? `${ep.task.d1}_${ep.task.settlement_point}_${ep.hours.length / 24}d` : `${ep.task.date}_${ep.task.settlement_point}`}.json`;
   const weather = await json(wxUrl).catch(() => null);
   const F = v4 ? await Promise.all([import("./forecast.js"), import("./ui/hudforecast.js"), import("./ui/chartsforecast.js")]) : null;
   const hybrid = ep.schema === HYBRID_SCHEMA || v4;
@@ -135,7 +135,7 @@ async function main() {
       last = now;
       P.wall += dt;
       if (P.playing) {
-        P.t += v4 ? dt * P.speed * (P.t < 0 ? 1.6 : 0.85) : (dt * P.speed) / SECONDS_PER_HOUR;
+        P.t += v4 ? dt * P.speed * (P.t < START + 1.4 ? 0.25 : P.t < 0 ? 1.9 : 0.85) : (dt * P.speed) / SECONDS_PER_HOUR;
         if (P.t >= END + 1.5) P.playing = false;
       }
       draw(dt);

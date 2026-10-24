@@ -39,7 +39,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
     if (d.front) claim(d.front.t - 2.2, d.front.t + 0.6, "front");
     const fr = [];
     for (let t = T0; t < E; t += 0.25) if (d.frostAt(t) > 0.55 && night(t) < 0.4 && night(t - 0.25) >= 0.4) fr.push(t);
-    for (const t of fr.slice(0, 2)) claim(t + 0.1, t + 1.4, "frost");
+    if (plant) for (const t of fr.slice(0, 2)) claim(t + 0.1, t + 1.4, "frost");
   } else if (d.hybrid) {
     const noon = d.hours.reduce((a, x) => (x.pvAvail > d.hours[a].pvAvail ? x.h : a), 0);
     if (d.hours[noon].pvAvail > 5) claim(noon - 1.4, noon + 0.6, "solar");
@@ -49,7 +49,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
     if (st) claim(st.h - 0.1, st.h + 1.7, "stow");
   }
   if (d.hybrid) for (const w of d.wins) if (hourAt(w.a / 60).awards[w.product] > 0) claim(w.a / 60 - 0.15, w.a / 60 + 1.5, "deploy");
-  const fill = d.hybrid ? ["sub", "establish", "solar", "line", "array", "high"] : d.region.city.lights >= 0.85 ? ["sub", "establish", "city", "line", "high"] : ["sub", "establish", "line", "high"];
+  const fill = d.hybrid && plant ? ["sub", "establish", "solar", "line", "array", "high"] : d.region.city.lights >= 0.85 ? ["sub", "establish", "city", "line", "high"] : ["sub", "establish", "line", "high"];
   let f = 0;
   for (let i = 0; i < N; i++) {
     if (slots[i].kind) continue;
