@@ -47,7 +47,7 @@ def test_holdouts(pack):
 
 
 def test_refs_reproduce(pack):
-    name, tasks, _ = pack
+    _, tasks, _ = pack
     ridge = json.loads((data_root() / "ridge-v1.json").read_text())
     for t in random.Random(0).sample(tasks, min(40, len(tasks))):
         p, s = solve_dp(t)
@@ -56,3 +56,11 @@ def test_refs_reproduce(pack):
         fresh = references(t, ridge=ridge if t["blind"] else None)
         assert fresh["foresight"]["baselines"] == t["refs"]["foresight"]["baselines"]
         assert fresh["blind"] == t["refs"]["blind"]
+
+
+def test_reward_fn_resolves_task_ids():
+    from gridsim_core.trl import reward_fn
+
+    fx = load_pack("fixtures")
+    opt = [t["refs"]["foresight"]["opt"] for t in fx[:3]]
+    assert reward_fn(["p"] * 3, [str(o) for o in opt], task_id=[t["task_id"] for t in fx[:3]]) == [1.0] * 3
