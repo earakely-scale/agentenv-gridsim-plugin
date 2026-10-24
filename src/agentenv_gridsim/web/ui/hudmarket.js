@@ -194,7 +194,7 @@ function offerHtml(d, t, h) {
   const words = !off ? "No offer yet." : !x.sell.length && !x.buy.length ? "Nothing offered this hour." : `${[desc(x.sell, "sells"), desc(x.buy, "buys")].filter(Boolean).join("; ")}.`;
   const chips = (hours || Array.from({ length: 24 }, () => ({ sell: [], buy: [] }))).map((y, k) => {
     const sv = y.sell.reduce((a, b) => a + b[0], 0), bv = y.buy.reduce((a, b) => a + b[0], 0);
-    return `<i class="${sv > bv ? "d" : bv > 0 ? "c" : ""}${k === h ? " cur" : ""}" style="--a:${Math.max(0.35, Math.min(1, Math.max(sv, bv) / d.P))}"></i>`;
+    return `<i class="${sv > 0 && bv > 0 ? "b" : sv > 0 ? "d" : bv > 0 ? "c" : ""}${k === h ? " cur" : ""}" style="--a:${Math.max(0.35, Math.min(1, Math.max(sv, bv) / d.P))}"></i>`;
   }).join("");
   const res = lam != null ? `<div class="res">Cleared <b>${price(lam)}</b> · ERCOT's real ${price(real)} · award <b>${Math.abs(d.aw.A[h]) < 0.5 ? "none" : `${d.aw.A[h] > 0 ? "sell" : "buy"} ${mw(d.aw.A[h])}`}</b>${d.clear.mitigated.some((m) => m.seat === "A" && m.he === h + 1) ? ' <span class="badge eea2">Mitigated</span>' : ""}</div>` : "";
   return `<h5>Seat A's offer <small>HE${h + 1} · ${hourLabel(h)}–${hourLabel(h + 1)}${off ? ` · in at ${plain(off.min)}` : ""}</small></h5>

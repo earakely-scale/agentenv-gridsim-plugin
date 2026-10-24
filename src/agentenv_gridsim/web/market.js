@@ -99,7 +99,9 @@ export function meritOrder(d, h) {
   if (!st) return null;
   const seats = st.seats || {};
   const repl = Object.entries(seats).filter(([s]) => s !== "A");
-  const a = seats.A || { sell: [], buy: [] };
+  const mit = d.clear.mitigated.some((m) => m.seat === "A" && m.he === h + 1), ref = d.task.seat_A.reference_usd[h];
+  const a0 = seats.A || { sell: [], buy: [] };
+  const a = { buy: a0.buy, sell: mit ? a0.sell.map(([m, p]) => [m, p > ref + Math.max(10, 0.5 * Math.abs(ref)) ? ref : p]) : a0.sell };
   const supply = (p, withA = true) => curveMw(st.background.supply, p, "supply") + sum(repl.map(([, c]) => curveMw(c.sell, p, "supply"))) + (withA ? sum(a.sell.filter(([, q]) => q <= p).map(([m]) => m)) : 0);
   const demand = (p, withA = true) => curveMw(st.background.demand, p, "demand") + sum(repl.map(([, c]) => curveMw(c.buy, p, "demand"))) + (withA ? sum(a.buy.filter(([, q]) => q >= p).map(([m]) => m)) : 0);
   const prices = [...new Set([...st.background.supply.map((x) => x[1]), ...st.background.demand.map((x) => x[1]), ...a.sell.map((x) => x[1]), ...a.buy.map((x) => x[1]), ...repl.flatMap(([, c]) => [...c.sell, ...c.buy].map((x) => x[1]))])].sort((x, y) => x - y);

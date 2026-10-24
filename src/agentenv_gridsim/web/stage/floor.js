@@ -221,7 +221,7 @@ export function buildFloor(d, { sky, fog, background }) {
   group.add(floor, ceil);
   const wallMat = new THREE.MeshStandardMaterial({ color: "#d6d3cc", roughness: 0.9 });
   const slab = new THREE.MeshStandardMaterial({ color: "#3a3d42", roughness: 0.8 });
-  const north = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.2).translate(0, H / 2, -D / 2 - 0.1), new THREE.MeshStandardMaterial({ color: "#5b5f66", roughness: 0.85 }));
+  const north = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.2).translate(0, H / 2, -D / 2 - 0.1), new THREE.MeshStandardMaterial({ color: "#7d828a", roughness: 0.85, emissive: new THREE.Color("#2c3036") }));
   const south = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.2).translate(0, H / 2, D / 2 + 0.1), wallMat);
   const west = new THREE.Mesh(new THREE.BoxGeometry(0.2, H, D).translate(-W / 2 - 0.1, H / 2, 0), new THREE.MeshStandardMaterial({ map: slats(), roughness: 0.75 }));
   for (const m of [north, south, west]) (m.castShadow = true), (m.receiveShadow = true), group.add(m);
@@ -252,10 +252,10 @@ export function buildFloor(d, { sky, fog, background }) {
   const strips = [], housings = [];
   for (const x of [-7.5, -2.5, 2.5, 7.5])
     for (const z of [-6, -2, 2, 6]) {
-      strips.push(new THREE.BoxGeometry(0.12, 0.02, 3.0).translate(x, H - 0.035, z));
-      housings.push(new THREE.BoxGeometry(0.2, 0.05, 3.1).translate(x, H - 0.02, z));
+      strips.push(new THREE.BoxGeometry(0.17, 0.02, 3.0).translate(x, H - 0.05, z));
+      housings.push(new THREE.BoxGeometry(0.2, 0.05, 3.06).translate(x, H - 0.02, z));
     }
-  group.add(new THREE.Mesh(mergeGeometries(housings), new THREE.MeshStandardMaterial({ color: "#c9c8c4", roughness: 0.4, metalness: 0.6 })));
+  group.add(new THREE.Mesh(mergeGeometries(housings), new THREE.MeshStandardMaterial({ color: "#d9d8d4", roughness: 0.5, metalness: 0.3 })));
   group.add(new THREE.Mesh(mergeGeometries(strips), lightMat));
 
   const benchG = bench(), chairG = chair(), vc = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 });
@@ -478,7 +478,7 @@ export function buildFloor(d, { sky, fog, background }) {
     hemi.groundColor.set("#5a5650");
     hemi.intensity = 0.55 + 0.75 * st.day;
     const lightsOn = 0.55 + 0.45 * (1 - st.day);
-    ceilMat.emissiveIntensity = 0.22 + 0.18 * lightsOn;
+    ceilMat.emissiveIntensity = 0.42 + 0.2 * lightsOn;
     for (const x of spots) x.intensity = 26 * lightsOn;
     lightMat.emissiveIntensity = 0.9 + 0.5 * lightsOn;
     towerMat.emissiveIntensity = 1.6 * st.night;
@@ -491,7 +491,7 @@ export function buildFloor(d, { sky, fog, background }) {
     redraw("ladder", `${d.offerAt(t)?.t}|${s.h}`, ladder, (g, w, h) => drawLadder(g, w, h, d, s));
     redraw("blotter", `${s.min < 0 ? d.steps.filter((x) => x.t <= t).length : Math.floor(s.min / 60)}`, blotter, (g, w, h) => drawBlotter(g, w, h, d, s));
     redraw("m3", `${hour}|${s.min >= AWARDS}|${d.offerAt(t)?.t}`, merit3, (g, w, h) => drawMerit(g, w, h, d, s, hour));
-    redraw("ticker", `${Math.floor(Math.max(-1, s.min) / 60)}|${s.min >= AWARDS}`, ticker, (g, w, h) => drawTicker(g, w, h, d, s));
+    redraw("ticker", `${Math.floor(Math.max(-1, s.min) / 60)}|${s.min >= AWARDS}|${s.min >= DAM_CLOSE}`, ticker, (g, w, h) => drawTicker(g, w, h, d, s));
     const flash = d.awardsT != null && t >= d.awardsT && t < d.awardsT + 0.35 && !reduced ? 1 - (t - d.awardsT) / 0.35 : 0;
     glow.material.opacity = 0.35 * flash;
     const deal = d.contracts.find((c) => c.status === "accepted" && t >= c.t - 0.05 && t < c.t + 0.55);
@@ -512,12 +512,12 @@ export function buildFloor(d, { sky, fog, background }) {
   }
 
   const cams = {
-    room: (u, n) => n % 2 ? { pos: [10.2 - 1.2 * u, 2.4, 7.4], look: [-2, 1.4, -8], fov: 52 } : { pos: [-10.4 + 1.4 * u, 2.45, 7.3], look: [2.6, 1.3, -7.5], fov: 54 },
-    desk: (u) => ({ pos: [0.78 - 0.12 * u, 1.66, A_DESK.z + 1.5 - 0.2 * u], look: [-0.12, 1.25, A_DESK.z - 0.7], fov: 42 }),
+    room: (u, n) => n % 2 ? { pos: [10.2 - 1.2 * u, 2.05, 7.4], look: [-2, 1.15, -8], fov: 52 } : { pos: [-10.3 + 1.3 * u, 2.1, 7.6], look: [2.8, 1.05, -7.5], fov: 54 },
+    desk: (u) => ({ pos: [1.35 - 0.15 * u, 1.62, A_DESK.z + 1.05 - 0.15 * u], look: [-0.25, 1.22, A_DESK.z - 0.68], fov: 44 }),
     wall: (u) => ({ pos: [0.7 - 1.4 * u, 1.95, -1.25], look: [0, 2.05, WALL.z], fov: 54 }),
-    merit: (u) => ({ pos: [0, 2.15, -4.3 + 0.35 * u], look: [0, 2.15, WALL.z], fov: 34 }),
-    clock: (u) => ({ pos: [-2 * WALL.pw + 0.3 - 0.3 * u, 2.15, -4.7 + 0.3 * u], look: [-2 * WALL.pw, 2.15, WALL.z], fov: 32 }),
-    prices: (u) => ({ pos: [2 * WALL.pw - 0.3 + 0.3 * u, 2.15, -4.7 + 0.3 * u], look: [2 * WALL.pw, 2.15, WALL.z], fov: 32 }),
+    merit: (u) => ({ pos: [0, 2.3, -2.75 + 0.3 * u], look: [0, 2.12, WALL.z], fov: 34 }),
+    clock: (u) => ({ pos: [-2 * WALL.pw + 0.35 - 0.3 * u, 2.3, -2.95 + 0.25 * u], look: [-2 * WALL.pw, 2.12, WALL.z], fov: 32 }),
+    prices: (u) => ({ pos: [2 * WALL.pw - 0.35 + 0.3 * u, 2.3, -2.95 + 0.25 * u], look: [2 * WALL.pw, 2.12, WALL.z], fov: 32 }),
     deal: (u) => ({ pos: [-1.7 + 0.2 * u, 1.38, A_DESK.z + 0.25], look: [0.15, 1.12, A_DESK.z + 0.1], fov: 44 }),
     window: (u) => ({ pos: [10.4, 1.65, 7.2 - 0.6 * u], look: [7.5, 1.0, -6], fov: 52 }),
   };
@@ -562,7 +562,7 @@ function drawTicker(g, w, h, d, s) {
   g.textBaseline = "middle";
   let x = 20;
   const items = s.min >= AWARDS ? d.clear.hub.map((p, k) => [`HE${k + 1}`, p, d.hubReal[k]])
-    : [["ERCOT DAM · OFFERS DUE 10:00 CPT", null], [`OPERATING DAY ${d.dateLabel.toUpperCase()}`, null], [`SEAT A ${d.P} MW / ${Math.round(d.E)} MWh`, null], ["60-DAY DISCLOSURE · AGGREGATED", null], ["COPPER PLATE · HUB PRICES", null]];
+    : [[s.min < DAM_CLOSE ? "ERCOT DAM · OFFERS DUE 10:00 CPT" : "ERCOT DAM CLOSED · CLEARING · AWARDS 13:30", null], [`OPERATING DAY ${d.dateLabel.toUpperCase()}`, null], [`SEAT A ${d.P} MW / ${Math.round(d.E)} MWh`, null], ["60-DAY DISCLOSURE · AGGREGATED", null], ["COPPER PLATE · HUB PRICES", null]];
   for (const [a, p, real] of items) {
     g.fillStyle = "#7f93a6";
     g.fillText(a, x, h / 2);

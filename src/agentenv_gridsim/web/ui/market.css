@@ -81,3 +81,4 @@
   .intro.mkt p.dim { display: none; }
 }
 .offer text.ax.any { font-size: 9px; fill: var(--ink2); font-weight: 600; }
+.chips24.ochips i.b { background: linear-gradient(180deg, var(--discharge-l) 0 50%, var(--charge-l) 50% 100%); opacity: var(--a, 1); }

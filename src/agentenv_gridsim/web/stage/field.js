@@ -96,6 +96,15 @@ export function buildPeakers(n, U, { at: [ox, oz] }) {
   g.add(inst(cyl(2.4, 2.4, 0.25, 0, 0, 0, 20), steel, M.ring));
   g.add(inst(new THREE.BoxGeometry(3.2, 2.6, 4.2), grey, M.fin));
   g.add(inst(new THREE.BoxGeometry(3.4, 3.6, 4.4), xfmr, M.gsu));
+  g.add(inst(new THREE.BoxGeometry(0.5, 23, 0.25), steel, units.map((u) => mat4(V(u.x + 1.95, 12.5, u.z)))));
+  g.add(inst(new THREE.BoxGeometry(2.4, 2.6, 2.4), new THREE.MeshStandardMaterial({ color: "#e4e1d9", roughness: 0.7 }), units.map((u) => mat4(V(u.x - 3.2, 1.7, u.z)))));
+  const sy = [], syX = W / 2 - 22, syZ = 0;
+  for (const dz of [-14, 0, 14]) {
+    for (const dx of [-6, 6]) sy.push(mat4(V(syX + dx, 7, syZ + dz), 0, V(0.5, 14, 0.5)));
+    sy.push(mat4(V(syX, 13.6, syZ + dz), 0, V(12.5, 0.6, 0.6)));
+  }
+  for (let k = 0; k < 4; k++) sy.push(mat4(V(syX - 2 + k * 1.4, 1.6, syZ - 7), 0, V(0.8, 3.2, 0.8)));
+  g.add(inst(new THREE.BoxGeometry(1, 1, 1), steel, sy));
   const legs = [];
   for (const m of M.inlet) {
     const p = new THREE.Vector3().setFromMatrixPosition(m);
@@ -116,7 +125,7 @@ export function buildPeakers(n, U, { at: [ox, oz] }) {
   const fm = new THREE.Mesh(merge(fence), new THREE.MeshStandardMaterial({ color: "#b4babd", roughness: 0.6, metalness: 0.5, transparent: true, opacity: 0.45 }));
   g.add(fm);
 
-  const plume = new THREE.SpriteMaterial({ map: glowTexture(), color: "#e9e4dc", transparent: true, depthWrite: false, opacity: 0 });
+  const plume = new THREE.SpriteMaterial({ map: glowTexture(), color: "#d9d6d0", transparent: true, depthWrite: false, opacity: 0 });
   const sprites = units.map((u) => {
     const list = [];
     for (let k = 0; k < 4; k++) {
@@ -148,11 +157,11 @@ export function buildPeakers(n, U, { at: [ox, oz] }) {
       units.forEach((u, i) => {
         const on = i < running ? 1 : 0;
         sprites[i].forEach((sp, k) => {
-          const ph = (clock * 0.35 + k / 4 + i * 0.13) % 1;
+          const ph = (clock * 0.35 + k / 6 + i * 0.13) % 1;
           sp.position.set(u.x + (wind?.x || 0) * ph * 14, u.top + 1 + ph * 22, u.z + (wind?.z || 0) * ph * 14);
           const sc = 5 + ph * 18;
           sp.scale.set(sc, sc, 1);
-          sp.material.opacity = on * (1 - ph) * ph * 4 * (0.2 + 0.1 * night);
+          sp.material.opacity = on * (1 - ph) * ph * 4 * (0.42 + 0.1 * night);
         });
       });
       beaconMat.opacity = night * 0.9;

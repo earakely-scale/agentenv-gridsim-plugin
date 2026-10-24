@@ -315,7 +315,7 @@ export class MarketStage {
     if (k === "wind") {
       const b = (this.d.region.line - 90) * DEG;
       const dir = new THREE.Vector3(Math.sin(b), 0, -Math.cos(b));
-      return { world: true, pos: [dir.x * 1200 - dir.z * 60 * u, 30, dir.z * 1200 + dir.x * 60 * u], look: [dir.x * 8000, 120, dir.z * 8000], fov: 26 };
+      return { world: true, pos: [dir.x * 4300 - dir.z * 120 * u, 34, dir.z * 4300 + dir.x * 120 * u], look: [dir.x * 9000, 150, dir.z * 9000], fov: 34 };
     }
     return { pos: [L.cx, 80, 160], look: [L.cx, 0, 0], fov: 45 };
   }
