@@ -237,15 +237,15 @@ def triggers(watches: list[live.Watch]) -> list[dict]:
     return live.triggers(watches)
 
 
-def deploy_hours(payloads, dur: dict) -> list[dict]:
+def deploy_hours(payloads, dur: dict, hours: int = HOURS) -> list[dict]:
     """Fraction-hours each event product deploys in each hour: frac over the first dur_k hours of its window."""
-    out = [dict.fromkeys(EVENT_PRODUCTS, 0.0) for _ in range(HOURS)]
+    out = [dict.fromkeys(EVENT_PRODUCTS, 0.0) for _ in range(hours)]
     for d in payloads:
         k = d["product"]
         if k not in dur:
             continue
-        a, b = max(0, d["start_min"]), min(DAY_END, d["end_min"], d["start_min"] + round(dur[k] * 60))
-        for h in range(HOURS):
+        a, b = max(0, d["start_min"]), min(60 * hours, d["end_min"], d["start_min"] + round(dur[k] * 60))
+        for h in range(hours):
             ov = max(0, min(b, 60 * h + 60) - max(a, 60 * h))
             if ov:
                 out[h][k] = min(1.0, out[h][k] + d["frac"] * ov / 60)
@@ -336,15 +336,15 @@ class PlanError(ValueError):
 _HOUR = re.compile(r"^\s*(\d{1,2})(?::00)?\s*$")
 
 
-def _from_hour(v) -> int:
+def _from_hour(v, hours: int = HOURS) -> int:
     if isinstance(v, bool):
-        raise PlanError("from_hour", f"from_hour must be an hour 0..23, got {v!r}")
+        raise PlanError("from_hour", f"from_hour must be an hour 0..{hours - 1}, got {v!r}")
     if isinstance(v, float) and v.is_integer():
         v = int(v)
     if isinstance(v, str) and (m := _HOUR.match(v)):
         v = int(m.group(1))
-    if not isinstance(v, int) or not 0 <= v < HOURS:
-        raise PlanError("from_hour", f"from_hour must be an hour 0..23, got {v!r}")
+    if not isinstance(v, int) or not 0 <= v < hours:
+        raise PlanError("from_hour", f"from_hour must be an hour 0..{hours - 1}, got {v!r}")
     return v
 
 
@@ -354,8 +354,8 @@ def _number(v, field: str) -> float:
     return float(v)
 
 
-def _values(field: str, v, fh: int) -> list[float]:
-    n = HOURS - fh
+def _values(field: str, v, fh: int, hours: int = HOURS) -> list[float]:
+    n = hours - fh
     if isinstance(v, dict):
         v = [v]
     if isinstance(v, str):
@@ -378,8 +378,8 @@ def _values(field: str, v, fh: int) -> list[float]:
             h1, h2 = b["from"], b["to"]
             if isinstance(h1, bool) or isinstance(h2, bool) or not isinstance(h1, int) or not isinstance(h2, int):
                 raise PlanError(field, f"{field}: block hours must be integers, got {h1!r}..{h2!r}")
-            if not fh <= h1 < h2 <= HOURS:
-                raise PlanError(field, f"{field}: block {h1}..{h2} must satisfy {fh} <= from < to <= 24")
+            if not fh <= h1 < h2 <= hours:
+                raise PlanError(field, f"{field}: block {h1}..{h2} must satisfy {fh} <= from < to <= {hours}")
             if seen & set(range(h1, h2)):
                 raise PlanError(field, f"{field}: blocks overlap at hour {min(seen & set(range(h1, h2)))}")
             seen |= set(range(h1, h2))
@@ -388,16 +388,16 @@ def _values(field: str, v, fh: int) -> list[float]:
                 out[h - fh] = mw
         return out
     vals = [_number(x, field) for x in v]
-    if len(vals) == HOURS and fh:
+    if len(vals) == hours and fh:
         vals = vals[fh:]
     if len(vals) != n:
-        raise PlanError(field, f"{field}: expected {n} values (hours {fh}..23) or 24, got {len(vals)}")
+        raise PlanError(field, f"{field}: expected {n} values (hours {fh}..{hours - 1}) or {hours}, got {len(vals)}")
     return vals
 
 
-def parse_plan(plan, from_hour) -> tuple[int, dict[str, list[float]]]:
-    """(from_hour, {field: MW values for hours from_hour..23}); omitted AS fields keep the book."""
-    fh = _from_hour(from_hour)
+def parse_plan(plan, from_hour, hours: int = HOURS, fields: tuple = FIELDS) -> tuple[int, dict[str, list[float]]]:
+    """(from_hour, {field: MW values for hours from_hour..hours-1}); omitted AS fields keep the book."""
+    fh = _from_hour(from_hour, hours)
     if isinstance(plan, str):
         try:
             plan = json.loads(plan)
@@ -405,12 +405,105 @@ def parse_plan(plan, from_hour) -> tuple[int, dict[str, list[float]]]:
             raise PlanError("plan", "plan: not a JSON object") from None
     if not isinstance(plan, dict):
         raise PlanError("plan", f"plan: expected an object with energy and AS fields, got {type(plan).__name__}")
-    extra = sorted(set(plan) - set(FIELDS))
+    extra = sorted(set(plan) - set(fields))
     if extra:
-        raise PlanError("plan", f"plan: unknown field {extra[0]!r}; fields are {', '.join(FIELDS)}")
+        raise PlanError("plan", f"plan: unknown field {extra[0]!r}; fields are {', '.join(fields)}")
     if "energy" not in plan:
         raise PlanError("energy", "plan: energy is required")
-    return fh, {f: _values(f, v, fh) for f, v in plan.items() if v is not None}
+    return fh, {f: _values(f, v, fh, hours) for f, v in plan.items() if v is not None}
+
+
+# the hour rules (C3-D5, C3-D17), shared with v4
+
+
+def _issue(h, field, rule, detail) -> dict:
+    return {"hour": h, "field": field, "rule": rule, "detail": detail}
+
+
+def hour_rules(st: Site, dur: dict, h: int, S: float, cyc: float, e: float, a: dict, inherited: bool = False, *,
+           offered: tuple, qualified: tuple, not_offered, fixed: dict | None = None, clock=hhmm) -> list[dict]:
+    """The rule failures of one hour's entry on the SoC path that reaches it (C3-D5). With inherited awards (the
+    hour's awards as booked, C3-D17) the SoC the hour starts from is not the entry's to fix: an entry the governor
+    would leave as it is passes, and the rule a refused one breaks is named (the band checked at the hour's end,
+    or the governor's closest move when the band is out of reach)."""
+    out = []
+    for f, v in (("energy", e),) + tuple((k, a[k]) for k in PRODUCTS):
+        if f == "energy" and abs(v) > st.p + TOL:
+            out.append(_issue(h, f, "power", f"{_num(abs(v))} MW > {_num(st.p)} MW"))
+        elif f != "energy" and (v < 0 or v > st.p + TOL):
+            out.append(_issue(h, f, "power", f"{NAMES[f]} {_num(v)} MW is outside 0..{_num(st.p)} MW"))
+        elif f != "energy" and v and f not in offered:
+            out.append(_issue(h, f, "not_offered", not_offered(f)))
+        elif f != "energy" and v and f not in qualified:
+            out.append(_issue(h, f, "not_qualified", f"the site is not qualified for {NAMES[f]}"))
+        elif f != "energy" and fixed is not None and abs(v - fixed[f]) > EQ_TOL:
+            out.append(_issue(h, f, "as_fixed", f"AS are fixed to the DA book after watch 0 ({NAMES[f]} "
+                                                f"{_num(fixed[f])} MW at hour {h})"))
+    if out:
+        return out
+    if inherited and abs(govern(e, *limits(st, dur, S, cyc, a)) - e) <= TOL:
+        return out
+    up, rd = sum(a[k] for k in UP), a["regdn"]
+    upf = max(UP, key=lambda k: (dur.get(k, 0) * a[k], k == "regup")) if up else "energy"
+    if e + up > st.p + TOL:
+        out.append(_issue(h, upf, "headroom_up", f"discharge {_num(e)} + up awards {_num(up)} > "
+                                                      f"{_num(st.p)} MW"))
+    if e - rd < -st.p - TOL:
+        out.append(_issue(h, "regdn", "headroom_dn", f"charge {_num(-e)} + RegDn {_num(rd)} > {_num(st.p)} MW"))
+    if e + up > st.meter + TOL:
+        out.append(_issue(h, upf, "meter_up", f"battery {_num(e)} + up awards {_num(up)} > meter "
+                                                   f"{_num(st.meter)} MW"))
+    if e - rd < -st.meter_imp - TOL:
+        out.append(_issue(h, "regdn", "meter_dn", f"import {_num(rd - e)} > meter {_num(st.meter_imp)} MW"))
+    if out:
+        return out
+    dis, ch = max(e, 0.0), max(-e, 0.0)
+    B = S - dis + st.eta * ch
+    if B < -TOL:
+        out.append(_issue(h, "energy", "soc_empty", f"discharging {_num(dis)} MW needs {dis:.2f} MWh, SoC "
+                                                         f"{S:.2f}"))
+    if B > st.e + TOL:
+        out.append(_issue(h, "energy", "soc_full", f"charging {_num(ch)} MW stores {st.eta * ch:.2f} MWh, "
+                                                        f"room {st.e - S:.2f}"))
+    if cyc + dis > st.cap + TOL:
+        out.append(_issue(h, "energy", "cycle_cap", f"discharge {_num(dis)} MWh > {st.cap - cyc:.2f} MWh "
+                                                         f"left of the {_num(st.cap)} MWh cap"))
+    if out:
+        return out
+    rup, rdn = r_up(dur, a), r_dn(st, dur, a)
+    parts = " + ".join(f"{NAMES[k]} {_num(dur[k])}h" for k in UP if a[k] > TOL)
+    if inherited:
+        lo, hi, band_lo, band_hi = limits(st, dur, S, cyc, a)
+        if band_lo > band_hi + TOL:
+            return out
+        if band_hi < lo - TOL and rup > TOL and e > lo + TOL:
+            out.append(_issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {clock(60 * h + 60)}; "
+                                                         f"SoC {S:.2f} at {clock(60 * h)} reaches it only "
+                                                         f"partly: charge the most this hour allows "
+                                                         f"({_num(-lo)} MW)"))
+        elif band_lo > hi + TOL and rdn > TOL and e < hi - TOL:
+            out.append(_issue(h, "regdn", "reserve_dn", f"RegDn {_num(dur['regdn'])}h needs {rdn:.2f} MWh "
+                                                             f"of room at {clock(60 * h + 60)}; SoC {S:.2f} at "
+                                                             f"{clock(60 * h)} gets there only partly: discharge "
+                                                             f"the most this hour allows ({_num(hi)} MW)"))
+        elif lo - TOL <= band_hi and band_lo <= hi + TOL:
+            if rup > TOL and B < rup - TOL:
+                out.append(_issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {clock(60 * h + 60)}, "
+                                                             f"SoC {B:.2f}"))
+            if rdn > TOL and B > st.e - rdn + TOL:
+                out.append(_issue(h, "regdn", "reserve_dn", f"RegDn {_num(dur['regdn'])}h needs "
+                                                                 f"{rdn:.2f} MWh of room at {clock(60 * h + 60)}, "
+                                                                 f"room {st.e - B:.2f}"))
+        return out
+    if rup > TOL and min(S, B) < rup - TOL:
+        when, soc = (h, S) if S <= B else (h + 1, B)
+        out.append(_issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {clock(60 * when)}, SoC "
+                                                     f"{soc:.2f}"))
+    if rdn > TOL and max(S, B) > st.e - rdn + TOL:
+        when, soc = (h, S) if S >= B else (h + 1, B)
+        out.append(_issue(h, "regdn", "reserve_dn", f"RegDn {_num(dur['regdn'])}h needs {rdn:.2f} MWh of "
+                                                         f"room at {clock(60 * when)}, room {st.e - soc:.2f}"))
+    return out
 
 
 # the session
@@ -613,90 +706,11 @@ class Session(WatchDay):
         return {"hour": h, "field": field, "rule": rule, "detail": detail}
 
     def rules(self, h: int, S: float, cyc: float, e: float, a: dict, inherited: bool = False) -> list[dict]:
-        """The rule failures of one hour's entry on the SoC path that reaches it (C3-D5). With inherited awards (the
-        hour's awards as booked, C3-D17) the SoC the hour starts from is not the entry's to fix: an entry the governor
-        would leave as it is passes, and the rule a refused one breaks is named (the band checked at the hour's end,
-        or the governor's closest move when the band is out of reach)."""
-        st, d = self.site, self.day
-        out = []
-        for f, v in (("energy", e),) + tuple((k, a[k]) for k in PRODUCTS):
-            if f == "energy" and abs(v) > st.p + TOL:
-                out.append(self._issue(h, f, "power", f"{_num(abs(v))} MW > {_num(st.p)} MW"))
-            elif f != "energy" and (v < 0 or v > st.p + TOL):
-                out.append(self._issue(h, f, "power", f"{NAMES[f]} {_num(v)} MW is outside 0..{_num(st.p)} MW"))
-            elif f != "energy" and v and f not in d.offered:
-                why = "the energy tier has no AS" if self.tier == "energy" else f"{NAMES[f]} is not offered on {self.date}"
-                out.append(self._issue(h, f, "not_offered", why))
-            elif f != "energy" and v and f not in d.qualified:
-                out.append(self._issue(h, f, "not_qualified", f"the site is not qualified for {NAMES[f]}"))
-            elif f != "energy" and self.tier == "reserves" and self.da is not None and abs(v - self.da[f][h]) > EQ_TOL:
-                out.append(self._issue(h, f, "as_fixed", f"AS are fixed to the DA book after watch 0 ({NAMES[f]} "
-                                                         f"{_num(self.da[f][h])} MW at hour {h})"))
-        if out:
-            return out
-        if inherited and abs(govern(e, *limits(st, d.dur, S, cyc, a)) - e) <= TOL:
-            return out
-        up, rd = sum(a[k] for k in UP), a["regdn"]
-        upf = max(UP, key=lambda k: (d.dur.get(k, 0) * a[k], k == "regup")) if up else "energy"
-        if e + up > st.p + TOL:
-            out.append(self._issue(h, upf, "headroom_up", f"discharge {_num(e)} + up awards {_num(up)} > "
-                                                          f"{_num(st.p)} MW"))
-        if e - rd < -st.p - TOL:
-            out.append(self._issue(h, "regdn", "headroom_dn", f"charge {_num(-e)} + RegDn {_num(rd)} > {_num(st.p)} MW"))
-        if e + up > st.meter + TOL:
-            out.append(self._issue(h, upf, "meter_up", f"battery {_num(e)} + up awards {_num(up)} > meter "
-                                                       f"{_num(st.meter)} MW"))
-        if e - rd < -st.meter_imp - TOL:
-            out.append(self._issue(h, "regdn", "meter_dn", f"import {_num(rd - e)} > meter {_num(st.meter_imp)} MW"))
-        if out:
-            return out
-        dis, ch = max(e, 0.0), max(-e, 0.0)
-        B = S - dis + st.eta * ch
-        if B < -TOL:
-            out.append(self._issue(h, "energy", "soc_empty", f"discharging {_num(dis)} MW needs {dis:.2f} MWh, SoC "
-                                                             f"{S:.2f}"))
-        if B > st.e + TOL:
-            out.append(self._issue(h, "energy", "soc_full", f"charging {_num(ch)} MW stores {st.eta * ch:.2f} MWh, "
-                                                            f"room {st.e - S:.2f}"))
-        if cyc + dis > st.cap + TOL:
-            out.append(self._issue(h, "energy", "cycle_cap", f"discharge {_num(dis)} MWh > {st.cap - cyc:.2f} MWh "
-                                                             f"left of the {_num(st.cap)} MWh cap"))
-        if out:
-            return out
-        rup, rdn = r_up(d.dur, a), r_dn(st, d.dur, a)
-        parts = " + ".join(f"{NAMES[k]} {_num(d.dur[k])}h" for k in UP if a[k] > TOL)
-        if inherited:
-            lo, hi, band_lo, band_hi = limits(st, d.dur, S, cyc, a)
-            if band_lo > band_hi + TOL:
-                return out
-            if band_hi < lo - TOL and rup > TOL and e > lo + TOL:
-                out.append(self._issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {hhmm(60 * h + 60)}; "
-                                                             f"SoC {S:.2f} at {hhmm(60 * h)} reaches it only "
-                                                             f"partly: charge the most this hour allows "
-                                                             f"({_num(-lo)} MW)"))
-            elif band_lo > hi + TOL and rdn > TOL and e < hi - TOL:
-                out.append(self._issue(h, "regdn", "reserve_dn", f"RegDn {_num(d.dur['regdn'])}h needs {rdn:.2f} MWh "
-                                                                 f"of room at {hhmm(60 * h + 60)}; SoC {S:.2f} at "
-                                                                 f"{hhmm(60 * h)} gets there only partly: discharge "
-                                                                 f"the most this hour allows ({_num(hi)} MW)"))
-            elif lo - TOL <= band_hi and band_lo <= hi + TOL:
-                if rup > TOL and B < rup - TOL:
-                    out.append(self._issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {hhmm(60 * h + 60)}, "
-                                                                 f"SoC {B:.2f}"))
-                if rdn > TOL and B > st.e - rdn + TOL:
-                    out.append(self._issue(h, "regdn", "reserve_dn", f"RegDn {_num(d.dur['regdn'])}h needs "
-                                                                     f"{rdn:.2f} MWh of room at {hhmm(60 * h + 60)}, "
-                                                                     f"room {st.e - B:.2f}"))
-            return out
-        if rup > TOL and min(S, B) < rup - TOL:
-            when, soc = (h, S) if S <= B else (h + 1, B)
-            out.append(self._issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {hhmm(60 * when)}, SoC "
-                                                         f"{soc:.2f}"))
-        if rdn > TOL and max(S, B) > st.e - rdn + TOL:
-            when, soc = (h, S) if S >= B else (h + 1, B)
-            out.append(self._issue(h, "regdn", "reserve_dn", f"RegDn {_num(d.dur['regdn'])}h needs {rdn:.2f} MWh of "
-                                                             f"room at {hhmm(60 * when)}, room {st.e - soc:.2f}"))
-        return out
+        d = self.day
+        fixed = {k: self.da[k][h] for k in PRODUCTS} if self.tier == "reserves" and self.da is not None else None
+        return hour_rules(self.site, d.dur, h, S, cyc, e, a, inherited, offered=d.offered, qualified=d.qualified,
+                          not_offered=lambda f: "the energy tier has no AS" if self.tier == "energy"
+                          else f"{NAMES[f]} is not offered on {self.date}", fixed=fixed)
 
     def _expected(self, h: int, a: dict, dep: list[dict]) -> tuple[float, float]:
         d = self.day
@@ -1122,8 +1136,9 @@ class _Model:
             return
         self.rows.append((e.c, lo - e.k, hi - e.k))
 
-    def solve(self) -> tuple[float, np.ndarray] | None:
-        """(objective, column values), or None when infeasible. Maximises."""
+    def solve(self, retry_infeasible: bool = False) -> tuple[float, np.ndarray] | None:
+        """(objective, column values), or None when infeasible. Maximises. retry_infeasible re-runs without presolve
+        when presolve calls the model infeasible (rounded fixed values can sit a hair outside its tolerances)."""
         if highspy is None:
             raise RuntimeError("the hybrid references need highspy: pip install 'agentenv-gridsim[lp]'")
         if self.infeasible:
@@ -1158,7 +1173,10 @@ class _Model:
             h.passModel(lp)
             h.run()
             status = h.getModelStatus()
-            if status != highspy.HighsModelStatus.kSolveError:
+            infeasible = status in (highspy.HighsModelStatus.kInfeasible,
+                                    highspy.HighsModelStatus.kUnboundedOrInfeasible)
+            if status != highspy.HighsModelStatus.kSolveError and not (retry_infeasible and infeasible
+                                                                       and presolve == "choose"):
                 break
         else:
             return None
@@ -1170,7 +1188,7 @@ class _Model:
 
 
 def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price, mu, md, dep, aw, *,
-           integer: bool, soft: bool = False, free_curtail: bool = False, inherited: bool = False) -> dict:
+           integer: bool, soft: bool = False, free_curtail: bool = False, inherited=False) -> dict:
     """One copy of the plant over len(pv) hours from SoC S0: continuous dispatch with a direction binary, the AS awards
     aw[t][k] (expressions in MW) and the Session's rules: the reservation band at both ends of each hour (C3-D5), or
     at its end only for inherited awards (C3-D17). Soft: the band may be missed at a penalty and drift is delivered
@@ -1178,6 +1196,7 @@ def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price
     S = _Lin(k=S0)
     out = {"x": [], "xb": [], "dis": [], "U": [], "dl": [], "cl": [], "S": [S], "slack": []}
     dsum = _Lin()
+    inh = list(inherited) if isinstance(inherited, (list, tuple)) else [inherited] * len(pv)
     for t in range(len(pv)):
         dis, ch, z = m.var(0, st.p), m.var(0, st.p), m.var(0, 1, integer)
         m.add(dis - z * st.p, hi=0.0)
@@ -1197,7 +1216,7 @@ def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price
             out["slack"] += [su, sd]
         m.add(B - rup + su, lo=0.0)
         m.add(B + rdn - sd, hi=st.e)
-        if not inherited:
+        if not inh[t]:
             m.add(S - rup + su, lo=0.0)
             m.add(S + rdn - sd, hi=st.e)
         sh = m.var(0, math.inf) if soft else _Lin()

@@ -126,6 +126,10 @@ into the same store, beside the desk, HRRR and EIA kinds, with the same issued_a
   P50 field; `wgrpp_mw`/`pvgrpp_mw` also returned as `p80_mw`), with `source` naming the report; zones map to
   NP3-565's weather zones. The site's PV P50 is `hybrid.pv_at_bus(site, stppf_system / installed_mw)` (lane D3's
   installed MW of the day). Weather, price, alerts and the EIA DF are served as in `desk` windows.
+- `ercot_load` zone keys use the EIA subregion codes of `points.json` (COAS, EAST, FWES, NCEN, NRTH, SCEN, SOUT,
+  WEST), as the desk's `load` kind does. Neither kind carries a `site` key in the store: the pack builder adds
+  `solar`/`site` and `ercot_solar`/`site` vintages (field `mw`) to a window's slice from the system series and the
+  site row (`hybrid.pv_at_bus`, with the day's installed MW).
 - References: P_roll, P_roll3 and P_naive read the guide's prices (desk features in every era) and the served site PV;
   P_blind is unchanged. The agent's extra information (ERCOT's load and wind) is an edge the anchor does not use; it
   shows in `beats_anchor` and `paired_vs_anchor`, and the card states it.
@@ -343,18 +347,20 @@ alerts:  {"kind","alerts":[{"event_id","source":"NWS","phenomena","significance"
 
 ## References and reward (`references()`; stored in the row, never shown to the agent)
 
-All are played through a `Session` with the tier's freeze, budgets and DAM rule, on HiGHS (`hybrid._Model`); one MILP
-per watch over the open hours to the window end, frozen hours pinned, submitted DAM entries and AS fixed (C3-D17
-inherited-award rule), soft fallback and repair walk as v3's anchor, so its commits are never refused.
+All are played through a `Session` with the tier's freeze, budgets and DAM rule, on HiGHS (`hybrid._Model`, with
+presolve retried off when it calls a model with rounded fixed awards infeasible); one MILP per watch over the open hours
+to the window end, frozen hours pinned, submitted DAM entries and AS fixed (C3-D17 inherited-award rule), soft fallback
+and repair walk as v3's anchor, so its commits are never refused. At a gate the anchor commits its energy first and
+then submits the gated day, so the DAM plan is checked from the SoC its own commit leads to.
 
 - **P_idle**: no DAM, battery idle, PV exported at RT under the meter (`front-lite`: 0 unless the terminal rule bites).
 - **P_roll** (the anchor of `front`, `front-lite`, `freeze-6h`): at each watch, solve on the projection's P50 inputs
   (V4 "Forecasts and the projection"); at a gate, `submit_dam` the solve's day plan (share 1.0) and then
   `commit_schedule` its open hours; elsewhere commit when the solve changes the book. Unsubmitted days' DA entries and
   AS are variables valued at DA P50 and MCPC P50; their RT deviation at RT P50.
-- **P_roll3** (strong reference, reported): the same with three equally weighted comonotone scenarios (P10, P50, P90
-  of DA, RT and MCPC; PV at P50) sharing the first stage (this watch's DAM plan and the book until the next fixed
-  watch), each scenario re-planning after it.
+- **P_roll3** (strong reference, reported): the same re-planner on the three-scenario sample average: one plan valued
+  equally on the P10, P50 and P90 paths of DA, RT and MCPC (PV at P50), which for the linear objective is the solve on
+  the scenarios' mean.
 - **P_blind** (the anchor of `blind`; reported elsewhere): P_roll on the persistence projection.
 - **P_naive** (card baseline): at each gate, charge P in the 4 cheapest and discharge P in the 4 dearest DA P50 hours
   of the day (governed, no AS), never re-planned.
