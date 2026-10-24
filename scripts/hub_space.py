@@ -235,7 +235,7 @@ def write_views(views: dict, entries: list[dict], out: Path, thumbs: bool) -> di
         (out / "runs" / f"{kind}.json").write_text(json.dumps(m, separators=(",", ":")))
         training[kind] = {"url": f"runs/{kind}.json", "task_id": m["task_id"]} | (
             {"model": m["model"], "gain": m["gain"], "note": m["note"], "frames": len(m["frames"]),
-             "overall": overall(m.get("context") or {})}
+             "overall": overall(m.get("context") or {}), "reading": (m.get("context") or {}).get("reading")}
             if kind == "levelup" else {"lanes": [x["label"] for x in m["lanes"]]})
         if thumbs:
             e = next(e for e in entries if e["id"] == refs[0])
@@ -251,8 +251,11 @@ def overall(c: dict) -> str | None:
     """The run over every held-out day, for the list card and the README."""
     if c.get("trained") is None:
         return None
-    return (f"{c.get('tasks', '')} held-out days the model goes from {c['base']:.2f} (base) to {c['sft']:.2f} (SFT) to "
-            f"{c['trained']:.2f} (GRPO); the greedy rule scores {c.get('greedy', float('nan')):.2f}")
+    arc = "".join(f" to {a['reward']:.2f} at step {a['step']} of {a['label']}" for a in c.get("arms") or []
+                  if a.get("label")) or f" to {c['trained']:.2f} (GRPO)"
+    return (f"{c.get('tasks', '')} held-out days the model goes from {c['base']:.2f} (base) to {c['sft']:.2f} (SFT)"
+            f"{arc}; the greedy rule scores {c.get('greedy', float('nan')):.2f}"
+            + (f", the threshold rule {c['threshold']:.2f}" if c.get("threshold") is not None else ""))
 
 
 def fixtures() -> set[str]:
@@ -634,9 +637,10 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
             name = lu["model"].split("/")[-1]
             lines.append(f"- [LEVEL UP]({APP}/index.html?levelup=runs/levelup.json): {name} on one held-out day "
                          f"({lu['task_id']}) at each of {lu['frames']} checkpoints, reward gain {lu['gain']:+.2f}."
-                         + (f" {lu['note']}." if lu.get("note") else "")
-                         + (f" Over all {lu['overall']}: valid plans, not yet the simple rules." if lu.get("overall")
-                            else ""))
+                         + (f" {lu['note'][:1].upper()}{lu['note'][1:]}." if lu.get("note") else "")
+                         + (f" Over all {lu['overall']}"
+                            + (f"; the final model is {lu['reading']}." if lu.get("reading")
+                               else ": valid plans, not yet the simple rules.") if lu.get("overall") else ""))
         if rc := training.get("race"):
             lines.append(f"- [The race]({APP}/index.html?race=runs/race.json): {', '.join(rc['lanes'])} on the same "
                          f"day ({rc['task_id']}).")

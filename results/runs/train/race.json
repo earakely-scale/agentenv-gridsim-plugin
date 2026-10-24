@@ -4,11 +4,28 @@
  "context": {
   "tasks": 200,
   "base": 0.0,
+  "sft": 0.5418,
+  "arms": [
+   {
+    "label": "arm 2 (exploratory, not pre-registered)",
+    "step": 75,
+    "reward": 0.579
+   },
+   {
+    "label": "arm 2b (exploratory continuation)",
+    "step": 180,
+    "reward": 0.6684
+   }
+  ],
+  "trained": 0.6684,
+  "greedy": 0.764,
+  "threshold": 0.6371,
+  "reading": "level with the threshold rule (paired +0.03 [-0.02, +0.09]) and below the greedy rule (paired -0.10 [-0.14, -0.05])",
   "opening": {
    "hour": 2,
    "charge": false,
    "share": [
-    28,
+    34,
     200
    ]
   }
@@ -20,11 +37,11 @@
   },
   {
    "episode_id": "8885e2ef03dc5edb",
-   "label": "Qwen3-1.7B SFT"
+   "label": "Qwen3-1.7B SFT warm start"
   },
   {
-   "episode_id": "f9838c7c13a2a002",
-   "label": "Qwen3-1.7B GRPO"
+   "episode_id": "19b4d570c50b21cb",
+   "label": "Qwen3-1.7B arm 2b (exploratory continuation)"
   },
   {
    "episode_id": "dam-v1-2025-06-06-LZ_CPS-1h-l-9d42cavi",

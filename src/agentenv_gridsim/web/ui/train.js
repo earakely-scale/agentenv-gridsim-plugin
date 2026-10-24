@@ -21,14 +21,18 @@ const clock = (t) => {
 };
 const STAGE = { base: "Base", sft: "SFT", grpo: "GRPO" };
 const hourName = (h) => (h === 0 ? "midnight" : h === 12 ? "noon" : `${h % 12} ${h < 12 ? "am" : "pm"}`);
-/** The run over every held-out day, from the manifest's context: stage means, the rules, how the plans open. */
+const arms = (c) => (c?.arms?.some((a) => a.label) ? c.arms : null);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+/** The run over every held-out day, from the manifest's context: stage and arm means, the rules and the paired gaps
+ * to them, how the plans open. */
 function overall(c, man) {
   if (!c || c.trained == null) return "";
   const n = c.tasks ? `${c.tasks} held-out days` : "the held-out days";
-  const rules = c.greedy != null ? ` The greedy rule scores ${c.greedy.toFixed(2)}${c.threshold != null ? `, the threshold rule ${c.threshold.toFixed(2)}` : ""}.` : "";
+  const arc = arms(c) ? c.arms.map((a) => ` to ${a.reward.toFixed(2)} at step ${a.step} of ${a.label}`).join("") : ` to ${c.trained.toFixed(2)} (GRPO)`;
+  const rules = c.greedy != null ? ` The greedy rule scores ${c.greedy.toFixed(2)}${c.threshold != null ? `, the threshold rule ${c.threshold.toFixed(2)}` : ""}${c.reading ? `; the final model is ${c.reading}` : ""}.` : "";
   const open = c.opening ? ` ${c.opening.share[0]} of ${c.opening.share[1]} trained plans open by ${c.opening.charge ? "charging" : "trading"} at ${hourName(c.opening.hour)}, whatever the battery already holds.` : "";
   const days = man?.days ? ` This day is one of ${man.days.doing_well} in ${man.days.candidates} checkpointed days where it reaches 0.85.` : "";
-  return `Across all ${n} the model goes from ${c.base.toFixed(2)} (base) to ${c.sft.toFixed(2)} (SFT) to ${c.trained.toFixed(2)} (GRPO).${rules}${days}${open}`;
+  return `Across all ${n} the model goes from ${c.base.toFixed(2)} (base) to ${c.sft.toFixed(2)} (SFT)${arc}.${rules}${days}${open}`;
 }
 const frameName = (f) => (f.trained === "grpo" ? (f.step != null ? `Step ${f.step}` : "Trained") : STAGE[f.trained] || f.trained);
 
@@ -129,6 +133,10 @@ function levelUp(root, man, ds, stage, q) {
   const d0 = ds[0], b = d0.b;
   const name = modelName(man.model).replace(/^Qwen\s/, "Qwen").replace(/Qwen3 1\.7B/, "Qwen3-1.7B");
   const rewards = man.frames.map((f, i) => ds[i].reward ?? 0);
+  const firstGrpo = man.frames.findIndex((f) => f.trained === "grpo");
+  const armStart = (i) => man.frames[i].trained === "grpo" && man.frames[i].arm && (i === firstGrpo || man.frames[i].arm !== man.frames[i - 1].arm);
+  const multi = new Set(man.frames.filter((f) => f.trained === "grpo").map((f) => f.arm)).size > 1;
+  const splits = multi && man.total_steps ? man.frames.flatMap((f, i) => (armStart(i) && i !== firstGrpo ? [man.frames[i - 1].step] : [])) : [];
   const peakEve = d0.prices.indexOf(Math.max(...d0.prices.slice(15, 22)));
   const head = el("section", "card lvl-head");
   const rew = el("section", "card lvl-reward");
@@ -138,7 +146,7 @@ function levelUp(root, man, ds, stage, q) {
   root.append(head, rew, stack, toast, intro);
   intro.innerHTML = `<h5>LEVEL UP · a held-out day</h5><h2>${esc(name)} learns to run one battery-day</h2>
     <p>${d0.dateLabel} at <b>${esc(d0.task.settlement_point)}</b> (${esc(d0.place.name)}): a ${b.p_dis_mw} MW / ${b.energy_mwh} MWh battery, the day's 24 ERCOT day-ahead prices from ${price(d0.minP)} to ${price(d0.maxP)}/MWh. The same day is replayed at each checkpoint of training, against the exact optimum (the grey ghost).</p>
-    <p class="dim">Picked by rule: ${esc(man.rule)}.${man.note ? ` <b>${esc(man.note)}.</b>` : ""}</p>
+    <p class="dim">${man.why ? `<b>${esc(cap(man.note))}.</b> The rule: ${esc(man.rule)}. ${esc(man.why)}.` : `Picked by rule: ${esc(man.rule)}.${man.note ? ` <b>${esc(man.note)}.</b>` : ""}`}</p>
     ${overall(man.context, man) ? `<p class="ctx">${esc(overall(man.context, man))}</p>` : ""}`;
   const W = 260, H = 64;
   const rx = (i) => 8 + ((W - 16) * i) / Math.max(1, n - 1), ry = (v) => H - 8 - clamp(v) * (H - 16);
@@ -163,14 +171,15 @@ function levelUp(root, man, ds, stage, q) {
       lastKey = key;
       head.innerHTML = `<div class="eyebrow">LEVEL UP</div><div class="who">${esc(name)} <span class="tier ${f.trained}">${esc(STAGE[f.trained] || f.trained)}</span></div>
         <div class="lvl">${k < 0 ? "Before training" : f.trained === "grpo" ? `Step <b>${f.step ?? man.total_steps}</b>${man.total_steps ? ` <span>of ${man.total_steps}</span>` : ""}` : f.trained === "sft" ? "<b>SFT</b> warm start" : "<b>Base</b> model"}</div>
-        <div class="xp"><span style="width:${(k < 0 ? 0 : xp) * 100}%"></span>${man.frames.map((x, i) => `<i style="left:${(man.total_steps && x.trained === "grpo" ? (x.step ?? man.total_steps) / man.total_steps : i / n) * 100}%" class="${i <= ki && k >= 0 ? "on" : ""}"></i>`).join("")}</div>
+        ${multi && k >= 0 && f.trained === "grpo" ? `<div class="arm">${esc(f.arm)}</div>` : ""}
+        <div class="xp"><span style="width:${(k < 0 ? 0 : xp) * 100}%"></span>${man.frames.map((x, i) => `<i style="left:${(man.total_steps && x.trained === "grpo" ? (x.step ?? man.total_steps) / man.total_steps : i / n) * 100}%" class="${i <= ki && k >= 0 ? "on" : ""}"></i>`).join("")}${splits.map((s) => `<b class="split" style="left:${(s / man.total_steps) * 100}%"></b>`).join("")}</div>
         <div class="meta">${d0.dateLabel} · ${esc(d0.task.settlement_point)} · ${b.p_dis_mw} MW / ${b.energy_mwh} MWh${k < 0 ? "" : ` · <span class="num">${clock(t)}</span>`}</div>`;
       const seen = rewards.slice(0, k < 0 ? 0 : hold || end ? ki + 1 : ki);
       rew.innerHTML = `<h5>Reward on this day</h5><div class="big num">${shownR == null ? (k < 0 ? "—" : `<span class="dim">…</span>`) : shownR.toFixed(3)}${shownR == null ? "" : `<span class="g ${grade(shownR)}">${grade(shownR)}</span>`}</div>
         <div class="sub">${k < 0 ? "1.0 is the exact optimum's plan" : shownR == null ? `cash so far ${money(cashAt(d, t))} · optimum ${money(optAt(d, t))}` : d.nosubmit ? "no valid plan: the battery sits idle" : `${money(d.ep.profit_usd)} of the optimum's ${money(d.pOpt)}`}</div>
         <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><line x1="8" x2="${W - 8}" y1="${ry(1)}" y2="${ry(1)}" stroke="rgba(28,35,41,0.15)" stroke-dasharray="3 3"/><line x1="8" x2="${W - 8}" y1="${ry(0)}" y2="${ry(0)}" stroke="rgba(28,35,41,0.15)"/>
         <polyline fill="none" stroke="#2c3440" stroke-width="2" points="${seen.map((v, i) => `${rx(i)},${ry(v)}`).join(" ")}"/>${seen.map((v, i) => `<circle cx="${rx(i)}" cy="${ry(v)}" r="${i === seen.length - 1 ? 4 : 2.6}" fill="${i === seen.length - 1 ? "#1d9a57" : "#2c3440"}"/>`).join("")}</svg>`;
-      const rows = man.frames.map((x, i) => i > ki || k < 0 ? "" : `<div class="srow ${i === ki ? "cur" : ""}"><span class="lab">${esc(frameName(x))}</span><span class="chips24">${cells(ds[i], { now: i === ki && !hold && !end ? Math.min(23, Math.floor(t)) : null })}</span><span class="m num">${ds[i].nosubmit ? "no plan" : i < ki || hold || end ? `${matches(ds[i])}/24 h · ${rewards[i].toFixed(2)}` : ""}</span></div>`).join("");
+      const rows = man.frames.map((x, i) => i > ki || k < 0 ? "" : `${multi && armStart(i) ? `<div class="srow armsep"><span></span><span>${esc(x.arm)}</span><span></span></div>` : ""}<div class="srow ${i === ki ? "cur" : ""}"><span class="lab">${esc(frameName(x))}</span><span class="chips24">${cells(ds[i], { now: i === ki && !hold && !end ? Math.min(23, Math.floor(t)) : null })}</span><span class="m num">${ds[i].nosubmit ? "no plan" : i < ki || hold || end ? `${matches(ds[i])}/24 h · ${rewards[i].toFixed(2)}` : ""}</span></div>`).join("");
       stack.innerHTML = `<h5>The plan, checkpoint by checkpoint <small>against the exact optimum</small></h5><div class="srow ghost"><span class="lab">DP optimum</span><span class="chips24">${ghostCells(d0)}</span><span class="m">24/24 h · 1.00</span></div>${rows}
         <div class="hrs"><span></span><span>${[0, 6, 12, 18].map((h) => `<em style="left:${(h / 24) * 100}%">${hourLabel(h)}</em>`).join("")}</span><span></span></div>`;
     }
@@ -180,7 +189,8 @@ function levelUp(root, man, ds, stage, q) {
     if (show) toast.innerHTML = `<div class="t">${prev == null ? "START" : rewards[ki] > prev + 1e-9 ? "LEVEL UP" : rewards[ki] < prev - 1e-9 ? "SETBACK" : "HOLDS"}</div><div class="v">${esc(frameName(f))} · reward ${prev == null ? "" : `${prev.toFixed(2)} → `}<b>${rewards[ki].toFixed(2)}</b></div>`;
     else if (end) {
       const c = man.context;
-      toast.innerHTML = `<div class="t">TRAINED</div><div class="v">${esc(name)} on this day: reward <b>${rewards[0].toFixed(2)}</b> → <b>${rewards[n - 1].toFixed(2)}</b>${man.total_steps ? ` in ${man.total_steps} GRPO steps` : ""}</div>${man.note ? `<div class="note">${esc(man.note)}</div>` : ""}${c?.trained != null ? `<div class="all">Over all ${c.tasks || ""} held-out days: <b>${c.base.toFixed(2)} → ${c.sft.toFixed(2)} → ${c.trained.toFixed(2)}</b>${c.greedy != null ? `; the greedy rule scores ${c.greedy.toFixed(2)}` : ""}. Valid plans now, not yet the simple rules.</div>` : ""}`;
+      const a = arms(c);
+      toast.innerHTML = `<div class="t">TRAINED</div><div class="v">${esc(name)} on this day: reward <b>${rewards[0].toFixed(2)}</b> → <b>${rewards[n - 1].toFixed(2)}</b>${man.total_steps ? ` in ${man.total_steps} GRPO steps` : ""}${a?.length > 1 ? `: ${a.slice(0, -1).map((x) => `${esc(x.label.split(" (")[0])} to step ${x.step}`).join(", ")}, then ${esc(a[a.length - 1].label)}` : ""}</div>${man.note ? `<div class="note">${esc(cap(man.note))}</div>` : ""}${c?.trained != null ? `<div class="all">Over all ${c.tasks || ""} held-out days: <b>${[c.base, c.sft, ...(a || [c]).map((x) => x.reward ?? x.trained)].map((v) => v.toFixed(2)).join(" → ")}</b>${c.greedy != null ? `; the greedy rule scores ${c.greedy.toFixed(2)}${c.threshold != null ? `, the threshold rule ${c.threshold.toFixed(2)}` : ""}` : ""}. ${c.reading ? `The final model is ${esc(c.reading)}.` : "Valid plans now, not yet the simple rules."}</div>` : ""}`;
     }
   }
   return { duration, at, update };
@@ -210,7 +220,7 @@ function race(root, man, ds, stage, focus0) {
   const zx = (v) => ((v - lo) / (hi - lo)) * 100;
   const c = man.context;
   board.innerHTML = `<div class="rhead"><h5>Race · the same day, the same prices <small>the yard follows the highlighted lane · keys 1-${ds.length}</small></h5><button data-play class="play">❚❚ Pause</button></div>
-    ${c?.trained != null ? `<div class="rctx">Over all ${c.tasks || ""} held-out days: base ${c.base.toFixed(2)} · SFT ${c.sft.toFixed(2)} · GRPO ${c.trained.toFixed(2)}${c.greedy != null ? ` · greedy rule ${c.greedy.toFixed(2)}` : ""}${c.threshold != null ? ` · threshold rule ${c.threshold.toFixed(2)}` : ""}</div>` : ""}
+    ${c?.trained != null ? `<div class="rctx">Over all ${c.tasks || ""} held-out days: base ${c.base.toFixed(2)} · SFT ${c.sft.toFixed(2)} · ${arms(c) ? c.arms.map((a) => `${esc(a.label)} ${a.reward.toFixed(2)}`).join(" · ") : `GRPO ${c.trained.toFixed(2)}`}${c.greedy != null ? ` · greedy rule ${c.greedy.toFixed(2)}` : ""}${c.threshold != null ? ` · threshold rule ${c.threshold.toFixed(2)}` : ""}${c.reading ? `. The final model is ${esc(c.reading)}.` : ""}</div>` : ""}
     <div class="rrow ghost"><span class="lab">DP optimum</span><span class="chips24">${ghostCells(d0)}</span><span class="rsoc"></span><span class="rcash"><span class="bar" style="left:${zx(0)}%;width:${zx(d0.pOpt ?? 0) - zx(0)}%"></span></span><span class="v num">${money(d0.pOpt ?? 0)}</span><span class="g0"></span></div>
     ${man.lanes.map((l, i) => `<div class="rrow lane" data-i="${i}"><span class="lab"><b>${i + 1}</b> ${esc(l.label)}</span><span class="chips24"></span><span class="rsoc"><span></span></span><span class="rcash"><i class="z" style="left:${zx(0)}%"></i><span class="bar"></span></span><span class="v num"></span><span class="g0"></span></div>`).join("")}
     <div class="hrs"><span></span><span>${[0, 6, 12, 18].map((h) => `<em style="left:${(h / 24) * 100}%">${hourLabel(h)}</em>`).join("")}</span><span></span></div>`;

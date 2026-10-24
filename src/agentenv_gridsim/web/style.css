@@ -335,6 +335,10 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .lvl-head .xp > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: linear-gradient(90deg, #5f8f2f, #1d9a57 60%, #0b9fc6); }
 .lvl-head .xp i { position: absolute; top: -3px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: #c9cfd2; }
 .lvl-head .xp i.on { background: #1c2329; }
+.lvl-head .xp b.split { position: absolute; top: -7px; height: 26px; width: 2px; margin-left: -1px; background: #0b9fc6; }
+.lvl-head .arm { font-size: 12.5px; font-weight: 650; color: #1d9a57; margin: 1px 0 2px; }
+.lvl-stack .srow { margin: 2px 0; }
+.srow.armsep { margin: 5px 0 0; font-size: 10.5px; line-height: 12px; font-weight: 650; color: #1d9a57; }
 .lvl-head .meta { font-size: 12.5px; color: var(--ink2); }
 .lvl-head .meta .num small { font-size: 11px; margin-left: 1px; }
 .lvl-reward { position: absolute; right: var(--gap); top: var(--gap); width: 300px; z-index: 5; }
@@ -352,6 +356,7 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .hrs > span:nth-child(2) { position: relative; }
 .hrs em { position: absolute; font-style: normal; }
 .lvl-toast { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 6; text-align: center; padding: 16px 28px; border-radius: 16px; background: rgba(252, 251, 248, 0.94); box-shadow: var(--shadow); pointer-events: none; opacity: 0; }
+.lvl-toast { width: max-content; max-width: min(760px, calc(100% - 2 * var(--gap))); }
 .lvl-toast .t { font-size: 30px; font-weight: 850; letter-spacing: 0.14em; color: #1d9a57; }
 .lvl-toast .v { font-size: 16px; color: var(--ink2); margin-top: 2px; }
 .lvl-toast .note { font-size: 12.5px; color: var(--bad); margin-top: 6px; max-width: 520px; }
@@ -361,7 +366,7 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .race-place { position: absolute; left: var(--gap); top: var(--gap); width: 400px; z-index: 5; }
 .race-board .rhead { display: flex; justify-content: space-between; align-items: center; }
 .race-board .play { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 4px 10px; font-size: 12.5px; }
-.rrow { grid-template-columns: 170px 1fr 70px 190px 84px 86px; cursor: pointer; padding: 3px 6px; border-radius: 7px; }
+.rrow { grid-template-columns: 220px 1fr 70px 190px 84px 86px; cursor: pointer; padding: 3px 6px; border-radius: 7px; }
 .rrow.ghost { cursor: default; }
 .rrow.focus { background: rgba(28, 35, 41, 0.07); color: var(--ink); }
 .rrow .lab b { display: inline-block; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; background: #e3e6e8; color: var(--ink2); font-size: 10.5px; margin-right: 4px; }
@@ -374,8 +379,15 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .rrow.ghost .rcash .bar { background: repeating-linear-gradient(135deg, rgba(28, 35, 41, 0.35) 0 4px, rgba(28, 35, 41, 0.15) 4px 8px); }
 .rrow .g0 { font-size: 12px; white-space: nowrap; }
 .rrow .g0 .win { color: var(--good); font-size: 11px; margin-left: 2px; }
-.race-board .hrs { grid-template-columns: 170px 1fr 70px 190px 84px 86px; padding: 0 6px; }
+.race-board .hrs { grid-template-columns: 220px 1fr 70px 190px 84px 86px; padding: 0 6px; }
 .ep.train.bare .card, .ep.train.bare .lvl-toast { display: none !important; }
+@media (max-height: 820px) and (min-width: 901px) {
+  .lvl-stack { padding: 10px 14px; }
+  .lvl-stack .srow { margin: 1px 0; }
+  .lvl-toast { top: 41.5%; padding: 12px 22px; }
+  .lvl-toast .t { font-size: 24px; }
+  .lvl-toast .v { font-size: 14.5px; }
+}
 @media (max-width: 900px) {
   .lvl-head, .race-place { width: calc(100% - 2 * var(--gap)); }
   .lvl-reward { display: none; }
@@ -409,7 +421,7 @@ body.list-page { overflow: auto; background: #eef0ec; }
   .ep.is-live .score.live .r { font-size: 24px; }
 }
 .lvl-intro .ctx { font-size: 13px; color: var(--ink2); border-top: 1px solid var(--line); padding-top: 8px; }
-.lvl-toast .all { font-size: 13.5px; color: var(--ink2); margin-top: 6px; max-width: 560px; }
+.lvl-toast .all { font-size: 13.5px; color: var(--ink2); margin: 6px auto 0; max-width: 680px; }
 .race-board .rctx { font-size: 12px; color: var(--ink2); margin: -2px 0 6px; }
 
 /* v3 solar + storage days */
