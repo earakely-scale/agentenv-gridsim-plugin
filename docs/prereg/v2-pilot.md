@@ -121,4 +121,4 @@ by more than 0.05, or if more than a third of Sol's days sit at R = 1. Either wa
 headline choice (hindsight capture vs R on the anchor scale) stays Edgar's.
 
 ## Deviations
-None yet.
+None. All 40 runs scored at the first attempt and none reached the $0.60 cap, so no amendment sweep ran. The hero sweep ran with `--cap-usd 13.05` ($15 minus the main sweep's $1.95). Results: `results/board-v2.md` (Pilot and Reading), `results/pilot-v2.json`.
