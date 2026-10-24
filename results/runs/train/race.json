@@ -1,37 +1,33 @@
 {
  "schema": "gridsim.race/v1",
- "task_id": "dam-v1-2025-09-29-HB_HOUSTON-1h-i",
+ "task_id": "dam-v1-2025-06-06-LZ_CPS-1h-l",
  "context": {
   "tasks": 200,
   "base": 0.0,
-  "sft": 0.2336,
-  "trained": 0.329,
-  "greedy": 0.764,
-  "threshold": 0.6371,
   "opening": {
    "hour": 2,
-   "charge": true,
+   "charge": false,
    "share": [
-    198,
+    28,
     200
    ]
   }
  },
  "lanes": [
   {
-   "episode_id": "27d32165192ea7f3",
+   "episode_id": "b6756321c78407ab",
    "label": "Qwen3-1.7B base"
   },
   {
-   "episode_id": "dfc8f156ade83e6d",
+   "episode_id": "8885e2ef03dc5edb",
    "label": "Qwen3-1.7B SFT"
   },
   {
-   "episode_id": "ef29fd1a6824a45f",
+   "episode_id": "f9838c7c13a2a002",
    "label": "Qwen3-1.7B GRPO"
   },
   {
-   "episode_id": "dam-v1-2025-09-29-HB_HOUSTON-1h-i-umpp2qp1",
+   "episode_id": "dam-v1-2025-06-06-LZ_CPS-1h-l-9d42cavi",
    "label": "GPT-6.1 Sol"
   }
  ]

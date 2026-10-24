@@ -1,80 +1,58 @@
 {
  "schema": "gridsim.levelup/v1",
- "task_id": "dam-v1-2025-09-29-HB_HOUSTON-1h-i",
+ "task_id": "dam-v1-2025-06-06-LZ_CPS-1h-l",
  "model": "Qwen/Qwen3-1.7B",
  "rule": "the largest base-to-trained gain in reward among held-out days where the trained model scores at least 0.85",
- "note": null,
+ "note": "day chosen by hand (dam-v1-2025-06-06-LZ_CPS-1h-l), not by the rule",
  "decoding": "sampled for every frame where the run has it",
  "days": {
   "candidates": 50,
-  "doing_well": 2
+  "doing_well": 12
  },
  "context": {
   "tasks": 200,
   "base": 0.0,
-  "sft": 0.2336,
-  "trained": 0.329,
-  "greedy": 0.764,
-  "threshold": 0.6371,
   "opening": {
    "hour": 2,
-   "charge": true,
+   "charge": false,
    "share": [
-    198,
+    28,
     200
    ]
   }
  },
- "total_steps": 280,
- "gain": 0.907813,
+ "total_steps": 75,
+ "gain": 0.979795,
  "frames": [
   {
-   "episode_id": "27d32165192ea7f3",
+   "episode_id": "b6756321c78407ab",
    "trained": "base",
    "step": 0,
    "reward": 0.0
   },
   {
-   "episode_id": "dfc8f156ade83e6d",
+   "episode_id": "8885e2ef03dc5edb",
    "trained": "sft",
    "step": 0,
-   "reward": 0.0
+   "reward": 0.150916
   },
   {
-   "episode_id": "a9b36af94e5fcac5",
+   "episode_id": "f842a748a63d6f0b",
+   "trained": "grpo",
+   "step": 25,
+   "reward": 0.849865
+  },
+  {
+   "episode_id": "3cb776a2c4c78d75",
    "trained": "grpo",
    "step": 50,
-   "reward": 0.0
+   "reward": 0.979795
   },
   {
-   "episode_id": "8efceaaa3ec7833f",
+   "episode_id": "f9838c7c13a2a002",
    "trained": "grpo",
-   "step": 100,
-   "reward": 0.907813
-  },
-  {
-   "episode_id": "78542a0b7c2aec58",
-   "trained": "grpo",
-   "step": 150,
-   "reward": 0.907813
-  },
-  {
-   "episode_id": "a71bfb629e71d507",
-   "trained": "grpo",
-   "step": 200,
-   "reward": 0.907813
-  },
-  {
-   "episode_id": "1a08fef7c25abeff",
-   "trained": "grpo",
-   "step": 250,
-   "reward": 0.907813
-  },
-  {
-   "episode_id": "ef29fd1a6824a45f",
-   "trained": "grpo",
-   "step": 280,
-   "reward": 0.907813
+   "step": 75,
+   "reward": 0.979795
   }
  ]
 }
