@@ -52,3 +52,6 @@ select = ["E", "F", "W", "B", "UP", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"data" = "gridsim_core/data"

@@ -36,6 +36,8 @@ def grade(task: dict, actions, tier: str = "foresight") -> dict:
         return {"submitted": False, "tier": tier, "reward": 0.0, "error": str(e)}
     sim, f = simulate(task, acts), foresight_refs(task)
     p, p_idle, p_opt = sim["profit_usd"], f["p_idle"], f["p_opt"]
+    if tier == "blind" and not (task.get("refs") or {}).get("blind"):
+        raise ValueError(f"{task.get('task_id')} has no blind refs; it is not a blind-tier task")
     anchor = task["refs"]["blind"]["p_anchor"] if tier == "blind" else p_opt
     out = {"submitted": True, "tier": tier, "reward": reward_value(p, p_idle, anchor),
            "r_opt": reward_value(p, p_idle, p_opt), "profit": p, "profit_idle": p_idle, "profit_anchor": anchor,
