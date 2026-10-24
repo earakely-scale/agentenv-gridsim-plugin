@@ -128,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
             shutil.copy(side, out / "weather" / side.name)
     featured = feature(entries, args.hero, out)
     if args.thumbs:
-        for e in featured:
+        for e in featured[1:]:
             thumbnail(out, e)
         still(out, featured[0])
     index = [{k: v for k, v in e.items() if v is not None} for e in entries]
@@ -240,12 +240,13 @@ def blurb(ep: dict, e: dict, kind: str) -> str:
     p, place = ep["task"]["prices"], REGIONS.get(e["region"], e["region"])
     top = f"${p[peak(ep)]:.0f}/MWh at {hour(peak(ep))}"
     if kind == "beats":
-        return (f"Blind, in {place}: with only the days before to go on, the agent captured {e['r_opt']:.0%} of what "
-                f"hindsight could make, where the better of the two forecasters captured {e['anchor_r_opt']:.0%}. "
-                f"The day topped out at {top}.")
+        return (f"Blind: with only the days before to go on, the agent captured {e['r_opt']:.0%} of what hindsight "
+                f"could make, where the better of the two forecasters captured {e['anchor_r_opt']:.0%}. The day topped "
+                f"out at {top}.")
     if kind == "trails":
-        return (f"Blind, in {place}: the agent's plan made ${e['profit']:,.0f} on a day the better forecaster's plan "
-                f"made ${e['p_anchor']:,.0f}; reward {e['reward']:.2f} against its 1.0. The day topped out at {top}.")
+        made = f"made ${e['profit']:,.0f}" if e["profit"] >= 0 else f"lost ${-e['profit']:,.0f}"
+        return (f"Blind: the agent's plan {made} on a day the better forecaster's plan made ${e['p_anchor']:,.0f}; "
+                f"reward {e['reward']:.2f} against its 1.0. The day topped out at {top}.")
     neg = sum(1 for x in p if x < 0)
     if neg:
         return (f"{place} on a spring day: {neg} hours of negative prices around midday, when the battery is paid to "
@@ -269,10 +270,12 @@ def thumbnail(out: Path, e: dict) -> None:
 
 
 def still(out: Path, e: dict) -> None:
+    """The hero day at its evening ramp, 1600x900: the featured card's picture and the README's."""
     path = out / "runs" / e["url"]
     record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--still",
            str(out / "thumbs" / "hero.jpg"), "--size", "1600x900", "--t", str(evening(json.loads(path.read_text()))),
            "--extra", "ui=0&shot=ramp")
+    e["thumb"] = "thumbs/hero.jpg"
 
 
 def readme(entries: list[dict], hero: dict | None) -> str:

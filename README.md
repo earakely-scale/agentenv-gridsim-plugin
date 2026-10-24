@@ -1,6 +1,6 @@
 <div align="center">
 
-<!-- TODO: hero still or clip of the battery yard from the viewer (assets/), linking to the Space's hero day -->
+<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/dam-v1-2025-03-15-HB_WEST-1h-t-zgptiln6.json"><img src="assets/gridsim-hero.jpg" alt="GPT-6.1 Sol's run of a 160 MW battery at ERCOT's West hub on 15 March 2025, replayed in 3D at the $102 evening peak" width="100%"></a>
 
 <h1>GridSimEnv: run a battery on the real Texas grid</h1>
 
@@ -149,10 +149,13 @@ agent-env gridsim episodes sol-full            # results/runs/sol-full/*.json
 ```
 
 `--tasks` takes `all`, a count (the pack's first N) or task ids; `--k` plays each task more than once; `--parallel`
-sets the attempts at a time (default 4). Running the same sweep again resumes it.
+sets the attempts at a time (default 4). Running the same sweep again resumes it. When some of a sweep's tasks are
+re-run as another sweep under an amendment, `sweep report SWEEP --amend SWEEP=AMENDMENT` reports both: the headline
+takes each run's score from either, and `prereg` the registered sweep alone. `scripts/board.py` writes the v1 board
+this way, with its text around the tables.
 
-**Watch.** `view` serves the viewer read-only on loopback over `results/runs`; `record` films one episode in headless
-Chrome from a checkout:
+**Watch.** `view` serves the viewer read-only on loopback over `results/runs`, with the list of episodes at its root;
+`record` films one episode in headless Chrome from a checkout:
 
 ```bash
 agent-env gridsim view                         # http://127.0.0.1:8239/
@@ -294,21 +297,42 @@ Each is clipped to the rules hour by hour and repaired to meet the end obligatio
 
 ## The board
 
-GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) on the held-out `eval` pack, once per battery-day, under the
+GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played every battery-day once on 24 October 2026, under the
 board registered before the first run in [`docs/prereg/v1-board.md`](docs/prereg/v1-board.md): column A is the `full`
-harness at the foresight tier (the primary), B the `oneshot` harness at the foresight tier, C the `full` harness at the
-blind tier. Intervals are 95% bootstrap intervals over battery-days; valid means submitted and feasible.
+harness at the foresight tier on the held-out `eval` pack (the primary), B the `oneshot` harness on the same days, C the
+`full` harness at the blind tier, and the optional D the `full` harness at the foresight tier on the `rtcb` pack.
+Intervals are 95% bootstrap intervals over battery-days (10,000 resamples); optimal means R ≥ 0.99, valid submitted and
+feasible.
 
-<!-- TODO: fill from results/eval-v1.json once the board runs land -->
+| Column | Model | Pack | Tier | Harness | Battery-days | Mean reward (95% CI) | r_opt | Optimal | Valid | Beats anchor | $ per episode |
+|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|
+| A | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | full | 500 | **0.9999** (0.9997 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0157 |
+| B | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | oneshot | 500 | **0.9999** (0.9998 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0117 |
+| C | GPT-6.1 Sol | `ercot-dam-v1-eval` | blind | full | 300 | **0.9721** (0.9624 to 0.9804) | 0.9165 | 72.3% | 100.0% | 40.3% | $0.0193 |
+| D | GPT-6.1 Sol | `ercot-dam-v1-rtcb` | foresight | full | 250 | **1.0000** (0.9999 to 1.0000) | 1.0000 | 100.0% | 100.0% | – | $0.0161 |
 
-| Column | Model | Tier | Harness | Battery-days | Mean reward (95% CI) | Hindsight `r_opt` | Valid | Beats anchor | $ per episode |
-|---|---|---|---|---:|---|---:|---:|---:|---:|
-| A | GPT-6.1 Sol | foresight | full | 500 | pending | pending | pending | – | pending |
-| B | GPT-6.1 Sol | foresight | oneshot | 500 | pending | pending | pending | – | pending |
-| C | GPT-6.1 Sol | blind | full | 300 | pending | pending | pending | pending | pending |
+Baselines graded on each column's battery-days (mean reward; r_opt in brackets at the blind tier):
 
-More models play once v1 is final; the board, the error taxonomy (overfill, sell before charge, rate, cycle cap, end
-short, all idle) and the unscored runs are in `results/board.md`.
+- A: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
+- B: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
+- C: idle 0.200 (0.200), random 0.076 (0.076), clock 0.516 (0.487), threshold 0.698 (0.655), greedy 0.821 (0.783), persistence-DP 0.957 (0.882), ridge-DP 0.861 (0.799), blind anchor 1.000 (0.920); the DP optimum 1.000.
+- D: idle 0.200, random 0.043, clock 0.435, threshold 0.664, greedy 0.724, persistence-DP 0.844 on 202, ridge-DP 0.764 on 202, blind anchor 0.888 on 202; the DP optimum 1.000.
+
+The headline is the amended board. The pre-registered $0.10 episode cap stopped runs before they submitted (A 14, B 3, C 63, D 5): the agent's own pre-request cost guard, not the model. Those runs were re-run once at $0.40 and all scored. The pre-registered scoring, its scored runs only: A 0.9999 (486 of 500); B 0.9999 (497 of 500); C 0.9769 (237 of 300); D 1.0000 (245 of 250). Dropping the stopped runs would bias the blind column toward easy days, so the amended column is the headline.
+
+- **Foresight is saturated.** With the day's 24 prices in view Sol finds the optimum: 0.9999 on A, 99.6% of days
+  optimal, the same on B, 1.0000 on D, and no rule broken in any column (no overfill, sell-before-charge, rate or
+  cycle-cap break, shortfall or all-idle day).
+- **The blind tier separates.** Seeing only the days before, Sol captures r_opt 0.9165 of hindsight against the blind
+  anchor's own 0.9204 on the same 300 days (persistence-DP 0.8820), and beats its anchor on 40.3% of them.
+- **One check.** Sol used exactly one of its three checks on 499 of A's 500 runs, on the schedule it then submitted; B,
+  with none, scores the same.
+
+`results/board.md` has the rest: the amendment and what the run files show about it, the breakdowns by checks used,
+battery class, binding constraint and day type, cost, tokens and time, the baselines and the LP bound on each column's
+days, the hypotheses against what was measured, and the unscored runs. `results/eval-v1.json` is the eval card. Every
+scored run replays: `agent-env gridsim episodes` played each recorded tool call again on a fresh env and every output
+and reward matched. The board spent $25.88 on the model. More models play once v1 is final.
 
 ## Training
 
@@ -339,6 +363,8 @@ trainer = GRPOTrainer(model="Qwen/Qwen3-1.7B", reward_funcs=reward_fn, train_dat
                       args=GRPOConfig(output_dir="gridsim-grpo"))
 trainer.train()
 ```
+
+**In progress:** the results land with the training lane.
 
 <!-- TODO: the training lane's recipe (Qwen3-1.7B and 4B, LoRA, thinking off, the curriculum), its results on
 eval_2025 with CIs, the published checkpoints, the Colab and `agent-env gridsim train` -->
@@ -405,6 +431,17 @@ uv run python scripts/hub_dataset.py --out build/hub/dataset --bundle build/bund
 
 <!-- TODO: confirm which bundles (packs, tiers, harnesses) the release publishes -->
 
+The Space is static: `scripts/hub_space.py` copies the viewer, every Episode JSON under `results/runs` (each settled
+again through `gridsim_core`), the weather sidecars `scripts/weather.py` fetches from the IEM (one request a second,
+cached in `cache/weather`) and a runs index into `build/hub/space`; `--thumbs` renders the featured days' pictures in
+headless Chrome. It never uploads:
+
+```bash
+python3 scripts/weather.py --episodes results/runs
+python3 scripts/hub_space.py --thumbs
+python3 scripts/record.py --episode results/runs/v1-board-sol-full/<episode>.json --out results/films/hero-sol.mp4
+```
+
 ## Repository layout
 
 | Path | What |
@@ -417,8 +454,11 @@ uv run python scripts/hub_dataset.py --out build/hub/dataset --bundle build/bund
 | `agents/gridsim-llm/` | the agent: the harness loop on Anthropic Messages, OpenAI Responses or OpenAI-compatible chat |
 | `data/` | the packs (`tasks.jsonl.gz` and `manifest.json` each), `stats.md`, `ridge-v1.json`, [`LICENSE`](data/LICENSE) |
 | `scripts/build_pack.py` | the packs from `cache/raw` in one command |
-| `scripts/hub_dataset.py`, `hub/` | the Hugging Face dataset and its card, and the Space |
-| `results/` | the eval card, the board and the runs' Episode JSON |
+| `scripts/board.py` | the v1 board: `sweep report` over the four sweeps and their amendment, with the board's text |
+| `scripts/hub_dataset.py`, `scripts/hub_space.py`, `hub/` | the Hugging Face dataset and its card, and the Space (`build/hub/`) |
+| `scripts/weather.py`, `scripts/record.py` | the IEM weather sidecars the viewer dresses each day with, and the films and stills |
+| `results/` | the eval card, the board and the runs' Episode JSON (each sweep's `raw/` records stay local) |
+| `assets/` | the README's hero still |
 | `docs/CONTRACT.md`, `docs/prereg/` | the v1 build contract and the pre-registered board |
 | `tests/core/`, `tests/plugin/` | offline tests on the committed fixtures |
 

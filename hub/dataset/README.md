@@ -60,7 +60,7 @@ configs:
 
 <div align="center">
 
-<!-- TODO: hero still or clip of the battery yard from the viewer lane, linking to the Space's hero day -->
+<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/dam-v1-2025-03-15-HB_WEST-1h-t-zgptiln6.json"><img src="https://raw.githubusercontent.com/earakely-scale/agentenv-gridsim-plugin/v0.1.0/assets/gridsim-hero.jpg" alt="GPT-6.1 Sol's run of a 160 MW battery at ERCOT's West hub on 15 March 2025, replayed in 3D at the $102 evening peak" width="100%"></a>
 
 <h1>GridSimEnv v1: The Battery Desk</h1>
 
@@ -173,9 +173,9 @@ own, so they never mix into a split.
 | | `rtcb` | 452 | 250 battery-days after ERCOT's real-time co-optimization went live (5 December 2025 to 17 October 2026), and 202 of them at the blind tier |
 | `v1_showcase` | `showcase` | 1,461 | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind: for display, never for scoring a claim |
 | `v1_references` | each split above | 20,000 / 500 / 500 / 250 / 761 | per battery-day: P_opt and its schedule, P_idle, the LP bound, the clock, threshold, greedy and random-feasible schedules with their profits and rewards, and for blind battery-days the persistence and ridge schedules and the anchor |
-| `v1_episodes` | the split of each episode's day | – | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages |
+| `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,320 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, and 37 reference episodes the Space also replays |
 
-<!-- TODO: v1_episodes row counts after the board and training runs land -->
+<!-- TODO: v1_episodes row counts after the training runs land -->
 
 `raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line (`<pack>.jsonl`), with each
 pack's manifest (sources and their SHA-256, filters, counts, the battery table) and `stats.md`, the pack statistics.
@@ -335,21 +335,39 @@ capture (`r_opt`) of the anchor and of persistence alone:
 
 ## Results
 
-GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) on the held-out `eval_2025` battery-days, once each, under
-the board registered before the first run (`docs/prereg/v1-board.md` in the plugin): the `full` harness with three
-checks at the foresight tier, the `oneshot` harness (the path-B training prompt) at the foresight tier, and the
-`full` harness at the blind tier. The 95% intervals are bootstrap intervals over battery-days; valid means submitted
-and feasible.
+GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played each battery-day once, under the board registered
+before the first run ([`docs/prereg/v1-board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/docs/prereg/v1-board.md)):
+column A is the `full` harness with three checks at the foresight tier on the held-out `eval_2025` battery-days, B the
+`oneshot` harness (the path-B training prompt) on the same days, C the `full` harness at the blind tier, and the
+optional D the `full` harness at the foresight tier on the `rtcb` days. The 95% intervals are bootstrap intervals over
+battery-days (10,000 resamples); optimal means R ≥ 0.99, valid submitted and feasible. Every run is in `v1_episodes`
+with its transcript, and every recorded tool call replays on the env with the same output and reward.
 
 <!-- board:v1 -->
-| Model | Tier | Harness | Tasks | Mean reward (95% CI) | Hindsight r_opt | Valid | Beats anchor | $ per episode |
-|---|---|---|---:|---|---:|---:|---:|---:|
-| GPT-6.1 Sol (base) | foresight | full | 500 | pending | pending | pending | – | pending |
-| GPT-6.1 Sol (base) | foresight | oneshot | 500 | pending | pending | pending | – | pending |
-| GPT-6.1 Sol (base) | blind | full | 300 | pending | pending | pending | pending | pending |
+| Column | Model | Pack | Tier | Harness | Battery-days | Mean reward (95% CI) | r_opt | Optimal | Valid | Beats anchor | $ per episode |
+|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|
+| A | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | full | 500 | **0.9999** (0.9997 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0157 |
+| B | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | oneshot | 500 | **0.9999** (0.9998 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0117 |
+| C | GPT-6.1 Sol | `ercot-dam-v1-eval` | blind | full | 300 | **0.9721** (0.9624 to 0.9804) | 0.9165 | 72.3% | 100.0% | 40.3% | $0.0193 |
+| D | GPT-6.1 Sol | `ercot-dam-v1-rtcb` | foresight | full | 250 | **1.0000** (0.9999 to 1.0000) | 1.0000 | 100.0% | 100.0% | – | $0.0161 |
+
+Baselines graded on each column's battery-days (mean reward; r_opt in brackets at the blind tier):
+
+- A: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
+- B: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
+- C: idle 0.200 (0.200), random 0.076 (0.076), clock 0.516 (0.487), threshold 0.698 (0.655), greedy 0.821 (0.783), persistence-DP 0.957 (0.882), ridge-DP 0.861 (0.799), blind anchor 1.000 (0.920); the DP optimum 1.000.
+- D: idle 0.200, random 0.043, clock 0.435, threshold 0.664, greedy 0.724, persistence-DP 0.844 on 202, ridge-DP 0.764 on 202, blind anchor 0.888 on 202; the DP optimum 1.000.
+
+The headline is the amended board. The pre-registered $0.10 episode cap stopped runs before they submitted (A 14, B 3, C 63, D 5): the agent's own pre-request cost guard, not the model. Those runs were re-run once at $0.40 and all scored. The pre-registered scoring, its scored runs only: A 0.9999 (486 of 500); B 0.9999 (497 of 500); C 0.9769 (237 of 300); D 1.0000 (245 of 250). Dropping the stopped runs would bias the blind column toward easy days, so the amended column is the headline.
 <!-- /board:v1 -->
 
-<!-- TODO: the board fills from results/eval-v1.json when the runs land; add the trained rows after training -->
+Foresight is saturated for a frontier model: with the day's prices in view Sol finds the optimum. The blind tier is
+where models separate, against the anchor's own hindsight capture on the same days. The plugin's
+[`results/board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/results/board.md) has
+the full board: the amendment, the breakdowns by checks used, battery class, binding constraint and day type, cost and
+time, the hypotheses against what was measured, and the unscored runs.
+
+<!-- TODO: add the trained rows after training -->
 
 ## Training
 
@@ -360,6 +378,8 @@ harness's system prompt and situation), the completion ends in a `submit_schedul
 policy in full AgentEnv episodes: the trained model plays the `oneshot` bundle on the env, so the two paths grade the
 same schedule identically. Path-B evaluations write the same Episode JSON as the env's runs, so checkpoints appear in
 `v1_episodes` with `trained` set to `grpo` and their `checkpoint_step`, and replay in the Space.
+
+**In progress:** the results land with the training lane.
 
 <!-- TODO: the training results (Qwen3-1.7B and 4B GRPO, base vs trained on eval_2025, with CIs), the LoRA
 checkpoints and the Colab land with the training lane -->
@@ -403,7 +423,9 @@ battery-days `p_persist` and `persist`, `p_ridge` and `ridge`, `p_anchor` and wh
 `r_opt_anchor`, and each forecast schedule's blind-tier `_reward` and `_r_opt`.
 
 **Episodes** (`v1_episodes`), one row per recorded run: `episode_id`, `task_id`, `split`, `tier`, `bundle` (`full`,
-`oneshot` or `train`), `path` (`A`, a full AgentEnv episode; `B`, a training-path completion), `model`, `trained`
+`oneshot` or `train`), `path` (`A`, a full AgentEnv episode; `B`, a training-path completion), `model` (the LiteLLM
+id, or `reference/...` for the reference episodes the Space also replays: the DP optimum, the baselines, persistence-DP
+and a deliberately flawed plan), `model_label` (the display name, e.g. GPT-6.1 Sol), `trained`
 (`base`, `grpo` or `sft`), `checkpoint_step`, `seed`; `reward`, `r_opt`, `beats_anchor` (blind), `submitted`,
 `feasible`, `truncated_at`, `violation`, `end_shortfall_units`, `profit_usd`, `p_opt`, `p_idle`, `p_anchor`;
 `final_schedule`, `soc_path`, `checks_used`, `tool_calls`, `steps` (each call's arguments as sent and its output, as
