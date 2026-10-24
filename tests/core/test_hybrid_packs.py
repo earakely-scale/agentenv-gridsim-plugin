@@ -68,3 +68,20 @@ def test_pack_manifests(pack):
     p = data_root() / pack / "manifest.json"
     m = json.loads(p.read_text())
     assert m["pack"] == pack and m["tasks"] > 0 and m["hybrid_version"] == H.HYBRID_VERSION
+
+
+def _sample(pack: str, n: int) -> list[dict]:
+    ts = load_pack(pack)
+    return ts[:: max(1, len(ts) // n)][:n]
+
+
+@pytest.mark.parametrize("pack,n", [("fixtures-hybrid", 20), ("ercot-hybrid-v3-showcase", 4),
+                                    ("ercot-hybrid-v3-eval", 30), ("ercot-hybrid-v3-train", 30)])
+def test_anchor_commits_are_never_refused_and_settle_to_p_anchor(pack, n):
+    for t in _sample(pack, n):
+        for tier in ("energy", "reserves"):
+            s = H.play(t, tier, H.anchor_policy())
+            assert not s.refusals, (t["task_id"], tier, s.refusals[:2])
+            assert all(c["committed"] for c in s.commits)
+            assert s.profit() == pytest.approx(t["refs"][tier]["p_anchor"], abs=1e-6)
+            assert all(x["repaired"] == 0 for x in s.anchor_log if not x["soft"]), (t["task_id"], s.anchor_log)
