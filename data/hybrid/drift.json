@@ -1,0 +1,16 @@
+{
+ "kind": "seeded fallback (V3-D8); system-level regulation fractions were not derived",
+ "label": "Regulation drift is a seeded draw, not ERCOT telemetry",
+ "distribution": "independent Beta per hour, mean m, concentration k: Beta(m*k, (1-m)*k)",
+ "regup": {
+  "mean": 0.12,
+  "concentration": 6.0
+ },
+ "regdn": {
+  "mean": 0.18,
+  "concentration": 6.0
+ },
+ "seed": "gridsim_core.task.stable_seed(task_id + '|reg-drift'), random.Random",
+ "units": "fraction of the hour's RegUp (RegDn) award energy delivered (absorbed) in that hour",
+ "rounding": 4
+}

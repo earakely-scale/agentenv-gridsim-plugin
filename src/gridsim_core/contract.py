@@ -42,6 +42,45 @@ def era(d: str | dt.date) -> dict:
     return dict(row)
 
 
+AS_PRODUCTS = ("regup", "regdn", "rrs", "ecrs", "nspin")
+AS_ERAS = (
+    {"era": "A", "start": "2021-01-01", "end": "2023-06-09", "products": ("regup", "regdn", "rrs", "nspin")},
+    {"era": "B", "start": "2023-06-10", "end": "2025-12-04", "products": AS_PRODUCTS},
+    {"era": "C", "start": "2025-12-05", "end": None, "products": AS_PRODUCTS},
+)
+AS_DURATION_H = {
+    "A": {"regup": 1.0, "regdn": 1.0, "rrs": 1.0, "nspin": 4.0},
+    "B": {"regup": 1.0, "regdn": 1.0, "rrs": 1.0, "ecrs": 2.0, "nspin": 4.0},
+    "C": {"regup": 0.5, "regdn": 0.5, "rrs": 0.5, "ecrs": 1.0, "nspin": 4.0},
+}
+AS_DURATION_NOTES = {
+    "A-B rule": "NPRR1186 (PUCT-approved 2024-04-11, Nodal Protocols 8.1(4)(a)(ii)(A) and 6.5.5.2(14)): an up AS's SoC "
+                "requirement is R x (time left in the operating hour + duration - 1 h), FFR R x 0.25 h; Reg-Down "
+                "headroom is R x time left in the hour. So R x duration at the top of each hour, R x (duration - 1 h) "
+                "at its end",
+    "A-B regup, regdn, rrs": "1 h: the rule's (duration - 1 h) term implies at least 1 h, and the text does not state "
+                             "the values; still flagged (V3-D1). Checking R x duration at both ends of the hour is "
+                             "conservative against the in-hour slope. Before NPRR1186 went live no SoC rule applied",
+    "B ecrs, A-B nspin": "2 h ECRS and 4 h Non-Spin sustained capability (NPRR1096)",
+    "C": "NPRR1282 under RTC+B (PUCT-approved 2025-07-31): Reg and RRS 0.5 h, ECRS 1 h, Non-Spin 4 h",
+}
+
+
+def as_era(d: str | dt.date) -> str:
+    """The v3 AS era on date d: A before ECRS, B from 2023-06-10, C (RTC+B) from 2025-12-05."""
+    d = _as_date(d)
+    return "C" if d >= RTCB_START else "B" if d >= ECRS_START else "A"
+
+
+def as_products(d: str | dt.date) -> tuple[str, ...]:
+    return next(r["products"] for r in AS_ERAS if r["era"] == as_era(d))
+
+
+def as_duration_h(product: str, d: str | dt.date) -> float:
+    """Hours of SoC held per MW of `product` award on date d; KeyError when the product does not exist that day."""
+    return AS_DURATION_H[as_era(d)][product]
+
+
 def price_violations(d: str | dt.date, prices) -> list[int]:
     """0-based hours whose price lies outside the era's [floor, hcap]."""
     e = era(d)
