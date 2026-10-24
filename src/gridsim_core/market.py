@@ -688,6 +688,8 @@ class Session(WatchDay):
                                                  ["exec_mw"]} if "B" in prof else {})})
             en = eps_nash(self.F, prof, self.tier)
             g |= {"welfare_ratio": wr["welfare_ratio"], "dwl_usd": wr["dwl_usd"], "eps_nash": en["eps"],
+                  "eps_a": en["seats"]["A"]["eps"],
+                  "eps_mean": round(float(np.mean([v["eps"] for v in en["seats"].values()])), 6),
                   "seat_results": en["seats"], "rank": self._rank(en["seats"])}
             g["compliant_reward"] = (round(0.5 * reward + 0.5 * min(1.0, max(0.0, wr["welfare_ratio"])), 6)
                                      if self.submitted else 0.0)
@@ -816,7 +818,8 @@ class Session(WatchDay):
                 "hours": hours, "contracts": self.public_contracts(),
                 "messages_audit": self.chat, "pnl": self.pnl(), "profit_usd": g["profit_usd"], "reward": g["reward"],
                 "compliant_reward": g["compliant_reward"], "raw_ratio": g["raw_ratio"],
-                "rows": {k: g.get(k) for k in ("regret_usd", "regret_norm", "eps_nash", "welfare_ratio", "dwl_usd",
+                "rows": {k: g.get(k) for k in ("regret_usd", "regret_norm", "eps_nash", "eps_a", "eps_mean",
+                                                "welfare_ratio", "dwl_usd",
                                                 "profit_usd_per_kw_day", "rank", "contract", "conduct", "fidelity")},
                 "seat_results": {k: v for k, v in (g.get("seat_results") or {}).items() if k != "A"},
                 "references": {"p_idle": r["p_idle"], "p_anchor": r[self.tier]["p_anchor"], "p_br": r[self.tier]["p_br"],
