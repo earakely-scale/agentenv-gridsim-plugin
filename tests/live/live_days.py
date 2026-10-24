@@ -83,11 +83,12 @@ class FakeClock:
 
 
 @contextmanager
-def live_server():
-    """`python -m agentenv_gridsim.server` as the gateway runs it for gridsim-live, on a free port: its base URL."""
+def live_server(name: str = LIVE_ENV):
+    """`python -m agentenv_gridsim.server` as the gateway runs it for gridsim-live (or ``name``), on a free port: its
+    base URL."""
     port = free_port()
     proc = subprocess.Popen([sys.executable, "-m", "agentenv_gridsim.server"],
-                            env={**os.environ, "ENVIRONMENT_NAME": LIVE_ENV, "MCP_HOST": "127.0.0.1",
+                            env={**os.environ, "ENVIRONMENT_NAME": name, "MCP_HOST": "127.0.0.1",
                                  "MCP_PORT": str(port)}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f"http://127.0.0.1:{port}"
     deadline = time.monotonic() + 30
