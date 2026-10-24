@@ -5,7 +5,8 @@ request that could take it past that. The summary also gives the cost without th
 been billed, and how many failed. MCP has no done flag, so the episode ends on submit_schedule's submitted, at
 MAX_TOOL_CALLS calls, or after max_turns. An env that lists advance is a live day in watches (gridsim-live): the
 episode ends on advance's done, with no tool-call cap, or once a turn would start within TIME_MARGIN of the time
-limit, the day then graded on what was committed; Anthropic requests carry one rolling cache breakpoint."""
+limit, the day then graded on what was committed; Anthropic requests carry one rolling cache breakpoint. A live env
+without commit_da is a hybrid site-day (gridsim-hybrid), whose nudges speak of commit_schedule and the AS book."""
 
 import json
 import logging
@@ -78,6 +79,11 @@ LIVE = Mode("This is your last turn: commit now if your schedule needs a change 
             "schedule, advance moves to the next watch.",
             "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
             "reasoning short now and call commit_schedule with your current draft, or advance.")
+HYBRID = Mode("This is your last turn: commit now if your book needs a change (commit_schedule; at watch 0 it also "
+              "sets your DA position and DA AS awards); the rest of the day then runs on what you committed.",
+              "No tool was called. Only the tools count: commit_schedule commits your energy schedule and AS book, "
+              "advance moves to the next watch.",
+              LIVE.cut_off)
 
 
 class GridSimConfig(AgentConfig):
@@ -421,7 +427,7 @@ class Episode:
                                        "final": {"submitted": False, "schedule": None},
                                        "usage": {"input_tokens": 0, "output_tokens": 0}, "turns": 0,
                                        "end_reason": None, "errors": []}
-        self.live = False
+        self.live = self.commit_da = False
         self.reward: float | None = None
         self.tool_calls = self.checks = self.cached = self.written = 0
         self.spent = self.unbilled = 0.0
@@ -464,6 +470,7 @@ class Episode:
         self.record["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.input_schema}
                                 for t in tools]
         self.live = any(t.name == "advance" for t in tools)
+        self.commit_da = any(t.name == "commit_da" for t in tools)
         limit = self.config.model_params["max_tokens"]
         agent = make_agent(self.model, tools, system, min(limit, MAX_OUTPUT.get(self.model, limit)), self.effort,
                            self.base.rstrip("/").removesuffix("/v1"), self.key, self.live)
@@ -473,7 +480,7 @@ class Episode:
 
     async def turns(self, env: EnvSession, agent) -> None:
         config, record, price = self.config, self.record, PRICES[self.model]
-        mode = LIVE if self.live else V1
+        mode = (LIVE if self.commit_da else HYBRID) if self.live else V1
         max_turns = config.max_turns
         empty = 0
         for turn in range(max_turns):

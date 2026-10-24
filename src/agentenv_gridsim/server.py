@@ -3,7 +3,8 @@ an agent here sees what path B trains on.
 
 urn:gridsim:load-task/v1 starts an episode; data/get reports it, with the grade, the reward and the task row only once
 it is done. The task packs come from GRIDSIM_TASKS_DIR (colon-separated pack folders), else gridsim_core's data/.
-The image serves the gridsim-live env (live.py) instead when ENVIRONMENT_NAME names it."""
+The image serves the gridsim-live env (live.py) or the gridsim-hybrid env (hybrid.py) instead when ENVIRONMENT_NAME
+names it."""
 
 import gzip
 import json
@@ -19,11 +20,13 @@ from pydantic import Field
 
 from gridsim_core.episode import check_result, submit_result
 from gridsim_core.grade import grade
+from gridsim_core.hybrid import HYBRID_ENV
 from gridsim_core.live import LIVE_ENV
 from gridsim_core.parse import parse_actions
 from gridsim_core.prompt import situation_text, tool_schemas
 from gridsim_core.task import TIERS, data_root
 
+from .hybrid import HYBRID_PACK_NAMES, GridSimHybridEnv
 from .live import LIVE_PACK_NAMES, GridSimLiveEnv
 
 PACK_NAMES = ("fixtures", "ercot-dam-v1-eval", "ercot-dam-v1-eval-iid", "ercot-dam-v1-rtcb", "showcase",
@@ -204,8 +207,9 @@ class Episode(Middleware):
 
 
 def main() -> None:
-    env = (GridSimLiveEnv(TaskIndex(pack_dirs(LIVE_PACK_NAMES))) if os.environ.get("ENVIRONMENT_NAME") == LIVE_ENV
-           else GridSimEnv())
+    name = os.environ.get("ENVIRONMENT_NAME")
+    env = (GridSimLiveEnv(TaskIndex(pack_dirs(LIVE_PACK_NAMES))) if name == LIVE_ENV
+           else GridSimHybridEnv(TaskIndex(pack_dirs(HYBRID_PACK_NAMES))) if name == HYBRID_ENV else GridSimEnv())
     env.create_app().run(transport="http", host=os.environ.get("MCP_HOST", "0.0.0.0"),
                          port=int(os.environ.get("MCP_PORT", "18765")), show_banner=False)
 
