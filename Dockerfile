@@ -1,7 +1,7 @@
 # The GridSim envs on port 18765: the battery-desk MCP server with the ERCOT DAM task packs, or, behind the gateway,
-# gridsim-live (the live packs), gridsim-hybrid (the hybrid packs) or gridsim-forecast (the forecast packs) when
-# ENVIRONMENT_NAME names one. HiGHS grades a window whose stored references don't match its forecast source (the desk
-# ablation) by playing the references in the env.
+# gridsim-live (the live packs), gridsim-hybrid (the hybrid packs), gridsim-forecast (the forecast packs) or
+# gridsim-market (the market packs) when ENVIRONMENT_NAME names one. HiGHS grades a window whose stored references don't
+# match its forecast source (the desk ablation) by playing the references in the env, and solves the market's welfare LP.
 #   Build: agent-env gridsim setup   (docker build -t agentenv-gridsim-env .)
 FROM python:3.12-slim
 LABEL org.opencontainers.image.source="https://github.com/earakely-scale/agentenv-gridsim-plugin" \

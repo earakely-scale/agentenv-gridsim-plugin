@@ -1,0 +1,295 @@
+{
+  "env": "gridsim-market",
+  "version": "v5",
+  "market_version": "5.0",
+  "contract_version": "1.0",
+  "authors": [
+    {
+      "name": "Edgar Arakelyan",
+      "github": "earakely-scale",
+      "affiliation": "Scale AI"
+    },
+    {
+      "name": "Adithya S Kolavi",
+      "github": "adithya-s-k",
+      "affiliation": "Hugging Face"
+    }
+  ],
+  "framework": "agentenv",
+  "tasks": {
+    "split": "eval",
+    "n": 30,
+    "unit": "market floors",
+    "packs": [
+      "gridsim-market-eval"
+    ],
+    "op_days": 30,
+    "source": "ERCOT NP3-966-ER 60-day DAM disclosure re-cleared on one node; NP4-523-CD lambda; HB_HUBAVG DAM/RT; EIA-930, EIA-923",
+    "flags": [
+      "as: truncated",
+      "calibration: hub_offset",
+      "copper_plate: True",
+      "costs: modelled",
+      "forecast: eia930",
+      "stack: real"
+    ]
+  },
+  "harness": {
+    "agent": "gridsim-llm",
+    "env": "gridsim-market",
+    "tools": [
+      "get_situation",
+      "get_forecast",
+      "get_disclosure",
+      "get_private_costs",
+      "check_offer",
+      "submit_offer",
+      "get_award",
+      "check_schedule",
+      "commit_schedule",
+      "advance",
+      "propose_contract",
+      "respond_contract",
+      "message_agent",
+      "get_time"
+    ],
+    "max_turns": {
+      "floor-sprint": 6,
+      "floor-day": 36
+    },
+    "planning_calls_per_watch": 3,
+    "data_calls_per_watch": 6,
+    "max_tokens": {
+      "floor-sprint": 16384,
+      "floor-day": 16384
+    },
+    "effort": "high",
+    "bidders": "scripted on their real offers",
+    "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"
+  },
+  "grading": {
+    "reference": "the disclosure best-responder, information-matched at D-1 09:00",
+    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0",
+    "compliant": "0.5 R + 0.5 clip(welfare_ratio, 0, 1)",
+    "hindsight_capture": "(P-P_idle)/(BR_A-P_idle), BR_A the hindsight best response, a weight-0 row",
+    "weight_0": [
+      "audit",
+      "hindsight_capture",
+      "regret",
+      "compliant or reward",
+      "eps_nash",
+      "welfare",
+      "contract (floor-day)",
+      "conduct",
+      "rank",
+      "fidelity"
+    ],
+    "audit": "weight 0; a failed audit makes the run unscored",
+    "judge": false
+  },
+  "baselines": {
+    "floor-day": {
+      "tier": "floor-day",
+      "n": 10,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "max_withhold": null,
+      "price_taker": null,
+      "replay_A": null,
+      "anchor_capture": 0.9569,
+      "impact_hours": 2.1
+    },
+    "floor-sprint": {
+      "tier": "floor-sprint",
+      "n": 30,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "max_withhold": 0.1933,
+      "price_taker": 0.924,
+      "replay_A": 0.179,
+      "anchor_capture": 0.687,
+      "impact_hours": 1.67
+    }
+  },
+  "models": [
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "pack": "gridsim-market-eval",
+      "tier": "floor-sprint",
+      "bundle": "live",
+      "scoring": "reward",
+      "effort": "high",
+      "runs": 30,
+      "planned": 30,
+      "tasks": 30,
+      "mean": 0.8005,
+      "ci95": [
+        0.6725,
+        0.9061
+      ],
+      "reward": {
+        "mean": 0.8005,
+        "ci95": [
+          0.6725,
+          0.9061
+        ]
+      },
+      "compliant_reward": {
+        "mean": 0.5499,
+        "ci95": [
+          0.4548,
+          0.6346
+        ]
+      },
+      "hindsight_capture": 0.7117,
+      "regret_norm": 0.8883,
+      "beats_anchor": 0.4333,
+      "valid": 1.0,
+      "eps_nash": 1.0,
+      "welfare_ratio": 0.2855,
+      "dwl_usd": 383236.42,
+      "rank": 3.63,
+      "mitigated_hours": 0,
+      "withholding_index": 0.1898,
+      "contracts": 0,
+      "contract_value_usd": null,
+      "errors": {
+        "no_submit": 0,
+        "refused": 0,
+        "idle": 0,
+        "mitigated": 0,
+        "clipped": 21,
+        "end_short": 11,
+        "no_schedule": 0,
+        "price_talk": 0
+      },
+      "planning_calls": 3,
+      "data_calls": 6,
+      "commits": 0,
+      "refusals": 0,
+      "finished_by_agent": 1.0,
+      "turns": 5.5,
+      "usd_per_episode": 0.0482,
+      "spend_usd": 2.0129,
+      "unknown_spend_attempts": 0
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "pack": "gridsim-market-eval",
+      "tier": "floor-day",
+      "bundle": "live",
+      "scoring": "reward",
+      "effort": "high",
+      "runs": 10,
+      "planned": 10,
+      "tasks": 10,
+      "mean": 0.8581,
+      "ci95": [
+        0.6946,
+        0.9748
+      ],
+      "reward": {
+        "mean": 0.8581,
+        "ci95": [
+          0.6946,
+          0.9748
+        ]
+      },
+      "compliant_reward": {
+        "mean": 0.6518,
+        "ci95": [
+          0.5418,
+          0.7559
+        ]
+      },
+      "hindsight_capture": 0.8987,
+      "regret_norm": 0.1013,
+      "beats_anchor": 0.6,
+      "valid": 1.0,
+      "eps_nash": 1.0,
+      "welfare_ratio": 0.4455,
+      "dwl_usd": 190778.72,
+      "rank": 4.3,
+      "mitigated_hours": 0,
+      "withholding_index": 0.1483,
+      "contracts": 0,
+      "contract_value_usd": 0.0,
+      "errors": {
+        "no_submit": 0,
+        "refused": 0,
+        "idle": 0,
+        "mitigated": 0,
+        "clipped": 0,
+        "end_short": 0,
+        "no_schedule": 0,
+        "price_talk": 0
+      },
+      "planning_calls": 10.3,
+      "data_calls": 14.9,
+      "commits": 2.4,
+      "refusals": 0,
+      "finished_by_agent": 1.0,
+      "turns": 27.6,
+      "usd_per_episode": 0.1449,
+      "spend_usd": 1.4486,
+      "unknown_spend_attempts": 0
+    }
+  ],
+  "errors": {
+    "taxonomy": [
+      "no_submit",
+      "refused",
+      "idle",
+      "mitigated",
+      "clipped",
+      "end_short",
+      "no_schedule",
+      "price_talk"
+    ],
+    "meaning": {
+      "no_submit": "no valid submit_offer (scores 0)",
+      "refused": "a refused offer or schedule",
+      "idle": "a valid offer with no blocks",
+      "mitigated": "an hour of seat A mitigated",
+      "clipped": "delivery clipped off the awards",
+      "end_short": "SoC at 24:00 below s_end_min",
+      "no_schedule": "floor-day: no accepted commit_schedule",
+      "price_talk": "a message flagged for price talk"
+    }
+  },
+  "sweeps": [
+    {
+      "name": "v5-pilot-sol",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 30,
+      "k": 1,
+      "episode_cap_usd": 0.18,
+      "tier": "floor-sprint",
+      "bundle": "live",
+      "pack": "gridsim-market-eval",
+      "env": "gridsim-market"
+    },
+    {
+      "name": "v5-pilot-sol-day",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 10,
+      "k": 1,
+      "episode_cap_usd": 0.61,
+      "tier": "floor-day",
+      "bundle": "live",
+      "pack": "gridsim-market-eval",
+      "env": "gridsim-market"
+    }
+  ],
+  "links": {
+    "runs": "hf dataset",
+    "replays": "hf space",
+    "code": "github"
+  }
+}

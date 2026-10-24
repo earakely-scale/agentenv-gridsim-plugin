@@ -10,7 +10,9 @@ cap, or once a turn would start within TIME_MARGIN of the time limit, the day th
 Anthropic requests carry one rolling cache breakpoint. A live env without commit_da is a hybrid site-day
 (gridsim-hybrid), whose nudges speak of commit_schedule and the AS book; one that lists submit_dam is a forecast window
 (gridsim-forecast), whose nudges speak of DAM gates: the first advance that would leave an open gate with no DAM hour
-accepted there is not sent, and the agent is told so; a second advance leaves it."""
+accepted there is not sent, and the agent is told so; a second advance leaves it. An env that lists submit_offer is a
+market floor (gridsim-market): without advance a floor-sprint, which ends on submit_offer's submitted; with it a
+floor-day, which ends on advance's done; the nudges speak of the DAM offer."""
 
 import json
 import logging
@@ -99,6 +101,20 @@ FORECAST = Mode("This is your last turn: at an open DAM gate, submit_dam now; co
                 "or advance.")
 GATE_OPEN = ("Not sent: this watch is a DAM gate and no DAM hour is accepted at it. Call submit_dam for the next "
              "operating day now, or call advance again to leave that day with no DA position and no AS.")
+SPRINT = Mode("This is your last turn: call submit_offer now with your best offer; a floor without a valid "
+              "submit_offer scores 0.",
+              "No tool was called. Only the tools count: submit_offer submits your DAM offer and ends the floor.",
+              "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+              "reasoning short now and call submit_offer with your best offer.")
+FLOOR = Mode("This is your last turn: before 10:00 submit_offer now if your offer needs a change, after the awards "
+             "commit_schedule if your schedule does; the rest of the day then runs on what you submitted and "
+             "committed.",
+             "No tool was called. Only the tools count: submit_offer sets your DAM offer before 10:00, commit_schedule "
+             "your physical schedule after the awards, advance moves to the next watch.",
+             "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+             "reasoning short now and call submit_offer or commit_schedule with your current draft, or advance.")
+OFFER = "submit_offer"
+CHECKS = ("check_schedule", "check_offer")
 
 
 class GridSimConfig(AgentConfig):
@@ -450,7 +466,7 @@ class Episode:
                                        "final": {"submitted": False, "schedule": None},
                                        "usage": {"input_tokens": 0, "output_tokens": 0}, "turns": 0,
                                        "end_reason": None, "errors": []}
-        self.live = self.commit_da = self.dam = self.caching = False
+        self.live = self.commit_da = self.dam = self.market = self.caching = False
         self.gate = {"open": False, "submitted": False, "nudged": False}
         self.gate_nudges = 0
         self.last: tuple[int, int] | None = None
@@ -500,6 +516,7 @@ class Episode:
         self.commit_da = any(t.name == "commit_da" for t in tools)
         self.dam = any(t.name == "submit_dam" for t in tools)
         self.gate["open"] = self.dam and '"phase":"dam_gate"' in opening
+        self.market = any(t.name == OFFER for t in tools)
         limit = self.config.model_params["max_tokens"]
         agent = make_agent(self.model, tools, system, min(limit, MAX_OUTPUT.get(self.model, limit)), self.effort,
                            self.base.rstrip("/").removesuffix("/v1"), self.key, self.live)
@@ -509,7 +526,8 @@ class Episode:
 
     async def turns(self, env: EnvSession, agent) -> None:
         config, record, price = self.config, self.record, PRICES[self.model]
-        mode = (FORECAST if self.dam else LIVE if self.commit_da else HYBRID) if self.live else V1
+        mode = ((FORECAST if self.dam else FLOOR if self.market else LIVE if self.commit_da else HYBRID) if self.live
+                else SPRINT if self.market else V1)
         max_turns = config.max_turns
         empty = 0
         for turn in range(max_turns):
@@ -590,18 +608,22 @@ class Episode:
                     record["steps"].append({"t": self.tool_calls, "turn": turn + 1, "call_id": c.id, "tool": c.name,
                                             "args": c.arguments, "output": res})
                     self.tool_calls += 1
-                    if c.name == "check_schedule":
+                    if c.name in CHECKS:
                         self.checks += 1
                     if self.dam:
                         self.follow_gate(c.name, res)
                     if self.live and c.name == "advance" and isinstance(res, dict) and res.get("done") is True:
                         done = True
-                        self.reward = float(res["reward"])
+                        self.reward = None if res.get("reward") is None else float(res["reward"])
                         record["final"] = {"done": True, "reward": self.reward}
                         record["end_reason"] = "done"
                     elif c.name == SUBMIT and isinstance(res, dict) and res.get("submitted") is True:
                         done = True
                         record["final"] = {"submitted": True, "schedule": c.arguments.get("actions")}
+                        record["end_reason"] = "submitted"
+                    elif not self.live and c.name == OFFER and isinstance(res, dict) and res.get("done") is True:
+                        done = True
+                        record["final"] = {"submitted": True, "offer": c.arguments.get("offer")}
                         record["end_reason"] = "submitted"
                     elif not self.live and self.tool_calls >= MAX_TOOL_CALLS:
                         done = True

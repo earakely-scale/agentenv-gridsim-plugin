@@ -2,7 +2,7 @@
 gridsim_core's prompt, at one tier (foresight or blind) and in one harness (full: three checks; oneshot:
 submit_schedule only), and graded by gridsim-verifier; a live pack's days played live on gridsim-live (live_tasks), a
 hybrid pack's site-days on gridsim-hybrid (hybrid_tasks), a forecast pack's windows on gridsim-forecast
-(forecast_tasks)."""
+(forecast_tasks), a market pack's floors on gridsim-market (market_tasks)."""
 
 import json
 from importlib.resources import files
@@ -13,13 +13,15 @@ import click
 from gridsim_core.forecast import TIERS as FORECAST_TIERS
 from gridsim_core.hybrid import TIERS as HYBRID_TIERS
 from gridsim_core.live import TIERS as LIVE_TIERS
+from gridsim_core.market import TIERS as MARKET_TIERS
 from gridsim_core.prompt import messages
 from gridsim_core.task import data_root
 
-from . import forecast_tasks, hybrid_tasks, live_tasks
+from . import forecast_tasks, hybrid_tasks, live_tasks, market_tasks
 from .forecast import FORECAST_PACK_NAMES
 from .hybrid import HYBRID_PACK_NAMES
 from .live import LIVE_PACK_NAMES
+from .market import MARKET_PACK_NAMES
 from .server import LOAD_URI, MAX_CHECKS, PACK_NAMES, TIERS, TaskIndex, pack_dirs, read_pack
 
 ENV = "gridsim"
@@ -120,16 +122,19 @@ def tasks_group():
 
 
 @tasks_group.command("generate")
-@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES + HYBRID_PACK_NAMES + FORECAST_PACK_NAMES),
+@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES + HYBRID_PACK_NAMES + FORECAST_PACK_NAMES
+                                          + MARKET_PACK_NAMES),
               required=True,
               help="The task pack; a gridsim-live pack (or fixtures-live) writes live days on gridsim-live, a hybrid "
                    "pack (or fixtures-hybrid) site-days on gridsim-hybrid, a forecast pack (or fixtures-forecast) "
-                   "windows on gridsim-forecast.")
-@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS))),
+                   "windows on gridsim-forecast, a market pack (or fixtures-market) floors on gridsim-market.")
+@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS + MARKET_TIERS))),
               help="foresight (the default): the day's prices; blind: the day before's and the week before's. Live "
                    "packs also take short (the regular watches D-1 14:00, D 00:00 and 12:00 plus notice watches) and "
                    "freeze6h. Hybrid packs take energy, reserves (the default) or rtcb. Forecast packs take "
-                   "front-lite, front (the default), blind or freeze-6h.")
+                   "front-lite, front (the default), blind or freeze-6h. Market packs take floor-sprint (the default) "
+                   "or floor-day.")
+@click.option("--compliant", is_flag=True, help="Market packs: score 0.5 R + 0.5 welfare ratio instead of R.")
 @click.option("--bundle", "bundle", type=click.Choice(list(BUNDLES)), default="full", show_default=True,
               help="full: get_situation, three checks and submit_schedule; oneshot: submit_schedule only. Not for "
                    "live or hybrid packs.")
@@ -138,13 +143,29 @@ def tasks_group():
               help="Forecast packs: play every window on the desk's forecasts (the desk ablation of ercot windows).")
 @click.option("--out", type=click.Path(file_okay=False, path_type=Path),
               help="The bundle folder to write. Default: results/bundles/<pack>-<tier>-<bundle>.")
-def generate_command(pack: str, tier: str | None, bundle: str, zone: str | None, source: str | None,
+def generate_command(pack: str, tier: str | None, compliant: bool, bundle: str, zone: str | None, source: str | None,
                      out: Path | None):
     """Write a bundle with one task per battery-day of the pack the tier can play: deploy the env, load the day,
     play it with gridsim-llm on gridsim_core's prompt and grade it with gridsim-verifier. A live pack's days are
     played live on gridsim-live in watches, its notices delivered by triggers, and graded by gridsim-live-verifier; a
-    hybrid pack's site-days likewise on gridsim-hybrid, graded by gridsim-hybrid-verifier, and a forecast pack's
-    windows on gridsim-forecast, graded by gridsim-forecast-verifier."""
+    hybrid pack's site-days likewise on gridsim-hybrid, graded by gridsim-hybrid-verifier, a forecast pack's windows
+    on gridsim-forecast, graded by gridsim-forecast-verifier, and a market pack's floors on gridsim-market, graded by
+    gridsim-market-verifier."""
+    market = pack in MARKET_PACK_NAMES
+    if market != (tier in MARKET_TIERS) and tier is not None or compliant and not market:
+        raise click.UsageError(f"market packs take the tiers {', '.join(MARKET_TIERS)} and --compliant; {pack} does "
+                               f"not take {tier if market != (tier in MARKET_TIERS) else '--compliant'}")
+    if market:
+        if bundle != "full" or zone or source:
+            raise click.UsageError("--bundle, --zone and --source are not for market packs")
+        tier = tier or "floor-sprint"
+        out = out or Path("results/bundles") / f"{pack}-{tier}{'-compliant' if compliant else ''}"
+        names = market_tasks.generate(pack, out, tier=tier, compliant=compliant)
+        if not names:
+            raise click.UsageError(f"{pack} has no {tier} floors")
+        click.echo(f"Wrote {len(names)} tasks into {out}; play one with: agent-env run {out} --task {names[0]} "
+                   "--model <litellm model id>")
+        return
     hybrid, forecast = pack in HYBRID_PACK_NAMES, pack in FORECAST_PACK_NAMES
     tier = tier or ("reserves" if hybrid else "front" if forecast else "foresight")
     if source and not forecast:

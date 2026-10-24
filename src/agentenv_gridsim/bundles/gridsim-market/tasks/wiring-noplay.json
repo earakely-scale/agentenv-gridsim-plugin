@@ -1,0 +1,172 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim-market"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim-market",
+    "directives": [
+      {
+        "service": "gridsim-market",
+        "uri": "urn:gridsim:market-load/v1",
+        "args": {
+          "floor_id": "mkt-v5-2026-07-21-A1160x2-e1",
+          "tier": "floor-day"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hide-grid-notice",
+    "type": "modify_env_tool_access",
+    "env_id": "gridsim-market",
+    "action": "disable",
+    "role": "default",
+    "tools": [
+      "grid_notice"
+    ]
+  },
+  {
+    "id": "watches",
+    "type": "register_env_triggers",
+    "env_id": "gridsim-market",
+    "watch_roles": [
+      "default"
+    ],
+    "triggers": [
+      {
+        "id": "watch-1",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 1
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-2",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 2
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-3",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 3
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-4",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 4
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-5",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 5
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-6",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 6
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      }
+    ]
+  },
+  {
+    "id": "clock",
+    "type": "sync_env_clock",
+    "env_id": "gridsim-market",
+    "virtual_time": "2026-07-20T11:00:00Z",
+    "virtual_seconds_per_real_second": 0,
+    "tolerate_missing_sync_time": false
+  },
+  {
+    "id": "end-floor",
+    "type": "apply_server_config",
+    "env_id": "gridsim-market",
+    "directives": [
+      {
+        "service": "gridsim-market",
+        "uri": "urn:gridsim:end-floor/v1",
+        "args": {}
+      }
+    ]
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim-market",
+    "file_artifact_id": "gridsim-market-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]

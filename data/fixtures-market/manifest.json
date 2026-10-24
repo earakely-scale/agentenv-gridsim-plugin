@@ -1,0 +1,80 @@
+{
+ "pack": "fixtures-market",
+ "tasks": 10,
+ "days": [
+  "2024-06-19",
+  "2024-06-20",
+  "2024-08-17",
+  "2024-08-18",
+  "2024-08-19",
+  "2024-08-20",
+  "2026-05-20",
+  "2026-05-21",
+  "2026-07-18",
+  "2026-07-19",
+  "2026-07-20",
+  "2026-07-21"
+ ],
+ "op_days": [
+  "2024-08-20",
+  "2026-07-21"
+ ],
+ "sources": {
+  "np3-966-er": "ERCOT public API archive (60-Day DAM Disclosure)",
+  "np4-523-cd": "ERCOT public API (DAM System Lambda)",
+  "hub": "NP4-180-ER / NP6-905 cached HB_HUBAVG",
+  "eia930": "EIA-930 Region_TEX.xlsx",
+  "eia923": "f923_2025.zip"
+ },
+ "fidelity": {
+  "2024-06-19": {
+   "within_ns": 0.625,
+   "ns_hours": 24,
+   "mae_ns_usd": 3.61,
+   "mae_usd": 3.61,
+   "max_err_usd": 10.52,
+   "simplify_err_usd": 0.09
+  },
+  "2024-06-20": {
+   "within_ns": 0.5417,
+   "ns_hours": 24,
+   "mae_ns_usd": 5.9,
+   "mae_usd": 5.9,
+   "max_err_usd": 27.4,
+   "simplify_err_usd": 0.3
+  },
+  "2024-08-20": {
+   "within_ns": 0.6667,
+   "ns_hours": 21,
+   "mae_ns_usd": 4.31,
+   "mae_usd": 38.18,
+   "max_err_usd": 535.85,
+   "simplify_err_usd": 2.27
+  },
+  "2026-05-20": {
+   "within_ns": 0.625,
+   "ns_hours": 24,
+   "mae_ns_usd": 7.3,
+   "mae_usd": 7.3,
+   "max_err_usd": 31.04,
+   "simplify_err_usd": 0.35
+  },
+  "2026-05-21": {
+   "within_ns": 0.5417,
+   "ns_hours": 24,
+   "mae_ns_usd": 4.77,
+   "mae_usd": 4.77,
+   "max_err_usd": 14.92,
+   "simplify_err_usd": 0.14
+  },
+  "2026-07-21": {
+   "within_ns": 0.7143,
+   "ns_hours": 21,
+   "mae_ns_usd": 5.4,
+   "mae_usd": 19.9,
+   "max_err_usd": 133.04,
+   "simplify_err_usd": 0.71
+  }
+ },
+ "note": "derived, anonymised aggregates only; ERCOT data, not endorsed by ERCOT"
+}
