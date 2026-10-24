@@ -212,3 +212,21 @@ def test_prompt_and_schemas():
                      "submit_dam", "advance"]
     s = F.Session(T0, "front")
     assert json.loads(P.situation_text(s))["task_id"] == T0["task_id"]
+
+
+def test_store_round_trip(tmp_path):
+    series = [v for v in T0["vintages"]["series"] if v["key"] != "site"]
+    sha = FI.write_store(series, tmp_path)
+    keys = {}
+    for v in series:
+        keys.setdefault(v["kind"], set()).add(v["key"])
+    ref = T0 | {"vintages": {"store": f"v4-store@{sha}", "source": "desk", "from": series[0]["issued_at"],
+                             "to": series[-1]["issued_at"], "keys": {k: sorted(v) for k, v in keys.items()}}}
+    back = FI.slice_for(ref, tmp_path)
+    plain = [v for v in back["series"] if v["key"] != "site"]
+    assert FI.vintages_sha(plain) == FI.vintages_sha(series)
+    assert {v["kind"] for v in back["series"] if v["key"] == "site"} == {"solar"}
+    with pytest.raises(ValueError):
+        FI.slice_for(ref | {"vintages": ref["vintages"] | {"store": "v4-store@other"}}, tmp_path)
+    with pytest.raises(FileNotFoundError):
+        FI.slice_for(ref, tmp_path / "missing")

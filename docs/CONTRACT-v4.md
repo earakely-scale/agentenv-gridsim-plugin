@@ -448,7 +448,8 @@ cache/forecast/                     raw, gitignored
   eia930/erco.parquet               hour_end_utc, df_mw, demand_mw, wind_mw, solar_mw, battery_mw (NaN before the 2026
                                     schema), imputed flags; eia930/erco_sub.parquet: hour_end_utc, subregion, demand_mw
   ercot/raw/{report}/...            API responses as fetched (the data lane's layout)
-  store/vintages/YYYY.parquet       issued_at_utc, run_id, kind, key, start_utc, field, values (list<float32>), sha
+  store/vintages/YYYY.parquet       issued_at_utc, run_id, kind, key, source, start_utc, field, values (list<double>,
+                                    2 decimals), sha
                                     (kinds: weather, load, wind, solar, price, mcpc, load_official, ercot_load,
                                     ercot_wind, ercot_solar)
   store/index.parquet               kind, key, issued_at_utc, reveal_at_utc, run_id, start_utc, n_hours, sha
@@ -476,6 +477,10 @@ Y-01-01, used for the vintages issued in Y; every feature is read at the vintage
 Desk series are point forecasts (`mw`); the guide gives P10, P50 and P90 (sorted per hour). HRRR features beyond a
 run's last forecast hour are missing (the 37-72 h tail of every vintage, and 37-48 h before 2020-12-02); the models take
 missing values natively.
+
+The store is written through `forecast_inputs.write_store(series, root)` (one row per field, the index and the manifest
+with `store_sha`), so the reader (`forecast_inputs.slice_for`) and the schema cannot drift; a row built on one store
+refuses to read another (`v4-store@<sha>` must match the manifest) and a missing store fails loudly.
 
 Store rules: desk and guide vintages exist for every HRRR run from 2021-01-01 (guide year 2021 fitted on 2019-07..
 2020-12); a vintage's features are revealed at or before its issued_at (asserted per row by the builder); the guide

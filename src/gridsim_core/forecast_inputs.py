@@ -14,12 +14,15 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 
+from gridsim_core import hybrid_inputs
+from gridsim_core.hybrid import pv_at_bus
 from gridsim_core.task import data_root, stable_seed
 
 try:
+    import pyarrow as pa
     import pyarrow.parquet as pq
 except ImportError:
-    pq = None
+    pa = pq = None
 
 TZ_NAME = "America/Chicago"
 HRRR_ISSUE_MIN = 120
@@ -114,6 +117,11 @@ def slice_for(task: dict, store: str | Path | None = None) -> dict:
     if pq is None:
         raise RuntimeError("reading the forecast store needs pyarrow")
     root = Path(store or store_root())
+    if not (root / "manifest.json").exists():
+        raise FileNotFoundError(f"{task['task_id']} reads the forecast store, and {root} has none")
+    found = json.loads((root / "manifest.json").read_text()).get("store_sha")
+    if v.get("store") and v["store"] != f"v4-store@{found}":
+        raise ValueError(f"{task['task_id']} was built on {v['store']}; {root} holds v4-store@{found}")
     lo, hi = parse_utc(v["from"]), parse_utc(v["to"])
     want = {(k, key) for k, keys in v["keys"].items() for key in keys}
     series = []
@@ -135,8 +143,63 @@ def slice_for(task: dict, store: str | Path | None = None) -> dict:
     for g in grouped.values():
         g["sha"] = vintage_sha(g["fields"])
         out.append(g)
+    out += site_vintages(task, out)
     return {"source": v.get("source", "desk"), "store": v.get("store"), "runs": v.get("runs", []),
             "series": sorted(out, key=lambda x: (x["issued_at"], x["kind"], x["key"]))}
+
+
+def site_vintages(task: dict, series: list[dict]) -> list[dict]:
+    """solar/site and ercot_solar/site vintages (field mw) from the system series: cf = MW / the day's installed MW
+    (lane D3), then v3's plant at the bus (V4-P17)."""
+    d1 = dt.date.fromisoformat(task["d1"])
+    base = dt.datetime.combine(d1, dt.time(0), ZoneInfo(TZ_NAME)).astimezone(dt.UTC)
+    out = []
+    for v in series:
+        kind = {"solar": ("solar", "mw"), "ercot_solar": ("ercot_solar", "stppf_mw")}.get(v["kind"])
+        if kind is None or v["key"] != "system" or kind[1] not in v["fields"]:
+            continue
+        h0 = round((parse_utc(v["start"]) - base).total_seconds() / 3600)
+        mw = []
+        for i, x in enumerate(v["fields"][kind[1]]):
+            day = (d1 + dt.timedelta(days=(h0 + i) // 24)).isoformat()
+            inst = float((hybrid_inputs.solar_row(day) or {}).get("installed_mw") or task.get("solar_installed_mw")
+                         or 1.0)
+            mw.append(pv_at_bus(task["site"], [max(0.0, float(x)) / inst])[0])
+        out.append(vintage(kind[0], "site", v["issued_at"], v["run_id"], v.get("source") or "desk", v["start"],
+                           {"mw": mw}))
+    return out
+
+
+def write_store(series: list[dict], root: str | Path, meta: dict | None = None) -> str:
+    """Write vintages in the store layout (vintages/YYYY.parquet one row per field, index.parquet, manifest.json) and
+    return the store sha; the data lane's builder writes through this so the reader and the schema cannot drift."""
+    if pq is None:
+        raise RuntimeError("writing the forecast store needs pyarrow")
+    root = Path(root)
+    (root / "vintages").mkdir(parents=True, exist_ok=True)
+    by_year: dict[int, list[dict]] = {}
+    index = []
+    for v in sorted(series, key=lambda x: (x["issued_at"], x["kind"], x["key"])):
+        sha = vintage_sha(v["fields"])
+        if v.get("sha") not in (None, sha):
+            raise ValueError(f"{v['kind']} {v['key']} {v['issued_at']}: sha does not match its fields")
+        for f, vals in sorted(v["fields"].items()):
+            by_year.setdefault(parse_utc(v["issued_at"]).year, []).append({
+                "issued_at_utc": v["issued_at"], "run_id": v["run_id"], "kind": v["kind"], "key": v["key"],
+                "source": v.get("source") or "desk", "start_utc": v["start"], "field": f,
+                "values": [float(x) for x in vals], "sha": sha})
+        n = max(len(x) for x in v["fields"].values())
+        index.append({"kind": v["kind"], "key": v["key"], "issued_at_utc": v["issued_at"],
+                      "reveal_at_utc": v["issued_at"], "run_id": v["run_id"], "start_utc": v["start"], "n_hours": n,
+                      "sha": sha})
+    for year, rows in by_year.items():
+        pq.write_table(pa.Table.from_pylist(rows), root / "vintages" / f"{year}.parquet", compression="zstd")
+    pq.write_table(pa.Table.from_pylist(index), root / "index.parquet", compression="zstd")
+    store = vintages_sha([{"kind": r["kind"], "key": r["key"], "issued_at": r["issued_at_utc"], "sha": r["sha"]}
+                          for r in index])
+    (root / "manifest.json").write_text(json.dumps({"store_sha": store, "vintages": len(index),
+                                                    "years": sorted(by_year)} | (meta or {}), indent=1) + "\n")
+    return store
 
 
 # a deterministic synthetic slice (tests and fixtures before the store exists; flagged source "synthetic")

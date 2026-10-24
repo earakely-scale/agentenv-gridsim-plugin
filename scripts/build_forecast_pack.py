@@ -6,6 +6,7 @@ Before the store lands the slice is the deterministic synthetic one (flagged sou
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime as dt
 import gzip
 import json
@@ -15,6 +16,11 @@ import time
 from pathlib import Path
 
 import numpy as np
+
+try:
+    import pyarrow.parquet as pq
+except ImportError:
+    pq = None
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -27,6 +33,22 @@ from gridsim_core import forecast_inputs as FI  # noqa: E402
 from gridsim_core import hybrid as H  # noqa: E402
 from gridsim_core import hybrid_inputs as HI  # noqa: E402
 from gridsim_core.contract import as_era  # noqa: E402
+from gridsim_core.task import stable_seed  # noqa: E402
+
+SPLITS = {"train": ("2021-03-02", "2024-12-29"), "eval": ("2025-01-01", "2025-11-28"),
+          "rtcb": ("2025-12-05", "2026-09-28")}
+TARGETS = {"train": 1500, "eval": 60, "rtcb": 20}
+FRONT_SHARE = {"train": 0.6, "eval": 40 / 60, "rtcb": 0.5}
+CANDIDATES = {"train": 4000, "eval": 400, "rtcb": 200}
+PACKS = {"train": "ercot-front-v4-train", "eval": "ercot-front-v4-eval", "rtcb": "ercot-front-v4-rtcb",
+         "showcase": "ercot-front-v4-showcase"}
+SHOWCASE = {"fern-0124": ("2026-01-24", "HB_NORTH"), "heather-0114": ("2024-01-14", "HB_NORTH"),
+            "uri-0213": ("2021-02-13", "HB_HOUSTON"), "spring-0328": ("2024-03-28", "HB_WEST")}
+API_START = "2023-12-12"
+FILTER = {"hind_headroom_usd_per_kw": 3.0, "hind_minus_roll_share": 0.08, "roll_minus_blind_share": 0.05,
+          "roll_headroom_usd_per_kw": 1.0}
+FRONT_NWS = {("WS", "W"), ("WS", "A"), ("HZ", "W"), ("HZ", "A"), ("EH", "W"), ("EH", "A"), ("XH", "W"), ("XH", "A"),
+             ("HW", "W"), ("HW", "A"), ("WI", "Y"), ("SV", "A")}
 
 FIXTURES = [("2025-02-18", "HB_NORTH", "default"), ("2023-08-24", "HB_HOUSTON", "default"),
             ("2022-12-22", "HB_NORTH", "default"), ("2021-06-14", "HB_WEST", "default"),
@@ -95,6 +117,187 @@ def window(d1: str, point: str, site: dict, dam: dict, rt: dict, days: int = 3) 
                        notices=notices, deployments=deps, solar_installed_mw=rows[2].get("installed_mw"), days=days)
 
 
+def keys_for(t: dict, source: str) -> dict:
+    """The store kinds and keys a window serves (V4-P12, V4-P17)."""
+    codes = sorted(FI.zones())
+    keys = {"weather": sorted({t["weather_point"]} | {z["point"] for z in FI.zones().values()}),
+            "load": ["system"] + codes, "wind": ["system"], "solar": ["system"], "price": [t["settlement_point"]],
+            "mcpc": sorted(t["mcpc_da"]), "load_official": ["system"]}
+    if source == "ercot":
+        keys |= {"ercot_load": ["system"] + codes, "ercot_wind": ["system"], "ercot_solar": ["system"]}
+    return keys
+
+
+def store_sha(store: Path) -> str | None:
+    f = store / "manifest.json"
+    return json.loads(f.read_text()).get("store_sha") if f.exists() else None
+
+
+def store_ref(t: dict, store: Path, source: str) -> dict:
+    """The row's reference into the store: the kinds and keys it serves, issued from 24 h before the open to the end."""
+    open_utc = FI.parse_utc(F.utc(F.OPEN, t["d1"]))
+    return {"store": f"v4-store@{store_sha(store)}", "source": source,
+            "from": FI.iso_utc(open_utc - dt.timedelta(hours=24)),
+            "to": FI.iso_utc(FI.parse_utc(F.utc(1440 * t["days"], t["d1"]))), "keys": keys_for(t, source)}
+
+
+def resolve(t: dict, store: Path, source: str) -> dict:
+    """The window's slice from the store (with its site-PV vintages)."""
+    return FI.slice_for(dict(t) | {"vintages": store_ref(t, store, source)}, store)
+
+
+_EIA: dict = {}
+
+
+def eia_rows(eia: Path) -> dict:
+    """{hour_end_utc: row} of the EIA-930 ERCO table, read once per process."""
+    if str(eia) not in _EIA:
+        f = eia / "erco.parquet"
+        _EIA[str(eia)] = {r["hour_end_utc"]: r for r in pq.read_table(f).to_pylist()} if pq and f.exists() else {}
+    return _EIA[str(eia)]
+
+
+def actuals(t: dict, eia: Path) -> dict | None:
+    """EIA-930 ERCO actuals from d1-2 00:00 to the window end, by hour start (None without the table)."""
+    rows = eia_rows(eia)
+    if not rows:
+        return None
+    lo = FI.parse_utc(F.utc(-2880, t["d1"]))
+    n = 24 * (t["days"] + 2)
+    out = {"start": FI.iso_utc(lo)}
+    cols = (("load_mw", "demand_mw"), ("wind_mw", "wind_mw"), ("solar_mw", "solar_mw"), ("df_mw", "df_mw"))
+    for k, c in cols:
+        out[k] = [(rows.get(FI.iso_utc(lo + dt.timedelta(hours=i + 1))) or {}).get(c) for i in range(n)]
+    return out
+
+
+def front_label(t: dict, sl: dict) -> tuple[str, dict]:
+    """front when the stitched near-analysis 2 m temperature at a zone point drops >= 15 F within 12 h, or a load- or
+    wind-moving NWS product is in force; else calm."""
+    vint = F.Vintages(sl, t["d1"])
+    best = (0.0, None)
+    for z in FI.zones().values():
+        temp = {}
+        for r in vint.all("weather", z["point"]):
+            for i in range(6):
+                x = F.Vintages.at(r, "t2m_f", r.h0 + i)
+                if x is not None:
+                    temp[r.h0 + i] = x
+        hs = sorted(h for h in temp if -14 <= h < 24 * t["days"])
+        for h in hs:
+            later = [temp[g] for g in hs if h < g <= h + 12]
+            if later and temp[h] - min(later) > best[0]:
+                best = (temp[h] - min(later), z["name"])
+    nws = sorted({n["kind"][4:] for n in t["notices"] if n.get("kind", "").startswith("nws:")
+                  and tuple(n["kind"][4:].split(".")) in FRONT_NWS})
+    lab = "front" if best[0] >= 15 or nws else "calm"
+    return lab, {"t2m_drop_f": round(best[0], 1), "zone": best[1], "nws": nws}
+
+
+def forecast_bust(t: dict) -> bool | None:
+    a = t.get("actuals")
+    if not a:
+        return None
+    for k in range(t["days"]):
+        i = 48 + 24 * k
+        df, ld = a["df_mw"][i:i + 24], a["load_mw"][i:i + 24]
+        if None in df or None in ld:
+            continue
+        if abs(max(df) / max(ld) - 1) >= 0.05:
+            return True
+    return False
+
+
+def ercot_ok(sl: dict, d1: str) -> bool:
+    """A posting of each ERCOT kind within 2 h before every fixed watch (V4-P17)."""
+    vint = F.Vintages(sl, d1)
+    for kind in ("ercot_load", "ercot_wind", "ercot_solar"):
+        for m in F.fixed_watches(3):
+            r = vint.latest(kind, "system", m)
+            if r is None or m - r.minute > 120:
+                return False
+    return True
+
+
+def score(t: dict, tier: str) -> dict:
+    r, p = t["refs"][tier], t["site"]["bess"]["p_mw"] * 1000
+    head = r["p_hind"] - r["p_idle"]
+    return {"hind_headroom_usd_per_kw": head / p, "roll_headroom_usd_per_kw": (r["p_roll"] - r["p_idle"]) / p,
+            "hind_minus_roll_share": (r["p_hind"] - r["p_roll"]) / head if head > 0 else 0.0,
+            "roll_minus_blind_share": (r["p_roll"] - r["p_blind"]) / head if head > 0 else 0.0}
+
+
+def eligible(x: dict) -> bool:
+    return all(x[k] >= v for k, v in FILTER.items())
+
+
+def candidates(split: str, n: int) -> list[tuple[str, str]]:
+    """A stable sample of (d1, point) pairs in the split, showcase windows and their 3-day margins excluded."""
+    a, b = (dt.date.fromisoformat(x) for x in SPLITS[split])
+    days = [(a + dt.timedelta(days=i)).isoformat() for i in range((b - a).days + 1)]
+    show = [dt.date.fromisoformat(d) for d, _ in SHOWCASE.values()]
+    days = [d for d in days if all(abs((dt.date.fromisoformat(d) - s).days) > 3 + 3 for s in show)]
+    pool = sorted(((d, p) for d in days for p in v3.POINTS), key=lambda x: stable_seed(f"v4|{split}|{x[0]}|{x[1]}"))
+    return pool[:n]
+
+
+def build_store_row(args: tuple) -> dict | None:
+    """One candidate window from the store: inputs, slice, source, label, refs and filter scores."""
+    d1, point, split, tiers, store, eia, showcase = args
+    dam, rt = _CACHES
+    arch = HI.archetypes()
+    site = site_for("default" if showcase else "draw", d1, point, arch)
+    t = window(d1, point, site, dam, rt, days=3)
+    if t is None:
+        return None
+    store = Path(store)
+    t["actuals"] = actuals(t, Path(eia))
+    source = "ercot" if split != "train" and d1 >= API_START else "desk"
+    sl = resolve(t, store, source)
+    if source == "ercot" and not ercot_ok(sl, d1):
+        source = sl["source"] = "desk"
+    t["source"], t["pack"], t["split"] = source, PACKS[split], split
+    lab, sig = front_label(t, sl)
+    t0 = time.perf_counter()
+    try:
+        out = F.attach(t, sl, tiers=tiers)
+    except (RuntimeError, ValueError) as e:
+        return {"_error": str(e), "task_id": t["task_id"]}
+    if split == "train":
+        out["vintages"] = store_ref(t, store, source)
+    out["tags"] = {"label": lab, "front_signal": sig, "forecast_bust": forecast_bust(out),
+                   "watches": {tier: len(F.Session(t | {"vintages": sl}, tier, reference=True).watches)
+                               for tier in tiers},
+                   "season": "winter" if int(d1[5:7]) in (12, 1, 2) else "spring" if int(d1[5:7]) <= 5 else
+                   "summer" if int(d1[5:7]) <= 9 else "fall", "neg_hours": int(sum(x < 0 for x in out["prices"])),
+                   "era": out["era"], "dam_max": max(out["prices"]), "rt_max": max(out["rt"]), "showcase": showcase}
+    out["_score"] = {tier: score(out, tier) for tier in tiers}
+    out["_ms"] = round(1000 * (time.perf_counter() - t0))
+    return out
+
+
+_CACHES: tuple = ({}, {})
+
+
+def _init(cache: str):
+    global _CACHES
+    _CACHES = caches(Path(cache))
+
+
+def select(ok: list, n: int, front_share: float, salt: str) -> list:
+    """A stable draw of n rows, front_share of them front-labelled, at most one per d1 per round."""
+    out = []
+    for lab, k in (("front", round(n * front_share)), ("calm", n - round(n * front_share))):
+        rows = sorted((t for t in ok if t["tags"]["label"] == lab), key=lambda t: stable_seed(f"{salt}|{t['task_id']}"))
+        seen, take = set(), []
+        for t in rows:
+            if t["d1"] not in seen and len(take) < k:
+                seen.add(t["d1"])
+                take.append(t)
+        out += take
+    return sorted(out, key=lambda t: (t["d1"], t["settlement_point"]))
+
+
 def site_for(kind: str, d1: str, point: str, arch: dict) -> dict:
     if kind == "default":
         return H.site_from_archetype(arch["default"], c_deg=4.0)
@@ -113,9 +316,10 @@ def build_one(args: tuple) -> dict:
 def write(out: Path, name: str, tasks: list, meta: dict):
     d = out / name
     d.mkdir(parents=True, exist_ok=True)
-    with gzip.open(d / "tasks.jsonl.gz", "wt") as f:
+    with gzip.GzipFile(d / "tasks.jsonl.gz", "wb", mtime=0) as f:
         for t in tasks:
-            f.write(json.dumps({k: v for k, v in t.items() if not k.startswith("_")}, separators=(",", ":")) + "\n")
+            f.write((json.dumps({k: v for k, v in t.items() if not k.startswith("_")}, separators=(",", ":")) + "\n")
+                    .encode())
     (d / "manifest.json").write_text(json.dumps({
         "pack": name, "forecast_version": F.FORECAST_VERSION, "tasks": len(tasks),
         "dates": [min(t["d1"] for t in tasks), max(t["d1"] for t in tasks)] if tasks else None,
@@ -126,15 +330,57 @@ def write(out: Path, name: str, tasks: list, meta: dict):
         | meta, indent=1) + "\n")
 
 
+def build_packs(args):
+    """The ercot-front-v4-* packs from the store: candidates per split, refs, filters, the front/calm draw."""
+    store, eia = Path(args.store), Path(args.eia)
+    out = Path(args.out)
+    t0 = time.time()
+    stats = {}
+    jobs = []
+    for split in args.splits:
+        tiers = ("front-lite",) if split == "train" else F.TIERS
+        n = args.limit or CANDIDATES[split]
+        jobs += [(d1, p, split, tiers, str(store), str(eia), None) for d1, p in candidates(split, n)]
+    if "showcase" in args.splits or not args.splits:
+        jobs += [(d1, p, "showcase", F.TIERS, str(store), str(eia), name) for name, (d1, p) in SHOWCASE.items()]
+    with mp.Pool(args.workers, initializer=_init, initargs=(args.cache,)) as pool:
+        rows = [r for r in pool.imap_unordered(build_store_row, jobs, chunksize=1) if r is not None]
+    errors = [r for r in rows if "_error" in r]
+    rows = [r for r in rows if "_error" not in r]
+    for split in [s for s in args.splits if s != "showcase"]:
+        tier = "front-lite" if split == "train" else "front"
+        pool_rows = [r for r in rows if r["split"] == split]
+        ok = [r for r in pool_rows if eligible(r["_score"][tier])]
+        chosen = select(ok, args.limit and min(len(ok), TARGETS[split]) or TARGETS[split], FRONT_SHARE[split], split)
+        stats[split] = {"candidates": len(pool_rows), "eligible": len(ok), "chosen": len(chosen),
+                        "front": sum(r["tags"]["label"] == "front" for r in chosen),
+                        "sources": dict(collections.Counter(r["source"] for r in chosen)),
+                        "mean_ms": round(float(np.mean([r["_ms"] for r in pool_rows])), 1) if pool_rows else None}
+        write(out, PACKS[split], chosen, {"filters": FILTER, "stats": stats[split], "store": args.store})
+    show = sorted((r for r in rows if r["split"] == "showcase"), key=lambda r: r["d1"])
+    if show:
+        write(out, PACKS["showcase"], show, {"display_only": True})
+    log(f"packs {stats}; {len(errors)} errors; {time.time() - t0:.0f} s")
+    for e in errors[:5]:
+        log(f"error {e['task_id']}: {e['_error']}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fixtures", action="store_true", help="build data/fixtures-forecast (synthetic slices)")
+    ap.add_argument("--store", help="the forecast store (cache/forecast/store): build the ercot-front-v4-* packs")
+    ap.add_argument("--eia", default=str(ROOT / "cache" / "forecast" / "eia930"))
+    ap.add_argument("--splits", nargs="*", default=["train", "eval", "rtcb", "showcase"])
+    ap.add_argument("--limit", type=int, default=0, help="candidates per split (a smoke run)")
     ap.add_argument("--cache", default=str(ROOT / "cache" / "parsed"))
     ap.add_argument("--out", default=str(ROOT / "data"))
     ap.add_argument("--workers", type=int, default=max(1, mp.cpu_count() - 2))
     args = ap.parse_args()
+    if args.store:
+        build_packs(args)
+        return
     if not args.fixtures:
-        ap.error("the ercot-front-v4-* packs need the forecast store; only --fixtures builds tonight")
+        ap.error("pass --fixtures, or --store for the packs")
     dam, rt = caches(Path(args.cache))
     arch = HI.archetypes()
     rows = []

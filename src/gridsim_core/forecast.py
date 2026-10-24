@@ -1423,7 +1423,8 @@ class Session(WatchDay):
                              "watch": when.get(n.event_id), "name": n.name, "title": n.title, "text": n.text,
                              "deploy": n.deploy} for n, _ in self.scheduled.values()],
                 "vintages": {"source": self.slice.get("source"), "runs": self.slice.get("runs", []),
-                             "series": self.slice.get("series", [])},
+                             "series": [v for v in self.slice.get("series", []) if v["kind"] != "mcpc" and (
+                                 v["kind"] != "weather" or v["key"] == t.get("weather_point"))]},
                 "forecasts_served": [{k: f[k] for k in ("call", "kind", "key", "issued_at", "sha")}
                                      | {"watch": self._watch_at(f["minute"])} for f in self.forecast_log],
                 "steps": steps, "dam": self._dam_out(), "book": {"energy": [_num(x) for x in self.book["energy"]]},
