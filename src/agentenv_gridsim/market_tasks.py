@@ -10,7 +10,6 @@ import click
 
 from gridsim_core.market import END_URI, LOAD_URI, MARKET_ENV, MAX_TURNS, SPRINT_TOOLS, TOOLS, Session, triggers
 from gridsim_core.market_prompt import opening, system_prompt
-from gridsim_core.market_stack import DayStore, task_store
 from gridsim_core.task import data_root
 
 from .live_tasks import AGENT, flow, select, write_bundle
@@ -37,8 +36,10 @@ def pack_rows(pack: str) -> list[dict]:
 
 
 def eligible(rows: list[dict], tier: str) -> list[dict]:
-    """The pack's floors a tier can play: the tier's references are in the row."""
-    return [r for r in rows if (r.get("refs") or {}).get(tier)]
+    """The pack's floors a tier can play: the tier's references are in the row, and for floor-day the pack didn't tag
+    the floor out of its floor-day subset (the eval pack's floor_day tag)."""
+    return [r for r in rows if (r.get("refs") or {}).get(tier)
+            and (tier != "floor-day" or (r.get("tags") or {}).get("floor_day") is not False)]
 
 
 def load_step(task_id: str, tier: str, compliant: bool) -> dict:
@@ -54,12 +55,12 @@ def calls_step(calls: list[tuple[str, dict]]) -> dict:
 
 
 def steps(task: dict, tier: str = "floor-sprint", compliant: bool = False, episode_cap_usd: float | None = None,
-          play: bool = True, calls: list[tuple[str, dict]] | None = None, store: DayStore | None = None) -> list[dict]:
+          play: bool = True, calls: list[tuple[str, dict]] | None = None) -> list[dict]:
     """Deploy, load the floor, hide grid_notice (and in floor-sprint the floor-day tools), one trigger per watch after
     the first that delivers its notices when the agent's advance opens it, deploy gridsim-llm, arm the clock frozen at
     watch 0, play on the market rules card, end the floor and grade it. Without ``play``, no agent; ``calls`` are
-    played as seat A by the harness before the floor ends; ``store`` holds the days of a row without inline ones."""
-    s = Session(task, tier, store=None if task.get("days") else store)
+    played as seat A by the harness before the floor ends."""
+    s = Session(task, tier)
     out = flow(MARKET_ENV, VERIFIER, task["task_id"], tier, s.watch_time_utc(0), triggers(s.watches),
                system_prompt(tier), opening(s), episode_cap_usd, play, MODEL_PARAMS[tier], load_uri=LOAD_URI,
                end=("end-floor", END_URI), max_turns=MAX_TURNS[tier], play_seconds=PLAY_SECONDS[tier],
@@ -81,6 +82,5 @@ def generate(pack: str, out: Path, *, tier: str = "floor-sprint", compliant: boo
     scoring = "the compliant score (0.5 R + 0.5 welfare ratio)" if compliant else "seat A's reward"
     readme = (f"GridSim market {pack}, {tier} tier: {len(rows)} floors, each played on {MARKET_ENV} by the {AGENT} "
               f"agent as seat A and graded by {VERIFIER} on {scoring}.\n\n{LICENCE}\n")
-    store = task_store({})
     return write_bundle(out, readme, VERIFIER, VERIFY.read_bytes(),
-                        {r["task_id"]: steps(r, tier, compliant, episode_cap_usd, store=store) for r in rows})
+                        {r["task_id"]: steps(r, tier, compliant, episode_cap_usd) for r in rows})

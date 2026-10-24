@@ -1102,7 +1102,7 @@ def market_baselines(rows: list[dict], tier: str) -> dict:
 
 
 def market_model(board: Board, cell) -> dict:
-    name, _, tier, bundle = cell
+    name, pack, tier, bundle = cell
     by_task = board.scored(cell)
     runs = [r for rs in by_task.values() for r in rs]
     costs = [priced(r) for r in runs if priced(r) is not None]
@@ -1122,7 +1122,7 @@ def market_model(board: Board, cell) -> dict:
         return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
 
     headline = mean_ci("reward")
-    return {"model": name, "trained": "base", "tier": tier, "bundle": bundle,
+    return {"model": name, "trained": "base", "pack": pack, "tier": tier, "bundle": bundle,
             "scoring": "compliant" if bundle == "compliant" else "reward", "effort": effort[0] if effort else None,
             "runs": len(runs), "planned": board.planned(cell), "tasks": len(by_task), **headline,
             "reward": mean_ci("market_reward"), "compliant_reward": mean_ci("compliant_reward"),
@@ -1198,14 +1198,14 @@ def market_board_md(c: dict) -> str:
         lines.append(f"Baselines ({tier}, {b['n']} floors): idle {_f(b['idle'])}, anchor {_f(b['anchor'])}"
                      + (f", {extra}" if extra else "") + f"; anchor hindsight capture {_f(b['anchor_capture'])}, "
                      f"impact hours {_f(b['impact_hours'], '.2f')}.")
-    lines += ["", "| Model | Tier | Scoring | Floors | Runs/planned | Headline (95% CI) | R | Compliant | Hindsight "
-              "capture | Beats anchor | Welfare ratio | eps-Nash | Mitigated h | Withholding | CfDs | Finished "
-              "| $/episode | Spend |", "|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:"
-              "|---:|---:|"]
+    lines += ["", "| Model | Pack | Tier | Scoring | Floors | Runs/planned | Headline (95% CI) | R | Compliant "
+              "| Hindsight capture | Beats anchor | Welfare ratio | eps-Nash | Mitigated h | Withholding | CfDs "
+              "| Finished | $/episode | Spend |", "|---|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:"
+              "|---:|---:|---:|---:|---:|"]
     for m in c["models"]:
         ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
         lines.append(" | ".join([
-            f"| {m['model']}", m["tier"], m["scoring"], str(m["tasks"]), f"{m['runs']}/{m['planned']}",
+            f"| {m['model']}", m["pack"], m["tier"], m["scoring"], str(m["tasks"]), f"{m['runs']}/{m['planned']}",
             _f(m["mean"]) + ci95, _f(m["reward"]["mean"]), _f(m["compliant_reward"]["mean"]),
             _f(m["hindsight_capture"]), _f(m["beats_anchor"]), _f(m["welfare_ratio"]), _f(m["eps_nash"]),
             _f(m["mitigated_hours"], ".2f"), _f(m["withholding_index"]), _f(m["contracts"], ".2f"),

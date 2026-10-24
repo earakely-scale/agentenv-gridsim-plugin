@@ -12,7 +12,9 @@ assert ROWS, "no market fixture floors in data/fixtures-market"
 BY_ID = {r["task_id"]: r for r in ROWS}
 SPRINT = BY_ID["mkt-v5-2024-08-20-A580x2-e1"]
 DAY = BY_ID["mkt-v5-2026-07-21-A1160x2-e1"]
-SHOWCASE = BY_ID["mkt-v5-2024-08-20-A1500x4-e1"]
+SHOWCASE = {(f"fern-{r['date'][5:7]}{r['date'][8:]}" if r["tags"]["showcase"] == "fern-0123"
+             else r["tags"]["showcase"]): r for r in market_tasks.pack_rows("gridsim-market-showcase")}
+"""The contract's showcase floors by bundle task: aug24-0820, and fern-0123 to fern-0127 for each day of fern-0123."""
 IDLE = {"hours": []}
 
 
@@ -89,7 +91,7 @@ BUNDLE = {
     "sprint": {"task": SPRINT, "tier": "floor-sprint"},
     "sprint-compliant": {"task": SPRINT, "tier": "floor-sprint", "compliant": True},
     "day": {"task": DAY, "tier": "floor-day"},
-    "aug24-0820": {"task": SHOWCASE, "tier": "floor-day", "compliant": True},
+    **{name: {"task": task, "tier": "floor-day", "compliant": True} for name, task in sorted(SHOWCASE.items())},
     "wiring-noplay": {"task": DAY, "tier": "floor-day", "play": False},
     **{name: {"task": task, "tier": tier, "play": False, "calls": calls}
        for name, (task, tier, calls) in WIRING.items()},
