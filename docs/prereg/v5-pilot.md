@@ -248,3 +248,26 @@ way, floor-day minus floor-sprint paired on the 10 floors played at both, the sh
   sit at R = 1.
 
 ## Deviations
+
+- **The floor-sprint episode cap rule failed.** The smoke (2 + 2 train floors, all scored, $0.39) gave medians of
+  $0.0430 a floor-sprint and $0.1512 a floor-day, so the registered caps were $0.18 and $0.61. gridsim-llm's guard books
+  a worst-case 16,384-token turn before each request ($0.167 at Sol's $10 per million output tokens), so at $0.18 every
+  floor-sprint run of `v5-pilot-sol` stopped at its cap after 3 or 4 of its 6 turns: 0 of 30 scored, $0.57 spent. The
+  rule ignored the guard's reservation; nothing else was changed. As registered, each run went once more at 2 × the cap
+  ($0.36) in `v5-pilot-sol-amend` (30 of 30 scored at the first attempt, $1.45); every floor-sprint number in
+  `results/board-v5.md` is that amendment's, labelled "amended", and no primary floor-sprint number exists. The
+  floor-day sweep ($0.61) and the showcase sweep were not affected (no run came near its cap).
+- **Showcase:** after 5db4ab3's per-tier headroom filter, 2026-01-23 and 01-24 are not floor-day floors
+  (`floor_day_ok` false: the anchor loses money there), and the sweep refused them; `v5-pilot-sol-show` ran the other
+  four (aug24-0820 and 2026-01-25 to 01-27). Display only either way.
+- **Analysis code, no registered number changed:** ad4fc37 makes `scripts/pilot_v5.py` report every set (the empty
+  primary floor-sprint column made its fidelity line fail) and summarise unscored runs by reason; 044224d adds the
+  Spearman of R with the welfare ratio that H4 is read on, which the committed script did not compute.
+- **Derived, not deviations:** caps $0.18 (floor-sprint) and $0.61 (floor-day); B = $35.61, split by expected spend into
+  `--cap-usd` $12.38 (floor-sprint), $14.51 (floor-day) and $8.71 (showcase); the amendment sweep's `--cap-usd` $15.82,
+  $40 less the spend so far and the two running sweeps' caps. The three pilot sweeps started together, the amendment
+  once the floor-sprint sweep had stopped, on the box P4's lane shares; no run was retried, and every run of the
+  amendment, floor-day and showcase sweeps scored at its first attempt. Total spend $4.50 of $40.
+- **H3's measure did not measure what it was registered for:** it assumes Sol's DAM position lies between the anchor's
+  and the price-taker's, and Sol's does not (it sells 2.4 times either's volume in impact hours). Its value and the
+  registered call are reported as they are, with the other impact rows beside them (`results/board-v5.md`, Reading).
