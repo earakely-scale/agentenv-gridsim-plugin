@@ -58,7 +58,7 @@ function pulseMaterial() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float d = -mv.z;
         vA = aA * exp(-d * uFog * 1.2);
-        gl_PointSize = clamp(uSize * uScale / d, 2.0, 64.0);
+        gl_PointSize = clamp(uSize * uScale / d, 3.5, 72.0);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
@@ -155,7 +155,7 @@ export function buildLine({ deadEnd, heightLocal, km = 9, seed }) {
     const speed = (70 + 260 * load) * (reduced ? 0.5 : 1);
     travel += dir * speed * dt;
     const per = Math.round((MAX / 3) * Math.min(1, 0.25 + 0.75 * load) * (dir && load > 0 ? 1 : 0));
-    const visLen = 3000;
+    const visLen = 1700;
     let k = 0;
     for (let ph = 0; ph < 3; ph++) {
       const path = paths[ph];
@@ -184,7 +184,7 @@ export function buildLine({ deadEnd, heightLocal, km = 9, seed }) {
     pmat.uniforms.uColor.value.set(color);
     pmat.uniforms.uScale.value = height;
     pmat.uniforms.uFog.value = fog;
-    pmat.uniforms.uSize.value = 1.5 + 1.2 * day;
+    pmat.uniforms.uSize.value = 2.4 + 1.4 * day;
     pmat.uniforms.uI.value = 0.55 + 0.6 * day;
     points.visible = per > 0;
   }

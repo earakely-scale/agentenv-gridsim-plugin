@@ -128,7 +128,7 @@ function gaugeMaterial(levels) {
 }
 
 /** The battery yard, its substation, fence, lights and O&M building. update(state) drives lights, fans and gauges. */
-export function buildYard(battery, U, { gravel = "#a7a39b", seed = "yard" } = {}) {
+export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#c2b394", seed = "yard" } = {}) {
   const L = layout(battery);
   const group = new THREE.Group();
   const white = [
@@ -154,10 +154,10 @@ export function buildYard(battery, U, { gravel = "#a7a39b", seed = "yard" } = {}
   pad.position.set((L.pad.x0 + L.pad.x1) / 2, 0.04, (L.pad.z0 + L.pad.z1) / 2);
   pad.receiveShadow = true;
   group.add(pad);
-  const roadMat = gravelMaterial("#b6a98f", U, { scale: 1.1, road: true });
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(7, 1600), roadMat);
+  const roadMat = gravelMaterial(roadColor, U, { scale: 1.1, road: true });
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(7, 3200), roadMat);
   road.rotation.x = -Math.PI / 2;
-  road.position.set(L.pad.roadX, 0.05, L.pad.z1 + 800 - 1);
+  road.position.set(L.pad.roadX, 0.05, L.pad.z1 + 1600 - 1);
   road.receiveShadow = true;
   group.add(road);
   const aisle = new THREE.Mesh(new THREE.PlaneGeometry(L.pad.x1 - L.pad.x0 - 12, 6), roadMat);
@@ -216,6 +216,16 @@ export function buildYard(battery, U, { gravel = "#a7a39b", seed = "yard" } = {}
 
   const sub = buildSubstation(L, { steel, xfmr, porcelain, polymer, concrete, dark });
   group.add(sub.group);
+  const hum = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: COLORS.idle, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+  hum.position.set(L.sx - 8, 5.2, 0);
+  hum.scale.set(16, 11, 1);
+  group.add(hum);
+  const humBush = new THREE.MeshStandardMaterial({ color: "#222", emissive: new THREE.Color(COLORS.idle), emissiveIntensity: 0, roughness: 0.4 });
+  const caps = [];
+  for (let i = 0; i < 3; i++) caps.push(mat4(V(L.sx - 9.5 + i * 1.5, 7.55, 0.9)));
+  group.add(inst(new THREE.SphereGeometry(0.2, 10, 8), humBush, caps, { shadow: false }));
+  const people = buildPeople(L);
+  group.add(people);
 
   const fence = buildFence(L.pad, steel);
   group.add(fence);
@@ -232,7 +242,7 @@ export function buildYard(battery, U, { gravel = "#a7a39b", seed = "yard" } = {}
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), one = V(1, 1, 1);
   let fanAngle = 0, fanSpeed = 2;
   const col = new THREE.Color();
-  function update({ mode, mw, pmax, soc, night, dt, temp = 25, wind }) {
+  function update({ mode, mw, pmax, soc, night, lights: lightsOn, dt, wall = 0, reduced = false, temp = 25, wind }) {
     const load = Math.abs(mw) / Math.max(1, pmax);
     const target = mode === "grey" ? 3 : 4 + 22 * load + Math.max(0, temp - 20) * 0.35;
     fanSpeed += (target - fanSpeed) * Math.min(1, dt * 1.5);
@@ -244,12 +254,19 @@ export function buildYard(battery, U, { gravel = "#a7a39b", seed = "yard" } = {}
     fanMesh.instanceMatrix.needsUpdate = true;
     col.set(COLORS[mode] || COLORS.idle);
     barMat.emissive.copy(col);
-    barMat.emissiveIntensity = (mode === "idle" ? 0.9 : mode === "grey" ? 0.25 : 2.4) * (0.7 + 0.5 * night) + (mode === "charge" || mode === "discharge" ? load * 1.2 : 0);
+    const active = mode === "charge" || mode === "discharge";
+    barMat.emissiveIntensity = mode === "idle" ? 0.8 + 0.6 * night : mode === "grey" ? 0.25 : mode === "violation" ? 4 + 2 * night : (3.2 + 4 * load) * (1.25 - 0.45 * night);
+    hum.material.color.set(COLORS[mode] || COLORS.idle);
+    const beat = reduced ? 1 : 0.85 + 0.15 * Math.sin(wall * Math.PI);
+    hum.material.opacity = active ? (0.25 + 0.55 * load) * (0.35 + 0.65 * night) * beat : 0;
+    humBush.emissive.set(COLORS[mode] || COLORS.idle);
+    humBush.emissiveIntensity = active ? (0.6 + 1.8 * load) * (0.4 + 0.8 * night) * beat : 0;
     gauge.uniforms.uSoc.value = soc;
     gauge.uniforms.uGrey.value = mode === "grey" ? 1 : 0;
     gauge.uniforms.uGlow.value = night;
     ledMat.emissive.set(mode === "grey" || mode === "violation" ? "#ff5a4a" : "#7dffa8");
-    lights.update(night, dt);
+    lights.update(lightsOn ?? night, dt);
+    om.windows.emissiveIntensity = 1.6 * (lightsOn ?? night);
     flag.update(wind, dt);
   }
   return { group, layout: L, update, lights, sub };
@@ -397,14 +414,49 @@ function buildOM(L, concrete, seed) {
   const w = inst(new THREE.PlaneGeometry(1.6, 1.1), winMat, wins, { shadow: false });
   const door = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.2), new THREE.MeshStandardMaterial({ color: "#5d6a72", roughness: 0.6 }));
   door.position.set(x + 1, 1.1, z + 0.02);
-  const truck = new THREE.Mesh(merge([box(5.4, 0.9, 2.0, 0, 0.85, 0), box(2.5, 0.85, 1.9, -0.6, 1.7, 0)]), new THREE.MeshStandardMaterial({ color: "#e9ebea", roughness: 0.35, metalness: 0.5 }));
-  truck.position.set(x - 2, 0, z + 5);
-  truck.rotation.y = 0.08;
-  truck.castShadow = true;
-  const wheels = inst(cyl(0.42, 0.42, 0.3, 0, 0, 0, 12, "z"), new THREE.MeshStandardMaterial({ color: "#1b1c1e", roughness: 0.9 }),
-    [[-1.7, -0.95], [-1.7, 0.95], [1.7, -0.95], [1.7, 0.95]].map(([dx, dz]) => mat4(V(x - 2 + dx, 0.42, z + 5 + dz))));
-  g.add(b, roof, w, door, truck, wheels);
+  g.add(b, roof, w, door, pickup(x - 3, z + 5, 0.08, "#e9ebea"), pickup(x + 5.5, z + 5.4, -0.05, "#8c2f2a"));
   return { group: g, windows: winMat };
+}
+
+function pickup(x, z, rot, color) {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.55 });
+  const glass = new THREE.MeshStandardMaterial({ color: "#1d262c", roughness: 0.1, metalness: 0.6 });
+  const tire = new THREE.MeshStandardMaterial({ color: "#1b1c1e", roughness: 0.9 });
+  const body = new THREE.Mesh(merge([box(5.6, 0.75, 2.0, 0, 0.95, 0), box(2.3, 0.85, 1.92, 0.35, 1.72, 0), box(1.9, 0.5, 2.0, -1.8, 1.55, 0)]), paint);
+  const cab = new THREE.Mesh(box(2.0, 0.6, 1.94, 0.35, 1.75, 0), glass);
+  body.castShadow = cab.castShadow = true;
+  g.add(body, cab, inst(cyl(0.42, 0.42, 0.3, 0, 0, 0, 14, "z"), tire, [[-1.8, -0.92], [-1.8, 0.92], [1.75, -0.92], [1.75, 0.92]].map(([dx, dz]) => mat4(V(dx, 0.42, dz)))));
+  g.position.set(x, 0, z);
+  g.rotation.y = rot;
+  return g;
+}
+
+/** Two technicians by the inverters and the gate, for scale: 1.8 m, hi-vis vests, white hard hats. */
+function buildPeople(L) {
+  const g = new THREE.Group();
+  const vest = new THREE.MeshStandardMaterial({ color: "#f0a020", roughness: 0.7 });
+  const jeans = new THREE.MeshStandardMaterial({ color: "#2f3c52", roughness: 0.9 });
+  const skin = new THREE.MeshStandardMaterial({ color: "#a87a5a", roughness: 0.8 });
+  const hat = new THREE.MeshStandardMaterial({ color: "#f4f4f2", roughness: 0.4 });
+  const mid = L.skids[Math.floor(L.skids.length / 2)];
+  const spots = [[mid.x - 1.2, mid.z + 2.9, 2.6], [L.pad.roadX + 3, L.pad.z1 - 4, -0.6]];
+  for (const [x, z, rot] of spots) {
+    const p = new THREE.Group();
+    const legs = new THREE.Mesh(merge([box(0.16, 0.86, 0.18, -0.1, 0.43, 0), box(0.16, 0.86, 0.18, 0.1, 0.43, 0)]), jeans);
+    const torso = new THREE.Mesh(box(0.44, 0.62, 0.26, 0, 1.17, 0), vest);
+    const arms = new THREE.Mesh(merge([box(0.11, 0.6, 0.12, -0.29, 1.15, 0.02), box(0.11, 0.6, 0.12, 0.29, 1.15, 0.02)]), vest);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), skin);
+    head.position.y = 1.6;
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), hat);
+    helmet.position.y = 1.64;
+    for (const m of [legs, torso, arms, head, helmet]) m.castShadow = true;
+    p.add(legs, torso, arms, head, helmet);
+    p.position.set(x, 0.05, z);
+    p.rotation.y = rot;
+    g.add(p);
+  }
+  return g;
 }
 
 function buildLights(L, steel, dark) {
@@ -427,7 +479,7 @@ function buildLights(L, steel, dark) {
   const lampM = headM.map((m) => m.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.1, 0)));
   const lamps = inst(box(0.55, 0.04, 0.38), lampMat, lampM, { shadow: false });
   g.add(lamps);
-  const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: "#ffe4b8", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+  const glowMat = new THREE.SpriteMaterial({ map: glowTexture(), color: "#e8eeff", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   const glows = glowPos.map((p) => {
     const s = new THREE.Sprite(glowMat);
     s.position.copy(p);
@@ -435,9 +487,9 @@ function buildLights(L, steel, dark) {
     g.add(s);
     return s;
   });
-  const poolMat = new THREE.MeshBasicMaterial({ map: glowTexture(), color: "#ffdcae", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+  const poolMat = new THREE.MeshBasicMaterial({ map: glowTexture(), color: "#dfe6f5", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   for (const [x, z, f] of poles) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), poolMat);
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), poolMat);
     p.rotation.x = -Math.PI / 2;
     p.position.set(x, 0.09, z + f * 9);
     g.add(p);
@@ -446,7 +498,7 @@ function buildLights(L, steel, dark) {
   const pick = [0, 2, poles.length - 2, Math.floor(poles.length / 2), 1, poles.length - 1].filter((i, k, a) => i >= 0 && i < poles.length && a.indexOf(i) === k);
   for (const i of pick.slice(0, 6)) {
     const [x, z, f] = poles[i];
-    const s = new THREE.SpotLight("#ffe2bb", 0, 140, 1.05, 0.65, 1.4);
+    const s = new THREE.SpotLight("#eef2ff", 0, 140, 1.05, 0.65, 1.4);
     s.position.set(x, 11.5, z);
     s.target.position.set(x + (cx - x) * 0.3, 0, z + (f || 0) * 26 + (f ? 0 : (cz - z) * 0.2));
     g.add(s, s.target);
@@ -455,11 +507,11 @@ function buildLights(L, steel, dark) {
   return {
     group: g, poles,
     update(night) {
-      const on = Math.min(1, Math.max(0, (night - 0.15) / 0.35));
-      lampMat.color.set("#fff2d8").multiplyScalar(0.25 + 2.5 * on);
-      glowMat.opacity = 0.85 * on;
-      poolMat.opacity = 0.16 * on;
-      for (const s of spots) s.intensity = 110 * on;
+      const on = Math.min(1, Math.max(0, night));
+      lampMat.color.set("#f1f4ff").multiplyScalar(0.25 + 7 * on);
+      glowMat.opacity = 0.7 * on;
+      poolMat.opacity = 0.11 * on;
+      for (const s of spots) s.intensity = 150 * on;
       glows.forEach((s) => (s.visible = on > 0.01));
     },
   };

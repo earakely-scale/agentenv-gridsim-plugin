@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { at } from "../data.js";
 import { buildBackdrop } from "./backdrop.js";
 import { buildDirector } from "./director.js";
@@ -42,9 +46,14 @@ export class GridStage {
     this.site = new THREE.Group();
     this.site.rotation.y = this.yaw;
     const U = { uWet: { value: 0 } };
-    this.yard = buildYard(d.b, U, { gravel: region.gravel, seed });
+    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed });
     const L = this.yard.layout;
-    this.terrain = buildTerrain(region, { pad: L.pad, yaw: this.yaw, seed });
+    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)) });
+    const cams = this.director.spots.map(([x, z, r]) => {
+      const v = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+      return [v.x, v.z, r];
+    });
+    this.terrain = buildTerrain(region, { pad: L.pad, yaw: this.yaw, seed, cams });
     this.terrain.U.uWet = U.uWet;
     this.U = U;
     scene.add(this.terrain.group);
@@ -60,7 +69,7 @@ export class GridStage {
     scene.add(this.backdrop.group);
     this.rain = buildRain();
     scene.add(this.rain.mesh);
-    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)) });
+    this.#post();
     if (!this.manual) {
       this.controls = new OrbitControls(this.camera, renderer.domElement);
       this.controls.enableDamping = true;
@@ -70,6 +79,17 @@ export class GridStage {
       this.controls.addEventListener("start", () => this.direct(false));
     }
     this.toWorld = toWorld;
+  }
+
+  #post() {
+    const r = this.renderer;
+    const size = r.getDrawingBufferSize(new THREE.Vector2());
+    const rt = new THREE.WebGLRenderTarget(size.x || 1, size.y || 1, { type: THREE.HalfFloatType, samples: 4 });
+    this.composer = new EffectComposer(r, rt);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x || 1, size.y || 1), 0.5, 0.55, 1.4);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
   }
 
   direct(on) {
@@ -84,6 +104,7 @@ export class GridStage {
     this.renderer.domElement.style.height = "100%";
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.composer?.setSize(w, h);
   }
 
   /** Render hour t; dt and wall are presentation seconds (fans, rotors, rain, pulses move on these). */
@@ -102,14 +123,14 @@ export class GridStage {
     this.U.uWet.value += (wet - this.U.uWet.value) * Math.min(1, dt * 0.6);
     if (this.manual && dt === 0) this.U.uWet.value = wet;
     const windYaw = -((w.windDir ?? 180) + 90) * DEG - this.yaw;
-    this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, dt, temp: w.temp ?? 25, wind: { kt: w.windKt, yawLocal: windYaw + Math.PI } });
+    this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights: 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind: { kt: w.windKt, yawLocal: windYaw + Math.PI } });
     this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height: this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2)), day: s.day, reduced: this.reduced });
     this.backdrop.update({ night: s.night, wall, dt, windMs: w.windMs, windDir: w.windDir, reduced: this.reduced });
     const fl = lightningAt(wall, w.ts, this.reduced);
     this.sky.flash(fl ? fl.f * 0.9 : 0, fl?.dir);
     this.sky.hemi.intensity += fl ? fl.f * 1.5 : 0;
     if (this.directing || !this.controls) {
-      const p = this.director.pose(t);
+      const p = this.director.pose(t, this.force);
       const wp = this.toWorld(p.pos.x, p.pos.z).setY(p.pos.y + this.terrain.heightAt(...this.#xz(p.pos)));
       const wl = this.toWorld(p.look.x, p.look.z).setY(p.look.y);
       this.camera.position.copy(wp);
@@ -121,7 +142,10 @@ export class GridStage {
     } else this.controls.update();
     this.rain.update({ wall, camera: this.camera, w, day: s.day });
     this.sky.focus(this.camera, this.controls?.target || this.camera.position.clone().add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(60)));
-    this.renderer.render(this.scene, this.camera);
+    this.bloom.threshold = 1.1 + 1.5 * s.day;
+    this.bloom.strength = 0.38 + 0.32 * s.night;
+    this.bloom.radius = 0.5;
+    this.composer.render();
     this.frameMs.push(performance.now() - t0);
     if (this.frameMs.length > 240) this.frameMs.shift();
     return { s, w, x, mode };

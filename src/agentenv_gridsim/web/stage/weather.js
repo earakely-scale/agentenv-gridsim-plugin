@@ -31,7 +31,7 @@ export function weatherAt(sidecar, t) {
   const da = decode(a), db = decode(b);
   const mix = (x, y) => (x ?? y ?? 0) + ((y ?? x ?? 0) - (x ?? y ?? 0)) * u;
   const vis = (o) => (o.vis_sm == null || o.vis_sm >= 10 ? 99 : Math.max(0.15, o.vis_sm * 1.609));
-  const overc = (o) => ((o.clouds || []).some(([c]) => c === "OVC" || c === "VV") ? 1 : (o.clouds || []).some(([c]) => c === "BKN") ? 0.55 : 0);
+  const overc = (o) => ((o.clouds || []).some(([c, ft]) => (c === "OVC" || c === "VV") && (ft ?? 0) < 20000) ? 1 : 0);
   let wd = a.wind_dir ?? b.wind_dir ?? 180;
   if (b.wind_dir != null && a.wind_dir != null) wd = a.wind_dir + ((((b.wind_dir - a.wind_dir) % 360) + 540) % 360 - 180) * u;
   const near = u < 0.5 ? a : b;

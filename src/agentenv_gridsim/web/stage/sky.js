@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { dirOf, moonAt, sunAt, tzOffsetMinutes } from "./astro.js";
+import { horizonColors } from "./preetham.js";
 
 const smooth = (a, b, x) => {
   const u = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -23,6 +24,22 @@ function hazeAt(el, row, out) {
   return out.copy(_a.set(HAZE[row][k])).lerp(_b.set(HAZE[row][k + 1]), u);
 }
 
+/** The Three.js Sky (Preetham) shader with a final scale and saturation, so a high sun gives a deep blue sky under
+ * ACES instead of a washed-out one; low suns keep its full sunset colour. */
+function makeSky() {
+  const sh = Sky.SkyShader;
+  const mat = new THREE.ShaderMaterial({
+    name: "GridSky", side: THREE.BackSide, depthWrite: false,
+    uniforms: { ...THREE.UniformsUtils.clone(sh.uniforms), uScale: { value: 1 }, uSat: { value: 1 } },
+    vertexShader: sh.vertexShader,
+    fragmentShader: sh.fragmentShader.replace("uniform vec3 up;", "uniform vec3 up;\nuniform float uScale, uSat;").replace(
+      "gl_FragColor = vec4( retColor, 1.0 );",
+      "retColor = max(vec3(0.0), mix(vec3(dot(retColor, vec3(0.2126, 0.7152, 0.0722))), retColor, uSat)) * uScale;\n\t\t\tgl_FragColor = vec4( retColor, 1.0 );"),
+  });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
+  return mesh;
+}
+
 function overlayDome(radius) {
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, transparent: true, depthWrite: false, fog: false,
@@ -33,7 +50,7 @@ function overlayDome(radius) {
       uMoon: { value: new THREE.Vector3(0, -1, 0) }, uMoonLit: { value: 0.5 }, uMoonWax: { value: 1 },
       uCover: { value: 0 }, uOvercast: { value: 0 }, uCloudBase: { value: 0.5 }, uTime: { value: 0 },
       uWind: { value: new THREE.Vector2() }, uGlowDir: { value: new THREE.Vector2(1, 0) }, uGlow: { value: 0 },
-      uFlash: { value: 0 }, uFlashDir: { value: new THREE.Vector3(0, 0.3, 1) }, uRain: { value: 0 },
+      uFlash: { value: 0 }, uFlashDir: { value: new THREE.Vector3(0, 0.3, 1) }, uRain: { value: 0 }, uTwi: { value: 0 }, uTwiK: { value: 0 },
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -44,7 +61,7 @@ function overlayDome(radius) {
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 uHaze, uZen, uHor, uSun, uSunCol, uMoon, uFlashDir;
-      uniform float uHazeK, uNight, uStars, uDay, uMoonLit, uMoonWax, uCover, uOvercast, uCloudBase, uTime, uGlow, uFlash, uRain;
+      uniform float uHazeK, uNight, uStars, uDay, uMoonLit, uMoonWax, uCover, uOvercast, uCloudBase, uTime, uGlow, uFlash, uRain, uTwi, uTwiK;
       uniform vec2 uWind, uGlowDir;
       varying vec3 vDir;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -92,6 +109,21 @@ function overlayDome(radius) {
         night = mix(night, moonCol, moonA * (1.0 - uOvercast * 0.95));
         night += vec3(0.6, 0.65, 0.75) * pow(max(mc, 0.0), 400.0) * 0.18 * uMoonLit * (1.0 - uOvercast);
         col = night; a = uNight;
+        if (uTwi > 0.0) {
+          vec3 sdt = normalize(uSun);
+          vec2 st = normalize(sdt.xz + 1e-5);
+          float tow = max(dot(normalize(d.xz + 1e-5), st), 0.0);
+          float hh = max(h, 0.0);
+          vec3 tz = mix(vec3(0.05, 0.08, 0.17), vec3(0.11, 0.15, 0.3), uTwiK);
+          vec3 th = mix(vec3(0.26, 0.24, 0.36), vec3(0.42, 0.36, 0.46), uTwiK);
+          vec3 tcol = mix(th, tz, smoothstep(0.0, 0.5, hh));
+          vec3 warm = mix(vec3(0.75, 0.32, 0.14), vec3(1.0, 0.55, 0.25), uTwiK);
+          tcol += warm * pow(tow, 2.5) * (1.0 - smoothstep(0.0, 0.22, hh)) * (0.6 + 0.6 * uTwiK);
+          tcol += vec3(0.42, 0.24, 0.34) * (1.0 - tow) * smoothstep(0.02, 0.08, hh) * (1.0 - smoothstep(0.08, 0.25, hh)) * 0.35 * uTwiK;
+          tcol *= (1.0 - uOvercast * 0.6);
+          col = mix(col, tcol, uTwi);
+          a = max(a, uTwi);
+        }
         // horizon haze band
         float band = 1.0 - smoothstep(0.0, 0.015 + 0.1 * uHazeK, max(h, 0.0));
         band *= band;
@@ -104,20 +136,25 @@ function overlayDome(radius) {
         a = max(a, band * (0.6 + 0.4 * uHazeK));
         // overcast deck and clouds
         if (h > -0.02) {
-          vec2 cp = d.xz / (max(h, 0.0) + 0.09) * (0.9 + 0.7 * uCloudBase);
-          float c = fbm(cp * 0.9 + uWind * uTime);
-          float c2 = fbm(cp * 2.3 - uWind * uTime * 1.4 + 3.0);
-          float th = 0.78 - 0.5 * uCover;
-          float cl = smoothstep(th, th + 0.18, c * 0.8 + c2 * 0.3) * smoothstep(-0.02, 0.06, h);
+          vec2 cp = d.xz / (max(h, 0.0) + 0.07) * (0.55 + 0.6 * uCloudBase);
+          vec2 drift = uWind * uTime;
+          float c = fbm(cp * 0.7 + drift);
+          float c2 = fbm(cp * 1.9 - drift * 1.3 + 3.0);
+          float dens = c * 0.75 + c2 * 0.35;
+          float th = 0.86 - 0.52 * uCover;
+          float cl = smoothstep(th, th + 0.12, dens) * smoothstep(-0.01, 0.08, h);
+          float thick = smoothstep(th + 0.05, th + 0.45, dens);
           cl = max(cl, uOvercast * smoothstep(-0.02, 0.05, h));
-          float lit = smoothstep(0.35, 0.9, fbm(cp * 1.4 - sd.xz * 0.5 + 5.0));
-          vec3 base = mix(vec3(0.5, 0.52, 0.56), vec3(0.95, 0.95, 0.94), uDay) * (0.55 + 0.45 * uDay);
-          base = mix(base, vec3(0.32, 0.34, 0.38) * (0.25 + 0.75 * uDay), uRain);
-          vec3 cloud = base * (0.82 + 0.3 * lit) + uSunCol * pow(max(dot(d, sd), 0.0), 4.0) * 0.5 * (1.0 - uOvercast) * step(-0.05, sd.y);
-          cloud = mix(cloud, vec3(0.05, 0.055, 0.07) + vec3(0.36, 0.24, 0.15) * glow * 0.5 + vec3(0.1, 0.07, 0.05) * uGlow * 0.12, uNight);
-          cloud *= mix(1.0, 0.82 + 0.3 * c2, uOvercast);
-          col = mix(col, cloud, cl * 0.95);
-          a = max(a, cl * 0.95);
+          float towardSun = pow(max(dot(d, sd), 0.0), 3.0);
+          float rim = (1.0 - thick) * towardSun;
+          vec3 lit = mix(vec3(0.92, 0.93, 0.95), uSunCol * 1.1 + 0.15, smoothstep(0.35, 0.0, sd.y) * 0.85);
+          vec3 shade = mix(vec3(0.46, 0.5, 0.58), vec3(0.38, 0.32, 0.38), smoothstep(0.3, 0.0, sd.y));
+          vec3 cloud = mix(lit, shade, thick * 0.85) * (0.18 + 0.82 * uDay) + uSunCol * rim * 0.9 * uDay * step(-0.05, sd.y);
+          cloud = mix(cloud, mix(vec3(0.42, 0.44, 0.48), vec3(0.3, 0.32, 0.36), uRain) * (0.12 + 0.75 * uDay), uOvercast * 0.85);
+          cloud = mix(cloud, vec3(0.04, 0.045, 0.06) + vec3(0.36, 0.24, 0.15) * glow * 0.6 + vec3(0.12, 0.08, 0.05) * uGlow * 0.18, uNight);
+          cloud *= mix(1.0, 0.85 + 0.25 * c2, uOvercast);
+          col = mix(col, cloud, cl * 0.96);
+          a = max(a, cl * 0.96);
           col = mix(col, haze, band * (0.5 + 0.5 * uHazeK) * cl);
         }
         float fl = uFlash * (0.25 + 0.75 * pow(max(dot(d, normalize(uFlashDir)), 0.0), 3.0));
@@ -143,7 +180,7 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const R = 60000;
-  const sky = new Sky();
+  const sky = makeSky();
   sky.scale.setScalar(R * 1.2);
   sky.renderOrder = -10;
   sky.frustumCulled = false;
@@ -163,7 +200,7 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
 
   const pm = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
-  const envSky = new Sky();
+  const envSky = makeSky();
   envSky.scale.setScalar(900);
   const envDome = overlayDome(800);
   const envGround = new THREE.Mesh(new THREE.CircleGeometry(700, 32), new THREE.MeshBasicMaterial({ color: "#555" }));
@@ -174,7 +211,7 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
   let envKey = "";
 
   const sunDir = new THREE.Vector3(), moonDir = new THREE.Vector3();
-  const haze = new THREE.Color(), hazeO = new THREE.Color(), sunCol = new THREE.Color();
+  const haze = new THREE.Color(), hazeO = new THREE.Color(), sunCol = new THREE.Color(), skyHor = new THREE.Color(), skyZen = new THREE.Color();
   const groundTint = new THREE.Color(region.ground[0]);
   const cityB = (region.city.bearing * Math.PI) / 180;
   let last = null;
@@ -200,20 +237,33 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
     const u = sky.material.uniforms;
     u.sunPosition.value.copy(sunDir);
     u.turbidity.value = region.turbidity + w.mist * 4 + overcast * 3;
-    u.rayleigh.value = 1.2 + region.humid * 0.8 + twilight * 1.2;
-    u.mieCoefficient.value = 0.004 + region.humid * 0.005 + w.mist * 0.01;
-    u.mieDirectionalG.value = 0.82;
-    for (const k of ["sunPosition", "turbidity", "rayleigh", "mieCoefficient", "mieDirectionalG"]) {
+    u.rayleigh.value = 1.8 + region.humid * 0.5 + twilight * 0.8;
+    u.mieCoefficient.value = 0.004 + region.humid * 0.004 + w.mist * 0.01;
+    u.mieDirectionalG.value = 0.8;
+    u.uScale.value = 1 - 0.58 * smooth(4, 40, el);
+    u.uSat.value = 1 + 0.35 * smooth(4, 30, el);
+    for (const k of ["sunPosition", "turbidity", "rayleigh", "mieCoefficient", "mieDirectionalG", "uScale", "uSat"]) {
       const v = u[k].value;
       if (v?.copy) envSky.material.uniforms[k].value.copy(v);
       else envSky.material.uniforms[k].value = v;
     }
 
-    hazeAt(el, 0, haze);
+    const P = { turbidity: u.turbidity.value, rayleigh: u.rayleigh.value, mieCoefficient: u.mieCoefficient.value, mieDirectionalG: u.mieDirectionalG.value };
+    const hc = horizonColors(sunDir, P);
+    const sat = (c) => {
+      const l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      return c.map((v) => Math.max(0, (l + (v - l) * u.uSat.value) * u.uScale.value));
+    };
+    skyHor.setRGB(...sat(hc.mean));
+    skyZen.setRGB(...sat(hc.zenith));
+    const tw = smooth(-15, -7, el) * (1 - smooth(-0.5, 5, el));
+    skyHor.lerp(_a.set("#5a5470"), tw * 0.6);
+    haze.copy(skyHor);
     hazeAt(el, 1, hazeO);
-    haze.lerp(hazeO, Math.min(1, overcast * 0.9 + w.rain * 0.3));
-    if (region.humid > 0.5) haze.lerp(_a.set("#d8d2bf").multiplyScalar(0.25 + 0.75 * day), 0.12 * region.humid * day);
-    if (w.dust) haze.lerp(_a.set("#c49a6c").multiplyScalar(0.3 + 0.7 * day), Math.min(0.5, w.dust * 0.5));
+    haze.lerp(hazeO.multiplyScalar(0.55), Math.min(1, overcast * 0.85 + w.rain * 0.3));
+    haze.lerp(_a.set("#141b2a"), night * 0.92);
+    if (region.humid > 0.5) haze.lerp(_a.copy(haze).multiplyScalar(1.15).lerp(_b.set("#cfc8b4").multiplyScalar(0.3 + 0.3 * day), 0.3), 0.5 * region.humid * day);
+    if (w.dust) haze.lerp(_a.set("#b08a60").multiplyScalar(0.25 + 0.4 * day), Math.min(0.5, w.dust * 0.5));
     sunCol.setHSL(0.07 + 0.065 * smooth(0, 25, el), 0.9 - 0.55 * smooth(2, 35, el), 0.58 + 0.3 * smooth(0, 30, el));
 
     const o = dome.material.uniforms;
@@ -236,6 +286,8 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
     o.uGlowDir.value.set(Math.sin(cityB), -Math.cos(cityB));
     o.uGlow.value = region.city.lights * (night * 0.9 + 0.1) * (1 + overcast * 1.4) * (1 - day);
     o.uRain.value = Math.min(1, w.rain);
+    o.uTwi.value = smooth(-16, -9, el) * (1 - smooth(-1.5, 3.5, el));
+    o.uTwiK.value = smooth(-10, -1, el);
     for (const k of Object.keys(o)) {
       const v = o[k].value;
       if (v?.copy) envDome.material.uniforms[k].value.copy(v);
@@ -252,11 +304,11 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
     sun.intensity = 4.2 * smooth(-1.5, 8, el) * Math.max(0.06, cloudDim);
     moon.color.set("#a7b8d8");
     moon.intensity = 0.2 * st.moon.lit * smooth(-2, 10, st.moon.el) * night * (1 - 0.85 * overcast);
-    hemi.color.copy(_a.set("#c3d4ea").lerp(haze, 0.35)).multiplyScalar(0.25 + 0.75 * day);
-    hemi.color.lerp(_b.set("#2a3550"), night * 0.85);
+    hemi.color.copy(_a.copy(skyZen).lerp(skyHor, 0.4).multiplyScalar(1 / Math.max(0.05, _a.r * 0.3 + _a.g * 0.6 + _a.b * 0.1)).multiplyScalar(0.5)).lerp(_b.set("#c9ced4"), overcast * 0.7);
+    hemi.color.lerp(_b.set("#3a4a70"), night * 0.85);
     hemi.groundColor.copy(groundTint).multiplyScalar(0.25 + 0.5 * day);
-    hemi.intensity = 0.06 + 0.7 * day * (0.7 + 0.8 * overcast) + 0.22 * twilight;
-    renderer.toneMappingExposure = 0.55 + 0.4 * night + 0.15 * overcast * day;
+    hemi.intensity = 0.14 + 0.7 * day * (0.7 + 0.8 * overcast) + 0.85 * twilight * (1 - day);
+    renderer.toneMappingExposure = 0.6 + 0.5 * night + 0.4 * twilight * (1 - day) + 0.15 * overcast * day;
     envGround.material.color.copy(groundTint).multiplyScalar(0.06 + 0.5 * day);
 
     const key = [Math.round(el / 1.5), Math.round(cover * 10), Math.round(night * 10), Math.round(hazeK * 10), Math.round(w.rain * 4)].join("|");
@@ -266,7 +318,7 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
       envTarget = pm.fromScene(envScene, 0.035);
       scene.environment = envTarget.texture;
     }
-    scene.environmentIntensity = 0.18 + 0.42 * day;
+    scene.environmentIntensity = 0.2 + 0.4 * day + 0.25 * twilight * (1 - day);
     last = { ...st, el, day, night, twilight, sunDir, moonDir, haze, hazeK, visKm, cover, overcast, sunI: sun.intensity };
     return last;
   }

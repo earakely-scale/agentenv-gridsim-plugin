@@ -32,11 +32,12 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   root.append(place, news, right, timeline, attrib);
 
   const ghosts = d.ghosts;
+  const same = (g) => g && JSON.stringify(g.sched) === JSON.stringify(d.ep.final_schedule);
   const lanes = [
-    { k: "agent", label: shortModel(d.ep.model), cls: "agent", cum: d.agentCum, final: d.ep.profit_usd },
-    ghosts.opt && { k: "opt", label: "Optimum", cls: "opt", cum: ghosts.opt.cum, final: ghosts.opt.profit },
-    ghosts.greedy && { k: "greedy", label: "Greedy", cls: "base", cum: ghosts.greedy.cum, final: ghosts.greedy.profit },
-    ghosts.threshold && { k: "threshold", label: "Threshold", cls: "base", cum: ghosts.threshold.cum, final: ghosts.threshold.profit },
+    { k: "agent", label: modelName(d.ep.model), cls: "agent", cum: d.agentCum, final: d.ep.profit_usd },
+    ghosts.opt && !same(ghosts.opt) && { k: "opt", label: "DP optimum", cls: "opt", cum: ghosts.opt.cum, final: ghosts.opt.profit },
+    ghosts.greedy && !same(ghosts.greedy) && { k: "greedy", label: "Greedy", cls: "base", cum: ghosts.greedy.cum, final: ghosts.greedy.profit },
+    ghosts.threshold && !same(ghosts.threshold) && { k: "threshold", label: "Threshold", cls: "base", cum: ghosts.threshold.cum, final: ghosts.threshold.profit },
   ].filter(Boolean);
   const extent = Math.max(1, ...lanes.flatMap((l) => [Math.abs(l.final), ...l.cum.map(Math.abs)]));
   const lo = Math.min(0, ...lanes.flatMap((l) => [l.final, ...l.cum]));
@@ -51,7 +52,7 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   timeline.innerHTML = `<div class="ctl"><div class="row"><button class="play" data-a="play">▶ Play</button><button data-a="director" class="on" title="Automatic camera (D)">Director</button></div>
     <div class="row speeds">${[0.5, 1, 2, 4].map((s, i) => `<button data-s="${s}" title="${i + 1}">${s === 0.5 ? "½" : s}×</button>`).join("")}</div>
     <div class="row"><button data-a="charts" title="C">Charts</button><button data-a="settings">Settings</button><a class="back" href="./index.html">All runs</a></div></div>
-    <div class="tl"><div class="legend"><span><i style="background:var(--charge-l)"></i>charge</span><span><i style="background:var(--discharge-l)"></i>discharge</span><span><i style="background:var(--ghost)"></i>optimum (ghost)</span><span><i style="border:1.5px dashed #1c2329"></i>differs</span></div>${tlSvg(d)}<div class="ph"></div></div>`;
+    <div class="tl"><div class="hours">${[0, 3, 6, 9, 12, 15, 18, 21].map((h) => `<span style="left:${(h / 24) * 100}%">${hourLabel(h)}</span>`).join("")}</div><div class="legend"><span><i style="background:var(--charge-l)"></i>charge</span><span><i style="background:var(--discharge-l)"></i>discharge</span><span><i style="background:var(--ghost)"></i>optimum (ghost)</span><span><i style="border:1.5px dashed #1c2329"></i>differs</span></div>${tlSvg(d)}<div class="ph"></div></div>`;
   const tl = timeline.querySelector(".tl");
   const ph = tl.querySelector(".ph");
   const seekAt = (e) => {
@@ -87,7 +88,7 @@ export function buildHud(root, d, { onSeek, onToggle }) {
         <div class="where" style="margin-top:-2px">day-ahead price for ${span(h)}</div>
         <div class="act ${t >= 24 ? "" : x.mode}"><i></i><span>${actText}</span></div>
         <div class="soc"><div class="row"><span>State of charge</span><span><b class="num">${Math.round(socPct)}%</b> · ${Math.round(x.soc * b.unit_mwh)} of ${b.energy_mwh} MWh</span></div>
-          <div class="bar"><div class="fill" style="width:${socPct}%"></div><div class="mark" style="left:${(b.s_end_min / b.soc_levels) * 100}%" data-label="end ≥ ${Math.round((b.s_end_min / b.soc_levels) * 100)}%"></div></div></div>
+          <div class="bar"><div class="fill" style="width:${socPct}%"></div>${b.s_end_min > 0 ? `<div class="mark" style="left:${(b.s_end_min / b.soc_levels) * 100}%" data-label="end ≥ ${Math.round((b.s_end_min / b.soc_levels) * 100)}%"></div>` : ""}</div></div>
         <div class="cash"><div>Cash so far<b class="num">${money(x.cash)}</b></div><div>Optimum so far<b class="num">${x.optCash == null ? "—" : money(x.optCash)}</b></div><div class="gap">Gap<b class="num ${gap == null ? "" : gap >= -0.5 ? "good" : "bad"}">${gap == null ? "—" : money(gap, { sign: true })}</b></div></div>
         <div class="meta">${b.p_dis_mw} MW / ${b.energy_mwh} MWh battery · ${Math.round(b.energy_mwh / Math.max(1, b.p_dis_mw))}-hour · ${describe(w) || "weather n/a"}</div>`;
       const n = x.news && t < 24.5 ? x.news : t >= 24 && d.news.find((q) => q.kind === "penalty") ? d.news.find((q) => q.kind === "penalty") : null;
@@ -120,13 +121,19 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   return { update, place, timeline };
 }
 
-function shortModel(m) {
+const REFS = { "dp-optimum": "DP optimum (reference)", greedy: "Greedy (reference)", threshold: "Threshold (reference)", "flawed-plan": "Flawed plan (demo)", "persistence-dp": "Persistence DP (reference)" };
+
+export function modelName(m) {
   if (!m) return "Agent";
-  return m.replace(/^reference\//, "").replace(/^openai\//, "").replace(/-/g, " ");
+  if (m.startsWith("reference/")) return REFS[m.slice(10)] || m.slice(10);
+  const base = m.split("/").pop();
+  const g = base.match(/^gpt-([\d.]+)-?(.*)$/i);
+  if (g) return `GPT-${g[1]}${g[2] ? " " + g[2].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : ""}`;
+  return base.replace(/-/g, " ");
 }
 
 function tlSvg(d) {
-  const W = 1200, H = 112, top = 12, barH = 46, chipY = top + barH + 5, chipH = 18, ghostY = chipY + chipH + 3, ghostH = 9;
+  const W = 1200, H = 96, top = 14, barH = 44, chipY = top + barH + 5, chipH = 18, ghostY = chipY + chipH + 3, ghostH = 9;
   const cw = W / 24;
   const max = Math.max(1, ...d.prices.map((p) => Math.max(0, p)));
   const min = Math.min(0, ...d.prices);
@@ -152,7 +159,6 @@ function tlSvg(d) {
     if (x.mode === "violation") s += `<rect x="${h * cw + 2}" y="${chipY - 2}" width="${cw - 4}" height="${chipH + 4}" rx="4" fill="none" stroke="#cf3e33" stroke-width="2"/>`;
     else if (x.mismatch && x.mode !== "grey") s += `<rect x="${h * cw + 2}" y="${chipY - 2}" width="${cw - 4}" height="${chipH + 4}" rx="4" fill="none" stroke="#1c2329" stroke-width="1.2" stroke-dasharray="3 2"/>`;
     if (o != null) s += chip(o, ghostY, ghostH, true);
-    if (h % 3 === 0) s += `<text x="${h * cw + 2}" y="${H - 2}" font-size="11" fill="#7a868e">${hourLabel(h)}</text>`;
     s += `<rect class="hl" x="${h * cw}" y="0" width="${cw}" height="${ghostY + ghostH + 3}" fill="rgba(28,35,41,0.06)" rx="4"/></g>`;
   });
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><style>.col .hl{opacity:0}.col.now .hl{opacity:1}</style>${s}</svg>`;

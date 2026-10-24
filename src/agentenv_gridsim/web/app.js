@@ -33,6 +33,7 @@ async function main() {
   app.append(root);
   document.title = `${ep.task.settlement_point} ${ep.task.date} · GridSimEnv`;
   const stage = new GridStage(host, d, { manual, reduced });
+  stage.force = q.get("shot");
   const P = { t: q.has("hour") ? +q.get("hour") - 0.5 : q.has("t") ? +q.get("t") : 0, playing: !manual && !q.has("t") && !q.has("hour"), speed: 1, wall: 0 };
   if (q.has("ui") && q.get("ui") === "0") root.classList.add("bare");
   const hud = buildHud(root, d, {

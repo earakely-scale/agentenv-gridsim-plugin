@@ -317,10 +317,10 @@ function refinery(spec, heightAt, seed) {
   };
 }
 
-function grainElevator(heightAt, seed) {
+function grainElevator(spec, heightAt, seed) {
   const r = rng(seed + "-ge");
   const g = new THREE.Group();
-  const [cx, cz] = at(140, 2400);
+  const [cx, cz] = at(spec.bearing, spec.km * 1000);
   const y0 = heightAt(cx, cz);
   const conc = new THREE.MeshStandardMaterial({ color: "#d6d1c6", roughness: 0.85 });
   const silos = [];
@@ -381,7 +381,7 @@ export function buildBackdrop(region, heightAt, avoid, seed) {
     parts.refinery = refinery(region.refinery, heightAt, seed);
     group.add(parts.refinery.group);
   }
-  if (region.grain) group.add(grainElevator(heightAt, seed).group);
+  if (region.grain) group.add(grainElevator(region.grain, heightAt, seed).group);
   if (region.suburbs) {
     parts.suburbs = suburbs(region.city, heightAt, seed, region.suburbs);
     group.add(parts.suburbs.group);

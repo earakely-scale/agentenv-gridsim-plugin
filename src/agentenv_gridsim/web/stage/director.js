@@ -46,45 +46,43 @@ export function buildDirector(d, L, { night }) {
     }
   shots.forEach((s, i) => (s.n = i));
 
-  const front = [...L.enc].sort((a, b) => b.z - a.z || Math.abs(a.x - L.cx) - Math.abs(b.x - L.cx));
-  const hero = front.find((e) => e.end > 0) || front[0];
-  const ctr = new THREE.Vector3(L.cx + 18, 0, 0);
-  const R = Math.max(L.W, L.D) * 0.9 + 140;
-
+  const front = [...L.enc].filter((e) => e.z === Math.max(...L.enc.map((x) => x.z)));
+  front.sort((a, b) => b.x - a.x);
+  const hero = front[0];
+  const x0 = L.cx - L.W / 2, x1 = L.cx + L.W / 2, zf = Math.max(...L.enc.map((e) => e.z)) + 1.3;
   const poses = {
     establish(u, s) {
-      const a = 0.35 + (s.n % 2 ? -1 : 1) * 0.55 * u + s.n * 0.9;
-      return { pos: [ctr.x + Math.cos(a) * R, 62 - 12 * u, ctr.z + Math.sin(a) * R], look: [ctr.x, 2, ctr.z], fov: 42 };
+      if (s.n % 2) return { pos: [x0 - 46 + 22 * u, 38 - 6 * u, -zf - 64 + 10 * u], look: [L.cx + L.W * 0.45, 0, zf * 0.2], fov: 50 };
+      return { pos: [x0 - 52 + 24 * u, 36 - 6 * u, zf + 70 - 12 * u], look: [L.cx + L.W * 0.45, 0, -zf * 0.25], fov: 50 };
     },
     high(u, s) {
-      const a = 1.1 + s.n * 0.7 + 0.35 * u;
-      return { pos: [ctr.x + Math.cos(a) * R * 1.3, 150, ctr.z + Math.sin(a) * R * 1.3], look: [ctr.x + 30, 0, ctr.z], fov: 40 };
+      const a = 2.3 + (s.n % 3) * 0.5 + 0.25 * u;
+      return { pos: [L.cx + Math.cos(a) * 190, 95, Math.sin(a) * -190], look: [L.cx + 40, 0, 0], fov: 46 };
     },
-    push(u, s) {
-      const side = s.n % 2 ? -1 : 1;
-      return { pos: [hero.x + side * lerp(26, 9, u), lerp(9, 3.2, u), hero.z + lerp(46, 15, u)], look: [hero.x + side * 1.5, 1.9, hero.z], fov: 38 };
+    push(u) {
+      return { pos: [hero.x + 30 - 12 * u, 6 - 1.4 * u, hero.z + 12 - 2 * u], look: [hero.x - 22, 1.6, hero.z - 2], fov: 44 };
     },
     neg(u) {
-      const e = hero;
-      return { pos: [e.x + lerp(13, 10, u), lerp(2.6, 2.3, u), e.z + lerp(8.5, 6.5, u)], look: [e.x + 1.2, 1.9, e.z + 0.6], fov: 44 };
+      return { pos: [x1 + 9 - 3 * u, 4.2, zf + 6.5], look: [L.cx - L.W * 0.35, 1.4, zf - 3.5], fov: 46 };
     },
     violation(u) {
-      return { pos: [hero.x - 6 - 4 * u, 3.4, hero.z + 13 - 2 * u], look: [hero.x, 2.0, hero.z + 1], fov: 40 };
+      return { pos: [hero.x + 26 - 6 * u, 4.2, hero.z + 11], look: [hero.x - 14, 1.6, hero.z - 1], fov: 44 };
     },
     ramp(u) {
-      return { pos: [L.pad.x0 - 70 + 30 * u, 13, L.pad.z1 + 34], look: [L.sx + 2600, -90, -260], fov: 30 };
+      return { pos: [x0 - 100 + 25 * u, 23 - 3 * u, zf + 50], look: [L.cx + L.W * 0.75, -3, -6], fov: 46 };
     },
     line(u) {
-      return { pos: [L.sx - 70 + 20 * u, 18, -70], look: [L.sx + 1800, 30, 30], fov: 30 };
+      return { pos: [L.sx + 26 + 30 * u, 7, 34], look: [L.sx + 1600, 22, -40], fov: 42 };
     },
     sub(u) {
-      return { pos: [L.sx - 36 + 16 * u, 9, 36], look: [L.sx + 12, 8, -2], fov: 44 };
+      return { pos: [L.sx - 34 + 12 * u, 11, 36], look: [L.sx + 4, 5, -2], fov: 48 };
     },
   };
   const out = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: 45, shot: null };
-  function pose(t) {
+  function pose(t, force = null) {
     const tt = Math.max(0, Math.min(23.999, t));
-    const s = t >= 24 ? { kind: "high", t0: 24, t1: 30, n: 99 } : shots.find((x) => tt >= x.t0 && tt < x.t1) || shots[0];
+    let s = t >= 24 ? { kind: "high", t0: 24, t1: 30, n: 99 } : shots.find((x) => tt >= x.t0 && tt < x.t1) || shots[0];
+    if (force && poses[force]) s = { kind: force, t0: Math.floor(tt), t1: Math.floor(tt) + 2, n: 0 };
     const u = ease((t - s.t0) / (s.t1 - s.t0));
     const p = poses[s.kind](u, s);
     out.pos.set(...p.pos);
@@ -93,5 +91,7 @@ export function buildDirector(d, L, { night }) {
     out.shot = s;
     return out;
   }
-  return { shots, pose, hero };
+  /** Site-local (x, z, radius) the cameras pass through, for keeping vegetation out of shot. */
+  const spots = [[x0 - 52, zf + 70, 40], [x0 - 46, -zf - 64, 40], [x0 - 85, zf + 46, 45], [L.sx + 40, 34, 40], [L.sx - 30, 36, 30], [L.cx, 0, 210]];
+  return { shots, pose, hero, spots };
 }

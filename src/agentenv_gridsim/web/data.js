@@ -1,5 +1,5 @@
 /** An Episode JSON (gridsim.episode/v1) turned into what the scene and the cards show hour by hour. */
-import { placeOf, REGIONS } from "./places.js";
+import { absolute, placeOf, REGIONS } from "./places.js";
 
 export const P_FLOOR = 50;
 
@@ -60,7 +60,7 @@ export function load(ep, weather = null) {
   const b = task.battery;
   const prices = task.prices;
   const place = placeOf(task.settlement_point);
-  const region = REGIONS[task.region] || REGIONS.central;
+  const region = absolute(REGIONS[task.region] || REGIONS.central);
   const hourly = ep.hourly?.length === 24 ? ep.hourly : null;
   const agentSim = simulate(task, ep.final_schedule || Array(24).fill(0));
   const actions = hourly ? hourly.map((x) => x.action) : agentSim.executed;

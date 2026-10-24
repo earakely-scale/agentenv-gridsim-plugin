@@ -113,6 +113,14 @@ function shrubGeometry(kind, r) {
       t.translate((r() - 0.5) * 0.4, 0.45, (r() - 0.5) * 0.4);
       parts.push(t);
     }
+  } else if (kind === "creosote") {
+    for (let i = 0; i < 5; i++) {
+      const s = new THREE.IcosahedronGeometry(0.22 + r() * 0.18, 0);
+      s.scale(1, 1.3 + r() * 0.5, 1);
+      const a = r() * Math.PI * 2, rr = 0.15 + r() * 0.3;
+      s.translate(Math.cos(a) * rr, 0.35 + r() * 0.4, Math.sin(a) * rr);
+      parts.push(s);
+    }
   } else if (kind === "juniper") {
     const s = new THREE.IcosahedronGeometry(0.8, 0);
     s.scale(1, 1.35, 1);
@@ -152,7 +160,7 @@ function treeGeometry(kind) {
   return mergeGeometries(parts.map((p) => p.toNonIndexed()));
 }
 
-function scatter(group, { n, kind, r: [r0, r1] }, heightAt, avoid, seed, geomOf, palette, U) {
+function scatter(group, { n, kind, r: [r0, r1] }, heightAt, avoid, seed, geomOf, palette, cams = []) {
   const r = rng(seed);
   const geom = geomOf(kind, r);
   const mat = new THREE.MeshStandardMaterial({ color: "#fff", roughness: 0.9, flatShading: true });
@@ -164,8 +172,9 @@ function scatter(group, { n, kind, r: [r0, r1] }, heightAt, avoid, seed, geomOf,
     const a = r() * Math.PI * 2;
     const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
     if (avoid(x, z)) continue;
-    if (fbm2(x * 0.004 + seed.length, z * 0.004, 3) < 0.36 + r() * 0.2) continue;
-    const sc = (kind === "oak" ? 0.7 : kind === "pine" ? 0.8 : 0.6) + r() * 0.9;
+    if (fbm2(x * 0.004 + seed.length, z * 0.004, 3) < 0.33 + r() * 0.22) continue;
+    if (cams.some(([cx, cz, cr]) => Math.hypot(x - cx, z - cz) < cr)) continue;
+    const sc = kind === "oak" ? 1.5 + r() * 1.4 : kind === "pine" ? 0.55 + r() * 0.7 : kind === "mesquite" ? 0.7 + Math.pow(r(), 1.5) * 1.8 : 0.6 + r() * 0.9;
     p.set(x, heightAt(x, z) - 0.1, z);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * Math.PI * 2);
     s.set(sc * (0.85 + r() * 0.3), sc * (0.8 + r() * 0.4), sc * (0.85 + r() * 0.3));
@@ -180,11 +189,11 @@ function scatter(group, { n, kind, r: [r0, r1] }, heightAt, avoid, seed, geomOf,
   return mesh;
 }
 
-const SHRUB = { mesquite: ["#4a4f31", "#545a37", "#5d5b3a", "#46482f", "#6a6544"], grass: ["#8a8a52", "#9a9258", "#7b8048"], juniper: ["#3c4a2e", "#36452c", "#465538"] };
+const SHRUB = { creosote: ["#6f7444", "#7a7a4a", "#65693e", "#858353"], mesquite: ["#4a4f31", "#545a37", "#5d5b3a", "#46482f", "#6a6544"], grass: ["#8a8a52", "#9a9258", "#7b8048"], juniper: ["#3c4a2e", "#36452c", "#465538"] };
 const TREE = { oak: ["#4e6233", "#56693a", "#46592f"], pine: ["#3a4f2c", "#344828", "#40562f"] };
 
 /** The land: the ground out to the horizon, the gravel pad, the access road, shrubs and trees. */
-export function buildTerrain(region, { pad, yaw, seed }) {
+export function buildTerrain(region, { pad, yaw, seed, cams = [] }) {
   const group = new THREE.Group();
   const U = { uWet: { value: 0 } };
   const heightAt = heightFn(region);
@@ -197,12 +206,14 @@ export function buildTerrain(region, { pad, yaw, seed }) {
   const avoid = (x, z) => {
     const [lx, lz] = toLocal(x, z);
     if (lx > pad.x0 - 30 && lx < pad.x1 + 30 && lz > pad.z0 - 30 && lz < pad.z1 + 30) return true;
-    if (lx > pad.x1 && Math.abs(lz - pad.lineZ) < 28) return true;
-    if (lz > pad.z1 && Math.abs(lx - pad.roadX) < 10) return true;
+    if (lx > pad.x1 && Math.abs(lz - pad.lineZ) < 45) return true;
+    if (lz > pad.z1 && Math.abs(lx - pad.roadX) < 9) return true;
     return false;
   };
-  if (region.shrubs) scatter(group, region.shrubs, heightAt, avoid, `${seed}-shrub`, (k, r) => shrubGeometry(k, r), SHRUB[region.shrubs.kind] || SHRUB.grass, U);
-  if (region.trees) scatter(group, region.trees, heightAt, avoid, `${seed}-tree`, (k) => treeGeometry(k), TREE[region.trees.kind] || TREE.oak, U);
+  const bigCams = cams.map(([x, z, r]) => [x, z, r * 2.2]);
+  if (region.shrubs) scatter(group, region.shrubs, heightAt, avoid, `${seed}-shrub`, (k, r) => shrubGeometry(k, r), SHRUB[region.shrubs.kind] || SHRUB.grass, cams);
+  if (region.shrubs2) scatter(group, region.shrubs2, heightAt, avoid, `${seed}-shrub2`, (k, r) => shrubGeometry(k, r), SHRUB[region.shrubs2.kind] || SHRUB.grass, cams);
+  if (region.trees) scatter(group, region.trees, heightAt, avoid, `${seed}-tree`, (k) => treeGeometry(k), TREE[region.trees.kind] || TREE.oak, bigCams);
   void lineDir;
   return { group, heightAt, U, avoid };
 }
