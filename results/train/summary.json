@@ -1,0 +1,227 @@
+{
+ "n_tasks": 200,
+ "rows": [
+  {
+   "model": "base",
+   "decoding": "sampled",
+   "reward_mean": 0.0,
+   "ci95": [
+    0.0,
+    0.0
+   ],
+   "valid_rate": 0.0,
+   "feasible_rate": 0.0,
+   "rate_all_idle": 0.0,
+   "rate_overfill": 0.0,
+   "rate_sell_before_charge": 0.0,
+   "rate_end_short": 0.0,
+   "rate_rate": 0.0,
+   "rate_cycle_cap": 0.0,
+   "rate_malformed": 1.0,
+   "rate_truncated": 0.0,
+   "completion_len_mean": 86.7
+  },
+  {
+   "model": "base",
+   "decoding": "greedy",
+   "reward_mean": 0.0,
+   "ci95": [
+    0.0,
+    0.0
+   ],
+   "valid_rate": 0.0,
+   "feasible_rate": 0.0,
+   "rate_all_idle": 0.0,
+   "rate_overfill": 0.0,
+   "rate_sell_before_charge": 0.0,
+   "rate_end_short": 0.0,
+   "rate_rate": 0.0,
+   "rate_cycle_cap": 0.0,
+   "rate_malformed": 1.0,
+   "rate_truncated": 0.0,
+   "completion_len_mean": 86.8
+  },
+  {
+   "model": "sft200",
+   "decoding": "sampled",
+   "reward_mean": 0.2336,
+   "ci95": [
+    0.2088,
+    0.2599
+   ],
+   "valid_rate": 0.99,
+   "feasible_rate": 0.305,
+   "rate_all_idle": 0.0,
+   "rate_overfill": 0.495,
+   "rate_sell_before_charge": 0.11,
+   "rate_end_short": 0.09,
+   "rate_rate": 0.035,
+   "rate_cycle_cap": 0.045,
+   "rate_malformed": 0.01,
+   "rate_truncated": 0.0,
+   "completion_len_mean": 162.2
+  },
+  {
+   "model": "sft200",
+   "decoding": "greedy",
+   "reward_mean": 0.2423,
+   "ci95": [
+    0.2172,
+    0.268
+   ],
+   "valid_rate": 1.0,
+   "feasible_rate": 0.39,
+   "rate_all_idle": 0.0,
+   "rate_overfill": 0.5,
+   "rate_sell_before_charge": 0.07,
+   "rate_end_short": 0.075,
+   "rate_rate": 0.01,
+   "rate_cycle_cap": 0.03,
+   "rate_malformed": 0.0,
+   "rate_truncated": 0.0,
+   "completion_len_mean": 158.7
+  },
+  {
+   "model": "sft200+grpo",
+   "decoding": "sampled",
+   "reward_mean": 0.329,
+   "ci95": [
+    0.3057,
+    0.3537
+   ],
+   "valid_rate": 0.99,
+   "feasible_rate": 0.565,
+   "rate_all_idle": 0.0,
+   "rate_overfill": 0.41,
+   "rate_sell_before_charge": 0.0,
+   "rate_end_short": 0.155,
+   "rate_rate": 0.015,
+   "rate_cycle_cap": 0.0,
+   "rate_malformed": 0.01,
+   "rate_truncated": 0.0,
+   "completion_len_mean": 122.1
+  },
+  {
+   "model": "sft200+grpo",
+   "decoding": "greedy",
+   "reward_mean": 0.329,
+   "ci95": [
+    0.3052,
+    0.3539
+   ],
+   "valid_rate": 0.985,
+   "feasible_rate": 0.565,
+   "rate_all_idle": 0.0,
+   "rate_overfill": 0.41,
+   "rate_sell_before_charge": 0.0,
+   "rate_end_short": 0.155,
+   "rate_rate": 0.01,
+   "rate_cycle_cap": 0.0,
+   "rate_malformed": 0.015,
+   "rate_truncated": 0.0,
+   "completion_len_mean": 122.1
+  },
+  {
+   "model": "baseline:greedy",
+   "reward_mean": 0.764,
+   "ci95": [
+    0.7259,
+    0.7998
+   ],
+   "valid_rate": 1.0
+  },
+  {
+   "model": "baseline:threshold",
+   "reward_mean": 0.6371,
+   "ci95": [
+    0.6008,
+    0.6726
+   ],
+   "valid_rate": 1.0
+  },
+  {
+   "model": "baseline:clock",
+   "reward_mean": 0.4979,
+   "ci95": [
+    0.4598,
+    0.5355
+   ],
+   "valid_rate": 1.0
+  },
+  {
+   "model": "baseline:random",
+   "reward_mean": 0.0702,
+   "ci95": [
+    0.0523,
+    0.0892
+   ],
+   "valid_rate": 1.0
+  },
+  {
+   "model": "baseline:idle",
+   "reward_mean": 0.2,
+   "ci95": [
+    0.2,
+    0.2
+   ]
+  },
+  {
+   "model": "baseline:dp",
+   "reward_mean": 1.0,
+   "ci95": [
+    1.0,
+    1.0
+   ]
+  }
+ ],
+ "paired": {
+  "trained_sampled_minus_greedy": {
+   "mean": -0.435,
+   "ci95": [
+    -0.4758,
+    -0.3917
+   ],
+   "win_rate": 0.08
+  },
+  "trained_sampled_minus_threshold": {
+   "mean": -0.3081,
+   "ci95": [
+    -0.3546,
+    -0.2589
+   ],
+   "win_rate": 0.175
+  },
+  "trained_sampled_minus_sft200": {
+   "mean": 0.0954,
+   "ci95": [
+    0.0605,
+    0.1308
+   ],
+   "win_rate": 0.44
+  },
+  "trained_greedy_minus_greedy": {
+   "mean": -0.435,
+   "ci95": [
+    -0.4762,
+    -0.3915
+   ],
+   "win_rate": 0.08
+  },
+  "trained_greedy_minus_threshold": {
+   "mean": -0.3081,
+   "ci95": [
+    -0.3549,
+    -0.2587
+   ],
+   "win_rate": 0.18
+  },
+  "trained_greedy_minus_sft200": {
+   "mean": 0.0867,
+   "ci95": [
+    0.0559,
+    0.119
+   ],
+   "win_rate": 0.41
+  }
+ }
+}
