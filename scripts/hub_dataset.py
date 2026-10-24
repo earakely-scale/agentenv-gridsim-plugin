@@ -416,7 +416,7 @@ ORG = re.compile(r"(?:the )?Electric Reliability Council of Texas,? Inc\.?(?: \(
 LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]", re.I)
 TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", True),
               ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", False),
-              ("arm2b", "arm2b", "arm 2b: arm 2, then GRPO from its step 75", False))
+              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", False))
 TRAIN_FILES = ("summary.json", "eval_checkpoints.json", "curves.png")
 
 LIVE_TASKS = pa.schema([
@@ -874,7 +874,8 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
         if not rules:
             ev = json.loads((d / "eval_trained.json").read_text())["baselines"]
             rules = {k: {"model": f"rule:{k}", **v} for k, v in ev.items()}
-        final, base = policies[-1], policies[0]
+        final = policies[-1]
+        base = next((r for r in policies if r["model"] == "base"), None) or arms[0]["base"]
         bars = [{"bar": f"beats the {rule} rule: 95% CIs apart, valid >= 98%", "rule": rule,
                  "rule_reward": rules[rule]["reward_mean"], "rule_ci95": rules[rule]["ci95"],
                  "met": final["ci95"][0] > rules[rule]["ci95"][1] and final["valid_rate"] >= 0.98}

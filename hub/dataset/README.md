@@ -444,7 +444,7 @@ Qwen3-1.7B (bf16, LoRA, thinking off) trained on one GPU and was graded on 200 `
 foresight tier with the `oneshot` prompt, sampled at temperature 0.7. The base model writes no valid schedule
 (R 0.000). Each arm was held to the same two bars on those 200 days: beat the threshold rule, and beat the greedy
 rule, each with the 95% intervals apart and at least 98% of schedules valid. Arm 1 was registered before it ran; arm 2
-was designed after arm 1's result.
+was designed after arm 1's result, and arm 2b, a continuation of arm 2, after arm 2's.
 
 <!-- training -->
 The training summary lands with the training lane.
@@ -455,7 +455,11 @@ The training summary lands with the training lane.
 - **Arm 2:** a warm start on 1,500 DP-optimal schedules whose rationale tracks the state of charge, which alone
   scores 0.542 (0.493 to 0.589), then 75 GRPO steps: +0.037 (−0.016 to 0.091), not significant, though feasible
   schedules rose from 64% to 77.5%.
-- Neither arm met either bar. `training/` holds each arm's summary, checkpoint evaluations and training curves, and
+- **Arm 2b (exploratory continuation):** 105 more GRPO steps from arm 2's step 75 score 0.668 (0.629 to 0.707)
+  sampled and 0.681 (0.644 to 0.718) greedy, +0.089 (0.051 to 0.127) over arm 2 on the same days, paired. That is
+  level with the threshold rule's 0.637, paired +0.031 (−0.022 to 0.086) sampled and +0.044 (−0.010 to 0.098) greedy,
+  and below the greedy rule's 0.764 by 0.08 to 0.10, paired −0.096 (−0.143 to −0.050) sampled.
+- No arm met either bar. `training/` holds each arm's summary, checkpoint evaluations and training curves, and
   `training/arms.json` the bars and results. The LoRA adapters are not published.
 
 ## Simplifications
