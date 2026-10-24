@@ -1,0 +1,28 @@
+{
+ "pack": "ercot-front-v4-showcase",
+ "forecast_version": "4.0",
+ "tasks": 4,
+ "dates": [
+  "2021-02-13",
+  "2026-01-24"
+ ],
+ "tiers": [
+  "front-lite",
+  "front",
+  "blind",
+  "freeze-6h"
+ ],
+ "sources": [
+  "desk",
+  "ercot"
+ ],
+ "flags": {
+  "vintages": "synthetic until the forecast store lands (V4-P12)",
+  "site": "archetype",
+  "pv_availability": "proxy, system-wide cf",
+  "reg_drift": "seeded",
+  "rt_as": "not modelled (V4-P6)"
+ },
+ "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
+ "display_only": true
+}

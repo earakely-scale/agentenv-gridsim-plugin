@@ -129,7 +129,10 @@ def slice_for(task: dict, store: str | Path | None = None) -> dict:
         f = root / "vintages" / f"{year}.parquet"
         if not f.exists():
             continue
-        for r in pq.read_table(f).to_pylist():
+        kinds = sorted({k for k, _ in want})
+        rows = pq.read_table(f, filters=[("issued_at_utc", ">=", iso_utc(lo)), ("issued_at_utc", "<=", iso_utc(hi)),
+                                         ("kind", "in", kinds)]).to_pylist()
+        for r in rows:
             t = parse_utc(r["issued_at_utc"])
             if lo <= t <= hi and (r["kind"], r["key"]) in want:
                 series.append(r)
