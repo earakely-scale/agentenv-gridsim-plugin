@@ -13,11 +13,13 @@ from fake_litellm import FakeLiteLLM
 from hybrid_days import DAY, scripted
 from live_days import FakeClock, live_server
 
+from agentenv_gridsim import hybrid_tasks
 from gridsim_core.hybrid import HYBRID_ENV, LIVE_LOAD_URI, MAX_TURNS, Session, as_hog_policy
 from gridsim_core.hybrid_prompt import opening, system_prompt
 
 pytestmark = pytest.mark.anyio
 SOL = "openai/gpt-6.1-sol"
+PAD = "x" * 10_000
 
 
 def turn(calls: list[tuple[str, dict]], t: int = 0) -> dict:
@@ -74,3 +76,40 @@ async def test_hybrid_nudges_and_the_last_turn(play):
     assert gridsim_llm.HYBRID.no_call in sent[1] and gridsim_llm.HYBRID.last_turn in sent[1]
     assert "commit_da" not in sent[1]
     assert (summary(result)["end_reason"], summary(result)["reward"], data["done"]) == ("turn_limit", None, False)
+
+
+def smoke_turns(cached: bool) -> list[dict]:
+    """The Sol smoke's usage: input growing from 9,400 tokens by 1,844 a turn, each turn's prefix read from the cache
+    when ``cached`` (151k of 177k over ten turns), 1,272 output tokens, 10k characters of notes a turn; six turns of
+    get_situation, then the AS hog's day."""
+    calls = [[("get_situation", {})]] * 6 + scripted(DAY, "reserves", as_hog_policy)
+    return [dict(turn(c, t), content=PAD, usage={"input": 9400 + 1844 * t, "output": 1272,
+                                                  "cached": 9400 + 1844 * (t - 1) if cached and t else 0})
+            for t, c in enumerate(calls)]
+
+
+def old_bound(body: dict) -> float:
+    return (len(json.dumps(body).encode()) * 2.00 + hybrid_tasks.MODEL_PARAMS["max_tokens"] * 10.00) / 1e6
+
+
+async def test_the_cost_guard_prices_the_cache_and_lets_the_smoke_day_finish_under_its_cap(play, monkeypatch):
+    monkeypatch.setenv("GRIDSIM_MAX_COST_USD", "0.5")
+    turns = smoke_turns(cached=True)
+    result, fake, data = await play(turns, max_turns=MAX_TURNS, model_params=hybrid_tasks.MODEL_PARAMS)
+    s, spent = summary(result), [gridsim_llm.cost(dict(t["usage"], cache_write=0), gridsim_llm.PRICES[SOL])
+                                 for t in turns]
+    assert (s["end_reason"], s["turns"], data["done"]) == ("done", len(turns), True)
+    assert data["reward"] == DAY["refs"]["reserves"]["baselines"]["as_hog"]["reward"]
+    assert sum(spent[:10]) == pytest.approx(0.1943, abs=1e-4) and s["cost_usd"] == pytest.approx(sum(spent))
+    assert sum(spent[:10]) + old_bound(fake.requests[10][2]) > 0.5
+
+
+async def test_without_a_cache_the_guard_stops_before_the_cap(play, monkeypatch):
+    monkeypatch.setenv("GRIDSIM_MAX_COST_USD", "0.5")
+    turns = smoke_turns(cached=False)
+    result, fake, data = await play(turns, max_turns=MAX_TURNS, model_params=hybrid_tasks.MODEL_PARAMS)
+    s = summary(result)
+    n = len(fake.requests)
+    nxt = (9400 + 1844 * (n - 1)) * 2.00 / 1e6 + hybrid_tasks.MODEL_PARAMS["max_tokens"] * 10.00 / 1e6
+    assert (s["end_reason"], data["done"]) == ("cost_cap", False) and 5 < n < len(turns)
+    assert s["cost_usd"] <= 0.5 < s["cost_usd"] + nxt
