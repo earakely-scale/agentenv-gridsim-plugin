@@ -49,6 +49,8 @@ def test_the_steps_are_the_episode_flow(local_stores, tier):
 
 
 def test_the_bundle_plays_the_fixture_notice_day_and_its_wiring_task_has_no_agent(local_stores):
+    """When data/fixtures-live changes, write tasks/day.json and wiring-noplay.json again from live_tasks.steps of the
+    fixture notice day (play=False for the wiring task), indent 2."""
     assert bundle_task("day") == json.loads(json.dumps(live_tasks.steps(NOTICE_DAY)))
     assert bundle_task("wiring-noplay") == json.loads(json.dumps(live_tasks.steps(NOTICE_DAY, play=False)))
     assert [s["type"] for s in bundle_task("wiring-noplay")] == [t for t in FLOW
