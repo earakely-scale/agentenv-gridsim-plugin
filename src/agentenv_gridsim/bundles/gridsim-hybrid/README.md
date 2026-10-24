@@ -11,8 +11,8 @@ from the env's `data/get` and scores the run with the day's reward; the audit, h
 anchor's reward, the AS share, clipping recovered and failure-to-provide are weight-0 rows. A day that never finished,
 or whose audit failed, fails the step, so the run is not scored.
 
-- `day` plays the fixture deployment day at the `reserves` tier with the gridsim-llm agent
-  (`agent-env gridsim setup --agent`, `--model <litellm model id>`), 52 turns.
+- `day` plays a fixture deployment day (2022-01-16 at LZ_CPS, an RRS deployment at 19:03) at the `reserves` tier
+  with the gridsim-llm agent (`agent-env gridsim setup --agent`, `--model <litellm model id>`), 52 turns.
 - `wiring-noplay` runs the same steps without the agent and needs no model: end-day delivers every watch's notices
   itself, the day ends with nothing committed, and it scores 0 with the audit passing.
 
