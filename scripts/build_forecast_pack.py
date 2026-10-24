@@ -337,7 +337,7 @@ def build_packs(args):
     t0 = time.time()
     stats = {}
     jobs = []
-    for split in args.splits:
+    for split in [s for s in args.splits if s != "showcase"]:
         tiers = ("front-lite",) if split == "train" else F.TIERS
         n = args.limit or CANDIDATES[split]
         jobs += [(d1, p, split, tiers, str(store), str(eia), None) for d1, p in candidates(split, n)]

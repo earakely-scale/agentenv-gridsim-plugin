@@ -93,9 +93,12 @@ def eia_coverage(cache: Path) -> dict:
     s["hour_end_utc"] = pd.to_datetime(s.hour_end_utc, utc=True)
     b = b.assign(year=b.hour_end_utc.dt.year)
     out = {"span": [str(b.hour_end_utc.min()), str(b.hour_end_utc.max())], "by_year": {}}
+    lo, hi = b.hour_end_utc.min(), b.hour_end_utc.max()
     for y, g in b.groupby("year"):
-        exp = 8784 if y % 4 == 0 else 8760
-        out["by_year"][str(y)] = {"hours": len(g), **{f"{c}_non_null": round(float(g[c].notna().sum() / exp), 4)
+        y0, y1 = pd.Timestamp(f"{y}-01-01T01:00Z"), pd.Timestamp(f"{y + 1}-01-01T00:00Z")
+        exp = int((min(hi, y1) - max(lo, y0)).total_seconds() // 3600) + 1
+        out["by_year"][str(y)] = {"hours": len(g), "expected": exp,
+                                  **{f"{c}_non_null": round(float(g[c].notna().sum() / exp), 4)
                                                       for c in ("df_mw", "demand_mw", "wind_mw", "solar_mw")},
                                   "demand_imputed_h": int(g.demand_imputed.sum())}
     s = s.assign(year=s.hour_end_utc.dt.year)
@@ -321,8 +324,8 @@ def md(c: dict, args) -> str:
           "Backfilled runs (S3 LastModified > cycle + 180 min) are kept; the store times every run at cycle + 120 min "
           "(V4-P3) and keeps LastModified and the flag for the audit.", "",
           "## EIA-930 ERCO (reveal: DF 06:00 on its day, demand hour end + 60 min, fuel D+1 06:00)", ""]
-    L += table(["Year", "Hours", "DF", "Demand", "Wind", "Solar", "Demand imputed (h)", "Subregions"],
-               [[y, r["hours"], f"{r['df_mw_non_null']:.2%}", f"{r['demand_mw_non_null']:.2%}",
+    L += table(["Year", "Hours/expected", "DF", "Demand", "Wind", "Solar", "Demand imputed (h)", "Subregions"],
+               [[y, f"{r['hours']}/{r['expected']}", f"{r['df_mw_non_null']:.2%}", f"{r['demand_mw_non_null']:.2%}",
                  f"{r['wind_mw_non_null']:.2%}", f"{r['solar_mw_non_null']:.2%}", r["demand_imputed_h"],
                  f"{e['subregion_non_null_by_year'].get(y, 0):.2%}"] for y, r in e["by_year"].items()])
     L += ["", "## ERCOT public API vintages (2023-12-11 on; issued_at = the API's postDatetime, CPT to UTC)", ""]
