@@ -384,3 +384,6 @@ body.list-page { overflow: auto; background: #eef0ec; }
   .rrow, .race-board .hrs { grid-template-columns: 96px 1fr 64px; }
   .rrow .rsoc, .rrow .rcash, .rrow .g0 { display: none; }
 }
+.score.live .second .r { font-size: 22px; color: var(--ink2); }
+.score.live .second .rscale .fill { background: #7a868e; }
+.planlog blockquote + blockquote { margin-top: 6px; }

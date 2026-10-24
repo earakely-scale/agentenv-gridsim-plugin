@@ -203,7 +203,8 @@ function planHtml(d, t) {
     return `<div class="wrow ${w.index === cur.index && t < 24 ? "now" : ""}"><span class="wt">${w.index === 0 ? "2 pm, day before" : plain(w.min)}</span><span class="wc">${ns.slice(0, 2).map((n) => `<span class="badge ${n.badge[1]}">${esc(n.badge[0])}</span>`).join("")}${pills || '<span class="pill idle">held the plan</span>'}</span></div>`;
   }).join("");
   const n = d.watches.reduce((a, w) => a + w.calls.length, 0);
-  const msg = d.message ? `<blockquote>“${esc(d.message.slice(0, 260))}${d.message.length > 260 ? "…" : ""}”</blockquote>` : "";
+  const said = (d.ep.messages || []).filter((m) => m.role === "assistant" && m.content).map((m) => m.content);
+  const msg = (t < 0 ? said.slice(0, 1) : said.slice(-2)).map((m) => `<blockquote>“${esc(m.slice(0, 220))}${m.length > 220 ? "…" : ""}”</blockquote>`).join("");
   return `<h5>How it planned <small>${d.watches.length} watches · ${n} planning call${n === 1 ? "" : "s"}</small></h5><div class="wlist">${rows}</div>${t >= 24 || t < 0 ? msg : ""}`;
 }
 
@@ -218,14 +219,14 @@ function scoreHtml(d) {
   const fmt = (v) => `<b class="${v >= 0 ? "good" : "bad"}">${money(v, { sign: true })}</b>`;
   const rel = [["naive", vs("naive")], ["the anchor", vs("anchor")]].filter(([, v]) => v != null).map(([k, v]) => `vs ${k} ${fmt(v)}`).join(" · ");
   const self = ep.model === "reference/rolling-anchor" ? "This is the rolling anchor: R is 1 by definition." : ep.model === "reference/naive" ? "This is the naive reference." : ep.beats_anchor ? "Beats the rolling anchor." : "Does not beat the rolling anchor.";
-  return `<div class="pair"><div><div class="lbl">Reward R</div><div class="r num">${R.toFixed(3)}</div>
-      <div class="rscale"><span class="fill" style="width:${pos(R)}"></span><i class="tick" style="left:20%" title="idle"></i>${naiveR != null ? `<i class="tick n" style="left:${pos(naiveR)}" title="naive"></i>` : ""}<i class="tick a" style="left:100%" title="anchor"></i></div>
-      <div class="cap">idle 0.2 · ${naiveR != null ? `naive ${naiveR.toFixed(2)} · ` : ""}anchor 1.0</div></div>
-    <div><div class="lbl">Hindsight capture</div><div class="r num">${Math.round(cap * 100)}<small>%</small></div>
+  return `<div class="pair"><div><div class="lbl">Hindsight capture</div><div class="r num">${Math.round(cap * 100)}<small>%</small></div>
       <div class="rscale hind"><span class="fill" style="width:${pos(cap)}"></span></div>
-      <div class="cap">of the ${money((ref.p_hind ?? 0) - (ref.p_idle ?? 0))} perfect foresight could make</div></div></div>
+      <div class="cap">of the ${money((ref.p_hind ?? 0) - (ref.p_idle ?? 0))} perfect foresight could make</div></div>
+    <div class="second"><div class="lbl">R · provisional anchor</div><div class="r num">${R.toFixed(3)}</div>
+      <div class="rscale"><span class="fill" style="width:${pos(R)}"></span><i class="tick" style="left:20%" title="idle"></i>${naiveR != null ? `<i class="tick n" style="left:${pos(naiveR)}" title="naive"></i>` : ""}<i class="tick a" style="left:100%" title="anchor"></i></div>
+      <div class="cap">idle 0.2 · ${naiveR != null ? `naive ${naiveR.toFixed(2)} · ` : ""}anchor 1.0</div></div></div>
     <div class="line">${self} ${rel}</div>
-    <div class="line dim">v2 preview: the anchor is provisional and sits near naive on many days.</div>`;
+    <div class="line dim">v2 preview (provisional anchor): the anchor sits near naive on many days, so hindsight capture leads.</div>`;
 }
 
 function spark(lanes, t, lo, hi) {
