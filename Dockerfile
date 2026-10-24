@@ -1,5 +1,6 @@
 # The GridSim envs on port 18765: the battery-desk MCP server with the ERCOT DAM task packs, or, behind the gateway,
-# gridsim-live (the live packs) or gridsim-hybrid (the hybrid packs) when ENVIRONMENT_NAME names one.
+# gridsim-live (the live packs), gridsim-hybrid (the hybrid packs) or gridsim-forecast (the forecast packs) when
+# ENVIRONMENT_NAME names one.
 #   Build: agent-env gridsim setup   (docker build -t agentenv-gridsim-env .)
 FROM python:3.12-slim
 LABEL org.opencontainers.image.source="https://github.com/earakely-scale/agentenv-gridsim-plugin" \

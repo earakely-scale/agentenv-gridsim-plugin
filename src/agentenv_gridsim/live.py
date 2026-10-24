@@ -44,10 +44,10 @@ def schemas(tier: str) -> dict[str, dict]:
 
 
 class WatchEnv(AgentEnvEnvironment):
-    """A day in watches behind the gateway, the part gridsim-live and gridsim-hybrid share: one Session per deploy that
-    every agent-tool and grid_notice call reaches as sent, advance re-arming the gateway's clock at the watch it opens,
-    end-day, the clock sync and data/get. A subclass declares its tools and live_load and sets NAME, SESSION, TIERS,
-    TIER, TOOLS, EMPTY and schemas."""
+    """Watches behind the gateway, the part gridsim-live, gridsim-hybrid and gridsim-forecast share: one Session per
+    deploy that every agent-tool and grid_notice call reaches as sent, advance re-arming the gateway's clock at the
+    watch it opens, the clock sync and data/get. A subclass declares its tools, its load and end extensions and sets
+    NAME, SESSION, TIERS, TIER, TOOLS, EMPTY and schemas (LOAD_URI when it isn't live-load)."""
 
     NAME: str
     SESSION: type
@@ -55,6 +55,7 @@ class WatchEnv(AgentEnvEnvironment):
     TIER: str
     TOOLS: tuple[str, ...]
     EMPTY: dict
+    LOAD_URI = LIVE_LOAD_URI
 
     def __init__(self, tasks):
         self.tasks = tasks
@@ -97,11 +98,6 @@ class WatchEnv(AgentEnvEnvironment):
         self.loaded = True
         return {"task_id": task_id, "tier": tier, "watches": len(self.session.watches)}
 
-    @extension(END_DAY_URI, description="Play the unreached watches on the committed schedule, then grade and audit "
-                                        "the day.")
-    def end_day(self) -> dict:
-        return self._session().end_day()
-
     @extension(CLOCK_URI, description="Follow the gateway's virtual clock; advance re-arms it at each watch.")
     async def sync_time(self, env_get_time_url: str) -> dict:
         self.set_time_url = env_get_time_url.removesuffix("/clock/time") + "/clock/set-time"
@@ -120,7 +116,7 @@ class WatchEnv(AgentEnvEnvironment):
 
     def _session(self):
         if self.session is None:
-            raise ValueError(f"no day loaded: load one with {LIVE_LOAD_URI}")
+            raise ValueError(f"no day loaded: load one with {self.LOAD_URI}")
         return self.session
 
 
@@ -161,11 +157,17 @@ class GridSimLiveEnv(WatchEnv):
     def live_load(self, task_id: str, tier: str = "foresight") -> dict:
         return self.load(task_id, tier)
 
+    @extension(END_DAY_URI, description="Play the unreached watches on the committed schedule, then grade and audit "
+                                        "the day.")
+    def end_day(self) -> dict:
+        return self._session().end_day()
+
 
 class LiveDay(Middleware):
     """Hands every agent-tool and grid_notice call to the Session with the arguments as sent, so a malformed call gets
     the Session's own answer (and uses a planning call) rather than a schema error, in the shape the tool's own str
-    return takes; lists the tools in gridsim_core's order with its descriptions and input schemas."""
+    return takes; lists the tools the loaded tier offers in gridsim_core's order with its descriptions and input
+    schemas."""
 
     def __init__(self, env: WatchEnv):
         self.env = env
@@ -180,4 +182,5 @@ class LiveDay(Middleware):
     async def on_list_tools(self, context, call_next):
         listed = self.env.schemas(self.env.session.tier if self.env.session else self.env.TIER)
         tools = {t.name: t for t in await call_next(context)}
-        return [tools[n].model_copy(update=listed[n]) for n in (*self.env.TOOLS, NOTICE_TOOL) if n in tools]
+        return [tools[n].model_copy(update=listed[n]) for n in (*self.env.TOOLS, NOTICE_TOOL)
+                if n in tools and n in listed]

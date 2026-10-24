@@ -12,7 +12,7 @@ from typing import Annotated, Any
 from agentenv_protocol import environment_card, extension, tool
 from pydantic import Field
 
-from gridsim_core.hybrid import HYBRID_ENV, LIVE_LOAD_URI, NOTICE_TOOL, TIERS, TOOLS, Session
+from gridsim_core.hybrid import END_DAY_URI, HYBRID_ENV, LIVE_LOAD_URI, NOTICE_TOOL, TIERS, TOOLS, Session
 from gridsim_core.hybrid_prompt import tool_schemas
 
 from .live import NOTICE_SCHEMA, WatchEnv
@@ -78,3 +78,8 @@ class GridSimHybridEnv(WatchEnv):
                                            "reserves or rtcb); an env plays one day.")
     def live_load(self, task_id: str, tier: str = TIER) -> dict:
         return self.load(task_id, tier)
+
+    @extension(END_DAY_URI, description="Play the unreached watches on the committed schedule, then grade and audit "
+                                        "the day.")
+    def end_day(self) -> dict:
+        return self._session().end_day()
