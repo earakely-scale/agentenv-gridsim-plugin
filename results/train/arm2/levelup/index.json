@@ -1,0 +1,180 @@
+{
+ "decoding": "sampled T 0.7, top_p 0.8, top_k 20, seed 0",
+ "frames": [
+  "base",
+  "0000",
+  "0025",
+  "0050",
+  "0075"
+ ],
+ "days": [
+  {
+   "task_id": "dam-v1-2025-01-10-HB_SOUTH-1h-k",
+   "start": "empty",
+   "region": "south",
+   "date": "2025-01-10",
+   "point": "HB_SOUTH",
+   "frames": {
+    "0000": 0.982693,
+    "0025": 0.993819,
+    "0050": 0.982693,
+    "0075": 0.982693,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-03-04-LZ_NORTH-2h-n",
+   "start": "empty",
+   "region": "north",
+   "date": "2025-03-04",
+   "point": "LZ_NORTH",
+   "frames": {
+    "0000": 0.878635,
+    "0025": 0.682325,
+    "0050": 0.629011,
+    "0075": 0.567254,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-06-29-HB_NORTH-1h-v",
+   "start": "empty",
+   "region": "north",
+   "date": "2025-06-29",
+   "point": "HB_NORTH",
+   "frames": {
+    "0000": 0.813466,
+    "0025": 0.0,
+    "0050": 0.0,
+    "0075": 0.0,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-11-17-HB_PAN-2h-p",
+   "start": "empty",
+   "region": "panhandle",
+   "date": "2025-11-17",
+   "point": "HB_PAN",
+   "frames": {
+    "0000": 0.791681,
+    "0025": 0.791681,
+    "0050": 0.744942,
+    "0075": 0.744942,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-01-14-LZ_HOUSTON-4h-x",
+   "start": "half",
+   "region": "houston",
+   "date": "2025-01-14",
+   "point": "LZ_HOUSTON",
+   "frames": {
+    "0000": 0.393588,
+    "0025": 0.393588,
+    "0050": 0.217229,
+    "0075": 0.220736,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-03-05-HB_NORTH-2h-w",
+   "start": "half",
+   "region": "north",
+   "date": "2025-03-05",
+   "point": "HB_NORTH",
+   "frames": {
+    "0000": 0.743652,
+    "0025": 0.537411,
+    "0050": 0.743652,
+    "0075": 0.743652,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-06-06-LZ_CPS-1h-l",
+   "start": "half",
+   "region": "south",
+   "date": "2025-06-06",
+   "point": "LZ_CPS",
+   "frames": {
+    "0000": 0.150916,
+    "0025": 0.849865,
+    "0050": 0.979795,
+    "0075": 0.979795,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-10-26-LZ_LCRA-1h-q",
+   "start": "half",
+   "region": "central",
+   "date": "2025-10-26",
+   "point": "LZ_LCRA",
+   "frames": {
+    "0000": 0.2,
+    "0025": 0.851422,
+    "0050": 0.839392,
+    "0075": 0.839392,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-01-14-HB_HOUSTON-2h-q",
+   "start": "full",
+   "region": "houston",
+   "date": "2025-01-14",
+   "point": "HB_HOUSTON",
+   "frames": {
+    "0000": 0.320817,
+    "0025": 0.320817,
+    "0050": 0.690671,
+    "0075": 0.690671,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-03-26-HB_PAN-2h-c",
+   "start": "full",
+   "region": "panhandle",
+   "date": "2025-03-26",
+   "point": "HB_PAN",
+   "frames": {
+    "0000": 0.636876,
+    "0025": 0.07529,
+    "0050": 0.806334,
+    "0075": 0.0,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-06-08-LZ_SOUTH-2h-g",
+   "start": "full",
+   "region": "south",
+   "date": "2025-06-08",
+   "point": "LZ_SOUTH",
+   "frames": {
+    "0000": 0.35389,
+    "0025": 0.699329,
+    "0050": 0.2,
+    "0075": 0.2,
+    "base": 0.0
+   }
+  },
+  {
+   "task_id": "dam-v1-2025-10-31-LZ_SOUTH-2h-b",
+   "start": "full",
+   "region": "south",
+   "date": "2025-10-31",
+   "point": "LZ_SOUTH",
+   "frames": {
+    "0000": 0.998855,
+    "0025": 0.926998,
+    "0050": 0.607631,
+    "0075": 0.607631,
+    "base": 0.0
+   }
+  }
+ ]
+}

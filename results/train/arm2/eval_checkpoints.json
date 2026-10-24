@@ -1,0 +1,154 @@
+[
+ {
+  "checkpoint_step": 25,
+  "n_tasks": 50,
+  "n": 50,
+  "reward_mean": 0.5652,
+  "reward_std": 0.3114,
+  "valid_rate": 1.0,
+  "tool_call_rate": 1.0,
+  "feasible_rate": 0.74,
+  "rate_ok": 0.74,
+  "rate_all_idle": 0.0,
+  "rate_overfill": 0.1,
+  "rate_sell_before_charge": 0.08,
+  "rate_rate": 0.06,
+  "rate_cycle_cap": 0.02,
+  "rate_end_short": 0.0,
+  "rate_malformed": 0.0,
+  "rate_truncated": 0.0,
+  "completion_len_mean": 244.8,
+  "ci95": [
+   0.4756,
+   0.6481
+  ],
+  "by_start": {
+   "empty": {
+    "n": 18,
+    "reward_mean": 0.5789,
+    "ci95": [
+     0.4045,
+     0.7446
+    ]
+   },
+   "full": {
+    "n": 19,
+    "reward_mean": 0.502,
+    "ci95": [
+     0.3664,
+     0.6349
+    ]
+   },
+   "half": {
+    "n": 13,
+    "reward_mean": 0.6384,
+    "ci95": [
+     0.5243,
+     0.7409
+    ]
+   }
+  },
+  "by_curriculum": {
+   "C0": {
+    "n": 17,
+    "reward_mean": 0.6043,
+    "ci95": [
+     0.4493,
+     0.7525
+    ]
+   },
+   "C1": {
+    "n": 10,
+    "reward_mean": 0.4284,
+    "ci95": [
+     0.2534,
+     0.6012
+    ]
+   },
+   "C2": {
+    "n": 23,
+    "reward_mean": 0.5957,
+    "ci95": [
+     0.4716,
+     0.7171
+    ]
+   }
+  }
+ },
+ {
+  "checkpoint_step": 50,
+  "n_tasks": 50,
+  "n": 50,
+  "reward_mean": 0.5655,
+  "reward_std": 0.3131,
+  "valid_rate": 1.0,
+  "tool_call_rate": 1.0,
+  "feasible_rate": 0.76,
+  "rate_ok": 0.76,
+  "rate_all_idle": 0.0,
+  "rate_overfill": 0.12,
+  "rate_sell_before_charge": 0.06,
+  "rate_rate": 0.06,
+  "rate_cycle_cap": 0.0,
+  "rate_end_short": 0.0,
+  "rate_malformed": 0.0,
+  "rate_truncated": 0.0,
+  "completion_len_mean": 237.7,
+  "ci95": [
+   0.476,
+   0.6488
+  ],
+  "by_start": {
+   "empty": {
+    "n": 18,
+    "reward_mean": 0.5966,
+    "ci95": [
+     0.4385,
+     0.7481
+    ]
+   },
+   "full": {
+    "n": 19,
+    "reward_mean": 0.474,
+    "ci95": [
+     0.3423,
+     0.6043
+    ]
+   },
+   "half": {
+    "n": 13,
+    "reward_mean": 0.6561,
+    "ci95": [
+     0.4972,
+     0.7971
+    ]
+   }
+  },
+  "by_curriculum": {
+   "C0": {
+    "n": 17,
+    "reward_mean": 0.656,
+    "ci95": [
+     0.5139,
+     0.7875
+    ]
+   },
+   "C1": {
+    "n": 10,
+    "reward_mean": 0.3622,
+    "ci95": [
+     0.1966,
+     0.5362
+    ]
+   },
+   "C2": {
+    "n": 23,
+    "reward_mean": 0.5869,
+    "ci95": [
+     0.4595,
+     0.7091
+    ]
+   }
+  }
+ }
+]
