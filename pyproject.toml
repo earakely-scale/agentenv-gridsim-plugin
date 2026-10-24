@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agentenv-gridsim"
+version = "0.1.0"
+description = "GridSimEnv: run a battery on the real Texas grid (ERCOT day-ahead prices), an AgentEnv simulation environment"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+lp = ["highspy>=1.7"]
+build = ["openpyxl>=3.1", "highspy>=1.7"]
+dev = ["pytest>=8", "hypothesis>=6.100", "highspy>=1.7", "openpyxl>=3.1", "ruff>=0.6"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gridsim_core", "src/agentenv_gridsim"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"data" = "gridsim_core/data"
