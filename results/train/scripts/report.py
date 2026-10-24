@@ -139,11 +139,14 @@ def roll(key):
     return np.convolve(v, np.ones(k) / k, mode="valid")
 
 
-for key, lab, col in (("valid_rate", "valid submit", "#1f5aa6"), ("feasible_rate", "feasible (no rule broken)", "#2a7f3f"),
-                      ("rate_overfill", "overfill", "#d1495b"), ("rate_sell_before_charge", "sell before charge", "#b07a1a"),
+for key, lab, col in (("valid_rate", "valid submit", "#1f5aa6"),
+                      ("feasible_rate", "feasible (no rule broken)", "#2a7f3f"),
+                      ("rate_overfill", "overfill", "#d1495b"),
+                      ("rate_sell_before_charge", "sell before charge", "#b07a1a"),
                       ("rate_end_short", "end short", "#7a4fa3"), ("rate_malformed", "malformed (not 24 ints)", "#444"),
                       ("frac_zero_spread_groups", "groups with zero reward spread", "#999")):
-    b.plot(steps[k - 1:], roll(key), label=lab, color=col, lw=1.6, ls=":" if key == "frac_zero_spread_groups" else "-")
+    b.plot(steps[k - 1:], roll(key), label=lab, color=col, lw=1.6,
+           ls=":" if key == "frac_zero_spread_groups" else "-")
 b.set_title(f"train rollouts, {k}-step means", fontsize=9)
 b.set_ylim(0, 1.02)
 b.set_xlabel("GRPO step")
