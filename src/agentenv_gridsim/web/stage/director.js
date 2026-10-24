@@ -50,10 +50,22 @@ export function buildDirector(d, L, { night }) {
   front.sort((a, b) => b.x - a.x);
   const hero = front[0];
   const x0 = L.cx - L.W / 2, x1 = L.cx + L.W / 2, zf = Math.max(...L.enc.map((e) => e.z)) + 1.3;
+  const xa = x0 - 2, xb = L.sx + 14, mid = (xa + xb) / 2, diag = Math.hypot(xb - xa, L.D * 1.3);
+  /** A camera at `look` plus the direction (dx, dy, dz) turned by `turn` about the vertical, k yard diagonals away:
+   * the yard fills about two thirds of the frame width whatever its size. */
+  const orbit = (look, [dx, dy, dz], k, turn = 0) => {
+    const n = Math.hypot(dx, dy, dz), c = Math.cos(turn), si = Math.sin(turn);
+    const rx = dx * c - dz * si, rz = dx * si + dz * c;
+    return [look[0] + (rx / n) * k * diag, look[1] + (dy / n) * k * diag, look[2] + (rz / n) * k * diag];
+  };
   const poses = {
     establish(u, s) {
-      if (s.n % 2) return { pos: [x0 - 46 + 22 * u, 38 - 6 * u, -zf - 64 + 10 * u], look: [L.cx + L.W * 0.45, 0, zf * 0.2], fov: 50 };
-      return { pos: [x0 - 52 + 24 * u, 36 - 6 * u, zf + 70 - 12 * u], look: [L.cx + L.W * 0.45, 0, -zf * 0.25], fov: 50 };
+      if (s.n % 2) {
+        const look = [mid - 0.08 * diag, 0, 0.25 * L.D];
+        return { pos: orbit(look, [-134, 46, -87], 1.04 * (1 - 0.07 * u), 0.1 - 0.16 * u), look, fov: 36 };
+      }
+      const look = [mid - 0.06 * diag, 0, -0.25 * L.D];
+      return { pos: orbit(look, [-140, 45, 94], 1.08 * (1 - 0.07 * u), -0.1 + 0.16 * u), look, fov: 36 };
     },
     high(u, s) {
       const a = 2.3 + (s.n % 3) * 0.5 + 0.25 * u;
@@ -97,6 +109,8 @@ export function buildDirector(d, L, { night }) {
     return out;
   }
   /** Site-local (x, z, radius) the cameras pass through, for keeping vegetation out of shot. */
-  const spots = [[x0 - 52, zf + 70, 40], [x0 - 46, -zf - 64, 40], [x0 - 85, zf + 46, 45], [L.sx + 40, 34, 40], [L.sx - 30, 36, 30], [L.cx, 0, 210], [L.sx + 50, 70, 40]];
+  const at = (kind, u, n) => poses[kind](u, { n }).pos;
+  const spots = [at("establish", 0, 0), at("establish", 1, 0), at("establish", 0, 1), at("establish", 1, 1)].map(([x, , z]) => [x, z, 40])
+    .concat([[x0 - 85, zf + 46, 45], [L.sx + 40, 34, 40], [L.sx - 30, 36, 30], [L.cx, 0, 210], [L.sx + 50, 70, 40]]);
   return { shots, pose, hero, spots };
 }

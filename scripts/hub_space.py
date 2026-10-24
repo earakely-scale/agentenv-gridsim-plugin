@@ -265,7 +265,7 @@ def thumbnail(out: Path, e: dict) -> None:
     hero = e["featured"] == "hero"
     record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb",
            str(thumb), "--t", str(evening(ep) if hero else peak(ep) + 0.6), "--extra",
-           "ui=0&shot=ramp" if hero else "ui=0")
+           "ui=0&shot=establish" if hero else "ui=0")
     e["thumb"] = f"thumbs/{thumb.name}"
 
 
@@ -274,7 +274,7 @@ def still(out: Path, e: dict) -> None:
     path = out / "runs" / e["url"]
     record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--still",
            str(out / "thumbs" / "hero.jpg"), "--size", "1600x900", "--t", str(evening(json.loads(path.read_text()))),
-           "--extra", "ui=0&shot=ramp")
+           "--extra", "ui=0&shot=establish")
     e["thumb"] = "thumbs/hero.jpg"
 
 

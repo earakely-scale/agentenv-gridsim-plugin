@@ -20,12 +20,22 @@ export const NOISE_GLSL = /* glsl */ `
     return v;
   }`;
 
-/** Ground height (m) at world x, z for a region: flat at the yard, hills or a caprock farther out. */
-export function heightFn(region) {
+/** Ground height (m) at world x, z for a region: flat at the yard, low swales (dunes in the west) in the middle
+ * distance, hills or a caprock farther out. `flat(x, z)` is 1 where the land may move and 0 on the pad and road. */
+export function heightFn(region, flat = () => 1) {
   const cap = region.turbines?.caprock;
   return (x, z) => {
     const r = Math.hypot(x, z);
     let h = (fbm2(x * 0.0011 + 3, z * 0.0011 + 9, 3) - 0.5) * 6 * smooth(350, 1500, r);
+    const m = r < 2600 ? flat(x, z) * (1 - smooth(1800, 2600, r)) : 0;
+    if (m > 0) {
+      h += m * (fbm2(x * 0.0095 + 5, z * 0.0095 + 2, 3) - 0.5) * 3.6;
+      if (region.dunes) {
+        const w = fbm2(x * 0.0021 + 1, z * 0.0021 + 4, 2);
+        const ridge = 1 - Math.abs(Math.sin((x * 0.83 + z * 0.56) * 0.034 + w * 6));
+        h += m * smooth(0.45, 0.7, w) * ridge * ridge * 2.8;
+      }
+    }
     if (region.hills) {
       const b = Math.atan2(x, -z) / DEG;
       const off = Math.abs(((b - region.city.bearing + 540) % 360) - 180);
@@ -68,6 +78,9 @@ function groundMaterial(region, U) {
         float fine = gNoise(wp * 0.55) * 0.6 + gNoise(wp * 2.3) * 0.4;
         gc *= mix(1.0, 0.8 + 0.4 * fine, 1.0 - smoothstep(0.2, 1.6, px));
         gc *= mix(1.0, 0.86 + 0.28 * gNoise(wp * 0.09), 1.0 - smoothstep(4.0, 30.0, px));
+        float near = 1.0 - smoothstep(60.0, 400.0, px);
+        gc = mix(gc, uC3, 0.3 * smoothstep(0.25, 1.3, vWPos.y) * near);
+        gc *= 1.0 - 0.13 * smoothstep(0.2, -0.9, vWPos.y) * near;
         float puddle = smoothstep(0.62, 0.7, gFbm(wp * 0.06 + 2.0)) * uWet;
         gc *= 1.0 - 0.32 * uWet - 0.18 * puddle;
         diffuseColor.rgb *= gc;`)
@@ -205,13 +218,17 @@ const TREE = { oak: ["#4e6233", "#56693a", "#46592f"], pine: ["#3a4f2c", "#34482
 export function buildTerrain(region, { pad, yaw, seed, cams = [] }) {
   const group = new THREE.Group();
   const U = { uWet: { value: 0 } };
-  const heightAt = heightFn(region);
+  const toLocal = (x, z) => [x * Math.cos(yaw) - z * Math.sin(yaw), x * Math.sin(yaw) + z * Math.cos(yaw)];
+  const heightAt = heightFn(region, (x, z) => {
+    const [lx, lz] = toLocal(x, z);
+    let d = Math.hypot(Math.max(pad.x0 - lx, 0, lx - pad.x1), Math.max(pad.z0 - lz, 0, lz - pad.z1));
+    if (lz > pad.z1) d = Math.min(d, Math.abs(lx - pad.roadX) - 4);
+    return smooth(18, 110, d);
+  });
   const ground = new THREE.Mesh(polarGround(heightAt), groundMaterial(region, U));
   ground.receiveShadow = true;
   group.add(ground);
 
-  const lineDir = new THREE.Vector2(Math.cos(yaw), -Math.sin(yaw));
-  const toLocal = (x, z) => [x * Math.cos(yaw) - z * Math.sin(yaw), x * Math.sin(yaw) + z * Math.cos(yaw)];
   const avoid = (x, z) => {
     const [lx, lz] = toLocal(x, z);
     if (lx > pad.x0 - 30 && lx < pad.x1 + 30 && lz > pad.z0 - 30 && lz < pad.z1 + 30) return true;
@@ -223,7 +240,6 @@ export function buildTerrain(region, { pad, yaw, seed, cams = [] }) {
   if (region.shrubs) scatter(group, region.shrubs, heightAt, avoid, `${seed}-shrub`, (k, r) => shrubGeometry(k, r), SHRUB[region.shrubs.kind] || SHRUB.grass, cams);
   if (region.shrubs2) scatter(group, region.shrubs2, heightAt, avoid, `${seed}-shrub2`, (k, r) => shrubGeometry(k, r), SHRUB[region.shrubs2.kind] || SHRUB.grass, cams);
   if (region.trees) scatter(group, region.trees, heightAt, avoid, `${seed}-tree`, (k) => treeGeometry(k), TREE[region.trees.kind] || TREE.oak, bigCams);
-  void lineDir;
   return { group, heightAt, U, avoid };
 }
 
@@ -242,7 +258,9 @@ export function gravelMaterial(color, U, { scale = 1.6, road = false } = {}) {
         float px = length(fwidth(wp));
         float g = gNoise(wp * ${(scale * 4).toFixed(2)}) * 0.5 + gNoise(wp * ${(scale * 11).toFixed(2)}) * 0.5;
         float big = gFbm(wp * 0.05);
+        float gp = gFbm(wp * 0.013 + 3.0);
         diffuseColor.rgb *= mix(1.0, 0.82 + 0.36 * g, 1.0 - smoothstep(0.05, 0.6, px)) * (0.9 + 0.2 * big);
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.05, 1.02, 0.96), smoothstep(0.55, 0.75, gp)) * (1.0 - 0.07 * smoothstep(0.5, 0.3, gp));
         ${road ? "diffuseColor.rgb *= 0.92 + 0.12 * gNoise(wp * vec2(0.4, 3.0));" : ""}
         float puddle = smoothstep(0.6, 0.68, gFbm(wp * 0.11 + 9.0)) * uWet;
         diffuseColor.rgb *= 1.0 - 0.38 * uWet - 0.2 * puddle;`)
