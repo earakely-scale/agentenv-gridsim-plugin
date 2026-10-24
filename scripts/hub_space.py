@@ -23,11 +23,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import hybrid_view  # noqa: E402
 import weather as wx  # noqa: E402
 
-from gridsim_core import hybrid, live  # noqa: E402
+from gridsim_core import hybrid, live, market  # noqa: E402
 from gridsim_core.contract import DEGENERATE_EPS  # noqa: E402
 from gridsim_core.grade import grade  # noqa: E402
 from gridsim_core.physics import simulate  # noqa: E402
-from gridsim_core.task import load_pack  # noqa: E402
+from gridsim_core.task import data_root, load_pack  # noqa: E402
 
 WEB = ROOT / "src" / "agentenv_gridsim" / "web"
 PACKS = ("ercot-dam-v1-eval", "ercot-dam-v1-eval-iid", "ercot-dam-v1-rtcb", "showcase", "fixtures",
@@ -40,10 +40,22 @@ HYBRID_PACKS = ("ercot-hybrid-v3-showcase", "ercot-hybrid-v3-eval", "ercot-hybri
                 "ercot-hybrid-v3-train")
 HYBRID_HERO_TASKS = ("hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150",
                      "hyb-v3-2024-03-29-HB_WEST-pv150-b100x2h-poi150")
+MARKET_PACKS = ("gridsim-market-showcase", "gridsim-market-eval", "gridsim-market-rtcb", "fixtures-market",
+                "gridsim-market-train")
+MARKET_NAMES = {"reference/disclosure-anchor": "Disclosure anchor (reference)",
+                "reference/anchor-hedged": "Anchor at the desk, with a CfD (reference)",
+                "reference/replay-a": "Seat A's real offers (reference)", "reference/idle": "Idle (reference)",
+                "reference/price-taker": "Price-taker (reference)",
+                "reference/max-withhold": "Max-withhold (reference)"}
+MARKET_HERO_TASKS = ("mkt-v5-2024-08-20-A580x2-e1", "mkt-v5-2026-07-21-A1160x2-e1")
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
           "reference/naive": "naive (reference)", "reference/as-hog": "AS-hog (reference)",
           "reference/solar-sponge": "the solar sponge (reference)",
-          "reference/v2-energy-only": "v2's energy-only plan (reference)"}
+          "reference/v2-energy-only": "v2's energy-only plan (reference)",
+          "reference/disclosure-anchor": "the disclosure anchor (reference)",
+          "reference/anchor-hedged": "the disclosure anchor with a CfD (reference)",
+          "reference/replay-a": "seat A's real offers (reference)", "reference/idle": "idle (reference)",
+          "reference/price-taker": "the price-taker (reference)", "reference/max-withhold": "max-withhold (reference)"}
 CPT = ZoneInfo("America/Chicago")
 SEVERITY = {"EEA3": 7, "EEA2": 6, "EEA1": 5, "Emergency": 5, "conservation": 4, "Watch": 3, "Warning": 3, "Advisory": 2,
             "OCN": 1}
@@ -142,12 +154,23 @@ def main(argv: list[str] | None = None) -> int:
                 if schema in ("gridsim.levelup/v1", "gridsim.race/v1"):
                     views[schema.split(".")[1].split("/")[0]] = ep
                     continue
-                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA, hybrid.EPISODE_SCHEMA):
+                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA, hybrid.EPISODE_SCHEMA,
+                                  market.EPISODE_SCHEMA):
                     continue
                 if ep["episode_id"] in seen:
                     continue
                 seen.add(ep["episode_id"])
                 v2, v3 = schema == live.EPISODE_SCHEMA, schema == hybrid.EPISODE_SCHEMA
+                if schema == market.EPISODE_SCHEMA:
+                    task = market_tasks().get(ep["task_id"])
+                    if why := verify_market(ep, task):
+                        rejected.append((f, why))
+                        continue
+                    ep = ep | {"seats_view": seats_view(task)}
+                    name = f"{ep['episode_id']}.json"
+                    (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
+                    entries.append(market_entry(ep, name))
+                    continue
                 if (v2 and ep["task_id"] in fixture_ids) or (v3 and ep["task_id"] in hybrid_fixtures()):
                     skipped.append(f)
                     continue
@@ -162,14 +185,17 @@ def main(argv: list[str] | None = None) -> int:
                 (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
                 entries.append(hybrid_entry(ep, name) if v3 else live_entry(ep, name) if v2 else entry(ep, name, task))
     for e in entries:
-        side = wx.sidecar(e["point"], e["date"], args.weather)
+        side = wx.sidecar(e["point"], e["date"], args.weather, d1=e["version"] == "v5")
         if not (out / "weather" / side.name).exists():
             shutil.copy(side, out / "weather" / side.name)
+        e["weather"] = f"weather/{side.name}"
     featured = feature([e for e in entries if e["version"] == "v1"], args.hero, out)
     if lv := feature_live(entries, out):
         featured.append(lv)
     if hv := feature_hybrid(entries, out):
         featured.append(hv)
+    if mv := feature_market(entries, out):
+        featured.append(mv)
     hero = next((e for e in featured if e.get("hero")), None)
     if args.thumbs:
         for e in featured:
@@ -178,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
         if hero:
             still(out, hero)
     training = write_views(views, entries, out, args.thumbs)
-    index = [{k: v for k, v in e.items() if v is not None} for e in entries]
+    index = [{k: v for k, v in e.items() if v is not None and k != "weather"} for e in entries]
     (out / "runs" / "index.json").write_text(json.dumps({"schema": "gridsim.runs/v1", "episodes": index}
                                                         | ({"training": training} if training else {}),
                                                         separators=(",", ":")))
@@ -188,6 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     if skipped:
         print(f"skipped {len(skipped)} episodes on CI fixture days (synthetic notices)")
     print(f"v3: {sum(e['version'] == 'v3' for e in entries)} episodes replayed through gridsim_core.hybrid")
+    print(f"v5: {sum(e['version'] == 'v5' for e in entries)} episodes replayed through gridsim_core.market")
     size = sum(x.stat().st_size for x in out.rglob("*") if x.is_file())
     print(f"{len(entries)} episodes ({len(rejected)} rejected), {len(list((out / 'weather').iterdir()))} weather "
           f"sidecars, featured {[e['id'] for e in featured]}, {size / 1e6:.1f} MB -> {out}")
@@ -577,7 +604,7 @@ def thumbnail(out: Path, e: dict) -> None:
     thumb = out / "thumbs" / f"{e['id']}.jpg"
     hero = e["featured"] == "hero"
     t = e.get("t_moment") or (evening(ep) if hero else peak(ep) + 0.6)
-    record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb",
+    record("--episode", str(path), "--weather", str(out / e["weather"]), "--thumb",
            str(thumb), "--t", str(t), "--extra",
            f"ui=0&shot={e.get('shot', 'establish')}" if hero or "t_moment" in e else "ui=0")
     e["thumb"] = f"thumbs/{thumb.name}"
@@ -586,10 +613,108 @@ def thumbnail(out: Path, e: dict) -> None:
 def still(out: Path, e: dict) -> None:
     """The hero day at its evening ramp, 1600x900: the featured card's picture and the README's."""
     path = out / "runs" / e["url"]
-    record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--still",
+    record("--episode", str(path), "--weather", str(out / e["weather"]), "--still",
            str(out / "thumbs" / "hero.jpg"), "--size", "1600x900", "--t", str(evening(json.loads(path.read_text()))),
            "--extra", "ui=0&shot=establish")
     e["thumb"] = "thumbs/hero.jpg"
+
+
+_MARKET: dict | None = None
+
+
+def market_tasks() -> dict:
+    global _MARKET
+    if _MARKET is None:
+        _MARKET = {}
+        for pack in MARKET_PACKS:
+            if (data_root() / pack / "tasks.jsonl.gz").exists():
+                for t in load_pack(pack):
+                    _MARKET.setdefault(t["task_id"], t)
+    return _MARKET
+
+
+def verify_market(ep: dict, task: dict | None) -> str | None:
+    """Every recorded call replayed through a fresh gridsim_core.market Session on the pack's day gives the recorded
+    output; the floor's profit, reward and compliant score must match."""
+    if task is None:
+        return "not in any market pack"
+    s = market.Session(task, ep["tier"], compliant=ep.get("compliant", False))
+    for i, st in enumerate(ep["steps"]):
+        if s.done:
+            return f"step {i}: the floor ended before {st['tool']}"
+        if json.loads(s.call(st["tool"], dict(st["args"]))) != st["output"]:
+            return f"step {i} ({st['tool']}) does not replay"
+    if not s.done:
+        s.end_floor()
+    g = s.grade()
+    if abs(g["profit_usd"] - ep["profit_usd"]) > 0.01:
+        return f"profit {ep['profit_usd']} != {g['profit_usd']}"
+    if abs(g["reward"] - ep["reward"]) > 1e-6:
+        return f"reward {ep['reward']} != {g['reward']}"
+    if (g["compliant_reward"] is None) != (ep["compliant_reward"] is None) or (
+            g["compliant_reward"] is not None and abs(g["compliant_reward"] - ep["compliant_reward"]) > 1e-6):
+        return f"compliant {ep['compliant_reward']} != {g['compliant_reward']}"
+    return None
+
+
+def seats_view(task: dict) -> dict:
+    """What the scene needs to size the other seats' assets: public sizes, never their private costs or offers."""
+    st = task["seats"]
+    out = {}
+    if b := st.get("B"):
+        out["B"] = {"p_mw": b["p_mw"], "e_mwh": b["e_mwh"], "eta": b["eta"], "s0_mwh": b["s0_mwh"]}
+    if g := st.get("G"):
+        out["G"] = {"units": len(g["units"]), "mw": round(sum(u["mw"] for u in g["units"]), 1)}
+    if r := st.get("R"):
+        out["R"] = {"mw": round(max(r["actual_mw"]), 1)}
+    if ld := st.get("L"):
+        out["L"] = {"mw": round(max(ld["load_mw"]), 1)}
+    return out
+
+
+def market_entry(ep: dict, url: str) -> dict:
+    t, a, r = ep["task"], ep["task"]["seat_A"], ep.get("references") or {}
+    return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
+            "model_label": ep.get("model_label") or MARKET_NAMES.get(ep.get("model")), "version": "v5",
+            "tier": ep["tier"], "bundle": ep.get("bundle"),
+            "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"),
+            "compliant": ep.get("compliant_reward"), "profit": ep.get("profit_usd"), "p_anchor": r.get("p_anchor"),
+            "p_br": r.get("p_br"), "date": t["date"], "point": t["point"], "region": t.get("region"),
+            "battery": f"{a['p_mw']:,.0f} MW / {a['e_mwh']:,.0f} MWh", "watches": len(ep["watches"]),
+            "mitigated": len([m for m in ep["clear"]["mitigated"] if m["seat"] == "A"]),
+            "contracts": len([c for c in ep.get("contracts") or [] if c.get("status") == "accepted"]),
+            "peak": max(ep["clear"]["hub_usd"])}
+
+
+def feature_market(entries: list[dict], out: Path) -> dict | None:
+    """The v5 preview's featured day: the best real floor-day run on the first hero day that has one, else the hero
+    day's anchor at the desk (or the disclosure anchor), else the v5 day with the highest peak."""
+    pool = [e for e in entries if e["version"] == "v5"]
+    runs = [[x for x in pool if x["task_id"] == t and x["tier"] == "floor-day" and real(x)] for t in MARKET_HERO_TASKS]
+    e = (next((max(rs, key=lambda x: x["reward"] or 0) for rs in runs if rs), None)
+         or next((x for m in ("reference/anchor-hedged", "reference/disclosure-anchor") for x in pool
+                  if x["task_id"] == MARKET_HERO_TASKS[0] and x["model"] == m and x["tier"] == "floor-day"), None)
+         or max(pool, key=lambda x: x["peak"], default=None))
+    if e is None:
+        return None
+    ep = json.loads((out / "runs" / e["url"]).read_text())
+    e |= {"featured": "market", "blurb": market_blurb(ep), "hero_moment": "the trading room at 9:40, before the close",
+          "t_moment": -4.0, "shot": "room"}
+    return e
+
+
+def market_blurb(ep: dict) -> str:
+    t, c, a = ep["task"], ep["clear"], ep["task"]["seat_A"]
+    who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
+    h = max(range(24), key=lambda i: c["hub_usd"][i])
+    sell = sum(max(0.0, x) for x in ep["awards"]["A"])
+    cfd = [x for x in ep.get("contracts") or [] if x.get("status") == "accepted"]
+    deal = (f" and signs a {cfd[0]['mw']:,.0f} MW CfD with the retailer" if cfd else "")
+    return (f"ERCOT's day-ahead market on {t['date']}, re-cleared from the real 60-day disclosure: {who} offers "
+            f"seat A, a {a['p_mw']:,.0f} MW battery portfolio, against four anonymised real portfolios at 9 am the day "
+            f"before{deal}. The hub clears ${c['hub_usd'][h]:,.0f}/MWh at {hour(h)} (ERCOT's real "
+            f"${t['hub_dam_real'][h]:,.0f}); seat A sells {sell:,.0f} MWh. It makes ${ep['profit_usd']:,.0f}, R "
+            f"{ep['reward']:.2f}, compliant {ep['compliant_reward']:.2f}.")
 
 
 def readme(entries: list[dict], hero: dict | None, training: dict | None = None) -> str:
@@ -615,6 +740,14 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
     text = README
     for k, v in fields.items():
         text = text.replace("{" + k + "}", v)
+    v5 = [e for e in entries_all if e["version"] == "v5"]
+    if v5:
+        counts5 = Counter(e.get("model_label") or e["model"] for e in v5)
+        mv = next((e for e in v5 if e.get("featured") == "market"), None)
+        text = text.replace("\n## Links\n", MARKET_README.format(
+            n=len(v5), models=", ".join(f"{n} of {LABELS.get(m, m)}" for m, n in counts5.most_common()),
+            hero=f"\n\n**The featured v5 day,** [{mv['date']}]({APP}/index.html?episode=runs/{mv['url']}): "
+                 f"{mv['blurb']}" if mv else "") + "\n## Links\n")
     v3 = [e for e in entries_all if e["version"] == "v3"]
     if v3:
         counts3 = Counter(e.get("model_label") or e["model"] for e in v3)
@@ -657,6 +790,22 @@ while real-time prices settle and ERCOT and NWS bulletins arrive (paraphrased su
 two-settlement: the position at day-ahead prices, every deviation at real-time prices. R puts idle at 0.2 and the
 rolling anchor at 1.0; the anchor is provisional and sits near naive on many days, so each replay also shows hindsight
 capture. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{board}{hero}
+"""
+
+
+MARKET_README = """
+## v5 preview: The Market Floor (provisional anchor)
+
+{n} market days ({models}), schema `gridsim.episode/v5`. A model runs seat A, a battery portfolio carved from ERCOT's
+real 60-day DAM disclosure, and offers MW at prices for each hour at 9 am the day before; at 10:00 the day-ahead market
+closes and is re-cleared on one node from every other real offer and bid of that day, with four rival portfolios
+(a battery, gas peakers, wind and solar, a retailer) carved out, anonymised and offering what they really offered. A
+market monitor mitigates conduct that moves the price. Awards post at 1:30 pm; on the operating day the battery
+delivers them and settles deviations at real-time prices. The replay starts in the desk's trading room (the market
+clock, the merit order of the hour on the video wall) and cuts to the assets in the field. R puts idle at 0.2 and the
+disclosure anchor at 1.0; the compliant score adds welfare; hindsight's best response, regret, ε-Nash and the CfD row
+are reported, not scored. Private costs, the copper plate and the rivals' scripts are modelled. Every v5 episode was
+replayed call by call through `gridsim_core.market` when the Space was built.{hero}
 """
 
 

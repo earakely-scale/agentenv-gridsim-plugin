@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from record import ROOT, find_chrome, serve, session, viewer_url  # noqa: E402
+from record import ROOT, find_chrome, serve, session, viewer_url, weather_path  # noqa: E402
 
 R = "results/runs/reference/"
 LIVE = "../live-reference/"
@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             ep = episode(eid)
             e = json.loads(ep.read_text())
-            wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
+            wx = weather_path(e)
             url = viewer_url(port, ep, wx, False, f"shot={shot}" if shot else "")
             sw, sh = (int(v) for v in size[0].split("x")) if size else (w, h)
             with session(url, chrome, sw, sh, enable=("Runtime", "Log", "Network")) as (page, ready, gl):
@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.perf:
             ep = episode(args.perf)
             e = json.loads(ep.read_text())
-            wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
+            wx = weather_path(e)
             with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, gl):
                 rows = []
                 for i in range(0, 2161):
@@ -131,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
                            (f"{V3}39595d5a766915d8", 17.45), (f"{V3}a462ee1611f971de", 11.5)):
                 ep = episode(eid)
                 e = json.loads(ep.read_text())
-                wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
+                wx = weather_path(e)
                 pngs = []
                 for _ in range(2):
                     with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, _gl):

@@ -76,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         ep = json.loads((Path(manifest).parent / f"{first}.json").read_text())
     else:
         ep = json.loads(args.episode.read_text())
-    wx = args.weather or ROOT / "cache" / "weather" / f"{ep['task']['date']}_{ep['task']['settlement_point']}.json"
+    wx = args.weather or weather_path(ep)
     with serve(ROOT) as port:
         url = (view_url(port, kind, Path(manifest), wx, args.reduced, args.extra) if args.view
                else viewer_url(port, args.episode, wx, args.reduced, args.extra))
@@ -108,7 +108,18 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def weather_path(ep: dict) -> Path:
+    """The cached sidecar an episode plays in (a v5 floor's also holds the day before)."""
+    t = ep["task"]
+    if ep.get("schema") == "gridsim.episode/v5":
+        return ROOT / "cache" / "weather" / f"{t['date']}_{t['point']}_d1.json"
+    return ROOT / "cache" / "weather" / f"{t['date']}_{t['settlement_point']}.json"
+
+
 def telling_hour(ep: dict) -> float:
+    if ep.get("schema") == "gridsim.episode/v5":
+        hub = ep["clear"]["hub_usd"]
+        return max(range(24), key=lambda h: hub[h]) + 0.55
     if ep.get("schema") == "gridsim.episode/v3":
         for n in sorted((n for n in ep["notices"] if n.get("deploy")), key=lambda n: n["deploy"]["start_min"]):
             if ep["hours"][min(23, n["deploy"]["start_min"] // 60)]["awards"].get(n["deploy"]["product"]):
@@ -140,17 +151,18 @@ def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: st
 
 def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | None = None) -> None:
     """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score; a training view plays its own
-    duration in seconds."""
+    duration in seconds. A v5 floor opens at 6 am the day before: its pre-day (t -6..0) takes three seconds a unit."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    total = duration or INTRO + seconds + OUTRO
+    t0, intro = (-6.0, 18.0) if ep.get("schema") == "gridsim.episode/v5" else (-2.0, INTRO)
+    total = duration or intro + seconds + OUTRO
     frames = round(total * fps)
     encoder = subprocess.Popen(ffmpeg_args(find("ffmpeg"), out, fps, ep["episode_id"]), stdin=subprocess.PIPE)
     t0 = time.monotonic()
     try:
         for i in range(frames):
             s = i / fps
-            t = (s if duration else -2 + 2 * s / INTRO if s < INTRO else min(24.0, (s - INTRO) / seconds * 24)
-                 if s < INTRO + seconds else 24 + (s - INTRO - seconds) / 4)
+            t = (s if duration else t0 - t0 * s / intro if s < intro else min(24.0, (s - intro) / seconds * 24)
+                 if s < intro + seconds else 24 + (s - intro - seconds) / 4)
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
             shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
             encoder.stdin.write(base64.b64decode(shot["data"]))
