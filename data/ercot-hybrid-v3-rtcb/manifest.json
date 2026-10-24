@@ -7,7 +7,7 @@
  },
  "dates": [
   "2025-12-06",
-  "2026-09-29"
+  "2026-09-30"
  ],
  "tiers": [
   "energy",
@@ -16,7 +16,8 @@
  "filters": {
   "min_headroom_usd": 500.0,
   "low_spread_usd_per_mw": 22.0,
-  "sponge_reward_max": 0.97
+  "sponge_reward_max": 0.97,
+  "baseline_reward_max": 0.97
  },
  "flags": {
   "site": "archetype (no crosswalk tonight; V3-D11)",

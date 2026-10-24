@@ -3,13 +3,13 @@
  "hybrid_version": "3.0",
  "tasks": 20,
  "eras": {
-  "A": 8,
-  "B": 9,
+  "A": 9,
+  "B": 8,
   "C": 3
  },
  "dates": [
-  "2021-04-23",
-  "2026-08-19"
+  "2021-01-17",
+  "2026-09-28"
  ],
  "tiers": [
   "energy",
@@ -18,7 +18,8 @@
  "filters": {
   "min_headroom_usd": 500.0,
   "low_spread_usd_per_mw": 22.0,
-  "sponge_reward_max": 0.97
+  "sponge_reward_max": 0.97,
+  "baseline_reward_max": 0.97
  },
  "flags": {
   "site": "archetype (no crosswalk tonight; V3-D11)",

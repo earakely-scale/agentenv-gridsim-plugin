@@ -66,6 +66,7 @@ Core decisions where FD-4322 is silent or ambiguous (also provisional):
 | C3-D12 | **RT is expected at DA** for the anchor (FD-4322); no decayed basis as in v2. |
 | C3-D14 | **Deployment size**: lane D3's events carry no fraction (`frac` null; only Non-Spin states system MW), so every deployment uses frac = 1.0 of the award for min(window, duration): the stress case the reservation covers, labelled. |
 | C3-D15 | **AC coupling only in packs** (EIA-860 2025 shows no DC-coupled ERCO sites); s = min(PV MWac, MWac x ILR x cf) with lane D3's system cf, which is already fleet-AC so ILR x cf is an approximate DC shape (flagged). The dc code path stays for later. |
+| C3-D16 | **Baseline filter**: FD-4322's "sponge within 3% of the anchor" drop is extended to every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP: a day where any of them reaches reward 0.97 against the reserves anchor is dropped. Without it 13% of eval days had the T2 anchor below the energy-only MILP: the seeded regulation drift is independent of grid state, so RegDn drift buys energy at RT spikes while T2's awards are locked (the hero day, display-only, keeps it: T2 anchor $350k vs energy-only $482k). |
 | C3-D13 | **Hindsight** (weight 0): one MILP with a DA-position copy of the plant (expected drift, DA curtailment free between its rule minimum and s) and a physical copy on realized RT, drift and deployments, sharing the AS book (separate RT AS in era C). An upper reference, not an achievable plan. |
 
 ## Site, units and physics
@@ -273,7 +274,7 @@ Task ids `hyb-v3-{date}-{point}-{site_id}`; the tier is the load config. Packs (
 `ercot-hybrid-v3-train` (~2,400, 2021-2024, T1/T2), `ercot-hybrid-v3-eval` (300, 2025-01..11, stratified by AS value at DA: the reserves-tier oneshot optimum minus the energy-tier one, so drift noise cannot move a day between strata),
 `ercot-hybrid-v3-rtcb` (era C days as T2, DA AS only, flagged; V3-D10), `ercot-hybrid-v3-showcase` (`sept06-2023` hero, `aug10-2023`,
 `mar29-2024`, `fern-0126-2026`; display only, each ±3 days out of every split), `data/fixtures-hybrid/` (20 CI tasks).
-Filters: v1's low-spread drop; drop days where the sponge is within 3% of the anchor; drop P_anchor - P_idle < $500;
+Filters: v1's low-spread drop; drop days where the sponge (C3-D16: any baseline) is within 3% of the anchor; drop P_anchor - P_idle < $500;
 Uri ±3 days out of every split.
 
 ## Episode JSON `gridsim.episode/v3` (path A, path B' and references write the same shape)
