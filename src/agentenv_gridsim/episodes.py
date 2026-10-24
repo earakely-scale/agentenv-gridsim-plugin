@@ -4,7 +4,8 @@ the verifier's reward against gridsim_core's grade of the schedule, so the viewe
 sweep's runs become gridsim.episode/v2 JSON: the record played again through a fresh gridsim_core.live.Session, each
 watch's notices delivered after the advance that opened it as the triggers did, every output checked byte for byte,
 and the audit run with the agent's get_time reads; a hybrid sweep's runs likewise become gridsim.episode/v3 JSON
-through gridsim_core.hybrid.Session."""
+through gridsim_core.hybrid.Session, and a forecast sweep's gridsim.episode/v4 JSON through
+gridsim_core.forecast.Session."""
 
 import asyncio
 import json
@@ -13,11 +14,12 @@ from pathlib import Path
 import click
 from fastmcp import Client
 
-from gridsim_core import hybrid
+from gridsim_core import forecast, hybrid
 from gridsim_core.episode import to_episode_json
 from gridsim_core.grade import grade
 from gridsim_core.live import Session
 
+from .forecast import FORECAST_PACK_NAMES
 from .hybrid import HYBRID_PACK_NAMES
 from .live import LIVE_PACK_NAMES
 from .server import PACK_NAMES, GridSimEnv, TaskIndex, pack_dirs
@@ -75,9 +77,9 @@ def episode(sweep: Sweep, row: dict, task: dict) -> dict:
 
 
 def live_replay(task: dict, tier: str, record: dict, session: type = Session) -> tuple[Session, list[tuple[int, str]]]:
-    """A live run's record played again through a fresh Session (``session``: live's or hybrid's), and the agent's
-    get_time reads by watch; ReplayError at the first output that differs byte for byte. Calls the env refused before
-    the Session saw them are skipped."""
+    """A live run's record played again through a fresh Session (``session``: live's, hybrid's or forecast's), and the
+    agent's get_time reads by watch; ReplayError at the first output that differs byte for byte. Calls the env refused
+    before the Session saw them are skipped."""
     s, reads, watch = session(task, tier), [], 0
     raw = {m["tool_call_id"]: m["content"] for m in record["messages"] if m["role"] == "tool"}
     for step in record["steps"]:
@@ -93,17 +95,18 @@ def live_replay(task: dict, tier: str, record: dict, session: type = Session) ->
             watch = result["watch"]
             s.deliver_watch_notices()
     if not s.done:
-        s.end_day()
+        s.end_window() if isinstance(s, forecast.Session) else s.end_day()
     return s, reads
 
 
 def live_episode(sweep: Sweep, row: dict, task: dict) -> dict:
-    """The live run's gridsim.episode/v2 (v3 for a hybrid sweep), once every recorded output replays, the audit passes
-    with the agent's get_time reads, and the replayed day's reward is the verifier's."""
+    """The live run's gridsim.episode/v2 (v3 for a hybrid sweep, v4 for a forecast sweep), once every recorded output
+    replays, the audit passes with the agent's get_time reads, and the replayed day's reward is the verifier's."""
     if not row.get("transcript"):
         raise ReplayError("no transcript recorded")
     record = json.loads((sweep.out / row["transcript"]).read_text())
-    s, reads = live_replay(task, sweep.tier, record, hybrid.Session if sweep.hybrid else Session)
+    s, reads = live_replay(task, sweep.tier, record, hybrid.Session if sweep.hybrid
+                           else forecast.Session if sweep.forecast else Session)
     audit = s.audit(reads)
     if not audit["ok"]:
         raise ReplayError(f"the audit fails: {audit['problems']}")
@@ -120,7 +123,8 @@ def write(name: str, echo=click.echo) -> tuple[list[Path], list[str]]:
     """Writes each scored run of the sweep ``name`` as RUNS/<name>/<task>-<model>-r<rep>.json; returns the files and
     the runs that didn't replay."""
     sweep = load(name)
-    index = TaskIndex(pack_dirs(HYBRID_PACK_NAMES if sweep.hybrid else LIVE_PACK_NAMES if sweep.live else PACK_NAMES))
+    index = TaskIndex(pack_dirs(HYBRID_PACK_NAMES if sweep.hybrid else FORECAST_PACK_NAMES if sweep.forecast
+                                else LIVE_PACK_NAMES if sweep.live else PACK_NAMES))
     done, failed = [], []
     for row in results(sweep.out):
         if row["outcome"] != "scored":
