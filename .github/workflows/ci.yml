@@ -80,6 +80,8 @@ jobs:
           agent-env run results/bundles/ercot-dam-v1-eval-blind-oneshot --dry-run
           agent-env gridsim tasks generate --pack gridsim-live-eval --tier foresight
           agent-env run results/bundles/gridsim-live-eval-foresight --dry-run
+          agent-env gridsim tasks generate --pack ercot-hybrid-v3-eval --tier reserves
+          agent-env run results/bundles/ercot-hybrid-v3-eval-reserves --dry-run
       - name: The image passes the parity and no-leak gates
         run: |
           docker run -d -p 18765:18765 agentenv-gridsim-env
@@ -95,3 +97,10 @@ jobs:
           grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' live-wiring.log
           python scripts/live_e2e.py
           python scripts/live_e2e.py --tier blind
+      - name: The hybrid wiring day scores 0 with its audit passing, and scripted hybrid days replay byte for byte
+        timeout-minutes: 15
+        run: |
+          agent-env run gridsim-hybrid --task wiring-noplay | tee hybrid-wiring.log
+          grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' hybrid-wiring.log
+          python scripts/hybrid_e2e.py
+          python scripts/hybrid_e2e.py --tier energy --policy sponge

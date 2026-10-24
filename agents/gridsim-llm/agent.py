@@ -1,11 +1,14 @@
 """portsim-llm's harness loop as the GridSim A2A agent: one battery-day on the env's MCP tools through agent-env's model
-endpoint, on the API each provider serves best. Cost is usage times PRICES, or the most a request could cost when its
+endpoint, on the API each provider serves best. Cost is usage times PRICES, or the estimate of a request when its
 usage is lost (it failed, or the harness cut its stream); when GRIDSIM_MAX_COST_USD is set, an episode stops before a
-request that could take it past that. The summary also gives the cost without the failed requests, which may not have
-been billed, and how many failed. MCP has no done flag, so the episode ends on submit_schedule's submitted, at
-MAX_TOOL_CALLS calls, or after max_turns. An env that lists advance is a live day in watches (gridsim-live): the
-episode ends on advance's done, with no tool-call cap, or once a turn would start within TIME_MARGIN of the time
-limit, the day then graded on what was committed; Anthropic requests carry one rolling cache breakpoint."""
+request whose estimate could take it past that: the last request's measured input tokens at the cache-read rate while
+the provider reports caching and the cache is warm, the bytes added since as fresh tokens, and max_tokens of output.
+The summary also gives the cost without the failed requests, which may not have been billed, and how many failed. MCP
+has no done flag, so the episode ends on submit_schedule's submitted, at MAX_TOOL_CALLS calls, or after max_turns. An
+env that lists advance is a live day in watches (gridsim-live): the episode ends on advance's done, with no tool-call
+cap, or once a turn would start within TIME_MARGIN of the time limit, the day then graded on what was committed;
+Anthropic requests carry one rolling cache breakpoint. A live env without commit_da is a hybrid site-day
+(gridsim-hybrid), whose nudges speak of commit_schedule and the AS book."""
 
 import json
 import logging
@@ -40,6 +43,8 @@ NOTES_CHARS = 8000
 MAX_TOOL_CALLS = 24
 TIME_MARGIN = 1200
 HARNESS_CAP = "length (harness cap)"
+CACHE_SECONDS = 300
+BYTES_PER_TOKEN = 3.5
 PRICES = {  # USD per 1M tokens: input, output, cache read. LiteLLM public price map, 2026-10-06 to 2026-10-21.
     "anthropic/claude-opus-5-5": (4.00, 20.00, 0.40),
     "anthropic/claude-sonnet-5-5": (2.00, 10.00, 0.20),
@@ -78,6 +83,11 @@ LIVE = Mode("This is your last turn: commit now if your schedule needs a change 
             "schedule, advance moves to the next watch.",
             "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
             "reasoning short now and call commit_schedule with your current draft, or advance.")
+HYBRID = Mode("This is your last turn: commit now if your book needs a change (commit_schedule; at watch 0 it also "
+              "sets your DA position and DA AS awards); the rest of the day then runs on what you committed.",
+              "No tool was called. Only the tools count: commit_schedule commits your energy schedule and AS book, "
+              "advance moves to the next watch.",
+              LIVE.cut_off)
 
 
 class GridSimConfig(AgentConfig):
@@ -381,12 +391,20 @@ def make_agent(model: str, tools, system: str, max_tokens: int, effort: str | No
     return ChatAgent(model, tools, system, max_tokens, f"{root}/v1", key, effort)
 
 
-def bound(agent, request: dict, price: tuple[float, float, float]) -> float:
-    """The most a request can cost: each byte of its body an input token (a cache write on Messages), and its output
-    limit in output tokens."""
-    size = len(json.dumps(request, default=lambda o: o.model_dump(mode="json")).encode())
+def size_of(request: dict) -> int:
+    return len(json.dumps(request, default=lambda o: o.model_dump(mode="json")).encode())
+
+
+def estimate(agent, size: int, last: tuple[int, int] | None, cached: bool, price: tuple[float, float, float]) -> float:
+    """What a request of ``size`` bytes likely costs at most: the last request's measured input tokens (``last`` is
+    (tokens, bytes)) at the cache-read rate when ``cached`` (the provider reports caching and the cache is warm), else
+    fresh; the bytes added since at BYTES_PER_TOKEN a token, fresh (a cache write on Messages); and its output limit in
+    output tokens."""
+    tokens, sent = last or (0, 0)
+    fresh = max(0, size - sent) / BYTES_PER_TOKEN + (0 if cached else tokens)
     out = agent.max_tokens * (5 if agent.route == "chat" else 1)
-    return (size * price[0] * (1.25 if agent.route == "messages" else 1) + out * price[1]) / 1e6
+    return ((tokens if cached else 0) * price[2] + fresh * price[0] * (1.25 if agent.route == "messages" else 1)
+            + out * price[1]) / 1e6
 
 
 def cost(usage: dict, price: tuple[float, float, float]) -> float:
@@ -421,7 +439,9 @@ class Episode:
                                        "final": {"submitted": False, "schedule": None},
                                        "usage": {"input_tokens": 0, "output_tokens": 0}, "turns": 0,
                                        "end_reason": None, "errors": []}
-        self.live = False
+        self.live = self.commit_da = self.caching = False
+        self.last: tuple[int, int] | None = None
+        self.last_at = 0.0
         self.reward: float | None = None
         self.tool_calls = self.checks = self.cached = self.written = 0
         self.spent = self.unbilled = 0.0
@@ -464,6 +484,7 @@ class Episode:
         self.record["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.input_schema}
                                 for t in tools]
         self.live = any(t.name == "advance" for t in tools)
+        self.commit_da = any(t.name == "commit_da" for t in tools)
         limit = self.config.model_params["max_tokens"]
         agent = make_agent(self.model, tools, system, min(limit, MAX_OUTPUT.get(self.model, limit)), self.effort,
                            self.base.rstrip("/").removesuffix("/v1"), self.key, self.live)
@@ -473,7 +494,7 @@ class Episode:
 
     async def turns(self, env: EnvSession, agent) -> None:
         config, record, price = self.config, self.record, PRICES[self.model]
-        mode = LIVE if self.live else V1
+        mode = (LIVE if self.commit_da else HYBRID) if self.live else V1
         max_turns = config.max_turns
         empty = 0
         for turn in range(max_turns):
@@ -489,7 +510,9 @@ class Episode:
                 agent.user(mode.last_turn)
                 record["messages"].append({"role": "user", "content": mode.last_turn})
             request = agent.request()
-            most = bound(agent, request, price)
+            size = size_of(request)
+            warm = self.caching and time.monotonic() - self.last_at < CACHE_SECONDS
+            most = estimate(agent, size, self.last, warm, price)
             if self.max_cost is not None and self.spent + most > self.max_cost:
                 return self.fail("cost_cap", f"the next request could cost ${most:.4f}, past the ${self.max_cost:g} "
                                              f"cap with ${self.spent:.4f} spent")
@@ -509,6 +532,8 @@ class Episode:
                     self.record["errors"].append(f"{self.describe(e)} (turn {turn + 1} sent again)")
                     log.warning("turn %d: the reply failed mid-stream, sending it again", turn + 1)
             self.spent += most if t.stop == HARNESS_CAP else cost(t.usage, price)
+            self.last, self.last_at = (t.usage["input"] or round(size / BYTES_PER_TOKEN), size), time.monotonic()
+            self.caching = self.caching or bool(t.usage["cached"] or t.usage["cache_write"])
             self.cached += t.usage["cached"]
             self.written += t.usage["cache_write"]
             record["turns"] += 1

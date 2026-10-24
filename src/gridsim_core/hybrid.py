@@ -52,7 +52,6 @@ HOURS = 24
 TOL = 1e-4
 EQ_TOL = 0.005
 REG_MEAN = {"up": 0.12, "dn": 0.18}
-SOFT_PENALTY = 1e5
 CASH_KEYS = ("energy_da", "energy_rt", "as_da", "as_rt", "deployment_energy", "degradation", "ftp", "excused",
              "end_penalty")
 ARCHETYPES = {
@@ -269,6 +268,27 @@ def _inv(S: float, y: float, eta: float) -> float:
     return S - y if S >= y else (S - y) / eta
 
 
+def limits(st: Site, dur: dict, S: float, cyc: float, a: dict) -> tuple[float, float, float, float]:
+    """(lo, hi): the base moves headroom, the meter, SoC bounds and the cycle cap allow from S; (band_lo, band_hi):
+    the moves that end the hour inside the reservation band (b >= band_lo keeps RegDn room, b <= band_hi keeps the
+    up reservation)."""
+    up, rd = sum(a[k] for k in UP), a["regdn"]
+    lo = max(-st.p, -st.p + rd, -st.meter_imp + rd, -(st.e - S) / st.eta)
+    hi = max(lo, min(st.p, st.p - up, st.meter - up, S, st.cap - cyc))
+    return lo, hi, _inv(S, st.e - r_dn(st, dur, a), st.eta), _inv(S, r_up(dur, a), st.eta)
+
+
+def govern(e: float, lo: float, hi: float, band_lo: float, band_hi: float) -> float:
+    """The governor (C3-D6): e when it is allowed and inside the band, else the nearest allowed move inside the band,
+    else (the band out of reach) the allowed move closest to it."""
+    blo, bhi = max(lo, band_lo), min(hi, band_hi)
+    if blo <= bhi + TOL:
+        return e if blo - TOL <= e <= bhi + TOL else min(max(e, blo), bhi)
+    if band_lo > band_hi + TOL:
+        return min(max(e, lo), hi)
+    return hi if band_lo > hi else lo
+
+
 def step(st: Site, dur: dict, S: float, cyc: float, e: float, a: dict, s: float, price: float, U: float,
          D: float) -> dict:
     """One hour: the governor (C3-D6), the AS shortfall (C3-D8), deployments limited by SoC (C3-D9) and the
@@ -276,17 +296,7 @@ def step(st: Site, dur: dict, S: float, cyc: float, e: float, a: dict, s: float,
     S, s, price, U, D = float(S), float(s), float(price), float(U), float(D)
     up, rd = sum(a[k] for k in UP), a["regdn"]
     rup, rdn = r_up(dur, a), r_dn(st, dur, a)
-    lo = max(-st.p, -st.p + rd, -st.meter_imp + rd, -(st.e - S) / st.eta)
-    hi = min(st.p, st.p - up, st.meter - up, S, st.cap - cyc)
-    hi = max(hi, lo)
-    band_lo, band_hi = _inv(S, st.e - rdn, st.eta), _inv(S, rup, st.eta)
-    blo, bhi = max(lo, band_lo), min(hi, band_hi)
-    if blo <= bhi + TOL:
-        b = e if blo - TOL <= e <= bhi + TOL else min(max(e, blo), bhi)
-    elif band_lo > band_hi + TOL:
-        b = min(max(e, lo), hi)
-    else:
-        b = hi if band_lo > hi else lo
+    b = govern(e, *limits(st, dur, S, cyc, a))
     dis, ch = max(b, 0.0), max(-b, 0.0)
     B = min(st.e, max(0.0, S - dis + st.eta * ch))
     cover, room = min(S, B), st.e - max(S, B)
@@ -449,6 +459,7 @@ class Session(WatchDay):
         self.frozen = [self._frozen_row()]
         self._grade: dict | None = None
         self._refs: dict | None = None
+        self.anchor_log: list[dict] = []
         for n in self.watches[0].notices:
             self.notice(**self._kw(n), via="load")
 
@@ -558,7 +569,7 @@ class Session(WatchDay):
                "calls_left": 0 if self.done else self.calls_left, "day_over": self.done,
                "site": {"coupling": t["site"]["coupling"], "pv_mwac": t["site"]["pv_mwac"],
                         "pv_mwdc": t["site"]["pv_mwdc"], "meter_mw": st.meter, "meter_import_mw": st.meter_imp,
-                        "p_mw": st.p, "e_mwh": st.e, "unit_mw": st.u, "eta": st.eta, "c_deg": st.c_deg,
+                        "p_mw": st.p, "e_mwh": st.e, "eta": st.eta, "c_deg": st.c_deg,
                         "cycle_cap_mwh": st.cap, "s_end_min_mwh": st.s_end},
                "as_rules": {"products": list(d.offered), "qualified": [k for k in d.offered if k in d.qualified],
                             "duration_h": {k: d.dur[k] for k in d.offered},
@@ -601,8 +612,11 @@ class Session(WatchDay):
     def _issue(self, h, field, rule, detail) -> dict:
         return {"hour": h, "field": field, "rule": rule, "detail": detail}
 
-    def rules(self, h: int, S: float, cyc: float, e: float, a: dict) -> list[dict]:
-        """The rule failures of one hour's entry on the SoC path that reaches it (C3-D5)."""
+    def rules(self, h: int, S: float, cyc: float, e: float, a: dict, inherited: bool = False) -> list[dict]:
+        """The rule failures of one hour's entry on the SoC path that reaches it (C3-D5). With inherited awards (the
+        hour's awards as booked, C3-D17) the SoC the hour starts from is not the entry's to fix: an entry the governor
+        would leave as it is passes, and the rule a refused one breaks is named (the band checked at the hour's end,
+        or the governor's closest move when the band is out of reach)."""
         st, d = self.site, self.day
         out = []
         for f, v in (("energy", e),) + tuple((k, a[k]) for k in PRODUCTS):
@@ -619,6 +633,8 @@ class Session(WatchDay):
                 out.append(self._issue(h, f, "as_fixed", f"AS are fixed to the DA book after watch 0 ({NAMES[f]} "
                                                          f"{_num(self.da[f][h])} MW at hour {h})"))
         if out:
+            return out
+        if inherited and abs(govern(e, *limits(st, d.dur, S, cyc, a)) - e) <= TOL:
             return out
         up, rd = sum(a[k] for k in UP), a["regdn"]
         upf = max(UP, key=lambda k: (d.dur.get(k, 0) * a[k], k == "regup")) if up else "energy"
@@ -645,13 +661,38 @@ class Session(WatchDay):
         if cyc + dis > st.cap + TOL:
             out.append(self._issue(h, "energy", "cycle_cap", f"discharge {_num(dis)} MWh > {st.cap - cyc:.2f} MWh "
                                                              f"left of the {_num(st.cap)} MWh cap"))
+        if out:
+            return out
         rup, rdn = r_up(d.dur, a), r_dn(st, d.dur, a)
-        if min(S, B) < rup - TOL:
+        parts = " + ".join(f"{NAMES[k]} {_num(d.dur[k])}h" for k in UP if a[k] > TOL)
+        if inherited:
+            lo, hi, band_lo, band_hi = limits(st, d.dur, S, cyc, a)
+            if band_lo > band_hi + TOL:
+                return out
+            if band_hi < lo - TOL and rup > TOL and e > lo + TOL:
+                out.append(self._issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {hhmm(60 * h + 60)}; "
+                                                             f"SoC {S:.2f} at {hhmm(60 * h)} reaches it only "
+                                                             f"partly: charge the most this hour allows "
+                                                             f"({_num(-lo)} MW)"))
+            elif band_lo > hi + TOL and rdn > TOL and e < hi - TOL:
+                out.append(self._issue(h, "regdn", "reserve_dn", f"RegDn {_num(d.dur['regdn'])}h needs {rdn:.2f} MWh "
+                                                                 f"of room at {hhmm(60 * h + 60)}; SoC {S:.2f} at "
+                                                                 f"{hhmm(60 * h)} gets there only partly: discharge "
+                                                                 f"the most this hour allows ({_num(hi)} MW)"))
+            elif lo - TOL <= band_hi and band_lo <= hi + TOL:
+                if rup > TOL and B < rup - TOL:
+                    out.append(self._issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {hhmm(60 * h + 60)}, "
+                                                                 f"SoC {B:.2f}"))
+                if rdn > TOL and B > st.e - rdn + TOL:
+                    out.append(self._issue(h, "regdn", "reserve_dn", f"RegDn {_num(d.dur['regdn'])}h needs "
+                                                                     f"{rdn:.2f} MWh of room at {hhmm(60 * h + 60)}, "
+                                                                     f"room {st.e - B:.2f}"))
+            return out
+        if rup > TOL and min(S, B) < rup - TOL:
             when, soc = (h, S) if S <= B else (h + 1, B)
-            parts = " + ".join(f"{NAMES[k]} {_num(d.dur[k])}h" for k in UP if a[k])
             out.append(self._issue(h, upf, "reserve_up", f"{parts} need {rup:.2f} MWh at {hhmm(60 * when)}, SoC "
                                                          f"{soc:.2f}"))
-        if max(S, B) > st.e - rdn + TOL:
+        if rdn > TOL and max(S, B) > st.e - rdn + TOL:
             when, soc = (h, S) if S >= B else (h + 1, B)
             out.append(self._issue(h, "regdn", "reserve_dn", f"RegDn {_num(d.dur['regdn'])}h needs {rdn:.2f} MWh of "
                                                              f"room at {hhmm(60 * when)}, room {st.e - soc:.2f}"))
@@ -678,10 +719,11 @@ class Session(WatchDay):
         for h in range(self.settled, HOURS):
             if h >= max(fh, fo):
                 e, a = self.entry(h, cand)
-                if iss := self.rules(h, S, cyc, e, a):
+                booked = self.entry(h, new)[1]
+                if iss := self.rules(h, S, cyc, e, a, a == booked):
                     issues += iss
                     refused.append(h)
-                    if e != new["energy"][h] and not self.rules(h, S, cyc, e, self.entry(h, new)[1]):
+                    if e != new["energy"][h] and not self.rules(h, S, cyc, e, booked, True):
                         new["energy"][h] = cand["energy"][h]
                         committed.append(h)
                 else:
@@ -919,7 +961,7 @@ class Session(WatchDay):
                 "p_lp": tr.get("p_lp"),
                 "capture_vs_hindsight": _r6((p - p_idle) / (p_hind - p_idle))
                 if p_hind is not None and p_hind - p_idle > DEGENERATE_EPS else None,
-                "beats_anchor": p > p_anchor + DEGENERATE_EPS,
+                "beats_anchor": _r6(p) > p_anchor + 1e-6,
                 "energy_only_reward": reward_value(tr["p_energy_only"], p_idle, p_anchor)
                 if tr.get("p_energy_only") is not None else None,
                 "as_share": _r6(as_rev / (as_rev + en_gain)) if as_rev + en_gain > DEGENERATE_EPS else None,
@@ -1118,6 +1160,8 @@ class _Model:
             status = h.getModelStatus()
             if status != highspy.HighsModelStatus.kSolveError:
                 break
+        else:
+            return None
         if status in (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelStatus.kUnboundedOrInfeasible):
             return None
         if status != highspy.HighsModelStatus.kOptimal:
@@ -1126,9 +1170,11 @@ class _Model:
 
 
 def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price, mu, md, dep, aw, *,
-           integer: bool, soft: bool = False, free_curtail: bool = False) -> dict:
-    """One copy of the plant over len(pv) hours from SoC S0: integer energy levels with a direction binary, the AS
-    awards aw[t][k] (expressions in MW), the C3-D5 rules on the base path and the expected/realized drift dynamics."""
+           integer: bool, soft: bool = False, free_curtail: bool = False, inherited: bool = False) -> dict:
+    """One copy of the plant over len(pv) hours from SoC S0: continuous dispatch with a direction binary, the AS awards
+    aw[t][k] (expressions in MW) and the Session's rules: the reservation band at both ends of each hour (C3-D5), or
+    at its end only for inherited awards (C3-D17). Soft: the band may be missed at a penalty and drift is delivered
+    only as far as SoC allows, as the Session's step does (the fallback when the hard model is infeasible)."""
     S = _Lin(k=S0)
     out = {"x": [], "xb": [], "dis": [], "U": [], "dl": [], "cl": [], "S": [S], "slack": []}
     dsum = _Lin()
@@ -1150,14 +1196,24 @@ def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price
         if soft:
             out["slack"] += [su, sd]
         m.add(B - rup + su, lo=0.0)
-        m.add(S - rup + su, lo=0.0)
         m.add(B + rdn - sd, hi=st.e)
-        m.add(S + rdn - sd, hi=st.e)
-        m.add(b + up, hi=min(st.p, st.meter))
-        m.add(b - rd, lo=-min(st.p, st.meter_imp))
+        if not inherited:
+            m.add(S - rup + su, lo=0.0)
+            m.add(S + rdn - sd, hi=st.e)
+        sh = m.var(0, math.inf) if soft else _Lin()
+        if soft:
+            out["slack"].append(sh)
+        m.add(b + up - sh, hi=min(st.p, st.meter))
+        m.add(b - rd + sh, lo=-min(st.p, st.meter_imp))
         U = a["regup"] * mu[t] + sum((a[k] * dep[t][k] for k in EVENT_PRODUCTS), _Lin())
         D = rd * md[t]
-        nxt = m.var(-math.inf if soft else 0.0, st.e)
+        if soft:
+            ud, dd = m.var(0, math.inf), m.var(0, math.inf)
+            m.add(U - ud, lo=0.0)
+            m.add(D - dd, lo=0.0)
+            out["slack"] += [U - ud, D - dd]
+            U, D = ud, dd
+        nxt = m.var(0.0, st.e)
         m.add(nxt - B + U - D * st.eta, 0.0, 0.0)
         s = float(pv[t])
         if price[t] < 0 and not free_curtail:
@@ -1208,16 +1264,20 @@ def _clean(v: float):
 def solve_day(st: Site, day: Day, h0: int, S0: float, cyc: float, *, products=(), fixed: dict | None = None,
               dep=None, pv=None, integer: bool = True) -> dict | None:
     """The best book for hours h0..23 from SoC S0 (cyc MWh discharged): RT expected at DA, MCPC at DA, expected drift,
-    known deployments dep; AS variable for `products` or fixed. Soft reservations only if the hard model is infeasible."""
+    known deployments dep; AS variable for `products` or fixed. When the hard model is infeasible (inherited awards no
+    move can back) the soft one minimises the shortfall at a penalty scaled to the day's prices; its LP relaxation is
+    the last resort if HiGHS cannot solve it. The anchor's repair walk makes any of them a book the Session accepts."""
     n = HOURS - h0
     dep = dep or [dict.fromkeys(EVENT_PRODUCTS, 0.0) for _ in range(HOURS)]
     pv = day.pv if pv is None else pv
-    for soft in (False, True):
+    penalty = 10 * max(100.0, float(np.abs(day.da).max()), day.pen,
+                       max((float(v.max()) for v in day.mda.values()), default=0.0))
+    for soft, integral in ((False, integer), (True, integer), (True, False)):
         m = _Model()
         aw = _awards(m, n, h0, products, fixed, st.p)
         price = day.da[h0:]
         p = _plant(m, st, day.dur, S0, st.cap - cyc, pv[h0:], price, [day.mean_up] * n, [day.mean_dn] * n,
-                   dep[h0:], aw, integer=integer, soft=soft)
+                   dep[h0:], aw, integer=integral, soft=soft, inherited=fixed is not None)
         short = m.var(0, math.inf)
         m.add(short + p["S"][-1], lo=st.s_end)
         obj = _Lin()
@@ -1226,7 +1286,7 @@ def solve_day(st: Site, day: Day, h0: int, S0: float, cyc: float, *, products=()
             obj = obj + p["x"][t] * float(price[t]) - (p["dis"][t] + p["U"][t]) * st.c_deg
             if fixed is None:
                 obj = obj + sum((aw[t][k] * float(day.mda[k][h]) for k in products), _Lin())
-        obj = obj - short * day.pen - sum(p["slack"], _Lin()) * SOFT_PENALTY
+        obj = obj - short * day.pen - sum(p["slack"], _Lin()) * penalty
         m.obj = obj
         res = m.solve()
         if res is None:
@@ -1265,6 +1325,8 @@ def hindsight(task: dict, tier: str, notices=None, deployments=None, *, integer:
                 obj = obj + (a_rt[h][k] - a_da[h][k]) * float(day.mrt[k][h])
     m.obj = obj - short * day.pen
     res = m.solve()
+    if res is None and integer:
+        return hindsight(task, tier, notices, deployments, integer=False)
     return None if res is None else res[0]
 
 
@@ -1302,7 +1364,34 @@ def anchor_plan(s: Session, *, energy_only: bool = False, pv_blind: bool = False
     plan = {"energy": res["book"]["energy"]}
     if fixed is None:
         plan |= {k: res["book"][k] for k in day.offered}
+    plan, n = repair(s, fo, plan)
+    s.anchor_log.append({"watch": s.watch, "soft": res["soft"], "repaired": n})
     return plan
+
+
+def repair(s: Session, fo: int, plan: dict) -> tuple[dict, int]:
+    """Walk a plan for hours fo..23 through the Session's rules on its projected path; an entry they refuse becomes
+    the move the governor would make with the booked awards (C3-D17), so the plan commits whole. (plan, entries
+    changed); a hard MILP solution changes none."""
+    st, d, dep = s.site, s.day, s._dep_known()
+    S, cyc = projected_state(s, fo)
+    out, n = {f: list(v) for f, v in plan.items()}, 0
+    for i, h in enumerate(range(fo, HOURS)):
+        booked = s.entry(h)[1]
+        a = {k: float(out[k][i]) if k in out else booked[k] for k in PRODUCTS}
+        a = {k: booked[k] if abs(v - booked[k]) <= EQ_TOL else v for k, v in a.items()}
+        e = float(out["energy"][i])
+        if s.rules(h, S, cyc, e, a, a == booked):
+            n += 1
+            a = booked
+            e = _clean(govern(e, *limits(st, d.dur, S, cyc, a)))
+            out["energy"][i] = e
+            for k in PRODUCTS:
+                if k in out:
+                    out[k][i] = _clean(a[k])
+        r = step(st, d.dur, S, cyc, e, a, d.pv[h], d.da[h], *s._expected(h, a, dep))
+        S, cyc = r["S"], cyc + r["dis"]
+    return out, n
 
 
 def anchor_policy(*, energy_only: bool = False, pv_blind: bool = False):
@@ -1448,7 +1537,9 @@ def references(task: dict, tiers=("energy", "reserves"), notices=None, deploymen
         row = {"p_anchor": _r6(p_anchor),
                "anchor": {"book": anc._book_out(), "commits": sum(bool(c["committed"]) for c in anc.commits),
                           "watches": len(anc.watches), "governor_hours": len(anc.governor),
-                          "ftp_usd": _r6(anc.cash["ftp"]), "as_usd": _r6(anc.cash["as_da"] + anc.cash["as_rt"])},
+                          "ftp_usd": _r6(anc.cash["ftp"]), "as_usd": _r6(anc.cash["as_da"] + anc.cash["as_rt"]),
+                          "soft_solves": sum(x["soft"] for x in anc.anchor_log),
+                          "repaired_entries": sum(x["repaired"] for x in anc.anchor_log)},
                "p_hind": None if hind is None else _r6(hind),
                "p_lp": _r6(hindsight(task, tier, notices, deployments, integer=False)) if lp else None,
                "oneshot": oneshot_ref(task, tier), "baselines": bl}
