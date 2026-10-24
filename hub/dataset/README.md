@@ -26,6 +26,9 @@ tags:
 - trl
 - solar
 - ancillary-services
+- weather
+- forecasting
+- auctions
 configs:
 - config_name: v1_tasks
   default: true
@@ -114,6 +117,58 @@ configs:
   data_files:
   - split: eval
     path: episodes/v3/eval.parquet
+- config_name: v4_tasks
+  data_files:
+  - split: train
+    path: tasks/v4/train.parquet
+  - split: eval
+    path: tasks/v4/eval.parquet
+  - split: rtcb
+    path: tasks/v4/rtcb.parquet
+- config_name: v4_showcase
+  data_files:
+  - split: showcase
+    path: tasks/v4/showcase.parquet
+- config_name: v4_references
+  data_files:
+  - split: train
+    path: references/v4/train.parquet
+  - split: eval
+    path: references/v4/eval.parquet
+  - split: rtcb
+    path: references/v4/rtcb.parquet
+  - split: showcase
+    path: references/v4/showcase.parquet
+- config_name: v4_episodes
+  data_files:
+  - split: eval
+    path: episodes/v4/eval.parquet
+- config_name: v5_tasks
+  data_files:
+  - split: train
+    path: tasks/v5/train.parquet
+  - split: eval
+    path: tasks/v5/eval.parquet
+  - split: rtcb
+    path: tasks/v5/rtcb.parquet
+- config_name: v5_showcase
+  data_files:
+  - split: showcase
+    path: tasks/v5/showcase.parquet
+- config_name: v5_references
+  data_files:
+  - split: train
+    path: references/v5/train.parquet
+  - split: eval
+    path: references/v5/eval.parquet
+  - split: rtcb
+    path: references/v5/rtcb.parquet
+  - split: showcase
+    path: references/v5/showcase.parquet
+- config_name: v5_episodes
+  data_files:
+  - split: eval
+    path: episodes/v5/eval.parquet
 ---
 
 <div align="center">
@@ -135,9 +190,13 @@ configs:
 ---
 
 > **Also here, as previews:** [v2, The Live Grid](#v2-preview-the-live-grid), the same batteries played live through
-> the day on real-time prices and grid bulletins, and [v3, Sun, Storage and Reserves](#v3-preview-sun-storage-and-reserves),
-> a solar farm and a battery behind one meter selling energy and ERCOT reserves. Each has its own configs, references
-> and pilot runs. v1 is the release; the previews have open design decisions.
+> the day on real-time prices and grid bulletins; [v3, Sun, Storage and Reserves](#v3-preview-sun-storage-and-reserves),
+> a solar farm and a battery behind one meter selling energy and ERCOT reserves;
+> [v4, Weather Front](#v4-preview-weather-front), that plant run for three days on weather and load forecasts as they
+> were issued; and
+> [v5, The Market Floor](#v5-preview-the-market-floor), a battery bidding into ERCOT's day-ahead market as it clears
+> again from the real offers of the day. Each has its own configs, references and pilot runs. v1 is the release; the
+> previews have open design decisions.
 
 ## The task
 
@@ -244,7 +303,8 @@ pack's manifest (sources and their SHA-256, filters, counts, the battery table) 
 `results/` the eval card `eval-v1.json` and `board.md`. Each bundle published for `agent-env hf run` adds the bundle
 under `bundles/` and agentenv-hf's `<bundle>_tasks` config, and `<bundle>_episodes` once it has recorded runs (see
 [Run it yourself](#run-it-yourself)). A config with no rows yet is left off this card. `training/` holds the
-training summary ([Training](#training)); the v2 and v3 previews have configs of their own, set out in their sections.
+training summary ([Training](#training)); the v2 to v5 previews have configs of their own, set out in their sections,
+and v4's forecast store and v5's market days are under `raw/`.
 
 ## Use
 
@@ -444,7 +504,8 @@ Qwen3-1.7B (bf16, LoRA, thinking off) trained on one GPU and was graded on 200 `
 foresight tier with the `oneshot` prompt, sampled at temperature 0.7. The base model writes no valid schedule
 (R 0.000). Each arm was held to the same two bars on those 200 days: beat the threshold rule, and beat the greedy
 rule, each with the 95% intervals apart and at least 98% of schedules valid. Arm 1 was registered before it ran; arm 2
-was designed after arm 1's result, and arm 2b, a continuation of arm 2, after arm 2's.
+was designed after arm 1's result, arm 2b, a continuation of arm 2, after arm 2's, and arm 2c, a continuation of arm 2b,
+after arm 2b's.
 
 <!-- training -->
 The training summary lands with the training lane.
@@ -459,8 +520,14 @@ The training summary lands with the training lane.
   sampled and 0.681 (0.644 to 0.718) greedy, +0.089 (0.051 to 0.127) over arm 2 on the same days, paired. That is
   level with the threshold rule's 0.637, paired +0.031 (−0.022 to 0.086) sampled and +0.044 (−0.010 to 0.098) greedy,
   and below the greedy rule's 0.764 by 0.08 to 0.10, paired −0.096 (−0.143 to −0.050) sampled.
-- No arm met either bar. `training/` holds each arm's summary, checkpoint evaluations and training curves, and
-  `training/arms.json` the bars and results. The LoRA adapters are not published.
+- **Arm 2c (exploratory continuation):** 150 more GRPO steps from arm 2b's step 180 score 0.720 (0.681 to 0.756)
+  sampled and 0.719 (0.681 to 0.757) greedy, +0.051 (0.017 to 0.086) over arm 2b on the same days, paired. That is
+  above the threshold rule, paired +0.083 (0.031 to 0.135) sampled, with the intervals apart and every schedule valid,
+  and level with the greedy rule's 0.764, paired −0.044 (−0.091 to 0.002).
+- Only arm 2c clears a bar, the threshold rule's, and it was not registered: it continued arm 2b after arm 2b's result.
+  No arm beats the greedy rule. All four arms took about $18 of GPU time in all, and no API spend. `training/` holds
+  each arm's summary, checkpoint evaluations and training curves, and `training/arms.json` the bars and results. The
+  LoRA adapters are not published.
 
 ## Simplifications
 
@@ -675,6 +742,227 @@ tier.
   holds 25 reference runs the Space replays (the anchor, AS-hog, the solar sponge and v2 energy-only on 10 days). The
   full reading is in [`results/board-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v3.md).
 
+## v4 preview: Weather Front
+
+> **A preview, not a release.** The env, the packs, the forecast store and the grading are built and tested, and one
+> registered pilot has run. Design decisions are open (below), so tiers, filters and numbers may change before v4
+> ships. The contract is [`docs/CONTRACT-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v4.md).
+
+**The task.** v3's solar farm and battery behind one meter, run for three operating days on forecasts as they were
+issued. The clock opens at 10:00 the day before the first day and runs to midnight after the last, in watches: 16
+fixed ones (10:00, 14:00 and 18:00 the day before, then 00:00, 06:00, 10:00, 14:00 and 18:00 on each day but the last,
+and 00:00, 06:00 and 18:00 on the last) plus one for each ERCOT or NWS bulletin, reserve deployment or weather run that
+moves the desk's price outlook by 10% or more, at most 24 a window. Each day's DAM position, battery moves and reserve
+awards, is bid at the 10:00 gate the day before (`submit_dam`, 3 submits a gate) and its results arrive by the 14:00
+watch. The real-time book is re-planned at each watch (`check_schedule`, `commit_schedule`, 3 planning calls a watch).
+Forecasts come from `get_forecast` and `get_forecast_drift`, 6 calls a watch: HRRR weather at the site and zone
+points, load, wind and solar forecasts, the desk's price guide (P10, P50 and P90 of DA and RT prices and the reserve
+clearing prices) and the NWS alerts in force. A forecast issued after the current time is refused. Settlement is v3's
+two settlements: DA cash on the DAM position, RT cash on the deviation, reserves at their DA clearing prices, less
+degradation, failure to provide and any end shortfall. 122 turns (72 at `front-lite`).
+
+The tiers: `front` (three days with reserves), `front-lite` (two days, the battery alone, no reserves), `blind` (no
+forecast tools) and `freeze-6h` (a six-hour freeze line). One task row serves all four. Each row of `v4_tasks` is one
+window, with its opening at its headline tier: `front`, or `front-lite` in `train`, whose references cover that tier
+only.
+
+**What is served, and what is modelled.** Weather is NOAA's HRRR as issued: each 00, 06, 12 and 18Z run's 0 to 48 h
+forecast at 18 fixed points (the 8 airports of v1's hubs and load zones, 3 more zone points, 4 wind and 3 solar points),
+issued two hours after its cycle. ERCOT's own load forecast by weather zone (NP3-565-CD), wind forecast (NP4-732-CD and
+NP4-742-CD) and solar forecast (NP4-745-CD), every hourly posting from 11 December 2023 through the ERCOT public API,
+serve the windows from 12 December 2023 (`source: ercot`). Earlier windows and the whole `train` split serve the
+desk's load, wind and solar forecasts instead (`source: desk`), modelled from the same HRRR runs. ERCOT's
+day-ahead load forecast as reported to EIA-930 arrives at 06:00 on its day. The price guide is always the desk's: a
+quantile model refitted each year only on data revealed before that year. Nothing is served before its reveal time;
+the store's builder tests it, and each run's audit replays every forecast call against the store. Site PV, the
+regulation drift and the missing RT reserve prices are as in v3.
+
+**Grading.** R = clip(0.2 + 0.8 · (P − P_idle) / (P_roll − P_idle), 0, 1), against the rolling anchor P_roll: a
+mixed-integer plan (HiGHS) with the agent's information, one solve per watch on the guide's P50 and the served
+forecasts, bidding each gate and committing the open hours. At `blind` the anchor plans on persistence instead
+(P_blind). At weight 0: `r_hind`, the same formula against P_hind (the exact plan that knows the realised prices, PV,
+drift and deployments), `paired_vs_anchor` = (P − P_roll) / (P_hind − P_idle), P_roll3 (the same re-planner on the
+P10, P50 and P90 paths), P_blind, and the naive gate rule, which charges in the 4 cheapest and discharges in the 4
+dearest DA P50 hours of each day and never re-plans.
+
+**Open decisions.**
+- **Pack filters (V4-P18).** The plan's per-kW headroom bars kept under 10% of candidates on the real store, and none
+  in `rtcb`: the median window's hindsight headroom is $0.40 per kW in `train` and $0.81 in `eval`. The packs instead
+  drop each split's lowest 15% by hindsight headroom per kW, and keep a window only if the anchor beats idle by $0.10
+  per kW and 5% of the headroom, hindsight beats the anchor by 8% of it, and the anchor beats persistence by 5% of it.
+- **The front label (V4-P19).** "15 °F colder within 12 hours" marked every candidate a front: the West Texas points
+  swing 25 to 30 °F a day. A window is now `front` when a zone point is 15 °F colder than the same hour a day earlier,
+  or an NWS winter storm, freeze, excessive heat or high wind warning or watch is in force; else `calm`.
+- **`train` is 659 windows, not the planned ~1,500.** 1,885 candidates pass the filters, but the draw keeps one window
+  per first day and label.
+- **Stored anchor calls (V4-P20).** HiGHS breaks ties differently on different platforms, so re-solving the anchor
+  reproduces P_roll to the cent only where a pack was built. Every row stores P_roll, so grading is the same
+  everywhere; rebuilding the packs with the anchor's own decisions stored (`anchor_calls`) would let the anchor replay
+  everywhere too. Not done yet.
+- **Forecast-call friction.** In the pilot, 47 calls in 26 of 35 windows passed `issued_at: ""` and were refused, each
+  using a forecast call, and 22 asked for a vintage issued after now, reading the UTC clock as Central time. The
+  budget of 6 calls ran out at some watch in 9 of 20 windows.
+
+| Config | Split | Windows | Dates | Front / calm | Forecasts | Anchor − idle | Anchor capture | P_blind R | Naive R | P_roll3 R |
+|---|---|---:|---|---|---|---:|---:|---:|---:|---:|
+| `v4_tasks` | `train` | 659 | 3 March 2021 to 28 December 2024 | 445 / 214 | desk, read from the store | $49,977 | 0.477 | 0.744 | 0.343 | 0.837 |
+| | `eval` | 60 | 1 January to 29 October 2025 | 40 / 20 | ERCOT, inline | $53,333 | 0.507 | 0.737 | 0.599 | 0.974 |
+| | `rtcb` | 20 | 11 December 2025 to 25 September 2026 | 10 / 10 | ERCOT, inline | $42,761 | 0.496 | 0.701 | 0.655 | 0.972 |
+| `v4_showcase` | `showcase` | 4 | Uri (13 February 2021), Heather (14 January 2024), a calm spring window with negative prices (28 March 2024), Fern (24 January 2026); display only | 3 / 1 | desk (Uri), ERCOT | – | 0.635 | 0.887 | 0.378 | 0.961 |
+
+Means per window at each split's headline tier (`front`; `front-lite` in `train`); anchor − idle is P_roll − P_idle
+over the window. The sites are v3's archetypes (50 in `train`, 23 in `eval`) at the 13 hubs and load zones; every
+showcase window is v3's showcase site, 150 MW-AC of solar with a 100 MW / 200 MWh battery. `v4_references` has, per
+window and tier, P_idle, P_roll, P_roll3, P_blind, P_naive, P_hind, the LP bound, the anchor's DAM days and commits,
+and the baselines' profit and R. `v4_episodes` has one row per recorded run: R, `r_hind`, paired vs anchor, the DAM
+book, submits and misses, forecast calls, refusals, the cash split, the SoC path, every call and the transcript.
+
+**The forecast store.** `raw/v4-store/` is the store every window reads, v4-store@cb47cd9f: 949,886 vintages in 557 MB
+of parquet. `vintages/<year>.parquet` has one row per vintage and field (issued at, run, kind, key, source, the hourly
+values and the SHA-256 of its fields), `index.parquet` each vintage's reveal time and hash, `ercot_postings.parquet`
+each ERCOT API posting (report, document id, posting time, run id) and `manifest.json` the spans and the store's hash.
+The `eval`, `rtcb` and showcase rows embed their window's slice; `train` rows name the store by its hash, and
+`gridsim_core.forecast_inputs.slice_for(task, "raw/v4-store")` reads it. `raw/v4-forecast/` holds the 18 points, the
+reveal table, the price guide's yearly pinball loss and coverage (`guide-card.json`) and the store's hash. No GRIB file
+and no raw API response is published.
+
+**Pilot.** GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played 20 `eval` windows at `front` (14 front, 6
+calm) and 10 more at `front-lite`, as registered in [`docs/prereg/v4-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v4-pilot.md), plus 3
+smoke windows and Fern and Heather for display. Every window served ERCOT's own forecasts.
+
+<!-- board:v4 -->
+The v4 pilot's board lands with its eval card.
+<!-- /board:v4 -->
+
+On the same 20 `front` windows: P_blind 0.720, the naive gate rule 0.643 and P_roll3 0.976; the anchor's `r_hind` is
+0.582 and its hindsight capture, (P − P_idle) / (P_hind − P_idle), 0.477, against Sol's 0.566 and 0.458.
+
+- **Forecasts are worth reading.** R 0.909 (0.836 to 0.968) against persistence's 0.720: +0.189 (0.096 to 0.286),
+  above it on 15 of 20 windows, and +0.265 over the naive gate rule.
+- **Level with the rolling MILP, by a different book.** Paired vs the anchor −0.019 (−0.057 to 0.017); Sol beats it
+  on 7 windows. It bids a smaller DA position and a third less reserve, never ECRS, and commits 5.7 times a window to
+  the anchor's 18.
+- **It bids each day at that day's gate.** No gate was missed, and Sol read a forecast before its first submit at 95%
+  of gates. But it leaves the next day unbooked until its own gate, so only 12 of 40 later-day gates had a standing
+  plan to revise; all 12 were revised.
+- **`front-lite` sits below persistence:** 0.883 against P_blind's 0.981, the loss almost all one window (LZ_HOUSTON
+  on 19 February 2025, the cold snap, R 0.285). It stays a training and warm-up tier.
+- **Fern** (HB_NORTH, 24 to 26 January 2026): R 1.0, $1,151,139 against the anchor's $1,039,573, regulation on the
+  first day, then RRS, ECRS and Non-Spin into the storm with a large DA discharge on the 26th. **Heather**: R 0.932.
+- 35 runs, all scored at the first attempt, $16.50 in all. Every episode replays byte for byte on
+  `gridsim_core.forecast` and passes its audit. The full reading is in
+  [`results/board-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v4.md).
+
+## v5 preview: The Market Floor
+
+> **A preview, not a release.** The env, the packs, the market days and the grading are built and tested, and one
+> registered pilot has run. Design decisions are open (below). The contract is
+> [`docs/CONTRACT-v5.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v5.md).
+
+**The task.** The agent is seat A, a battery of 400 to 1,500 MW, in ERCOT's day-ahead market (DAM) for one operating
+day, cleared again from the offers and bids ERCOT disclosed for that day. Four other seats share the floor, each carved
+from a real portfolio of the same day and anonymised: a second battery group (B), 6 to 12 gas combustion turbines (G),
+a wind and solar portfolio (R) and a load-serving bidder (L). They submit their real offers. Seat A offers one curve
+per hour, up to 10 sell and 10 buy blocks in steps of its grid (a twentieth of its power). The 24 hourly auctions clear
+on one node at a uniform price; the battery delivers its awards as far as its state of charge allows, and any
+deviation settles at the real RT hub price. Every price is a hub price: the clear plus the real hub's per-hour offset,
+so the real offers clear at the real HB_HUBAVG DAM price exactly and a seat's price impact follows the real curve's
+slope. Conduct and impact mitigation re-prices blocks far above a seat's reference when they move the price.
+
+The tiers: `floor-sprint`, one watch at 09:00 the day before: read, up to 3 `check_offer` calls, then one
+`submit_offer` that clears the market (6 turns; the training tier, path B); and `floor-day`, watches from 06:00 the day
+before through the operating day: offers until the 10:00 close, contracts for differences with the retailer, then the
+physical schedule against the awards (36 turns). The agent reads the aggregate supply and demand curves of disclosed
+days at least 60 days old (`get_disclosure`), the day-ahead load forecast and the last complete day's wind and solar
+from EIA-930, the previous day's prices (`get_forecast`), and its own costs and mitigation references. Each row of
+`v5_tasks` is one floor: `prompt` is the path-B prompt (the rules, the situation and the latest disclosed day's
+curves) and `day_prompt` the `floor-day` opening, where the floor also plays at `floor-day`.
+
+**Grading.** R = clip(0.2 + 0.8 · (P − P_idle) / (P_anchor − P_idle), 0, 1), with P_idle = 0 (no offer), against
+the disclosure best-responder: with the agent's information at 09:00 it shifts the curves disclosed for 61 and 62 days
+earlier by the forecast change in net load, best-responds to its own price impact with an exact dynamic program,
+self-schedules, and at `floor-day` re-plans the operating day. A run without a valid offer scores 0. `compliant` scores
+the same run as 0.5 · R + 0.5 · its welfare ratio, the share it delivers of the welfare a planner could add over A and
+B idle. At weight 0: capture and regret against P_br (the best SoC-feasible awards in hindsight), ε-Nash, welfare and
+deadweight loss, the price-making gain over the impact-blind price-taker, the price impact of A's own awards
+(`impact_usd`), mitigated hours and a withholding index.
+
+**Real and modelled.** Real: every offer and bid behind the background curve (ERCOT's 60-Day DAM Disclosure,
+aggregated to at most 64 points per hour and side), the seats' offers, ERCOT's system lambda, the hub DAM and RT
+prices, and on `floor-day` the ERCOT and NWS bulletins. Modelled: one node, no congestion; reserves not cleared again
+(each background curve is cut to the room its reserve awards leave); commitment as on the real day; the seats' private
+costs (CT heat rates from EIA-923, the wind and solar production tax credit, a retail tariff); and the batteries'
+energy, which the disclosure does not give before RTC+B. Each floor carries its day's raw fidelity: the share of
+non-scarcity hours where the clear of every real offer lands within $5 or 10% of ERCOT's lambda.
+
+**Open decisions.**
+- **The impact filter (V5-P12).** A QSE-sized battery moves the price in few hours: "2 or more hours of $5 impact"
+  keeps almost only peak days (12 of 200 `eval` floors). `train` asks for 1 hour of $2 instead, and `eval` keeps the
+  stricter rule as its `peak` stratum. In the pilot Sol's gap to the price-taker was no smaller on base floors, so for
+  this model a peak-only eval would add nothing.
+- **The fidelity bar: 0.9 or 0.5.** The plan asked for 90% of hours within $5 or 10% of ERCOT's lambda; the clear
+  reaches that on 39 of 982 days (median 0.71), so the packs take 0.5 and the hub offset carries the rest. In the
+  pilot R rose with fidelity (0.70, 0.81 and 0.89 by tercile), which argues for a higher bar on the board, or R by
+  fidelity band.
+- **The price-taker collapse (V5-P18).** On most days the anchor's best response is the impact-blind price-taker's
+  plan: the price-taker scores R = 1.0 on 105 of 200 `eval` floors (mean 0.949). So R mostly measures forecasting and
+  scheduling under weak impact, not market power. The board adds the price-making gain over the price-taker as a
+  weight-0 row and R on the `peak` stratum as a column of its own.
+- **`train` back to 2022.** ERCOT's archive holds the disclosure from 1 January 2022, not only from December 2023.
+  `train` uses 2024 (12 February to 31 December); of the 704 days from January 2022 to 10 December 2023, 74% pass the
+  0.5 fidelity bar (56% in 2022). They are not shipped yet.
+
+| Config | Split | Floors | Dates | Peak (2+ impact hours) | Also `floor-day` | Median fidelity | Anchor capture (median) | Price-taker R | Replay A R | Max-withhold R |
+|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| `v5_tasks` | `train` | 2,351 | 151 dates, 12 February to 31 December 2024 | 294 | 2,303 | 0.75 | 0.680 | 0.956 | 0.137 | 0.194 |
+| | `eval` | 200 | one floor a date, 1 January to 28 November 2025 | 12 | 194 (60 in the `floor-day` set) | 0.71 | 0.731 | 0.949 | 0.176 | 0.199 |
+| | `rtcb` | 153 | one floor a date, 10 December 2025 to 25 August 2026 | 2 | 147 | 0.67 | 0.683 | 0.934 | 0.136 | 0.200 |
+| `v5_showcase` | `showcase` | 6 | 20 August 2024 and Winter Storm Fern, 23 to 27 January 2026; display only | 4 | 4 | – | – | 0.790 | 0.215 | 0.467 |
+
+R values are means at `floor-sprint`; anchor capture is P_anchor / P_br. Seat A is 400, 600, 800, 1,000, 1,200 or
+1,500 MW for 1, 2 or 4 hours, with round-trip efficiency 0.80 to 0.95 and degradation $0 to $8 per MWh.
+`v5_references` has, per floor, the anchor's forecast (its net-load shift and the prices it expects), its
+self-schedule, P_anchor, P_br and the RT-inclusive bound at each tier with the hindsight awards, and the price-taker,
+max-withhold and replay-A baselines' profit and R. `v5_episodes` has one row per recorded run: R, compliant, regret,
+capture, welfare ratio, ε-Nash, impact, mitigation, the offer, the awards, the clear, the hourly settlement, the P&L,
+the contracts, every call and the transcript.
+
+**The market days.** `raw/v5-market/days/` holds the 985 operating days the floors are built from, 11 December 2023 to
+25 August 2026, one JSON line a day in monthly files (24 MB gzipped): the background supply and demand curves, the seat
+pools' curves by pool id (`e1`, `c1`, `r1`, `l1`, …, with the CTs' unit sizes and start costs), ERCOT's system lambda,
+the hub DAM and RT prices, EIA-930 load, wind, solar and day-ahead forecast, and the clear of every real offer with its
+fidelity. They are derived, aggregated and anonymised: no disclosure file is published, and no resource or QSE name
+leaves the data build (the dataset's build checks every key and string). `raw/v5-market/` also holds the days'
+manifest (each disclosure document's id, posting time and SHA-256), the fidelity statistics (`stats.md`) and the
+EIA-923 CT heat rates.
+
+**Pilot.** GPT-6.1 Sol played 30 `eval` floors at `floor-sprint` (all 12 peak floors and 18 base ones) and 10 of them
+at `floor-day`, as registered in [`docs/prereg/v5-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v5-pilot.md), plus four showcase floors
+for display. The registered $0.18 episode cap stopped all 30 `floor-sprint` runs before they submitted (the agent's
+own cost guard books a worst-case turn), so that column is the registered amendment at $0.36.
+
+<!-- board:v5 -->
+The v5 pilot's board lands with its eval card.
+<!-- /board:v5 -->
+
+- **Below the price-taker on both tiers.** The information-matched price-taker scores 0.924 and 0.990 on the same
+  floors: Sol is −0.123 (−0.232 to −0.020) behind it at `floor-sprint` and −0.131 (−0.303 to −0.012) at `floor-day`.
+  It is far above max-withhold and replay A at `floor-sprint` (+0.61 and +0.62).
+- **It over-sells.** Sol offers two-sided curves with price-sensitive blocks and lets the clear decide, but its sell
+  side sums to about 3 times its stored energy (9 times at `floor-day`). Awards outrun the battery: delivery is
+  clipped on 21 of 30 sprint floors. In the peak floors' impact hours it sells 4,950 MWh against the anchor's 2,040,
+  which costs it $69,182 a floor in price; its price-making gain there is −$143 per MW-day (+$94 at `floor-day`, where
+  the re-plan buys back at RT).
+- **Never mitigated, no contracts.** 0 mitigated hours on 40 floors, no block at the cap, no message and no CfD.
+- **Compliant:** 0.550 and 0.652. At `floor-day` the welfare half drops Sol from third to fifth of six, below replay
+  A and max-withhold: over-selling the DAM and dispatching again at RT pays, but wastes welfare (ratio 0.45 against
+  about 0.6 for both).
+- **Showcase:** on Winter Storm Fern (25 and 26 January 2026) Sol's 800 MW makes $6.3M and $9.0M against the
+  anchor's $0.5M and $1.4M, re-planning into Fern's RT spikes.
+- 44 runs, all scored at the first attempt; $4.50 in all, the smoke runs and the unscored registered sweep included.
+  Every episode replays byte for byte on `gridsim_core.market` and passes its audit. The full reading is in
+  [`results/board-v5.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v5.md).
+
 ## Licence and attribution
 
 The dataset carries several sets of terms, hence `license: other`; the plugin's
@@ -717,6 +1005,22 @@ reproduced: each bulletin is our own one-line paraphrase. Solar capacity for 202
 EIA-860M (public domain). NWS watches, warnings and advisories come from the Iowa Environmental Mesonet's archive of
 NWS VTEC products (Iowa State University; NWS data in the public domain), reduced to the product, counties and times.
 
+**v4 preview: weather and forecasts.** The weather is NOAA's High-Resolution Rapid Refresh (HRRR) model output from
+NOAA's Open Data Dissemination program, reduced to hourly series at 18 fixed points: a work of the U.S. Government, in
+the public domain. Source: NOAA, National Centers for Environmental Prediction. ERCOT's demand, its day-ahead demand
+forecast and its wind and solar generation come from the EIA's Form EIA-930 Hourly Electric Grid Monitor (public
+domain). Source: U.S. Energy Information Administration. ERCOT's load (NP3-565-CD), wind (NP4-732-CD, NP4-742-CD) and
+solar (NP4-745-CD) forecasts were obtained through the ERCOT Public API and are used under the same ERCOT terms as the
+rest of the ERCOT data above; GridSimEnv is not affiliated with or endorsed by ERCOT. The desk's forecasts and price
+guide in the store are our own models of these inputs and of ERCOT's prices.
+
+**v5 preview: ERCOT's 60-Day DAM Disclosure, derived and anonymised.** The market days are derived from ERCOT's 60-Day
+DAM Disclosure Reports (NP3-966-ER) and DAM System Lambda (NP4-523-CD), obtained through the ERCOT Public API and used
+under the same ERCOT terms. Only derived data is published: curves aggregated to at most 64 points per hour and side,
+and each seat's portfolio by an anonymous pool id. No disclosure file and no resource or QSE name is in this dataset.
+The CT heat rates are from the EIA's Form EIA-923 (public domain). GridSimEnv is not affiliated with or endorsed by
+ERCOT, and ERCOT does not guarantee the accuracy of these compilations.
+
 **Apache-2.0: the code.** The grader (`gridsim_core`), the verifier and bundle files under `bundles/` and the plugin
 that builds this dataset are Apache-2.0. The prompts, references and transcripts are derived from the ERCOT prices
 and carry ERCOT's terms with them.
@@ -725,7 +1029,7 @@ and carry ERCOT's terms with them.
 Environmental Mesonet's ASOS archive (Iowa State University), credited there.
 
 `scripts/hub_dataset.py` in the plugin builds this dataset, after agentenv-hf's scan of every file for keys and token
-shapes. Neither ERCOT, the EIA, the NWS nor the IEM is affiliated with it or endorses it.
+shapes. Neither ERCOT, NOAA, the EIA, the NWS nor the IEM is affiliated with it or endorses it.
 
 ## Citation
 

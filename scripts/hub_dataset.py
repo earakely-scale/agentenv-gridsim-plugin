@@ -31,9 +31,10 @@ from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from agent_env.store.routing import namespace_routing
 from agentenv_hf import dataset, runs, tables
@@ -42,7 +43,8 @@ from agentenv_hf.messages import to_messages
 from agentenv_hf.scan import known_values, scan
 from huggingface_hub import DatasetCard
 
-from gridsim_core import hybrid, hybrid_prompt, live, live_prompt
+from gridsim_core import forecast, forecast_prompt, hybrid, hybrid_prompt, live, live_prompt, market, market_prompt
+from gridsim_core import forecast_inputs as FI
 from gridsim_core.episode import SCHEMA
 from gridsim_core.grade import grade, reward_value
 from gridsim_core.prompt import messages, situation, tool_schemas
@@ -139,10 +141,12 @@ def reference_row(task: dict) -> dict:
     return row
 
 
-def parquet(rows: list[dict], schema: pa.Schema) -> bytes:
-    """The rows as agentenv-hf types its tables, compressed with zstd: the task rows' JSON and prompts halve."""
+def parquet(rows: list[dict], schema: pa.Schema, row_group_size: int | None = None) -> bytes:
+    """The rows as agentenv-hf types its tables, compressed with zstd: the task rows' JSON and prompts halve. The v4
+    and v5 tables pass a row group size (row_group) so the dataset viewer can page their heavy rows."""
     sink = io.BytesIO()
-    pq.write_table(pq.read_table(io.BytesIO(tables.parquet(rows, schema))), sink, compression="zstd")
+    pq.write_table(pq.read_table(io.BytesIO(tables.parquet(rows, schema))), sink, compression="zstd",
+                   row_group_size=row_group_size)
     return sink.getvalue()
 
 
@@ -316,7 +320,7 @@ def card_text(files: dict[str, bytes], bundles: dict[str, str], plugin: str, boa
     result = DatasetCard(text)
     episodes = {f"{v}_episodes": {"config_name": f"{v}_episodes", "data_files": [
         {"split": s, "path": f"episodes/{v}/{s}.parquet"} for s in splits if f"episodes/{v}/{s}.parquet" in files]}
-        for v, splits in (("v1", (*SPLITS, "showcase")), ("v2", tuple(V2.packs)), ("v3", tuple(V3.packs)))}
+        for v, splits in (("v1", (*SPLITS, "showcase")), *((pv.version, tuple(pv.packs)) for pv in (V2, V3, V4, V5)))}
     configs = [episodes.get(c["config_name"], c) for c in result.data.configs]
     result.data.configs = [c for c in configs if any(
         f["path"] in files and pq.read_metadata(io.BytesIO(files[f["path"]])).num_rows for f in c["data_files"])]
@@ -327,7 +331,7 @@ def card_text(files: dict[str, bytes], bundles: dict[str, str], plugin: str, boa
 
 def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: str,
           extras: "Extras | None" = None) -> dict[str, bytes]:
-    """v1's files, then, unless ``extras`` is None, the v2 and v3 previews and the training summary, and the card."""
+    """v1's files, then, unless ``extras`` is None, the v2 to v5 previews and the training summary, and the card."""
     files: dict[str, bytes] = {}
     by_id: dict[str, dict] = {}
     for split, pack in PACKS.items():
@@ -375,7 +379,7 @@ def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: st
 # ================================================================ v2 and v3 previews
 @dataclass(frozen=True)
 class Preview:
-    """What differs between the v2 and v3 previews: packs, tiers, core module, prompts and the episode schema."""
+    """What differs between the previews: packs, tiers, core module, prompts and the episode schema."""
     version: str
     packs: dict[str, str]
     tiers: tuple[str, ...]
@@ -392,8 +396,7 @@ V3 = Preview("v3", {"train": "ercot-hybrid-v3-train", "eval": "ercot-hybrid-v3-e
                     "showcase": "ercot-hybrid-v3-showcase"},
              ("energy", "reserves"), hybrid, hybrid_prompt, "events_sha")
 PREVIEW_STATS = ("live-stats.md", "hybrid-stats.md")
-PREVIEW_RESULTS = {"v2": ("eval-v2.json", "board-v2.md", "pilot-v2.json"), "v3": ("eval-v3.json", "board-v3.md",
-                                                                                   "pilot-v3.json")}
+PREVIEW_RESULTS = {v: (f"eval-{v}.json", f"board-{v}.md", f"pilot-{v}.json") for v in ("v2", "v3", "v4", "v5")}
 LABELS = {**NAMES, "reference/rolling-anchor": "rolling anchor", "reference/naive": "naive",
           "reference/as-hog": "AS-hog", "reference/solar-sponge": "solar sponge",
           "reference/v2-energy-only": "v2 energy-only"}
@@ -413,10 +416,12 @@ REASONS = ((r"tropical|hurricane|cyclone", "a tropical storm"), (r"fire", "wildf
 WORD = re.compile(r"[a-z0-9]+(?:['’.:-][a-z0-9]+)*")
 SHINGLE = 7
 ORG = re.compile(r"(?:the )?Electric Reliability Council of Texas,? Inc\.?(?: \(ERCOT\))?", re.I)
-LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]", re.I)
+LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]|ocp-apim|"
+                  r"b2clogin|ercot-api", re.I)
 TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", True),
               ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", False),
-              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", False))
+              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", False),
+              ("arm2c", "arm2c", "arm 2c: arm 2b, then 150 more GRPO steps from its step 180", False))
 TRAIN_FILES = ("summary.json", "eval_checkpoints.json", "curves.png")
 
 LIVE_TASKS = pa.schema([
@@ -644,19 +649,21 @@ def hybrid_reference_row(task: dict) -> dict:
 def replay(pv: Preview, e: dict, task: dict) -> dict:
     """The episode's every recorded call played again through a fresh gridsim_core Session on the task, byte for byte,
     then its audit and grade; Mismatch at the first output, audit row or score that differs."""
-    s = pv.core.Session(task, e["tier"])
+    s = pv.core.Session(task, e["tier"], compliant=e["compliant"]) if pv is V5 else pv.core.Session(task, e["tier"])
     for i, step in enumerate(e["steps"]):
         args = dict(step["args"]) | ({"_via": "trigger"} if step["tool"] == pv.core.NOTICE_TOOL else {})
         if s.call(step["tool"], args) != json.dumps(step["output"], ensure_ascii=False, separators=(",", ":")):
             raise Mismatch(f"call {i} ({step['tool']}) does not replay byte for byte")
     if not s.done:
-        s.end_day()
+        s.end_window() if pv is V4 else s.end_floor() if pv is V5 else s.end_day()
     if not (audit := s.audit())["ok"]:
         raise Mismatch(f"the audit fails: {audit['problems'][:2]}")
     g = s.grade()
-    for k in ("reward", "capture_vs_hindsight", "beats_anchor"):
-        if (g[k] is None) != (e.get(k) is None) or (g[k] is not None and abs(float(g[k]) - float(e[k])) > TOLERANCE):
-            raise Mismatch(f"{k} {e.get(k)}; gridsim_core {g[k]}")
+    recorded = e | e["rows"] if pv is V5 else e
+    for k in GRADED.get(pv.version, ("reward", "capture_vs_hindsight", "beats_anchor")):
+        if (g[k] is None) != (recorded.get(k) is None) or (
+                g[k] is not None and abs(float(g[k]) - float(recorded[k])) > TOLERANCE):
+            raise Mismatch(f"{k} {recorded.get(k)}; gridsim_core {g[k]}")
     if abs(g["profit_usd"] - e["profit_usd"]) > TOLERANCE * max(1.0, abs(g["profit_usd"])):
         raise Mismatch(f"profit {e['profit_usd']}; gridsim_core {g['profit_usd']}")
     return g
@@ -680,6 +687,10 @@ def rebuilt_live(pv: Preview, e: dict, task: dict) -> list[dict]:
 
 
 def preview_episode_row(pv: Preview, e: dict, task: dict, g: dict, file: str) -> dict:
+    if pv is V4:
+        return forecast_episode_row(e, task, g, file)
+    if pv is V5:
+        return market_episode_row(e, task, g, file)
     usage = e.get("usage") or {}
     texts = [m["content"] for m in e.get("messages") or [] if m.get("role") == "assistant" and m.get("content")]
     row = {**{k: e.get(k) for k in ("episode_id", "task_id", "tier", "bundle", "path", "model", "trained",
@@ -766,6 +777,441 @@ def preview(pv: Preview, roots: list[Path]) -> tuple[dict[str, bytes], Counter]:
     return files | run_files, counts
 
 
+# ================================================================ v4 and v5 previews
+def market_messages(s: market.Session) -> list[dict]:
+    """The opening path A sends a market floor: the tier's rules card and the watch-0 situation."""
+    return [{"role": "system", "content": market_prompt.system_prompt(s.tier)},
+            {"role": "user", "content": market_prompt.opening(s)}]
+
+
+V4 = Preview("v4", {"train": "ercot-front-v4-train", "eval": "ercot-front-v4-eval", "rtcb": "ercot-front-v4-rtcb",
+                    "showcase": "ercot-front-v4-showcase"}, forecast.TIERS, forecast, forecast_prompt, "events_sha")
+V5 = Preview("v5", {"train": "gridsim-market-train", "eval": "gridsim-market-eval", "rtcb": "gridsim-market-rtcb",
+                    "showcase": "gridsim-market-showcase"}, market.TIERS, market,
+             SimpleNamespace(messages=market_messages), "notices_sha")
+GRADED = {"v4": ("reward", "raw_ratio", "r_hind", "paired_vs_anchor", "beats_anchor"),
+          "v5": ("reward", "compliant_reward", "raw_ratio", "regret_usd", "welfare_ratio", "eps_a")}
+STORE = "raw/v4-store"
+FORECAST_DIR, FORECAST_FILES = "raw/v4-forecast", ("points.json", "reveal.json", "guide-card.json", "coverage.json",
+                                                   "store-index-sha.txt")
+MARKET_DIR, MARKET_FILES = "raw/v5-market", ("manifest.json", "stats.md", "ct_heat_rates.json")
+DAY_KEYS = frozenset((
+    "actuals", "background", "buy", "cleared_mw", "ct", "date", "demand", "df_mw", "dst", "era", "esr", "fidelity",
+    "full_lambda_usd", "hub_dam_usd", "hub_rt_usd", "id", "implied_gas_usd_mmbtu", "lambda_usd", "load", "load_mw",
+    "lsl", "mae_ns_usd", "mae_usd", "max_err_usd", "mw", "ns_hours", "parser", "pool", "renew", "replay", "sell",
+    "simplify_err_usd", "size_mw", "solar_mw", "start_usd", "supply", "units", "wind_mw", "within_ns"))
+ANON = re.compile(r"\d{4}-\d{2}-\d{2}|[ecrlu]\d{1,2}|966-(?:rtcb-)?v1|light|ecrs|rtc\+b")
+SEAT_NAMES = {"A": "bess-A", "B": "bess-B", "G": "gas-G", "R": "renew-R", "L": "retail-L"}
+NAMED = re.compile(r"qse|resource", re.I)
+
+FORECAST_TASKS = pa.schema([
+    ("task_id", STR), ("split", STR), ("pack", STR), ("d1", STR), ("days", I64), ("dates", pa.list_(STR)),
+    ("open", STR), ("era", STR), ("source", STR), ("settlement_point", STR), ("point_kind", STR), ("region", STR),
+    ("zone", STR), ("weather_point", STR), ("label", STR), ("forecast_bust", BOOL), ("site_id", STR),
+    ("site_source", STR), ("coupling", STR), ("pv_mwac", F64), ("pv_mwdc", F64), ("ilr", F64), ("poi_mw", F64),
+    ("poi_import_mw", F64), ("p_mw", F64), ("e_mwh", F64), ("eta", F64), ("c_deg", F64), ("cycle_cap_mwh", F64),
+    ("s0_mwh", F64), ("s_end_min_mwh", F64), ("qualified", pa.list_(STR)), ("tiers", pa.list_(STR)),
+    ("prices", pa.list_(F64)), ("rt", pa.list_(F64)), ("pv_mw", pa.list_(F64)), ("mcpc_da", STR), ("watches", STR),
+    ("notice_count", I64), ("notices", STR), ("deployments", STR), ("vintages", STR), ("vintage_count", I64),
+    ("prompt_tier", STR), ("system_prompt", STR), ("situation", STR), ("prompt", PROMPT), ("tools", STR),
+    ("p_idle", F64), ("p_anchor", F64), ("p_hind", F64), ("p_blind", F64), ("p_naive", F64), ("p_roll3", F64),
+    ("anchor_capture", F64), ("blind_reward", F64), ("naive_reward", F64), ("season", STR), ("neg_hours", I64),
+    ("dam_max", F64), ("rt_max", F64), ("showcase", STR), ("tags", STR), ("flags", STR), ("task", STR),
+])
+FORECAST_REFERENCES = pa.schema([
+    ("task_id", STR), ("split", STR), ("d1", STR), ("source", STR), ("settlement_point", STR), ("site_id", STR),
+    ("label", STR), ("events_sha", STR), ("vintages_sha", STR),
+    *((f"{t.replace('-', '_')}_{k}", typ) for t in forecast.TIERS for k, typ in (
+        ("p_idle", F64), ("p_anchor", F64), ("p_roll", F64), ("p_roll3", F64), ("p_blind", F64), ("p_naive", F64),
+        ("p_hind", F64), ("p_lp", F64), ("anchor_capture", F64), ("anchor_commits", I64), ("anchor", STR),
+        ("baselines", STR))),
+])
+FORECAST_EPISODES = pa.schema([
+    *EPISODE_HEAD, ("source", STR), ("p_anchor", F64), ("raw_ratio", F64), ("r_hind", F64), ("paired_vs_anchor", F64),
+    ("r_roll3", F64), ("p_blind", F64), ("p_naive", F64), ("p_roll3", F64), ("dam_missed", I64), ("dam_submits", I64),
+    ("forecast_calls", I64), ("forecasts_served", I64), ("refusals", I64), ("governor_hours", I64),
+    ("ftp_mwh_charged", F64), ("ftp_mwh_excused", F64), ("end_short_mwh", F64), ("dam", STR), ("book", STR),
+    ("soc_path", pa.list_(F64)), ("cash", STR), *EPISODE_TAIL,
+])
+MARKET_TASKS = pa.schema([
+    ("task_id", STR), ("split", STR), ("pack", STR), ("date", STR), ("era", STR), ("point", STR), ("region", STR),
+    ("p_mw", F64), ("e_mwh", F64), ("duration_h", F64), ("grid_mw", F64), ("eta", F64), ("c_deg", F64),
+    ("s0_mwh", F64), ("s_end_min_mwh", F64), ("seats", STR), ("stratum", STR), ("impact_hours", I64),
+    ("impact_hours_2usd", I64), ("within_ns", F64), ("floor_day_ok", BOOL), ("floor_day", BOOL), ("season", STR),
+    ("neg_hours", I64), ("spike", BOOL), ("notice_day", BOOL), ("rtcb", BOOL), ("showcase", STR),
+    ("notice_count", I64), ("notices", STR), ("fidelity", STR), ("system_prompt", STR), ("situation", STR),
+    ("prompt", PROMPT), ("tools", STR), ("day_prompt", PROMPT), ("day_tools", STR), ("p_idle", F64),
+    ("p_anchor", F64), ("p_br", F64), ("p_br_rt", F64), ("day_p_anchor", F64), ("day_p_br", F64),
+    ("day_p_br_rt", F64), ("anchor_capture", F64), ("price_taker_reward", F64), ("max_withhold_reward", F64),
+    ("replay_A_reward", F64), ("price_taker_gap_usd_per_mw", F64), ("tags", STR), ("flags", STR), ("task", STR),
+])
+MARKET_REFERENCES = pa.schema([
+    ("task_id", STR), ("split", STR), ("date", STR), ("p_mw", F64), ("p_idle", F64), ("forecast_delta_mw", F64),
+    ("forecast_lambda_usd", pa.list_(F64)), ("forecast_hub_usd", pa.list_(F64)), ("forecast_mae_prev_usd", F64),
+    ("replay_lambda_usd", pa.list_(F64)), ("anchor_q_mw", pa.list_(F64)), ("anchor_hub_usd", pa.list_(F64)),
+    *((f"{t.replace('-', '_')}_{k}", typ) for t in market.TIERS for k, typ in (
+        ("p_anchor", F64), ("p_br", F64), ("p_br_rt", F64), ("br_q_mw", pa.list_(F64)))),
+    *((f"{b}_{k}", F64) for b in ("price_taker", "max_withhold", "replay_A") for k in ("profit", "reward")),
+    ("headroom", STR), ("price_taker_gap_usd_per_mw", F64), ("impact_hours", I64), ("baseline_issues", STR),
+])
+MARKET_EPISODES = pa.schema([
+    ("episode_id", STR), ("task_id", STR), ("split", STR), ("tier", STR), ("compliant", BOOL), ("bundle", STR),
+    ("path", STR), ("model", STR), ("model_label", STR), ("trained", STR), ("checkpoint_step", I64), ("seed", I64),
+    ("reward", F64), ("compliant_reward", F64), ("raw_ratio", F64), ("submitted", BOOL), ("beats_anchor", BOOL),
+    ("profit_usd", F64), ("p_idle", F64), ("p_anchor", F64), ("p_br", F64), ("p_br_rt", F64), ("regret_usd", F64),
+    ("regret_norm", F64), ("capture_vs_br", F64), ("price_making_gain_usd_per_mw_day", F64), ("impact_usd", F64),
+    ("profit_usd_per_kw_day", F64), ("welfare_ratio", F64), ("dwl_usd", F64), ("eps_nash", F64), ("eps_a", F64),
+    ("eps_mean", F64), ("rank", I64), ("mitigated_hours", I64), ("clipped_hours", I64), ("offer", STR),
+    ("awards", STR), ("clear", STR), ("hours", STR), ("pnl", STR), ("contracts", STR), ("conduct", STR),
+    ("seat_results", STR), ("commits", I64), *EPISODE_TAIL[1:],
+])
+TABLES = {"v4": (FORECAST_TASKS, FORECAST_REFERENCES, FORECAST_EPISODES),
+          "v5": (MARKET_TASKS, MARKET_REFERENCES, MARKET_EPISODES)}
+ROW_GROUP_BYTES = 16_000_000
+
+
+def row_group(rows: list[dict]) -> int:
+    """Rows per parquet row group, about ROW_GROUP_BYTES each, counting a row's text twice (its prompt or messages
+    repeat it): a v4 row carries megabytes of vintages, a v5 train row a few kilobytes."""
+    mean = sum(len(v) for r in rows for v in r.values() if isinstance(v, str)) / max(1, len(rows))
+    return max(1, int(ROW_GROUP_BYTES // max(1.0, 2 * mean)))
+
+
+def published45(pv: Preview, task: dict, scrub: Scrubber) -> dict:
+    """A v4 or v5 task row as published, notices paraphrased: v4's events sha recomputed in the row and its refs, so
+    the stored references still hold (they read the events' times and levels, never their text); v5's notices sha
+    recomputed (its references never read the notices)."""
+    t = scrub(task)
+    if t != task:
+        if pv is V4:
+            t["events_sha"] = t["refs"]["events_sha"] = forecast.events_sha(t)
+        else:
+            t["notices_sha"] = live.notices_sha(t.get("notices"))
+    return t
+
+
+def forecast_store(root: Path, files: dict[str, bytes]) -> str:
+    """The forecast store the packs were built on, under raw/v4-store/ (its parquet and manifest, nothing else), and
+    the committed forecast card under raw/v4-forecast/; its sha recomputed from the index and checked against the
+    manifest and the packs'."""
+    paths = sorted(p for p in root.rglob("*") if p.is_file())
+    if odd := [p.name for p in paths if p.suffix not in (".parquet", ".json")]:
+        raise SystemExit(f"the forecast store holds {odd}; only parquet and its manifest are published")
+    index = pq.read_table(root / "index.parquet", columns=["kind", "key", "issued_at_utc", "sha"]).to_pylist()
+    sha = FI.vintages_sha([{"kind": r["kind"], "key": r["key"], "issued_at": r["issued_at_utc"], "sha": r["sha"]}
+                           for r in index])
+    want = (data_root() / "forecast" / "store-index-sha.txt").read_text().strip()
+    if sha != json.loads((root / "manifest.json").read_text())["store_sha"] or sha != want:
+        raise SystemExit(f"the forecast store at {root} is {sha}; the packs were built on {want}")
+    files |= {f"{STORE}/{p.relative_to(root).as_posix()}": p.read_bytes() for p in paths}
+    files |= {f"{FORECAST_DIR}/{n}": (data_root() / "forecast" / n).read_bytes() for n in FORECAST_FILES}
+    print(f"v4 store v4-store@{sha[:8]}: {len(index):,} vintages, {len(paths)} files, "
+          f"{sum(p.stat().st_size for p in paths) / 1e6:.0f} MB, its sha recomputed from the index")
+    return sha
+
+
+def held(task: dict, store: Path, sha: str) -> dict:
+    """The window's vintages, inline or read from the store, once the row's stored references hold on them at every
+    tier it carries (same events, vintages and source), so no Session ever re-solves an anchor."""
+    v = task["vintages"]
+    if v.get("store") and v["store"] != f"v4-store@{sha}":
+        raise Mismatch(f"{task['task_id']} was built on {v['store']}; the published store is v4-store@{sha}")
+    sl = FI.slice_for(task, store)
+    for tier in forecast.TIERS:
+        if task["refs"].get(tier) and forecast.stored_refs(task, tier, vintages=sl) is None:
+            raise Mismatch(f"{task['task_id']}: its {tier} references do not hold on the published row")
+    return sl
+
+
+def keys(x) -> Iterator[str]:
+    if isinstance(x, dict):
+        for k, v in x.items():
+            yield k
+            yield from keys(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from keys(v)
+
+
+def anonymous_day(row: dict, where: str) -> None:
+    """A market day as the anonymised build writes it: its keys from the days schema and its strings dates, era and
+    parser tags or seat pool ids; anything else (a resource or QSE name) fails the build."""
+    def walk(x):
+        if isinstance(x, dict):
+            for k, v in x.items():
+                if k not in DAY_KEYS:
+                    raise SystemExit(f"{where} {row['date']}: key {k!r} is not in the anonymised days schema")
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+        elif isinstance(x, str) and not ANON.fullmatch(x):
+            raise SystemExit(f"{where} {row['date']}: {x!r} is not an anonymised id")
+
+    walk(row)
+
+
+def anonymous(x: dict, where: str) -> None:
+    """A v5 task row or episode: its seats named by role, their pools by id, and no resource or QSE field anywhere."""
+    if bad := sorted({k for k in keys(x) if NAMED.search(k)}):
+        raise SystemExit(f"{where} has the fields {bad}; no resource or QSE name may leave the data build")
+    seats = x.get("seats") or {**x["task"]["seats_public"], "A": x["task"]["seat_A"]}
+    for s, seat in seats.items():
+        if seat.get("name") != SEAT_NAMES[s] or not re.fullmatch(r"[ecrl]\d{1,2}", seat.get("pool_id", "e1")):
+            raise SystemExit(f"{where}: seat {s} is {seat.get('name')!r} in pool {seat.get('pool_id')!r}")
+
+
+def market_days(files: dict[str, bytes]) -> None:
+    """v5's market days under raw/v5-market/ (derived, aggregated curves by seat pool id) with their manifest, stats
+    and heat rates, every day checked by anonymous_day."""
+    root, n = data_root() / "market", 0
+    for f in sorted((root / "days").glob("*.jsonl.gz")):
+        with gzip.open(f, "rt") as fh:
+            for line in fh:
+                if line.strip():
+                    anonymous_day(json.loads(line), f.name)
+                    n += 1
+        files[f"{MARKET_DIR}/days/{f.name}"] = f.read_bytes()
+    files |= {f"{MARKET_DIR}/{name}": unticket((root / name).read_bytes()) for name in MARKET_FILES}
+    print(f"v5 market days: {n} days in {len(list((root / 'days').glob('*.jsonl.gz')))} files, every key and string "
+          f"anonymised (seat pool ids, no resource or QSE name)")
+
+
+def forecast_task_row(task: dict, raw: str, pack: str, sl: dict) -> dict:
+    """One window, with the opening path A and B' send at its headline tier (front; front-lite in train)."""
+    tier = "front" if task["refs"].get("front") else "front-lite"
+    prompt = forecast_prompt.messages(forecast.Session(task, tier, vintages=sl))
+    site, bess, tags, r, v = task["site"], task["site"]["bess"], task["tags"], task["refs"][tier], task["vintages"]
+    return {
+        **{k: task[k] for k in ("task_id", "split", "d1", "days", "dates", "open", "era", "source", "settlement_point",
+                                "point_kind", "region", "zone", "weather_point", "prices", "rt", "pv_mw")},
+        "pack": pack, "label": tags["label"], "forecast_bust": tags.get("forecast_bust"), "site_id": site["site_id"],
+        "site_source": site["source"],
+        **{k: site[k] for k in ("coupling", "pv_mwac", "pv_mwdc", "ilr", "poi_mw", "poi_import_mw", "qualified")},
+        **{k: bess[k] for k in ("p_mw", "e_mwh", "eta", "c_deg", "cycle_cap_mwh", "s0_mwh", "s_end_min_mwh")},
+        "tiers": [t for t in forecast.TIERS if task["refs"].get(t)], "mcpc_da": json.dumps(task["mcpc_da"]),
+        "watches": json.dumps(tags.get("watches")), "notice_count": len(task["notices"]),
+        "notices": json.dumps(task["notices"], ensure_ascii=False), "deployments": json.dumps(task["deployments"]),
+        "vintages": v["store"] if v.get("series") is None else "inline",
+        "vintage_count": None if v.get("series") is None else len(v["series"]), "prompt_tier": tier,
+        "system_prompt": prompt[0]["content"], "situation": prompt[1]["content"], "prompt": prompt,
+        "tools": json.dumps(forecast_prompt.tool_schemas(tier)),
+        **{k: r.get(k) for k in ("p_idle", "p_anchor", "p_hind", "p_blind", "p_naive", "p_roll3")},
+        "anchor_capture": capture(r["p_anchor"], r["p_idle"], r["p_hind"]),
+        "blind_reward": r["baselines"]["blind"]["reward"], "naive_reward": r["baselines"]["naive"]["reward"],
+        **{k: tags.get(k) for k in ("season", "neg_hours", "dam_max", "rt_max", "showcase")},
+        "tags": json.dumps(tags), "flags": json.dumps(task.get("flags")), "task": raw,
+    }
+
+
+def forecast_reference_row(task: dict) -> dict:
+    r = task["refs"]
+    row = {**{k: task[k] for k in ("task_id", "split", "d1", "source", "settlement_point")},
+           "site_id": task["site"]["site_id"], "label": task["tags"]["label"], "events_sha": r["events_sha"],
+           "vintages_sha": r["vintages_sha"]}
+    for tier in forecast.TIERS:
+        t, c = r.get(tier) or {}, tier.replace("-", "_")
+        row |= {f"{c}_{k}": t.get(k) for k in ("p_idle", "p_anchor", "p_roll", "p_roll3", "p_blind", "p_naive",
+                                               "p_hind", "p_lp")}
+        row |= {f"{c}_anchor_capture": capture(t["p_anchor"], t["p_idle"], t["p_hind"]) if t else None,
+                f"{c}_anchor_commits": (t.get("anchor") or {}).get("commits"),
+                f"{c}_anchor": json.dumps(t["anchor"]) if t else None,
+                f"{c}_baselines": json.dumps(t["baselines"]) if t else None}
+    return row
+
+
+def market_task_row(task: dict, raw: str, pack: str) -> dict:
+    """One floor, with the path-B prompt (floor-sprint) and, where the floor also runs as floor-day, the opening path
+    A sends there."""
+    a, tags, r = task["seats"]["A"], task["tags"], task["refs"]
+    sp, day, base = r["floor-sprint"], r["floor-day"], r["floor-sprint"]["baselines"]
+    prompt = market_prompt.sprint_messages(task)
+    opening = market_messages(market.Session(task, "floor-day")) if tags.get("floor_day_ok") else None
+    return {
+        **{k: task[k] for k in ("task_id", "split", "date", "era", "point", "region")}, "pack": pack,
+        **{k: a[k] for k in ("p_mw", "e_mwh", "grid_mw", "eta", "c_deg", "s0_mwh", "s_end_min_mwh")},
+        "duration_h": a["e_mwh"] / a["p_mw"],
+        "seats": json.dumps({s: {"name": v["name"], "kind": v["kind"], "size_mw": round(market.seat_size(s, v), 2)}
+                             for s, v in task["seats"].items() if s != "A"}),
+        **{k: tags.get(k) for k in ("stratum", "impact_hours", "impact_hours_2usd", "within_ns", "floor_day_ok",
+                                    "floor_day", "season", "neg_hours", "spike", "notice_day", "rtcb", "showcase")},
+        "notice_count": len(task.get("notices") or []),
+        "notices": json.dumps(task.get("notices") or [], ensure_ascii=False), "fidelity": json.dumps(task["fidelity"]),
+        "system_prompt": prompt[0]["content"], "situation": prompt[1]["content"], "prompt": prompt,
+        "tools": json.dumps(market_prompt.tool_schemas("floor-sprint")), "day_prompt": opening,
+        "day_tools": json.dumps(market_prompt.tool_schemas("floor-day")) if opening else None,
+        "p_idle": r["p_idle"], **{k: sp[k] for k in ("p_anchor", "p_br", "p_br_rt")},
+        **{f"day_{k}": day.get(k) for k in ("p_anchor", "p_br", "p_br_rt")},
+        "anchor_capture": capture(sp["p_anchor"], r["p_idle"], sp["p_br"]),
+        **{f"{b}_reward": (base.get(b) or {}).get("reward") for b in ("price_taker", "max_withhold", "replay_A")},
+        "price_taker_gap_usd_per_mw": r.get("price_taker_gap_usd_per_mw"), "tags": json.dumps(tags),
+        "flags": json.dumps(task.get("flags")), "task": raw,
+    }
+
+
+def market_reference_row(task: dict) -> dict:
+    r = task["refs"]
+    sp, fc, base = r["floor-sprint"], r["forecast"], r["floor-sprint"]["baselines"]
+    row = {**{k: task[k] for k in ("task_id", "split", "date")}, "p_mw": task["seats"]["A"]["p_mw"],
+           "p_idle": r["p_idle"], "forecast_delta_mw": fc.get("delta_mw"),
+           "forecast_lambda_usd": fc.get("forecast_lambda_usd"), "forecast_hub_usd": fc.get("forecast_hub_usd"),
+           "forecast_mae_prev_usd": fc.get("mae_prev_usd"), "replay_lambda_usd": r.get("replay_lambda_usd"),
+           "anchor_q_mw": sp["anchor"]["q_mw"], "anchor_hub_usd": sp["anchor"]["hub_usd"],
+           "headroom": json.dumps(r.get("headroom_usd_per_mw")),
+           "price_taker_gap_usd_per_mw": r.get("price_taker_gap_usd_per_mw"), "impact_hours": r.get("impact_hours"),
+           "baseline_issues": json.dumps(r["baseline_issues"]) if r.get("baseline_issues") else None}
+    for tier in market.TIERS:
+        t, c = r[tier], tier.replace("-", "_")
+        row |= {f"{c}_p_anchor": t.get("p_anchor"), f"{c}_p_br": t.get("p_br"), f"{c}_p_br_rt": t.get("p_br_rt"),
+                f"{c}_br_q_mw": (t.get("br") or {}).get("q_mw")}
+    for b in ("price_taker", "max_withhold", "replay_A"):
+        row |= {f"{b}_{k}": (base.get(b) or {}).get(k) for k in ("profit", "reward")}
+    return row
+
+
+def chat_columns(pv: Preview, e: dict, task: dict, file: str) -> dict:
+    usage = e.get("usage") or {}
+    texts = [m["content"] for m in e.get("messages") or [] if m.get("role") == "assistant" and m.get("content")]
+    return {"tool_calls": sum(s["tool"] != pv.core.NOTICE_TOOL for s in e["steps"]), "watches": len(e["watches"]),
+            "notices": len(e["notices"]), "steps": json.dumps(e["steps"], ensure_ascii=False),
+            "messages": to_messages(rebuilt_live(pv, e, task)), "transcript": "rebuilt",
+            "assistant_text": "\n\n".join(texts) or None, "input_tokens": usage.get("input_tokens"),
+            "output_tokens": usage.get("output_tokens"), "usd": usage.get("usd"),
+            "wall_seconds": e.get("wall_seconds"), "audit_ok": True, "verified": True, "file": file}
+
+
+def forecast_episode_row(e: dict, task: dict, g: dict, file: str) -> dict:
+    return {**{k: e.get(k) for k in ("episode_id", "task_id", "tier", "source", "bundle", "path", "model", "trained",
+                                     "checkpoint_step", "seed", "reward", "profit_usd", "soc_path")},
+            "split": task["split"], "model_label": LABELS.get(e["model"], e["model"]),
+            "capture_vs_hindsight": capture(g["profit_usd"], g["p_idle"], g["p_hind"]),
+            **{k: g[k] for k in ("beats_anchor", "p_idle", "p_hind", "p_anchor", "raw_ratio", "r_hind",
+                                 "paired_vs_anchor", "r_roll3", "p_blind", "p_naive", "p_roll3", "dam_missed",
+                                 "dam_submits", "forecast_calls", "refusals", "governor_hours", "ftp_mwh_charged",
+                                 "ftp_mwh_excused", "end_short_mwh", "commits")},
+            "forecasts_served": len(e.get("forecasts_served") or []),
+            **{k: json.dumps(e.get(k)) for k in ("dam", "book", "cash")}, **chat_columns(V4, e, task, file)}
+
+
+def market_episode_row(e: dict, task: dict, g: dict, file: str) -> dict:
+    return {**{k: e.get(k) for k in ("episode_id", "task_id", "tier", "compliant", "bundle", "path", "model",
+                                     "trained", "checkpoint_step", "seed", "reward", "compliant_reward", "raw_ratio",
+                                     "profit_usd")},
+            "split": task["split"], "model_label": LABELS.get(e["model"], e["model"]),
+            **{k: g.get(k) for k in ("submitted", "beats_anchor", "p_idle", "p_anchor", "p_br", "p_br_rt",
+                                     "regret_usd", "regret_norm", "capture_vs_br", "price_making_gain_usd_per_mw_day",
+                                     "impact_usd", "profit_usd_per_kw_day", "welfare_ratio", "dwl_usd", "eps_nash",
+                                     "eps_a", "eps_mean", "rank")},
+            "mitigated_hours": len(g["mitigated_hours"]), "clipped_hours": len(g["clipped_hours"]),
+            "offer": json.dumps(e["offers"]["A"]), "conduct": json.dumps(g["conduct"]),
+            **{k: json.dumps(e.get(k)) for k in ("awards", "clear", "hours", "pnl", "contracts", "seat_results")},
+            "commits": sum(s["tool"] == "commit_schedule" for s in e["steps"]), **chat_columns(V5, e, task, file)}
+
+
+def preview45(pv: Preview, roots: list[Path], store: Path) -> tuple[dict[str, bytes], Counter]:
+    """v4's or v5's tasks, references and episodes, one row per window or floor, the packs under raw/packs/ and the
+    episodes under runs/, notice text paraphrased everywhere; beside them v4's forecast store, which every row that
+    reads it is checked against, or v5's market days, checked to name no resource or QSE."""
+    files: dict[str, bytes] = {}
+    packs = {split: pack_lines(pack) for split, pack in pv.packs.items()}
+    originals = {split: [json.loads(line) for line in lines] for split, lines in packs.items()}
+    scrub = Scrubber([t for ts in originals.values() for t in ts])
+    if pv is V4:
+        sha = forecast_store(store, files)
+    else:
+        market_days(files)
+    by_id: dict[str, tuple[dict, dict]] = {}
+    task_table, reference_table, episode_table = TABLES[pv.version]
+    for split, pack in pv.packs.items():
+        public = [published45(pv, t, scrub) for t in originals[split]]
+        lines = [line if p == t else json.dumps(p, ensure_ascii=False, separators=(",", ":"))
+                 for line, t, p in zip(packs[split], originals[split], public, strict=True)]
+        by_id |= {t["task_id"]: (t, p) for t, p in zip(originals[split], public, strict=True)}
+        if pv is V4:
+            rows = [forecast_task_row(p, line, pack, held(p, store, sha))
+                    for p, line in zip(public, lines, strict=True)]
+            refs = [forecast_reference_row(p) for p in public]
+        else:
+            for p in public:
+                anonymous(p, f"{pack} {p['task_id']}")
+            rows = [market_task_row(p, line, pack) for p, line in zip(public, lines, strict=True)]
+            refs = [market_reference_row(p) for p in public]
+        files[f"tasks/{pv.version}/{split}.parquet"] = parquet(rows, task_table, row_group(rows))
+        files[f"references/{pv.version}/{split}.parquet"] = parquet(refs, reference_table)
+        files[f"raw/packs/{pack}.jsonl"] = ("\n".join(lines) + "\n").encode()
+        files[f"raw/packs/{pack}.manifest.json"] = unticket((data_root() / pack / "manifest.json").read_bytes())
+    if pv is V4:
+        print("v4: every row's stored references hold on its published row and vintages ("
+              + ", ".join(f"{s} {len(ts)}" for s, ts in originals.items()) + "; train reads the store)")
+    rows, run_files, counts = preview_episodes(pv, roots, by_id, scrub)
+    if pv is V5:
+        for path, content in run_files.items():
+            anonymous(json.loads(content), path)
+    for split in pv.packs:
+        if any(r["split"] == split for r in rows):
+            part = [r for r in rows if r["split"] == split]
+            files[f"episodes/{pv.version}/{split}.parquet"] = parquet(part, episode_table, row_group(part))
+    return files | run_files, counts
+
+
+def board_v4_markdown(c: dict) -> str:
+    """The v4 pilot's board from its eval card: each tier's mean reward with its CI, by label, and the weight-0 rows."""
+    def f(x, fmt=".3f"):
+        return "–" if x is None else format(x, fmt)
+
+    lines = ["| Model | Tier | Windows | Mean R (95% CI) | R front / calm | r_hind | Paired vs anchor | Beats anchor "
+             "| Forecast calls | $ per episode |", "|---|---|---:|---|---|---:|---:|---:|---:|---:|"]
+    for m in c["models"]:
+        lab = m.get("by_label") or {}
+        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | **{f(m['mean'], '.4f')}** "
+                     f"({f(m['ci95'][0], '.4f')} to {f(m['ci95'][1], '.4f')}) | {f(lab.get('front'))} / "
+                     f"{f(lab.get('calm'))} | "
+                     f"{f(m['hindsight_capture'])} | {f(m['paired_vs_anchor'], '+.3f')} | "
+                     f"{f(100 * m['beats_anchor'], '.0f')}% | {f(m['forecast_calls'], '.1f')} | "
+                     f"${f(m['usd_per_episode'], '.2f')} |")
+    return "\n".join(lines)
+
+
+def board_v5_markdown(c: dict) -> str:
+    """The v5 pilot's board from its eval card: R and the compliant score with their CIs, and the weight-0 rows."""
+    def f(x, fmt=".3f"):
+        return "–" if x is None else format(x, fmt)
+
+    def ci(d):
+        return f"**{f(d['mean'], '.4f')}** ({f(d['ci95'][0], '.4f')} to {f(d['ci95'][1], '.4f')})"
+
+    lines = ["| Model | Tier | Floors | Mean R (95% CI) | Compliant (95% CI) | Hindsight capture | Welfare ratio "
+             "| Beats anchor | Mitigated hours | $ per episode |", "|---|---|---:|---|---|---:|---:|---:|---:|---:|"]
+    for m in c["models"]:
+        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | {ci(m['reward'])} | "
+                     f"{ci(m['compliant_reward'])} | {f(m['hindsight_capture'])} | {f(m['welfare_ratio'])} | "
+                     f"{f(100 * m['beats_anchor'], '.0f')}% | {m['mitigated_hours']} | "
+                     f"${f(m['usd_per_episode'], '.3f')} |")
+    return "\n".join(lines)
+
+
+def distinct_strings(content: bytes) -> list[str]:
+    """A store table's string values, each once (its vintages are numbers, which hold no text)."""
+    schema = pq.read_schema(io.BytesIO(content))
+    cols = [f.name for f in schema if pa.types.is_string(f.type) or pa.types.is_large_string(f.type)
+            or (pa.types.is_list(f.type) and pa.types.is_string(f.type.value_type))]
+    t = pq.read_table(io.BytesIO(content), columns=cols)
+    out: list[str] = []
+    for name in cols:
+        c = t[name]
+        c = pc.list_flatten(c) if pa.types.is_list(c.type) else c
+        out += pc.unique(c).drop_null().to_pylist()
+    return out
+
+
+def scannable(files: dict[str, bytes]) -> dict[str, bytes]:
+    """The files agentenv-hf's scan reads: the store's tables as their string values, since a scan of their rows
+    would hold every vintage in memory."""
+    return {(f"{p}.strings" if p.startswith(f"{STORE}/") and p.endswith(".parquet") else p):
+            ("\n".join(distinct_strings(c)).encode() if p.startswith(f"{STORE}/") and p.endswith(".parquet") else c)
+            for p, c in files.items()}
+
+
 def unticket(content: bytes) -> bytes:
     """A stats file, manifest or board as published: its tracker ids taken out of the prose."""
     text = re.sub(r",\s*FD-\d+|\s*\(FD-\d+\)", "", content.decode())
@@ -781,15 +1227,21 @@ class Extras:
     v3_results: Path
     train: Path
     preview_ref: str
+    v4_runs: list[Path]
+    v5_runs: list[Path]
+    v4_results: Path
+    v5_results: Path
+    store: Path
 
 
 def previews(x: Extras) -> tuple[dict[str, bytes], dict[str, str]]:
-    """The v2 and v3 previews, their pilots' eval cards and boards, the pack statistics and the training summary; and
-    the card's blocks made from them."""
+    """The v2 to v5 previews, their pilots' eval cards and boards, the pack statistics, v4's forecast store, v5's
+    market days and the training summary; and the card's blocks made from them."""
     files: dict[str, bytes] = {}
     blocks: dict[str, str] = {}
-    for pv, roots, results in ((V2, x.v2_runs, x.v2_results), (V3, x.v3_runs, x.v3_results)):
-        out, counts = preview(pv, roots)
+    for pv, roots, results in ((V2, x.v2_runs, x.v2_results), (V3, x.v3_runs, x.v3_results),
+                               (V4, x.v4_runs, x.v4_results), (V5, x.v5_runs, x.v5_results)):
+        out, counts = preview(pv, roots) if pv.version in ("v2", "v3") else preview45(pv, roots, x.store)
         files |= out
         print(f"{pv.version}: {sum(counts.values())} episodes replayed byte for byte and graded again, 0 mismatched ("
               + ", ".join(f"{k} {n}" for k, n in sorted(counts.items())) + ")")
@@ -798,8 +1250,9 @@ def previews(x: Extras) -> tuple[dict[str, bytes], dict[str, str]]:
                 files[f"results/{name}"] = unticket((results / name).read_bytes())
     for name in PREVIEW_STATS:
         files[f"raw/packs/{name}"] = unticket((data_root() / name).read_bytes())
-    if "results/eval-v3.json" in files:
-        blocks["board:v3"] = board_v3_markdown(json.loads(files["results/eval-v3.json"]))
+    for v, board in (("v3", board_v3_markdown), ("v4", board_v4_markdown), ("v5", board_v5_markdown)):
+        if f"results/eval-{v}.json" in files:
+            blocks[f"board:{v}"] = board(json.loads(files[f"results/eval-{v}.json"]))
     train_files, arms = training(x.train)
     files |= train_files
     if arms:
@@ -829,17 +1282,20 @@ def strings(x) -> Iterator[str]:
 
 
 def readable(path: str, content: bytes):
+    if path.startswith(f"{STORE}/") and path.endswith(".parquet"):
+        return distinct_strings(content)
     if path.endswith(".parquet"):
         return pq.read_table(io.BytesIO(content)).to_pylist()
-    if path.endswith(".jsonl"):
-        return [json.loads(line) for line in content.decode().splitlines() if line.strip()]
+    if path.endswith((".jsonl", ".jsonl.gz")):
+        text = (gzip.decompress(content) if path.endswith(".gz") else content).decode()
+        return [json.loads(line) for line in text.splitlines() if line.strip()]
     if path.endswith(".json"):
         return json.loads(content)
     return content.decode() if path.endswith(".md") else None
 
 
 def check_text(files: dict[str, bytes], paths: list[str]) -> int:
-    """Fails the build when a published v2 or v3 file holds a run of SHINGLE words from an ERCOT notice of the archive
+    """Fails the build when a published v2 to v5 file holds a run of SHINGLE words from an ERCOT notice of the archive
     (its text or title), or a bucket, internal host, key or ticket id; returns how many strings were checked."""
     with gzip.open(data_root() / "notices/notices.jsonl.gz", "rt") as f:
         archive = [json.loads(line) for line in f if line.strip()]
@@ -953,9 +1409,19 @@ def main():
                     help="The folder with eval-v2.json, board-v2.md and pilot-v2.json, when there are.")
     ap.add_argument("--v3-results", type=Path, default=ROOT / "results",
                     help="The folder with eval-v3.json, board-v3.md and pilot-v3.json, when there are.")
+    ap.add_argument("--v4-runs", type=Path, action="append",
+                    help="The same for gridsim.episode/v4 JSON. Default: the four v4-pilot-sol* folders.")
+    ap.add_argument("--v5-runs", type=Path, action="append",
+                    help="The same for gridsim.episode/v5 JSON. Default: the three v5-pilot-sol* folders.")
+    ap.add_argument("--v4-results", type=Path, default=ROOT / "results",
+                    help="The folder with eval-v4.json, board-v4.md and pilot-v4.json, when there are.")
+    ap.add_argument("--v5-results", type=Path, default=ROOT / "results",
+                    help="The folder with eval-v5.json, board-v5.md and pilot-v5.json, when there are.")
+    ap.add_argument("--forecast-store", type=Path, default=FI.store_root(),
+                    help="The v4 forecast store the packs were built on, published under raw/v4-store/.")
     ap.add_argument("--train", type=Path, default=ROOT / "results/train",
-                    help="results/train: arm 1 at its top, arm 2 in arm2/, arm 2b in arm2b/ when it has landed.")
-    ap.add_argument("--preview-ref", default="lane-hub2", help="The branch the card's v2 and v3 links point at.")
+                    help="results/train: arm 1 at its top, arms 2, 2b and 2c in arm2/, arm2b/ and arm2c/.")
+    ap.add_argument("--preview-ref", default="lane-hub2", help="The branch the card's preview links point at.")
     args = ap.parse_args()
     plugin = f"agentenv-gridsim @ git+{REPO}@{args.plugin_ref}"
     runs_root = ROOT / "results/runs"
@@ -963,10 +1429,13 @@ def main():
         args.v2_runs or [runs_root / "v2-pilot-sol", runs_root / "v2-pilot-sol-hero"],
         args.v3_runs or [runs_root / n for n in ("hybrid-reference", "v3-pilot-sol", "v3-pilot-sol-energy",
                                                   "v3-pilot-sol-show-energy", "v3-pilot-sol-show-reserves")],
-        args.v2_results, args.v3_results, args.train, args.preview_ref)
+        args.v2_results, args.v3_results, args.train, args.preview_ref,
+        args.v4_runs or [runs_root / f"v4-pilot-sol{n}" for n in ("", "-lite", "-smoke", "-show")],
+        args.v5_runs or [runs_root / f"v5-pilot-sol-{n}" for n in ("amend", "day", "show")],
+        args.v4_results, args.v5_results, args.forecast_store)
     with namespace_routing():
         files = build(args.runs, args.results, args.bundle, plugin, extras)
-    scan(files, known_values())
+    scan(scannable(files), known_values())
     write(files, args.out)
     for path in sorted(files):
         rows = f"{pq.read_metadata(io.BytesIO(files[path])).num_rows:7} rows" if path.endswith(".parquet") else ""

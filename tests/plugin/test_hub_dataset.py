@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from gridsim_core import forecast
 from gridsim_core.task import load_pack
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,18 +38,51 @@ def test_published_rows_quote_no_notice_text_and_keep_their_references(pv, pack)
         assert pv.core.Session(r, pv.tiers[0]).situation()
 
 
+@pytest.mark.parametrize("pv, pack", [(hub.V4, "ercot-front-v4-showcase"), (hub.V5, "gridsim-market-showcase")])
+def test_v4_and_v5_rows_quote_no_notice_text_and_keep_their_references(pv, pack):
+    tasks = load_pack(pack)
+    scrub = hub.Scrubber(tasks)
+    rows = [hub.published45(pv, t, scrub) for t in tasks]
+    assert rows != tasks
+    files = {f"raw/packs/{pack}.jsonl": "\n".join(json.dumps(r) for r in rows).encode()}
+    assert hub.check_text(files, list(files)) > 0
+    for t, r in zip(tasks, rows, strict=True):
+        assert {k: v for k, v in r["refs"].items() if k != "events_sha"} == \
+            {k: v for k, v in t["refs"].items() if k != "events_sha"}
+        if pv is hub.V4:
+            assert all(forecast.stored_refs(r, tier) for tier in forecast.TIERS)
+        else:
+            hub.anonymous(r, pack)
+
+
+def test_market_days_and_seats_carry_no_resource_or_qse_name():
+    day = {"date": "2024-08-20", "parser": "966-v1", "pool": {"esr": [{"id": "e1", "size_mw": 10.0}]}}
+    hub.anonymous_day(day, "x")
+    for bad in ({**day, "qse": "QXYZ"}, {**day, "pool": {"esr": [{"id": "ALPHA_ESS1"}]}}):
+        with pytest.raises(SystemExit):
+            hub.anonymous_day(bad, "x")
+    task = load_pack("gridsim-market-showcase")[0]
+    hub.anonymous(task, "x")
+    task["seats"]["B"]["name"] = "ALPHA_ESS1"
+    with pytest.raises(SystemExit):
+        hub.anonymous(task, "x")
+
+
 @pytest.mark.parametrize("pv, run", [
     (hub.V2, "v2-pilot-sol-hero/live-v2-2023-09-06-HB_NORTH-2h-l-openai-gpt-6.1-sol-r1.json"),
-    (hub.V3, "hybrid-reference/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-reserves-anchor.json")])
+    (hub.V3, "hybrid-reference/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-reserves-anchor.json"),
+    (hub.V4, "v4-pilot-sol-show/front-v4-2026-01-24-HB_NORTH-pv150-b100x2h-poi150-openai-gpt-6.1-sol-r1.json"),
+    (hub.V5, "v5-pilot-sol-show/mkt-v5-2026-01-25-A800x2-e1-openai-gpt-6.1-sol-r1.json")])
 def test_an_episode_replays_on_the_plugin_row_and_paraphrased_on_the_published_row(pv, run):
     e = json.loads((ROOT / "results/runs" / run).read_text())
     tasks = {t["task_id"]: t for t in load_pack(pv.packs["showcase"])}
     scrub = hub.Scrubber(list(tasks.values()))
     task = tasks[e["task_id"]]
+    publish = hub.published if pv.version in ("v2", "v3") else hub.published45
     assert hub.replay(pv, e, task)["reward"] == pytest.approx(e["reward"], abs=1e-6)
     pub = scrub(e)
     assert pub != e
-    assert hub.replay(pv, pub, hub.published(pv, task, scrub))["reward"] == pytest.approx(e["reward"], abs=1e-6)
+    assert hub.replay(pv, pub, publish(pv, task, scrub))["reward"] == pytest.approx(e["reward"], abs=1e-6)
     e["steps"][-1]["output"] = {"tampered": True}
     with pytest.raises(hub.Mismatch):
         hub.replay(pv, e, task)
