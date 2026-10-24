@@ -192,7 +192,8 @@ def summary(fs: list[dict]) -> dict:
            "input_tokens": m("input_tokens"), "output_tokens": m("output_tokens"), "cached_tokens": m("cached_tokens"),
            "errors": dict(sum((Counter(f["errors"]) for f in fs), Counter()).most_common()),
            "fidelity_spearman_reward": spearman([f["within_ns"] for f in fs], [f["reward"] for f in fs]),
-           "fidelity_spearman_regret": spearman([f["within_ns"] for f in fs], [f["regret_norm"] for f in fs])}
+           "fidelity_spearman_regret": spearman([f["within_ns"] for f in fs], [f["regret_norm"] for f in fs]),
+           "spearman_reward_welfare": spearman([f["reward"] for f in fs], [f["welfare_ratio"] for f in fs])}
     for b in BASELINES:
         if not any(b in f["baselines"] for f in fs):
             continue
@@ -371,7 +372,10 @@ def main() -> None:
                           f"{_f(m['fidelity_spearman_reward'], '.2f')}, with regret "
                           f"{_f(m['fidelity_spearman_regret'], '.2f')}; terciles "
                           + "; ".join(f"{t['within_ns'][0]:.2f}-{t['within_ns'][1]:.2f}: R {_f(t['reward'])} "
-                                      f"(n {t['n']})" for t in terciles(ds)) + f"; errors {_counts(m['errors'])}.", ""]
+                                      f"(n {t['n']})" for t in terciles(ds))
+                          + f"; R with welfare ratio Spearman {_f(m['spearman_reward_welfare'], '.2f')}"
+                          + "".join(f" ({c[0]} {_f(c[1]['spearman_reward_welfare'], '.2f')})" for c in cells[1:])
+                          + f"; errors {_counts(m['errors'])}.", ""]
     if "floor-day" in sets and "floor-sprint" in sets:
         out["paired_day_minus_sprint"] = {}
         for label, ds in sets["floor-sprint"].items():
