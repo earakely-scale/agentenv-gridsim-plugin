@@ -3,7 +3,9 @@ plays the `full` harness through `agent-env run` (the gridsim env and gridsim-ll
 tests/plugin/fake_litellm.py, on this machine, answers the agent with scripted turns: get_situation and a check of
 greedy, then a check of the DP optimum, then its submit. It fails unless the sweep scores 1.0 with two checks and four
 calls, `agent-env gridsim episodes` replays every recorded call into a gridsim.episode/v1 file that gridsim_core
-agrees with, and `sweep report` writes the card and the board.
+agrees with, and `sweep report` writes the card and the board. Then the installed bundle's `oneshot` task plays the
+fixture day with a scripted submit of the optimum: it must pass, and the request the agent sends must carry
+gridsim_core's oneshot system prompt, situation and submit_schedule schema byte for byte.
 
 Run it from the checkout after `agent-env gridsim setup --agent`, with the dev extra installed:
 
@@ -22,10 +24,12 @@ from fake_litellm import FakeLiteLLM
 
 from agentenv_gridsim.server import read_pack
 from gridsim_core.grade import grade
-from gridsim_core.task import data_root
+from gridsim_core.prompt import messages, tool_schemas
+from gridsim_core.task import data_root, index_pack
 
 MODEL = "openai/gpt-6.1-sol"
 CONFIG = Path(__file__).resolve().parents[1] / ".agentenv" / "config.toml"
+ONESHOT_TASK = "dam-v1-2022-11-14-LZ_WEST-2h-m"
 
 
 def call(name: str, arguments: dict, i: int) -> dict:
@@ -54,6 +58,30 @@ def gridsim(*args: str, env: dict, cwd: Path) -> str:
     return out.stdout
 
 
+def endpoint(port: str) -> dict:
+    return {**os.environ, "LITELLM_BASE_URL": f"http://host.docker.internal:{port}", "LITELLM_API_KEY": "sk-fake"} | (
+        {"AGENT_ENV_CONFIG": str(CONFIG)} if CONFIG.is_file() else {})
+
+
+def oneshot() -> None:
+    """The bundle's oneshot task on a scripted submit: it passes, and the agent's request is path B's, byte for byte."""
+    task = index_pack("fixtures")[ONESHOT_TASK]
+    submit = {"content": "", "reasoning": "", "stop": "completed", "usage": {"input": 3000, "output": 500},
+              "tool_calls": [call("submit_schedule", {"actions": task["refs"]["foresight"]["opt"]}, 0)]}
+    with FakeLiteLLM([submit], host="0.0.0.0") as fake:
+        out = subprocess.run([sys.executable, "-m", "agent_env.cli", "run", "gridsim", "--task", "oneshot", "--model",
+                              MODEL], env=endpoint(fake.url.rsplit(":", 1)[1]), capture_output=True, text=True)
+        print(out.stdout + out.stderr)
+        assert "tasks/oneshot.json v" in out.stdout and ": passed (grade: 1)" in out.stdout, "oneshot did not pass"
+        [(_, _, body)] = fake.requests
+    system, user = messages(task, "foresight", 0)
+    tools = [{"type": "function", "function": {k: t[k] for k in ("name", "description", "parameters")}}
+             for t in body["tools"]]
+    assert json.dumps(tools) == json.dumps(tool_schemas("foresight", 0)), body["tools"]
+    assert body["instructions"] == system["content"] and body["input"][0]["content"][0]["text"] == user["content"]
+    assert (body["reasoning"]["effort"], body["max_output_tokens"]) == ("high", 4096)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--task", help="A fixture task id (default: the first fixture).")
@@ -65,8 +93,7 @@ def main() -> None:
     cwd.mkdir(parents=True, exist_ok=True)
     with FakeLiteLLM(turns(task), host="0.0.0.0") as fake:
         port = fake.url.rsplit(":", 1)[1]
-        env = {**os.environ, "AGENT_ENV_CONFIG": str(CONFIG), "LITELLM_BASE_URL": f"http://host.docker.internal:{port}",
-               "LITELLM_API_KEY": "sk-fake-scripted"}
+        env = endpoint(port)
         gridsim("sweep", "run", "--name", "scripted-e2e", "--models", MODEL, "--pack", "fixtures", "--tasks",
                 task["task_id"], "--cap-usd", "1", "--episode-cap-usd", "0.5", "--parallel", "1", env=env, cwd=cwd)
         assert len(fake.requests) == 3, f"the agent sent {len(fake.requests)} requests, not 3"
@@ -86,7 +113,9 @@ def main() -> None:
     gridsim("sweep", "report", "scripted-e2e", env=env, cwd=cwd)
     card = json.loads((cwd / "results/eval-v1.json").read_text())
     assert card["models"][0]["mean"] == expected["reward"] and card["baselines"]["idle"] == 0.2
-    print(f"scripted e2e passed: reward {row['reward']}, episode {path}, card {cwd / 'results/eval-v1.json'}")
+    oneshot()
+    print(f"scripted e2e passed: reward {row['reward']}, episode {path}, card {cwd / 'results/eval-v1.json'}; "
+          "oneshot passed on path B's prompt and schema")
 
 
 if __name__ == "__main__":
