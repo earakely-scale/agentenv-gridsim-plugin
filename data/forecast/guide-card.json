@@ -1,0 +1,954 @@
+{
+ "guide": {
+  "2021": {
+   "da": {
+    "14-38h": {
+     "n": 276588,
+     "pinball_p10": 24.975,
+     "pinball_p50": 30.682,
+     "pinball_p90": 28.677,
+     "coverage_80": 0.5741,
+     "mae_p50": 61.365,
+     "mae_persistence": 60.715
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 41.198,
+     "pinball_p50": 48.942,
+     "pinball_p90": 47.257,
+     "coverage_80": 0.5639,
+     "mae_p50": 97.885,
+     "mae_persistence": 98.249
+    }
+   },
+   "rt": {
+    "0-14h": {
+     "n": 264264,
+     "pinball_p10": 14.173,
+     "pinball_p50": 27.997,
+     "pinball_p90": 22.73,
+     "coverage_80": 0.6741,
+     "mae_p50": 55.995,
+     "mae_persistence": 75.801
+    },
+    "14-38h": {
+     "n": 453024,
+     "pinball_p10": 22.555,
+     "pinball_p50": 36.788,
+     "pinball_p90": 32.409,
+     "coverage_80": 0.6382,
+     "mae_p50": 73.575,
+     "mae_persistence": 104.371
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 45.165,
+     "pinball_p50": 60.022,
+     "pinball_p90": 53.745,
+     "coverage_80": 0.5981,
+     "mae_p50": 120.044,
+     "mae_persistence": 159.554
+    }
+   },
+   "mcpc": {
+    "0-14h": {
+     "n": 81312,
+     "pinball_p10": 10.696,
+     "pinball_p50": 10.579,
+     "pinball_p90": 10.964,
+     "coverage_80": 0.9513,
+     "mae_p50": 21.157,
+     "mae_persistence": 21.135
+    },
+    "14-38h": {
+     "n": 139392,
+     "pinball_p10": 25.724,
+     "pinball_p50": 28.265,
+     "pinball_p90": 27.694,
+     "coverage_80": 0.8174,
+     "mae_p50": 56.53,
+     "mae_persistence": 53.532
+    },
+    "38-72h": {
+     "n": 197472,
+     "pinball_p10": 71.309,
+     "pinball_p50": 80.832,
+     "pinball_p90": 77.525,
+     "coverage_80": 0.6909,
+     "mae_p50": 161.664,
+     "mae_persistence": 148.634
+    }
+   }
+  },
+  "2022": {
+   "da": {
+    "14-38h": {
+     "n": 276588,
+     "pinball_p10": 5.015,
+     "pinball_p50": 14.875,
+     "pinball_p90": 10.349,
+     "coverage_80": 0.6924,
+     "mae_p50": 29.75,
+     "mae_persistence": 20.766
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 6.112,
+     "pinball_p50": 21.152,
+     "pinball_p90": 15.497,
+     "coverage_80": 0.6817,
+     "mae_p50": 42.304,
+     "mae_persistence": 27.644
+    }
+   },
+   "rt": {
+    "0-14h": {
+     "n": 264264,
+     "pinball_p10": 7.031,
+     "pinball_p50": 16.5,
+     "pinball_p90": 16.462,
+     "coverage_80": 0.7891,
+     "mae_p50": 32.999,
+     "mae_persistence": 42.441
+    },
+    "14-38h": {
+     "n": 453024,
+     "pinball_p10": 6.897,
+     "pinball_p50": 18.074,
+     "pinball_p90": 18.413,
+     "coverage_80": 0.755,
+     "mae_p50": 36.148,
+     "mae_persistence": 45.508
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 7.01,
+     "pinball_p50": 20.711,
+     "pinball_p90": 21.635,
+     "coverage_80": 0.7269,
+     "mae_p50": 41.421,
+     "mae_persistence": 47.024
+    }
+   },
+   "mcpc": {
+    "0-14h": {
+     "n": 81312,
+     "pinball_p10": 0.787,
+     "pinball_p50": 1.315,
+     "pinball_p90": 1.315,
+     "coverage_80": 0.9492,
+     "mae_p50": 2.629,
+     "mae_persistence": 2.637
+    },
+    "14-38h": {
+     "n": 139392,
+     "pinball_p10": 3.005,
+     "pinball_p50": 10.629,
+     "pinball_p90": 9.762,
+     "coverage_80": 0.8341,
+     "mae_p50": 21.259,
+     "mae_persistence": 6.995
+    },
+    "38-72h": {
+     "n": 197472,
+     "pinball_p10": 6.262,
+     "pinball_p50": 26.092,
+     "pinball_p90": 24.918,
+     "coverage_80": 0.7156,
+     "mae_p50": 52.184,
+     "mae_persistence": 15.006
+    }
+   }
+  },
+  "2023": {
+   "da": {
+    "14-38h": {
+     "n": 276588,
+     "pinball_p10": 4.013,
+     "pinball_p50": 13.363,
+     "pinball_p90": 9.329,
+     "coverage_80": 0.6762,
+     "mae_p50": 26.727,
+     "mae_persistence": 23.608
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 6.521,
+     "pinball_p50": 20.283,
+     "pinball_p90": 16.391,
+     "coverage_80": 0.6827,
+     "mae_p50": 40.565,
+     "mae_persistence": 40.499
+    }
+   },
+   "rt": {
+    "0-14h": {
+     "n": 264264,
+     "pinball_p10": 5.61,
+     "pinball_p50": 14.913,
+     "pinball_p90": 12.254,
+     "coverage_80": 0.7606,
+     "mae_p50": 29.827,
+     "mae_persistence": 46.285
+    },
+    "14-38h": {
+     "n": 453024,
+     "pinball_p10": 5.836,
+     "pinball_p50": 16.675,
+     "pinball_p90": 14.863,
+     "coverage_80": 0.7545,
+     "mae_p50": 33.351,
+     "mae_persistence": 49.397
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 7.18,
+     "pinball_p50": 20.777,
+     "pinball_p90": 20.84,
+     "coverage_80": 0.7756,
+     "mae_p50": 41.555,
+     "mae_persistence": 53.223
+    }
+   },
+   "mcpc": {
+    "0-14h": {
+     "n": 92752,
+     "pinball_p10": 2.44,
+     "pinball_p50": 3.347,
+     "pinball_p90": 3.039,
+     "coverage_80": 0.9496,
+     "mae_p50": 6.694,
+     "mae_persistence": 6.837
+    },
+    "14-38h": {
+     "n": 159080,
+     "pinball_p10": 1.578,
+     "pinball_p50": 5.182,
+     "pinball_p90": 4.553,
+     "coverage_80": 0.8516,
+     "mae_p50": 10.365,
+     "mae_persistence": 7.847
+    },
+    "38-72h": {
+     "n": 225528,
+     "pinball_p10": 4.773,
+     "pinball_p50": 14.474,
+     "pinball_p90": 13.934,
+     "coverage_80": 0.7684,
+     "mae_p50": 28.948,
+     "mae_persistence": 24.105
+    }
+   }
+  },
+  "2024": {
+   "da": {
+    "14-38h": {
+     "n": 277316,
+     "pinball_p10": 2.035,
+     "pinball_p50": 6.366,
+     "pinball_p90": 4.617,
+     "coverage_80": 0.6561,
+     "mae_p50": 12.731,
+     "mae_persistence": 12.152
+    },
+    "38-72h": {
+     "n": 643552,
+     "pinball_p10": 2.801,
+     "pinball_p50": 9.904,
+     "pinball_p90": 8.258,
+     "coverage_80": 0.6601,
+     "mae_p50": 19.809,
+     "mae_persistence": 18.323
+    }
+   },
+   "rt": {
+    "0-14h": {
+     "n": 264992,
+     "pinball_p10": 2.36,
+     "pinball_p50": 6.681,
+     "pinball_p90": 5.334,
+     "coverage_80": 0.776,
+     "mae_p50": 13.362,
+     "mae_persistence": 20.06
+    },
+    "14-38h": {
+     "n": 454272,
+     "pinball_p10": 2.712,
+     "pinball_p50": 7.617,
+     "pinball_p90": 6.286,
+     "coverage_80": 0.7597,
+     "mae_p50": 15.235,
+     "mae_persistence": 21.953
+    },
+    "38-72h": {
+     "n": 643552,
+     "pinball_p10": 3.354,
+     "pinball_p50": 9.16,
+     "pinball_p90": 8.839,
+     "coverage_80": 0.7468,
+     "mae_p50": 18.319,
+     "mae_persistence": 23.377
+    }
+   },
+   "mcpc": {
+    "0-14h": {
+     "n": 101920,
+     "pinball_p10": 0.375,
+     "pinball_p50": 0.86,
+     "pinball_p90": 0.831,
+     "coverage_80": 0.9429,
+     "mae_p50": 1.719,
+     "mae_persistence": 1.854
+    },
+    "14-38h": {
+     "n": 174720,
+     "pinball_p10": 0.429,
+     "pinball_p50": 1.106,
+     "pinball_p90": 1.558,
+     "coverage_80": 0.8372,
+     "mae_p50": 2.212,
+     "mae_persistence": 2.297
+    },
+    "38-72h": {
+     "n": 247520,
+     "pinball_p10": 0.812,
+     "pinball_p50": 3.412,
+     "pinball_p90": 4.193,
+     "coverage_80": 0.7123,
+     "mae_p50": 6.824,
+     "mae_persistence": 6.874
+    }
+   }
+  },
+  "2025": {
+   "da": {
+    "14-38h": {
+     "n": 276588,
+     "pinball_p10": 1.681,
+     "pinball_p50": 4.625,
+     "pinball_p90": 3.251,
+     "coverage_80": 0.6736,
+     "mae_p50": 9.25,
+     "mae_persistence": 11.176
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 2.258,
+     "pinball_p50": 6.486,
+     "pinball_p90": 4.876,
+     "coverage_80": 0.7104,
+     "mae_p50": 12.972,
+     "mae_persistence": 15.058
+    }
+   },
+   "rt": {
+    "0-14h": {
+     "n": 264264,
+     "pinball_p10": 2.011,
+     "pinball_p50": 5.618,
+     "pinball_p90": 4.742,
+     "coverage_80": 0.8189,
+     "mae_p50": 11.237,
+     "mae_persistence": 18.916
+    },
+    "14-38h": {
+     "n": 453024,
+     "pinball_p10": 2.228,
+     "pinball_p50": 6.51,
+     "pinball_p90": 5.487,
+     "coverage_80": 0.7941,
+     "mae_p50": 13.021,
+     "mae_persistence": 20.82
+    },
+    "38-72h": {
+     "n": 641784,
+     "pinball_p10": 2.662,
+     "pinball_p50": 7.829,
+     "pinball_p90": 6.711,
+     "coverage_80": 0.7714,
+     "mae_p50": 15.658,
+     "mae_persistence": 22.479
+    }
+   },
+   "mcpc": {
+    "0-14h": {
+     "n": 101640,
+     "pinball_p10": 0.117,
+     "pinball_p50": 0.275,
+     "pinball_p90": 0.25,
+     "coverage_80": 0.9401,
+     "mae_p50": 0.549,
+     "mae_persistence": 0.586
+    },
+    "14-38h": {
+     "n": 174240,
+     "pinball_p10": 0.127,
+     "pinball_p50": 0.331,
+     "pinball_p90": 0.618,
+     "coverage_80": 0.8379,
+     "mae_p50": 0.662,
+     "mae_persistence": 0.71
+    },
+    "38-72h": {
+     "n": 246840,
+     "pinball_p10": 0.283,
+     "pinball_p50": 0.85,
+     "pinball_p90": 1.117,
+     "coverage_80": 0.7171,
+     "mae_p50": 1.7,
+     "mae_persistence": 2.008
+    }
+   }
+  },
+  "2026": {
+   "da": {
+    "14-38h": {
+     "n": 221052,
+     "pinball_p10": 2.018,
+     "pinball_p50": 7.149,
+     "pinball_p90": 4.182,
+     "coverage_80": 0.7827,
+     "mae_p50": 14.297,
+     "mae_persistence": 14.95
+    },
+    "38-72h": {
+     "n": 506896,
+     "pinball_p10": 2.815,
+     "pinball_p50": 10.573,
+     "pinball_p90": 8.336,
+     "coverage_80": 0.7862,
+     "mae_p50": 21.145,
+     "mae_persistence": 19.823
+    }
+   },
+   "rt": {
+    "0-14h": {
+     "n": 210158,
+     "pinball_p10": 2.253,
+     "pinball_p50": 6.231,
+     "pinball_p90": 4.987,
+     "coverage_80": 0.7926,
+     "mae_p50": 12.462,
+     "mae_persistence": 18.948
+    },
+    "14-38h": {
+     "n": 359320,
+     "pinball_p10": 2.469,
+     "pinball_p50": 7.489,
+     "pinball_p90": 5.848,
+     "coverage_80": 0.7884,
+     "mae_p50": 14.979,
+     "mae_persistence": 20.524
+    },
+    "38-72h": {
+     "n": 506896,
+     "pinball_p10": 2.936,
+     "pinball_p50": 9.406,
+     "pinball_p90": 7.675,
+     "coverage_80": 0.7953,
+     "mae_p50": 18.812,
+     "mae_persistence": 22.034
+    }
+   },
+   "mcpc": {
+    "0-14h": {
+     "n": 80860,
+     "pinball_p10": 0.147,
+     "pinball_p50": 0.228,
+     "pinball_p90": 0.238,
+     "coverage_80": 0.949,
+     "mae_p50": 0.456,
+     "mae_persistence": 0.491
+    },
+    "14-38h": {
+     "n": 138620,
+     "pinball_p10": 0.195,
+     "pinball_p50": 0.409,
+     "pinball_p90": 0.506,
+     "coverage_80": 0.8132,
+     "mae_p50": 0.818,
+     "mae_persistence": 0.894
+    },
+    "38-72h": {
+     "n": 196380,
+     "pinball_p10": 0.281,
+     "pinball_p50": 0.798,
+     "pinball_p90": 1.271,
+     "coverage_80": 0.7133,
+     "mae_p50": 1.596,
+     "mae_persistence": 1.972
+    }
+   }
+  }
+ },
+ "desk": {
+  "2021": {
+   "load|system": {
+    "n": 105120,
+    "mae_mw": 2661.8,
+    "nmae": 0.0594,
+    "bias_mw": -1447.4,
+    "mape": 0.0576
+   },
+   "load|COAS": {
+    "n": 105120,
+    "mae_mw": 978.8,
+    "nmae": 0.0774,
+    "bias_mw": -536.0,
+    "mape": 0.0777
+   },
+   "load|EAST": {
+    "n": 105120,
+    "mae_mw": 114.5,
+    "nmae": 0.0681,
+    "bias_mw": -32.7,
+    "mape": 0.0659
+   },
+   "load|FWES": {
+    "n": 105120,
+    "mae_mw": 341.1,
+    "nmae": 0.0872,
+    "bias_mw": -235.2,
+    "mape": 0.0984
+   },
+   "load|NCEN": {
+    "n": 105120,
+    "mae_mw": 958.7,
+    "nmae": 0.0716,
+    "bias_mw": -285.0,
+    "mape": 0.0684
+   },
+   "load|NRTH": {
+    "n": 105120,
+    "mae_mw": 151.4,
+    "nmae": 0.1421,
+    "bias_mw": -111.2,
+    "mape": 0.1339
+   },
+   "load|SCEN": {
+    "n": 105120,
+    "mae_mw": 526.7,
+    "nmae": 0.0735,
+    "bias_mw": -256.1,
+    "mape": 0.0711
+   },
+   "load|SOUT": {
+    "n": 105120,
+    "mae_mw": 273.5,
+    "nmae": 0.076,
+    "bias_mw": -128.7,
+    "mape": 0.0747
+   },
+   "load|WEST": {
+    "n": 105120,
+    "mae_mw": 144.8,
+    "nmae": 0.1065,
+    "bias_mw": 31.3,
+    "mape": 0.1113
+   },
+   "wind|system": {
+    "n": 105120,
+    "mae_mw": 3276.6,
+    "nmae": 0.3,
+    "bias_mw": 732.7,
+    "mape": 0.5993
+   },
+   "solar|system": {
+    "n": 104544,
+    "mae_mw": 486.9,
+    "nmae": 0.2698,
+    "bias_mw": -215.5
+   }
+  },
+  "2022": {
+   "load|system": {
+    "n": 105120,
+    "mae_mw": 3214.1,
+    "nmae": 0.0654,
+    "bias_mw": -2422.2,
+    "mape": 0.0637
+   },
+   "load|COAS": {
+    "n": 105120,
+    "mae_mw": 775.2,
+    "nmae": 0.0593,
+    "bias_mw": -152.7,
+    "mape": 0.0599
+   },
+   "load|EAST": {
+    "n": 105120,
+    "mae_mw": 139.0,
+    "nmae": 0.0763,
+    "bias_mw": -49.9,
+    "mape": 0.074
+   },
+   "load|FWES": {
+    "n": 105120,
+    "mae_mw": 877.8,
+    "nmae": 0.1852,
+    "bias_mw": -877.6,
+    "mape": 0.1829
+   },
+   "load|NCEN": {
+    "n": 105120,
+    "mae_mw": 1121.9,
+    "nmae": 0.0765,
+    "bias_mw": -535.4,
+    "mape": 0.0738
+   },
+   "load|NRTH": {
+    "n": 105120,
+    "mae_mw": 192.3,
+    "nmae": 0.1508,
+    "bias_mw": -159.4,
+    "mape": 0.1511
+   },
+   "load|SCEN": {
+    "n": 105120,
+    "mae_mw": 741.2,
+    "nmae": 0.0908,
+    "bias_mw": -583.1,
+    "mape": 0.0895
+   },
+   "load|SOUT": {
+    "n": 105120,
+    "mae_mw": 315.9,
+    "nmae": 0.0807,
+    "bias_mw": -219.1,
+    "mape": 0.0802
+   },
+   "load|WEST": {
+    "n": 105120,
+    "mae_mw": 138.0,
+    "nmae": 0.094,
+    "bias_mw": -38.6,
+    "mape": 0.0944
+   },
+   "wind|system": {
+    "n": 105120,
+    "mae_mw": 3868.4,
+    "nmae": 0.3153,
+    "bias_mw": -2290.0,
+    "mape": 0.4321
+   },
+   "solar|system": {
+    "n": 104544,
+    "mae_mw": 590.0,
+    "nmae": 0.2126,
+    "bias_mw": -142.1
+   }
+  },
+  "2023": {
+   "load|system": {
+    "n": 105120,
+    "mae_mw": 3150.2,
+    "nmae": 0.0617,
+    "bias_mw": -2542.5,
+    "mape": 0.061
+   },
+   "load|COAS": {
+    "n": 105120,
+    "mae_mw": 932.2,
+    "nmae": 0.0687,
+    "bias_mw": -627.8,
+    "mape": 0.0646
+   },
+   "load|EAST": {
+    "n": 105120,
+    "mae_mw": 121.2,
+    "nmae": 0.0664,
+    "bias_mw": -36.8,
+    "mape": 0.0659
+   },
+   "load|FWES": {
+    "n": 105120,
+    "mae_mw": 1148.6,
+    "nmae": 0.1968,
+    "bias_mw": -1148.6,
+    "mape": 0.1965
+   },
+   "load|NCEN": {
+    "n": 105120,
+    "mae_mw": 880.3,
+    "nmae": 0.0606,
+    "bias_mw": -131.7,
+    "mape": 0.06
+   },
+   "load|NRTH": {
+    "n": 105120,
+    "mae_mw": 154.2,
+    "nmae": 0.112,
+    "bias_mw": -94.9,
+    "mape": 0.1202
+   },
+   "load|SCEN": {
+    "n": 105120,
+    "mae_mw": 576.6,
+    "nmae": 0.0685,
+    "bias_mw": -348.9,
+    "mape": 0.0687
+   },
+   "load|SOUT": {
+    "n": 105120,
+    "mae_mw": 304.4,
+    "nmae": 0.0753,
+    "bias_mw": -210.0,
+    "mape": 0.0755
+   },
+   "load|WEST": {
+    "n": 105120,
+    "mae_mw": 133.2,
+    "nmae": 0.0919,
+    "bias_mw": -18.8,
+    "mape": 0.0943
+   },
+   "wind|system": {
+    "n": 105120,
+    "mae_mw": 3524.1,
+    "nmae": 0.287,
+    "bias_mw": -434.1,
+    "mape": 0.529
+   },
+   "solar|system": {
+    "n": 104544,
+    "mae_mw": 700.5,
+    "nmae": 0.1916,
+    "bias_mw": -169.4
+   }
+  },
+  "2024": {
+   "load|system": {
+    "n": 105408,
+    "mae_mw": 3435.0,
+    "nmae": 0.0651,
+    "bias_mw": -2658.8,
+    "mape": 0.0645
+   },
+   "load|COAS": {
+    "n": 105408,
+    "mae_mw": 994.3,
+    "nmae": 0.0723,
+    "bias_mw": -578.5,
+    "mape": 0.0728
+   },
+   "load|EAST": {
+    "n": 105408,
+    "mae_mw": 136.9,
+    "nmae": 0.0751,
+    "bias_mw": -35.6,
+    "mape": 0.0746
+   },
+   "load|FWES": {
+    "n": 105336,
+    "mae_mw": 1084.7,
+    "nmae": 0.1599,
+    "bias_mw": -1072.5,
+    "mape": 0.1581
+   },
+   "load|NCEN": {
+    "n": 105348,
+    "mae_mw": 1051.8,
+    "nmae": 0.0711,
+    "bias_mw": -514.2,
+    "mape": 0.0695
+   },
+   "load|NRTH": {
+    "n": 105384,
+    "mae_mw": 266.6,
+    "nmae": 0.1597,
+    "bias_mw": -245.3,
+    "mape": 0.161
+   },
+   "load|SCEN": {
+    "n": 105408,
+    "mae_mw": 534.9,
+    "nmae": 0.0626,
+    "bias_mw": -206.2,
+    "mape": 0.0616
+   },
+   "load|SOUT": {
+    "n": 105408,
+    "mae_mw": 307.9,
+    "nmae": 0.0738,
+    "bias_mw": -228.6,
+    "mape": 0.0729
+   },
+   "load|WEST": {
+    "n": 105408,
+    "mae_mw": 132.3,
+    "nmae": 0.098,
+    "bias_mw": 70.4,
+    "mape": 0.1073
+   },
+   "wind|system": {
+    "n": 105408,
+    "mae_mw": 3557.5,
+    "nmae": 0.2794,
+    "bias_mw": -126.0,
+    "mape": 0.522
+   },
+   "solar|system": {
+    "n": 104832,
+    "mae_mw": 1155.2,
+    "nmae": 0.2104,
+    "bias_mw": -146.3
+   }
+  },
+  "2025": {
+   "load|system": {
+    "n": 104832,
+    "mae_mw": 3558.6,
+    "nmae": 0.0639,
+    "bias_mw": -2984.7,
+    "mape": 0.063
+   },
+   "load|COAS": {
+    "n": 104436,
+    "mae_mw": 1052.8,
+    "nmae": 0.0725,
+    "bias_mw": -879.6,
+    "mape": 0.0713
+   },
+   "load|EAST": {
+    "n": 104544,
+    "mae_mw": 139.7,
+    "nmae": 0.0759,
+    "bias_mw": -39.9,
+    "mape": 0.0754
+   },
+   "load|FWES": {
+    "n": 104352,
+    "mae_mw": 977.1,
+    "nmae": 0.1284,
+    "bias_mw": -957.8,
+    "mape": 0.1263
+   },
+   "load|NCEN": {
+    "n": 104508,
+    "mae_mw": 1290.3,
+    "nmae": 0.0832,
+    "bias_mw": -902.1,
+    "mape": 0.0807
+   },
+   "load|NRTH": {
+    "n": 104544,
+    "mae_mw": 264.3,
+    "nmae": 0.1362,
+    "bias_mw": -225.4,
+    "mape": 0.1319
+   },
+   "load|SCEN": {
+    "n": 104544,
+    "mae_mw": 686.3,
+    "nmae": 0.0754,
+    "bias_mw": -499.7,
+    "mape": 0.073
+   },
+   "load|SOUT": {
+    "n": 104544,
+    "mae_mw": 396.9,
+    "nmae": 0.0883,
+    "bias_mw": -332.1,
+    "mape": 0.0873
+   },
+   "load|WEST": {
+    "n": 104544,
+    "mae_mw": 183.9,
+    "nmae": 0.1274,
+    "bias_mw": -53.4,
+    "mape": 0.1381
+   },
+   "wind|system": {
+    "n": 104832,
+    "mae_mw": 3478.1,
+    "nmae": 0.2641,
+    "bias_mw": -84.5,
+    "mape": 0.4518
+   },
+   "solar|system": {
+    "n": 104544,
+    "mae_mw": 1524.4,
+    "nmae": 0.1956,
+    "bias_mw": -727.0
+   }
+  },
+  "2026": {
+   "load|system": {
+    "n": 83448,
+    "mae_mw": 3652.4,
+    "nmae": 0.0608,
+    "bias_mw": -2810.5,
+    "mape": 0.0606
+   },
+   "load|COAS": {
+    "n": 83304,
+    "mae_mw": 937.2,
+    "nmae": 0.0615,
+    "bias_mw": -602.4,
+    "mape": 0.0609
+   },
+   "load|EAST": {
+    "n": 83436,
+    "mae_mw": 145.2,
+    "nmae": 0.0739,
+    "bias_mw": -69.4,
+    "mape": 0.0758
+   },
+   "load|FWES": {
+    "n": 83196,
+    "mae_mw": 395.6,
+    "nmae": 0.0521,
+    "bias_mw": -66.3,
+    "mape": 0.0531
+   },
+   "load|NCEN": {
+    "n": 83388,
+    "mae_mw": 1465.3,
+    "nmae": 0.0862,
+    "bias_mw": -1097.2,
+    "mape": 0.0836
+   },
+   "load|NRTH": {
+    "n": 83424,
+    "mae_mw": 266.4,
+    "nmae": 0.1394,
+    "bias_mw": 158.4,
+    "mape": 0.1457
+   },
+   "load|SCEN": {
+    "n": 83448,
+    "mae_mw": 670.2,
+    "nmae": 0.0688,
+    "bias_mw": -396.6,
+    "mape": 0.0681
+   },
+   "load|SOUT": {
+    "n": 83448,
+    "mae_mw": 414.2,
+    "nmae": 0.085,
+    "bias_mw": -341.8,
+    "mape": 0.0844
+   },
+   "load|WEST": {
+    "n": 83448,
+    "mae_mw": 373.5,
+    "nmae": 0.2092,
+    "bias_mw": -298.1,
+    "mape": 0.2058
+   },
+   "wind|system": {
+    "n": 83448,
+    "mae_mw": 3425.2,
+    "nmae": 0.2446,
+    "bias_mw": -618.2,
+    "mape": 0.365
+   },
+   "solar|system": {
+    "n": 77904,
+    "mae_mw": 1844.7,
+    "nmae": 0.1809,
+    "bias_mw": -802.3
+   }
+  }
+ }
+}
