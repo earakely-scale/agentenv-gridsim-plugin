@@ -315,7 +315,8 @@ def live_blurb(ep: dict) -> str:
     at = datetime.fromisoformat(top["issued_at"].replace("Z", "+00:00")).astimezone(CPT)
     replans = any(c["accepted"] and c["watch"] >= top["watch"] and c["tool"] == "commit_schedule"
                   for c in ep.get("commits") or [])
-    return (f"{region}, live: ERCOT posts its {top['level']} notice at {hm(at.hour * 60 + at.minute)}. {who} reads it at the "
+    posted = hm(at.hour * 60 + at.minute)
+    return (f"{region}, live: ERCOT posts its {top['level']} notice at {posted}. {who} reads it at the "
             f"{clock(w['time'])} watch, with the freeze line at {clock(w['freeze_line'])}, and "
             f"{'re-plans' if replans else 'holds its plan'} as {peak}. {tail}")
 
