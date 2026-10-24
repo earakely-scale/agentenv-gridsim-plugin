@@ -35,7 +35,8 @@ HERO_TASK = "dam-v1-2025-03-15-HB_WEST-1h-t"
 LIVE_PACKS = ("gridsim-live-showcase", "gridsim-live-eval", "gridsim-live-test-2025", "gridsim-live-rtcb",
               "fixtures-live", "gridsim-live-train")
 LIVE_HERO_TASK = "live-v2-2023-09-06-HB_NORTH-2h-l"
-LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol"}
+LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
+          "reference/naive": "naive (reference)"}
 CPT = ZoneInfo("America/Chicago")
 SEVERITY = {"EEA3": 7, "EEA2": 6, "EEA1": 5, "Emergency": 5, "conservation": 4, "Watch": 3, "Warning": 3, "Advisory": 2,
             "OCN": 1}
@@ -446,9 +447,15 @@ def still(out: Path, e: dict) -> None:
 def readme(entries: list[dict], hero: dict | None, training: dict | None = None) -> str:
     v2 = [e for e in entries if e["version"] == "v2"]
     entries = [e for e in entries if e["version"] == "v1"]
-    counts = Counter(e["model_label"] or e["model"] for e in entries if real(e))
+    trained = [e for e in entries if e.get("path") == "B" and e.get("trained")]
+    tids = {e["id"] for e in trained}
+    counts = Counter(e.get("model_label") or e["model"] for e in entries if real(e) and e["id"] not in tids)
     refs = sum(not real(e) for e in entries)
+    stages = Counter(e["trained"] for e in trained)
     models = ", ".join(f"{n:,} runs of {m}" for m, n in counts.most_common()) + (
+        f", {len(trained):,} episodes from the training run of {trained[0]['model'].split('/')[-1]} ("
+        + ", ".join(f"{stages[k]:,} {k if k == 'base' else k.upper()}" for k in ("base", "sft", "grpo") if stages[k])
+        + ")" if trained else "") + (
         f" and {refs} reference episodes (the DP optimum and the baselines)" if refs else "")
     caption = (f"{hero['date']} at {hero['point']} ({hero['archetype']}, {hero['battery']}): {hero['blurb']} "
                f"{hero['model_label'] or hero['model']} scored {hero['reward']:.3f}." if hero else "")
@@ -460,7 +467,7 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
     for k, v in fields.items():
         text = text.replace("{" + k + "}", v)
     if v2:
-        live_counts = Counter(e["model_label"] or e["model"] for e in v2)
+        live_counts = Counter(e.get("model_label") or e["model"] for e in v2)
         lv = next((e for e in v2 if e.get("featured") == "live"), None)
         text = text.replace("\n## Links\n", LIVE_README.format(
             n=len(v2), models=", ".join(f"{n} of {LABELS.get(m, m)}" for m, n in live_counts.most_common()),
