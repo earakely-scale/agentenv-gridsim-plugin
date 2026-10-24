@@ -440,7 +440,7 @@ def project(b: Battery, awards) -> dict:
 
 
 def penalty_price(hub_real) -> float:
-    return max(max(hub_real), P_FLOOR)
+    return float(max(max(hub_real), P_FLOOR))
 
 
 def settle_battery(b: Battery, awards, exec_mw, hub, rt, pen_price: float) -> dict:

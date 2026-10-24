@@ -543,11 +543,8 @@ def sample_seats(day: dict, rng, ct_heat_rates: list[float], a_size: float | Non
     r = pool["renew"][0]
     a_ = day["actuals"]
     fc = [s[-1][0] if s else 0.0 for s in r.get("sell") or [[]] * HOURS]
-    ratio = [min(1.5, max(0.5, (a_["wind_mw"][h] + a_["solar_mw"][h]) / max(1.0, fc_sys)))
-             for h, fc_sys in enumerate(np.asarray(day.get("renew_forecast_mw") or
-                                                   [a_["wind_mw"][h] + a_["solar_mw"][h] for h in range(HOURS)]))]
     seats["R"] = {"name": "renew-R", "kind": "renewable", "pool_id": r["id"], "forecast_mw": [round(x, 2) for x in fc],
-                  "actual_mw": [round(x * ratio[h], 2) for h, x in enumerate(fc)], "ptc_usd": 27.5, "ptc_share": 0.6}
+                  "actual_mw": [round(x, 2) for x in fc], "ptc_usd": 27.5, "ptc_share": 0.6}
     lg = pool["load"][0]
     lfc = [s[-1][0] if s else 0.0 for s in lg.get("buy") or [[]] * HOURS]
     seats["L"] = {"name": "retail-L", "kind": "retailer", "pool_id": lg["id"], "forecast_mw": [round(x, 2) for x in lfc],
