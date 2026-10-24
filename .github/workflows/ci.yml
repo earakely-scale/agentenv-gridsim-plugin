@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A pull request's newer push supersedes its running checks; main keeps every run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash  # -eo pipefail
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - run: pip install 'ruff>=0.16,<0.17'
+      - run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e '.[dev]'
+      # The grader- and prompt-parity gates and the no-leak test run here against `python -m agentenv_gridsim.server`.
+      - run: pytest
+      - run: agent-env plugin check
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: ci-image-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    services:
+      registry:
+        image: mirror.gcr.io/library/registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+      - run: agent-env gridsim setup --agent
+      - name: The DP optimum scores 1, the infeasible schedule 0.050083, and no submission 0
+        run: |
+          agent-env run gridsim --task smoke --task wiring-infeasible --task wiring-nosubmit | tee wiring.log
+          grep -qE 'tasks/smoke\.json v[0-9]+: passed \([^:]+: 1\)' wiring.log
+          grep -qE 'tasks/wiring-infeasible\.json v[0-9]+: scored below 1 \([^:]+: 0\.050083\)' wiring.log
+          grep -qE 'tasks/wiring-nosubmit\.json v[0-9]+: scored below 1 \([^:]+: 0\)' wiring.log
+      - name: The eval bundles pass agent-env's checks against the registered env and agent
+        env:
+          LITELLM_BASE_URL: http://127.0.0.1:9
+          LITELLM_API_KEY: sk-dry-run
+        run: |
+          agent-env gridsim tasks generate --pack ercot-dam-v1-eval --tier foresight --bundle full
+          agent-env gridsim tasks generate --pack ercot-dam-v1-eval --tier blind --bundle oneshot
+          agent-env run results/bundles/ercot-dam-v1-eval-foresight-full --dry-run
+          agent-env run results/bundles/ercot-dam-v1-eval-blind-oneshot --dry-run
+      - name: The image passes the parity and no-leak gates
+        run: |
+          docker run -d -p 18765:18765 agentenv-gridsim-env
+          curl -sf --retry 30 --retry-all-errors --retry-delay 1 -o /dev/null http://127.0.0.1:18765/.well-known/agent-env.json
+          GRIDSIM_URL=http://127.0.0.1:18765 pytest tests/plugin/test_grader_parity.py tests/plugin/test_prompt_parity.py tests/plugin/test_no_leaks.py
+      - name: A scripted agent plays full and oneshot end to end with no model spend, into Episode JSON
+        timeout-minutes: 10
+        run: PYTHONPATH=tests/plugin python scripts/scripted_e2e.py --out e2e
