@@ -15,7 +15,7 @@ from typing import NamedTuple
 
 import numpy as np
 
-from gridsim_core import live
+from gridsim_core import hybrid_inputs, live
 from gridsim_core.contract import AS_DURATION_H, DEGENERATE_EPS, P_FLOOR, as_era
 from gridsim_core.grade import reward_value
 from gridsim_core.live import (
@@ -161,15 +161,22 @@ def pv_at_bus(site: dict, cf) -> list[float]:
     return [round(x if site["coupling"] == "dc" else min(site["pv_mwac"], x), 3) for x in dc]
 
 
-def reg_draw(seed: int, era: str) -> dict:
-    """The seeded regulation drift (V3-D8): Beta draws with means 0.12 (RegUp) and 0.18 (RegDn), capped at the era's
-    Reg duration in hours."""
-    rng = np.random.default_rng(seed)
-    cu, cd = min(1.0, AS_DURATION_H[era]["regup"]), min(1.0, AS_DURATION_H[era]["regdn"])
-    up = np.minimum(cu, rng.beta(2.0, 2.0 * (1 - REG_MEAN["up"]) / REG_MEAN["up"], HOURS))
-    dn = np.minimum(cd, rng.beta(2.0, 2.0 * (1 - REG_MEAN["dn"]) / REG_MEAN["dn"], HOURS))
-    return {"up": [round(float(x), 4) for x in up], "dn": [round(float(x), 4) for x in dn],
-            "mean_up": REG_MEAN["up"], "mean_dn": REG_MEAN["dn"], "source": "seeded", "seed": int(seed)}
+def reg_of(task_id: str) -> dict:
+    """The task's regulation drift (V3-D8): lane D3's seeded draw, stored in the row so episodes replay exactly."""
+    r = hybrid_inputs.reg_drift(task_id)
+    return {"up": r["reg_up_frac"], "dn": r["reg_dn_frac"], "mean_up": hybrid_inputs.DRIFT_SPEC["regup"]["mean"],
+            "mean_dn": hybrid_inputs.DRIFT_SPEC["regdn"]["mean"], "source": r["source"],
+            "label": hybrid_inputs.DRIFT_SPEC["label"]}
+
+
+def site_from_archetype(arch: dict, poi_mw: float | None = None, *, c_deg: float = 4.0, qualified=None) -> dict:
+    """A site row from one of lane D3's EIA-860 archetypes (AC-coupled, C3-D15), at its POI or a variant."""
+    poi = float(poi_mw if poi_mw is not None else arch["poi_mw"])
+    return make_site(f"{arch['id']}-poi{poi:g}", p_mw=float(arch["bess_mw"]), e_mwh=float(arch["bess_mwh"]),
+                     c_deg=c_deg, qualified=qualified, coupling="ac", pv_mwac=float(arch["pv_mwac"]),
+                     pv_mwdc=float(arch["pv_mwdc"]), ilr=float(arch["ilr"]), poi_mw=poi, poi_import_mw=poi,
+                     inverter_mw=None, flags={"poi": "default" if poi == float(arch["poi_mw"]) else "1.2x",
+                                              "coupling": "ac (EIA-860 shows no dc-coupled ERCO sites)"})
 
 
 def task_id(date: str, point: str, site_id: str) -> str:
@@ -177,18 +184,17 @@ def task_id(date: str, point: str, site_id: str) -> str:
 
 
 def make_task(date: str, point: str, site: dict, prices, rt, pv_cf, mcpc_da: dict, mcpc_rt: dict | None = None, *,
-              notices=(), deployments=(), seed: int | None = None, **extra) -> dict:
+              notices=(), deployments=(), **extra) -> dict:
     """A task row without refs (Session computes them on demand)."""
     era = as_era(date)
     tid = task_id(date, point, site["site_id"])
-    seed = int.from_bytes(hashlib.sha256(tid.encode()).digest()[:4], "big") if seed is None else seed
     return {"task_id": tid, "hybrid_version": HYBRID_VERSION, "contract_version": "1.0", "date": date, "era": era,
             "settlement_point": point, "point_kind": point_kind(point), "region": REGIONS.get(point, "central"),
             "site": site, "prices": [float(p) for p in prices], "rt": [float(p) for p in rt],
             "pv_cf": [round(float(c), 5) for c in pv_cf], "pv_mw": pv_at_bus(site, pv_cf),
             "mcpc_da": {k: [float(x) for x in v] for k, v in mcpc_da.items()},
             "mcpc_rt": {k: [float(x) for x in v] for k, v in mcpc_rt.items()} if mcpc_rt else None,
-            "reg": reg_draw(seed, era), "notices": list(notices), "deployments": list(deployments),
+            "reg": reg_of(tid), "notices": list(notices), "deployments": list(deployments),
             "flags": {"pv_availability": "proxy", "reg_drift": "seeded", "poi": site.get("flags", {}).get("poi"),
                       "site": site.get("source", "archetype")}, **extra}
 
@@ -351,7 +357,9 @@ def _values(field: str, v, fh: int) -> list[float]:
             raise PlanError(field, f"{field}: expected numbers, got {v[:60]!r}") from None
     if not isinstance(v, list):
         raise PlanError(field, f"{field}: expected a list of MW values or blocks, got {type(v).__name__}")
-    if v and all(isinstance(b, dict) for b in v):
+    if not v:
+        return [0.0] * n
+    if all(isinstance(b, dict) for b in v):
         out = [0.0] * n
         seen = set()
         for b in v:
@@ -673,6 +681,9 @@ class Session(WatchDay):
                 if iss := self.rules(h, S, cyc, e, a):
                     issues += iss
                     refused.append(h)
+                    if e != new["energy"][h] and not self.rules(h, S, cyc, e, self.entry(h, new)[1]):
+                        new["energy"][h] = cand["energy"][h]
+                        committed.append(h)
                 else:
                     committed.append(h)
                     for f in FIELDS:
