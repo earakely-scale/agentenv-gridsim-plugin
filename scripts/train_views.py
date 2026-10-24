@@ -79,7 +79,9 @@ def read(f: Path) -> dict | None:
         e = json.loads(f.read_text())
     except (OSError, json.JSONDecodeError):
         return None
-    return e if isinstance(e, dict) and e.get("schema") == "gridsim.episode/v1" and e.get("trained") else None
+    if not (isinstance(e, dict) and e.get("schema") == "gridsim.episode/v1" and e.get("trained")):
+        return None
+    return e | {"trained": str(e["trained"]).lower()}
 
 
 def r(e: dict) -> float:
