@@ -38,21 +38,21 @@ FD-4322's recommendations, taken as written:
 |---|---|---|
 | V3-D1 | Pre-RTC+B Reg/RRS durations | 1 h, flagged conservative (`contract.AS_DURATION_H`, lane D3) |
 | V3-D2 | ITC charging rule | No `grid_charge` flag in any era; "pre-2023 75% ITC charging share not modelled" is a card simplification |
-| V3-D3 | PV availability | max(actual, HSL/PVGRPP estimate) from NP4-745 (lane D3), flagged `pv_availability: proxy` |
+| V3-D3 | PV availability | Lane D3: the system-wide hourly cf (no regional history exists; every region uses it), raised only on hours whose hub RT SPP is <= 0 (max(actual, the same hour's median cf on nearby positive-price days)); flagged `pv_availability: proxy`, `pv_scope: system` |
 | V3-D4 | Action format | AS as blocks, energy as a list or blocks; `check_schedule` returns the per-hour reserve margin |
 | V3-D5 | Live training path | Path B' in-process `hybrid.Session` with byte-identical replay CI; path A for eval |
 | V3-D6 | Eval stratification | `ercot-hybrid-v3-eval` stratified by AS value; AS share reported |
-| V3-D7 | POI default | PV AC nameplate; the 1.2x variant is PV AC = 1.2 x POI (POI clipping on ac-coupled sites); flagged |
-| V3-D8 | Regulation drift | The seeded per-task draw (means 0.12 RegUp, 0.18 RegDn), stored in the task, labelled |
+| V3-D7 | POI default | PV AC nameplate, with a 1.2x variant (POI = 1.2 x PV AC, e.g. 180 MW); flagged |
+| V3-D8 | Regulation drift | `hybrid_inputs.reg_drift(task_id)` (Beta, means 0.12 RegUp and 0.18 RegDn, concentration 6), stored in the task row, labelled "a seeded draw, not ERCOT telemetry" |
 | V3-D9 | Watch 0 | D-1 14:00 commits the DA position and the DA AS book (v2's watch 0) |
-| V3-D10 | T3 | Eval only; built only if lane D3 finds RT MCPC (`mcpc_rt`), else the tier refuses to load |
+| V3-D10 | T3 | **Dropped tonight**: the RT MCPC report (NP6-331-CD) exists but MIS keeps ~7 days and no history was found. The `rtcb` tier is implemented and refuses to load without `mcpc_rt`; era-C days ship as T2 (DA AS only) in `ercot-hybrid-v3-rtcb`, flagged `rt_as: "not_modelled"` |
 | V3-D11 | Naming real sites | Site id plus region in public outputs; archetype sites are labelled `archetype` |
 
 Core decisions where FD-4322 is silent or ambiguous (also provisional):
 
 | # | Decision |
 |---|---|
-| C3-D1 | **Every plan value is MW**, a multiple of the site's `unit_mw` (u = 25 for the archetype): energy in [-P, P] (+ discharges), each AS level in [0, P]. One unit system for lists and blocks (FD-4322 wrote energy lists in units of u). |
+| C3-D1 | **Every plan value is MW, continuous** (ERCOT dispatches and awards in fractions of a MW): energy in [-P, P] (+ discharges), each AS award in [0, P]; no unit grid. The proposed 25 MW grid (energy in {-k..k}, AS in {0..k} units) made the MILP intractable (measured: 1% gap after 20 s per solve, 190 integers); continuous actions with the 24 direction binaries solve exactly in 10-25 ms. Outputs show 2 decimals; a sent value within 0.005 MW of the book counts as the book's (so re-sending displayed values never trips `frozen` or `as_fixed`). |
 | C3-D2 | **Commits are per hour, evaluated in order.** From the first open hour, each hour's whole entry (energy and every product) is checked on the SoC path that the hours before it leave (accepted entries, or the kept book for refused ones); a failing hour is refused and keeps its previous book entry. `check_schedule` runs the same evaluation without committing. |
 | C3-D3 | **The DA position is set when watch 0 ends**: x_DA = the projected export of the book then (PV curtailed at negative DA prices or to keep the meter limit, plus the base battery move). The DA AS book is the book's AS then. With no watch-0 commit the book is idle: x_DA is the solar-only plant's, no AS. |
 | C3-D4 | **PV curtailment is the controller's**: per hour, pv = 0 when the hour's price is negative (RT when executed, DA when projected), else min(s, max(0, L - b - Up)): PV is curtailed to keep the meter limit after the battery's base move and to keep **headroom for the hour's up-awards** at the meter, so x + Up <= L always holds; the meter rule refuses only b + Up > L or b - RD < -L_imp. |
@@ -64,6 +64,8 @@ Core decisions where FD-4322 is silent or ambiguous (also provisional):
 | C3-D10 | **Cycle cap** = 1.5*E MWh of base discharge (deployments are the grid's call and are not capped). Degradation applies to every MWh discharged. |
 | C3-D11 | **No end-target commit rule** (unlike v2 L-D3): the projected end shortfall and its penalty are shown, and the realized one is charged per C3-D7. Archetypes have s_end_min = s0, so the idle book pays none. |
 | C3-D12 | **RT is expected at DA** for the anchor (FD-4322); no decayed basis as in v2. |
+| C3-D14 | **Deployment size**: lane D3's events carry no fraction (`frac` null; only Non-Spin states system MW), so every deployment uses frac = 1.0 of the award for min(window, duration): the stress case the reservation covers, labelled. |
+| C3-D15 | **AC coupling only in packs** (EIA-860 2025 shows no DC-coupled ERCO sites); s = min(PV MWac, MWac x ILR x cf) with lane D3's system cf, which is already fleet-AC so ILR x cf is an approximate DC shape (flagged). The dc code path stays for later. |
 | C3-D13 | **Hindsight** (weight 0): one MILP with a DA-position copy of the plant (expected drift, DA curtailment free between its rule minimum and s) and a physical copy on realized RT, drift and deployments, sharing the AS book (separate RT AS in era C). An upper reference, not an achievable plan. |
 
 ## Site, units and physics
@@ -71,9 +73,9 @@ Core decisions where FD-4322 is silent or ambiguous (also provisional):
 Site row (`task["site"]`), the archetype (lane D3 supplies real archetypes per hub/load zone):
 
 ```
-{"site_id":"arch-dc150","source":"archetype|matched","coupling":"ac|dc","pv_mwac":150,"pv_mwdc":195,"ilr":1.3,
- "poi_mw":150,"poi_import_mw":150,"inverter_mw":150|null,
- "bess":{"p_mw":100,"e_mwh":200,"unit_mw":25,"k":4,"eta":0.85,"c_deg":4.0,"cycle_cap_mwh":300,"s0_mwh":100,
+{"site_id":"pv150-b100x2h-poi150","source":"archetype|matched","coupling":"ac|dc","pv_mwac":150,"pv_mwdc":195,
+ "ilr":1.3,"poi_mw":150,"poi_import_mw":150,"inverter_mw":null,
+ "bess":{"p_mw":100,"e_mwh":200,"unit_mw":25,"eta":0.85,"c_deg":4.0,"cycle_cap_mwh":300,"s0_mwh":100,
          "s_end_min_mwh":100},
  "qualified":["regup","regdn","rrs","ecrs","nspin"],"flags":{"poi":"default","coupling":"assumed","pv":"proxy"}}
 ```
@@ -87,15 +89,16 @@ Site row (`task["site"]`), the archetype (lane D3 supplies real archetypes per h
   max(0, pv - L) (PV the battery caught above the meter limit); curtailed = s - pv.
 - Awards a_k (MW) for k in regup, regdn, rrs, ecrs, nspin. Up = RU + RRS + ECRS + NS, Down = RD. Durations dur_k from
   `contract.as_duration_h(k, date)` (era A/B/C, lane D3). R_up = sum_up dur_k*a_k, R_dn = eta*dur_RD*RD.
-- Rules per hour (the `rule` strings): `parse`, `frozen` (a frozen hour's entry differs from the book), `step` (not a
-  multiple of unit_mw), `power` (|b| > P or a level > P), `headroom_up` (b + Up > P), `headroom_dn` (b - RD < -P),
+- `unit_mw` is only a suggested block size for prompts; it is not a rule.
+- Rules per hour (the `rule` strings): `parse`, `frozen` (a frozen hour's entry differs from the book), `power` (|b| > P
+  or an award outside 0..P), `headroom_up` (b + Up > P), `headroom_dn` (b - RD < -P),
   `meter_up` (b + Up > L), `meter_dn` (b - RD < -L_imp), `soc_empty` (B < 0), `soc_full` (B > E), `cycle_cap`,
   `reserve_up`, `reserve_dn`, `not_offered` (the product does not exist that day, or the tier is `energy`),
-  `not_qualified`, `as_fixed` (reserves tier after watch 0: AS differ from the DA book). Tolerance 1e-6 MWh.
+  `not_qualified`, `as_fixed` (reserves tier after watch 0: AS differ from the DA book). Tolerance 1e-4 MWh.
 - Settlement (price taker), per hour: energy_da = x_DA*DA, energy_rt = (x - x_DA)*RT, as_da = sum_k aDA_k*piDA_k,
   as_rt = sum_k (aRT_k - aDA_k)*piRT_k (era C; else aRT = aDA), degradation = c_deg*MWh discharged, ftp (charged, C3-D8).
   At 24:00 the end penalty = charged shortfall/eta * max(max_h DA_h, P_FLOOR). Profit P = energy_da + energy_rt + as_da +
-  as_rt - degradation - ftp - end_penalty. Money in tool outputs is rounded to cents, MW/MWh to 3 decimals, grades to 6.
+  as_rt - degradation - ftp - end_penalty. Money in tool outputs is rounded to cents, MW/MWh to 2 decimals, grades to 6.
 
 ## Tiers
 
@@ -108,7 +111,8 @@ Site row (`task["site"]`), the archetype (lane D3 supplies real archetypes per h
 ## Plan format (`check_schedule` / `commit_schedule`)
 
 `plan = {"energy": list | str | blocks, "regup"?: blocks, "regdn"?: blocks, "rrs"?: blocks, "ecrs"?: blocks,
-"nspin"?: blocks}`, `from_hour` an int 0..23 (a numeric string is read as one).
+"nspin"?: blocks}` (an object, or its JSON string), `from_hour` an int 0..23 ("13" and "13:00" are read as 13);
+`from_hour` may be omitted and then is `frozen_until_hour`.
 
 - A block is `{"from": h1, "to": h2, "mw": v}`: hours h1 <= h < h2, from_hour <= h1 < h2 <= 24. A field's blocks may not
   overlap; hours from from_hour that no block covers are 0. One block may be sent bare (not in a list).
@@ -150,14 +154,14 @@ unexpected argument uses a call, one after the day or with no calls left uses no
 ```
 {"task_id","tier","date","era":"A|B|C","settlement_point","site_id","region","watch":k,"time":"2023-09-06 12:00",
  "frozen_until_hour":13,"calls_left":3,"day_over":false,
- "site":{"coupling","pv_mwac","pv_mwdc","meter_mw":L,"meter_import_mw":L_imp,"p_mw","e_mwh","unit_mw","eta","c_deg",
+ "site":{"coupling","pv_mwac","pv_mwdc","meter_mw":L,"meter_import_mw":L_imp,"p_mw","e_mwh","eta","c_deg",
          "cycle_cap_mwh","s_end_min_mwh"},
  "as_rules":{"products":[offered today],"qualified":[...],"duration_h":{"regup":1.0,...},"reg_drift_mean":{"regup":0.12,
              "regdn":0.18},"as_fixed_after_watch_0":bool},
  "hours":{"pv_mw":[24],"da_usd":[24],"rt_usd":[settled hours only],
           "mcpc_da":{"regup":[24],...offered},"mcpc_rt":{...}|null (era C: settled hours only)},
  "soc_mwh":x,"discharged_mwh":d,"status":"SSSS…FFOO…",            # S settled, F frozen, O open
- "book":{"energy":[24],"regup":[24],...offered},                 # MW per hour (the executed base move for settled hours)
+ "book":{"energy":[24],"regup":[24],...offered},                 # MW per hour as committed (advance shows executed)
  "da":{"x_da_mw":[24]|null,"regup":[24],...}|null,                # null until watch 0 ends
  "projected":{"soc_mwh":[25],"reserve_margin_mwh":[24],"energy_usd","as_usd","degradation_usd","ftp_usd",
               "end_penalty_usd","total_usd","end_soc_mwh"},
@@ -254,7 +258,7 @@ output showed an hour's RT price or RT MCPC before that hour ended.
  "date","era":"A|B|C","settlement_point","point_kind","region","site":{...},
  "prices":[24 DA SPP],"rt":[24 hourly RT SPP (mean of the four 15-min SPPs)],"pv_cf":[24],"pv_mw":[24],
  "mcpc_da":{"regup":[24],"regdn":[24],"rrs":[24],"ecrs":[24]|absent,"nspin":[24]},"mcpc_rt":{...}|null,
- "reg":{"up":[24],"dn":[24],"mean_up":0.12,"mean_dn":0.18,"source":"seeded","seed":n},
+ "reg":{"up":[24],"dn":[24],"mean_up":0.12,"mean_dn":0.18,"source":"seeded","label":"..."},
  "notices":[v2 notices],"deployments":[...],"events_sha":"...",
  "refs":{"hybrid_version","events_sha","p_idle",
          "energy":{"p_anchor","anchor":{"book","commits"},"p_hind","p_lp","oneshot":{"p_milp","plan"},
@@ -267,7 +271,7 @@ output showed an hour's RT price or RT MCPC before that hour ended.
 
 Task ids `hyb-v3-{date}-{point}-{site_id}`; the tier is the load config. Packs (counts in the manifests):
 `ercot-hybrid-v3-train` (~2,400, 2021-2024, T1/T2), `ercot-hybrid-v3-eval` (300, 2025-01..11, stratified by AS value),
-`ercot-hybrid-v3-rtcb` (only if RT MCPC exists), `ercot-hybrid-v3-showcase` (`sept06-2023` hero, `aug10-2023`,
+`ercot-hybrid-v3-rtcb` (era C days as T2, DA AS only, flagged; V3-D10), `ercot-hybrid-v3-showcase` (`sept06-2023` hero, `aug10-2023`,
 `mar29-2024`, `fern-0126-2026`; display only, each ±3 days out of every split), `data/fixtures-hybrid/` (20 CI tasks).
 Filters: v1's low-spread drop; drop days where the sponge is within 3% of the anchor; drop P_anchor - P_idle < $500;
 Uri ±3 days out of every split.
