@@ -355,3 +355,52 @@ def test_prompts_schemas_and_oneshot_reward():
              'I will idle: {"energy": [0, 0]}', "no plan"]
     r = P.oneshot_reward_fn(None, comps, task=[t] * 4, tier="reserves")
     assert r[0] == pytest.approx(1.0) and r[1] == pytest.approx(1.0) and r[2] == 0.0 and r[3] == 0.0
+
+
+@pytest.mark.parametrize("site", ["arch-dc150", "arch-ac125"])
+def test_clipping_is_exact_and_the_sponge_catches_it(site):
+    t = synth(seed=11, site=site, deploy=False, notices=False)
+    st_, day = H.site_of(t), H.day_of(t, "energy")
+    clip = [max(0.0, float(x) - st_.meter) for x in day.pv]
+    assert sum(clip) > 10
+    s = H.play(t, "energy", H.sponge_policy)
+    rows = {r["h"]: r for r in s.rows}
+    for h, c in enumerate(clip):
+        r = rows[h]
+        assert r["clippable"] == pytest.approx(c, abs=1e-9)
+        assert r["clip_rec"] == pytest.approx(min(c, max(0.0, -r["b"])), abs=1e-6)
+        if c and r["b"] < 0:
+            assert r["x"] == pytest.approx(st_.meter, abs=1e-6) or r["pv"] == pytest.approx(day.pv[h], abs=1e-6)
+    caught = sum(r["clip_rec"] for r in s.rows)
+    room = (st_.e - st_.s0) / st_.eta
+    assert min(sum(clip), room) - 1e-3 <= caught <= sum(clip) + 1e-6
+    ref = H.references(t, tiers=("energy",))
+    assert ref["energy"]["baselines"]["sponge"]["reward"] > 0.2
+    g = H.play(t | {"refs": ref}, "energy", H.sponge_policy, reference=False).grade()
+    assert g["clip_recovered_pct"] == pytest.approx(100 * caught / sum(clip), abs=1e-4)
+
+
+def test_issue_details_never_name_an_empty_product_list():
+    s = H.Session(synth())
+    out = json.loads(s.call("check_schedule", {"plan": {"energy": [100] * 24}, "from_hour": 0}))
+    assert {i["rule"] for i in out["issues"]} == {"soc_empty"}
+    assert all(" need " not in i["detail"] or i["detail"].split(" need ")[0].strip() for i in out["issues"])
+
+
+def test_inherited_awards_accept_the_governors_move():
+    t = synth(deploy=False, notices=False)
+    t["reg"] = t["reg"] | {"up": [1.0] * 24, "dn": [0.0] * 24}
+    s = H.Session(t)
+    s.call("commit_schedule", {"plan": {"energy": [0] * 24, "regup": {"from": 0, "to": 24, "mw": 25}}, "from_hour": 0})
+    for _ in range(3):
+        s.call("advance")
+        s.deliver_watch_notices()
+    fo = s.first_open
+    S, cyc = H.projected_state(s, fo)
+    a = s.entry(fo)[1]
+    assert S < H.r_up(s.day.dur, a)
+    out = json.loads(s.call("commit_schedule", {"plan": {"energy": [0] * (24 - fo)}, "from_hour": fo}))
+    assert any(r["hour"] == fo and r["rule"] == "reserve_up" for r in out["refused"])
+    g = H.govern(0.0, *H.limits(s.site, s.day.dur, S, cyc, a))
+    out = json.loads(s.call("commit_schedule", {"plan": {"energy": [g] + [0] * (23 - fo)}, "from_hour": fo}))
+    assert fo in out["committed"] and not any(r["hour"] == fo for r in out["refused"])
