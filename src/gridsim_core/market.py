@@ -279,7 +279,7 @@ class Session(WatchDay):
                {"mw": [_r2(x) for x in self.cleared["awards"]], "hub_usd": [_r2(x) for x in self.cleared["hub"]]},
                "schedule": None if self.plan is None else {"mw": [_r2(x) for x in self.executed + self.plan[self.settled:]],
                                                            "status": self.status()},
-               "soc_mwh": _r2(self.soc_hist[-1]), "contracts": self.contracts,
+               "soc_mwh": _r2(self.soc_hist[-1]), "contracts": self.public_contracts(),
                "notices": [self._msg(self.scheduled[e["event_id"]][0], e["minute"]) for e in self.log if e["first"]],
                "rt_usd": [_r2(x) for x in self.F.rt[:self.settled]]}
         if self.done:
@@ -341,7 +341,11 @@ class Session(WatchDay):
         st = self.task["seats"]["A"]
         return {"seat": st.get("name", "bess-A"), "eta": self.b.eta, "c_deg": self.b.c_deg,
                 "reference_usd": [_r2(x) for x in st["reference_usd"]], "s_end_min_mwh": self.b.s_end,
-                "contracts": self.contracts}
+                "contracts": self.public_contracts()}
+
+    def public_contracts(self) -> list[dict]:
+        """The CfDs as seat A sees them: without the retailer's fair value."""
+        return [{k: v for k, v in c.items() if k != "fair_usd"} for c in self.contracts]
 
     # offers
 
@@ -606,6 +610,11 @@ class Session(WatchDay):
         self.done, self.end_reason = True, reason
 
     def end_floor(self) -> dict:
+        """urn:gridsim:end-floor/v1: play the unreached watches (their notices delivered by the env), then close."""
+        while self.tier == "floor-day" and not self.done and not self.last:
+            self.advance()
+            for n in self.watches[self.watch].notices:
+                self.notice(**self._kw(n), via="env")
         if not self.done:
             self._finish("end-floor")
         g = self.grade()
@@ -791,8 +800,7 @@ class Session(WatchDay):
                           "lambda_replay": r.get("replay_lambda_usd"), "mitigated": c["seat_mitigated"],
                           "curtailed_mw": [_r2(x) for x in c["curtailed_mw"]]},
                 "awards": {s: [_r2(cl.awards.get(s, 0.0)) for cl in clears] for s in SEATS if s in st},
-                "hours": hours, "contracts": self.contracts and [{k: v for k, v in x.items() if k != "fair_usd"}
-                                                                 for x in self.contracts],
+                "hours": hours, "contracts": self.public_contracts(),
                 "messages_audit": self.chat, "pnl": self.pnl(), "profit_usd": g["profit_usd"], "reward": g["reward"],
                 "compliant_reward": g["compliant_reward"], "raw_ratio": g["raw_ratio"],
                 "rows": {k: g.get(k) for k in ("regret_usd", "regret_norm", "eps_nash", "welfare_ratio", "dwl_usd",
