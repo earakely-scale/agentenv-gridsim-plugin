@@ -10,7 +10,7 @@ import hashlib
 import json
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -131,11 +131,14 @@ class Notice:
     start: str | None = None
     until: str | None = None
     action: str | None = None
+    deploy: dict | None = field(default=None, hash=False)
 
     @property
     def priority(self) -> int:
-        """Which notice watches survive the 10-watch cap: emergencies first, cancellations last."""
+        """Which notice watches survive the 10-watch cap: emergencies and deployments first, cancellations last."""
         lv = str(self.level or "")
+        if self.deploy is not None:
+            return 0
         if self.action == "cancel":
             return 8
         if self.source == "NWS" or self.kind.startswith("nws:"):
@@ -145,8 +148,9 @@ class Notice:
         return {"conservation": 1, "EEA_exit": 2, "Watch": 2, "Advisory": 3, "OCN": 4}.get(lv, 4)
 
     def args(self) -> dict:
-        return {"event_id": self.event_id, "name": self.name, "text": self.text, "level": self.level,
-                "derate_mw": self.derate_mw, "from": self.start, "until": self.until}
+        out = {"event_id": self.event_id, "name": self.name, "text": self.text, "level": self.level,
+               "derate_mw": self.derate_mw, "from": self.start, "until": self.until}
+        return out if self.deploy is None else out | {"deploy": self.deploy}
 
 
 @dataclass(frozen=True)
@@ -167,7 +171,15 @@ def parse_notice(n: dict, date: str) -> Notice:
                                                                                  "ERCOT"),
                   str(n.get("title") or text.split(".")[0][:120]), text,
                   None if n.get("derate_mw") is None else float(n["derate_mw"]), n.get("from"), n.get("until"),
-                  n.get("action"))
+                  n.get("action"), _deploy(n.get("deploy")))
+
+
+def _deploy(d: dict | None) -> dict | None:
+    """A deployment payload in its canonical shape: {product, frac, start_min, end_min}."""
+    if d is None:
+        return None
+    return {"product": str(d["product"]), "frac": float(d["frac"]), "start_min": int(d["start_min"]),
+            "end_min": int(d["end_min"])}
 
 
 def notices_sha(notices) -> str:
@@ -261,8 +273,109 @@ def _clip(a: int, s: int, d: int, kd: int, kc: int, g: Battery) -> int:
     return min(a, kd, s, g.cap - d) if a > 0 else -min(-a, kc, g.n - s) if a < 0 else 0
 
 
-class Session:
+class WatchDay:
+    """The watch machinery v2 and v3 share: tool dispatch with the exact output string, messages and the transcript;
+    notice delivery and its log; the audit's watch, reveal, RT and get_time rows. A subclass sets TOOLS, RT_MINUTES and
+    the state the hooks read (watches, watch, minute, done, scheduled, calls, frozen)."""
+
+    TOOLS: tuple[str, ...] = ()
+    NOTICE_ARGS: tuple[str, ...] = ("event_id", "name", "text", "level", "derate_mw", "until")
+    RT_MINUTES = 15
+
+    def _init_watch_log(self):
+        self.log: list[dict] = []
+        self.delivered: list[str] = []
+        self.messages: list[dict] = []
+        self.rt_log: list[dict] = []
+        self.transcript: list[dict] = []
+
+    def call(self, tool: str, args: dict | None = None) -> str:
+        """The exact output string of a tool call; agent tools carry the messages delivered since the last call."""
+        args = dict(args or {})
+        if tool == NOTICE_TOOL:
+            kw = {k: args.get(k) for k in self.NOTICE_ARGS}
+            out = self.notice(**kw, start=args.get("from"), via=args.pop("_via", "trigger"))
+        elif tool in self.TOOLS:
+            self.calls += 1
+            out = self._dispatch(tool, args)
+            out["messages"] = self.drain()
+            self._log_rt(out)
+        else:
+            raise ValueError(f"unknown tool {tool!r}")
+        text = _dump(out)
+        self.transcript.append({"tool": tool, "args": args, "output": text})
+        return text
+
+    def drain(self) -> list[dict]:
+        out, self.messages = self.messages, []
+        return out
+
+    def notice(self, event_id: str, name: str, text: str, level=None, derate_mw=None, start=None, until=None,
+               deploy=None, via: str = "trigger") -> dict:
+        if event_id not in self.scheduled:
+            raise ValueError(f"unknown event {event_id!r}")
+        if self.done:
+            raise ValueError("the day is over")
+        n, _ = self.scheduled[event_id]
+        first = event_id not in self.delivered
+        self.log.append({"event_id": event_id, "watch": self.watch, "minute": self.minute, "via": via,
+                         "call": self.calls, "first": first,
+                         "matches": (name, text, level, derate_mw, start, until, _deploy(deploy)) == (
+                             n.name, n.text, n.level, n.derate_mw, n.start, n.until, n.deploy)})
+        if first:
+            self.delivered.append(event_id)
+            self._apply_notice(n)
+            if via != "load":
+                self.messages.append(self._msg(n, self.minute))
+        return {"applied": event_id, "watch": self.watch}
+
+    def _apply_notice(self, n: Notice):
+        """What a notice changes in the plant when it is first delivered."""
+
+    def _kw(self, n: Notice) -> dict:
+        kw = {"event_id": n.event_id, "name": n.name, "text": n.text, "level": n.level, "derate_mw": n.derate_mw,
+              "start": n.start, "until": n.until}
+        return kw if n.deploy is None else kw | {"deploy": n.deploy}
+
+    def deliver_watch_notices(self, via: str = "trigger") -> list[str]:
+        """What the gateway's trigger does after advance opens a watch: grid_notice for each of its notices, in order."""
+        if self.done:
+            return []
+        return [self.call(NOTICE_TOOL, n.args() | {"_via": via}) for n in self.watches[self.watch].notices]
+
+    def _audit_watches(self, get_time_reads=None) -> list[str]:
+        problems = []
+        reached = range(len(self.watches)) if self.done else range(self.watch + 1)
+        for k in reached:
+            got = [e["event_id"] for e in self.log if e["watch"] == k]
+            want = [n.event_id for n in self.watches[k].notices]
+            if got != want:
+                problems.append(f"watch {k} got {got} instead of {want}")
+        for e in self.log:
+            n, _ = self.scheduled[e["event_id"]]
+            if e["via"] == "trigger" and e["call"] != self.frozen[e["watch"]]["call"]:
+                problems.append(f"{e['event_id']} arrived after the agent's next call in watch {e['watch']}")
+            if not e["matches"]:
+                problems.append(f"{e['event_id']}: the delivered notice differs from the schedule")
+            if e["minute"] < n.reveal:
+                problems.append(f"{e['event_id']}: delivered at {hhmm(e['minute'] % DAY_END)} before its reveal time")
+        for r in self.rt_log:
+            if r["rt_shown"] * self.RT_MINUTES > max(0, r["minute"]):
+                problems.append(f"call {r['call']} showed {r['rt_shown']} RT prices at minute {r['minute']}")
+        for k, iso in get_time_reads or []:
+            if _as_utc(iso) != _as_utc(self.watches[k].time_utc):
+                problems.append(f"get_time read {iso} in watch {k}, not {self.watches[k].time_utc}")
+        for event_id in self.scheduled:
+            c = self.delivered.count(event_id)
+            if c > 1 or (self.done and c != 1):
+                problems.append(f"{event_id} revealed {c} times")
+        return problems
+
+
+class Session(WatchDay):
     """One live battery-day. Drive it through call() so outputs, messages and the transcript match path A exactly."""
+
+    TOOLS = TOOLS
 
     def __init__(self, task: dict, tier: str = "foresight", notices=None, *, reference: bool = False):
         if tier not in TIERS:
@@ -289,14 +402,10 @@ class Session:
         self.cash = {"da_usd": 0.0, "rt_usd": 0.0, "deg_usd": 0.0, "excused_usd": 0.0}
         self.rows: list[dict] = []
         self.shortfall_units, self.shortfall_usd, self.excused_short_units = 0, 0.0, 0
-        self.log: list[dict] = []
-        self.delivered: list[str] = []
-        self.messages: list[dict] = []
+        self._init_watch_log()
         self.frozen = [self._frozen_row()]
         self.refusals: list[dict] = []
         self.commits: list[dict] = []
-        self.rt_log: list[dict] = []
-        self.transcript: list[dict] = []
         self._grade: dict | None = None
         self._refs: dict | None = None
         for n in self.watches[0].notices:
@@ -362,32 +471,11 @@ class Session:
         return {"watch": self.watch, "time": label(self.minute, self.date), "freeze_line": label(
             freeze_line(self.minute, self.tier), self.date), "first_open_interval": self.first_open, "call": self.calls}
 
-    def _kw(self, n: Notice) -> dict:
-        return {"event_id": n.event_id, "name": n.name, "text": n.text, "level": n.level, "derate_mw": n.derate_mw,
-                "start": n.start, "until": n.until}
-
     def _msg(self, n: Notice, minute: int) -> dict:
         return {"time": label(minute, self.date), "issued_at": label(n.issued, self.date), "event_id": n.event_id,
                 "source": n.source, "level": n.level, "name": n.name, "title": n.title, "text": n.text}
 
     # the agent's tools
-
-    def call(self, tool: str, args: dict | None = None) -> str:
-        """The exact output string of a tool call; agent tools carry the messages delivered since the last call."""
-        args = dict(args or {})
-        if tool == NOTICE_TOOL:
-            kw = {k: args.get(k) for k in ("event_id", "name", "text", "level", "derate_mw", "until")}
-            out = self.notice(**kw, start=args.get("from"), via=args.pop("_via", "trigger"))
-        elif tool in TOOLS:
-            self.calls += 1
-            out = self._dispatch(tool, args)
-            out["messages"] = self.drain()
-            self._log_rt(out)
-        else:
-            raise ValueError(f"unknown tool {tool!r}")
-        text = _dump(out)
-        self.transcript.append({"tool": tool, "args": args, "output": text})
-        return text
 
     def _dispatch(self, tool: str, args: dict) -> dict:
         want = {"get_situation": (), "advance": (), "commit_da": ("position",),
@@ -406,10 +494,6 @@ class Session:
         if out.get("settled"):
             n = max(n, max(r["interval"] for r in out["settled"]) + 1)
         self.rt_log.append({"call": self.calls, "minute": self.minute, "rt_shown": n})
-
-    def drain(self) -> list[dict]:
-        out, self.messages = self.messages, []
-        return out
 
     def situation(self) -> dict:
         t = self.task
@@ -653,31 +737,9 @@ class Session:
 
     # the harness's side
 
-    def notice(self, event_id: str, name: str, text: str, level=None, derate_mw=None, start=None, until=None,
-               via: str = "trigger") -> dict:
-        if event_id not in self.scheduled:
-            raise ValueError(f"unknown event {event_id!r}")
-        if self.done:
-            raise ValueError("the day is over")
-        n, _ = self.scheduled[event_id]
-        first = event_id not in self.delivered
-        self.log.append({"event_id": event_id, "watch": self.watch, "minute": self.minute, "via": via,
-                         "call": self.calls, "first": first,
-                         "matches": (name, text, level, derate_mw, start, until) == (
-                             n.name, n.text, n.level, n.derate_mw, n.start, n.until)})
-        if first:
-            self.delivered.append(event_id)
-            if n.derate_mw is not None:
-                self._derate(n)
-            if via != "load":
-                self.messages.append(self._msg(n, self.minute))
-        return {"applied": event_id, "watch": self.watch}
-
-    def deliver_watch_notices(self, via: str = "trigger") -> list[str]:
-        """What the gateway's trigger does after advance opens a watch: grid_notice for each of its notices, in order."""
-        if self.done:
-            return []
-        return [self.call(NOTICE_TOOL, n.args() | {"_via": via}) for n in self.watches[self.watch].notices]
+    def _apply_notice(self, n: Notice):
+        if n.derate_mw is not None:
+            self._derate(n)
 
     def _derate(self, n: Notice):
         g, p = self.grid, float(self.task["battery"]["p_dis_mw"])
@@ -749,31 +811,7 @@ class Session:
         return self._grade
 
     def audit(self, get_time_reads=None) -> dict:
-        problems = []
-        reached = range(len(self.watches)) if self.done else range(self.watch + 1)
-        for k in reached:
-            got = [e["event_id"] for e in self.log if e["watch"] == k]
-            want = [n.event_id for n in self.watches[k].notices]
-            if got != want:
-                problems.append(f"watch {k} got {got} instead of {want}")
-        for e in self.log:
-            n, _ = self.scheduled[e["event_id"]]
-            if e["via"] == "trigger" and e["call"] != self.frozen[e["watch"]]["call"]:
-                problems.append(f"{e['event_id']} arrived after the agent's next call in watch {e['watch']}")
-            if not e["matches"]:
-                problems.append(f"{e['event_id']}: the delivered notice differs from the schedule")
-            if e["minute"] < n.reveal:
-                problems.append(f"{e['event_id']}: delivered at {hhmm(e['minute'] % DAY_END)} before its reveal time")
-        for r in self.rt_log:
-            if r["rt_shown"] * 15 > max(0, r["minute"]):
-                problems.append(f"call {r['call']} showed {r['rt_shown']} RT prices at minute {r['minute']}")
-        for k, iso in get_time_reads or []:
-            if _as_utc(iso) != _as_utc(self.watches[k].time_utc):
-                problems.append(f"get_time read {iso} in watch {k}, not {self.watches[k].time_utc}")
-        for event_id in self.scheduled:
-            c = self.delivered.count(event_id)
-            if c > 1 or (self.done and c != 1):
-                problems.append(f"{event_id} revealed {c} times")
+        problems = self._audit_watches(get_time_reads)
         if self.transcript:
             problems += replay(self.task, self.tier, self.notices_in, self.transcript)["problems"]
         return {"ok": not problems, "problems": problems}
