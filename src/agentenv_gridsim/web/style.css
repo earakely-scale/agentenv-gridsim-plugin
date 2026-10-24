@@ -387,3 +387,8 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .score.live .second .r { font-size: 22px; color: var(--ink2); }
 .score.live .second .rscale .fill { background: #7a868e; }
 .planlog blockquote + blockquote { margin-top: 6px; }
+@media (max-width: 900px) {
+  .ep.is-live .news { display: none; }
+  .ep.is-live .timeline { bottom: 46px; }
+  .ep.is-live .tl .hours span:nth-child(even) { display: none; }
+}
