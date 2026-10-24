@@ -18,11 +18,14 @@ _WHEN = {
 the DAM prices at this point for D-1 and D-7..D-1. D's DA prices appear at the 00:00 watch.""",
 }
 
-_PLAY = """How the day runs
+_PLAY = f"""How the day runs
 - At watch 0 you commit a DA position once (commit_da) and a physical schedule for D's 96 fifteen-minute intervals \
 (00:00..23:45).
 - Then the day plays in watches: D 00:00, 06:00, 12:00, 18:00, plus a watch when ERCOT or the weather service issues \
-a notice. At each watch you may re-plan; advance runs your schedule to the next watch.
+a notice.
+- At every watch: read the situation (settled RT prices, notices, SoC), re-plan if it helps with up to \
+{PLANNING_CALLS} planning calls, then call advance, which runs your schedule to the next watch. The day goes on until \
+advance returns "done": true, so never stop early: keep going watch by watch.
 - An RT price is revealed only after its interval ends (advance returns the settled intervals). Nothing moves while \
 you think.
 - Notices arrive in "messages" of your next tool result after advance. ERCOT notices change no physics; a derate \
@@ -67,6 +70,7 @@ your schedule (status E executed, F frozen, O open), P&L so far and every notice
 refusals, the SoC path and the day's P&L with unsettled intervals at DA prices. Commits nothing.
 - commit_schedule(actions, start, step): replaces your schedule from start to 24:00, all or nothing.
 - advance(): ends this watch.
+- get_time(), if offered, reads the same virtual clock in UTC; the GridSim tools take and show CPT "HH:MM".
 actions: step "15m" sends one integer per interval from start to 24:00 (96 from 00:00); step "1h" sends one per \
 hour from start (on the hour), each applied to the hour's four intervals. Intervals before the freeze line must keep \
 their committed values."""
