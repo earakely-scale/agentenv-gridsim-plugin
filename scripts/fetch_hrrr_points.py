@@ -5,7 +5,7 @@ LastModified and the forecast hours present), then per forecast hour the GRIB2 .
 (TMP 2 m, UGRD/VGRD 80 m, DSWRF surface, TCDC entire atmosphere), decoded with eccodes at the grid cells in
 data/forecast/points.json. One parquet per run under OUT/runs/, so a stopped job resumes; --merge writes
 OUT/runs.parquet and OUT/points/YYYY.parquet. Run it in us-east-1 (the bucket's region): ~260-300 MB and ~3 CPU-s per
-run. Needs: pip install eccodes numpy pyarrow."""
+run. Needs: pip install eccodes numpy pandas pyarrow urllib3."""
 
 from __future__ import annotations
 
@@ -16,16 +16,17 @@ import json
 import multiprocessing as mp
 import re
 import time
-import urllib.request
 from pathlib import Path
 
 import eccodes
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import urllib3
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "https://noaa-hrrr-bdp-pds.s3.amazonaws.com"
+BASE = "http://noaa-hrrr-bdp-pds.s3.amazonaws.com"
 CYCLES = (0, 6, 12, 18)
 FIELDS = {"t2m_k": ("TMP", "2 m above ground"), "u80_ms": ("UGRD", "80 m above ground"),
           "v80_ms": ("VGRD", "80 m above ground"), "dswrf_wm2": ("DSWRF", "surface"),
@@ -33,6 +34,9 @@ FIELDS = {"t2m_k": ("TMP", "2 m above ground"), "u80_ms": ("UGRD", "80 m above g
 ISSUE_MIN = 120
 BACKFILL_MIN = 180
 V4_START = dt.datetime(2020, 12, 2, 12, tzinfo=dt.UTC)
+SCHEMA = pa.schema([("run_id", pa.string()), ("point", pa.string()), ("fh", pa.int64()), ("valid_utc", pa.string()),
+                    *((name, pa.float64()) for name in FIELDS)])
+POINTS_SCHEMA = pa.schema([*SCHEMA][:4] + [pa.field(name, pa.float32()) for name in FIELDS])
 _KEY = re.compile(r"<Key>([^<]+)</Key>.*?<LastModified>([^<]+)</LastModified>", re.S)
 
 
@@ -41,16 +45,27 @@ def points() -> tuple[list[str], np.ndarray, dict]:
     return [p["id"] for p in d["points"]], np.array([p["grid_index"] for p in d["points"]]), d
 
 
+_HTTP = urllib3.PoolManager(maxsize=32, timeout=urllib3.Timeout(connect=20, read=120), retries=False)
+
+
+class Missing(Exception):
+    """The object is not in the bucket."""
+
+
 def get(url: str, rng: tuple[int, int | None] | None = None) -> bytes:
     hdr = {"Range": f"bytes={rng[0]}-{'' if rng[1] is None else rng[1]}"} if rng else {}
-    for attempt in range(6):
+    for attempt in range(7):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers=hdr), timeout=120) as r:
-                return r.read()
-        except Exception:
-            if attempt == 5:
-                raise
-            time.sleep(2 ** attempt)
+            r = _HTTP.request("GET", url, headers=hdr, preload_content=True)
+            if r.status == 404:
+                raise Missing(url)
+            if r.status in (200, 206):
+                return r.data
+        except urllib3.exceptions.HTTPError:
+            pass
+        if attempt == 6:
+            raise RuntimeError(f"GET {url} failed")
+        time.sleep(2 ** attempt)
     raise RuntimeError(url)
 
 
@@ -77,10 +92,16 @@ def ranges(idx: str) -> dict[str, tuple[int, int | None]]:
 
 def one_hour(day: dt.date, cyc: int, fh: int, index: np.ndarray) -> tuple[dict[str, np.ndarray], int]:
     key = f"{BASE}/hrrr.{day:%Y%m%d}/conus/hrrr.t{cyc:02d}z.wrfsfcf{fh:02d}.grib2"
-    idx = get(key + ".idx")
+    try:
+        idx = get(key + ".idx")
+    except Missing:
+        return {}, 0
     nbytes, vals = len(idx), {}
     for name, rng in ranges(idx.decode()).items():
-        msg = get(key, rng)
+        try:
+            msg = get(key, rng)
+        except Missing:
+            return {}, nbytes
         nbytes += len(msg)
         gid = eccodes.codes_new_from_message(msg)
         try:
@@ -91,7 +112,13 @@ def one_hour(day: dt.date, cyc: int, fh: int, index: np.ndarray) -> tuple[dict[s
 
 
 def run_one(args: tuple[str, int, str, int]) -> dict:
-    day_s, cyc, out_s, threads = args
+    try:
+        return _run_one(*args)
+    except Exception as e:
+        return {"run_id": f"{args[0]}T{args[1]:02d}Z", "error": f"{type(e).__name__}: {e}"}
+
+
+def _run_one(day_s: str, cyc: int, out_s: str, threads: int) -> dict:
     day, out = dt.date.fromisoformat(day_s), Path(out_s)
     run_id = f"{day_s}T{cyc:02d}Z"
     path = out / "runs" / f"{day:%Y%m%d}_{cyc:02d}z.parquet"
@@ -102,10 +129,13 @@ def run_one(args: tuple[str, int, str, int]) -> dict:
     lm = listing(day, cyc)
     cycle = dt.datetime(day.year, day.month, day.day, cyc, tzinfo=dt.UTC)
     rows = {k: [] for k in ("point", "fh", "valid_utc", *FIELDS)}
-    total = 0
+    total, missing = 0, []
     with cf.ThreadPoolExecutor(threads) as ex:
         for fh, (vals, nb) in zip(sorted(lm), ex.map(lambda f: one_hour(day, cyc, f, index), sorted(lm)), strict=True):
             total += nb
+            if not vals:
+                missing.append(fh)
+                continue
             valid = (cycle + dt.timedelta(hours=fh)).strftime("%Y-%m-%dT%H:%M:%SZ")
             for i, p in enumerate(ids):
                 rows["point"].append(p)
@@ -117,10 +147,11 @@ def run_one(args: tuple[str, int, str, int]) -> dict:
     meta = {"run_id": run_id, "cycle_utc": cycle.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "issued_at_utc": (cycle + dt.timedelta(minutes=ISSUE_MIN)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "s3_last_modified_utc": last.strftime("%Y-%m-%dT%H:%M:%SZ") if last else None,
-            "fh_max": max(lm) if lm else None, "n_fh": len(lm), "hrrr": "v4" if cycle >= V4_START else "v3",
+            "fh_max": max(set(lm) - set(missing), default=None), "n_fh": len(lm) - len(missing), "missing_fh": missing,
+            "hrrr": "v4" if cycle >= V4_START else "v3",
             "backfilled": bool(last and (last - cycle).total_seconds() / 60 > BACKFILL_MIN),
             "bytes": total, "seconds": round(time.time() - t0, 1)}
-    table = pa.table({"run_id": [run_id] * len(rows["point"]), **rows})
+    table = pa.table({"run_id": [run_id] * len(rows["point"]), **rows}, schema=SCHEMA)
     table = table.replace_schema_metadata({"run": json.dumps(meta)})
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -131,15 +162,16 @@ def run_one(args: tuple[str, int, str, int]) -> dict:
 
 def merge(out: Path):
     files = sorted((out / "runs").glob("*.parquet"))
-    metas = [json.loads(pq.read_metadata(f).metadata[b"run"]) for f in files]
-    pq.write_table(pa.Table.from_pylist(metas), out / "runs.parquet", compression="zstd")
+    metas = [{"missing_fh": [], **json.loads(pq.read_metadata(f).metadata[b"run"])} for f in files]
+    pq.write_table(pa.Table.from_pandas(pd.DataFrame(metas), preserve_index=False), out / "runs.parquet",
+                   compression="zstd")
     by_year: dict[str, list[Path]] = {}
     for f in files:
         by_year.setdefault(f.name[:4], []).append(f)
     (out / "points").mkdir(exist_ok=True)
     for year, fs in sorted(by_year.items()):
-        pq.write_table(pa.concat_tables(pq.read_table(f) for f in fs), out / "points" / f"{year}.parquet",
-                       compression="zstd")
+        t = pa.concat_tables(pq.read_table(f).cast(SCHEMA) for f in fs)
+        pq.write_table(t.cast(POINTS_SCHEMA), out / "points" / f"{year}.parquet", compression="zstd")
         print(f"[fetch_hrrr_points] {year}: {len(fs)} runs", flush=True)
 
 
@@ -165,6 +197,8 @@ def main():
         for meta in pool.imap_unordered(run_one, jobs):
             done += 1
             nbytes += meta.get("bytes", 0)
+            if "error" in meta:
+                print(f"[fetch_hrrr_points] {meta['run_id']} not written: {meta['error']}", flush=True)
             if done % 50 == 0 or done == len(jobs):
                 rate = nbytes / max(1e-9, time.time() - t0) / 1e6
                 print(f"[fetch_hrrr_points] {done}/{len(jobs)} runs, {nbytes / 1e9:.1f} GB, {rate:.0f} MB/s",
