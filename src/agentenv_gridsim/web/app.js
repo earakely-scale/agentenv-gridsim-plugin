@@ -97,7 +97,7 @@ async function main() {
   if (q.get("charts") === "1") charts.toggle(true);
   const blindHidden = !live && d.ep.tier === "blind";
   const draw = (dt) => {
-    const f = stage.frame({ t: Math.max(0, P.t), dt, wall: P.wall });
+    const f = stage.frame({ t: live ? P.t : Math.max(0, P.t), dt, wall: P.wall });
     hud.update(P.t, { playing: P.playing, speed: P.speed, directing: stage.directing });
     charts.update(P.t);
     intro.update(P.t);

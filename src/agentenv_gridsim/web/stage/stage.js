@@ -164,8 +164,9 @@ export class GridStage {
     const tt = Math.max(0, Math.min(24, t));
     const w = weatherAt(d.weather, tt);
     this.w = w;
-    const s = this.sky.update(tt, wall, w);
-    const x = at(d, Math.min(23.999, tt));
+    const pre = d.live && t < 0;
+    const s = this.sky.update(pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt, wall, w);
+    const x = pre ? { ...at(d, 0), mode: "idle", mw: 0, soc: d.b.s0 } : at(d, Math.min(23.999, tt));
     const mode = t >= 24 ? (d.trunc != null ? "grey" : "idle") : x.mode;
     const mw = mode === "charge" || mode === "discharge" ? Math.abs(x.mw) : 0;
     const pmax = mode === "charge" ? d.b.p_ch_mw : d.b.p_dis_mw;
