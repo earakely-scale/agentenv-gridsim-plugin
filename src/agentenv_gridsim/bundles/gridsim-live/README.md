@@ -10,8 +10,8 @@ artifact reads the day from the env's `data/get` and scores the run with the day
 hindsight capture as weight-0 rows; a day that never finished, or whose audit failed, fails the step, so the run is
 not scored.
 
-- `day` plays the fixture notice day (a synthetic CI notice board and conservation appeal on a real 2024 HB_WEST day)
-  with the gridsim-llm agent (`agent-env gridsim setup --agent`, `--model <litellm model id>`), 52 turns.
+- `day` plays the fixture notice day (a synthetic CI notice board and conservation appeal on a real day, 2024-01-02
+  at LZ_CPS) with the gridsim-llm agent (`agent-env gridsim setup --agent`, `--model <litellm model id>`), 52 turns.
 - `wiring-noplay` runs the same steps without the agent and needs no model: end-day delivers every watch's notices
   itself, the day ends with nothing committed, and it scores 0 with the audit passing.
 
