@@ -42,7 +42,8 @@ PACKS = {"train": "ercot-hybrid-v3-train", "eval": "ercot-hybrid-v3-eval", "rtcb
 DRAWS = {"train": 3, "eval": 4, "rtcb": 2}
 DEFAULT_SHARE, POI_VARIANT_SHARE = 0.4, 0.25
 C_DEG = (0.0, 2.0, 4.0, 6.0, 8.0)
-FILTER = {"min_headroom_usd": 500.0, "low_spread_usd_per_mw": 22.0, "sponge_reward_max": 0.97}
+FILTER = {"min_headroom_usd": 500.0, "low_spread_usd_per_mw": 22.0, "sponge_reward_max": 0.97,
+          "baseline_reward_max": 0.97}
 RTCB_ADAPT = 60
 
 
@@ -126,6 +127,8 @@ def score(t: dict) -> dict:
     return {"headroom_energy_usd": e["p_anchor"] - r["p_idle"], "headroom_reserves_usd": s["p_anchor"] - r["p_idle"],
             "spread_usd_per_mw": (e["p_anchor"] - r["p_idle"]) / p,
             "sponge_reward": max(e["baselines"]["sponge"]["reward"], s["baselines"]["sponge"]["reward"]),
+            "best_baseline_reward": max([b["reward"] for b in s["baselines"].values()]
+                                        + [H.reward_value(e["p_anchor"], r["p_idle"], s["p_anchor"])]),
             "as_value_usd": s["oneshot"]["p_milp"] - e["oneshot"]["p_milp"],
             "as_value_realized_usd": s["p_anchor"] - e["p_anchor"]}
 
@@ -133,7 +136,8 @@ def score(t: dict) -> dict:
 def eligible(t: dict, f: dict = FILTER) -> bool:
     x = t["_score"]
     return (x["headroom_reserves_usd"] >= f["min_headroom_usd"] and x["headroom_energy_usd"] >= f["min_headroom_usd"]
-            and x["spread_usd_per_mw"] >= f["low_spread_usd_per_mw"] and x["sponge_reward"] < f["sponge_reward_max"])
+            and x["spread_usd_per_mw"] >= f["low_spread_usd_per_mw"] and x["sponge_reward"] < f["sponge_reward_max"]
+            and x["best_baseline_reward"] < f["baseline_reward_max"])
 
 
 def tags(t: dict, showcase: str | None = None) -> dict:
@@ -235,13 +239,16 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
     lines += ["", "## Filters (FD-4322)", "",
               f"Thresholds: P_anchor - P_idle >= ${FILTER['min_headroom_usd']:.0f} in both tiers; v1's low-spread drop "
               f"(energy-tier anchor - idle >= ${FILTER['low_spread_usd_per_mw']:.0f} per MW of battery); sponge reward "
-              f"< {FILTER['sponge_reward_max']} (the sponge within 3% of the anchor). Uri and every showcase day +/-3 "
-              "days are out of every split; DST days and days without 24 hourly inputs are dropped.", "",
-              "| Split | Candidates | Fail headroom | Fail low spread | Fail sponge | Eligible | Kept |",
-              "|---|---|---|---|---|---|---|"]
+              f"< {FILTER['sponge_reward_max']} (the sponge within 3% of the anchor); and, extending that rule "
+              f"(C3-D16), every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP below "
+              f"{FILTER['baseline_reward_max']} against the reserves anchor. Uri and every showcase day +/-3 days are "
+              "out of every split; DST days and days without 24 hourly inputs are dropped.", "",
+              "| Split | Candidates | Fail headroom | Fail low spread | Fail sponge | Fail baseline >= 0.97 | Eligible "
+              "| Kept |",
+              "|---|---|---|---|---|---|---|---|"]
     for sp, f in filt.items():
         lines.append(f"| {sp} | {f['candidates']} | {f['fail_headroom']} | {f['fail_spread']} | {f['fail_sponge']} | "
-                     f"{f['eligible']} | {f['kept']} |")
+                     f"{f['fail_baseline']} | {f['eligible']} | {f['kept']} |")
     lines += ["", "## Baselines and references (means over each pack)", "",
               "| Pack | Tier | Anchor - idle ($) | Anchor / hindsight capture | Sponge | v2 energy-only (blind) | "
               "AS-hog | Energy-only MILP | Anchor AS revenue ($) | Anchor governor hours |",
@@ -368,6 +375,7 @@ def build(args):
                                          < f["min_headroom_usd"] for c in pool),
                     "fail_spread": sum(c["_score"]["spread_usd_per_mw"] < f["low_spread_usd_per_mw"] for c in pool),
                     "fail_sponge": sum(c["_score"]["sponge_reward"] >= f["sponge_reward_max"] for c in pool),
+                    "fail_baseline": sum(c["_score"]["best_baseline_reward"] >= f["baseline_reward_max"] for c in pool),
                     "eligible": len(ok)}
         if sp == "eval":
             v = sorted(c["_score"]["as_value_usd"] for c in ok)
