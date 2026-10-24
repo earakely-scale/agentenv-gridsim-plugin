@@ -691,6 +691,8 @@ def coverage_md(m: dict, arch: dict) -> str:
          "same five columns). The DAM clears one RRS MCPC for all RRS sub-types (PFR, FFR, UFR/Load Resources), so "
          "v3's single RRS product uses it unchanged; ECRS is one DAM MCPC (on- and off-line ECRS are not priced "
          "separately). Non-Spin is the NSPIN column (on- and off-line Non-Spin share it).",
+         "- MCPCs are as published. Winter Storm Uri (February 2021) cleared AS above the $9,000 HCAP (up to $25,674 "
+         "for RRS); those days are out of every split (Uri ±3 days).",
          "", "| Year | regup mean / max | regdn mean / max | rrs mean / max | ecrs mean / max | nspin mean / max |",
          "|---|---|---|---|---|---|"]
     for y, ps in tb["as_by_year"].items():
@@ -761,6 +763,9 @@ def coverage_md(m: dict, arch: dict) -> str:
           "frac (for example 1.0 of the award for the event window capped by the era's duration, the stress case the "
           "reservation rule already covers).",
           "- `summary` is generated from the parsed fields; no verbatim notice text is stored.",
+          "- The archive has no RRS deployment message after 2023 and no ECRS one after 2025 (no untagged RRS/ECRS "
+          "deployment wording either); after RTC+B, SCED releases reserves itself and only Non-Spin messages remain. "
+          "Era C days therefore carry Non-Spin events only.",
           "- Coverage follows the archive's operations-message coverage: " + ", ".join(
               f"{y} {v}" for y, v in d["archive_coverage_by_year"].items()) + " (share of each day covered).", "",
           "| Year | RRS | ECRS | Non-Spin | events with MW |", "|---|---|---|---|---|"]

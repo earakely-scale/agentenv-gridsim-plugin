@@ -38,6 +38,7 @@ ERCOT MIS endpoints (`/misapp/servlets/IceDocListJsonWS`, `/misdownload/servlets
 
 - Coverage: 2021-01-01 to 2026-10-24, 2123 days, no missing dates (gaps: 0); era A 890, era B 909, era C 324 days; 11 DST days kept with 23/25 hours. First ECRS price: 2023-06-10.
 - Product mapping: the file columns REGUP, REGDN, RRS, ECRS and NSPIN map one to one to `regup, regdn, rrs, ecrs, nspin` in every era, including after RTC+B (the 2025 file's December rows and the 2026 file keep the same five columns). The DAM clears one RRS MCPC for all RRS sub-types (PFR, FFR, UFR/Load Resources), so v3's single RRS product uses it unchanged; ECRS is one DAM MCPC (on- and off-line ECRS are not priced separately). Non-Spin is the NSPIN column (on- and off-line Non-Spin share it).
+- MCPCs are as published. Winter Storm Uri (February 2021) cleared AS above the $9,000 HCAP (up to $25,674 for RRS); those days are out of every split (Uri ±3 days).
 
 | Year | regup mean / max | regdn mean / max | rrs mean / max | ecrs mean / max | nspin mean / max |
 |---|---|---|---|---|---|
@@ -87,6 +88,7 @@ ERCOT MIS endpoints (`/misapp/servlets/IceDocListJsonWS`, `/misdownload/servlets
 - Times are minute-stamped. A Non-Spin `CM-ASM-NOTF` message's BEGIN_TIME (often the next hour) is its step time; "At HH:MM" in the text is used when given. Messages apply in issue order, so a recall drops hourly re-deployments scheduled after it.
 - MW: Non-Spin messages state system MW (`mw_max`, `mw_steps`). RRS and ECRS messages never state MW or a fraction, so `mw_max` is null. `frac` is null on every event: the system deployed share of the procured quantity needs the hourly AS plan or DAM procured MW, not fetched tonight. Core needs a labelled rule for frac (for example 1.0 of the award for the event window capped by the era's duration, the stress case the reservation rule already covers).
 - `summary` is generated from the parsed fields; no verbatim notice text is stored.
+- The archive has no RRS deployment message after 2023 and no ECRS one after 2025 (no untagged RRS/ECRS deployment wording either); after RTC+B, SCED releases reserves itself and only Non-Spin messages remain. Era C days therefore carry Non-Spin events only.
 - Coverage follows the archive's operations-message coverage: 2021 0.995, 2022 0.999, 2023 1.0, 2024 0.992, 2025 0.986, 2026 0.991 (share of each day covered).
 
 | Year | RRS | ECRS | Non-Spin | events with MW |
