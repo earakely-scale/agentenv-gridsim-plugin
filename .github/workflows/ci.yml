@@ -95,3 +95,10 @@ jobs:
           grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' live-wiring.log
           python scripts/live_e2e.py
           python scripts/live_e2e.py --tier blind
+      - name: The hybrid wiring day scores 0 with its audit passing, and scripted hybrid days replay byte for byte
+        timeout-minutes: 15
+        run: |
+          agent-env run gridsim-hybrid --task wiring-noplay | tee hybrid-wiring.log
+          grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' hybrid-wiring.log
+          python scripts/hybrid_e2e.py
+          python scripts/hybrid_e2e.py --tier energy --policy sponge
