@@ -49,6 +49,7 @@ def main(argv: list[str] | None = None) -> int:
                    help="Capture a page under the checkout instead, e.g. build/hub/space/index.html (with --still).")
     p.add_argument("--weather", type=Path, help="The weather sidecar (default cache/weather/DATE_POINT.json).")
     p.add_argument("--out", type=Path, help="An MP4 to write.")
+    p.add_argument("--gif", type=Path, help="Also a GIF of the film (960 px wide, 12 fps), next to --out.")
     p.add_argument("--still", type=Path, help="One PNG at --t.")
     p.add_argument("--thumb", type=Path, help="A 640x360 JPEG at the day's most telling hour.")
     p.add_argument("--t", type=float, default=19.5, help="Hour of the day for --still.")
@@ -102,6 +103,8 @@ def main(argv: list[str] | None = None) -> int:
             if args.out:
                 film(page, args.out, args.fps, args.seconds, ep, ready.get("duration"))
                 probe(args.out)
+                if args.gif:
+                    gif(args.out, args.gif)
     return 0
 
 
@@ -152,6 +155,15 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | 
         encoder.wait()
     if encoder.returncode:
         raise SystemExit(f"ffmpeg exited {encoder.returncode}")
+
+
+def gif(mp4: Path, out: Path, width: int = 960, fps: int = 12) -> None:
+    """A two-pass palette GIF of the film."""
+    f = f"fps={fps},scale={width}:-1:flags=lanczos"
+    subprocess.run([find("ffmpeg"), "-v", "error", "-y", "-i", str(mp4), "-filter_complex",
+                    f"[0:v]{f},split[a][b];[a]palettegen=max_colors=192:stats_mode=diff[p];"
+                    "[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle", str(out)], check=True)
+    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
 def ffmpeg_args(ffmpeg: str, out: Path, fps: int, name: str) -> list[str]:
