@@ -1,9 +1,10 @@
 """Reference v5 Market Floor days for the viewer, played through gridsim_core.market.Session: the disclosure anchor
 (and the same anchor hedging with a CfD), A's real offers of the day, idle, the price-taker and max-withhold, as
-gridsim.episode/v5 JSON, each replayed call by call before it is written.
+gridsim.episode/v5 JSON, each replayed call by call before it is written. A showcase floor also gets the hedged anchor
+and the anchor's floor-sprint; a floor whose anchor loses money (floor_day_ok false) gets only the floor-sprint.
 
-usage: python scripts/market_reference_episodes.py [--out results/runs/market-reference] [--pack fixtures-market]
-       [--tasks ID ...]
+usage: python scripts/market_reference_episodes.py [--out results/runs/market-reference]
+       [--packs gridsim-market-showcase ...] [--tasks ID ...]
 """
 
 import argparse
@@ -23,8 +24,6 @@ from gridsim_core.market_stack import Floor  # noqa: E402
 from gridsim_core.task import load_pack  # noqa: E402
 
 KINDS = ("anchor", "hedged", "replay_a", "idle", "price_taker", "max_withhold")
-SHOWCASE = {"mkt-v5-2024-08-20-A580x2-e1", "mkt-v5-2026-07-21-A1160x2-e1"}
-SPRINT = {"mkt-v5-2024-08-20-A580x2-e1", "mkt-v5-2026-07-21-A400x2-e2"}
 MODELS = {"anchor": "reference/disclosure-anchor", "hedged": "reference/anchor-hedged",
           "replay_a": "reference/replay-a", "idle": "reference/idle", "price_taker": "reference/price-taker",
           "max_withhold": "reference/max-withhold"}
@@ -110,20 +109,25 @@ POLICIES = {
 }
 
 
+def plays_of(task: dict) -> list[tuple[str, str]]:
+    tags = task.get("tags") or {}
+    day = ([("floor-day", k) for k in KINDS if k != "hedged" or tags.get("showcase")]
+           if tags.get("floor_day_ok", True) else [])
+    return day + ([("floor-sprint", "anchor")] if tags.get("showcase") or not day else [])
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--out", type=Path, default=ROOT / "results" / "runs" / "market-reference")
-    p.add_argument("--pack", default="fixtures-market")
+    p.add_argument("--packs", nargs="*", default=["gridsim-market-showcase"])
     p.add_argument("--tasks", nargs="*")
     args = p.parse_args(argv)
-    rows = {r["task_id"]: r for r in load_pack(args.pack)}
+    rows = {r["task_id"]: r for pack in args.packs for r in load_pack(pack)}
     args.out.mkdir(parents=True, exist_ok=True)
     bad = 0
     for tid in args.tasks or rows:
         task = rows[tid]
-        plays = [("floor-day", k) for k in KINDS if k != "hedged" or tid in SHOWCASE]
-        plays += [("floor-sprint", "anchor")] if tid in SPRINT else []
-        for tier, kind in plays:
+        for tier, kind in plays_of(task):
             s = M.play(task, tier, POLICIES[kind])
             ep = s.episode(bundle="reference", path="ref", model=MODELS[kind],
                            messages=[{"role": "assistant", "content": SAY[kind]}])
