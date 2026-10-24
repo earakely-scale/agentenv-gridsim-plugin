@@ -25,7 +25,7 @@ own, 2014 to 2026; the batteries are archetypes sized from the ERCOT fleet in EI
 
 GridSimEnv is the third simulation environment for [FineEnvs](https://github.com/adithya-s-k/FineEnvs), after
 PortSimEnv and AirOpsEnv, and the first built to **show training**: a small open model trained with GRPO on an AgentEnv
-simulation, end to end on one GPU. v1 is a single tool call of about 24 integers, with an exact optimum and a dense
+simulation, end to end on one GPU. v1 is a single tool call carrying 24 integers, with an exact optimum and a dense
 reward, on tens of thousands of real days, with 2025 held out. The mistakes a model makes are visible and countable:
 selling before charging, overfilling, ending the day short, and idling all day.
 
@@ -68,7 +68,8 @@ the grader; the env, its verifier and training all import it, so a policy is nev
   [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv) holds every
   battery-day at each tier with its prompt, the references and the recorded runs; the
   [Space](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) replays the runs as a 3D battery yard in the
-  point's region, in that day's light and weather.
+  point's region, in that day's light and weather. The plugin installs agentenv-hf, so `agent-env hf run` plays a
+  battery-day straight from the dataset.
 
 ## The v1 game
 
@@ -98,12 +99,12 @@ evening round trip ($4,815.38, reward 0.603); the
 hour.
 
 **Tiers.** At the foresight tier the situation carries the day's 24 prices. At the blind tier it carries the prices at
-the same point for the previous day and for each of the 7 days before, oldest first, and `check_schedule` never shows
-a profit, which would reveal the day's prices; the schedule still settles on them. The tier is set when the task is
+the same point for the previous day and for each of the previous 7 days (oldest first), and `check_schedule` never
+shows a profit, which would reveal the day's prices; the schedule still settles on them. The tier is set when the task is
 loaded and is not part of the task id.
 
-**Harnesses.** `full` offers all three tools with 3 checks. `oneshot` offers only `submit_schedule`, with the same
-prompt: it is exactly what path-B training sees, so a trained model plays it as it trained.
+**Harnesses.** `full` offers all three tools with 3 checks. `oneshot` offers only `submit_schedule`, on the path-B
+prompt: the env sends exactly what training sees, so a trained model plays it as it trained.
 
 ## Run it yourself
 
@@ -386,8 +387,23 @@ it never pushes:
 uv run python scripts/hub_dataset.py --out build/hub/dataset --runs results/runs --results results
 ```
 
-<!-- TODO: agent-env hf run needs agentenv-hf installed; add it to the plugin's dependencies as agentenv-portsim does,
-then document `agent-env hf run earakely-scale/GridSimEnv-AgentEnv@v0.1.0 --bundle ercot-dam-v1-eval` here -->
+The plugin installs [agentenv-hf](https://github.com/earakely-scale/agentenv-hf-plugin), so a battery-day plays
+straight from the dataset's bundle, which the card's `agentenv` table pins to this plugin's tag:
+
+```bash
+agent-env hf run earakely-scale/GridSimEnv-AgentEnv@v0.1.0 --bundle ercot-dam-v1-eval \
+    --task dam-v1-2025-02-25-LZ_AEN-2h-o --model openai/gpt-6.1-sol
+```
+
+It downloads the card and `bundles/` at the tag's commit, checks the plugin is installed, shows what it will run and
+asks first; `--dry-run` runs nothing. To publish the bundle with the dataset, write it first:
+
+```bash
+agent-env gridsim tasks generate --pack ercot-dam-v1-eval --out build/bundles/ercot-dam-v1-eval
+uv run python scripts/hub_dataset.py --out build/hub/dataset --bundle build/bundles/ercot-dam-v1-eval
+```
+
+<!-- TODO: confirm which bundles (packs, tiers, harnesses) the release publishes -->
 
 ## Repository layout
 

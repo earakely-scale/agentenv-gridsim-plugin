@@ -252,12 +252,11 @@ agent-env hf run earakely-scale/GridSimEnv-AgentEnv@v0.1.0 --bundle ercot-dam-v1
     --task dam-v1-2025-02-25-LZ_AEN-2h-o --model openai/gpt-6.1-sol
 ```
 
-<!-- TODO: confirm the published bundle names and tiers once the plugin's bundles are final; `hf run` needs
-agentenv-hf installed, so add it to the plugin's dependencies as agentenv-portsim does -->
+<!-- TODO: confirm which bundles (packs, tiers, harnesses) the release publishes -->
 
-`hf run` downloads this card and `bundles/` at the tag's commit, checks that the plugin the card's `agentenv` table
-names is installed, shows what it will run and asks first; `--dry-run` runs nothing. To sweep a model over a pack
-and write the board, use the plugin's CLI:
+The plugin brings agentenv-hf with it. `hf run` downloads this card and `bundles/` at the tag's commit, checks that
+the plugin the card's `agentenv` table names is installed, shows what it will run and asks first; `--dry-run` runs
+nothing. To sweep a model over a pack and write the board, use the plugin's CLI:
 
 ```bash
 agent-env gridsim sweep run --name mine --models openai/gpt-6.1-sol --tasks 20 --cap-usd 5
@@ -284,12 +283,13 @@ agent-env gridsim view                   # the viewer on http://127.0.0.1:8239/
   windows are 10 to 22 February 2021, 22 to 24 December 2022, August 2023, 6 September 2023 and 13 to 17 January
   2024. 1 to 4 December 2025 is unused. 2025 and later never reach `train`.
 - **Batteries.** Each point-day gets one archetype battery, chosen by a stable hash of the date and point: the
-  duration class with the mix 1 h 40%, 2 h 45%, 4 h 15%, then one of 26 lettered designs in that class. Power, `unit_mwh` and the rest come from a fixed table (in each manifest and in `stats.md`):
-  7.5 to 225 MW, round-trip efficiency 0.80 to 0.90, degradation $0 to $8/MWh discharged, 1 to 2 cycles a day, varied
-  start and end charge, and up to 16 charge levels. The sizes follow EIA-860 2025 (Schedule 3_4, operable storage in
-  the ERCO balancing authority): 204 units, 13,115 MW, a mean duration of 1.645 h weighted by power, and 40% / 59% /
-  1% of the power in the 1 h / 2 h / 4 h classes. 4 h batteries are over-weighted on purpose, to give long-duration
-  days. The batteries are archetypes, not real sites.
+  duration class with the mix 1 h 40%, 2 h 45%, 4 h 15%, then one of 26 lettered designs in that class. Power,
+  `unit_mwh` and the rest come from a fixed table (in each manifest and in `stats.md`): 7.5 to 225 MW, round-trip
+  efficiency 0.80 to 0.90, degradation $0 to $8/MWh discharged, 1 to 2 cycles a day, varied start and end charge, and
+  up to 16 charge levels. The sizes follow EIA-860 2025 (Schedule 3_4, operable storage in the ERCO balancing
+  authority): 204 units, 13,115 MW, a mean duration of 1.645 h weighted by power, and 40% / 59% / 1% of the power in
+  the 1 h / 2 h / 4 h classes. 4 h batteries are over-weighted on purpose, to give long-duration days. The batteries
+  are archetypes, not real sites.
 - **Filters.** A battery-day is dropped as low-spread when P_opt − P_idle is under $22 per MW of discharge power
   (14.6% of train candidates, 5.4% of eval), and 80% of the days where the greedy rule already scores 0.97 or more
   are dropped, chosen by hash (31,281 train candidates). The values were tuned on train and eval so that the greedy
@@ -436,10 +436,11 @@ ERCOT's Website User Agreement (last updated 20 July 2023), section 5, quoted fr
 
 Automated access to ERCOT's reports is governed by ERCOT's Market Data Transparency Terms of Use (version 1.2, 11
 August 2020, linked from <https://www.ercot.com/services/mdt>), which limits how often a report may be queried; ERCOT
-provides its data "as is", without warranties (Website User Agreement, section 2). data/LICENSE reproduces both. The ERCOT data is not relicensed:
-it is not under CC BY or any other licence from us, and anyone using it is bound by ERCOT's terms. This dataset is a
-compilation and analysis of ERCOT's raw data; ERCOT does not guarantee its accuracy. Source: ERCOT. GridSimEnv is not
-affiliated with or endorsed by ERCOT, and uses no ERCOT logo or trademark beyond naming the source.
+provides its data "as is", without warranties (Website User Agreement, section 2). data/LICENSE reproduces both. The
+ERCOT data is not relicensed: it is not under CC BY or any other licence from us, and anyone using it is bound by
+ERCOT's terms. This dataset is a compilation and analysis of ERCOT's raw data; ERCOT does not guarantee its accuracy.
+Source: ERCOT. GridSimEnv is not affiliated with or endorsed by ERCOT, and uses no ERCOT logo or trademark beyond
+naming the source.
 
 **EIA-860, public domain.** The battery archetypes are sized from the U.S. Energy Information Administration's Form
 EIA-860 annual electric generator data (2025 release, Schedule 3_4, Energy Storage), at
