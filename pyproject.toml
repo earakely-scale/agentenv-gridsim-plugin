@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "agentenv-gridsim"
 version = "0.1.0"
 description = "GridSimEnv: run a battery on the real Texas grid (ERCOT day-ahead prices), an AgentEnv simulation environment"
-requires-python = ">=3.11"
+requires-python = ">=3.11.4"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 # The env image pins its own server dependencies (Dockerfile); agentenv-framework 0.9.1343 breaks env deploys.
