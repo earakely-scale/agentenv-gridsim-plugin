@@ -160,7 +160,8 @@ class Log(TrainerCallback):
         zero = sum(statistics.pstdev([r["reward"] for r in g]) == 0 for g in groups) / len(groups)
         step = state.global_step
         row = {"step": step, "arm_step": step + STEP_OFFSET, "phase": PHASE_OF[min(step - 1, len(PHASE_OF) - 1)],
-               "elapsed_s": round(time.monotonic() - STARTED), **summarize(new), "frac_zero_spread_groups": round(zero, 4),
+               "elapsed_s": round(time.monotonic() - STARTED), **summarize(new),
+               "frac_zero_spread_groups": round(zero, 4),
                "format_credit": round(FORMAT_CREDIT * max(0.0, 1 - (step - 1) / CREDIT_UNTIL), 4),
                **{f"reward_{st}": round(statistics.fmean(r["reward"] for r in new if r["start"] == st), 4)
                   for st in ("empty", "half", "full") if any(r["start"] == st for r in new)},
