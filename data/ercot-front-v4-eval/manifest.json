@@ -1,10 +1,10 @@
 {
  "pack": "ercot-front-v4-eval",
  "forecast_version": "4.0",
- "tasks": 5,
+ "tasks": 60,
  "dates": [
-  "2025-02-18",
-  "2025-08-18"
+  "2025-01-01",
+  "2025-10-29"
  ],
  "tiers": [
   "front-lite",
@@ -24,20 +24,34 @@
  },
  "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
  "filters": {
-  "hind_headroom_usd_per_kw": 3.0,
+  "hind_headroom_low_drop_share": 0.15,
+  "roll_headroom_min_usd_per_kw": 0.1,
+  "roll_headroom_min_share": 0.05,
   "hind_minus_roll_share": 0.08,
-  "roll_minus_blind_share": 0.05,
-  "roll_headroom_usd_per_kw": 1.0
+  "roll_minus_blind_share": 0.05
  },
  "stats": {
-  "candidates": 379,
-  "eligible": 5,
-  "chosen": 5,
-  "front": 5,
-  "sources": {
-   "ercot": 5
+  "candidates": 1134,
+  "candidate_labels": {
+   "calm": 474,
+   "front": 660
   },
-  "mean_ms": 9442.3
+  "hind_floor_usd_per_kw": 0.5349,
+  "eligible": 383,
+  "eligible_labels": {
+   "calm": 140,
+   "front": 243
+  },
+  "eligible_d1": {
+   "calm": 63,
+   "front": 100
+  },
+  "chosen": 60,
+  "front": 40,
+  "sources": {
+   "ercot": 60
+  },
+  "mean_ms": 9479.5
  },
  "store": "cache/forecast/store"
 }
