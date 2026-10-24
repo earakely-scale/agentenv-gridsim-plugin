@@ -104,6 +104,7 @@ Measured tonight (phase-1 probes, `$SP/gridsim/c4/out`):
 | V4-P17 | ERCOT's own vintages | Windows from d1 = 2023-12-12 serve ERCOT's load, wind and solar vintages (`source: ercot`); earlier windows and the whole train pack serve the desk's (`source: desk`). The price guide stays on desk features in every era, so P_roll's prices are one model family; P_roll's site PV follows the served solar. Details below |
 | V4-P18 | Pack filters | The plan's per-kW headrooms are miscalibrated on the real store: over 4,327 candidates the median P_hind - P_idle is $0.40/kW per window (train, `front-lite`, 48 h) and $0.81/kW (eval, `front`, 72 h), p90 $1.81 and $1.71, in line with ERCOT battery revenue of about $29-56/kW-yr; $3/kW kept 6.7%, 3.7% and 0% of train, eval and rtcb, $1/kW of P_roll headroom 5.6%, 9.8% and 2.1%. Instead: drop the lowest 15% of each split's candidates by hindsight headroom per kW (v1's low-spread rule); require P_roll - P_idle >= max($0.10/kW, 5% of P_hind - P_idle) so the reward's denominator is well defined; keep P_hind - P_roll >= 8% (forecasts cost something) and P_roll - P_blind >= 5% (forecasts are worth reading) |
 | V4-P19 | Front label | A front is a synoptic change, not the diurnal cycle: the plan's "drops >= 15 F within 12 h" marked all 4,327 candidates `front` (the West Texas points swing 25-30 F a day). `front` when, at any weather-zone point inside the window, the stitched HRRR near-analysis 2 m temperature is >= 15 F below the same hour 24 h earlier, or an NWS winter storm, hard freeze, excessive heat or high wind product (WS, HZ, EH, XH, HW; W or A) is in force; else `calm` |
+| V4-P20 | Reference reproducibility | HiGHS breaks MILP ties by platform (8 of 48 macOS-built fixture refs did not reproduce on Linux arm64/amd64). Each tier's refs store the anchor's own decisions, `anchor_calls` = [{watch, tool, args}] (its commits and DAM submits); `anchor_policy` replays them through the Session whenever the row's refs hold (same events, vintages and source), so P_anchor reproduces to the cent on every platform (the Session is plain float arithmetic). New builds also re-solve with `solver: 2`: a tie-break of $1e-4/MW x (1 + t/1000) on battery moves and (x (1 + i/100) per product) on free awards, so re-solves agree wherever the optimum is unique. Rows without `anchor_calls` (the current eval, rtcb and showcase packs) keep solver 1 and re-solve as before: their stored P_anchor and reward scale are unchanged |
 
 ## ERCOT vintages in the API era (V4-P17)
 
@@ -375,8 +376,9 @@ then submits the gated day, so the DAM plan is checked from the SoC its own comm
 - `grade()` -> `{"submitted","tier","reward","raw_ratio","profit_usd","cash","p_idle","p_anchor","p_roll","p_roll3",
   "p_blind","p_naive","p_hind","p_lp","r_hind","paired_vs_anchor","beats_anchor","forecast_value","dam_missed",
   "ftp_mwh_charged","ftp_mwh_excused","governor_hours","refusals","commits","dam_submits","forecast_calls"}`.
-- **Reference-solver test**: `scripts/forecast_e2e.py --policy anchor` reproduces R = 1.0 and the stored P_anchor to
-  the cent on every fixture and eval window, through the env.
+- **Reference-solver test** (V4-P20): the anchor's stored calls, replayed through the Session (core) and through the
+  env (`scripts/forecast_e2e.py --policy anchor`), reproduce R = 1.0 and the stored P_anchor to the cent; rows without
+  stored calls fall back to re-solving, which reproduces only on the platform that built them.
 
 ## Audit (`s.audit()`; weight 0, a failure leaves the run unscored)
 

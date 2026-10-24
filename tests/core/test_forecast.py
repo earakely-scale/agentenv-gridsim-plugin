@@ -72,10 +72,10 @@ def test_synthetic_slice_is_deterministic_and_hashed():
 def test_anchor_reproduces_stored_reference(task):
     """The reference-solver test: the anchor replayed through a fresh, graded Session scores 1.0 (or the degenerate
     rule) and settles at the stored P_anchor to the cent, with a clean audit."""
-    for tier in ("front", "front-lite"):
-        a = F.play(task, tier, F.anchor_policy())
+    for tier in ("front", "front-lite", "blind"):
+        a = F.play(task, tier, F.anchor_policy(F.ANCHOR_MODE[tier]))
         tr = task["refs"][tier]
-        assert round(a.profit(), 2) == round(tr["p_roll"], 2) == round(tr["p_anchor"], 2)
+        assert a.anchor_log == [] and round(a.profit(), 2) == round(tr["p_anchor"], 2)
         s = F.Session(task, tier)
         for st in a.transcript:
             args = dict(st["args"]) | ({"_via": "trigger"} if st["tool"] == F.NOTICE_TOOL else {})
@@ -230,3 +230,17 @@ def test_store_round_trip(tmp_path):
         FI.slice_for(ref | {"vintages": ref["vintages"] | {"store": "v4-store@other"}}, tmp_path)
     with pytest.raises(FileNotFoundError):
         FI.slice_for(ref, tmp_path / "missing")
+
+
+def test_rows_without_stored_calls_re_solve():
+    t = copy.deepcopy(T0)
+    for tier in F.TIERS:
+        t["refs"][tier].pop("anchor_calls")
+    a = F.play(t, "front", F.anchor_policy())
+    assert a.anchor_log and a.audit()["ok"]
+    old = copy.deepcopy(T0)
+    del old["refs"]["solver"]
+    assert F.solver_of(old) == 1 and F.solver_of(T0) == F.SOLVER == 2
+    assert F.solver_of({k: v for k, v in T0.items() if k != "refs"}) == F.SOLVER
+    roll3 = F.play(T0, "front", F.anchor_policy("mean3"))
+    assert roll3.anchor_log and round(roll3.profit(), 2) == round(T0["refs"]["front"]["p_roll3"], 2)

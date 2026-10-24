@@ -23,6 +23,6 @@
   "rt_as": "not modelled (V4-P6)"
  },
  "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
- "build_seconds": 41.1,
+ "build_seconds": 46.0,
  "build_command": "python scripts/build_forecast_pack.py --fixtures"
 }

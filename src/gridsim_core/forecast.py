@@ -86,6 +86,9 @@ GATE_HOUR, RESULTS_MIN = 10, 810
 KINDS = ("load", "wind", "solar", "weather", "price", "alerts")
 DRIFT_KINDS = ("load", "wind", "solar", "weather", "price")
 HRRR_MOVE, HRRR_FLOOR, HRRR_PRIORITY = 0.10, 10.0, 5
+SOLVER = 2
+TIE_EPS = 1e-4
+ANCHOR_MODE = {"front-lite": "p50", "front": "p50", "blind": "persist", "freeze-6h": "p50"}
 CASH_KEYS = ("energy_da", "energy_rt", "as_da", "deployment_energy", "degradation", "ftp", "excused", "end_penalty")
 _STAMP = re.compile(r"^\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::00)?\s*$")
 _INT = re.compile(r"^\s*-?\d+\s*$")
@@ -1501,7 +1504,14 @@ def play(task: dict, tier: str, policy, notices=None, deployments=None, vintages
 # the rolling MILP (HiGHS): one solve per watch over the open hours to the window end
 
 
-def solve_window(s: Session, mode: str = "p50", *, integer: bool = True) -> dict | None:
+def solver_of(task: dict) -> int:
+    """The MILP version a row's references were built with: 1 before V4-P20 (no tie-break), else the stored one;
+    a row without refs is being built now."""
+    r = task.get("refs")
+    return SOLVER if not r else int(r.get("solver", 1))
+
+
+def solve_window(s: Session, mode: str = "p50", *, integer: bool = True, solver: int | None = None) -> dict | None:
     """The best book from the freeze line on the window as known now. Days whose gate is still open (or ahead) have
     their DA entry and AS as variables valued at the basis' DA and MCPC (x_DA = the hour's base export, V4-P5) and their
     drift at RT; days with a closed gate have their position and awards fixed and the rest valued at RT. Hard, then the
@@ -1543,6 +1553,10 @@ def solve_window(s: Session, mode: str = "p50", *, integer: bool = True) -> dict
             else:
                 obj = obj + p["x"][t] * float(b["rt"][h])
             obj = obj - (p["dis"][t] + p["U"][t]) * st.c_deg
+            if (solver or solver_of(s.task)) >= 2:
+                w_t = TIE_EPS * (1 + t / 1000)
+                obj = obj - (p["dl"][t] + p["cl"][t]) * w_t
+                obj = obj - sum((aw[t][k] * (w_t * (1 + i / 100)) for i, k in enumerate(prods) if free[t]), _Lin())
         m.obj = obj - short * b["pen"] - sum(p["slack"], _Lin()) * penalty
         res = m.solve(retry_infeasible=True)
         if res is None:
@@ -1598,14 +1612,44 @@ def repair_dam(s: Session, k: int, plan: dict) -> tuple[dict, int]:
     return out, n
 
 
-def anchor_policy(mode: str = "p50"):
+def stored_calls(s: Session, mode: str) -> dict[int, list[dict]] | None:
+    """The tier anchor's calls stored in the row (V4-P20), by watch, when the row's refs hold for this Session's
+    events, vintages and source and the mode is the tier's anchor; else None (re-solve)."""
+    if not hasattr(s, "_stored_calls"):
+        r = stored_refs(s.task, s.tier, s.notices_in, s.deployments_in, s.slice, s.source) if s.task.get("refs") else None
+        calls = (r or {}).get(s.tier, {}).get("anchor_calls") if r else None
+        s._stored_calls = None
+        if calls is not None:
+            s._stored_calls = {}
+            for c in calls:
+                s._stored_calls.setdefault(c["watch"], []).append(c)
+    return s._stored_calls if mode == ANCHOR_MODE[s.tier] else None
+
+
+def anchor_calls(s: Session) -> list[dict]:
+    """A played Session's agent decisions (commits and DAM submits) with the watch they were made at."""
+    out, watch = [], 0
+    for st in s.transcript:
+        if st["tool"] in ("commit_schedule", "submit_dam"):
+            out.append({"watch": watch, "tool": st["tool"], "args": st["args"]})
+        elif st["tool"] == "advance":
+            watch = json.loads(st["output"]).get("watch", watch)
+    return out
+
+
+def anchor_policy(mode: str = "p50", *, replay: bool = True, solver: int | None = None):
     """The information-matched rolling re-planner: at each watch one solve; commit its open hours (when it changes
-    the book, and always at a gate), then at a gate submit its plan for the gated day (share 1.0)."""
+    the book, and always at a gate), then at a gate submit its plan for the gated day (share 1.0). On a row that
+    stores the tier anchor's calls (V4-P20) it replays them instead, so the anchor is the same on every platform."""
 
     def policy(s: Session):
         if s.done or s.first_open >= s.H:
             return
-        sol = solve_window(s, mode)
+        if replay and (calls := stored_calls(s, mode)) is not None:
+            for c in calls.get(s.watch, ()):
+                s.call(c["tool"], c["args"])
+            return
+        sol = solve_window(s, mode, solver=solver)
         if sol is None:
             return
         fo, k = sol["from"], s.gate_day()
@@ -1688,8 +1732,9 @@ def references(task: dict, tiers=TIERS, notices=None, deployments=None, vintages
     sl = vintages if vintages is not None else FI.slice_for(task)
     src = source or task.get("source") or sl.get("source") or "desk"
     kw = {"notices": notices, "deployments": deployments, "vintages": sl, "source": src}
-    out = {"forecast_version": FORECAST_VERSION, "source": src, "events_sha": events_sha(task, notices, deployments),
-           "vintages_sha": FI.vintages_sha(sl.get("series") or [])}
+    solver = solver_of(task)
+    out = {"forecast_version": FORECAST_VERSION, "source": src, "solver": solver,
+           "events_sha": events_sha(task, notices, deployments), "vintages_sha": FI.vintages_sha(sl.get("series") or [])}
     cache: dict = {}
 
     def run(tier, policy, name):
@@ -1705,10 +1750,12 @@ def references(task: dict, tiers=TIERS, notices=None, deployments=None, vintages
             continue
         plant = "front-lite" if tier == "front-lite" else "front"
         p_idle = run(tier, idle_policy, "idle").profit()
-        roll = run(plant if tier == "blind" else tier, anchor_policy("p50"), "roll")
+        roll = run(plant if tier == "blind" else tier, anchor_policy("p50", replay=False, solver=solver), "roll")
         p_roll = roll.profit()
-        p_blind = run("blind" if plant == "front" else tier, anchor_policy("persist"), "blind").profit()
-        p_roll3 = run(plant if tier == "blind" else tier, anchor_policy("mean3"), "roll3").profit()
+        p_blind = run("blind" if plant == "front" else tier, anchor_policy("persist", replay=False, solver=solver),
+                      "blind").profit()
+        p_roll3 = run(plant if tier == "blind" else tier, anchor_policy("mean3", replay=False, solver=solver),
+                      "roll3").profit()
         p_naive = run(tier, naive_policy, "naive").profit()
         p_anchor = p_blind if tier == "blind" else p_roll
         anc = cache[("blind", "blind")] if tier == "blind" else roll
@@ -1719,6 +1766,7 @@ def references(task: dict, tiers=TIERS, notices=None, deployments=None, vintages
 
         out[tier] = {"p_idle": _r6(p_idle), "p_anchor": _r6(p_anchor), "p_roll": _r6(p_roll), "p_roll3": _r6(p_roll3),
                      "p_blind": _r6(p_blind), "p_naive": _r6(p_naive), "anchor": _anchor_row(anc),
+                     "anchor_calls": anchor_calls(anc),
                      "roll": _anchor_row(roll),
                      "p_hind": None if hind is None else _r6(hind),
                      "p_lp": _r6(hindsight(task, tier, notices, deployments, integer=False)) if lp else None,
@@ -1778,7 +1826,7 @@ def make_task(d1: str, point: str, site: dict, prices, rt, pv_cf, mcpc_da: dict,
 
 def attach(task: dict, sl: dict, *, tiers=TIERS, lp: bool = True) -> dict:
     """The row with its inline slice, source, shas and refs."""
-    t = dict(task)
+    t = {k: v for k, v in task.items() if k != "refs"}
     t["vintages"] = sl
     t["source"] = t.get("source") or ("desk" if sl.get("source") == "synthetic" else sl.get("source", "desk"))
     t["vintages_sha"] = FI.vintages_sha(sl.get("series") or [])
