@@ -1,7 +1,7 @@
 ---
 license: other
 license_name: ercot-website-user-agreement-eia-public-domain-apache-2.0
-license_link: https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/data/LICENSE
+license_link: https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE
 pretty_name: 'GridSimEnv v1: The Battery Desk'
 language:
 - en
@@ -60,7 +60,7 @@ configs:
 
 <div align="center">
 
-<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/dam-v1-2025-03-15-HB_WEST-1h-t-zgptiln6.json"><img src="https://raw.githubusercontent.com/earakely-scale/agentenv-gridsim-plugin/v0.1.0/assets/gridsim-hero.jpg" alt="GPT-6.1 Sol's run of a 160 MW battery at ERCOT's West hub on 15 March 2025, replayed in 3D at the $102 evening peak" width="100%"></a>
+<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/dam-v1-2025-03-15-HB_WEST-1h-t-zgptiln6.json"><img src="assets/gridsim-hero.jpg" alt="GPT-6.1 Sol's run of a 160 MW battery at ERCOT's West hub on 15 March 2025, replayed in 3D at the $102 evening peak" width="100%"></a>
 
 <h1>GridSimEnv v1: The Battery Desk</h1>
 
@@ -336,7 +336,7 @@ capture (`r_opt`) of the anchor and of persistence alone:
 ## Results
 
 GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played each battery-day once, under the board registered
-before the first run ([`docs/prereg/v1-board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/docs/prereg/v1-board.md)):
+before the first run ([`docs/prereg/v1-board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v1-board.md)):
 column A is the `full` harness with three checks at the foresight tier on the held-out `eval_2025` battery-days, B the
 `oneshot` harness (the path-B training prompt) on the same days, C the `full` harness at the blind tier, and the
 optional D the `full` harness at the foresight tier on the `rtcb` days. The 95% intervals are bootstrap intervals over
@@ -363,7 +363,7 @@ The headline is the amended board. The pre-registered $0.10 episode cap stopped 
 
 Foresight is saturated for a frontier model: with the day's prices in view Sol finds the optimum. The blind tier is
 where models separate, against the anchor's own hindsight capture on the same days. The plugin's
-[`results/board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/results/board.md) has
+[`results/board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/results/board.md) has
 the full board: the amendment, the breakdowns by checks used, battery class, binding constraint and day type, cost and
 time, the hypotheses against what was measured, and the unscored runs.
 
@@ -439,8 +439,8 @@ and the build stops if any reward, profit or situation differs.
 ## Licence and attribution
 
 The dataset carries several sets of terms, hence `license: other`; the plugin's
-[data/LICENSE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/data/LICENSE) holds the ERCOT
-terms in full and [NOTICE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/v0.1.0/NOTICE) sets out
+[data/LICENSE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE) holds the ERCOT
+terms in full and [NOTICE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/NOTICE) sets out
 each source.
 
 **ERCOT prices, under ERCOT's terms.** The prices, and everything derived from them in this dataset, come from public
