@@ -1,8 +1,12 @@
 import { load } from "./data.js";
 import { GridStage } from "./stage/stage.js";
+import { buildCharts } from "./ui/charts.js";
 import { buildHud } from "./ui/hud.js";
+import { buildIntro } from "./ui/intro.js";
+import { buildSound } from "./ui/sound.js";
 
 const SECONDS_PER_HOUR = 3;
+const INTRO = -2;
 const q = new URLSearchParams(location.search);
 const app = document.getElementById("app");
 
@@ -16,7 +20,9 @@ async function main() {
   const epUrl = q.get("episode");
   if (!epUrl) {
     const { picker } = await import("./ui/picker.js");
-    return picker(app, q);
+    await picker(app, q);
+    window.gridsim = { ready: Promise.resolve({ list: true, shots: [] }) };
+    return;
   }
   const ep = await json(epUrl);
   const wxUrl = q.get("weather") || `${q.get("wxbase") || "weather"}/${ep.task.date}_${ep.task.settlement_point}.json`;
@@ -34,14 +40,26 @@ async function main() {
   document.title = `${ep.task.settlement_point} ${ep.task.date} · GridSimEnv`;
   const stage = new GridStage(host, d, { manual, reduced });
   stage.force = q.get("shot");
-  const P = { t: q.has("hour") ? +q.get("hour") - 0.5 : q.has("t") ? +q.get("t") : 0, playing: !manual && !q.has("t") && !q.has("hour"), speed: 1, wall: 0 };
+  const P = { t: q.has("hour") ? +q.get("hour") - 0.5 : q.has("t") ? +q.get("t") : INTRO, playing: !manual && !q.has("t") && !q.has("hour"), speed: 1, wall: 0 };
   if (q.has("ui") && q.get("ui") === "0") root.classList.add("bare");
+  const charts = buildCharts(root, d);
+  const intro = buildIntro(root, d);
+  const sound = buildSound();
+  const settings = document.createElement("section");
+  settings.className = "card settings";
+  settings.hidden = true;
+  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour · 1-4 speed · D camera · C charts</p>`;
+  root.append(settings);
+  settings.querySelector('[name="reduced"]').addEventListener("change", (e) => (stage.reduced = e.target.checked));
+  settings.querySelector('[name="sound"]').addEventListener("change", (e) => sound.set(e.target.checked));
   const hud = buildHud(root, d, {
     onSeek: (t) => ((P.t = t), stage.direct(stage.directing)),
     onToggle: (a, s) => {
-      if (a === "play") P.playing = !P.playing, P.t >= 24 && P.playing && (P.t = 0);
+      if (a === "play") P.playing = !P.playing, P.t >= 24 && P.playing && (P.t = INTRO);
       else if (a === "speed") P.speed = s;
       else if (a === "director") stage.direct(!stage.directing);
+      else if (a === "charts") charts.toggle();
+      else if (a === "settings") settings.hidden = !settings.hidden;
     },
   });
   addEventListener("keydown", (e) => {
@@ -51,10 +69,17 @@ async function main() {
     else if (e.key === "ArrowLeft") P.t = Math.max(0, Math.floor(P.t - 0.02) - 1 + 0.02);
     else if (["1", "2", "3", "4"].includes(e.key)) P.speed = [0.5, 1, 2, 4][+e.key - 1];
     else if (e.key === "d" || e.key === "D") stage.direct(!stage.directing);
+    else if (e.key === "c" || e.key === "C") charts.toggle();
   });
+  if (q.get("charts") === "1") charts.toggle(true);
+  const blindHidden = d.ep.tier === "blind";
   const draw = (dt) => {
-    stage.frame({ t: P.t, dt, wall: P.wall });
+    const f = stage.frame({ t: Math.max(0, P.t), dt, wall: P.wall });
     hud.update(P.t, { playing: P.playing, speed: P.speed, directing: stage.directing });
+    charts.update(P.t);
+    intro.update(P.t);
+    root.classList.toggle("blind-hidden", blindHidden && P.t < 0);
+    sound.level(f.mode === "charge" || f.mode === "discharge" ? Math.abs(f.x.mw) / d.b.p_dis_mw : 0);
   };
   window.gridsim = {
     ready: Promise.resolve({ point: ep.task.settlement_point, date: ep.task.date, shots: stage.director.shots }),

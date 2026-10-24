@@ -73,23 +73,25 @@ export function buildHud(root, d, { onSeek, onToggle }) {
     const p = x.price;
     const hot = p >= [...d.prices].sort((a, c) => a - c)[21];
     const mw = Math.abs(x.mw);
-    const actText = t >= 24 ? (d.trunc != null ? "Day over · the plan was cut short" : "Day over") :
+    const actText = t < 0 ? "Before the day: planning" : t >= 24 ? (d.trunc != null ? "Day over · the plan was cut short" : "Day over") :
       x.mode === "violation" ? `Breaks a rule here: ${d.ep.violation === "soc_below_0" ? "selling more than it holds" : d.ep.violation === "soc_above_N" ? "charging past full" : d.ep.violation === "cycle_cap" ? "past the cycle limit" : "over the power limit"}` :
       x.mode === "grey" ? `Cancelled · the plan broke a rule at ${hourLabel(d.trunc)}` :
       x.mode === "charge" ? (p < 0 ? `Charging ${mw} MW, paid ${price(-p)}/MWh to take it` : `Charging ${mw} MW at ${price(p)}/MWh`) :
       x.mode === "discharge" ? `Discharging ${mw} MW at ${price(p)}/MWh` : `Idle${p < 0 ? " through a negative price" : ""}`;
     const socPct = (x.soc / b.soc_levels) * 100;
+    const hidden = d.ep.tier === "blind" && t < 0;
     const gap = x.optCash != null ? x.cash - x.optCash : null;
     const key = [Math.floor(t * 12), playing, speed, directing].join("|");
     if (key !== lastKey) {
       lastKey = key;
       place.innerHTML = `<div class="where">${d.dateLabel} · <b>${d.task.settlement_point}</b> · ${d.place.name}<span class="tier ${d.ep.tier}">${d.ep.tier.toUpperCase()}</span></div>
-        <div class="big"><span class="clock num">${clock(Math.min(24, Math.max(0, t)))}</span><span class="price num ${p < 0 ? "neg" : hot ? "hot" : ""}">${price(p)}<small>/MWh</small></span></div>
-        <div class="where" style="margin-top:-2px">day-ahead price for ${span(h)}</div>
+        <div class="big"><span class="clock num">${t >= 24 ? "End of day" : clock(Math.max(0, t))}</span>${hidden ? `<span class="price num" style="color:var(--faint)">$ ?<small>/MWh</small></span>` : `<span class="price num ${p < 0 ? "neg" : hot ? "hot" : ""}">${price(p)}<small>/MWh</small></span>`}</div>
+        <div class="where" style="margin-top:-2px">${hidden ? "today's prices are hidden until it submits" : t >= 24 ? `last hour: ${span(23)}` : `day-ahead price for ${span(h)}`}</div>
         <div class="act ${t >= 24 ? "" : x.mode}"><i></i><span>${actText}</span></div>
         <div class="soc"><div class="row"><span>State of charge</span><span><b class="num">${Math.round(socPct)}%</b> · ${Math.round(x.soc * b.unit_mwh)} of ${b.energy_mwh} MWh</span></div>
           <div class="bar"><div class="fill" style="width:${socPct}%"></div>${b.s_end_min > 0 ? `<div class="mark" style="left:${(b.s_end_min / b.soc_levels) * 100}%" data-label="end ≥ ${Math.round((b.s_end_min / b.soc_levels) * 100)}%"></div>` : ""}</div></div>
         <div class="cash"><div>Cash so far<b class="num">${money(x.cash)}</b></div><div>Optimum so far<b class="num">${x.optCash == null ? "—" : money(x.optCash)}</b></div><div class="gap">Gap<b class="num ${gap == null ? "" : gap >= -0.5 ? "good" : "bad"}">${gap == null ? "—" : money(gap, { sign: true })}</b></div></div>
+        ${t >= 24 && d.ep.end_shortfall_units > 0 ? `<div class="bill">Penalty bill: <b>${money(-d.penalty)}</b><br>Ended ${d.ep.end_shortfall_units} unit${d.ep.end_shortfall_units > 1 ? "s" : ""} (${d.ep.end_shortfall_units * b.unit_mwh} MWh) below the required charge, bought back at ${price(Math.max(d.maxP, 50))}/MWh after losses.</div>` : ""}
         <div class="meta">${b.p_dis_mw} MW / ${b.energy_mwh} MWh battery · ${Math.round(b.energy_mwh / Math.max(1, b.p_dis_mw))}-hour · ${describe(w) || "weather n/a"}</div>`;
       const n = x.news && t < 24.5 ? x.news : t >= 24 && d.news.find((q) => q.kind === "penalty") ? d.news.find((q) => q.kind === "penalty") : null;
       if (n) {

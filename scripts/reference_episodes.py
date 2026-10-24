@@ -30,6 +30,9 @@ TASKS = {
     "dam-v1-2025-07-29-LZ_CPS-2h-o": ("opt", "greedy", "threshold"),
     "dam-v1-2025-08-11-LZ_AEN-4h-v": ("opt", "greedy", "flawed"),
     "dam-v1-2021-02-14-HB_WEST-2h-p": ("persist", "opt"),
+    "dam-v1-2024-05-16-HB_HOUSTON-1h-z": ("opt", "greedy"),
+    "dam-v1-2025-01-21-LZ_HOUSTON-2h-v": ("opt", "threshold"),
+    "dam-v1-2024-01-16-HB_NORTH-2h-d": ("opt", "persist"),
 }
 MODELS = {"opt": "reference/dp-optimum", "greedy": "reference/greedy", "threshold": "reference/threshold",
           "flawed": "reference/flawed-plan", "short": "reference/flawed-plan", "persist": "reference/persistence-dp"}

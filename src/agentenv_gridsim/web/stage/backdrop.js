@@ -49,7 +49,7 @@ function skyline(city, heightAt, seed) {
   const base = heightAt(cx, cz);
   const glass = windowMaterial({ base: "#7f909d", lit: 0.42 });
   const stone = windowMaterial({ base: "#b4ab9c", lit: 0.36 });
-  const towersG = [], towersS = [], tops = [];
+  const towersG = [], towersS = [], tops = [], spires = [];
   for (let i = 0; i < city.towers; i++) {
     const rad = Math.pow(r(), 1.5) * city.spread * 650;
     const a = r() * Math.PI * 2;
@@ -59,16 +59,23 @@ function skyline(city, heightAt, seed) {
     const m = mat4(V(x, base + hgt / 2, z), r() * Math.PI, V(w, hgt, d));
     (r() < 0.62 ? towersG : towersS).push(m);
     if (hgt > 120) tops.push(V(x, base + hgt + 2, z));
+    if (hgt > city.tallest * 0.7) {
+      (r() < 0.5 ? towersG : towersS).push(mat4(V(x, base + hgt + hgt * 0.06, z), 0, V(w * 0.7, hgt * 0.12, d * 0.7)));
+      spires.push(mat4(V(x, base + hgt * 1.12 + 14, z), 0, V(1, 28, 1)));
+    }
     if (r() < 0.25 && hgt > 80) {
       const set = hgt * (0.12 + r() * 0.12);
       (r() < 0.5 ? towersG : towersS).push(mat4(V(x, base + hgt + set / 2, z), r() * Math.PI, V(w * 0.6, set, d * 0.6)));
     }
   }
   if (city.needle) {
-    g.add(Object.assign(new THREE.Mesh(merge([cyl(5, 7, 190, 0, 95, 0, 12), cyl(15, 12, 16, 0, 192, 0, 16), cyl(2, 2, 26, 0, 213, 0, 6)]), stone.m), { position: V(cx + 400, base, cz - 300) }));
+    const needle = new THREE.Mesh(merge([cyl(5, 7, 190, 0, 95, 0, 12), cyl(15, 12, 16, 0, 192, 0, 16), cyl(2, 2, 26, 0, 213, 0, 6)]), stone.m);
+    needle.position.set(cx + 400, base, cz - 300);
+    g.add(needle);
     tops.push(V(cx + 400, base + 228, cz - 300));
   }
   const unit = new THREE.BoxGeometry(1, 1, 1);
+  g.add(inst(cyl(0.6, 1.2, 1, 0, 0, 0, 6), new THREE.MeshStandardMaterial({ color: "#9aa1a6", metalness: 0.7, roughness: 0.4 }), spires, { shadow: false, receive: false }));
   g.add(inst(unit, glass.m, towersG, { shadow: false, receive: false }));
   g.add(inst(unit, stone.m, towersS, { shadow: false, receive: false }));
   const low = [];
@@ -148,18 +155,19 @@ function turbines(spec, heightAt, seed) {
   }
   const parts = turbineParts();
   const white = new THREE.MeshStandardMaterial({ color: "#eef0f0", roughness: 0.45, metalness: 0.1 });
-  const towerMesh = inst(parts.tower, white, pts.map((p) => mat4(p)), { shadow: false });
-  const nac = inst(parts.nacelle, white, pts.map((p) => mat4(V(p.x, p.y + 85, p.z))), { shadow: false });
-  const rot = inst(parts.rotor, white, pts.map((p) => mat4(V(p.x, p.y + 85, p.z))), { shadow: false });
+  const SC = 1.2, HUB = 85 * SC;
+  const towerMesh = inst(parts.tower, white, pts.map((p) => mat4(p, 0, SC)), { shadow: false });
+  const nac = inst(parts.nacelle, white, pts.map((p) => mat4(V(p.x, p.y + HUB, p.z), 0, SC)), { shadow: false });
+  const rot = inst(parts.rotor, white, pts.map((p) => mat4(V(p.x, p.y + HUB, p.z), 0, SC)), { shadow: false });
   rot.side = THREE.DoubleSide;
   white.side = THREE.DoubleSide;
   const g = new THREE.Group();
   g.add(towerMesh, nac, rot);
-  const red = beacons(pts.map((p) => V(p.x, p.y + 88, p.z)), "#ff2a1f", 16);
+  const red = beacons(pts.map((p) => V(p.x, p.y + HUB + 3, p.z)), "#ff2a1f", 16);
   g.add(red.group);
   const phase = pts.map(() => r() * Math.PI * 2);
   let spin = 0;
-  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), one = V(1, 1, 1);
+  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), one = V(SC, SC, SC);
   return {
     group: g, beacons: red,
     update({ windMs, windDir, dt }) {
@@ -168,9 +176,9 @@ function turbines(spec, heightAt, seed) {
       const yaw = -((windDir ?? 180) + 90) * DEG;
       pts.forEach((p, i) => {
         _q.setFromEuler(_e.set(0, yaw, 0, "YXZ"));
-        nac.setMatrixAt(i, _m.compose(V(p.x, p.y + 85, p.z), _q, one));
+        nac.setMatrixAt(i, _m.compose(V(p.x, p.y + HUB, p.z), _q, one));
         _q.setFromEuler(_e.set(spin + phase[i], yaw, 0, "YXZ"));
-        const hub = V(5.2, 0, 0).applyAxisAngle(V(0, 1, 0), yaw).add(V(p.x, p.y + 85, p.z));
+        const hub = V(5.2 * SC, 0, 0).applyAxisAngle(V(0, 1, 0), yaw).add(V(p.x, p.y + HUB, p.z));
         rot.setMatrixAt(i, _m.compose(hub, _q, one));
       });
       nac.instanceMatrix.needsUpdate = rot.instanceMatrix.needsUpdate = true;
@@ -201,15 +209,17 @@ function pumpjack(color) {
   return { g, beam, crank, rod };
 }
 
-function pumpjacks(n, heightAt, avoid, seed) {
+function pumpjacks(n, heightAt, avoid, seed, near = []) {
   const r = rng(seed + "-pj");
   const g = new THREE.Group();
   const list = [];
+  const fixed = [...near];
   const colors = ["#6d7a83", "#b23a2c", "#3d6b4f", "#c7a43a", "#4b5d74"];
   for (let i = 0; i < n * 5 && list.length < n; i++) {
     const rad = 180 + Math.pow(r(), 0.9) * 2600, a = r() * Math.PI * 2;
-    const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
-    if (avoid(x, z) || list.some((p) => Math.hypot(p.x - x, p.z - z) < 260)) continue;
+    const f = fixed.shift();
+    const x = f ? f[0] : Math.cos(a) * rad, z = f ? f[1] : Math.sin(a) * rad;
+    if (!f && (avoid(x, z) || list.some((p) => Math.hypot(p.x - x, p.z - z) < 260))) continue;
     const pj = pumpjack(colors[Math.floor(r() * colors.length)]);
     pj.g.position.set(x, heightAt(x, z), z);
     pj.g.rotation.y = r() * Math.PI * 2;
@@ -251,9 +261,9 @@ function refinery(spec, heightAt, seed) {
   }
   g.add(inst(cyl(0.5, 0.5, 1, 0, 0, 0, 24), white, tanks, { shadow: false }));
   const cols = [], units = [], stacks = [];
-  for (let i = 0; i < 22; i++) {
-    const x = cx - 300 + r() * 650, z = cz - 250 + r() * 420;
-    const h = 25 + r() * 55;
+  for (let i = 0; i < 40; i++) {
+    const x = cx - 320 + r() * 680, z = cz - 260 + r() * 440;
+    const h = 30 + r() * 65;
     cols.push(mat4(V(x, y0 + h / 2, z), 0, V(2 + r() * 4, h, 2 + r() * 4)));
   }
   for (let i = 0; i < 30; i++) {
@@ -302,7 +312,7 @@ function refinery(spec, heightAt, seed) {
     update({ wall, night, windVec }) {
       flames.forEach((s, i) => {
         const f = 0.8 + 0.2 * Math.sin(wall * 7.3 + i * 2) * Math.sin(wall * 3.1 + i);
-        s.scale.set(22 * f, 34 * f, 1);
+        s.scale.set(38 * f, 62 * f, 1);
         s.material.opacity = 0.75 + 0.25 * night;
       });
       lmat.opacity = Math.min(1, night * 1.3);
@@ -362,7 +372,7 @@ function suburbs(city, heightAt, seed, amount) {
 }
 
 /** What stands on the land around the site for a region: its city, wind farm, pumpjacks, refinery or grain elevator. */
-export function buildBackdrop(region, heightAt, avoid, seed) {
+export function buildBackdrop(region, heightAt, avoid, seed, { near = [] } = {}) {
   const group = new THREE.Group();
   const parts = {};
   parts.city = skyline(region.city, heightAt, seed);
@@ -374,7 +384,7 @@ export function buildBackdrop(region, heightAt, avoid, seed) {
     group.add(parts.turbines.group);
   }
   if (region.pumpjacks) {
-    parts.pumpjacks = pumpjacks(region.pumpjacks, heightAt, avoid, seed);
+    parts.pumpjacks = pumpjacks(region.pumpjacks, heightAt, avoid, seed, near);
     group.add(parts.pumpjacks.group);
   }
   if (region.refinery) {

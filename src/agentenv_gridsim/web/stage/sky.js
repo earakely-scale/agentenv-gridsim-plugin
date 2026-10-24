@@ -297,17 +297,17 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
 
     scene.fog.color.copy(haze);
     scene.background.copy(haze);
-    scene.fog.density = 3.6 / (visKm * 1000);
+    scene.fog.density = 3.0 / (visKm * 1000);
 
     const cloudDim = 1 - 0.82 * Math.pow(cover, 1.6) - 0.08 * w.rain;
     sun.color.copy(sunCol);
     sun.intensity = 4.2 * smooth(-1.5, 8, el) * Math.max(0.06, cloudDim);
     moon.color.set("#a7b8d8");
-    moon.intensity = 0.2 * st.moon.lit * smooth(-2, 10, st.moon.el) * night * (1 - 0.85 * overcast);
+    moon.intensity = 0.7 * st.moon.lit * smooth(-2, 12, st.moon.el) * night * (1 - 0.85 * overcast);
     hemi.color.copy(_a.copy(skyZen).lerp(skyHor, 0.4).multiplyScalar(1 / Math.max(0.05, _a.r * 0.3 + _a.g * 0.6 + _a.b * 0.1)).multiplyScalar(0.5)).lerp(_b.set("#c9ced4"), overcast * 0.7);
     hemi.color.lerp(_b.set("#3a4a70"), night * 0.85);
     hemi.groundColor.copy(groundTint).multiplyScalar(0.25 + 0.5 * day);
-    hemi.intensity = 0.14 + 0.7 * day * (0.7 + 0.8 * overcast) + 0.85 * twilight * (1 - day);
+    hemi.intensity = 0.2 + 0.7 * day * (0.7 + 0.8 * overcast) + 0.85 * twilight * (1 - day);
     renderer.toneMappingExposure = 0.6 + 0.5 * night + 0.4 * twilight * (1 - day) + 0.15 * overcast * day;
     envGround.material.color.copy(groundTint).multiplyScalar(0.06 + 0.5 * day);
 
@@ -317,6 +317,7 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
       envTarget?.dispose();
       envTarget = pm.fromScene(envScene, 0.035);
       scene.environment = envTarget.texture;
+      renderer.setRenderTarget(null);
     }
     scene.environmentIntensity = 0.2 + 0.4 * day + 0.25 * twilight * (1 - day);
     last = { ...st, el, day, night, twilight, sunDir, moonDir, haze, hazeK, visKm, cover, overcast, sunI: sun.intensity };

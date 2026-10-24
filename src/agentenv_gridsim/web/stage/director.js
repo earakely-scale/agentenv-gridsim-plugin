@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const ease = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 const lerp = (a, b, u) => a + (b - a) * u;
-const PRIORITY = { violation: 6, neg: 5, ramp: 4, push: 3, establish: 1, sub: 1, high: 1, line: 2 };
+const PRIORITY = { violation: 6, neg: 5, ramp: 4, push: 3, establish: 1, sub: 1, high: 1, line: 2, city: 1 };
 
 /** The automatic camera: a shot list cut from the day (establishing orbit, a push in when the action changes, a wide
  * shot down the line on the evening ramp, a close shot on a negative-price hour), each a pose as a function of t. */
@@ -19,7 +19,7 @@ export function buildDirector(d, L, { night }) {
   const negH = d.hours.find((x) => x.neg && x.action < 0)?.h ?? d.firstNeg;
   if (negH >= 0) claim(negH - 0.1, negH + 1.9, "neg");
   if (d.trunc != null) claim(d.trunc - 0.1, d.trunc + 2.2, "violation");
-  const fill = ["sub", "establish", "line", "high"];
+  const fill = d.region.city.lights >= 0.85 ? ["sub", "establish", "city", "line", "high"] : ["sub", "establish", "line", "high"];
   let f = 0;
   for (let i = 0; i < 96; i++) {
     if (slots[i].kind) continue;
@@ -66,13 +66,18 @@ export function buildDirector(d, L, { night }) {
       return { pos: [x1 + 9 - 3 * u, 4.2, zf + 6.5], look: [L.cx - L.W * 0.35, 1.4, zf - 3.5], fov: 46 };
     },
     violation(u) {
-      return { pos: [hero.x + 26 - 6 * u, 4.2, hero.z + 11], look: [hero.x - 14, 1.6, hero.z - 1], fov: 44 };
+      return { pos: [x1 + 12 - 4 * u, 5.5, zf + 9], look: [L.cx - L.W * 0.3, 1.2, zf - 5], fov: 44 };
     },
     ramp(u) {
       return { pos: [x0 - 100 + 25 * u, 23 - 3 * u, zf + 50], look: [L.cx + L.W * 0.75, -3, -6], fov: 46 };
     },
     line(u) {
       return { pos: [L.sx + 26 + 30 * u, 7, 34], look: [L.sx + 1600, 22, -40], fov: 42 };
+    },
+    city(u) {
+      const b = ((d.region.city.bearing - d.region.line + 540) % 360) - 180;
+      const a = (b * Math.PI) / 180;
+      return { pos: [L.sx + 40 + 10 * u, 9, 70], look: [L.sx + 40 + Math.cos(a) * 4000, 70, 70 + Math.sin(a) * 4000], fov: 13 };
     },
     sub(u) {
       return { pos: [L.sx - 34 + 12 * u, 11, 36], look: [L.sx + 4, 5, -2], fov: 48 };
@@ -92,6 +97,6 @@ export function buildDirector(d, L, { night }) {
     return out;
   }
   /** Site-local (x, z, radius) the cameras pass through, for keeping vegetation out of shot. */
-  const spots = [[x0 - 52, zf + 70, 40], [x0 - 46, -zf - 64, 40], [x0 - 85, zf + 46, 45], [L.sx + 40, 34, 40], [L.sx - 30, 36, 30], [L.cx, 0, 210]];
+  const spots = [[x0 - 52, zf + 70, 40], [x0 - 46, -zf - 64, 40], [x0 - 85, zf + 46, 45], [L.sx + 40, 34, 40], [L.sx - 30, 36, 30], [L.cx, 0, 210], [L.sx + 50, 70, 40]];
   return { shots, pose, hero, spots };
 }

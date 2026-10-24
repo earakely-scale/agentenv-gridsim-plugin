@@ -35,12 +35,13 @@ RENDERER = ("(() => { const g = document.createElement('canvas').getContext('web
             "const x = g.getExtension('WEBGL_debug_renderer_info'); "
             "return x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'webgl2'; })()")
 ANSWER_SECONDS = 180
-INTRO, DAY, OUTRO = 0.0, 72.0, 7.0
+INTRO, DAY, OUTRO = 5.0, 72.0, 7.0
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--episode", type=Path, required=True)
+    p.add_argument("--episode", type=Path)
+    p.add_argument("--page", help="Capture a page under the checkout instead, e.g. hub/space/index.html (with --still).")
     p.add_argument("--weather", type=Path, help="The weather sidecar (default cache/weather/DATE_POINT.json).")
     p.add_argument("--out", type=Path, help="An MP4 to write.")
     p.add_argument("--still", type=Path, help="One PNG at --t.")
@@ -55,6 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     width, height = (int(v) for v in args.size.lower().split("x"))
     chrome = find_chrome(args.chrome)
+    if args.page:
+        with serve(ROOT) as port, session(f"http://127.0.0.1:{port}/{args.page}", chrome, width, height) as (page, _, gl):
+            args.still.parent.mkdir(parents=True, exist_ok=True)
+            args.still.write_bytes(base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"]))
+            print(f"wrote {args.still} ({gl})")
+        return 0
     ep = json.loads(args.episode.read_text())
     wx = args.weather or ROOT / "cache" / "weather" / f"{ep['task']['date']}_{ep['task']['settlement_point']}.json"
     with serve(ROOT) as port:
@@ -107,7 +114,8 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
     try:
         for i in range(frames):
             s = i / fps
-            t = min(24.0, max(0.0, (s - INTRO) / seconds * 24)) if s < INTRO + seconds else 24 + (s - INTRO - seconds) / 4
+            t = (-2 + 2 * s / INTRO if s < INTRO else min(24.0, (s - INTRO) / seconds * 24) if s < INTRO + seconds
+                 else 24 + (s - INTRO - seconds) / 4)
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
             encoder.stdin.write(base64.b64decode(page.call("Page.captureScreenshot", format="jpeg", quality=90)["data"]))
             if i % (fps * 5) == 0:

@@ -483,7 +483,7 @@ function buildLights(L, steel, dark) {
   const glows = glowPos.map((p) => {
     const s = new THREE.Sprite(glowMat);
     s.position.copy(p);
-    s.scale.setScalar(5);
+    s.scale.setScalar(2.2);
     g.add(s);
     return s;
   });
@@ -508,8 +508,8 @@ function buildLights(L, steel, dark) {
     group: g, poles,
     update(night) {
       const on = Math.min(1, Math.max(0, night));
-      lampMat.color.set("#f1f4ff").multiplyScalar(0.25 + 7 * on);
-      glowMat.opacity = 0.7 * on;
+      lampMat.color.set("#f1f4ff").multiplyScalar(0.25 + 2.2 * on);
+      glowMat.opacity = 0.35 * on;
       poolMat.opacity = 0.11 * on;
       for (const s of spots) s.intensity = 150 * on;
       glows.forEach((s) => (s.visible = on > 0.01));

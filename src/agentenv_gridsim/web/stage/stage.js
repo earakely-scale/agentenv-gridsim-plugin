@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { at } from "../data.js";
 import { buildBackdrop } from "./backdrop.js";
@@ -10,10 +11,19 @@ import { buildDirector } from "./director.js";
 import { buildLine } from "./line.js";
 import { buildSky } from "./sky.js";
 import { buildTerrain } from "./terrain.js";
-import { buildRain, lightningAt, weatherAt } from "./weather.js";
+import { buildRain, lightningAt, snowCover, snowOn, weatherAt } from "./weather.js";
 import { buildYard, COLORS } from "./yard.js";
 
 const DEG = Math.PI / 180;
+THREE.ShaderChunk.fog_fragment = /* glsl */ `
+#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float fogFactor = 1.0 - exp( - fogDensity * vFogDepth );
+  #else
+    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+#endif`;
 
 /** The battery yard in its region, light and weather for a whole episode: frame({t, dt, wall}) renders hour t. */
 export class GridStage {
@@ -65,10 +75,20 @@ export class GridStage {
     this.line = buildLine({ deadEnd: this.yard.sub.deadEnd, heightLocal, km: 9, seed });
     this.site.add(this.yard.group, this.line.group);
     scene.add(this.site);
-    this.backdrop = buildBackdrop(region, this.terrain.heightAt, this.terrain.avoid, seed);
+    const nearPj = [[L.cx + 30, -L.D / 2 - 190], [L.cx - L.W / 2 - 160, L.D / 2 + 260]].map(([x, z]) => {
+      const v = toWorld(x, z);
+      return [v.x, v.z];
+    });
+    this.backdrop = buildBackdrop(region, this.terrain.heightAt, this.terrain.avoid, seed, { near: nearPj });
     scene.add(this.backdrop.group);
     this.rain = buildRain();
     scene.add(this.rain.mesh);
+    U.uSnow = { value: 0 };
+    const snowy = (d.weather?.obs || []).some((o) => (o.wx || []).some((c) => /SN|PL/.test(c))) || (d.weather?.obs || []).some((o) => (o.temp_c ?? 9) < -2);
+    if (snowy) this.scene.traverse((o) => {
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) if (m?.isMeshStandardMaterial) snowOn(m, U);
+    });
     this.#post();
     if (!this.manual) {
       this.controls = new OrbitControls(this.camera, renderer.domElement);
@@ -87,6 +107,30 @@ export class GridStage {
     const rt = new THREE.WebGLRenderTarget(size.x || 1, size.y || 1, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.shimmer = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uAmt: { value: 0 }, uH: { value: 0.5 }, uT: { value: 0 } },
+      vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: /* glsl */ `
+        uniform sampler2D tDiffuse;
+        uniform float uAmt, uH, uT;
+        varying vec2 vUv;
+        void main() {
+          vec2 uv = vUv;
+          if (uAmt <= 0.0) {
+            vec4 c0 = texture2D(tDiffuse, uv);
+            gl_FragColor = (any(isnan(c0)) || any(isinf(c0))) ? vec4(0.0, 0.0, 0.0, 1.0) : min(c0, vec4(80.0));
+            return;
+          }
+          float dy = (uv.y - uH) / 0.035;
+          float band = exp(-dy * dy) * step(uv.y, uH + 0.01);
+          float n = sin(uv.y * 1100.0 + uT * 7.0) * 0.6 + sin(uv.y * 1900.0 - uT * 11.0 + uv.x * 35.0) * 0.4;
+          uv.x += n * uAmt * band * 0.0011;
+          uv.y += n * uAmt * band * 0.0005;
+          vec4 c = texture2D(tDiffuse, uv);
+          gl_FragColor = (any(isnan(c)) || any(isinf(c))) ? vec4(0.0, 0.0, 0.0, 1.0) : min(c, vec4(80.0));
+        }`,
+    });
+    this.composer.addPass(this.shimmer);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x || 1, size.y || 1), 0.5, 0.55, 1.4);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -122,6 +166,7 @@ export class GridStage {
     const wet = Math.min(1, w.rain * 0.9 + w.ts * 0.3 + (w.mist > 0.8 ? 0.2 : 0));
     this.U.uWet.value += (wet - this.U.uWet.value) * Math.min(1, dt * 0.6);
     if (this.manual && dt === 0) this.U.uWet.value = wet;
+    this.U.uSnow.value = snowCover(d.weather, tt);
     const windYaw = -((w.windDir ?? 180) + 90) * DEG - this.yaw;
     this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights: 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind: { kt: w.windKt, yawLocal: windYaw + Math.PI } });
     this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height: this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2)), day: s.day, reduced: this.reduced });
@@ -142,6 +187,16 @@ export class GridStage {
     } else this.controls.update();
     this.rain.update({ wall, camera: this.camera, w, day: s.day });
     this.sky.focus(this.camera, this.controls?.target || this.camera.position.clone().add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(60)));
+    const heat = this.reduced ? 0 : Math.min(1, Math.max(0, ((w.temp ?? 20) - 31) / 6)) * Math.min(1, Math.max(0, (s.el - 20) / 20)) * (1 - w.cover * 0.8) * (1 - w.rain);
+    this.shimmer.uniforms.uAmt.value = 0;
+    if (heat > 0.02) {
+      const f = this.camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(20000).add(this.camera.position);
+      f.y = this.camera.position.y * 0.98;
+      const ndc = f.project(this.camera);
+      this.shimmer.uniforms.uH.value = (ndc.y + 1) / 2;
+      this.shimmer.uniforms.uAmt.value = heat;
+      this.shimmer.uniforms.uT.value = wall;
+    }
     this.bloom.threshold = 1.1 + 1.5 * s.day;
     this.bloom.strength = 0.38 + 0.32 * s.night;
     this.bloom.radius = 0.5;
