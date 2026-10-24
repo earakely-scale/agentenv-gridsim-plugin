@@ -276,7 +276,7 @@ function buildTimeline(d) {
   const lo = Math.min(0, ...all.map(f));
   const zero = Y.pTop + (Y.pBot - Y.pTop) * (1 / (1 - lo));
   const py = (p) => zero - f(p) * (zero - Y.pTop);
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none" });
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", "shape-rendering": "crispEdges" });
   const g = (cls) => svg.appendChild(svgEl("g", { class: cls }));
   const bg = g("bg");
   for (let h = 0; h <= 24; h += 3) bg.appendChild(svgEl("line", { x1: h * 4 * cw, x2: h * 4 * cw, y1: Y.pTop, y2: Y.bot, stroke: "rgba(28,35,41,0.06)" }));
@@ -304,6 +304,7 @@ function buildTimeline(d) {
   const fline = svgEl("line", { y1: Y.mk + 4, y2: Y.bot, stroke: "#1c2329", "stroke-width": 1.4, "stroke-dasharray": "3 2" });
   svg.appendChild(fline);
   const mk = g("mk");
+  mk.setAttribute("shape-rendering", "geometricPrecision");
   const wm = d.watches.slice(1).map((w) => {
     const x = (w.min / 15) * cw;
     const m = svgEl("path", { d: `M${x - 4},${Y.mk + 2} L${x + 4},${Y.mk + 2} L${x},${Y.mk + 8} Z`, fill: "#1c2329" });
@@ -327,25 +328,22 @@ function buildTimeline(d) {
   root.append(plot);
   const colour = (a) => (a > 0 ? DISCHARGE : a < 0 ? CHARGE : "#e4e7e5");
   let lastS = -1, lastW = -1, lastPos = null;
+  const barY = [], barH = [];
   return {
     root, svg,
     update(t, settled, w) {
       const tt = Math.max(0, Math.min(24, t));
       ph.style.left = `${(tt / 24) * 100}%`;
-      for (let i = Math.max(0, settled - 2); i < Math.min(96, settled + 1); i++) {
-        const age = t - (i + 1) / 4;
-        const grow = age < 0 ? 0 : Math.min(1, age / 0.12);
-        const y = py(d.rt[i]);
-        bars[i].setAttribute("y", Math.min(y, zero) + (1 - grow) * (y < zero ? zero - y : 0));
-        bars[i].setAttribute("height", Math.max(grow ? 1.2 : 0, Math.abs(y - zero) * grow));
-      }
+      const bar = (i) => {
+        const age = t - (i + 1) / 4, grow = age < 0 ? 0 : Math.min(1, age / 0.12), y = py(d.rt[i]);
+        const top = (Math.min(y, zero) + (1 - grow) * (y < zero ? zero - y : 0)).toFixed(2);
+        const hh = Math.max(grow ? 1.2 : 0, Math.abs(y - zero) * grow).toFixed(2);
+        if (barY[i] !== top) bars[i].setAttribute("y", (barY[i] = top));
+        if (barH[i] !== hh) bars[i].setAttribute("height", (barH[i] = hh));
+      };
+      for (let i = Math.max(0, settled - 2); i < Math.min(96, settled + 1); i++) bar(i);
       if (settled !== lastS || w.index !== lastW) {
-        if (Math.abs(settled - lastS) > 2 || lastS < 0) bars.forEach((r, i) => {
-          const y = py(d.rt[i]);
-          const on = i < settled;
-          r.setAttribute("y", on ? Math.min(y, zero) : zero);
-          r.setAttribute("height", on ? Math.max(1.2, Math.abs(y - zero)) : 0);
-        });
+        if (Math.abs(settled - lastS) > 2 || lastS < 0) for (let i = 0; i < 96; i++) bar(i);
         lastS = settled;
         lastW = w.index;
         const plan = t < -1.2 ? Array(96).fill(0) : d.snaps[w.index];
