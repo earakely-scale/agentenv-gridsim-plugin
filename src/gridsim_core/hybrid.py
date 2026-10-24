@@ -1102,7 +1102,7 @@ class _Model:
             lp.integrality_ = [highspy.HighsVarType.kInteger if t else highspy.HighsVarType.kContinuous
                                for t in self.integer]
         h = highspy.Highs()
-        for k, v in (("output_flag", False), ("threads", 1), ("random_seed", 0), ("mip_rel_gap", 1e-7),
+        for k, v in (("output_flag", False), ("random_seed", 0), ("mip_rel_gap", 1e-7),
                      ("mip_abs_gap", 1e-4)):
             h.setOptionValue(k, v)
         h.passModel(lp)
