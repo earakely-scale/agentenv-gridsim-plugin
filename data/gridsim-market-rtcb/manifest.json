@@ -1,0 +1,80 @@
+{
+ "pack": "gridsim-market-rtcb",
+ "tasks": 153,
+ "dates": 153,
+ "first": "2025-12-10",
+ "last": "2026-08-25",
+ "day_checks": {
+  "dates": 253,
+  "passed": 181,
+  "dropped": {
+   "missing day row": 16,
+   "fidelity": 56
+  }
+ },
+ "task_filters": {
+  "kept": 742,
+  "headroom": 344
+ },
+ "errors": [],
+ "n_errors": 0,
+ "impact_hours": {
+  "0": 150,
+  "5": 2,
+  "1": 1
+ },
+ "impact_hours_2usd": {
+  "7": 2,
+  "1": 16,
+  "0": 124,
+  "4": 1,
+  "3": 4,
+  "6": 4,
+  "2": 2
+ },
+ "anchor_headroom_usd_per_mw_median": 26.77,
+ "filters": {
+  "within_ns_min": 0.5,
+  "headroom_br_usd_per_mw": 25.0,
+  "headroom_anchor_usd_per_mw": 10.0,
+  "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only"
+ },
+ "draws": {
+  "sizes_mw": [
+   400,
+   600,
+   800,
+   1000,
+   1200,
+   1500
+  ],
+  "size_weights": [
+   0.1,
+   0.15,
+   0.25,
+   0.2,
+   0.15,
+   0.15
+  ],
+  "durations_h": [
+   1.0,
+   2.0,
+   4.0
+  ],
+  "etas": [
+   0.8,
+   0.85,
+   0.9,
+   0.95
+  ],
+  "c_deg": [
+   0.0,
+   2.0,
+   4.0,
+   8.0
+  ],
+  "per_date": 6
+ },
+ "showcase_guard": "\u00b13 days around the showcase days",
+ "note": "derived, anonymised aggregates only; ERCOT data, not endorsed by ERCOT"
+}

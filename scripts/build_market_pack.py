@@ -38,7 +38,7 @@ SPLITS = {"train": ("2024-02-11", "2024-12-31"), "eval": ("2025-01-01", "2025-11
 SHOWCASE = {"fern-0123": ("2026-01-23", "2026-01-24", "2026-01-25", "2026-01-26", "2026-01-27"),
             "aug24-0820": ("2024-08-20",)}
 SHOWCASE_GUARD_DAYS = 3
-DRAWS = {"train": 9, "eval": 3, "rtcb": 3}
+DRAWS = {"train": 27, "eval": 6, "rtcb": 6}
 SIZES, SIZE_W = (400, 600, 800, 1000, 1200, 1500), (0.10, 0.15, 0.25, 0.20, 0.15, 0.15)
 DURS, DUR_W = (1.0, 2.0, 4.0), (0.25, 0.5, 0.25)
 ETAS, C_DEGS = (0.80, 0.85, 0.90, 0.95), (0.0, 2.0, 4.0, 8.0)
@@ -145,7 +145,7 @@ def make_tasks(pack: str, d: str, rows: list[dict], cts: list[float], n: int, wi
         hr = r["headroom_usd_per_mw"]
         why = ("headroom" if hr["br"] < HEADROOM_BR or hr["anchor"] < HEADROOM_ANCHOR
                else "impact" if pack.endswith("train") and imp[1] < 1 else None)
-        task["_why"] = why
+        task["_why"], task["_k"] = why, k
         out.append(task)
         if showcase:
             break
@@ -197,14 +197,12 @@ def main():
         task_verdict = Counter(t["_why"] or "kept" for t in tasks)
         kept = [t for t in tasks if t["_why"] is None or pack == "showcase"]
         if pack in ("eval", "rtcb"):
-            first_per_day = {}
-            for t in kept:
-                first_per_day.setdefault(t["date"], t)
-            kept = sorted(first_per_day.values(), key=lambda t: t["task_id"])
+            kept = sorted((one_per_day(ts) for ts in by_date(kept).values()), key=lambda t: t["task_id"])
         if pack == "eval":
             kept = select_eval(kept)
         for t in tasks:
             t.pop("_why", None)
+            t.pop("_k", None)
         out = args.data / name
         out.mkdir(parents=True, exist_ok=True)
         with gzip.open(out / "tasks.jsonl.gz", "wt", compresslevel=9) as f:
@@ -239,6 +237,19 @@ def main():
     stats = args.data / "market" / "stats.md"
     text = stats.read_text().split("\n## Packs")[0].rstrip("\n") if stats.exists() else "# v5 market days"
     stats.write_text(text + "\n" + "\n".join(stats_lines) + "\n")
+
+
+def by_date(tasks: list[dict]) -> dict[str, list[dict]]:
+    out: dict[str, list[dict]] = {}
+    for t in sorted(tasks, key=lambda t: t["_k"]):
+        out.setdefault(t["date"], []).append(t)
+    return out
+
+
+def one_per_day(ts: list[dict]) -> dict:
+    """A date's task: the draw with the most impact hours when it has ≥ 2 (a peak day), else the first draw."""
+    peak = [t for t in ts if t["tags"]["impact_hours"] >= 2]
+    return max(peak, key=lambda t: (t["tags"]["impact_hours"], -t["_k"])) if peak else ts[0]
 
 
 def select_eval(kept: list[dict]) -> list[dict]:
