@@ -310,6 +310,7 @@ function buildTimeline(d) {
   const wm = d.watches.slice(1).map((w) => {
     const x = (w.min / 15) * cw;
     const m = svgEl("path", { d: `M${x - 4},${Y.mk + 2} L${x + 4},${Y.mk + 2} L${x},${Y.mk + 8} Z`, fill: "#1c2329" });
+    m.appendChild(svgEl("title", {})).textContent = `Watch at ${plain(w.min)} · freeze line ${plain(w.freezeMin)}`;
     mk.appendChild(m);
     return { w, m };
   });
@@ -317,6 +318,7 @@ function buildTimeline(d) {
   const icons = d.notices.filter((n) => n.revealMin >= 0 && n.revealMin < 1440).map((n) => {
     const x = (n.revealMin / 15) * cw;
     const c = svgEl("rect", { x: x - 3.5, y: Y.mk + 4, width: 7, height: 7, transform: `rotate(45 ${x} ${Y.mk + 7.5})`, fill: COL[n.badge[1]] || "#7d8ea0", stroke: "#fff", "stroke-width": 1 });
+    c.appendChild(svgEl("title", {})).textContent = `${n.badge[0]} · ${n.name || n.source} · public at ${plain(n.revealMin)}${n.watch != null ? `, read at ${plain(d.watches[n.watch].min)}` : ""}\n${n.text}`;
     mk.appendChild(c);
     return { n, c };
   });
