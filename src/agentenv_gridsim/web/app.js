@@ -58,7 +58,7 @@ async function main() {
   const settings = document.createElement("section");
   settings.className = "card settings";
   settings.hidden = true;
-  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><label><input type="checkbox" name="ghosts" checked> Greedy and threshold ghosts in the race</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour · 1-4 speed · D camera · C charts</p>`;
+  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><label><input type="checkbox" name="ghosts" checked> Greedy and threshold ghosts in the race</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour${live ? " · [/] watch" : ""} · 1-4 speed · D camera · C charts</p>`;
   root.append(settings);
   root.classList.toggle("reduced", reduced);
   settings.querySelector('[name="reduced"]').addEventListener("change", (e) => ((stage.reduced = e.target.checked), root.classList.toggle("reduced", e.target.checked)));
@@ -87,7 +87,11 @@ async function main() {
     else if (e.key === "ArrowRight") P.t = Math.min(24, Math.floor(P.t) + 1 + 0.02);
     else if (e.key === "ArrowLeft") P.t = Math.max(0, Math.floor(P.t - 0.02) - 1 + 0.02);
     else if (["1", "2", "3", "4"].includes(e.key)) P.speed = [0.5, 1, 2, 4][+e.key - 1];
-    else if (e.key === "d" || e.key === "D") stage.direct(!stage.directing);
+    else if (live && (e.key === "]" || e.key === "[")) {
+      const ts = d.watches.map((w) => Math.max(0, w.t));
+      P.t = e.key === "]" ? ts.find((x) => x > P.t + 0.01) ?? P.t : [...ts].reverse().find((x) => x < P.t - 0.01) ?? 0;
+      stage.direct(stage.directing);
+    } else if (e.key === "d" || e.key === "D") stage.direct(!stage.directing);
     else if (e.key === "c" || e.key === "C") charts.toggle();
   });
   if (q.get("charts") === "1") charts.toggle(true);
