@@ -1,0 +1,83 @@
+/* v5 The Market Floor */
+.ep.is-market { --tl: 168px; }
+.left-col.mkt { width: 410px; }
+.right.mkt { width: 372px; }
+.tier.mkt { background: #4b3a63; color: #fff; }
+.place.mkt .where { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.place.mkt .where.sub { font-size: 12px; color: var(--faint); margin-top: -1px; }
+.place.mkt .price.count { font-variant-numeric: tabular-nums; }
+.place.mkt .price.count small { margin-left: 1px; margin-right: 3px; }
+.place.mkt .price.count small:last-child { margin-left: 6px; }
+.place.mkt .act { flex-wrap: wrap; row-gap: 0; }
+.place.mkt .act .actsub { font-size: 12.5px; font-weight: 500; color: var(--faint); margin-left: 2px; }
+.place.mkt .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.offer { padding: 11px 16px 10px; }
+.offer svg.offersvg { width: 100%; height: auto; display: block; }
+.offer .ax { font: 500 9.5px var(--sans); fill: var(--faint); }
+.offer .owords { font-size: 12px; color: var(--ink2); margin: 3px 0 2px; min-height: 16px; }
+.offer .res { font-size: 12px; color: var(--ink2); margin-bottom: 4px; }
+.offer .res b { color: var(--ink); }
+.offer .ochips { margin-top: 5px; }
+.chips24.ochips i.cur { box-shadow: 0 0 0 1.5px var(--ink); }
+.pnl .r.dim span, .pnl .r.dim b { color: var(--faint); font-weight: 500; }
+.pnl .cfdrow { margin-top: 6px; padding-top: 5px; border-top: 1px dashed rgba(139, 109, 156, 0.55); }
+.pnl .cfdrow .r span { color: #5d3f73; }
+.pnl .cfdrow .note { display: block; font-size: 10.5px; color: var(--faint); }
+.seats { padding: 12px 14px 10px; }
+.seatlist { display: flex; flex-direction: column; gap: 2px; }
+.seat { display: grid; grid-template-columns: 24px 1fr auto; gap: 9px; align-items: center; padding: 4px 6px; border-radius: 8px; }
+.seat.me { background: rgba(28, 35, 41, 0.065); }
+.seat .lt { width: 22px; height: 22px; border-radius: 6px; color: #fff; font-weight: 800; font-size: 12px; display: grid; place-items: center; }
+.seat .nm { min-width: 0; }
+.seat .nm b { display: block; font-size: 12.5px; font-weight: 650; }
+.seat .nm em { display: block; font-style: normal; font-size: 11px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat .vv { text-align: right; }
+.seat .vv b { display: block; font-size: 13.5px; font-weight: 650; }
+.seat .vv b.dim { color: var(--ink2); font-weight: 600; }
+.seat .vv .rg { display: block; font-size: 11px; color: var(--faint); white-space: nowrap; }
+.w0row { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink2); }
+.w0row b { color: var(--ink); font-weight: 650; }
+.w0row em { flex-basis: 100%; font-style: normal; font-size: 10.5px; color: var(--faint); }
+.mktscore { margin: 0 0 10px; padding: 0 0 10px; border-top: 0; border-bottom: 1px solid var(--line); }
+.right.mkt .desklog { flex: 1 1 auto; min-height: 110px; overflow: auto; }
+.desklog .wrow { grid-template-columns: 122px 1fr; }
+.pill.cfd { background: #efe6f5; color: #5d3f73; }
+.pill.part { background: #fdf1df; color: #8a5200; }
+.news.deal i { background: #8b6d9c; }
+.ep.is-market .news { max-width: min(900px, calc(100% - 860px)); }
+.ep.is-market .news span:last-child { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.intro.mkt { width: 620px; top: 44%; }
+.intro.mkt p { margin: 6px 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+.intro.mkt p.dim { font-size: 12px; color: var(--faint); }
+.tl.mkt .pz { fill: rgba(28, 35, 41, 0.035); }
+.tl.mkt .pz-offer { fill: rgba(217, 130, 11, 0.09); }
+.tl.mkt .pz-clear { fill: rgba(197, 138, 18, 0.14); }
+.tl.mkt .pz-awards { fill: rgba(42, 120, 214, 0.08); }
+.tl.mkt text.phl { font: 600 8.5px var(--sans); fill: var(--ink2); }
+.tl.mkt text.mm { font: 800 9px var(--sans); fill: #cf3e33; }
+.tl.mkt .hours span { transform: none; }
+@media (max-height: 940px) and (min-width: 901px) {
+  .ep.is-market { --tl: 156px; }
+  .ep.is-market .card { padding: 10px 14px; }
+  .ep.is-market .left-col, .ep.is-market .right { gap: 8px; }
+  .ep.is-market .place .clock { font-size: 30px; }
+  .ep.is-market .place .price { font-size: 25px; }
+  .ep.is-market .place .act { margin: 4px 0 6px; font-size: 15.5px; }
+  .ep.is-market .place .meta { display: none; }
+  .ep.is-market .pnl .r { padding: 0.5px 0; }
+  .ep.is-market .offer .owords { display: none; }
+}
+@media (max-width: 900px) {
+  .ep.is-market { --tl: 168px; }
+  .left-col.mkt { width: calc(100% - 2 * var(--gap)); }
+  .left-col.mkt .pnl, .left-col.mkt .offer, .place.mkt .meta, .place.mkt .where.sub { display: none; }
+  .ep.is-market .timeline { bottom: 46px; }
+  .ep.is-market .news { display: none; }
+  .tl.mkt .rows { display: none; }
+  .tl.live.mkt { padding-left: 0; }
+  .tl.live.mkt .hours { left: 0; }
+  .tl.mkt .hours span:nth-child(3), .tl.mkt .hours span:nth-child(5) { display: none; }
+  .intro.mkt { width: calc(100% - 2 * var(--gap)); top: 46%; }
+  .intro.mkt p.dim { display: none; }
+}
+.offer text.ax.any { font-size: 9px; fill: var(--ink2); font-weight: 600; }
