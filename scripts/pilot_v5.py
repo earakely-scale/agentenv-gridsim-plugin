@@ -285,7 +285,7 @@ def tables(cells: list[tuple[str, dict]]) -> list[str]:
                  "| Rank by compliant |", "|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---|---|"]
     market = ["| Set | Floors | Regret (norm) | eps A | eps mean | eps-Nash (max seat) | Rank among seats "
               "| Mitigated h (floors) | Withholding | Price talk | CfDs/floor (floors) | CfD value at signing $ "
-              "| CfD settled $ | Clipped h |",
+              "| CfD settled $ | Exec ≠ award h |",
               "|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---|---:|---:|---:|"]
     impact = ["| Set | Floors | Impact $ | Price-making gain $/MW-day | Impact-hour MWh sold | Anchor's "
               "| Price-taker's | Split hours (floors) | Toward price-taker | Submits | Checks | Disclosure calls "
@@ -348,31 +348,38 @@ def main() -> None:
     out = {"columns": {}, "unscored": {}, "spend_usd": {n: round(spend(n), 4) for n in names}}
     amended = {a: load(a) for a in args.amend}
     lines: list[str] = []
-    floors = {}
+    sets: dict[str, dict[str, list[dict]]] = {}
     for col, name in (("floor-sprint", args.sprint), ("floor-day", args.day)):
         if not name:
             continue
         fs, unscored = load(name)
-        floors[col] = fs
         out["unscored"][col] = unscored
-        cells = column(f"{col} primary", fs)
+        sets[col] = {"primary": fs}
         extra = [f for a, (ds, _) in amended.items() if json.loads(
             (RUNS / a / "raw" / "sweep.json").read_text())["tier"] == col for f in ds]
         if extra:
-            cells += column(f"{col} amended", fs + [f for f in extra if f["task_id"] not in {x["task_id"] for x in fs}])
-        out["columns"][col] = {lab: m for lab, m in cells} | {"floors": fs, "fidelity_terciles": terciles(fs)}
-        lines += tables(cells) + [""]
-        m = cells[0][1]
-        lines += [f"{col}: fidelity (within_ns) Spearman with R {_f(m['fidelity_spearman_reward'], '.2f')}, with "
-                  f"regret {_f(m['fidelity_spearman_regret'], '.2f')}; terciles "
-                  + "; ".join(f"{t['within_ns'][0]:.2f}-{t['within_ns'][1]:.2f}: R {_f(t['reward'])} (n {t['n']})"
-                              for t in terciles(fs)) + f"; errors {_counts(m['errors'])}.", ""]
-    if "floor-day" in floors and "floor-sprint" in floors:
-        p = paired(floors["floor-day"], floors["floor-sprint"])
-        out["paired_day_minus_sprint"] = p
-        lines += [f"floor-day minus floor-sprint on the {p['n']} floors played at both: R {_ci(p, 'reward')}, "
-                  f"compliant {_ci(p, 'compliant')}, welfare ratio {_ci(p, 'welfare_ratio')}, capture "
-                  f"{_ci(p, 'capture')}.", ""]
+            sets[col]["amended"] = fs + [f for f in extra if f["task_id"] not in {x["task_id"] for x in fs}]
+        out["columns"][col] = {}
+        for label, ds in sets[col].items():
+            cells = column(f"{col} {label}", ds)
+            out["columns"][col][label] = {lab: m for lab, m in cells} | {"floors": ds,
+                                                                         "fidelity_terciles": terciles(ds)}
+            lines += tables(cells) + [""]
+            m = cells[0][1]
+            if m["n"]:
+                lines += [f"{col} {label}: fidelity (within_ns) Spearman with R "
+                          f"{_f(m['fidelity_spearman_reward'], '.2f')}, with regret "
+                          f"{_f(m['fidelity_spearman_regret'], '.2f')}; terciles "
+                          + "; ".join(f"{t['within_ns'][0]:.2f}-{t['within_ns'][1]:.2f}: R {_f(t['reward'])} "
+                                      f"(n {t['n']})" for t in terciles(ds)) + f"; errors {_counts(m['errors'])}.", ""]
+    if "floor-day" in sets and "floor-sprint" in sets:
+        out["paired_day_minus_sprint"] = {}
+        for label, ds in sets["floor-sprint"].items():
+            p = paired(sets["floor-day"]["primary"], ds)
+            out["paired_day_minus_sprint"][label] = p
+            lines += [f"floor-day minus floor-sprint {label} on the {p['n']} floors played at both: R "
+                      f"{_ci(p, 'reward')}, compliant {_ci(p, 'compliant')}, welfare ratio {_ci(p, 'welfare_ratio')}, "
+                      f"capture {_ci(p, 'capture')}.", ""]
     show = []
     for name in args.showcase:
         fs, missing = load(name)
@@ -381,8 +388,8 @@ def main() -> None:
         lines += ["Showcase (display only): " + ("; ".join(showcase_line(f) for f in fs) or f"unscored: {missing}"),
                   ""]
     out["showcase"] = show
-    unscored = [f"{u['task_id']} ({c}: {u['why']}, {u['attempts']} attempts)" for c, us in out["unscored"].items()
-                for u in us]
+    unscored = [f"{c} {len(us)} ({_counts(dict(Counter(u['why'] for u in us)))})"
+                for c, us in out["unscored"].items() if us]
     lines += ["Unscored: " + ("; ".join(unscored) or "none") + ".",
               "Spend: " + ", ".join(f"{n} ${v:.2f}" for n, v in out["spend_usd"].items())
               + f"; total ${sum(out['spend_usd'].values()):.2f}."]
