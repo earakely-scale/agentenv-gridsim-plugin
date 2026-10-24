@@ -16,7 +16,7 @@
   "desk"
  ],
  "flags": {
-  "vintages": "synthetic until the forecast store lands (V4-P12)",
+  "vintages": "synthetic, deterministic (fixtures)",
   "site": "archetype",
   "pv_availability": "proxy, system-wide cf",
   "reg_drift": "seeded",

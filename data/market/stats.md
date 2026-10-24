@@ -31,8 +31,7 @@ for this table only:
 | 2022 | 363 | 204 (56%) | 45 | 1 | 0.50 | 7.30 | 4.88 |
 | 2023 (to 12-10) | 341 | 314 (92%) | 173 | 28 | 0.75 | 5.06 | 5.85 |
 
-0 parse errors on 1,686 op days in all (2022-01-01..2026-08-25); the raw zips are kept in Scale-internal object
-storage.
+0 parse errors on 1,686 op days in all (2022-01-01..2026-08-25); the raw zips are not redistributed.
 
 ## Packs (scripts/build_market_pack.py)
 
