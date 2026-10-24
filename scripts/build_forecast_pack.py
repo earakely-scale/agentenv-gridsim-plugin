@@ -39,16 +39,16 @@ SPLITS = {"train": ("2021-03-02", "2024-12-29"), "eval": ("2025-01-01", "2025-11
           "rtcb": ("2025-12-05", "2026-09-28")}
 TARGETS = {"train": 1500, "eval": 60, "rtcb": 20}
 FRONT_SHARE = {"train": 0.6, "eval": 40 / 60, "rtcb": 0.5}
-CANDIDATES = {"train": 4000, "eval": 400, "rtcb": 200}
+CANDIDATES = {"train": 20000, "eval": 1200, "rtcb": 400}
 PACKS = {"train": "ercot-front-v4-train", "eval": "ercot-front-v4-eval", "rtcb": "ercot-front-v4-rtcb",
          "showcase": "ercot-front-v4-showcase"}
 SHOWCASE = {"fern-0124": ("2026-01-24", "HB_NORTH"), "heather-0114": ("2024-01-14", "HB_NORTH"),
             "uri-0213": ("2021-02-13", "HB_HOUSTON"), "spring-0328": ("2024-03-28", "HB_WEST")}
 API_START = "2023-12-12"
-FILTER = {"hind_headroom_usd_per_kw": 3.0, "hind_minus_roll_share": 0.08, "roll_minus_blind_share": 0.05,
-          "roll_headroom_usd_per_kw": 1.0}
-FRONT_NWS = {("WS", "W"), ("WS", "A"), ("HZ", "W"), ("HZ", "A"), ("EH", "W"), ("EH", "A"), ("XH", "W"), ("XH", "A"),
-             ("HW", "W"), ("HW", "A"), ("WI", "Y"), ("SV", "A")}
+FILTER = {"hind_headroom_low_drop_share": 0.15, "roll_headroom_min_usd_per_kw": 0.10, "roll_headroom_min_share": 0.05,
+          "hind_minus_roll_share": 0.08, "roll_minus_blind_share": 0.05}
+FRONT_NWS = {(p, s) for p in ("WS", "HZ", "EH", "XH", "HW") for s in ("W", "A")}
+FRONT_DROP_F = 15.0
 
 FIXTURES = [("2025-02-18", "HB_NORTH", "default"), ("2023-08-24", "HB_HOUSTON", "default"),
             ("2022-12-22", "HB_NORTH", "default"), ("2021-06-14", "HB_WEST", "default"),
@@ -172,8 +172,9 @@ def actuals(t: dict, eia: Path) -> dict | None:
 
 
 def front_label(t: dict, sl: dict) -> tuple[str, dict]:
-    """front when the stitched near-analysis 2 m temperature at a zone point drops >= 15 F within 12 h, or a load- or
-    wind-moving NWS product is in force; else calm."""
+    """front (V4-P19) when, at any weather-zone point inside the window, the stitched near-analysis 2 m temperature (the
+    first 6 h of consecutive HRRR runs) is >= 15 F below the same hour 24 h earlier, or an NWS winter storm, hard
+    freeze, excessive heat or high wind product is in force; else calm. The diurnal cycle alone is not a front."""
     vint = F.Vintages(sl, t["d1"])
     best = (0.0, None)
     for z in FI.zones().values():
@@ -183,14 +184,12 @@ def front_label(t: dict, sl: dict) -> tuple[str, dict]:
                 x = F.Vintages.at(r, "t2m_f", r.h0 + i)
                 if x is not None:
                     temp[r.h0 + i] = x
-        hs = sorted(h for h in temp if -14 <= h < 24 * t["days"])
-        for h in hs:
-            later = [temp[g] for g in hs if h < g <= h + 12]
-            if later and temp[h] - min(later) > best[0]:
-                best = (temp[h] - min(later), z["name"])
+        for h in sorted(temp):
+            if -14 <= h < 24 * t["days"] and h - 24 in temp and temp[h - 24] - temp[h] > best[0]:
+                best = (temp[h - 24] - temp[h], z["name"])
     nws = sorted({n["kind"][4:] for n in t["notices"] if n.get("kind", "").startswith("nws:")
                   and tuple(n["kind"][4:].split(".")) in FRONT_NWS})
-    lab = "front" if best[0] >= 15 or nws else "calm"
+    lab = "front" if best[0] >= FRONT_DROP_F or nws else "calm"
     return lab, {"t2m_drop_f": round(best[0], 1), "zone": best[1], "nws": nws}
 
 
@@ -227,8 +226,20 @@ def score(t: dict, tier: str) -> dict:
             "roll_minus_blind_share": (r["p_roll"] - r["p_blind"]) / head if head > 0 else 0.0}
 
 
-def eligible(x: dict) -> bool:
-    return all(x[k] >= v for k, v in FILTER.items())
+def hind_floor(rows: list, tier: str) -> float:
+    """The split's low-spread cut (V4-P18): the 15th percentile of hindsight headroom per kW over its candidates."""
+    x = [r["_score"][tier]["hind_headroom_usd_per_kw"] for r in rows]
+    return float(np.quantile(x, FILTER["hind_headroom_low_drop_share"])) if x else 0.0
+
+
+def eligible(x: dict, floor: float) -> bool:
+    """V4-P18: above the split's low-spread cut, P_roll - P_idle >= max($0.10/kW, 5% of P_hind - P_idle), P_hind -
+    P_roll >= 8% and P_roll - P_blind >= 5% of P_hind - P_idle."""
+    return (x["hind_headroom_usd_per_kw"] >= floor
+            and x["roll_headroom_usd_per_kw"] >= max(FILTER["roll_headroom_min_usd_per_kw"],
+                                                     FILTER["roll_headroom_min_share"] * x["hind_headroom_usd_per_kw"])
+            and x["hind_minus_roll_share"] >= FILTER["hind_minus_roll_share"]
+            and x["roll_minus_blind_share"] >= FILTER["roll_minus_blind_share"])
 
 
 def candidates(split: str, n: int) -> list[tuple[str, str]]:
@@ -350,10 +361,15 @@ def build_packs(args):
     for split in [s for s in args.splits if s != "showcase"]:
         tier = "front-lite" if split == "train" else "front"
         pool_rows = [r for r in rows if r["split"] == split]
-        ok = [r for r in pool_rows if eligible(r["_score"][tier])]
+        floor = hind_floor(pool_rows, tier)
+        ok = [r for r in pool_rows if eligible(r["_score"][tier], floor)]
         chosen = select(ok, args.limit and min(len(ok), TARGETS[split]) or TARGETS[split], FRONT_SHARE[split], split)
-        stats[split] = {"candidates": len(pool_rows), "eligible": len(ok), "chosen": len(chosen),
-                        "front": sum(r["tags"]["label"] == "front" for r in chosen),
+        labels = collections.Counter(r["tags"]["label"] for r in pool_rows)
+        stats[split] = {"candidates": len(pool_rows), "candidate_labels": dict(labels),
+                        "hind_floor_usd_per_kw": round(floor, 4), "eligible": len(ok),
+                        "eligible_labels": dict(collections.Counter(r["tags"]["label"] for r in ok)),
+                        "eligible_d1": {lab: len({r["d1"] for r in ok if r["tags"]["label"] == lab}) for lab in labels},
+                        "chosen": len(chosen), "front": sum(r["tags"]["label"] == "front" for r in chosen),
                         "sources": dict(collections.Counter(r["source"] for r in chosen)),
                         "mean_ms": round(float(np.mean([r["_ms"] for r in pool_rows])), 1) if pool_rows else None}
         write(out, PACKS[split], chosen, {"filters": FILTER, "stats": stats[split], "store": args.store})
