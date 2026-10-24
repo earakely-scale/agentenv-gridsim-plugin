@@ -457,7 +457,8 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
         live_counts = Counter(e["model_label"] or e["model"] for e in v2)
         lv = next((e for e in v2 if e.get("featured") == "live"), None)
         text = text.replace("\n## Links\n", LIVE_README.format(
-            n=len(v2), models=", ".join(f"{n} of {m}" for m, n in live_counts.most_common()),
+            n=len(v2), models=", ".join(f"{n} of {LABELS.get(m, m)}" for m, n in live_counts.most_common()),
+            board=live_board(),
             hero=f"\n\n**The featured live day,** [{lv['date']} at {lv['point']}]"
                  f"({APP}/index.html?episode=runs/{lv['url']}): {lv['blurb']}" if lv else "") + "\n## Links\n")
     if training:
@@ -482,8 +483,22 @@ before, then re-plans its 15-minute schedule at watches through the day, never i
 while real-time prices settle and ERCOT and NWS bulletins arrive (paraphrased summaries only). Settlement is
 two-settlement: the position at day-ahead prices, every deviation at real-time prices. R puts idle at 0.2 and the
 rolling anchor at 1.0; the anchor is provisional and sits near naive on many days, so each replay also shows hindsight
-capture. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{hero}
+capture. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{board}{hero}
 """
+
+
+def live_board() -> str:
+    """The v2 pilot's headline from results/eval-v2.json: hindsight capture first, R second."""
+    card = ROOT / "results" / "eval-v2.json"
+    if not card.exists():
+        return ""
+    c = json.loads(card.read_text())
+    b = c["baselines"].get("foresight") or {}
+    rows = [f"{LABELS.get(m['model'], m['model'])} captures {m['hindsight_capture']:.0%} of hindsight over "
+            f"{m['tasks']} days (R {m['mean']:.3f})" for m in c["models"]]
+    return (f"\n\nThe pilot, pre-registered: {'; '.join(rows)}; naive captures "
+            f"{b.get('naive_capture', 0):.0%} (R {b.get('naive', 0):.3f}) and the rolling anchor "
+            f"{b.get('anchor_capture', 0):.0%} (R 1.000) on the same days.")
 
 
 if __name__ == "__main__":
