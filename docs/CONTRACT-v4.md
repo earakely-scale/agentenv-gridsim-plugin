@@ -102,6 +102,8 @@ Measured tonight (phase-1 probes, `$SP/gridsim/c4/out`):
 | V4-P15 | Weather points | 18 fixed points (`data/forecast/points.json`): the 8 v1 site airports (ASOS-checkable), 3 more zone points (SPS, ABI, HRL), 4 wind and 3 solar points; zones by nearest representative city, labelled approximate |
 | V4-P16 | Henry Hub, NBM, fleet/desk tiers, overworld map | Not built (the plan's V4-D4/D5/D6) |
 | V4-P17 | ERCOT's own vintages | Windows from d1 = 2023-12-12 serve ERCOT's load, wind and solar vintages (`source: ercot`); earlier windows and the whole train pack serve the desk's (`source: desk`). The price guide stays on desk features in every era, so P_roll's prices are one model family; P_roll's site PV follows the served solar. Details below |
+| V4-P18 | Pack filters | The plan's per-kW headrooms are miscalibrated on the real store: over 4,327 candidates the median P_hind - P_idle is $0.40/kW per window (train, `front-lite`, 48 h) and $0.81/kW (eval, `front`, 72 h), p90 $1.81 and $1.71, in line with ERCOT battery revenue of about $29-56/kW-yr; $3/kW kept 6.7%, 3.7% and 0% of train, eval and rtcb, $1/kW of P_roll headroom 5.6%, 9.8% and 2.1%. Instead: drop the lowest 15% of each split's candidates by hindsight headroom per kW (v1's low-spread rule); require P_roll - P_idle >= max($0.10/kW, 5% of P_hind - P_idle) so the reward's denominator is well defined; keep P_hind - P_roll >= 8% (forecasts cost something) and P_roll - P_blind >= 5% (forecasts are worth reading) |
+| V4-P19 | Front label | A front is a synoptic change, not the diurnal cycle: the plan's "drops >= 15 F within 12 h" marked all 4,327 candidates `front` (the West Texas points swing 25-30 F a day). `front` when, at any weather-zone point inside the window, the stitched HRRR near-analysis 2 m temperature is >= 15 F below the same hour 24 h earlier, or an NWS winter storm, hard freeze, excessive heat or high wind product (WS, HZ, EH, XH, HW; W or A) is in force; else `calm` |
 
 ## ERCOT vintages in the API era (V4-P17)
 
@@ -392,12 +394,14 @@ in a finished window, get_time reads, byte-identical replay, no RT price before 
 - **Candidates**: d1 from 2021-03-02 to 2026-09-28 (so d1-1..d3 lie inside the price, MCPC, solar-cf and HRRR spans),
   at the 13 non-average points (v3's `POINTS`) with v3's archetype sites (lane D3, default + POI variant shares);
   V4-P9 drops DST and era-crossing windows; showcase windows +-3 days are out of every split.
-- **Label**: `front` when the stitched near-analysis (HRRR f01-f06 of consecutive runs) 2 m temperature at any of the 8
-  zone points drops >= 15 F within 12 h inside the window, or an NWS product WS/HZ/EH/XH/HW (W or A), WI (Y) or SV (A)
-  is in force over an ERCOT zone during it; else `calm`. `tags.forecast_bust`: on some window day the EIA DF peak
+- **Label** (V4-P19): `front` when the stitched near-analysis (the first 6 h of consecutive HRRR runs) 2 m temperature
+  at any of the 8 zone points is >= 15 F below the same hour 24 h earlier at some hour inside the window, or an NWS
+  product WS/HZ/EH/XH/HW (W or A) is in force over an ERCOT zone during it; else `calm`. `tags.forecast_bust`: on some window day the EIA DF peak
   misses the actual peak by >= 5%.
-- **Filters** (the plan's, per kW of battery P, on the tier the pack is for): P_hind - P_idle >= $3/kW; P_hind -
-  P_roll >= 8% of (P_hind - P_idle); P_roll - P_blind >= 5% of it; P_roll - P_idle >= $1/kW.
+- **Filters** (V4-P18, on the tier the pack is for): P_hind - P_idle per kW of battery P at or above the split's 15th
+  percentile over its candidates; P_roll - P_idle >= max($0.10/kW, 5% of P_hind - P_idle); P_hind - P_roll >= 8% of
+  (P_hind - P_idle); P_roll - P_blind >= 5% of it. Candidates: 20,000 train, 1,200 eval, 400 rtcb draws (before
+  V4-P9's drops), at most one window per d1 and label in the draw.
 - **Packs**: `ercot-front-v4-train` (~1,500, 2021-03..2024-12, ~60/40 front/calm, `front-lite` refs + P_hind),
   `ercot-front-v4-eval` (60: 40 front, 20 calm, 2025-01..2025-11; all tiers), `ercot-front-v4-rtcb` (20, 2025-12-05..
   2026-09-28, Fern +-3 days out; all tiers; flagged `rt_as: not_modelled`), `ercot-front-v4-showcase` (display only,
