@@ -15,6 +15,7 @@ results/eval-v1.json filled in. Every file goes through agentenv-hf's scan for k
 written. Nothing is pushed: upload the folder with `hf upload <repo> <out> --repo-type dataset` after reading it.
 
     uv run python scripts/hub_dataset.py --out build/hub/dataset
+    agent-env gridsim tasks generate --pack ercot-dam-v1-eval --out build/bundles/ercot-dam-v1-eval
     uv run python scripts/hub_dataset.py --out build/hub/dataset --runs results/runs --results results \
         --bundle build/bundles/ercot-dam-v1-eval
 """

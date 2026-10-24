@@ -14,6 +14,7 @@ dependencies = [
     "numpy>=1.26",
     "agentenv-framework>=0.9.1344,!=0.9.1343",
     "agentenv-framework-protocol>=0.1.359",
+    "agentenv-hf @ https://github.com/earakely-scale/agentenv-hf-plugin/archive/refs/tags/v0.3.0.tar.gz",
     "fastmcp==3.4.8",
     "pydantic>=2.13,<2.14",
 ]
@@ -32,6 +33,9 @@ gridsim = "agentenv_gridsim.bundles"
 
 [project.entry-points."agent_env.cli_plugins"]
 gridsim = "agentenv_gridsim.cli:gridsim"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gridsim_core", "src/agentenv_gridsim"]
