@@ -4,6 +4,7 @@ frame a JPEG piped to ffmpeg for an H.264 MP4. --still writes one PNG at an hour
 usage: python scripts/record.py --episode results/runs/reference/X.json --out cache/films/X.mp4 [--seconds 84]
        python scripts/record.py --episode E.json --still out.png --t 19.5 [--size 1920x1080]
        python scripts/record.py --episode E.json --thumb out.jpg
+       python scripts/record.py --view levelup=results/runs/train/levelup.json --out levelup.mp4   (or race=...)
 """
 
 import argparse
@@ -43,6 +44,7 @@ INTRO, DAY, OUTRO = 5.0, 72.0, 7.0
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--episode", type=Path)
+    p.add_argument("--view", help="A training view instead of an episode: levelup=MANIFEST or race=MANIFEST.")
     p.add_argument("--page",
                    help="Capture a page under the checkout instead, e.g. build/hub/space/index.html (with --still).")
     p.add_argument("--weather", type=Path, help="The weather sidecar (default cache/weather/DATE_POINT.json).")
@@ -66,10 +68,17 @@ def main(argv: list[str] | None = None) -> int:
             args.still.write_bytes(base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"]))
             print(f"wrote {args.still} ({gl})")
         return 0
-    ep = json.loads(args.episode.read_text())
+    if args.view:
+        kind, manifest = args.view.split("=", 1)
+        m = json.loads(Path(manifest).read_text())
+        first = (m.get("frames") or m.get("lanes"))[0]["episode_id"]
+        ep = json.loads((Path(manifest).parent / f"{first}.json").read_text())
+    else:
+        ep = json.loads(args.episode.read_text())
     wx = args.weather or ROOT / "cache" / "weather" / f"{ep['task']['date']}_{ep['task']['settlement_point']}.json"
     with serve(ROOT) as port:
-        url = viewer_url(port, args.episode, wx, args.reduced, args.extra)
+        url = (view_url(port, kind, Path(manifest), wx, args.reduced, args.extra) if args.view
+               else viewer_url(port, args.episode, wx, args.reduced, args.extra))
         if args.thumb:
             width, height = 1280, 720
         with session(url, chrome, width, height) as (page, ready, gl):
@@ -91,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
                     out.write_bytes(data)
                 print(f"wrote {out}")
             if args.out:
-                film(page, args.out, args.fps, args.seconds, ep)
+                film(page, args.out, args.fps, args.seconds, ep, ready.get("duration"))
                 probe(args.out)
     return 0
 
@@ -106,26 +115,33 @@ def telling_hour(ep: dict) -> float:
     return best + 0.5
 
 
-def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: str = "") -> str:
-    def rel(p: Path) -> str:
-        return "/" + quote(str(Path(os.path.abspath(p)).relative_to(ROOT)))
+def rel(p: Path) -> str:
+    return "/" + quote(str(Path(os.path.abspath(p)).relative_to(ROOT)))
 
+
+def view_url(port: int, kind: str, manifest: Path, weather: Path, reduced: bool, extra: str = "") -> str:
+    return (f"http://127.0.0.1:{port}/{WEB}/index.html?record=1&{kind}={rel(manifest)}&weather={rel(weather)}"
+            f"&reduced={1 if reduced else 0}{'&' + extra if extra else ''}")
+
+
+def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: str = "") -> str:
     return (f"http://127.0.0.1:{port}/{WEB}/index.html?record=1&t=0&episode={rel(episode)}&weather={rel(weather)}"
             f"&reduced={1 if reduced else 0}{'&' + extra if extra else ''}")
 
 
-def film(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
-    """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score."""
+def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | None = None) -> None:
+    """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score; a training view plays its own
+    duration in seconds."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    total = INTRO + seconds + OUTRO
+    total = duration or INTRO + seconds + OUTRO
     frames = round(total * fps)
     encoder = subprocess.Popen(ffmpeg_args(find("ffmpeg"), out, fps, ep["episode_id"]), stdin=subprocess.PIPE)
     t0 = time.monotonic()
     try:
         for i in range(frames):
             s = i / fps
-            t = (-2 + 2 * s / INTRO if s < INTRO else min(24.0, (s - INTRO) / seconds * 24) if s < INTRO + seconds
-                 else 24 + (s - INTRO - seconds) / 4)
+            t = (s if duration else -2 + 2 * s / INTRO if s < INTRO else min(24.0, (s - INTRO) / seconds * 24)
+                 if s < INTRO + seconds else 24 + (s - INTRO - seconds) / 4)
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
             shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
             encoder.stdin.write(base64.b64decode(shot["data"]))

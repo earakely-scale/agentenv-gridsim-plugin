@@ -21,6 +21,10 @@ async function json(url) {
 }
 
 async function main() {
+  if (q.has("levelup") || q.has("race")) {
+    const { trainView } = await import("./ui/train.js");
+    return trainView(app, q);
+  }
   const epUrl = q.get("episode");
   if (!epUrl) {
     const { picker } = await import("./ui/picker.js");
