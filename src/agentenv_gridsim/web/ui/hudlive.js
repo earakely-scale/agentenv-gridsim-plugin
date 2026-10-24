@@ -197,7 +197,8 @@ function planHtml(d, t) {
       const o = s.output || {};
       const ok = s.tool === "check_schedule" ? o.feasible : o.accepted;
       const ref = (o.refusals || [])[0];
-      const why = ref ? ` · ${REASON[String(ref.reason).split(":")[0]] || esc(ref.reason)}${ref.time ? ` ${ref.time}` : ref.hour ? ` ${ref.hour}` : ""}` : "";
+      const got = String(ref?.reason || "").match(/^parse:.*got (\d+)/);
+      const why = !ref ? "" : got ? ` · malformed: ${got[1]} values` : ` · ${REASON[String(ref.reason).split(":")[0]] || esc(ref.reason)}${ref.time ? ` ${ref.time}` : ref.hour ? ` ${ref.hour}` : ""}`;
       const from = s.tool === "commit_schedule" && ok ? ` from ${plain((s.args?.start || "00:00").split(":").reduce((h, m) => +h * 60 + +m))}` : "";
       return `<span class="pill ${ok ? "ok" : "no"}">${CALL[s.tool]} ${ok ? "✓" : "✗"}${from}${ok ? "" : why}</span>`;
     }).join("");
