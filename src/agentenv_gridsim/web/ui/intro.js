@@ -19,7 +19,7 @@ export function buildIntro(root, d) {
   const checks = d.checks.length;
   const sub = d.ep.steps?.find((s) => s.tool === "submit_schedule");
   el.innerHTML = `<h5>Before the day · ${d.dateLabel} · ${d.task.settlement_point}</h5>
-    <p><b>${modelName(d.ep.model)}</b> runs a ${d.b.p_dis_mw} MW / ${d.b.energy_mwh} MWh battery. It starts ${Math.round((d.b.s0 / d.b.soc_levels) * 100)}% full${d.b.s_end_min > 0 ? ` and must end at least ${Math.round((d.b.s_end_min / d.b.soc_levels) * 100)}% full, or buy the shortfall back at the day's top price` : " and has no end-of-day charge to keep"}.</p>
+    <p><b>${modelName(d.ep.model, d.ep.model_label)}</b> runs a ${d.b.p_dis_mw} MW / ${d.b.energy_mwh} MWh battery. It starts ${Math.round((d.b.s0 / d.b.soc_levels) * 100)}% full${d.b.s_end_min > 0 ? ` and must end at least ${Math.round((d.b.s_end_min / d.b.soc_levels) * 100)}% full, or buy the shortfall back at the day's top price` : " and has no end-of-day charge to keep"}.</p>
     ${blind ? `<p><b>Blind tier:</b> it does not see today's prices. It plans from yesterday's day-ahead prices and the week before; today's prices are revealed only after it submits.</p>
       <div class="strip"><span>Yesterday</span>${strip(d.task.blind.dam_prev_day, { lo: Math.min(0, ...d.task.blind.dam_prev_day), hi: Math.max(...d.task.blind.dam_prev_day), col: "#3a4651", fill: true })}<em>peak ${price(Math.max(...d.task.blind.dam_prev_day))}</em></div>
       ${(d.task.blind.dam_prev_7d || []).map((v, i, a) => `<div class="strip faint"><span>${a.length - i} days ago</span>${strip(v, { lo: Math.min(0, ...v), hi: Math.max(...v), h: 22, col: "#8f9aa2" })}<em>peak ${price(Math.max(...v))}</em></div>`).join("")}

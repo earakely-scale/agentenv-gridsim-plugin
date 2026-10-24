@@ -21,9 +21,12 @@ def test_the_routes_serve_the_episodes_their_index_and_the_weather(tmp_path):
     assert (listed["path"], listed["task_id"], listed["reward"], listed["model"]) == ("s/day.json", TASK["task_id"],
                                                                                       1.0, "m")
     status, headers, body = route(runs, "/runs/index.json", weather)
-    assert (status, json.loads(body)) == (200, [listed])
+    assert (status, json.loads(body)) == (200, {"schema": "gridsim.runs/v1", "episodes": [listed]})
+    assert (listed["url"], listed["point"], listed["profit"]) == ("s/day.json", TASK["settlement_point"],
+                                                                  e["profit_usd"])
     assert route(runs, "/runs/s/day.json", weather)[2] == (runs / "s/day.json").read_bytes()
     assert route(runs, "/weather/2024-07-18_HB_WEST.json", weather)[:2] == (200, {"Content-Type": "application/json"})
     assert route(runs, "/runs/../../etc/passwd", weather)[0] == 404
-    assert route(runs, "/", weather) == (302, {"Location": "/web/index.html"}, b"")
+    assert route(runs, "/", weather) == (302, {"Location": "/web/index.html?index=/runs/index.json&wxbase=/weather"},
+                                         b"")
     assert episode_url("s/day 1.json") == "/web/index.html?episode=/runs/s/day%201.json&wxbase=/weather"

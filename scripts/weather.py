@@ -34,6 +34,8 @@ STATION = {"HB_WEST": "MAF", "LZ_WEST": "MAF", "HB_PAN": "AMA", "HB_NORTH": "DFW
            "LZ_RAYBN": "TYR", "HB_HOUSTON": "IAH", "LZ_HOUSTON": "IAH", "HB_SOUTH": "SAT", "LZ_CPS": "SAT",
            "LZ_SOUTH": "CRP", "LZ_AEN": "AUS", "LZ_LCRA": "AUS", "HB_BUSAVG": "AUS", "HB_HUBAVG": "AUS"}
 COVER = {"CLR": 0.0, "SKC": 0.0, "NSC": 0.0, "FEW": 0.2, "SCT": 0.45, "BKN": 0.78, "OVC": 1.0, "VV": 1.0}
+MIN_GAP_S = 1.0
+LAST = [0.0]
 TERMS = ("Iowa Environmental Mesonet (IEM), Iowa State University: ASOS/AWOS archive "
          "(https://mesonet.agron.iastate.edu/request/download.phtml). Public domain observations.")
 
@@ -45,11 +47,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=ROOT / "cache" / "weather")
     p.add_argument("--force", action="store_true")
     args = p.parse_args(argv)
-    pairs = list(zip(args.pairs[::2], args.pairs[1::2]))
+    pairs = list(zip(args.pairs[::2], args.pairs[1::2], strict=True))
     if args.episodes:
         for f in sorted(args.episodes.rglob("*.json")):
+            if "raw" in f.relative_to(args.episodes).parts[:-1]:
+                continue
             ep = json.loads(f.read_text())
-            if ep.get("schema") == "gridsim.episode/v1":
+            if isinstance(ep, dict) and ep.get("schema") == "gridsim.episode/v1":
                 pairs.append((ep["task"]["settlement_point"], ep["task"]["date"]))
     for point, day in dict.fromkeys(pairs):
         path = sidecar(point, day, args.out, force=args.force)
@@ -80,7 +84,10 @@ def url(station: str, day: str) -> str:
 
 
 def fetch(u: str, tries: int = 4) -> str:
+    """One IEM request at a time, at most one a second."""
     for i in range(tries):
+        time.sleep(max(0.0, LAST[0] + MIN_GAP_S - time.monotonic()))
+        LAST[0] = time.monotonic()
         try:
             req = urllib.request.Request(u, headers={"User-Agent": "agentenv-gridsim weather sidecar"})
             with urllib.request.urlopen(req, timeout=60) as r:

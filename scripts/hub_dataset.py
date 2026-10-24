@@ -83,7 +83,8 @@ REFERENCES = pa.schema([
 ])
 EPISODES = pa.schema([
     ("episode_id", STR), ("task_id", STR), ("split", STR), ("tier", STR), ("bundle", STR), ("path", STR),
-    ("model", STR), ("trained", STR), ("checkpoint_step", I64), ("seed", I64), ("reward", F64), ("r_opt", F64),
+    ("model", STR), ("model_label", STR), ("trained", STR), ("checkpoint_step", I64), ("seed", I64),
+    ("reward", F64), ("r_opt", F64),
     ("beats_anchor", BOOL), ("submitted", BOOL), ("feasible", BOOL), ("truncated_at", I64), ("violation", STR),
     ("end_shortfall_units", I64), ("profit_usd", F64), ("p_opt", F64), ("p_idle", F64), ("p_anchor", F64),
     ("final_schedule", pa.list_(I64)), ("soc_path", pa.list_(I64)), ("checks_used", I64), ("tool_calls", I64),
@@ -195,7 +196,7 @@ def episode_row(e: dict, task: dict, g: dict, record: dict | None, file: str) ->
     refs = task["refs"]
     texts = [m["content"] for m in e.get("messages") or [] if m.get("role") == "assistant" and m.get("content")]
     return {
-        **{k: e.get(k) for k in ("episode_id", "task_id", "tier", "bundle", "path", "model", "trained",
+        **{k: e.get(k) for k in ("episode_id", "task_id", "tier", "bundle", "path", "model", "model_label", "trained",
                                  "checkpoint_step", "seed", "reward", "r_opt", "truncated_at", "violation",
                                  "end_shortfall_units", "profit_usd", "final_schedule", "soc_path")},
         "split": task["split"], "beats_anchor": g.get("beats_anchor"), "submitted": g["submitted"],
@@ -248,17 +249,46 @@ def bundle_split(name: str) -> str:
 
 
 def board_markdown(eval_card: dict) -> str:
-    def f(x, fmt=".3f"):
+    """The card's board: each column's headline, amended when the board was, then its pre-registered scoring and the
+    baselines on its days, all from the eval card."""
+    def f(x, fmt=".4f"):
         return "–" if x is None else format(x, fmt)
 
-    lines = ["| Model | Tier | Harness | Tasks | Mean reward (95% CI) | Hindsight r_opt | Valid | Beats anchor "
-             "| $ per episode |", "|---|---|---|---:|---|---:|---:|---:|---:|"]
-    for m in eval_card["models"]:
+    def pct(x):
+        return "–" if x is None else f"{100 * x:.1f}%"
+
+    models = eval_card["models"]
+    lines = ["| Column | Model | Pack | Tier | Harness | Battery-days | Mean reward (95% CI) | r_opt | Optimal | Valid "
+             "| Beats anchor | $ per episode |", "|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|"]
+    for m in models:
         ci = f" ({f(m['ci95'][0])} to {f(m['ci95'][1])})" if m.get("ci95") else ""
         usd = "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}"
-        lines.append(f"| {NAMES.get(m['model'], m['model'])} ({m['trained']}) | {m['tier']} | {m['bundle']} | "
-                     f"{m['tasks']} | **{f(m['mean'])}**{ci} | {f(m['hindsight_capture'])} | {f(m['valid'])} | "
-                     f"{f(m.get('beats_anchor'))} | {usd} |")
+        lines.append(f"| {m.get('column') or ''} | {m.get('label') or NAMES.get(m['model'], m['model'])} | "
+                     f"`{m['pack']}` | {m['tier']} | {m['bundle']} | {m['tasks']} | **{f(m['mean'])}**{ci} | "
+                     f"{f(m['hindsight_capture'])} | {pct(m.get('optimal'))} | {pct(m['valid'])} | "
+                     f"{pct(m.get('beats_anchor'))} | {usd} |")
+    names = {"idle": "idle", "random": "random", "clock": "clock", "threshold": "threshold", "greedy": "greedy",
+             "persistence_dp": "persistence-DP", "ridge_dp": "ridge-DP", "blind_anchor": "blind anchor"}
+    lines += ["", "Baselines graded on each column's battery-days (mean reward; r_opt in brackets at the blind tier):",
+              ""]
+    for m in models:
+        b = m.get("baselines") or {}
+        parts = [f"{name} {f(b[k]['reward'], '.3f')}" + (f" ({f(b[k]['r_opt'], '.3f')})" if m["tier"] == "blind"
+                                                         else "") + ("" if b[k]["n"] == m["planned"]
+                                                                     else f" on {b[k]['n']}")
+                 for k, name in names.items() if k in b]
+        lines.append(f"- {m.get('column') or m['model']}: " + ", ".join(parts) + "; the DP optimum 1.000.")
+    if amended := [m for m in models if m.get("prereg")]:
+        a = eval_card.get("amendment") or {}
+        caps = a.get("episode_cap_usd") or {}
+        stopped = ", ".join(f"{k} {v}" for k, v in (a.get("stopped") or {}).items())
+        lines += ["", f"The headline is the amended board. The pre-registered ${caps.get('prereg', 0):.2f} episode cap "
+                  f"stopped runs before they submitted ({stopped}): the agent's own pre-request cost guard, not the "
+                  f"model. Those runs were re-run once at ${caps.get('amended', 0):.2f} and all scored. The "
+                  "pre-registered scoring, its scored runs only: " + "; ".join(
+                      f"{m.get('column') or m['model']} {f(m['prereg']['mean'])} ({m['prereg']['runs']} of "
+                      f"{m['prereg']['planned']})" for m in amended) + ". Dropping the stopped runs would bias the "
+                  "blind column toward easy days, so the amended column is the headline."]
     return "\n".join(lines)
 
 

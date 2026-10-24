@@ -36,7 +36,7 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   const ghosts = d.ghosts;
   const same = (g) => g && JSON.stringify(g.sched) === JSON.stringify(d.ep.final_schedule);
   const lanes = [
-    { k: "agent", label: modelName(d.ep.model), cls: "agent", cum: d.agentCum, final: d.ep.profit_usd },
+    { k: "agent", label: modelName(d.ep.model, d.ep.model_label), cls: "agent", cum: d.agentCum, final: d.ep.profit_usd },
     ghosts.opt && !same(ghosts.opt) && { k: "opt", label: "DP optimum", cls: "opt", cum: ghosts.opt.cum, final: ghosts.opt.profit },
     ghosts.greedy && !same(ghosts.greedy) && { k: "greedy", label: "Greedy", cls: "base", cum: ghosts.greedy.cum, final: ghosts.greedy.profit },
     ghosts.threshold && !same(ghosts.threshold) && { k: "threshold", label: "Threshold", cls: "base", cum: ghosts.threshold.cum, final: ghosts.threshold.profit },
@@ -127,7 +127,8 @@ export function buildHud(root, d, { onSeek, onToggle }) {
 
 const REFS = { "dp-optimum": "DP optimum (reference)", greedy: "Greedy (reference)", threshold: "Threshold (reference)", "flawed-plan": "Flawed plan (demo)", "persistence-dp": "Persistence DP (reference)" };
 
-export function modelName(m) {
+export function modelName(m, label) {
+  if (label) return label;
   if (!m) return "Agent";
   if (m.startsWith("reference/")) return REFS[m.slice(10)] || m.slice(10);
   const base = m.split("/").pop();

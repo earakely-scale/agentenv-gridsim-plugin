@@ -1,7 +1,7 @@
 """`agent-env gridsim view`: the GridSim viewer (src/agentenv_gridsim/web) served read-only on loopback, with the
 Episode JSON under a runs folder and the weather sidecars: the viewer at /web/, every episode at /runs/<path>, their
-index at /runs/index.json and the sidecars at /weather/<date>_<point>.json; an episode plays at
-/web/index.html?episode=/runs/<path>&wxbase=/weather."""
+index at /runs/index.json and the sidecars at /weather/<date>_<point>.json; the list of episodes is at / and an episode
+plays at /web/index.html?episode=/runs/<path>&wxbase=/weather."""
 
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,9 +26,12 @@ Response = tuple[int, dict[str, str], bytes]
 
 
 def index(runs: Path) -> list[dict]:
-    """Every Episode JSON under ``runs``, by its path there, with what a list of episodes shows."""
+    """Every Episode JSON under ``runs`` (sweeps' raw folders skipped), by its path there, with what the viewer's list
+    of episodes shows."""
     out = []
     for path in sorted(runs.rglob("*.json")):
+        if "raw" in path.relative_to(runs).parts[:-1]:
+            continue
         try:
             e = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
@@ -36,11 +39,13 @@ def index(runs: Path) -> list[dict]:
         if not isinstance(e, dict) or e.get("schema") != SCHEMA:
             continue
         task = e.get("task") or {}
-        out.append({"path": path.relative_to(runs).as_posix(), "episode_id": e.get("episode_id"),
-                    "task_id": e.get("task_id"), "tier": e.get("tier"), "bundle": e.get("bundle"),
-                    "path_kind": e.get("path"), "model": e.get("model"), "reward": e.get("reward"),
-                    "r_opt": e.get("r_opt"), "profit_usd": e.get("profit_usd"), "date": task.get("date"),
-                    "settlement_point": task.get("settlement_point"), "region": task.get("region")})
+        b = task.get("battery") or {}
+        out.append({"path": path.relative_to(runs).as_posix(), "url": quote(path.relative_to(runs).as_posix()),
+                    "id": e.get("episode_id"), "task_id": e.get("task_id"), "tier": e.get("tier"),
+                    "bundle": e.get("bundle"), "model": e.get("model"), "model_label": e.get("model_label"),
+                    "reward": e.get("reward"), "r_opt": e.get("r_opt"), "profit": e.get("profit_usd"),
+                    "date": task.get("date"), "point": task.get("settlement_point"), "region": task.get("region"),
+                    "battery": f"{b.get('p_dis_mw', 0):g} MW / {b.get('energy_mwh', 0):g} MWh"})
     return out
 
 
@@ -60,12 +65,13 @@ def route(runs: Path, path: str, weather: Path = WEATHER) -> Response:
     url = urlsplit(path)
     parts = [unquote(p) for p in url.path.split("/") if p]
     if url.path in ("/", "/web", "/web/"):
-        return 302, {"Location": "/web/index.html"}, b""
+        return 302, {"Location": "/web/index.html?index=/runs/index.json&wxbase=/weather"}, b""
     match parts:
         case ["web", *rest]:
             return _file(WEB, "/".join(rest))
         case ["runs", "index.json"]:
-            return 200, {"Content-Type": "application/json"}, json.dumps(index(runs)).encode()
+            return 200, {"Content-Type": "application/json"}, json.dumps(
+                {"schema": "gridsim.runs/v1", "episodes": index(runs)}).encode()
         case ["runs", *rest]:
             return _file(runs, "/".join(rest))
         case ["weather", name]:
@@ -110,7 +116,7 @@ def view_command(runs: Path, weather: Path, port: int, host: str):
     except OSError as e:
         raise click.UsageError(f"can't serve on port {port} ({e.strerror}): pass another --port") from e
     base = f"http://{host}:{server.server_port}"
-    click.echo(f"Serving {len(found)} episodes from {runs} at {base}/web/ (Ctrl-C to stop); the first plays at "
+    click.echo(f"Serving {len(found)} episodes from {runs} at {base}/ (Ctrl-C to stop); the first plays at "
                f"{base}{episode_url(found[0]['path'])}")
     try:
         server.serve_forever()

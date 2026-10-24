@@ -112,16 +112,20 @@ def test_task_specs():
         sweep.task_ids(FIXTURES[-1]["task_id"], "fixtures", "blind")
 
 
-def test_the_report_writes_the_card_and_the_board_with_the_pack_baselines(fake):
+def test_the_report_writes_the_card_and_the_board_with_the_pack_baselines_and_an_amendment(fake):
     blind = BLIND[0]
     fake.script({f"{SOL}|{T1['task_id']}": [{"context": scored(T1, SOL, opt(T1))}],
-                 f"{SOL}|{T2['task_id']}": [{"context": scored(T2, SOL, [0] * 24)}],
+                 f"{SOL}|{T2['task_id']}": [{"context": agent_failed(T2["task_id"], SOL, "cost_cap", cost=0.04),
+                                             "exit": 1}],
                  f"{SOL}|{blind['task_id']}": [{"context": scored(blind, SOL, blind["refs"]["blind"]["persist"],
                                                                   "blind")}]})
     assert sweep_run("--models", SOL, "--tasks", f"{T1['task_id']},{T2['task_id']}", "--cap-usd", "5").exit_code == 0
     assert sweep_run("--models", SOL, "--tasks", blind["task_id"], "--tier", "blind", "--bundle", "oneshot",
                      "--cap-usd", "5", name="b").exit_code == 0
-    result = CliRunner().invoke(gridsim, ["sweep", "report", "s", "b"])
+    fake.script({f"{SOL}|{T2['task_id']}": [{"context": scored(T2, SOL, [0] * 24)}]})
+    assert sweep_run("--models", SOL, "--tasks", T2["task_id"], "--cap-usd", "5", "--episode-cap-usd", "4",
+                     name="s-amend").exit_code == 0
+    result = CliRunner().invoke(gridsim, ["sweep", "report", "s", "b", "--amend", "s=s-amend"])
     assert result.exit_code == 0, result.output
     card = json.loads(Path("results/eval-v1.json").read_text())
     assert (card["env"], card["version"], card["contract_version"], card["framework"]) == (
@@ -140,10 +144,24 @@ def test_the_report_writes_the_card_and_the_board_with_the_pack_baselines(fake):
     idle2 = grade(T2, [0] * 24)["reward"]
     assert (fore["tier"], fore["bundle"], fore["runs"], fore["mean"]) == ("foresight", "full", 2,
                                                                           round((1.0 + idle2) / 2, 4))
+    assert (fore["prereg"]["runs"], fore["prereg"]["unscored"], fore["prereg"]["mean"]) == (1, 1, 1.0)
+    assert fore["amendment"] == {"sweeps": ["s-amend"], "runs": 1, "episode_cap_usd": [4.0],
+                                 "prereg_episode_cap_usd": [1.0]}
+    assert (fore["attempts"], fore["unscored_attempts"], fore["spend_usd"]) == (3, {"cost_cap": 1}, 0.0646)
+    assert fore["optimal"] == 0.5 and fore["checks"] == {"1": 2}
+    assert fore["baselines"]["greedy"]["reward"] == round(
+        sum(t["refs"]["foresight"]["baselines"]["greedy"]["reward"] for t in (T1, T2)) / 2, 4)
+    assert sum(g["n"] for g in fore["by_archetype"].values()) == 2
     assert fore["errors"]["all_idle"] == 1 and fore["ci95"][0] <= fore["mean"] <= fore["ci95"][1]
-    assert (bl["tier"], bl["bundle"], bl["beats_anchor"]) == ("blind", "oneshot", 0.0)
+    assert (bl["tier"], bl["bundle"], bl["beats_anchor"]) == ("blind", "oneshot", 0.0) and "prereg" not in bl
+    assert [s["name"] for s in card["sweeps"]] == ["s", "b", "s-amend"] and card["sweeps"][2]["amends"] == "s"
     board = Path("results/board.md").read_text()
-    assert board.startswith("# GridSim v1 board") and f"| {SOL} | blind | oneshot | 1 | 1/1 |" in board
+    assert board.startswith("# GridSim v1 board")
+    assert "| amended | GPT-6.1 Sol | fixtures | foresight | full | 2/2 |" in board
+    assert "| pre-registered | GPT-6.1 Sol | fixtures | foresight | full | 1/2 |" in board
+    assert "| pre-registered | GPT-6.1 Sol | fixtures | blind | oneshot | 1/1 |" in board
+    assert f"| s | {T2['task_id']} | 1 | 1 | cost_cap ($0.0400) | s-amend | scored {idle2:.4f} |" in board
+    assert CliRunner().invoke(gridsim, ["sweep", "report", "s", "--amend", "b=s-amend"]).exit_code == 2
 
 
 def record(task: dict, tier: str = "foresight", checks: int = 3, *, tamper: bool = False) -> dict:

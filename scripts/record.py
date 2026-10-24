@@ -9,6 +9,7 @@ usage: python scripts/record.py --episode results/runs/reference/X.json --out ca
 import argparse
 import base64
 import functools
+import io
 import itertools
 import json
 import os
@@ -22,13 +23,14 @@ import urllib.request
 from contextlib import contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 from websockets.sync.client import connect
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = "src/agentenv_gridsim/web"
-CHROMES = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "google-chrome", "chromium", "chromium-browser"]
+CHROMES = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "google-chrome", "chromium",
+           "chromium-browser"]
 ATTRIBUTION = ("Prices: ERCOT DAM settlement point prices (public). Not affiliated with or endorsed by ERCOT. "
                "Weather: IEM ASOS.")
 RENDERER = ("(() => { const g = document.createElement('canvas').getContext('webgl2'); if (!g) return null; "
@@ -41,7 +43,8 @@ INTRO, DAY, OUTRO = 5.0, 72.0, 7.0
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--episode", type=Path)
-    p.add_argument("--page", help="Capture a page under the checkout instead, e.g. hub/space/index.html (with --still).")
+    p.add_argument("--page",
+                   help="Capture a page under the checkout instead, e.g. build/hub/space/index.html (with --still).")
     p.add_argument("--weather", type=Path, help="The weather sidecar (default cache/weather/DATE_POINT.json).")
     p.add_argument("--out", type=Path, help="An MP4 to write.")
     p.add_argument("--still", type=Path, help="One PNG at --t.")
@@ -57,7 +60,8 @@ def main(argv: list[str] | None = None) -> int:
     width, height = (int(v) for v in args.size.lower().split("x"))
     chrome = find_chrome(args.chrome)
     if args.page:
-        with serve(ROOT) as port, session(f"http://127.0.0.1:{port}/{args.page}", chrome, width, height) as (page, _, gl):
+        with serve(ROOT) as port, session(f"http://127.0.0.1:{port}/{args.page}", chrome, width,
+                                          height) as (page, _, gl):
             args.still.parent.mkdir(parents=True, exist_ok=True)
             args.still.write_bytes(base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"]))
             print(f"wrote {args.still} ({gl})")
@@ -77,10 +81,11 @@ def main(argv: list[str] | None = None) -> int:
                 out = args.still or args.thumb
                 out.parent.mkdir(parents=True, exist_ok=True)
                 fmt = "png" if out.suffix == ".png" else "jpeg"
-                data = base64.b64decode(page.call("Page.captureScreenshot", format=fmt, **({"quality": 88} if fmt == "jpeg" else {}))["data"])
+                quality = {"quality": 88} if fmt == "jpeg" else {}
+                data = base64.b64decode(page.call("Page.captureScreenshot", format=fmt, **quality)["data"])
                 if args.thumb:
-                    from PIL import Image
-                    import io
+                    from PIL import Image  # only thumbnails need Pillow, which the plugin's venv doesn't install
+
                     Image.open(io.BytesIO(data)).convert("RGB").resize((640, 360), Image.LANCZOS).save(out, quality=86)
                 else:
                     out.write_bytes(data)
@@ -99,7 +104,9 @@ def telling_hour(ep: dict) -> float:
 
 
 def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: str = "") -> str:
-    rel = lambda p: "/" + quote(str(Path(os.path.abspath(p)).relative_to(ROOT)))
+    def rel(p: Path) -> str:
+        return "/" + quote(str(Path(os.path.abspath(p)).relative_to(ROOT)))
+
     return (f"http://127.0.0.1:{port}/{WEB}/index.html?record=1&t=0&episode={rel(episode)}&weather={rel(weather)}"
             f"&reduced={1 if reduced else 0}{'&' + extra if extra else ''}")
 
@@ -117,7 +124,8 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
             t = (-2 + 2 * s / INTRO if s < INTRO else min(24.0, (s - INTRO) / seconds * 24) if s < INTRO + seconds
                  else 24 + (s - INTRO - seconds) / 4)
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
-            encoder.stdin.write(base64.b64decode(page.call("Page.captureScreenshot", format="jpeg", quality=90)["data"]))
+            shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
+            encoder.stdin.write(base64.b64decode(shot["data"]))
             if i % (fps * 5) == 0:
                 print(f"  {i}/{frames} frames, {time.monotonic() - t0:.0f} s", flush=True)
     finally:

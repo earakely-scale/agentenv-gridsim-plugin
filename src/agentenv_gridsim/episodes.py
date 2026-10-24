@@ -13,7 +13,7 @@ from gridsim_core.episode import to_episode_json
 from gridsim_core.grade import grade
 
 from .server import GridSimEnv, TaskIndex, pack_dirs
-from .sweep import RUNS, Sweep, load, results, slug
+from .sweep import LABELS, RUNS, Sweep, load, results, slug
 from .tasks import BUNDLES, HIDDEN_IN_ONESHOT
 
 TOLERANCE = 1e-6
@@ -60,9 +60,10 @@ def episode(sweep: Sweep, row: dict, task: dict) -> dict:
     usage = record["usage"] | {"usd": row["cost_usd"]}
     excerpt = [{"role": "assistant", "content": m["content"][:EXCERPT_CHARS]}
                for m in record["messages"] if m["role"] == "assistant" and m.get("content")]
-    return to_episode_json(task, schedule, sweep.tier, BUNDLES[sweep.bundle], steps=steps, bundle=sweep.bundle,
-                           path="A", model=row["model"], trained="base", messages=excerpt, usage=usage,
-                           wall_seconds=row["wall_seconds"], episode_id=row["instance"].rsplit("/", 1)[-1])
+    e = to_episode_json(task, schedule, sweep.tier, BUNDLES[sweep.bundle], steps=steps, bundle=sweep.bundle,
+                        path="A", model=row["model"], trained="base", messages=excerpt, usage=usage,
+                        wall_seconds=row["wall_seconds"], episode_id=row["instance"].rsplit("/", 1)[-1])
+    return e | {"model_label": LABELS.get(row["model"], row["model"])}
 
 
 def write(name: str, echo=click.echo) -> tuple[list[Path], list[str]]:

@@ -191,7 +191,13 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .g { display: inline-block; width: 20px; text-align: center; border-radius: 5px; color: #fff; font-weight: 750; font-size: 11.5px; background: #3a4651; }
 .g.S { background: linear-gradient(135deg, #1d9a57, #0b9fc6); } .g.A { background: #1d9a57; } .g.B { background: #5f8f2f; } .g.C { background: #c58a12; } .g.D { background: #cf3e33; }
 .list footer { margin-top: 18px; font-size: 12px; color: var(--faint); }
-@media (max-width: 800px) { .hero { grid-template-columns: 1fr; } }
+.also { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 0 0 18px; }
+.also .hero { margin: 0; grid-template-columns: minmax(0, 1fr) 1.2fr; }
+.also .hero .txt { padding: 14px 16px; }
+.also .hero h2 { font-size: 17px; }
+.also .hero p { font-size: 13.5px; }
+.rows .more { display: block; margin: 10px auto 6px; font: 600 13px var(--sans); padding: 7px 14px; border-radius: 9px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+@media (max-width: 800px) { .hero, .also, .also .hero { grid-template-columns: 1fr; } }
 .intro .strip.faint svg { height: 22px; }
 .intro .strip.reveal { position: relative; }
 .intro .strip.reveal svg { opacity: 0; transition: opacity 0.6s; }

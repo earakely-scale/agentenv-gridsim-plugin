@@ -7,7 +7,6 @@ usage: python scripts/viewer_qa.py --out DIR [--runs results/runs/reference] [--
 
 import argparse
 import base64
-import io
 import json
 import sys
 from pathlib import Path
@@ -71,7 +70,8 @@ def main(argv: list[str] | None = None) -> int:
                 stills.append((label, args.out / name))
                 for ev in page.events:
                     m = ev.get("method")
-                    if m == "Runtime.exceptionThrown" or (m == "Log.entryAdded" and ev["params"]["entry"]["level"] == "error"):
+                    if m == "Runtime.exceptionThrown" or (m == "Log.entryAdded"
+                                                          and ev["params"]["entry"]["level"] == "error"):
                         text = json.dumps(ev["params"])[:300]
                         if not any(q in text for q in QUIET):
                             failures.append(f"{label}: {text}")
@@ -90,11 +90,13 @@ def main(argv: list[str] | None = None) -> int:
                     t = -2 + i * 26 / 2160
                     page.js(f"gridsim.time({t:.4f}, {{dt: 1 / 30}})")
                     if i % 216 == 0:
-                        rows.append(page.js("({...gridsim.state(), heap: performance.memory ? performance.memory.usedJSHeapSize / 1e6 : null})"))
+                        rows.append(page.js("({...gridsim.state(), heap: performance.memory ? "
+                                            "performance.memory.usedJSHeapSize / 1e6 : null})"))
                 (args.out / "perf.json").write_text(json.dumps(rows, indent=1))
                 for r in rows:
                     print(f"t={r['t']:.1f} shot={r['shot']} p50={r['frameMsP50']:.1f}ms p95={r['frameMsP95']:.1f}ms "
-                          f"calls={r['calls']} tris={r['tris']} geo={r['geometries']} tex={r['textures']} heap={r['heap']:.0f}MB")
+                          f"calls={r['calls']} tris={r['tris']} geo={r['geometries']} tex={r['textures']} "
+                          f"heap={r['heap']:.0f}MB")
     if stills:
         sheet(stills, args.out / "qa-contact.jpg")
     for f in failures:

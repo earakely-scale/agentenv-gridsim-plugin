@@ -3,17 +3,18 @@
 FineEnvs eval card with the baselines from the pack's references) and results/board.md."""
 
 import json
-import random
 import re
 import signal
 import statistics
 import subprocess
 import sys
 import time
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import click
+import numpy as np
 from agent_env.config import get_config
 from agent_env.store.routing import namespace_routing
 from agent_env.task.store import get_task_instance_store
@@ -36,7 +37,16 @@ MAX_ATTEMPTS = 3
 POLL_SECONDS = 2.0
 ERRORS = ("overfill", "sell_before_charge", "rate", "cycle_cap", "end_short", "all_idle")
 VIOLATIONS = {"soc_above_N": "overfill", "soc_below_0": "sell_before_charge", "rate": "rate", "cycle_cap": "cycle_cap"}
-BASELINES = ("clock", "threshold", "greedy")
+BASELINES = ("random", "clock", "threshold", "greedy")
+OPTIMAL = 0.99
+RESAMPLES = 10_000
+LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol"}
+DAY_TYPES = {"negative_prices": lambda t: t["tags"]["neg_hours"] > 0, "spike": lambda t: bool(t["tags"]["spike"]),
+             "neither": lambda t: not t["tags"]["neg_hours"] and not t["tags"]["spike"]}
+HUB = "https://huggingface.co"
+LINKS = {"runs": f"{HUB}/datasets/earakely-scale/GridSimEnv-AgentEnv/viewer/v1_episodes",
+         "replays": f"{HUB}/spaces/earakely-scale/GridSimEnv-AgentEnv",
+         "code": "https://github.com/earakely-scale/agentenv-gridsim-plugin"}
 
 
 @dataclass(frozen=True)
@@ -335,10 +345,11 @@ def run(sweep: Sweep, cap_usd: float, parallel: int, echo=click.echo) -> int:
 
 # ================================================================ report
 
-def ci(xs: list[float], n: int = 2000, seed: int = 0) -> tuple[float, float]:
-    rng = random.Random(seed)
-    means = sorted(statistics.mean(rng.choices(xs, k=len(xs))) for _ in range(n))
-    return means[int(0.025 * n)], means[int(0.975 * n)]
+def ci(xs: list[float], n: int = RESAMPLES, seed: int = 0) -> tuple[float, float]:
+    """The 95% bootstrap interval of the mean over n resamples of xs."""
+    a = np.asarray(xs, dtype=float)
+    means = np.sort(a[np.random.default_rng(seed).integers(0, len(a), (n, len(a)))].mean(axis=1))
+    return float(means[int(0.025 * n)]), float(means[int(0.975 * n)])
 
 
 def load(name: str) -> Sweep:
@@ -357,9 +368,9 @@ def _mean(xs: list[float]) -> float | None:
 
 
 def baselines(rows: list[dict]) -> dict:
-    """The references' mean rewards over these tasks: idle by construction; clock, threshold and greedy as the pack
-    stored them on the day's prices; persistence-DP, its D-1-price schedule settled on the day, on the tasks with blind
-    inputs, graded by gridsim_core at the blind tier (its reward against the blind anchor, and its r_opt)."""
+    """The references' mean rewards over these tasks: idle by construction; clock, threshold, greedy and random as
+    the pack stored them on the day's prices; persistence-DP, its D-1-price schedule settled on the day, on the tasks
+    with blind inputs, graded by gridsim_core at the blind tier (its reward against the blind anchor, and its r_opt)."""
     out: dict = {"idle": 0.2}
     for name in BASELINES:
         out[name] = _r(_mean([r["refs"]["foresight"]["baselines"][name]["reward"] for r in rows]))
@@ -372,62 +383,147 @@ def baselines(rows: list[dict]) -> dict:
     return out
 
 
-class Board:
-    """The named sweeps' scored runs, one cell per (model, tier, bundle): each task's value is the mean of its scored
-    reps; the CIs bootstrap over tasks."""
+def references(rows: list[dict], tier: str) -> dict:
+    """Each reference policy graded at the tier on these tasks, its mean reward and r_opt: idle, the pack's random,
+    clock, threshold and greedy schedules and the DP optimum on every task; persistence-DP, ridge-DP and the blind
+    anchor (the better of the two on the day) on the tasks with blind inputs."""
+    graded: dict[str, list[dict]] = {}
+    for t in rows:
+        f, b = t["refs"]["foresight"], t["refs"].get("blind")
+        plays = {"idle": [0] * len(t["prices"]), **{k: f["baselines"][k]["schedule"] for k in BASELINES}}
+        if b:
+            plays |= {"persistence_dp": b["persist"], "ridge_dp": b["ridge"],
+                      "blind_anchor": b["persist"] if b["p_persist"] >= b["p_ridge"] else b["ridge"]}
+        plays["dp_optimum"] = f["opt"]
+        for name, schedule in plays.items():
+            graded.setdefault(name, []).append(grade(t, schedule, tier))
+    return {name: {"reward": _r(_mean([g["reward"] for g in gs])), "r_opt": _r(_mean([g["r_opt"] for g in gs])),
+                   "n": len(gs)} for name, gs in graded.items()}
 
-    def __init__(self, sweeps: list[Sweep]):
-        self.sweeps = sweeps
-        self.rows = {s.name: results(s.out) for s in sweeps}
-        self.caps = {s.name: s.episode_cap_usd for s in sweeps}
-        packs = {s.pack for s in sweeps}
-        self.tasks = {r["task_id"]: r for p in sorted(packs) for r in tasks.pack_rows(p)}
-        self.cells: dict[tuple[str, str, str], list[tuple[Sweep, list[dict]]]] = {}
+
+def lp(rows: list[dict]) -> dict:
+    """The LP relaxation bound against the exact DP optimum over these tasks, in $."""
+    f = [r["refs"]["foresight"] for r in rows]
+    gaps = [x["p_lp"] - x["p_opt"] for x in f]
+    return {"p_opt_mean": _r(_mean([x["p_opt"] for x in f]), 2), "p_lp_mean": _r(_mean([x["p_lp"] for x in f]), 2),
+            "gap_usd_mean": _r(_mean(gaps), 2), "gap_usd_max": _r(max(gaps), 2),
+            "tasks_with_gap": sum(g > 0.005 for g in gaps), "n": len(f)}
+
+
+class Board:
+    """The named sweeps' scored runs, one cell per (model, pack, tier, bundle): each task's value is the mean of its
+    scored reps; the CIs bootstrap over tasks. ``amend`` maps a sweep to the sweep that re-ran its unscored runs under
+    an amendment: the cell's headline then takes a run's score from either, and its ``prereg`` from the registered
+    sweep alone. ``columns`` labels a sweep's cells."""
+
+    def __init__(self, sweeps: list[Sweep], amend: dict[str, Sweep] | None = None,
+                 columns: dict[str, str] | None = None):
+        self.sweeps, self.amend, self.columns = sweeps, amend or {}, columns or {}
+        named = {s.name: s for s in sweeps}
+        for name, a in self.amend.items():
+            s = named.get(name)
+            if s is None or (a.models, a.tier, a.bundle, a.pack) != (s.models, s.tier, s.bundle, s.pack) \
+                    or not set(a.tasks) <= set(s.tasks):
+                raise click.UsageError(f"--amend {name}={a.name}: an amendment re-runs tasks of a sweep reported, "
+                                       "with its models, tier, bundle and pack")
+        self.rows = {s.name: results(s.out) for s in [*sweeps, *self.amend.values()]}
+        self.tasks = {r["task_id"]: r for p in sorted({s.pack for s in sweeps}) for r in tasks.pack_rows(p)}
+        self.cells: dict[tuple[str, str, str, str], list[Sweep]] = {}
         for s in sweeps:
             for m in s.models:
-                self.cells.setdefault((m, s.tier, s.bundle), []).append(
-                    (s, [r for r in self.rows[s.name] if r["model"] == m]))
+                self.cells.setdefault((m, s.pack, s.tier, s.bundle), []).append(s)
 
-    def scored(self, cell) -> dict[str, list[dict]]:
+    def sources(self, s: Sweep, amended: bool) -> list[Sweep]:
+        return [s, self.amend[s.name]] if amended and s.name in self.amend else [s]
+
+    def scored(self, cell, amended: bool = True) -> dict[str, list[dict]]:
         by_task: dict[str, list[dict]] = {}
-        for s, rows in self.cells[cell]:
+        for s in self.cells[cell]:
             for run in s.runs():
-                if run[0] != cell[0]:
-                    continue
-                if row := next((r for r in of(rows, run) if r["outcome"] == "scored"), None):
+                if run[0] == cell[0] and (row := next((r for src in self.sources(s, amended)
+                                                       for r in of(self.rows[src.name], run)
+                                                       if r["outcome"] == "scored"), None)):
                     by_task.setdefault(run[1], []).append(row)
         return by_task
 
+    def attempts(self, cell, amended: bool = True) -> list[dict]:
+        return [r for s in self.cells[cell] for src in self.sources(s, amended) for r in self.rows[src.name]
+                if r["model"] == cell[0]]
+
     def planned(self, cell) -> int:
-        return sum(1 for s, _ in self.cells[cell] for run in s.runs() if run[0] == cell[0])
+        return sum(1 for s in self.cells[cell] for run in s.runs() if run[0] == cell[0])
 
-    def spend(self, cell) -> tuple[float, int]:
-        attempts = [r for _, rows in self.cells[cell] for r in rows]
-        return sum(r["cost_usd"] or 0.0 for r in attempts), sum(r["cost_usd"] is None for r in attempts)
+    def played(self, cell) -> list[dict]:
+        return [self.tasks[t] for t in dict.fromkeys(t for s in self.cells[cell] for t in s.tasks)]
 
-    def model(self, cell) -> dict:
-        model, tier, bundle = cell
-        by_task = self.scored(cell)
-        mean = {t: statistics.mean(r["reward"] for r in rs) for t, rs in by_task.items()}
+    def summary(self, cell, amended: bool) -> dict:
+        by_task = self.scored(cell, amended)
         runs = [r for rs in by_task.values() for r in rs]
-        rewards = list(mean.values())
+        rewards = [statistics.mean(r["reward"] for r in rs) for rs in by_task.values()]
         lo_hi = ci(rewards) if rewards else None
-        r_opt = [statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()]
-        costs = [priced(r) for r in runs if priced(r) is not None]
-        known, unknown = self.spend(cell)
-        errors = {e: sum(e in (r["errors"] or []) for r in runs) for e in ERRORS}
-        effort = sorted({r.get("effort") for r in runs if r.get("effort")})
-        out = {"model": model, "trained": "base", "tier": tier, "bundle": bundle,
-               "effort": effort[0] if effort else None,
-               "runs": len(runs), "planned": self.planned(cell), "tasks": len(mean),
-               "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
-               "hindsight_capture": _r(_mean(r_opt)),
+        out = {"runs": len(runs), "planned": self.planned(cell), "unscored": self.planned(cell) - len(runs),
+               "tasks": len(rewards), "mean": _r(_mean(rewards)),
+               "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
+               "hindsight_capture": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()])),
+               "optimal": _r(_mean([float(r["reward"] >= OPTIMAL) for r in runs])),
+               "r_opt_optimal": _r(_mean([float(r["r_opt"] >= OPTIMAL) for r in runs])),
                "valid": _r(_mean([float(r["valid"]) for r in runs])),
                "submitted": _r(_mean([float(r["submitted"]) for r in runs])),
-               "errors": errors, "checks_used": _r(_mean([r["checks"] for r in runs if r["checks"] is not None]), 2),
-               "usd_per_episode": _r(_mean(costs)), "spend_usd": round(known, 4), "unknown_spend_attempts": unknown}
-        if tier == "blind":
+               "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in ERRORS},
+               "checks_used": _r(_mean([r["checks"] for r in runs if r["checks"] is not None]), 2)}
+        if cell[2] == "blind":
             out["beats_anchor"] = _r(_mean([float(bool(r["beats_anchor"])) for r in runs]))
+        return out
+
+    def by(self, by_task: dict[str, list[dict]], key) -> dict:
+        """Mean reward and r_opt of the tasks in each group ``key`` puts a task row in."""
+        groups: dict[str, list[list[dict]]] = {}
+        for t, rs in by_task.items():
+            for g in key(self.tasks[t]):
+                groups.setdefault(str(g), []).append(rs)
+        return {g: {"n": len(v), "mean": _r(_mean([statistics.mean(r["reward"] for r in rs) for rs in v])),
+                    "r_opt": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in v]))}
+                for g, v in sorted(groups.items())}
+
+    def model(self, cell) -> dict:
+        model, pack, tier, bundle = cell
+        by_task = self.scored(cell)
+        runs = [r for rs in by_task.values() for r in rs]
+        attempts = self.attempts(cell)
+        costs = [priced(r) for r in runs if priced(r) is not None]
+        walls = [r["wall_seconds"] for r in runs if r["wall_seconds"] is not None]
+        checks: dict[str, list[dict]] = {}
+        for r in runs:
+            checks.setdefault(str(r["checks"]), []).append(r)
+        effort = sorted({r.get("effort") for r in runs if r.get("effort")})
+        out = {"model": model, "label": LABELS.get(model, model), "trained": "base",
+               "column": self.columns.get(self.cells[cell][0].name), "pack": pack, "tier": tier, "bundle": bundle,
+               "effort": effort[0] if effort else None, "sweeps": [s.name for s in self.cells[cell]],
+               **self.summary(cell, True),
+               "checks": {c: len(rs) for c, rs in sorted(checks.items())},
+               "by_checks": {c: {"n": len(rs), "mean": _r(_mean([r["reward"] for r in rs])),
+                                 "r_opt": _r(_mean([r["r_opt"] for r in rs]))} for c, rs in sorted(checks.items())},
+               "by_archetype": self.by(by_task, lambda t: [t["battery"]["archetype"].split("-")[0]]),
+               "by_binding": self.by(by_task, lambda t: [t["tags"]["binding"]]),
+               "by_day": self.by(by_task, lambda t: [d for d, f in DAY_TYPES.items() if f(t)]),
+               "usd_per_episode": _r(_mean(costs)), "usd_median": _r(statistics.median(costs)) if costs else None,
+               "spend_usd": round(sum(r["cost_usd"] or 0.0 for r in attempts), 4),
+               "unscored_spend_usd": round(sum(r["cost_usd"] or 0.0 for r in attempts if r["outcome"] != "scored"), 4),
+               "unknown_spend_attempts": sum(r["cost_usd"] is None for r in attempts),
+               "attempts": len(attempts),
+               "unscored_attempts": dict(Counter(r["error_code"] or r["outcome"] for r in attempts
+                                                 if r["outcome"] != "scored")),
+               "tokens": {k: _r(_mean([r[f"{k}_tokens"] or 0 for r in runs]), 1) for k in ("input", "output", "cached")}
+               | {"total": sum((r["input_tokens"] or 0) + (r["output_tokens"] or 0) for r in attempts)},
+               "wall_seconds": {"median": _r(statistics.median(walls), 1) if walls else None,
+                                "mean": _r(_mean(walls), 1), "max": max(walls, default=None)},
+               "started_utc": [min(r["started_utc"] for r in attempts), max(r["started_utc"] for r in attempts)],
+               "baselines": references(self.played(cell), tier), "lp_bound": lp(self.played(cell))}
+        if amends := [self.amend[s.name] for s in self.cells[cell] if s.name in self.amend]:
+            out["prereg"] = self.summary(cell, False)
+            out["amendment"] = {"sweeps": [a.name for a in amends], "runs": sum(len(a.tasks) * a.k for a in amends),
+                                "episode_cap_usd": sorted({a.episode_cap_usd for a in amends}),
+                                "prereg_episode_cap_usd": sorted({s.episode_cap_usd for s in self.cells[cell]})}
         return out
 
     def task_rows(self) -> list[dict]:
@@ -454,16 +550,19 @@ def card(board: Board) -> dict:
         "grading": {"reference": "exact DP over integer SoC (LP bound reported)",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1)",
                     "anchor": {"foresight": "P_opt (exact DP)", "blind": "max(P_persist, P_ridge)"},
-                    "hindsight_capture": "r_opt: the reward against P_opt, a weight-0 row", "excused": "none",
-                    "judge": False},
+                    "hindsight_capture": "r_opt: the reward against P_opt, a weight-0 row",
+                    "optimal": f"R >= {OPTIMAL}", "ci": f"95% bootstrap over tasks, {RESAMPLES:,} resamples",
+                    "excused": "none", "judge": False},
         "baselines": baselines(rows),
         "models": models,
         "errors": {"taxonomy": list(ERRORS),
                    "meaning": {"overfill": "soc_above_N", "sell_before_charge": "soc_below_0", "rate": "rate",
                                "cycle_cap": "cycle_cap", "end_short": "end SoC below s_end_min",
                                "all_idle": "a schedule of 24 zeros"}},
-        "sweeps": [asdict(s) | {"tasks": len(s.tasks)} for s in board.sweeps],
-        "links": {"runs": "hf dataset", "replays": "hf space", "code": "github"},
+        "sweeps": [asdict(s) | {"tasks": len(s.tasks)} for s in board.sweeps]
+        + [asdict(a) | {"tasks": len(a.tasks), "amends": name} for name, a in board.amend.items()],
+        "links": LINKS,
+        "date": max((m["started_utc"][1] for m in models), default="")[:10] or None,
     }
 
 
@@ -471,57 +570,141 @@ def _f(x: float | None, f: str = ".3f") -> str:
     return "–" if x is None else format(x, f)
 
 
-def board_md(c: dict) -> str:
-    b = c["baselines"]
-    h = c["harness"]
-    lines = ["# GridSim v1 board", "",
-             f"Tasks: {c['tasks']['n']} battery-days ({', '.join(c['tasks']['packs'])}). Harness: {h['agent']}, "
-             f"{h['max_turns']} turns, {h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: "
-             f"{c['grading']['reward']}; foresight anchor P_opt, blind anchor max(P_persist, P_ridge). Mean R over "
-             "tasks with a 95% bootstrap CI; valid: submitted and feasible.", "",
-             f"Baselines on these tasks: idle {_f(b['idle'])}, clock {_f(b['clock'])}, threshold "
-             f"{_f(b['threshold'])}, greedy {_f(b['greedy'])}, persistence-DP (blind, {b['n_blind']} tasks) "
-             f"{_f(b['persistence_dp_blind'])}.", "",
-             "| Model | Tier | Bundle | Tasks | Runs/planned | Mean R (95% CI) | Hindsight r_opt | Valid "
-             "| Beats anchor | Checks used | $/episode | Spend |",
-             "|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|"]
-    for m in c["models"]:
-        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
-        lines.append(" | ".join([
-            f"| {m['model']}", m["tier"], m["bundle"], str(m["tasks"]), f"{m['runs']}/{m['planned']}",
-            _f(m["mean"]) + ci95, _f(m["hindsight_capture"]), _f(m["valid"]), _f(m.get("beats_anchor")),
-            _f(m["checks_used"], ".2f"), "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
-            f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
-                                        else "")]) + " |")
+def _pct(x: float | None) -> str:
+    return "–" if x is None else f"{100 * x:.1f}%"
+
+
+def _col(m: dict) -> str:
+    return " ".join([m.get("column") or m["label"], m["pack"].removeprefix("ercot-dam-v1-"), m["tier"], m["bundle"]])
+
+
+def _cells(models: list[dict], field: str, groups: dict[str, str]) -> list[str]:
+    """A breakdown as a table: a row per group, a column per model row; blind cells give R / r_opt."""
+    lines = ["| | " + " | ".join(_col(m) for m in models) + " |", "|---|" + "---:|" * len(models)]
+    for g, name in groups.items():
+        cells = []
+        for m in models:
+            x = m[field].get(g)
+            cells.append("–" if not x else _f(x["mean"], ".4f")
+                         + (f" / {_f(x['r_opt'], '.4f')}" if m["tier"] == "blind" else "") + f" ({x['n']})")
+        lines.append(f"| {name} | " + " | ".join(cells) + " |")
+    return lines
+
+
+def headline(m: dict, s: dict, scoring: str) -> str:
+    ci95 = f" ({_f(s['ci95'][0], '.4f')} to {_f(s['ci95'][1], '.4f')})" if s["ci95"] else ""
+    return " | ".join([f"| {m.get('column') or ''}", scoring, m["label"], m["pack"], m["tier"], m["bundle"],
+                       f"{s['runs']}/{s['planned']}", _f(s["mean"], ".4f") + ci95, _f(s["hindsight_capture"], ".4f"),
+                       _pct(s["optimal"]), _pct(s["valid"]), _pct(s.get("beats_anchor")),
+                       _f(s["checks_used"], ".2f")]) + " |"
+
+
+def board_md(c: dict, intro: str = "") -> str:
+    models = c["models"]
+    lines = ["# GridSim v1 board", "", *([intro, ""] if intro else []),
+             "## Columns", "",
+             f"Reward R = {c['grading']['reward']}: foresight against P_opt, blind against max(P_persist, P_ridge); "
+             f"r_opt is R against P_opt. Mean R over battery-days, its CI a {c['grading']['ci']}. Optimal: "
+             f"{c['grading']['optimal']} (at the blind tier, at or within 1% of the anchor's scale). Valid: submitted "
+             "and feasible. An amended row adds the amendment's re-runs to the pre-registered sweep's scored runs.", "",
+             "| Column | Scoring | Model | Pack | Tier | Harness | Scored/planned | Mean R (95% CI) | r_opt "
+             "| Optimal | Valid | Beats anchor | Checks used |",
+             "|---|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|"]
+    for m in models:
+        if "prereg" in m:
+            lines += [headline(m, m, "amended"), headline(m, m["prereg"], "pre-registered")]
+        else:
+            lines.append(headline(m, m, "pre-registered"))
     lines += ["", "## Errors", "", "Scored runs whose submitted schedule broke a rule (it executes up to that hour), "
               "ended short of the end-of-day state of charge, or idled all day.", "",
-              "| Model | Tier | Bundle | " + " | ".join(ERRORS) + " |", "|---|---|---|" + "---:|" * len(ERRORS)]
-    lines += [f"| {m['model']} | {m['tier']} | {m['bundle']} | " + " | ".join(str(m["errors"][e]) for e in ERRORS)
-              + " |" for m in c["models"]]
+              "| Column | " + " | ".join(ERRORS) + " |", "|---|" + "---:|" * len(ERRORS)]
+    lines += [f"| {_col(m)} | " + " | ".join(str(m["errors"][e]) for e in ERRORS) + " |" for m in models]
+    checks = sorted({k for m in models for k in m["by_checks"]}, key=int)
+    lines += ["", "## Checks", "", "Runs by the number of `check_schedule` calls, with their mean R (and r_opt at "
+              "the blind tier); the count of runs in brackets.", "",
+              *_cells(models, "by_checks", {k: f"{k} check{'' if k == '1' else 's'}" for k in checks}),
+              "", "## By battery class, binding constraint and day type", "",
+              "Mean R (and r_opt at the blind tier) over the battery-days in each group, the count in brackets. The "
+              "binding constraint is the pack's tag for what limits the optimum; a day with negative-price hours and a "
+              "spike counts in both.", "",
+              *_cells(models, "by_archetype", {"1h": "1 h battery", "2h": "2 h battery", "4h": "4 h battery"}), "",
+              *_cells(models, "by_binding", {"none": "No constraint binds", "rate": "Rate", "cycle_cap": "Cycle cap",
+                                             "end_soc": "End-of-day charge"}), "",
+              *_cells(models, "by_day", {"negative_prices": "Negative-price hours", "spike": "Price spike",
+                                         "neither": "Neither"}),
+              "", "## Cost, tokens and time", "",
+              "Per scored run: model spend at the agent's price table, tokens and wall time of the whole `agent-env "
+              "run`. Spend counts every attempt, the unscored ones included.", "",
+              "| Column | $/episode (median) | Spend (unscored) | Input tokens (cached) | Output tokens | Wall s, "
+              "median (max) | Attempts | Unscored attempts |", "|---|---:|---:|---:|---:|---:|---:|---|"]
+    for m in models:
+        t, w = m["tokens"], m["wall_seconds"]
+        lines.append(f"| {_col(m)} | ${_f(m['usd_per_episode'], '.4f')} (${_f(m['usd_median'], '.4f')}) | "
+                     f"${m['spend_usd']:.2f} (${m['unscored_spend_usd']:.2f}) | {t['input']:,.0f} ({t['cached']:,.0f})"
+                     f" | {t['output']:,.0f} | {_f(w['median'], '.1f')} ({_f(w['max'], '.1f')}) | {m['attempts']} | "
+                     + (", ".join(f"{k} {v}" for k, v in m["unscored_attempts"].items()) or "none") + " |")
+    names = {"idle": "Idle", "random": "Random feasible", "clock": "Clock", "threshold": "Threshold",
+             "greedy": "Greedy", "persistence_dp": "Persistence-DP", "ridge_dp": "Ridge-DP",
+             "blind_anchor": "Blind anchor", "dp_optimum": "DP optimum"}
+    lines += ["", "## Baselines on the same tasks", "",
+              "Each reference policy graded by `gridsim_core` at the column's tier on the column's battery-days: mean "
+              "R, and r_opt at the blind tier; persistence-DP, ridge-DP and the blind anchor need the blind inputs, so "
+              "on foresight columns they cover only the days that have them (count in brackets). Threshold and greedy "
+              "read the day's own prices, so at the blind tier they are not policies a blind desk could run.", "",
+              "| | " + " | ".join(_col(m) for m in models) + " |", "|---|" + "---:|" * len(models)]
+    for key, name in names.items():
+        cells = []
+        for m in models:
+            b = m["baselines"].get(key)
+            cells.append("–" if not b else _f(b["reward"]) + (f" / {_f(b['r_opt'])}" if m["tier"] == "blind" else "")
+                         + (f" ({b['n']})" if b["n"] != m["planned"] else ""))
+        lines.append(f"| {name} | " + " | ".join(cells) + " |")
+    lines.append("| **Model** | " + " | ".join(f"**{_f(m['mean'])}**" + (f" / **{_f(m['hindsight_capture'])}**"
+                                                                         if m["tier"] == "blind" else "")
+                                               for m in models) + " |")
+    lines += ["", "LP bound (the convex relaxation, in $) against the exact DP optimum on each column's days:", ""]
+    for m in models:
+        b = m["lp_bound"]
+        lines.append(f"- {_col(m)}: mean P_opt ${b['p_opt_mean']:,.2f}, mean P_lp ${b['p_lp_mean']:,.2f}; P_lp exceeds "
+                     f"P_opt on {b['tasks_with_gap']} of {b['n']} days (largest gap ${b['gap_usd_max']:,.2f}).")
     return "\n".join(lines) + "\n"
 
 
 def unscored(board: Board) -> list[str]:
+    """Every pre-registered run with no scored attempt, and how its amendment, if any, ended."""
     out = []
     for cell in board.cells:
-        done = board.scored(cell)
-        for s, rows in board.cells[cell]:
+        done = board.scored(cell, amended=False)
+        for s in board.cells[cell]:
             for run in s.runs():
                 if run[0] == cell[0] and run[1] not in done:
-                    rs = of(rows, run)
+                    rs = of(board.rows[s.name], run)
                     last = (rs[-1]["error_code"] or rs[-1]["outcome"]) if rs else "not run"
-                    out.append(f"| {s.name} | {run[0]} | {run[1]} | {run[2]} | {len(rs)} | {last} |")
-    return (["| Sweep | Model | Task | Rep | Attempts | Last outcome |", "|---|---|---|---:|---:|---|", *out]
-            if out else ["None."])
+                    a = board.amend.get(s.name)
+                    ar = of(board.rows[a.name], run) if a else []
+                    amended = ("–" if not a else "not run" if not ar else
+                               f"scored {ar[-1]['reward']:.4f}" if ar[-1]["outcome"] == "scored"
+                               else ar[-1]["error_code"] or ar[-1]["outcome"])
+                    cost = sum(r["cost_usd"] or 0.0 for r in rs)
+                    out.append(f"| {s.name} | {run[1]} | {run[2]} | {len(rs)} | {last} (${cost:.4f}) | "
+                               f"{a.name if a else '–'} | {amended} |")
+    return (["| Sweep | Task | Rep | Attempts | Last outcome (spend) | Amendment | Amended outcome |",
+             "|---|---|---:|---:|---|---|---|", *out] if out else ["None."])
 
 
-def report(sweeps: list[Sweep], card_path: Path = CARD, board_path: Path = BOARD) -> dict:
-    board = Board(sweeps)
+def report(sweeps: list[Sweep], card_path: Path = CARD, board_path: Path = BOARD,
+           amend: dict[str, Sweep] | None = None, columns: dict[str, str] | None = None, narrate=None) -> dict:
+    """Writes the eval card and the board; ``narrate(card, board)`` returns the fields to add to the card and the text
+    to put under the board's title and after its tables."""
+    board = Board(sweeps, amend, columns)
     c = card(board)
+    extra, intro, outro = narrate(c, board) if narrate else ({}, "", "")
+    c |= extra
     card_path.parent.mkdir(parents=True, exist_ok=True)
     card_path.write_text(json.dumps(c, indent=2) + "\n")
     board_path.parent.mkdir(parents=True, exist_ok=True)
-    board_path.write_text(board_md(c) + "\n## Unscored runs\n\n" + "\n".join(unscored(board)) + "\n")
+    board_path.write_text(board_md(c, intro) + (f"\n{outro}\n" if outro else "") + "\n## Unscored runs\n\n"
+                          + "\n".join(unscored(board)) + "\n")
     return c
 
 
@@ -568,8 +751,15 @@ def run_command(name: str, models: str, task_spec: str, pack: str, tier: str, bu
               help="The eval card to write.")
 @click.option("--board", "board_path", type=click.Path(dir_okay=False, path_type=Path), default=BOARD,
               show_default=True, help="The Markdown board to write.")
-def report_command(names: tuple[str, ...], card_path: Path, board_path: Path):
-    """Report the sweeps NAMES: each model at each tier and harness, its mean reward with a 95% bootstrap CI, hindsight
-    capture, valid rate, error taxonomy, checks used and cost, next to the pack references' baselines."""
-    c = report([load(name) for name in names], card_path, board_path)
+@click.option("--amend", multiple=True, metavar="SWEEP=AMENDMENT",
+              help="A sweep of NAMES and the sweep that re-ran some of its tasks under an amendment: the headline "
+                   "takes each run's score from either, and `prereg` reports the sweep alone. Repeatable.")
+def report_command(names: tuple[str, ...], card_path: Path, board_path: Path, amend: tuple[str, ...]):
+    """Report the sweeps NAMES: each model at each pack, tier and harness, its mean reward with a 95% bootstrap CI,
+    hindsight capture, optimal and valid rates, error taxonomy, checks used, the breakdowns by battery class, binding
+    constraint and day type, and cost, next to the baselines graded on the same tasks."""
+    if bad := [a for a in amend if a.count("=") != 1]:
+        raise click.UsageError(f"--amend takes SWEEP=AMENDMENT, not {bad[0]}")
+    c = report([load(name) for name in names], card_path, board_path,
+               {k: load(v) for k, v in (a.split("=") for a in amend)})
     click.echo(f"Wrote {card_path} and {board_path}: {len(c['models'])} model rows over {c['tasks']['n']} tasks")
