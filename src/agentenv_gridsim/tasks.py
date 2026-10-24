@@ -1,6 +1,6 @@
 """`agent-env gridsim tasks`: a task pack as a folder bundle, one task per battery-day, each played by gridsim-llm on
 gridsim_core's prompt, at one tier (foresight or blind) and in one harness (full: three checks; oneshot:
-submit_schedule only), and graded by gridsim-verifier."""
+submit_schedule only), and graded by gridsim-verifier; a live pack's days played live on gridsim-live (live_tasks)."""
 
 import json
 from importlib.resources import files
@@ -8,9 +8,12 @@ from pathlib import Path
 
 import click
 
+from gridsim_core.live import TIERS as LIVE_TIERS
 from gridsim_core.prompt import messages
 from gridsim_core.task import data_root
 
+from . import live_tasks
+from .live import LIVE_PACK_NAMES
 from .server import LOAD_URI, MAX_CHECKS, PACK_NAMES, TIERS, TaskIndex, pack_dirs, read_pack
 
 ENV = "gridsim"
@@ -111,19 +114,31 @@ def tasks_group():
 
 
 @tasks_group.command("generate")
-@click.option("--pack", type=click.Choice(PACK_NAMES), required=True, help="The task pack.")
-@click.option("--tier", type=click.Choice(TIERS), default="foresight", show_default=True,
-              help="foresight: the day's prices; blind: the day before's and the week before's.")
+@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES), required=True,
+              help="The task pack; a gridsim-live pack (or fixtures-live) writes live days on gridsim-live.")
+@click.option("--tier", type=click.Choice(LIVE_TIERS), default="foresight", show_default=True,
+              help="foresight: the day's prices; blind: the day before's and the week before's. Live packs also take "
+                   "short (the regular watches D-1 14:00, D 00:00 and 12:00 plus notice watches) and freeze6h.")
 @click.option("--bundle", "bundle", type=click.Choice(list(BUNDLES)), default="full", show_default=True,
-              help="full: get_situation, three checks and submit_schedule; oneshot: submit_schedule only.")
+              help="full: get_situation, three checks and submit_schedule; oneshot: submit_schedule only. Not for "
+                   "live packs.")
 @click.option("--zone", metavar="POINT", help="Only this settlement point's days, e.g. HB_WEST.")
 @click.option("--out", type=click.Path(file_okay=False, path_type=Path),
               help="The bundle folder to write. Default: results/bundles/<pack>-<tier>-<bundle>.")
 def generate_command(pack: str, tier: str, bundle: str, zone: str | None, out: Path | None):
     """Write a bundle with one task per battery-day of the pack the tier can play: deploy the env, load the day,
-    play it with gridsim-llm on gridsim_core's prompt and grade it with gridsim-verifier."""
-    out = out or Path("results/bundles") / f"{pack}-{tier}-{bundle}"
-    names = generate(pack, out, tier=tier, bundle=bundle, zone=zone)
+    play it with gridsim-llm on gridsim_core's prompt and grade it with gridsim-verifier. A live pack's days are
+    played live on gridsim-live in watches, its notices delivered by triggers, and graded by gridsim-live-verifier."""
+    if pack in LIVE_PACK_NAMES:
+        if bundle != "full":
+            raise click.UsageError("--bundle is for the v1 packs; a live day has one harness")
+        out = out or Path("results/bundles") / f"{pack}-{tier}"
+        names = live_tasks.generate(pack, out, tier=tier, zone=zone)
+    elif tier not in TIERS:
+        raise click.UsageError(f"the v1 packs have the tiers {', '.join(TIERS)}, not {tier}")
+    else:
+        out = out or Path("results/bundles") / f"{pack}-{tier}-{bundle}"
+        names = generate(pack, out, tier=tier, bundle=bundle, zone=zone)
     if not names:
         raise click.UsageError(f"{pack} has no {tier} tasks" + (f" at {zone}" if zone else ""))
     click.echo(f"Wrote {len(names)} tasks into {out}; play one with: agent-env run {out} --task {names[0]} "
