@@ -222,6 +222,11 @@ def test_watch_schedule_and_reveal_rule():
     assert [w.minute for w in live.schedule(task, "short")] == [-600, 0, 315, 615, 720, 1170, 1245]
     many = [notice(f"n{h}", f"{d}{h:02d}:05:00-05:00") for h in range(1, 23)]
     assert len(live.schedule(simple_task(date="2023-09-06", notices=many))) == live.MAX_WATCHES
+    many.append(notice("eea", f"{d}20:10:00-05:00", "EEA2.", level="EEA2"))
+    many.append(notice("cx", f"{d}16:10:00-05:00", "Cancelled.", action="cancel", level="EEA2"))
+    capped = live.schedule(simple_task(date="2023-09-06", notices=many))
+    assert [w.minute for w in capped] == [-600, 0, 75, 135, 195, 255, 360, 720, 1080, 1215]
+    assert [n.event_id for n in capped[-1].notices] == ["n18", "n19", "n20", "eea"]
     trig = live.triggers(ws)
     assert [t["id"] for t in trig] == [f"watch-{k}" for k in range(1, 8)]
     assert trig[6]["actions"][1]["args"]["event_id"] == "normal"
