@@ -153,7 +153,7 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | 
     """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score; a training view plays its own
     duration in seconds. A v5 floor opens at 6 am the day before: its pre-day (t -6..0) takes three seconds a unit."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    t0, intro = (-6.0, 18.0) if ep.get("schema") == "gridsim.episode/v5" else (-2.0, INTRO)
+    start, intro = (-6.0, 18.0) if ep.get("schema") == "gridsim.episode/v5" else (-2.0, INTRO)
     total = duration or intro + seconds + OUTRO
     frames = round(total * fps)
     encoder = subprocess.Popen(ffmpeg_args(find("ffmpeg"), out, fps, ep["episode_id"]), stdin=subprocess.PIPE)
@@ -161,7 +161,7 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | 
     try:
         for i in range(frames):
             s = i / fps
-            t = (s if duration else t0 - t0 * s / intro if s < intro else min(24.0, (s - intro) / seconds * 24)
+            t = (s if duration else start - start * s / intro if s < intro else min(24.0, (s - intro) / seconds * 24)
                  if s < intro + seconds else 24 + (s - intro - seconds) / 4)
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
             shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
