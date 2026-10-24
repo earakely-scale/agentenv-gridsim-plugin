@@ -10,7 +10,9 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -31,6 +33,8 @@ HERO_TASK = "dam-v1-2025-03-15-HB_WEST-1h-t"
 LIVE_PACKS = ("gridsim-live-showcase", "gridsim-live-eval", "gridsim-live-test-2025", "gridsim-live-rtcb",
               "fixtures-live", "gridsim-live-train")
 LIVE_HERO_TASK = "live-v2-2023-09-06-HB_NORTH-2h-l"
+LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol"}
+CPT = ZoneInfo("America/Chicago")
 SEVERITY = {"EEA3": 7, "EEA2": 6, "EEA1": 5, "Emergency": 5, "conservation": 4, "Watch": 3, "Warning": 3, "Advisory": 2,
             "OCN": 1}
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
@@ -295,16 +299,25 @@ def clock(label: str) -> str:
 
 
 def live_blurb(ep: dict) -> str:
-    t = ep["task"]
+    """What the featured live day shows: the most urgent bulletin, when the agent read it and whether it re-planned
+    after, the real-time peak, and its profit beside the anchor's and hindsight's."""
+    t, r = ep["task"], ep.get("references") or {}
     region = REGIONS.get(t["region"], t["region"])
-    top = max(ep["notices"], key=lambda n: SEVERITY.get(n.get("level"), 0), default=None)
     rt = max(range(96), key=lambda i: t["rt"][i])
-    spike = f"real-time prices reach ${t['rt'][rt]:,.0f}/MWh at {hm(15 * rt)}"
-    if not top:
-        return f"{region}, live: {spike}."
-    w = ep["watches"][top["watch"]] if top.get("watch") is not None else None
-    when = f", read at the {clock(w['time'])} watch with the freeze line at {clock(w['freeze_line'])}" if w else ""
-    return f"{region}, live: ERCOT's {top['level']} bulletin arrives{when}, and {spike}."
+    who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
+    peak = f"real-time prices reach ${t['rt'][rt]:,.0f}/MWh at {hm(15 * rt)}"
+    tail = (f"It makes ${ep['profit_usd']:,.0f}, against the rolling anchor's ${r.get('p_roll', 0):,.0f} and "
+            f"hindsight's ${r.get('p_hind', 0):,.0f}.")
+    top = max(ep["notices"], key=lambda n: SEVERITY.get(n.get("level"), 0), default=None)
+    if not top or top.get("watch") is None:
+        return f"{region}, live: {peak}. {tail}"
+    w = ep["watches"][top["watch"]]
+    at = datetime.fromisoformat(top["issued_at"].replace("Z", "+00:00")).astimezone(CPT)
+    replans = any(c["accepted"] and c["watch"] >= top["watch"] and c["tool"] == "commit_schedule"
+                  for c in ep.get("commits") or [])
+    return (f"{region}, live: ERCOT posts its {top['level']} notice at {hm(at.hour * 60 + at.minute)}. {who} reads it at the "
+            f"{clock(w['time'])} watch, with the freeze line at {clock(w['freeze_line'])}, and "
+            f"{'re-plans' if replans else 'holds its plan'} as {peak}. {tail}")
 
 
 def entry(ep: dict, url: str, task: dict | None) -> dict:

@@ -392,3 +392,4 @@ body.list-page { overflow: auto; background: #eef0ec; }
   .ep.is-live .timeline { bottom: 46px; }
   .ep.is-live .tl .hours span:nth-child(even) { display: none; }
 }
+.rows .small { font-size: 11.5px; }

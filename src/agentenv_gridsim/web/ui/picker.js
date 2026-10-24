@@ -37,7 +37,7 @@ export async function picker(app, q) {
       ${sel("bundle", "Bundle", opts("bundle"))}
       ${sel("region", "Region", opts("region"), (r) => REGION[r] || r)}
       <label>Search<input name="text" placeholder="date, point, task" value="${esc(state.text)}"></label>
-      <label>Sort<select name="sort">${[["reward", "Reward (high first)"], ["low", "Reward (low first)"], ["date", "Date"], ["profit", "Profit"]].map(([v, l]) => `<option value="${v}" ${state.sort === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      <label>Sort<select name="sort">${[["reward", "Score (high first)"], ["low", "Score (low first)"], ["date", "Date"], ["profit", "Profit"]].map(([v, l]) => `<option value="${v}" ${state.sort === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <span class="count"></span>
     </section>
     <section class="rows card"><table><thead><tr><th>Day</th><th>Settlement point</th><th>Battery</th><th>Model</th><th>Tier</th><th>Bundle</th><th class="r">Profit</th><th class="r">Score</th></tr></thead><tbody></tbody></table><button class="more" hidden>Show more</button></section>
@@ -52,12 +52,13 @@ export async function picker(app, q) {
   const render = () => {
     const t = state.text.toLowerCase();
     let rows = runs.filter((r) => (!state.version || r.version === state.version) && (!state.model || r.model === state.model) && (!state.tier || r.tier === state.tier) && (!state.bundle || r.bundle === state.bundle) && (!state.region || r.region === state.region) && (!t || `${r.date} ${r.point} ${r.task_id} ${r.model}`.toLowerCase().includes(t)));
-    const by = { reward: (a, b) => (b.reward ?? -1) - (a.reward ?? -1), low: (a, b) => (a.reward ?? 2) - (b.reward ?? 2), date: (a, b) => (a.date < b.date ? 1 : -1), profit: (a, b) => (b.profit ?? 0) - (a.profit ?? 0) }[state.sort];
+    const sc = (r) => (r.version === "v2" ? r.r_opt : r.reward);
+    const by = { reward: (a, b) => (sc(b) ?? -1) - (sc(a) ?? -1), low: (a, b) => (sc(a) ?? 2) - (sc(b) ?? 2), date: (a, b) => (a.date < b.date ? 1 : -1), profit: (a, b) => (b.profit ?? 0) - (a.profit ?? 0) }[state.sort];
     rows = rows.sort(by);
     count.textContent = `${rows.length} of ${runs.length} episodes`;
     more.hidden = rows.length <= shown;
     more.textContent = `Show more (${Math.min(shown, rows.length)} of ${rows.length} shown)`;
-    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a></td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}${r.path === "B" && r.trained ? ` <span class="dim">${esc(r.trained.toUpperCase() === "GRPO" ? "GRPO" : r.trained)}${r.checkpoint_step != null ? ` step ${r.checkpoint_step}` : ""}</span>` : ""}</td><td>${r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${r.version === "v2" ? `${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "% hindsight"} <span class="dim">· R ${r.reward == null ? "—" : r.reward.toFixed(3)}</span>` : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</td></tr>`).join("");
+    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a></td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}${r.path === "B" && r.trained ? ` <span class="dim">${esc(r.trained.toUpperCase() === "GRPO" ? "GRPO" : r.trained)}${r.checkpoint_step != null ? ` step ${r.checkpoint_step}` : ""}</span>` : ""}</td><td>${r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${r.version === "v2" ? `${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "%"} <span class="dim">hindsight</span><br><span class="dim small">R ${r.reward == null ? "—" : r.reward.toFixed(3)}</span>` : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</td></tr>`).join("");
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(state)) if (v && !(k === "sort" && v === "reward")) p.set(k === "text" ? "q" : k, v);
     history.replaceState(null, "", `${location.pathname}${p.toString() ? "?" + p : ""}`);
