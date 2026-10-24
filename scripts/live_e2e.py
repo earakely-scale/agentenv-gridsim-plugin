@@ -5,12 +5,14 @@ every watch. It fails unless each watch's trigger fired once, at the watch's tim
 order; the agent was never offered grid_notice; every tool output the agent got is the one the same calls get from
 gridsim_core's Session in process, so each watch's bulletins came with the first tool result after its advance and
 no other; get_time read the watch's time and held still between watches while real time passed; data/get holds the
-day as played in process; and the day scored what it scores in process, which on a day without a derate is the naive
-reward the task row stores.
+day as played in process; the day scored what it scores in process, which on a day without a derate is the naive
+reward the task row stores; and the agent's record replays byte for byte into Episode JSON v2 (the `episodes` path),
+its audit passing with the agent's get_time reads.
 
 Run it from the checkout after `agent-env gridsim setup --agent`, with the dev extra installed:
 
     python scripts/live_e2e.py [--task ID] [--pack PACK] [--tier foresight|blind] [--model ID] [--out day.json]
+        [--episode episode.json]
 
 The default plays the gridsim-live bundle's `day` task; another day is written as a one-task bundle in a temporary
 folder.
@@ -33,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests" / "plugin")
 from fake_litellm import FakeLiteLLM  # noqa: E402
 
 from agentenv_gridsim import live_tasks  # noqa: E402
+from agentenv_gridsim.episodes import ReplayError, live_replay  # noqa: E402
 from agentenv_gridsim.live import LIVE_PACK_NAMES  # noqa: E402
 from agentenv_gridsim.server import TaskIndex, pack_dirs  # noqa: E402
 from agentenv_gridsim.sweep import context, trajectory  # noqa: E402
@@ -91,6 +94,14 @@ def fake_turns(turns: list) -> list[dict]:
             for t, calls in enumerate(turns)]
 
 
+def episode_of(task: dict, tier: str, record: dict, model: str, instance: str) -> dict:
+    """The run's Episode JSON v2 as `agent-env gridsim episodes` writes it: the record replayed through a Session, byte
+    for byte, and audited with the agent's get_time reads."""
+    s, reads = live_replay(task, tier, record)
+    return s.episode(bundle="live", path="A", model=model, trained="base", usage=record["usage"],
+                     episode_id=instance.rsplit("/", 1)[-1]) | {"audit": s.audit(reads)}
+
+
 def check(task: dict, tier: str, fake: FakeLiteLLM, ctx: dict, played: Session, expected: list) -> dict:
     watches = played.watches
     m = ctx["metadata"]
@@ -122,6 +133,13 @@ def check(task: dict, tier: str, fake: FakeLiteLLM, ctx: dict, played: Session, 
         problems.append(f"the agent was offered {NOTICE_TOOL}: {offered}")
 
     record = json.loads(trajectory(response["agent_trajectory_object_url"]))
+    try:
+        episode = episode_of(task, tier, record, play["model"], ctx["instance_id"])
+        if not episode["audit"]["ok"] or episode["reward"] != v["score"]:
+            problems.append(f"the episode's audit {episode['audit']}, reward {episode['reward']}")
+    except ReplayError as e:
+        episode = None
+        problems.append(f"the record doesn't replay: {e}")
     got = [(msg["name"], msg["content"]) for msg in record["messages"] if msg["role"] == "tool"]
     session_calls = [(n, out) for n, out in got if n != CLOCK]
     if session_calls != expected:
@@ -170,7 +188,8 @@ def check(task: dict, tier: str, fake: FakeLiteLLM, ctx: dict, played: Session, 
             "tool_calls": play["tool_calls"], "calls_used": day["calls_used"],
             "planning_calls": day["planning_calls"], "notices": [(n["event_id"], n["watch"], n["via"], n["call"])
                                                                   for n in day["notices"]],
-            "data_get_sha256": hashlib.sha256(json.dumps(day, sort_keys=True).encode()).hexdigest()}
+            "data_get_sha256": hashlib.sha256(json.dumps(day, sort_keys=True).encode()).hexdigest(),
+            "episode": episode}
 
 
 def main() -> None:
@@ -180,6 +199,7 @@ def main() -> None:
     parser.add_argument("--tier", choices=["foresight", "blind"], default="foresight")
     parser.add_argument("--model", default=MODEL, help="the model id the run passes (the fake answers any)")
     parser.add_argument("--out", type=Path, help="write the day's data/get here")
+    parser.add_argument("--episode", type=Path, help="write the run's Episode JSON v2 here")
     args = parser.parse_args()
     default = bundle_day()
     task_id = args.task or default
@@ -208,6 +228,10 @@ def main() -> None:
     if args.out:
         args.out.write_text(json.dumps(ctx["metadata"]["verifications"]["gridsim"]["results"][0]["episode"],
                                        indent=2, sort_keys=True) + "\n")
+    episode = report.pop("episode")
+    if args.episode and episode:
+        args.episode.write_text(json.dumps(episode, indent=1) + "\n")
+    report["episode_steps"] = len(episode["steps"]) if episode else None
     print(json.dumps({"instance": instance[-1], **report}, indent=1, default=str))
     if report["problems"]:
         sys.exit(f"{len(report['problems'])} problems")
