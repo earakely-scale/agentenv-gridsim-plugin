@@ -196,8 +196,8 @@ function chips(actions) {
 }
 
 function reasoning(d) {
-  const rows = d.checks.map((c, i) => `<div class="plan practice"><span>Practice ${i + 1}</span>${chips(c.actions || [])}<span class="note">${c.out?.feasible === false ? `infeasible at ${hourLabel(c.out.truncated_at ?? 0)}` : `profit ${money(c.out?.profit_usd ?? 0)}`}</span></div>`).join("");
-  const final = `<div class="plan"><span><b>Final plan</b></span>${chips(d.ep.final_schedule || d.actions)}<span class="note">submitted · ${d.ep.truncated_at != null ? `cut short at ${hourLabel(d.ep.truncated_at)}` : `profit ${money(d.ep.profit_usd)}`}</span></div>`;
+  const rows = d.checks.map((c, i) => `<div class="plan practice"><span>Practice ${i + 1}</span>${chips(c.actions || [])}<span class="note">${c.out?.error ? "not a schedule" : c.out?.feasible === false ? `breaks a rule at ${hourLabel(c.out.truncated_at ?? 0)}` : c.out?.profit_usd == null ? "feasible (profit hidden: blind)" : `profit ${money(c.out.profit_usd)}`}</span></div>`).join("");
+  const final = d.nosubmit ? `<div class="plan"><span><b>Final plan</b></span><span class="note" style="grid-column:2">no valid submission: the battery sits idle and the reward is 0</span></div>` : `<div class="plan"><span><b>Final plan</b></span>${chips(d.ep.final_schedule || d.actions)}<span class="note">submitted · ${d.ep.truncated_at != null ? `cut short at ${hourLabel(d.ep.truncated_at)}` : `profit ${money(d.ep.profit_usd)}`}</span></div>`;
   const msg = d.message ? `<blockquote>“${escapeHtml(d.message.slice(0, 360))}${d.message.length > 360 ? "…" : ""}”</blockquote>` : "";
   return `<h5>How it decided <small style="text-transform:none;letter-spacing:0;font-weight:400">${d.checks.length} practice check${d.checks.length === 1 ? "" : "s"}</small></h5>${rows}${final}${msg}`;
 }

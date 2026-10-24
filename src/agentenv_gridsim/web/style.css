@@ -144,10 +144,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .settings label { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
 .back { color: var(--ink2); text-decoration: none; font-size: 12px; }
 @media (max-width: 900px) {
-  .place { width: calc(100% - 2 * var(--gap)); }
-  .right { display: none; }
-  .timeline { grid-template-columns: 1fr; height: auto; }
-  .news { white-space: normal; top: auto; bottom: calc(var(--tl) + 60px); max-width: 92vw; border-radius: 14px; }
+  :root { --gap: 10px; }
+  .place { width: calc(100% - 2 * var(--gap)); padding: 10px 12px; }
+  .place .clock { font-size: 26px; }
+  .place .price { font-size: 22px; }
+  .place .act { font-size: 14.5px; margin: 4px 0 6px; }
+  .place .meta, .place .where + .where { display: none; }
+  .cash { margin-top: 12px; }
+  .cash b { font-size: 15px; }
+  .right, .legend, .back-link { display: none; }
+  .timeline { left: var(--gap); right: var(--gap); width: auto; transform: none; grid-template-columns: 1fr; height: auto; bottom: 30px; gap: 6px; }
+  .ctl { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .ctl .row { gap: 4px; }
+  .ctl button { padding: 4px 8px; font-size: 12px; }
+  .tl { height: 92px; }
+  .news { white-space: normal; top: auto; bottom: 214px; max-width: calc(100% - 2 * var(--gap)); width: max-content; border-radius: 12px; font-size: 13.5px; padding: 8px 12px; }
+  .attrib { font-size: 9.5px; padding: 0 8px; bottom: 4px; }
+  .intro { width: calc(100% - 2 * var(--gap)); top: 50%; }
+  .drawer { width: 100vw; }
 }
 
 body.list-page { overflow: auto; background: #eef0ec; }

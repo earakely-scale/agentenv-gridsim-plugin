@@ -55,6 +55,14 @@ const VIOLATIONS = {
   cycle_cap: "it would pass the day's cycle limit",
 };
 
+/** A schedule as sent (a list, or a comma or space separated string of 24 integers), or null. */
+export function parseActions(a) {
+  const xs = typeof a === "string" ? a.trim().replace(/^\[|\]$/g, "").split(/[\s,]+/) : Array.isArray(a) ? a : null;
+  if (!xs || xs.length !== 24) return null;
+  const out = xs.map(Number);
+  return out.every(Number.isInteger) ? out : null;
+}
+
 export function load(ep, weather = null) {
   const task = ep.task;
   const b = task.battery;
@@ -62,7 +70,9 @@ export function load(ep, weather = null) {
   const place = placeOf(task.settlement_point);
   const region = absolute(REGIONS[task.region] || REGIONS.central);
   const hourly = ep.hourly?.length === 24 ? ep.hourly : null;
-  const agentSim = simulate(task, ep.final_schedule || Array(24).fill(0));
+  const nosubmit = !Array.isArray(ep.final_schedule);
+  if (nosubmit) ep = { ...ep, final_schedule: Array(24).fill(0), profit_usd: ep.profit_usd ?? 0, reward: ep.reward ?? 0 };
+  const agentSim = simulate(task, ep.final_schedule);
   const actions = hourly ? hourly.map((x) => x.action) : agentSim.executed;
   const cash = hourly ? hourly.map((x) => x.cash) : agentSim.cash;
   const soc = ep.soc_path?.length === 25 ? ep.soc_path : agentSim.soc;
@@ -105,10 +115,10 @@ export function load(ep, weather = null) {
   if (ep.end_shortfall_units > 0) news.push({ t: 23.2, until: 24.5, kind: "penalty", text: `The day ends ${ep.end_shortfall_units} unit${ep.end_shortfall_units > 1 ? "s" : ""} short of the required charge: a ${money(penalty)} penalty` });
   news.sort((a, x) => a.t - x.t);
   for (let i = 0; i + 1 < news.length; i++) news[i].until = Math.min(news[i].until, news[i + 1].t);
-  const checks = (ep.steps || []).filter((s) => s.tool === "check_schedule").map((s) => ({ actions: s.args?.actions ?? s.args, out: s.output }));
+  const checks = (ep.steps || []).filter((s) => s.tool === "check_schedule").map((s) => ({ actions: parseActions(s.args?.actions ?? s.args) || [], out: s.output }));
   const date = new Date(`${task.date}T12:00:00`);
   return {
-    ep, task, b, prices, place, region, weather, hours, ghosts, agentCum, soc, actions, pOpt, pIdle, reward, captured, trunc,
+    ep, nosubmit, task, b, prices, place, region, weather, hours, ghosts, agentCum, soc, actions, pOpt, pIdle, reward, captured, trunc,
     penalty, news, checks, peakH, median, firstNeg, maxP: Math.max(...prices), minP: Math.min(...prices),
     grade: reward != null ? grade(reward) : null,
     dateLabel: date.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
