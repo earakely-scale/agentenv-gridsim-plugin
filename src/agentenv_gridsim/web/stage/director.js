@@ -84,11 +84,11 @@ export function buildDirector(d, L, { night }) {
     },
   };
   const out = { pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: 45, shot: null };
-  function pose(t, force = null) {
+  function pose(t, force = null, reduced = false) {
     const tt = Math.max(0, Math.min(23.999, t));
     let s = t >= 24 ? { kind: "high", t0: 24, t1: 30, n: 99 } : shots.find((x) => tt >= x.t0 && tt < x.t1) || shots[0];
     if (force && poses[force]) s = { kind: force, t0: Math.floor(tt), t1: Math.floor(tt) + 2, n: 0 };
-    const u = ease((t - s.t0) / (s.t1 - s.t0));
+    const u = reduced ? 0.5 : ease((t - s.t0) / (s.t1 - s.t0));
     const p = poses[s.kind](u, s);
     out.pos.set(...p.pos);
     out.look.set(...p.look);

@@ -49,10 +49,11 @@ async function main() {
   const settings = document.createElement("section");
   settings.className = "card settings";
   settings.hidden = true;
-  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour · 1-4 speed · D camera · C charts</p>`;
+  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><label><input type="checkbox" name="ghosts" checked> Greedy and threshold ghosts in the race</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour · 1-4 speed · D camera · C charts</p>`;
   root.append(settings);
   settings.querySelector('[name="reduced"]').addEventListener("change", (e) => (stage.reduced = e.target.checked));
   settings.querySelector('[name="sound"]').addEventListener("change", (e) => sound.set(e.target.checked));
+  settings.querySelector('[name="ghosts"]').addEventListener("change", (e) => root.classList.toggle("no-ghosts", !e.target.checked));
   const hud = buildHud(root, d, {
     onSeek: (t) => ((P.t = t), stage.direct(stage.directing)),
     onToggle: (a, s) => {

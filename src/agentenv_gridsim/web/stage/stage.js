@@ -177,7 +177,7 @@ export class GridStage {
     this.sky.flash(fl ? fl.f * 0.9 : 0, fl?.dir);
     this.sky.hemi.intensity += fl ? fl.f * 1.5 : 0;
     if (this.directing || !this.controls) {
-      const p = this.director.pose(t, this.force);
+      const p = this.director.pose(t, this.force, this.reduced);
       const wp = this.toWorld(p.pos.x, p.pos.z).setY(p.pos.y + this.terrain.heightAt(...this.#xz(p.pos)));
       const wl = this.toWorld(p.look.x, p.look.z).setY(p.look.y);
       this.camera.position.copy(wp);
