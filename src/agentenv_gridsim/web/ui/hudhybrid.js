@@ -160,7 +160,7 @@ function socSvg(d, x, ghost) {
     const w = sx(b.mwh);
     if (w < 0.6) continue;
     const p = PROD[b.k];
-    s += `<rect x="${a}" y="${y0}" width="${w}" height="${bh}" fill="url(#hp-${p.hatch})" stroke="${short ? "#cf3e33" : "rgba(28,35,41,0.55)"}" stroke-width="${short ? 1.6 : 1}" class="${b.live ? "live" : ""}"/>`;
+    s += `<rect x="${a}" y="${y0}" width="${w}" height="${bh}" fill="url(#hp-${p.hatch})" stroke="${short ? "#cf3e33" : b.live ? DISCHARGE : "rgba(28,35,41,0.55)"}" stroke-width="${short || b.live ? 2 : 1}"/>`;
     if (w > 13) s += `<text x="${a + w / 2}" y="${y0 + bh / 2 + 3.6}" class="gl">${p.glyph}</text>`;
     a += w;
   }
@@ -187,7 +187,7 @@ function placeHtml(d, x0, t, min, settled, lastRt, hot, wx, anchor) {
   const upMw = UP.reduce((a, k) => a + x.awards[k], 0);
   const act = pre ? (t < -1.2 ? "The day before: planning" : "Day-ahead book committed") : ended ? "Day over" :
     dep.length ? `Discharging ${mwTxt(mw)} MW · ${dep.join(" and ")} deployed` :
-    x.mode === "charge" ? `Charging ${mwTxt(mw)} MW${x.fromPv > mw - 0.5 ? " from the panels" : x.fromPv > 0.5 ? `, ${mwTxt(x.fromPv)} from the panels` : x.price < 0 ? `, paid ${price(-x.price)}/MWh to take it` : " from the grid"}` :
+    x.mode === "charge" ? `Charging ${mwTxt(mw)} MW${x.fromPv > mw - 0.5 ? " from the panels" : x.fromPv > 0.5 ? `, ${mwTxt(x.fromPv)} from the panels` : x.price < 0 ? " from the grid, paid to take it" : " from the grid"}` :
     x.mode === "discharge" ? `Discharging ${mwTxt(mw)} MW` :
     upMw + x.awards.regdn > 0.5 ? `Holding ${[upMw > 0.5 && `${mwTxt(upMw)} MW up`, x.awards.regdn > 0.5 && `${mwTxt(x.awards.regdn)} MW RegDn`].filter(Boolean).join(" and ")} in reserve` : "Idle";
   const era = ERA[d.era];
@@ -197,9 +197,9 @@ function placeHtml(d, x0, t, min, settled, lastRt, hot, wx, anchor) {
   const bandLine = ended ? `ends at ${Math.round(x.soc)} MWh; the obligation is ${Math.round(d.site.bess.s_end_min_mwh)}` : pre ? "" : [held && `held for ${held}`, room].filter(Boolean).join(" · ");
   const pvA = x.pvAvail, pvU = x.pvUsed;
   const L = d.L, toBat = Math.max(0, Math.min(x.exp, x.net)), pvOut = Math.max(0, x.exp - toBat);
-  const panels = pvA < 0.5 ? "no sun" : x.stow && !pre ? `stowed: price ${price(x.price)}/MWh` : `${mwTxt(pvU)} MW${x.curtailed > 0.5 && !pre ? ` · ${mwTxt(x.curtailed)} curtailed` : ""}`;
+  const panels = pvA < 0.5 ? "no sun" : x.stow && !pre ? (x.price < 0 ? "stowed: negative price" : "stowed") : `${mwTxt(pvU)} MW${x.curtailed > 0.5 && !pre ? ` · ${mwTxt(x.curtailed)} curtailed` : ""}`;
   const meter = x.exp < -0.5 ? `importing ${mwTxt(x.exp)} MW` : `${mwTxt(x.exp)} of ${Math.round(L)} MW`;
-  return `<div class="where">${d.dateLabel} · <b>${esc(d.task.settlement_point)}</b> · ${esc(d.place.name)}<span class="tier hyb">V3 · ${esc(ep.tier.toUpperCase())}</span><span class="era e${d.era}" title="${esc(era[1])}">${esc(era[0])}</span></div>
+  return `<div class="where">${d.dateLabel} · <b>${esc(d.task.settlement_point)}</b> · ${esc(d.place.name)}<span class="tags"><span class="tier hyb">V3 · ${esc(ep.tier.toUpperCase())}</span><span class="era e${d.era}" title="${esc(era[1])}">${esc(era[0])}</span></span></div>
     <div class="big"><span class="clock num">${ended ? "End of day" : clockText(min)}</span>${pre ? "" : lastRt == null ? `<span class="price num dim-price">${price(d.prices[x.h])}<small>/MWh DA</small></span>` : `<span class="price num ${lastRt < 0 ? "neg" : hot ? "hot" : ""}">${price(lastRt)}<small>/MWh RT</small></span>`}</div>
     <div class="where" style="margin-top:-2px">${pre ? "the day before · the day-ahead book is due at 2 pm" : lastRt == null ? "day-ahead price; the first real-time price settles at 1 am" : `real time, ${hourSpan(settled - 1)} settled · day-ahead ${price(d.prices[settled - 1])}`}</div>
     <div class="act ${ended ? "" : dep.length ? "discharge" : x.mode}"><i></i><span>${act}</span></div>
@@ -431,15 +431,15 @@ function newsEvents(d) {
     ev.push({ t: z.a / 60, until: z.a / 60 + 1.3, kind: "deploy", badge: [`${k.name} deployed`, "dep"], text: aw > 0.05 ? `${k.name} deployed ${plain(z.a)} · ${mwTxt(aw * z.frac)} MW for ${hrs >= 0.95 ? `${+hrs.toFixed(1)} h` : `${Math.round(hrs * 60)} min`}` : `ERCOT deploys ${k.name} at ${plain(z.a)}; this plant holds none then` });
   }
   const st = d.hours.find((x) => x.neg && x.pvAvail > 5 && x.curtailed > 0.9 * x.pvAvail);
-  if (st) ev.push({ t: st.h + 0.05, until: st.h + 1.4, kind: "neg", text: `Real-time ${price(st.rt)}/MWh ${hourSpan(st.h)}: the controller stows the panels${st.mode === "charge" ? " and the battery charges at a negative price" : ""}` });
+  if (st) ev.push({ t: st.h + 0.05, until: st.h + 1.4, kind: "neg", text: `Negative real-time prices ${hourSpan(st.h)}: the controller stows the panels${st.mode === "charge" ? " and the battery charges, paid to take it" : ""}` });
   const full = d.hours.find((x) => !x.neg && x.curtailed > 1 && x.pvAvail > 5);
   if (full) {
     const up = UP.reduce((a, k) => a + full.awards[k], 0);
     ev.push({ t: full.h + 0.05, until: full.h + 1.2, kind: "meter", text: `The meter is full at ${Math.round(d.L)} MW ${hourSpan(full.h)}: ${mwTxt(full.curtailed)} MW of PV curtailed${up > 0.5 ? ` to keep headroom for ${mwTxt(up)} MW of up-reserves` : full.b > 0.5 ? ` while the battery discharges ${mwTxt(full.b)} MW` : ""}` });
   }
   for (const x of d.hours) {
-    if (x.ftpMw > 0.05) ev.push({ t: x.h + 0.6, until: x.h + 1.5, kind: "ftp", text: `Short ${mwTxt(x.ftpMw)} MW of reserves ${hourSpan(x.h)}: ${money(x.ftpUsd)} failure to provide` });
-    else if (x.excusedMw > 0.05) ev.push({ t: x.h + 0.6, until: x.h + 1.4, kind: "excused", badge: ["Excused", "off"], text: `${mwTxt(x.excusedMw)} MW short ${hourSpan(x.h)}, excused: the drift or deployment came after the hour froze` });
+    if (x.ftpMw > 0.05) ev.push({ t: x.h + 1, until: x.h + 1.8, kind: "ftp", text: `Short ${mwTxt(x.ftpMw)} MW of reserves ${hourSpan(x.h)}: ${money(x.ftpUsd)} failure to provide` });
+    else if (x.excusedMw > 0.05) ev.push({ t: x.h + 1, until: x.h + 1.7, kind: "excused", badge: ["Excused", "off"], text: `${mwTxt(x.excusedMw)} MW short ${hourSpan(x.h)}, excused: the drift or deployment came after the hour froze` });
     if (x.governor) ev.push({ t: x.h + 0.08, until: x.h + 0.9, kind: "governor", text: `Governor ${hourSpan(x.h)}: the battery's ${sgn(x.e)}${mwTxt(x.e)} MW is moved to ${sgn(x.b)}${mwTxt(x.b)} MW to keep its awards backed` });
   }
   for (const w of d.watches) {

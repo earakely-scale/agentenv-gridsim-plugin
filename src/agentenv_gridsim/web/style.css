@@ -422,9 +422,6 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .era.eC { background: #2c3440; color: #fff; border-color: #2c3440; }
 .socsvg { width: 100%; height: 30px; display: block; overflow: visible; }
 .socsvg .gl { font: 750 9.5px var(--sans); fill: #1c2329; text-anchor: middle; paint-order: stroke; stroke: rgba(255, 255, 255, 0.9); stroke-width: 2.6px; }
-.socsvg rect.live { animation: band-drain 0.9s ease-in-out infinite alternate; }
-@keyframes band-drain { from { opacity: 1; } to { opacity: 0.45; } }
-.ep.reduced .socsvg rect.live { animation: none; }
 .soc.hyb { margin-bottom: 8px; }
 .soc.hyb .bands { font-size: 11.5px; color: var(--ink2); margin-top: 1px; min-height: 16px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
 .soc.hyb .bands .gh { margin-left: auto; color: var(--faint); font-size: 11px; }
@@ -500,3 +497,4 @@ span.gl { display: inline-block; min-width: 14px; height: 14px; line-height: 13p
   .tl.live.hyb { padding-left: 0; }
   .tl.live.hyb .hours { left: 0; }
 }
+.place .tags { white-space: nowrap; }
