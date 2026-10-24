@@ -1,0 +1,34 @@
+{
+ "pack": "fixtures-hybrid",
+ "hybrid_version": "3.0",
+ "tasks": 20,
+ "eras": {
+  "A": 8,
+  "B": 9,
+  "C": 3
+ },
+ "dates": [
+  "2021-04-23",
+  "2026-08-19"
+ ],
+ "tiers": [
+  "energy",
+  "reserves"
+ ],
+ "filters": {
+  "min_headroom_usd": 500.0,
+  "low_spread_usd_per_mw": 22.0,
+  "sponge_reward_max": 0.97
+ },
+ "flags": {
+  "site": "archetype (no crosswalk tonight; V3-D11)",
+  "pv_availability": "proxy, system-wide cf",
+  "reg_drift": "seeded (hybrid_inputs.reg_drift)",
+  "deploy_frac": "1.0 assumed (C3-D14)",
+  "poi": "default PV AC or 1.2x (V3-D7)",
+  "coupling": "ac only (C3-D15)",
+  "rt_as": "not modelled (T3 dropped, V3-D10)"
+ },
+ "licence": "ERCOT data with attribution and no endorsement; EIA public domain",
+ "split": "fixtures"
+}
