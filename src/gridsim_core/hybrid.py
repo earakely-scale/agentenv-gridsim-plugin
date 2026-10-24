@@ -1065,6 +1065,7 @@ class _Model:
     def __init__(self):
         self.lo, self.hi, self.integer, self.rows = [], [], [], []
         self.obj = _Lin()
+        self.infeasible = False
 
     def var(self, lo: float, hi: float, integer: bool = False) -> _Lin:
         self.lo.append(float(lo))
@@ -1073,12 +1074,18 @@ class _Model:
         return _Lin({len(self.lo) - 1: 1.0})
 
     def add(self, e: _Lin, lo: float = -math.inf, hi: float = math.inf):
+        """lo <= e <= hi; a row without columns is checked here (HiGHS rejects an inconsistent empty row)."""
+        if not any(e.c.values()):
+            self.infeasible |= not lo - TOL <= e.k <= hi + TOL
+            return
         self.rows.append((e.c, lo - e.k, hi - e.k))
 
     def solve(self) -> tuple[float, np.ndarray] | None:
         """(objective, column values), or None when infeasible. Maximises."""
         if highspy is None:
             raise RuntimeError("the hybrid references need highspy: pip install 'agentenv-gridsim[lp]'")
+        if self.infeasible:
+            return None
         lp = highspy.HighsLp()
         n = len(self.lo)
         cost = np.zeros(n)
@@ -1101,13 +1108,16 @@ class _Model:
         if any(self.integer):
             lp.integrality_ = [highspy.HighsVarType.kInteger if t else highspy.HighsVarType.kContinuous
                                for t in self.integer]
-        h = highspy.Highs()
-        for k, v in (("output_flag", False), ("random_seed", 0), ("mip_rel_gap", 1e-7),
-                     ("mip_abs_gap", 1e-4)):
-            h.setOptionValue(k, v)
-        h.passModel(lp)
-        h.run()
-        status = h.getModelStatus()
+        for presolve in ("choose", "off"):
+            h = highspy.Highs()
+            for k, v in (("output_flag", False), ("random_seed", 0), ("mip_rel_gap", 1e-7),
+                         ("mip_abs_gap", 1e-4), ("presolve", presolve)):
+                h.setOptionValue(k, v)
+            h.passModel(lp)
+            h.run()
+            status = h.getModelStatus()
+            if status != highspy.HighsModelStatus.kSolveError:
+                break
         if status in (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelStatus.kUnboundedOrInfeasible):
             return None
         if status != highspy.HighsModelStatus.kOptimal:
