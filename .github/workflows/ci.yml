@@ -80,6 +80,8 @@ jobs:
           agent-env run results/bundles/ercot-dam-v1-eval-blind-oneshot --dry-run
           agent-env gridsim tasks generate --pack gridsim-live-eval --tier foresight
           agent-env run results/bundles/gridsim-live-eval-foresight --dry-run
+          agent-env gridsim tasks generate --pack ercot-hybrid-v3-eval --tier reserves
+          agent-env run results/bundles/ercot-hybrid-v3-eval-reserves --dry-run
       - name: The image passes the parity and no-leak gates
         run: |
           docker run -d -p 18765:18765 agentenv-gridsim-env

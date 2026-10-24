@@ -1,0 +1,468 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim-hybrid"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim-hybrid",
+    "directives": [
+      {
+        "service": "gridsim-hybrid",
+        "uri": "urn:gridsim:live-load/v1",
+        "args": {
+          "task_id": "hyb-v3-2023-09-06-HB_WEST-pv150-b100x2h-poi150",
+          "tier": "reserves"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hide-grid-notice",
+    "type": "modify_env_tool_access",
+    "env_id": "gridsim-hybrid",
+    "action": "disable",
+    "role": "default",
+    "tools": [
+      "grid_notice"
+    ]
+  },
+  {
+    "id": "watches",
+    "type": "register_env_triggers",
+    "env_id": "gridsim-hybrid",
+    "watch_roles": [
+      "default"
+    ],
+    "triggers": [
+      {
+        "id": "watch-1",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 1
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-2",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 2
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-3",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 3
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-dd3913a9fbaf",
+              "name": "ERCOT",
+              "text": "ERCOT issued a Watch (projected reserve capacity shortage with no market solution available for Wednesday, September 06, 2023...).",
+              "level": "Watch",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-4",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 4
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "VTEC-SJT-HT.Y-2023-0033-west",
+              "name": "NWS SJT",
+              "text": "NWS SJT: Heat Advisory for Tom Green, Taylor until 2023-09-07 21:00 CPT.",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-ecrs-20230906T1457",
+              "name": "ERCOT",
+              "text": "ERCOT deployed ECRS at 100% of awards from 14:57 to 18:27.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "ecrs",
+                "frac": 1.0,
+                "start_min": 897,
+                "end_min": 1107
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-5",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 5
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-nspin-20230906T1506",
+              "name": "ERCOT",
+              "text": "ERCOT deployed Non-Spin at 100% of awards from 15:06 to 21:05.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "nspin",
+                "frac": 1.0,
+                "start_min": 906,
+                "end_min": 1265
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-6",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 6
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-f30736b9e0f3",
+              "name": "ERCOT",
+              "text": "ERCOT asked the public to conserve electricity from 6:00 p.m. to 9:00 p.m.",
+              "level": "conservation",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-7",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 7
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-ecrs-20230906T1827",
+              "name": "ERCOT",
+              "text": "ERCOT deployed ECRS at 100% of awards from 18:27 to 20:56.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "ecrs",
+                "frac": 1.0,
+                "start_min": 1107,
+                "end_min": 1256
+              }
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-rrs-20230906T1859",
+              "name": "ERCOT",
+              "text": "ERCOT deployed RRS at 100% of awards from 18:59 to 19:56.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "rrs",
+                "frac": 1.0,
+                "start_min": 1139,
+                "end_min": 1196
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-8",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 8
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-5d9952551fc8",
+              "name": "ERCOT",
+              "text": "ERCOT issued an Advisory (Physical Responsive Capability being below 3000 MW).",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-ecrs-online-20230906T1923",
+              "name": "ERCOT",
+              "text": "ERCOT deployed ECRS at 100% of awards from 19:23 to 19:36.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "ecrs",
+                "frac": 1.0,
+                "start_min": 1163,
+                "end_min": 1176
+              }
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-bb2bbec1ad80",
+              "name": "ERCOT",
+              "text": "ERCOT declared Energy Emergency Alert level 2.",
+              "level": "EEA2",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-9",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 9
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-93f55f41c56b",
+              "name": "ERCOT",
+              "text": "ERCOT declared Energy Emergency Alert level 1.",
+              "level": "EEA1",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-c9a3cc9c8a20",
+              "name": "ERCOT",
+              "text": "ERCOT ended the Energy Emergency Alert; the grid is back to normal operations.",
+              "level": "EEA_exit",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-1da73a75af67",
+              "name": "ERCOT",
+              "text": "ERCOT cancelled its Energy Emergency Alert level 1.",
+              "level": "EEA1",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-15c1dfa230bc",
+              "name": "ERCOT",
+              "text": "ERCOT withdrew an earlier end-of-emergency message (superseded by a later one).",
+              "level": "EEA_exit",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-b0cb42b15d13",
+              "name": "ERCOT",
+              "text": "ERCOT cancelled its Advisory (Physical Responsive Capability being below 3000 MW).",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-3c23ffdb9c8d",
+              "name": "ERCOT",
+              "text": "ERCOT ended the Energy Emergency Alert; the grid is back to normal operations.",
+              "level": "EEA_exit",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "clock",
+    "type": "sync_env_clock",
+    "env_id": "gridsim-hybrid",
+    "virtual_time": "2023-09-05T19:00:00Z",
+    "virtual_seconds_per_real_second": 0,
+    "tolerate_missing_sync_time": false
+  },
+  {
+    "id": "end-day",
+    "type": "apply_server_config",
+    "env_id": "gridsim-hybrid",
+    "directives": [
+      {
+        "service": "gridsim-hybrid",
+        "uri": "urn:gridsim:end-day/v1",
+        "args": {}
+      }
+    ]
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim-hybrid",
+    "file_artifact_id": "gridsim-hybrid-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]

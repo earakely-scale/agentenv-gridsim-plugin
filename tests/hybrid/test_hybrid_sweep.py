@@ -93,7 +93,7 @@ def test_the_hybrid_report_writes_eval_v3_and_the_hybrid_board(fake):
     refs = DAY["refs"]["reserves"]
     assert (b["n"], b["as_hog"], b["sponge"]) == (1, round(refs["baselines"]["as_hog"]["reward"], 4),
                                                   round(refs["baselines"]["sponge"]["reward"], 4))
-    assert m["by_as_stratum"][DAY["tags"]["as_stratum"]] == m["mean"]
+    assert m["by_as_stratum"] == {s: m["mean"] if s == DAY["tags"].get("as_stratum") else None for s in sweep.STRATA}
     assert m["beats_sponge"] == float(g["reward"] > refs["baselines"]["sponge"]["reward"])
     assert Path("results/board-v3.md").read_text().startswith("# GridSim v3 hybrid board")
 

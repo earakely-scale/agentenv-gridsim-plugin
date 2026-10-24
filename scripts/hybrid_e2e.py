@@ -135,10 +135,11 @@ def check(task: dict, tier: str, policy: str, fake, ctx: dict, played: Session, 
         if sent != [(n.event_id, sorted(n.args()), sorted(n.deploy or {})) for n in w.notices]:
             problems.append(f"{tid} delivered {sent}, not {[n.args() for n in w.notices]}")
     delivered = {e["event_id"]: e for e in day["notices"]}
-    for n in (n for w in watches for n in w.notices):
-        e = delivered.get(n.event_id)
-        if not e or (e["via"], e["matches"], e["first"]) != ("trigger", True, True):
-            problems.append(f"{n.event_id}: the env logged {e}, not the scheduled notice and payload by the trigger")
+    for w in watches:
+        for n in w.notices:
+            e = delivered.get(n.event_id)
+            if not e or (e["via"], e["matches"], e["first"]) != ("trigger" if w.index else "load", True, True):
+                problems.append(f"{n.event_id}: the env logged {e}, not the scheduled notice and payload")
 
     offered = sorted({tuple(t["name"] for t in body["tools"]) for _, _, body in fake.requests})
     if any(NOTICE_TOOL in names for names in offered):

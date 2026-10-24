@@ -7,7 +7,7 @@ import json
 
 import httpx
 import pytest
-from hybrid_days import DAY, in_process, scripted
+from hybrid_days import DAY, ROWS, in_process, scripted
 from live_days import FakeClock, live_server
 
 from agentenv_gridsim.hybrid import EMPTY, HYBRID_NOTICE_SCHEMA
@@ -66,6 +66,16 @@ async def test_a_day_through_the_env_is_the_sessions_byte_for_byte(env, client, 
     refs = DAY["refs"]
     stored = 0.0 if policy == "idle" else refs[tier]["baselines"][policy]["reward"]
     assert env.session.grade()["reward"] == stored
+
+
+@pytest.mark.parametrize("task", ROWS, ids=[r["task_id"] for r in ROWS])
+@pytest.mark.parametrize(("tier", "policy"), [("energy", "sponge"), ("reserves", "as_hog")])
+async def test_every_fixture_day_scores_its_stored_baseline_through_the_env(env, client, task, tier, policy):
+    calls = scripted(task, tier, POLICIES[policy])
+    outs, _ = await play(env, client, task, tier, calls)
+    played, want = in_process(task, tier, calls)
+    assert outs == want and env.session.data() == played.data() and env.session.audit()["ok"]
+    assert env.session.grade()["reward"] == task["refs"][tier]["baselines"][policy]["reward"]
 
 
 async def test_a_notice_whose_payload_differs_from_the_schedule_fails_the_audit(env, client):

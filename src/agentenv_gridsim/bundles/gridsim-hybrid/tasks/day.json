@@ -1,0 +1,489 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim-hybrid"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim-hybrid",
+    "directives": [
+      {
+        "service": "gridsim-hybrid",
+        "uri": "urn:gridsim:live-load/v1",
+        "args": {
+          "task_id": "hyb-v3-2023-09-06-HB_WEST-pv150-b100x2h-poi150",
+          "tier": "reserves"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hide-grid-notice",
+    "type": "modify_env_tool_access",
+    "env_id": "gridsim-hybrid",
+    "action": "disable",
+    "role": "default",
+    "tools": [
+      "grid_notice"
+    ]
+  },
+  {
+    "id": "watches",
+    "type": "register_env_triggers",
+    "env_id": "gridsim-hybrid",
+    "watch_roles": [
+      "default"
+    ],
+    "triggers": [
+      {
+        "id": "watch-1",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 1
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-2",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 2
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-3",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 3
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-dd3913a9fbaf",
+              "name": "ERCOT",
+              "text": "ERCOT issued a Watch (projected reserve capacity shortage with no market solution available for Wednesday, September 06, 2023...).",
+              "level": "Watch",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-4",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 4
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "VTEC-SJT-HT.Y-2023-0033-west",
+              "name": "NWS SJT",
+              "text": "NWS SJT: Heat Advisory for Tom Green, Taylor until 2023-09-07 21:00 CPT.",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-ecrs-20230906T1457",
+              "name": "ERCOT",
+              "text": "ERCOT deployed ECRS at 100% of awards from 14:57 to 18:27.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "ecrs",
+                "frac": 1.0,
+                "start_min": 897,
+                "end_min": 1107
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-5",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 5
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-nspin-20230906T1506",
+              "name": "ERCOT",
+              "text": "ERCOT deployed Non-Spin at 100% of awards from 15:06 to 21:05.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "nspin",
+                "frac": 1.0,
+                "start_min": 906,
+                "end_min": 1265
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-6",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 6
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-f30736b9e0f3",
+              "name": "ERCOT",
+              "text": "ERCOT asked the public to conserve electricity from 6:00 p.m. to 9:00 p.m.",
+              "level": "conservation",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-7",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 7
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-ecrs-20230906T1827",
+              "name": "ERCOT",
+              "text": "ERCOT deployed ECRS at 100% of awards from 18:27 to 20:56.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "ecrs",
+                "frac": 1.0,
+                "start_min": 1107,
+                "end_min": 1256
+              }
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-rrs-20230906T1859",
+              "name": "ERCOT",
+              "text": "ERCOT deployed RRS at 100% of awards from 18:59 to 19:56.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "rrs",
+                "frac": 1.0,
+                "start_min": 1139,
+                "end_min": 1196
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-8",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 8
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-5d9952551fc8",
+              "name": "ERCOT",
+              "text": "ERCOT issued an Advisory (Physical Responsive Capability being below 3000 MW).",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-ecrs-online-20230906T1923",
+              "name": "ERCOT",
+              "text": "ERCOT deployed ECRS at 100% of awards from 19:23 to 19:36.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "ecrs",
+                "frac": 1.0,
+                "start_min": 1163,
+                "end_min": 1176
+              }
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-bb2bbec1ad80",
+              "name": "ERCOT",
+              "text": "ERCOT declared Energy Emergency Alert level 2.",
+              "level": "EEA2",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-9",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 9
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-93f55f41c56b",
+              "name": "ERCOT",
+              "text": "ERCOT declared Energy Emergency Alert level 1.",
+              "level": "EEA1",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-c9a3cc9c8a20",
+              "name": "ERCOT",
+              "text": "ERCOT ended the Energy Emergency Alert; the grid is back to normal operations.",
+              "level": "EEA_exit",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-1da73a75af67",
+              "name": "ERCOT",
+              "text": "ERCOT cancelled its Energy Emergency Alert level 1.",
+              "level": "EEA1",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-15c1dfa230bc",
+              "name": "ERCOT",
+              "text": "ERCOT withdrew an earlier end-of-emergency message (superseded by a later one).",
+              "level": "EEA_exit",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-b0cb42b15d13",
+              "name": "ERCOT",
+              "text": "ERCOT cancelled its Advisory (Physical Responsive Capability being below 3000 MW).",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-3c23ffdb9c8d",
+              "name": "ERCOT",
+              "text": "ERCOT ended the Energy Emergency Alert; the grid is back to normal operations.",
+              "level": "EEA_exit",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "deploy-agent",
+    "type": "deploy_agent",
+    "a2a_agent_id": "gridsim-llm",
+    "env_ids": [
+      "gridsim-hybrid"
+    ]
+  },
+  {
+    "id": "clock",
+    "type": "sync_env_clock",
+    "env_id": "gridsim-hybrid",
+    "virtual_time": "2023-09-05T19:00:00Z",
+    "virtual_seconds_per_real_second": 0,
+    "tolerate_missing_sync_time": false
+  },
+  {
+    "id": "play",
+    "type": "prompt_agent",
+    "prompt_id": "hyb-v3-2023-09-06-HB_WEST-pv150-b100x2h-poi150",
+    "system_prompt": "You run a solar farm and a battery that share one meter (the point of interconnection) at an ERCOT node, for one operating day (D), live, on a virtual clock. Times are Central Prevailing Time (CPT); hour h (0..23) is h:00 to h+1:00. You are a price taker. You decide only the battery and, when reserves are on, the battery's ancillary-service (AS) awards; the plant's controller runs the solar panels.\n\nHow the day runs\n- Watch 0 is D-1 14:00, after the day-ahead market (DAM) posts: you see D's 24 hourly PV availability, DA energy prices and DA AS prices. Whatever book you hold when watch 0 ends becomes your DA position.\n- Then the day plays in watches: D 00:00, 06:00, 12:00, 18:00, plus a watch when ERCOT issues a notice or deploys reserves.\n- At every watch: read the situation, re-plan if it helps with up to 3 planning calls (check_schedule and commit_schedule share them; unused ones do not carry over), then call advance, which runs your book to the next watch. The day goes on until advance returns \"done\": true, so never stop early.\n- An hour's real-time (RT) price is shown only after the hour ends. Nothing moves while you think.\n- The freeze: at each watch, hours that start before the next full hour plus 1 hour are frozen at what you committed (frozen_until_hour is the first hour you can change). At watch 0 every hour is open.\n\nThe plant\n- pv_mw[h] is the PV the panels can deliver in hour h. meter_mw caps export, meter_import_mw caps import.\n- The controller curtails PV in hours whose price is negative, and whenever PV plus your battery output plus your up-reserve awards would exceed meter_mw. So discharging, or holding up reserves, while PV fills the meter costs you that PV.\n- energy[h] is the battery's MW in hour h: + discharges (sells), - charges (buys or soaks up PV). |energy| <= p_mw. Charging c MWh stores eta*c; discharging d MWh removes d. SoC stays within 0..e_mwh. Discharge over the day <= cycle_cap_mwh. Plan values are MW, any value (one hour at x MW is x MWh).\n\nReserves (AS)\n- Products: RegUp, RegDn (regulation), RRS, ECRS, Non-Spin. RegUp, RRS, ECRS and Non-Spin are up reserves: discharge on call. RegDn is a down reserve: charge on call. An award pays its hour's MCPC per MW.\n- Power: energy + up awards <= p_mw and energy - RegDn >= -p_mw; energy + up awards <= meter_mw.\n- State of charge (SoC) must back every award at both ends of the hour (before deployments): SoC >= sum over up products of duration_h x MW, and SoC <= e_mwh - eta x RegDn duration_h x RegDn MW. The durations for this day are below.\n- Regulation drifts SoC every hour: RegUp drains about reg_drift_mean.regup x its MW, RegDn adds eta x reg_drift_mean.regdn x its MW; the actual draw is learned after the hour. RRS, ECRS and Non-Spin deploy when ERCOT calls them (a notice says when): the battery discharges the award for up to the product's duration.\n- An award the battery cannot back is a failure to provide: its MW are charged at the hour's MCPC (the larger of DA and RT where RT exists). A shortfall caused by drift or a deployment that arrived after the hour froze is excused.\n- Reserves tier: your DA AS awards are fixed after watch 0; later commits may change only energy.\n\nAS durations for this day (era B): RegUp 1 h, RegDn 1 h, RRS 1 h, ECRS 2 h, Non-Spin 4 h.\n\nSettlement\n- Your DA position x_da[h] is the meter export your watch-0 book implies (PV after curtailment at DA prices, plus energy). It settles at the hour's DA price; the hour's actual export minus x_da settles at the RT price.\n- Profit = DA energy + RT deviations + AS awards x MCPC - c_deg per MWh discharged - failures to provide - the end shortfall: each MWh of SoC short of s_end_min_mwh at 24:00 is bought back at max(the day's highest DA price, $50/MWh) / eta. Prices can be negative or spike to the cap. Make profit as large as you can.\n\nTools\n- get_situation(): the full state as JSON: time, frozen_until_hour, site, AS rules, the day's hourly inputs, SoC, your book, the DA position, a projection of the day (SoC path, reserve margin per hour, money) and every notice.\n- check_schedule(plan, from_hour): a dry run: rule issues per hour, the projected day, clip recovered, curtailment and the reserve margin per hour. Commits nothing.\n- commit_schedule(plan, from_hour): replaces your book from from_hour, hour by hour: an hour that breaks a rule is refused (named by its rule) and keeps its old entry; if its energy alone passes, the energy is kept and only its AS are refused. Hours before frozen_until_hour must keep their committed values.\n- advance(): ends this watch.\n- get_time(), if offered, reads the same virtual clock in UTC.\nplan: {\"energy\": ..., \"regup\": ..., \"regdn\": ..., \"rrs\": ..., \"ecrs\": ..., \"nspin\": ...}. Each field is a list of MW values from from_hour to hour 23 (or all 24), or blocks [{\"from\": 17, \"to\": 21, \"mw\": 50}] meaning hours 17..20 at 50 MW (hours no block covers are 0). energy is required; an omitted AS field keeps your book. Example: {\"energy\": [{\"from\": 0, \"to\": 5, \"mw\": -50}, {\"from\": 18, \"to\": 21, \"mw\": 50}], \"regdn\": [{\"from\": 0, \"to\": 6, \"mw\": 25}], \"ecrs\": [{\"from\": 17, \"to\": 21, \"mw\": 25}]}",
+    "prompt": "Operating day 2023-09-06 at HB_WEST (site pv150-b100x2h-poi150). It is 2023-09-05 14:00 CPT, watch 0. Commit your book for D, then advance. The situation:\n{\"task_id\":\"hyb-v3-2023-09-06-HB_WEST-pv150-b100x2h-poi150\",\"tier\":\"reserves\",\"date\":\"2023-09-06\",\"era\":\"B\",\"settlement_point\":\"HB_WEST\",\"site_id\":\"pv150-b100x2h-poi150\",\"region\":\"west\",\"watch\":0,\"time\":\"2023-09-05 14:00\",\"frozen_until_hour\":0,\"calls_left\":3,\"day_over\":false,\"site\":{\"coupling\":\"ac\",\"pv_mwac\":150.0,\"pv_mwdc\":195.0,\"meter_mw\":150.0,\"meter_import_mw\":150.0,\"p_mw\":100.0,\"e_mwh\":200.0,\"unit_mw\":25.0,\"eta\":0.85,\"c_deg\":4.0,\"cycle_cap_mwh\":300.0,\"s_end_min_mwh\":100.0},\"as_rules\":{\"products\":[\"regup\",\"regdn\",\"rrs\",\"ecrs\",\"nspin\"],\"qualified\":[\"regup\",\"regdn\",\"rrs\",\"ecrs\",\"nspin\"],\"duration_h\":{\"regup\":1.0,\"regdn\":1.0,\"rrs\":1.0,\"ecrs\":2.0,\"nspin\":4.0},\"reg_drift_mean\":{\"regup\":0.12,\"regdn\":0.18},\"as_fixed_after_watch_0\":true},\"hours\":{\"pv_mw\":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,6.3,69.3,127.1,140.3,144.1,142.7,141.4,141.2,136.6,127.7,114.2,80.3,16.1,0.0,0.0,0.0,0.0],\"da_usd\":[24.6,23.52,22.11,21.72,23.04,24.73,25.42,23.93,22.16,21.47,25.64,35.0,62.2,108.87,203.13,314.56,470.26,426.91,693.57,1317.12,279.7,44.22,34.48,29.0],\"rt_usd\":[],\"mcpc_da\":{\"regup\":[2.1,1.47,1.45,1.46,1.8,2.71,3.1,2.0,2.0,4.64,5.4,10.34,25.65,65.15,118.68,252.43,189.98,251.47,295.15,759.21,80.57,14.01,7.65,4.63],\"regdn\":[4.98,1.25,1.25,1.01,0.54,0.62,1.15,1.25,5.41,2.9,1.53,1.31,3.24,11.09,87.5,252.36,181.5,245.59,114.25,500.15,166.83,14.39,4.98,3.5],\"rrs\":[3.01,2.69,1.81,1.99,2.0,2.71,2.71,2.0,2.0,4.38,2.0,4.51,4.51,9.49,65.15,40.26,39.99,174.2,295.15,769.21,177.57,15.51,9.41,6.13],\"ecrs\":[1.0,0.09,1.0,1.0,0.09,1.0,1.0,1.95,2.2,5.38,5.0,10.0,40.0,84.12,129.91,263.66,414.97,251.03,294.64,775.81,92.57,10.0,3.61,1.0],\"nspin\":[0.25,0.25,0.25,0.25,0.25,0.32,0.99,0.99,1.0,1.04,2.72,5.1,31.31,68.97,102.09,111.45,140.81,174.2,130.57,140.17,92.17,3.14,1.75,0.92]},\"mcpc_rt\":null},\"soc_mwh\":100.0,\"discharged_mwh\":0.0,\"status\":\"OOOOOOOOOOOOOOOOOOOOOOOO\",\"book\":{\"energy\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"regup\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"regdn\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"rrs\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"ecrs\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"nspin\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},\"da\":null,\"projected\":{\"energy_usd\":294693.56,\"as_usd\":0.0,\"degradation_usd\":0.0,\"ftp_usd\":0.0,\"end_penalty_usd\":0.0,\"total_usd\":294693.56,\"end_soc_mwh\":100.0,\"soc_mwh\":[100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0],\"reserve_margin_mwh\":[100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0,100.0]},\"cash\":{\"energy_da\":0.0,\"energy_rt\":0.0,\"as_da\":0.0,\"as_rt\":0.0,\"deployment_energy\":0.0,\"degradation\":0.0,\"ftp\":0.0,\"excused\":0.0,\"end_penalty\":0.0,\"total\":0.0},\"deployments\":[],\"notices\":[{\"time\":\"2023-09-05 14:00\",\"issued_at\":\"2023-09-04 14:17\",\"event_id\":\"VTEC-MAF-HT.Y-2023-0039-west\",\"source\":\"NWS\",\"level\":\"Advisory\",\"name\":\"NWS MAF\",\"title\":\"Heat Advisory\",\"text\":\"NWS MAF: Heat Advisory for Midland, Ector, Howard until 2023-09-05 21:00 CPT.\"},{\"time\":\"2023-09-05 14:00\",\"issued_at\":\"2023-09-05 02:21\",\"event_id\":\"VTEC-SJT-HT.Y-2023-0032-west\",\"source\":\"NWS\",\"level\":\"Advisory\",\"name\":\"NWS SJT\",\"title\":\"Heat Advisory\",\"text\":\"NWS SJT: Heat Advisory for Tom Green, Taylor until 2023-09-05 21:00 CPT.\"},{\"time\":\"2023-09-05 14:00\",\"issued_at\":\"2023-09-05 10:31\",\"event_id\":\"OPS-ad9dc46e105d\",\"source\":\"ERCOT\",\"level\":\"OCN\",\"name\":\"ERCOT\",\"title\":\"ERCOT OCN\",\"text\":\"ERCOT issued an OCN (extreme hot weather with forecasted temperatures to be above 103°F in the North Central and South Central...).\"}]}",
+    "max_turns": 52,
+    "model_params": {
+      "max_tokens": 8192
+    },
+    "effort": "high",
+    "timeout_seconds": 7200
+  },
+  {
+    "id": "end-day",
+    "type": "apply_server_config",
+    "env_id": "gridsim-hybrid",
+    "directives": [
+      {
+        "service": "gridsim-hybrid",
+        "uri": "urn:gridsim:end-day/v1",
+        "args": {}
+      }
+    ]
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim-hybrid",
+    "file_artifact_id": "gridsim-hybrid-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]
