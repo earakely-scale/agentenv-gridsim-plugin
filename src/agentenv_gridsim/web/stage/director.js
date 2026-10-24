@@ -15,7 +15,8 @@ export function buildDirector(d, L, { night }) {
   d.hours.forEach((x, h) => {
     if (h > 1 && x.mode !== d.hours[h - 1].mode && x.mode !== "grey") claim(h - 0.1, h + 1.4, "push");
   });
-  if (d.prices[d.peakH] > d.median * 1.6) claim(d.peakH - 1.25, d.peakH + 1.5, "ramp");
+  if ((d.live ? d.hours.map((x) => x.price) : d.prices)[d.peakH] > d.median * 1.6) claim(d.peakH - 1.25, d.peakH + 1.5, "ramp");
+  for (const w of d.watches || []) if (w.index > 0 && w.notices.length) claim(w.t - 0.05, w.t + 1.2, "line");
   const negH = d.hours.find((x) => x.neg && x.action < 0)?.h ?? d.firstNeg;
   if (negH >= 0) claim(negH - 0.1, negH + 1.9, "neg");
   if (d.trunc != null) claim(d.trunc - 0.1, d.trunc + 2.2, "violation");

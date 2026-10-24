@@ -1,7 +1,10 @@
 import { load } from "./data.js";
+import { LIVE_SCHEMA, loadLive } from "./live.js";
 import { GridStage } from "./stage/stage.js";
 import { buildCharts } from "./ui/charts.js";
+import { buildLiveCharts } from "./ui/chartslive.js";
 import { buildHud } from "./ui/hud.js";
+import { buildLiveHud } from "./ui/hudlive.js";
 import { buildIntro } from "./ui/intro.js";
 import { buildSound } from "./ui/sound.js";
 
@@ -28,7 +31,8 @@ async function main() {
   const ep = await json(epUrl);
   const wxUrl = q.get("weather") || `${q.get("wxbase") || "weather"}/${ep.task.date}_${ep.task.settlement_point}.json`;
   const weather = await json(wxUrl).catch(() => null);
-  const d = load(ep, weather);
+  const live = ep.schema === LIVE_SCHEMA;
+  const d = live ? loadLive(ep, weather) : load(ep, weather);
   const manual = q.has("record");
   const reduced = q.has("reduced") ? q.get("reduced") !== "0" : matchMedia("(prefers-reduced-motion: reduce)").matches;
   app.innerHTML = "";
@@ -38,13 +42,14 @@ async function main() {
   host.className = "stage-host";
   root.append(host);
   app.append(root);
-  document.title = `${ep.task.settlement_point} ${ep.task.date} · GridSimEnv`;
+  document.title = `${ep.task.settlement_point} ${ep.task.date}${live ? " live" : ""} · GridSimEnv`;
+  root.classList.toggle("is-live", live);
   const stage = new GridStage(host, d, { manual, reduced });
   stage.force = q.get("shot");
   const P = { t: q.has("hour") ? +q.get("hour") - 0.5 : q.has("t") ? +q.get("t") : INTRO, playing: !manual && !q.has("t") && !q.has("hour"), speed: 1, wall: 0 };
   if (q.has("ui") && q.get("ui") === "0") root.classList.add("bare");
-  const charts = buildCharts(root, d);
-  const intro = buildIntro(root, d);
+  const charts = (live ? buildLiveCharts : buildCharts)(root, d);
+  const intro = live ? { update() {} } : buildIntro(root, d);
   const sound = buildSound();
   const settings = document.createElement("section");
   settings.className = "card settings";
@@ -54,7 +59,7 @@ async function main() {
   settings.querySelector('[name="reduced"]').addEventListener("change", (e) => (stage.reduced = e.target.checked));
   settings.querySelector('[name="sound"]').addEventListener("change", (e) => sound.set(e.target.checked));
   settings.querySelector('[name="ghosts"]').addEventListener("change", (e) => root.classList.toggle("no-ghosts", !e.target.checked));
-  const hud = buildHud(root, d, {
+  const hud = (live ? buildLiveHud : buildHud)(root, d, {
     onSeek: (t) => ((P.t = t), stage.direct(stage.directing)),
     onToggle: (a, s) => {
       if (a === "play") P.playing = !P.playing, P.t >= 24 && P.playing && (P.t = INTRO);
@@ -81,7 +86,7 @@ async function main() {
     else if (e.key === "c" || e.key === "C") charts.toggle();
   });
   if (q.get("charts") === "1") charts.toggle(true);
-  const blindHidden = d.ep.tier === "blind";
+  const blindHidden = !live && d.ep.tier === "blind";
   const draw = (dt) => {
     const f = stage.frame({ t: Math.max(0, P.t), dt, wall: P.wall });
     hud.update(P.t, { playing: P.playing, speed: P.speed, directing: stage.directing });

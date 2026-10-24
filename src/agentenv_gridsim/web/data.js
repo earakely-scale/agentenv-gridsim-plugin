@@ -128,6 +128,7 @@ export function load(ep, weather = null) {
 
 /** What the scene shows at t (hours since local midnight, 0..24). */
 export function at(d, t) {
+  if (d.live) return d.at(t);
   const h = Math.max(0, Math.min(23, Math.floor(t)));
   const u = Math.max(0, Math.min(1, t - h));
   const x = d.hours[h];
