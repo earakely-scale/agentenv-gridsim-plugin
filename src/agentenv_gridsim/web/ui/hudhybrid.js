@@ -20,7 +20,7 @@ const svgEl = (tag, attrs) => {
 const plain = (min) => clockText(min, { small: false });
 const mwTxt = (v) => (Math.abs(v) < 10 ? Math.abs(v).toFixed(1) : String(Math.round(Math.abs(v))));
 const mwh = (v) => `${Math.round(v)} MWh`;
-const sgn = (v) => (v > 0.005 ? "+" : v < -0.005 ? "−" : "");
+const mvTxt = (v) => (Math.abs(v) < 0.05 ? "idle" : `${v > 0 ? "discharging" : "charging"} ${mwTxt(v)} MW`);
 const CHARGE = "#2fd3ff", DISCHARGE = "#ffa62b", SOLAR = "#efe0a8", SOLAR_EDGE = "#b8973c";
 const INK = "rgba(28,35,41,0.62)";
 const reward = (p, idle, anchor) => (anchor - idle > 1e-6 ? Math.max(0, Math.min(1, 0.2 + (0.8 * (p - idle)) / (anchor - idle))) : null);
@@ -186,7 +186,7 @@ function placeHtml(d, x0, t, min, settled, lastRt, hot, wx, anchor) {
   const dep = x.dep > 0.1 ? x.events.filter((e) => min >= e.from && min < e.to).map((e) => PROD[e.product].name) : [];
   const upMw = UP.reduce((a, k) => a + x.awards[k], 0);
   const act = pre ? (t < -1.2 ? "The day before: planning" : "Day-ahead book committed") : ended ? "Day over" :
-    dep.length ? `Discharging ${mwTxt(mw)} MW · ${dep.join(" and ")} deployed` :
+    dep.length ? `${dep.join(" and ")} deployed · ${mwTxt(x.dep)} MW called${x.net > 0.5 ? `, discharging ${mwTxt(x.net)}` : x.net < -0.5 ? `, still charging ${mwTxt(x.net)} net` : ""}` :
     x.mode === "charge" ? `Charging ${mwTxt(mw)} MW${x.fromPv > mw - 0.5 ? " from the panels" : x.fromPv > 0.5 ? `, ${mwTxt(x.fromPv)} from the panels` : x.price < 0 ? " from the grid, paid to take it" : " from the grid"}` :
     x.mode === "discharge" ? `Discharging ${mwTxt(mw)} MW` :
     upMw + x.awards.regdn > 0.5 ? `Holding ${[upMw > 0.5 && `${mwTxt(upMw)} MW up`, x.awards.regdn > 0.5 && `${mwTxt(x.awards.regdn)} MW RegDn`].filter(Boolean).join(" and ")} in reserve` : "Idle";
@@ -440,7 +440,7 @@ function newsEvents(d) {
   for (const x of d.hours) {
     if (x.ftpMw > 0.05) ev.push({ t: x.h + 1, until: x.h + 1.8, kind: "ftp", text: `Short ${mwTxt(x.ftpMw)} MW of reserves ${hourSpan(x.h)}: ${money(x.ftpUsd)} failure to provide` });
     else if (x.excusedMw > 0.05) ev.push({ t: x.h + 1, until: x.h + 1.7, kind: "excused", badge: ["Excused", "off"], text: `${mwTxt(x.excusedMw)} MW short ${hourSpan(x.h)}, excused: the drift or deployment came after the hour froze` });
-    if (x.governor) ev.push({ t: x.h + 0.08, until: x.h + 0.9, kind: "governor", text: `Governor ${hourSpan(x.h)}: the battery's ${sgn(x.e)}${mwTxt(x.e)} MW is moved to ${sgn(x.b)}${mwTxt(x.b)} MW to keep its awards backed` });
+    if (x.governor) ev.push({ t: x.h + 0.08, until: x.h + 0.9, kind: "governor", text: `Governor ${hourSpan(x.h)}: the battery moves from ${mvTxt(x.e)} to ${mvTxt(x.b)} to keep its awards backed` });
   }
   for (const w of d.watches) {
     const bad = w.refused;

@@ -498,3 +498,4 @@ span.gl { display: inline-block; min-width: 14px; height: 14px; line-height: 13p
   .tl.live.hyb .hours { left: 0; }
 }
 .place .tags { white-space: nowrap; }
+.score.hyb .line b { white-space: nowrap; }
