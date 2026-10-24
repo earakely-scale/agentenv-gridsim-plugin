@@ -16,6 +16,7 @@ from .live_tasks import AGENT, flow, select, write_bundle
 from .server import read_pack
 
 VERIFIER = "gridsim-hybrid-verifier"
+MODEL_PARAMS = {"max_tokens": 16384}
 VERIFY = files("agentenv_gridsim.bundles") / "gridsim-hybrid/artifacts/gridsim-hybrid-verifier/verify.py"
 LICENCE = ("Prices: ERCOT Day-Ahead and Real-Time Market settlement point prices (NP4-190-CD, NP6-905-CD) and DAM "
            "Clearing Prices for Capacity (NP4-188-CD), public ERCOT data; ERCOT does not endorse this work. Solar from "
@@ -38,7 +39,7 @@ def steps(task: dict, tier: str = "reserves", episode_cap_usd: float | None = No
     frozen at watch 0, play on the hybrid rules card, end the day and grade it. Without ``play``, no agent."""
     s = Session(task, tier)
     return flow(HYBRID_ENV, VERIFIER, task["task_id"], tier, s.watch_time_utc(0), triggers(s.watches),
-                system_prompt(tier, s.day.era), opening(s), episode_cap_usd, play)
+                system_prompt(tier, s.day.era), opening(s), episode_cap_usd, play, MODEL_PARAMS)
 
 
 def generate(pack: str, out: Path, *, tier: str = "reserves", task_ids: list[str] | None = None,

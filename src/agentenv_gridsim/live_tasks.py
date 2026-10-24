@@ -55,7 +55,8 @@ def steps(task: dict, tier: str = "foresight", episode_cap_usd: float | None = N
 
 
 def flow(env: str, verifier: str, task_id: str, tier: str, watch_0_utc: str, watch_triggers: list[dict], system: str,
-         user: str, episode_cap_usd: float | None = None, play: bool = True) -> list[dict]:
+         user: str, episode_cap_usd: float | None = None, play: bool = True,
+         model_params: dict = MODEL_PARAMS) -> list[dict]:
     """The steps of a day in watches on a gateway env, shared by gridsim-live and gridsim-hybrid."""
     out = [{"id": "deploy", "type": "deploy_env", "env_id": env}, load_step(task_id, tier, env),
            {"id": "hide-grid-notice", "type": "modify_env_tool_access", "env_id": env, "action": "disable",
@@ -69,7 +70,7 @@ def flow(env: str, verifier: str, task_id: str, tier: str, watch_0_utc: str, wat
                 "virtual_seconds_per_real_second": 0, "tolerate_missing_sync_time": False})
     if play:
         out.append({"id": "play", "type": "prompt_agent", "prompt_id": task_id, "system_prompt": system,
-                    "prompt": user, "max_turns": MAX_TURNS, "model_params": MODEL_PARAMS, "effort": EFFORT,
+                    "prompt": user, "max_turns": MAX_TURNS, "model_params": model_params, "effort": EFFORT,
                     "timeout_seconds": PLAY_SECONDS})
     return out + [
         {"id": "end-day", "type": "apply_server_config", "env_id": env,

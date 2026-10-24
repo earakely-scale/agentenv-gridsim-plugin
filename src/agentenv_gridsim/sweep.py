@@ -784,7 +784,7 @@ def hybrid_card(board: Board) -> dict:
                                "days out", "flags": flags},
         "harness": {"agent": live_tasks.AGENT, "env": HYBRID_ENV, "tools": [*HYBRID_TOOLS, "get_time"],
                     "max_turns": MAX_TURNS, "planning_calls_per_watch": PLANNING_CALLS,
-                    "max_tokens": live_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
+                    "max_tokens": hybrid_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
                     "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual "
                             "clock)"},
         "grading": {"reference": "information-matched rolling MILP (HiGHS) played through the Session",

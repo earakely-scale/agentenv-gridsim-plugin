@@ -52,8 +52,8 @@ def test_the_steps_are_the_episode_flow(local_stores, tier):
             by_id["clock"]["tolerate_missing_sync_time"]) == (watches[0].time_utc, 0, False)
     s = Session(DAY, tier)
     play = by_id["play"]
-    assert (play["system_prompt"], play["prompt"], play["max_turns"]) == (system_prompt(tier, s.day.era), opening(s),
-                                                                          MAX_TURNS)
+    assert (play["system_prompt"], play["prompt"], play["max_turns"], play["model_params"]) == (
+        system_prompt(tier, s.day.era), opening(s), MAX_TURNS, {"max_tokens": 16384})
     assert by_id["deploy-agent"]["env_vars"] == {"GRIDSIM_MAX_COST_USD": "0.5"}
     assert by_id["end-day"]["directives"][0]["uri"] == END_DAY_URI
     assert (by_id["grade"]["file_artifact_id"], by_id["grade"]["score_aggregator"]) == (
