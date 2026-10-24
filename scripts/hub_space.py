@@ -114,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         for t in load_pack(pack):
             tasks.setdefault(t["task_id"], t)
     entries, rejected, skipped, views = [], [], [], {}
-    fixture_ids = fixtures()
+    fixture_ids, seen = fixtures(), set()
     for folder in args.runs:
         for f in sorted(folder.rglob("*.json")):
             if f.name == "index.json" or "raw" in f.relative_to(folder).parts[:-1]:
@@ -126,6 +126,9 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
                 continue
+            if ep["episode_id"] in seen:
+                continue
+            seen.add(ep["episode_id"])
             v2 = schema == live.EPISODE_SCHEMA
             if v2 and ep["task_id"] in fixture_ids:
                 skipped.append(f)
@@ -153,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     (out / "runs" / "index.json").write_text(json.dumps({"schema": "gridsim.runs/v1", "episodes": index}
                                                         | ({"training": training} if training else {}),
                                                         separators=(",", ":")))
-    (out / "README.md").write_text(readme(entries, featured[0] if featured else None))
+    (out / "README.md").write_text(readme(entries, featured[0] if featured else None, training))
     for f, why in rejected:
         print(f"REJECTED {f}: {why}")
     if skipped:
@@ -420,7 +423,7 @@ def still(out: Path, e: dict) -> None:
     e["thumb"] = "thumbs/hero.jpg"
 
 
-def readme(entries: list[dict], hero: dict | None) -> str:
+def readme(entries: list[dict], hero: dict | None, training: dict | None = None) -> str:
     v2 = [e for e in entries if e["version"] == "v2"]
     entries = [e for e in entries if e["version"] == "v1"]
     counts = Counter(e["model_label"] or e["model"] for e in entries if real(e))
@@ -443,6 +446,17 @@ def readme(entries: list[dict], hero: dict | None) -> str:
             n=len(v2), models=", ".join(f"{n} of {m}" for m, n in live_counts.most_common()),
             hero=f"\n\n**The featured live day,** [{lv['date']} at {lv['point']}]"
                  f"({APP}/index.html?episode=runs/{lv['url']}): {lv['blurb']}" if lv else "") + "\n## Links\n")
+    if training:
+        lines = ["", "## Training views", ""]
+        if lu := training.get("levelup"):
+            name = lu["model"].split("/")[-1]
+            lines.append(f"- [LEVEL UP]({APP}/index.html?levelup=runs/levelup.json): {name} on one held-out day "
+                         f"({lu['task_id']}) at each of {lu['frames']} checkpoints, reward gain {lu['gain']:+.2f}."
+                         + (f" {lu['note']}." if lu.get("note") else ""))
+        if rc := training.get("race"):
+            lines.append(f"- [The race]({APP}/index.html?race=runs/race.json): {', '.join(rc['lanes'])} on the same "
+                         f"day ({rc['task_id']}).")
+        text = text.replace("\n## Links\n", "\n".join(lines) + "\n\n## Links\n")
     return text
 
 

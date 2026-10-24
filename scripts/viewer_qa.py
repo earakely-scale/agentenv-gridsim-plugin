@@ -8,6 +8,7 @@ usage: python scripts/viewer_qa.py --out DIR [--runs results/runs/reference] [--
 import argparse
 import base64
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -68,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         for label, eid, t, shot in MATRIX:
             if args.only and args.only not in label:
                 continue
-            ep = ROOT / f"{R}{eid}.json"
+            ep = episode(eid)
             e = json.loads(ep.read_text())
             wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
             url = viewer_url(port, ep, wx, False, f"shot={shot}" if shot else "")
@@ -93,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
                             failures.append(f"{label}: off-host request {u}")
                 print(f"{label}: ok ({gl})")
         if args.perf:
-            ep = ROOT / f"{R}{args.perf}.json"
+            ep = episode(args.perf)
             e = json.loads(ep.read_text())
             wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
             with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, gl):
@@ -112,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.determinism:
             for eid, t in (("dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3),
                            (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75)):
-                ep = ROOT / f"{R}{eid}.json"
+                ep = episode(eid)
                 e = json.loads(ep.read_text())
                 wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
                 pngs = []
@@ -131,6 +132,10 @@ def main(argv: list[str] | None = None) -> int:
         print("FAIL", f)
     print(f"{len(stills)} stills, {len(failures)} failures -> {args.out / 'qa-contact.jpg'}")
     return 1 if failures else 0
+
+
+def episode(eid: str) -> Path:
+    return ROOT / os.path.normpath(f"{R}{eid}.json")
 
 
 def sheet(stills, out: Path, cols: int = 3, tw: int = 640, th: int = 360) -> None:
