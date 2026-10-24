@@ -36,7 +36,8 @@ archives that are themselves as issued, and models the rest from them only:
 | Henry Hub | not used (V4-P4) | - |
 | RT MCPC (rtcb) | not modelled: DA AS only, as v3's T2 (V3-D10) | waits |
 | Resource-node SPPs | hubs and load zones only | waits (v1.1) |
-| ERCOT forecast vintages, `ercot-front-v4-fresh` | NP3-565/NP4-732/742/745 from the API (2023-12-11 on), the portal archive (the depth check) and the forward-capture cron | waits |
+| ERCOT forecast vintages, API era | NP3-565 load by model and zone, NP4-732/742 STWPF/WGRPP, NP4-745 STPPF/PVGRPP from the ERCOT public API (2023-12-11 on), served in windows from 2023-12-12 (V4-P17) | real |
+| ERCOT forecast vintages before 2023-12-11, `ercot-front-v4-fresh` | the portal archive (the depth check) and the forward-capture cron | waits |
 
 Every modelled series is a deterministic function of inputs revealed at or before its issued_at (the reveal table
 below, enforced by the store builder's leakage tests and replayed by the audit), so the plan's information discipline
@@ -100,6 +101,39 @@ Measured tonight (phase-1 probes, `$SP/gridsim/c4/out`):
 | V4-P14 | Forecast-call budget | `get_forecast` and `get_forecast_drift` share 6 calls per watch (free of the planning calls); `submit_dam` 3 per gate |
 | V4-P15 | Weather points | 18 fixed points (`data/forecast/points.json`): the 8 v1 site airports (ASOS-checkable), 3 more zone points (SPS, ABI, HRL), 4 wind and 3 solar points; zones by nearest representative city, labelled approximate |
 | V4-P16 | Henry Hub, NBM, fleet/desk tiers, overworld map | Not built (the plan's V4-D4/D5/D6) |
+| V4-P17 | ERCOT's own vintages | Windows from d1 = 2023-12-12 serve ERCOT's load, wind and solar vintages (`source: ercot`); earlier windows and the whole train pack serve the desk's (`source: desk`). The price guide stays on desk features in every era, so P_roll's prices are one model family; P_roll's site PV follows the served solar. Details below |
+
+## ERCOT vintages in the API era (V4-P17)
+
+The ERCOT public API (subscription key and ID-token login in SSM, read only inside the fetching process, never logged)
+serves these reports from 2023-12-11, from US egress, at 30 requests a minute. The data lane fetches them on the box
+into the same store, beside the desk, HRRR and EIA kinds, with the same issued_at discipline:
+
+| Kind | Report | Keys | Fields |
+|---|---|---|---|
+| `ercot_load` | NP3-565-CD Seven-Day Load Forecast by Model and Weather Zone | `system` (the 8 zones summed) and each zone | `mw` (the model with the in-use flag set), `model` |
+| `ercot_wind` | NP4-732-CD (system), NP4-742-CD (regions) | `system`, each wind region | `stwpf_mw` (P50), `wgrpp_mw` (P80) |
+| `ercot_solar` | NP4-745-CD | `system` (the regions summed), each solar region | `stppf_mw` (P50), `pvgrpp_mw` (P80) |
+
+- issued_at = the posting time the API reports (`postedDatetime`, CPT, converted to UTC); reveal_at = issued_at. The
+  store keeps every hourly posting, trimmed to 72 h from the posting hour; `run_id` = `"{report}@{posted UTC}"`. A
+  posting's rows are taken as posted (no later revision replaces them); the index's `sha` binds them.
+- A window's `source` is `ercot` when d1 >= 2023-12-12 (so every vintage it can serve, from 24 h before the open, lies
+  in the API span) and the store has, for each of the three kinds, a posting within 2 h before every fixed watch;
+  otherwise `desk`. The load config may override it (`{"task_id", "tier", "source"}`) for the desk ablation; refs are
+  stored for the row's own source and computed on demand for the other.
+- In an `ercot` window `get_forecast(load|wind|solar)` and `get_forecast_drift` serve the ercot kinds (`mw` = the
+  P50 field; `wgrpp_mw`/`pvgrpp_mw` also returned as `p80_mw`), with `source` naming the report; zones map to
+  NP3-565's weather zones. The site's PV P50 is `hybrid.pv_at_bus(site, stppf_system / installed_mw)` (lane D3's
+  installed MW of the day). Weather, price, alerts and the EIA DF are served as in `desk` windows.
+- References: P_roll, P_roll3 and P_naive read the guide's prices (desk features in every era) and the served site PV;
+  P_blind is unchanged. The agent's extra information (ERCOT's load and wind) is an edge the anchor does not use; it
+  shows in `beats_anchor` and `paired_vs_anchor`, and the card states it.
+- Packs: train stays `desk` throughout (one forecast family to train on); eval (2025), rtcb, `fern-0124`,
+  `heather-0114` and `spring-0328` are `ercot`; `uri-0213` is `desk`. Eval rows carry both slices, so the `desk`
+  ablation runs on the same windows. The task row gains `"source": "ercot|desk"` and the slice's `kinds` list.
+- The audit's forecast replay covers the ercot kinds the same way (reveal_at <= the call's minute, `sha` from the
+  index).
 
 ## Clock, window and watches
 
@@ -140,6 +174,7 @@ Measured tonight (phase-1 probes, `$SP/gridsim/c4/out`):
 | RT SPP of hour h (mean of its four 15-minute SPPs) | end of hour h |
 | Site PV actual of hour h | end of hour h |
 | ERCOT notice, NWS VTEC product, AS deployment | ceil(issued_at, 60 min) |
+| ERCOT NP3-565, NP4-732/742, NP4-745 posting | its posting time (V4-P17) |
 
 ## Plant, settlement and the terminal rule
 
@@ -406,7 +441,10 @@ cache/forecast/                     raw, gitignored
                                     v80_ms, dswrf_wm2, tcdc_pct (float32, the nearest grid cell in points.json)
   eia930/erco.parquet               hour_end_utc, df_mw, demand_mw, wind_mw, solar_mw, battery_mw (NaN before the 2026
                                     schema), imputed flags; eia930/erco_sub.parquet: hour_end_utc, subregion, demand_mw
+  ercot/raw/{report}/...            API responses as fetched (the data lane's layout)
   store/vintages/YYYY.parquet       issued_at_utc, run_id, kind, key, start_utc, field, values (list<float32>), sha
+                                    (kinds: weather, load, wind, solar, price, mcpc, load_official, ercot_load,
+                                    ercot_wind, ercot_solar)
   store/index.parquet               kind, key, issued_at_utc, reveal_at_utc, run_id, start_utc, n_hours, sha
   store/manifest.json               spans, row counts, guide years, builder version, store sha
 data/forecast/                      committed

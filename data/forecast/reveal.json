@@ -49,6 +49,10 @@
   },
   "deployment": {
    "rule": "ceil(issued_at, 60 min)"
+  },
+  "ercot_posting": {
+   "rule": "its posting time",
+   "basis": "ERCOT public API postedDatetime (NP3-565, NP4-732/742, NP4-745), 2023-12-11 on"
   }
  }
 }
