@@ -310,7 +310,7 @@ def test_end_day_plays_the_book_and_grades(day):
 def test_anchor_scores_one_and_idle_point_two(day):
     r = day["refs"]
     anc = H.play(day, "reserves", H.anchor_policy(), reference=False)
-    assert anc.grade()["reward"] == pytest.approx(1.0) and anc.audit()["ok"]
+    assert anc.grade()["reward"] == pytest.approx(1.0) and anc.audit()["ok"] and not anc.grade()["beats_anchor"]
     idle = H.play(day, "reserves", lambda s: s.call("commit_schedule", {"plan": {"energy": [0] * 24}, "from_hour": 0})
                   if s.watch == 0 else None, reference=False)
     assert idle.grade()["reward"] == pytest.approx(0.2) and idle.profit() == pytest.approx(r["p_idle"])

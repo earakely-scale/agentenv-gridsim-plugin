@@ -961,7 +961,7 @@ class Session(WatchDay):
                 "p_lp": tr.get("p_lp"),
                 "capture_vs_hindsight": _r6((p - p_idle) / (p_hind - p_idle))
                 if p_hind is not None and p_hind - p_idle > DEGENERATE_EPS else None,
-                "beats_anchor": p > p_anchor + DEGENERATE_EPS,
+                "beats_anchor": _r6(p) > p_anchor + 1e-6,
                 "energy_only_reward": reward_value(tr["p_energy_only"], p_idle, p_anchor)
                 if tr.get("p_energy_only") is not None else None,
                 "as_share": _r6(as_rev / (as_rev + en_gain)) if as_rev + en_gain > DEGENERATE_EPS else None,
