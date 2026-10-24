@@ -8,7 +8,6 @@ through gridsim_core.hybrid.Session, a market sweep's gridsim.episode/v5 JSON th
 
 import asyncio
 import json
-from functools import cache
 from pathlib import Path
 
 import click
@@ -18,7 +17,6 @@ from gridsim_core import hybrid, market
 from gridsim_core.episode import to_episode_json
 from gridsim_core.grade import grade
 from gridsim_core.live import Session
-from gridsim_core.market_stack import DayStore, task_store
 
 from .hybrid import HYBRID_PACK_NAMES
 from .live import LIVE_PACK_NAMES
@@ -119,17 +117,11 @@ def live_episode(sweep: Sweep, row: dict, task: dict) -> dict:
                      episode_id=row["instance"].rsplit("/", 1)[-1]) | {"audit": audit}
 
 
-@cache
-def packaged_store() -> DayStore:
-    return task_store({})
-
-
 def market_replay(task: dict, tier: str, record: dict, compliant: bool = False
                   ) -> tuple[market.Session, list[tuple[int, str]]]:
     """A market run's record played again through a fresh market Session, as live_replay does, the floor closed with
     end_floor when the agent left it open."""
-    store = None if task.get("days") else packaged_store()
-    s, reads, watch = market.Session(task, tier, store=store, compliant=compliant), [], 0
+    s, reads, watch = market.Session(task, tier, compliant=compliant), [], 0
     raw = {m["tool_call_id"]: m["content"] for m in record["messages"] if m["role"] == "tool"}
     for step in record["steps"]:
         if step["tool"] == "get_time" and "current_time" in step["output"]:

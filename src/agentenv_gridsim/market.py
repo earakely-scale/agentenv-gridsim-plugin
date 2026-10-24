@@ -17,7 +17,6 @@ from pydantic import Field
 from gridsim_core.live import NOTICE_TOOL
 from gridsim_core.market import END_URI, LOAD_URI, MARKET_ENV, TIERS, TOOLS, Session
 from gridsim_core.market_prompt import tool_schemas
-from gridsim_core.market_stack import DayStore, task_store
 
 from .live import NOTICE_SCHEMA, WatchEnv
 
@@ -54,16 +53,7 @@ class GridSimMarketEnv(WatchEnv):
 
     def __init__(self, tasks):
         self.compliant = False
-        self.packaged: DayStore | None = None
         super().__init__(tasks)
-
-    def store(self, row: dict) -> DayStore:
-        """The days a floor reads: its inline days, else the packaged store, read once per env."""
-        if row.get("days"):
-            return task_store(row)
-        if self.packaged is None:
-            self.packaged = task_store({})
-        return self.packaged
 
     @tool(description=ALL["get_situation"]["description"])
     async def get_situation(self) -> str:
@@ -143,8 +133,7 @@ class GridSimMarketEnv(WatchEnv):
         if (row := self.tasks.get(floor_id)) is None:
             raise ValueError(f"unknown floor id {floor_id!r}")
         self.reset()
-        self.session = Session(row, tier, [] if iso == "off" else None, store=self.store(row),
-                               compliant=bool(compliant))
+        self.session = Session(row, tier, [] if iso == "off" else None, compliant=bool(compliant))
         self.compliant, self.loaded = bool(compliant), True
         return {"floor_id": floor_id, "tier": tier, "watches": len(self.session.watches)}
 

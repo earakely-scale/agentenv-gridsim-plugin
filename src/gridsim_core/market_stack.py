@@ -9,6 +9,7 @@ import gzip
 import io
 import json
 import zipfile
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -30,6 +31,7 @@ from gridsim_core.market_auction import (
 )
 from gridsim_core.task import data_root
 
+FIXTURE_PACK = "fixtures-market"
 DISCLOSURE_LAG_DAYS = 60
 DISCLOSURE_WINDOW_DAYS = 90
 API_START = "2023-12-11"
@@ -41,37 +43,66 @@ def shift(date: str, days: int) -> str:
 
 
 class DayStore:
-    """Days rows by date from jsonl(.gz) files or directories of them (data/market/days, fixture days)."""
+    """Days rows by date from jsonl(.gz) files or directories of them (data/market/days, fixture days); a later source
+    wins a date. A directory's month files (YYYY-MM.jsonl.gz) are read when a date of their month is first asked for,
+    so a floor holds the few months it reads, not the whole store; ``rows`` reads every pending file."""
 
     def __init__(self, *sources):
-        self.rows: dict[str, dict] = {}
+        self._rows: dict[str, dict] = {}
+        self.rank: dict[str, int] = {}
+        self.pending: dict[str, list[tuple[int, Path]]] = {}
+        self.sources = 0
         for src in sources or (data_root() / "market" / "days",):
             self.add(src)
 
     def add(self, src):
+        rank, self.sources = self.sources, self.sources + 1
         if isinstance(src, dict):
-            self.rows[src["date"]] = src
+            self._put(src, rank)
             return
         if isinstance(src, list):
             for r in src:
-                self.add(r)
+                self._put(r, rank)
             return
         p = Path(src)
         files = sorted(p.glob("*.jsonl*")) if p.is_dir() else [p] if p.exists() else []
         for f in files:
-            with (gzip.open(f, "rt") if f.suffix == ".gz" else open(f)) as fh:
-                for line in fh:
-                    if line.strip():
-                        r = json.loads(line)
-                        self.rows[r["date"]] = r
+            month = f.name.split(".")[0]
+            if p.is_dir() and len(month) == 7 and month[4] == "-":
+                self.pending.setdefault(month, []).append((rank, f))
+            else:
+                self._read(f, rank)
+
+    def _put(self, row: dict, rank: int):
+        if self.rank.get(row["date"], -1) <= rank:
+            self._rows[row["date"]] = row
+            self.rank[row["date"]] = rank
+
+    def _read(self, f: Path, rank: int):
+        with (gzip.open(f, "rt") if f.suffix == ".gz" else open(f)) as fh:
+            for line in fh:
+                if line.strip():
+                    self._put(json.loads(line), rank)
+
+    def _month(self, date: str):
+        for rank, f in self.pending.pop(date[:7], []):
+            self._read(f, rank)
+
+    @property
+    def rows(self) -> dict[str, dict]:
+        for month in list(self.pending):
+            self._month(month)
+        return self._rows
 
     def get(self, date: str) -> dict:
-        if date not in self.rows:
+        self._month(date)
+        if date not in self._rows:
             raise KeyError(f"no market day {date}")
-        return self.rows[date]
+        return self._rows[date]
 
     def __contains__(self, date: str) -> bool:
-        return date in self.rows
+        self._month(date)
+        return date in self._rows
 
 
 def aggregate(curves: list, side: str, floor: float, cap: float) -> list[list[float]]:
@@ -246,11 +277,17 @@ def hub_offset(day: dict) -> np.ndarray:
 
 
 def task_store(task: dict) -> DayStore:
-    """The days a task reads: its inline days if it carries them, else the packaged store (then the fixture days)."""
+    """The days a task reads: its inline days if it carries them, else the packaged store, under the fixture days for
+    a fixture task (they were built from the sample and differ from the store on a few dates). Shared per process."""
     if task.get("days"):
         return DayStore(task["days"])
-    srcs = [p for p in (data_root() / "market" / "days", data_root() / "fixtures-market" / "days.jsonl.gz") if p.exists()]
-    return DayStore(*srcs)
+    return packaged_store(task.get("pack") == FIXTURE_PACK)
+
+
+@cache
+def packaged_store(fixtures: bool) -> DayStore:
+    srcs = [data_root() / "market" / "days"] + ([data_root() / FIXTURE_PACK / "days.jsonl.gz"] if fixtures else [])
+    return DayStore(*[p for p in srcs if p.exists()])
 
 
 # NP3-966-ER 60-Day DAM Disclosure → days rows (CONTRACT-v5 "Background")
