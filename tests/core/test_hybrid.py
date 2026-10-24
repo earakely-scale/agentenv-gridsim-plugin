@@ -329,3 +329,29 @@ def test_negative_prices_curtail_pv_and_charge():
 def test_rtcb_refuses_without_rt_mcpc():
     with pytest.raises(ValueError, match="rtcb"):
         H.Session(synth(DATE_C), "rtcb")
+
+
+def test_prompts_schemas_and_oneshot_reward():
+    from gridsim_core import hybrid_prompt as P
+
+    t = synth(seed=9)
+    sp = P.system_prompt("reserves", "B")
+    assert "ECRS 2 h" in sp and "Non-Spin 4 h" in sp and "fixed after watch 0" in sp
+    assert "ECRS does not exist yet" in P.system_prompt("reserves", "A")
+    assert "RegUp" not in P.system_prompt("energy", "B")
+    names = [x["function"]["name"] for x in P.tool_schemas("reserves")]
+    assert names == list(H.TOOLS)
+    assert "ecrs" not in json.dumps(P.tool_schemas("energy"))
+    s = H.Session(t)
+    assert json.loads(s.call("get_situation")) == json.loads(P.situation_text(s)) | {"messages": []}
+    msgs = P.oneshot_messages(t, "reserves")
+    assert msgs[0]["role"] == "system" and "one-shot" in msgs[0]["content"] and "watch 0" in msgs[1]["content"]
+    ref = H.oneshot_ref(t, "reserves")
+    t = t | {"refs": {"reserves": {"oneshot": ref}}}
+    best = json.dumps(ref["plan"])
+    comps = [f"<think>x</think>Here: {best}",
+             [{"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "commit_schedule",
+                                                                                   "arguments": json.dumps({"plan": ref["plan"], "from_hour": 0})}}]}],
+             'I will idle: {"energy": [0, 0]}', "no plan"]
+    r = P.oneshot_reward_fn(None, comps, task=[t] * 4, tier="reserves")
+    assert r[0] == pytest.approx(1.0) and r[1] == pytest.approx(1.0) and r[2] == 0.0 and r[3] == 0.0
