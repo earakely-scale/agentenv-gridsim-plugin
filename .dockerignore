@@ -1,0 +1,9 @@
+*
+!LICENSE
+!NOTICE
+!data
+!src/gridsim_core
+!src/agentenv_gridsim
+src/agentenv_gridsim/web
+**/__pycache__
+**/*.pyc
