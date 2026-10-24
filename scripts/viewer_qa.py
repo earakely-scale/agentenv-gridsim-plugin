@@ -1,6 +1,7 @@
-"""QA the replay viewer headlessly: stills across regions, light, weather and battery states (v1, v2, and v3 from the
-built Space) into a contact sheet, a check that each page loads without console errors or off-host requests, and a
-full-day run that tracks frame time, GPU memory counts and the JS heap.
+"""QA the replay viewer headlessly: stills across regions, light, weather and battery states (v1, v2, and v3 and v4
+from the built Space; v4 rows name a task id, resolved through the Space's index) into a contact sheet, a check that
+each page loads without console errors or off-host requests, and a full-day run that tracks frame time, GPU memory
+counts and the JS heap.
 
 usage: python scripts/viewer_qa.py --out DIR [--runs results/runs/reference] [--perf EPISODE]
 """
@@ -49,19 +50,33 @@ MATRIX = [
     ("v2 · derate clips the frozen plan", f"{LIVE}live-v2-2024-01-02-LZ_CPS-1h-y-derate-foresight-roll", 18.6, None),
     ("v2 · Uri, re-planning in the freeze", f"{LIVE}live-v2-2021-02-15-HB_HOUSTON-2h-i-foresight-roll", 7.6, None),
     ("v2 · end score", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 24.5, None),
-    ("v3 · the day before: the day-ahead book", f"{V3}39595d5a766915d8", -1.0, None),
-    ("v3 · noon solar peak", f"{V3}39595d5a766915d8", 12.6, "solar"),
-    ("v3 · the meter holds headroom for ECRS", f"{V3}39595d5a766915d8", 9.5, "poi"),
-    ("v3 · negative price: panels stowed", f"{V3}a462ee1611f971de", 11.5, "stow"),
+    ("v3 · the day before: the day-ahead book", f"{V3}8bb20ee94689d6d1", -1.0, None),
+    ("v3 · noon solar peak", f"{V3}8bb20ee94689d6d1", 12.6, "solar"),
+    ("v3 · the meter holds headroom for ECRS", f"{V3}8bb20ee94689d6d1", 9.5, "poi"),
+    ("v3 · negative price: panels stowed", f"{V3}62d7779181dafa09", 11.5, "stow"),
     ("v3 · evening discharge with ECRS reserved", f"{V3}bf8e0cd185d70bde", 18.5, None),
-    ("v3 · ECRS deployed: the band drains", f"{V3}39595d5a766915d8", 17.45, None),
-    ("v3 · AS-hog: failures to provide", f"{V3}5ca0fe87174565a3", 8.6, None),
+    ("v3 · ECRS deployed: the band drains", f"{V3}8bb20ee94689d6d1", 17.45, None),
+    ("v3 · AS-hog: failures to provide", f"{V3}0c85533ede822715", 8.6, None),
     ("v3 · Sunset EEA, energy tier", f"{V3}8b2c0b970fb5813b", 19.6, None),
-    ("v3 · RTC+B as T2, January", f"{V3}3bce12ff2e338919", 10.5, None),
-    ("v3 · aerial over the array", f"{V3}b729969d339a352c", 9.5, "array"),
-    ("v3 · night", f"{V3}39595d5a766915d8", 22.5, None),
-    ("v3 · end score", f"{V3}5ca0fe87174565a3", 24.5, None),
-    ("v3 · phone layout", f"{V3}39595d5a766915d8", 17.45, None, "390x844"),
+    ("v3 · RTC+B as T2, January", f"{V3}fe6271215e91838d", 10.5, None),
+    ("v3 · aerial over the array", f"{V3}57253e9887c8bed7", 9.5, "array"),
+    ("v3 · night", f"{V3}8bb20ee94689d6d1", 22.5, None),
+    ("v3 · end score", f"{V3}0c85533ede822715", 24.5, None),
+    ("v3 · phone layout", f"{V3}8bb20ee94689d6d1", 17.45, None, "390x844"),
+    ("v4 · the window opens: the first DAM gate", "v4:2023-08-24-HB_HOUSTON", -13.7, None),
+    ("v4 · a cold front's shelf cloud, DFW", "v4:2025-02-18-HB_NORTH", 10.6, "front"),
+    ("v4 · the front through: 45 to 25 °F in an hour", "v4:2022-12-22-HB_NORTH", 9.4, None),
+    ("v4 · frost on the panels at sunrise", "v4:2022-12-22-HB_NORTH", 32.2, "frost"),
+    ("v4 · snow on the plant", "v4:2025-02-18-HB_NORTH", 38.5, "establish"),
+    ("v4 · day 1's DAM results at 2 pm", "v4:2023-08-24-HB_HOUSTON", 14.15, None),
+    ("v4 · the evening peak, reserves deployed", "v4:2023-08-24-HB_HOUSTON", 43.6, None),
+    ("v4 · hard-freeze night", "v4:2022-12-22-HB_NORTH", 21.5, None),
+    ("v4 · Panhandle front at night, turbines", "v4:2022-03-29-HB_PAN", 26.8, "line"),
+    ("v4 · pinned to a watch: what it read", "v4:2022-12-22-HB_NORTH", 30.5, "fan=load&fanw=9"),
+    ("v4 · charts", "v4:2022-12-22-HB_NORTH", 30.5, "charts=1"),
+    ("v4 · end of the window: the score", "v4:2023-08-24-HB_HOUSTON", 72.6, None),
+    ("v4 · reduced motion", "v4:2025-02-18-HB_NORTH", 11.6, "reduced=1"),
+    ("v4 · phone layout", "v4:2022-12-22-HB_NORTH", 9.2, None, "390x844"),
 ]
 QUIET = ("favicon",)
 
@@ -85,8 +100,8 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             ep = episode(eid)
             e = json.loads(ep.read_text())
-            wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
-            url = viewer_url(port, ep, wx, False, f"shot={shot}" if shot else "")
+            wx = sidecar(e)
+            url = viewer_url(port, ep, wx, False, extra(shot))
             sw, sh = (int(v) for v in size[0].split("x")) if size else (w, h)
             with session(url, chrome, sw, sh, enable=("Runtime", "Log", "Network")) as (page, ready, gl):
                 for dt in (0, 1 / 30, 1 / 30):
@@ -111,11 +126,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.perf:
             ep = episode(args.perf)
             e = json.loads(ep.read_text())
-            wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
+            wx = sidecar(e)
             with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, gl):
                 rows = []
+                t0, span = (-14, 24 * e["task"]["days"] + 16) if "d1" in e["task"] else (-2, 26)
                 for i in range(0, 2161):
-                    t = -2 + i * 26 / 2160
+                    t = t0 + i * span / 2160
                     page.js(f"gridsim.time({t:.4f}, {{dt: 1 / 30}})")
                     if i % 216 == 0:
                         rows.append(page.js("({...gridsim.state(), heap: performance.memory ? "
@@ -128,10 +144,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.determinism:
             for eid, t in (("dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3),
                            (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75),
-                           (f"{V3}39595d5a766915d8", 17.45), (f"{V3}a462ee1611f971de", 11.5)):
+                           (f"{V3}8bb20ee94689d6d1", 17.45), (f"{V3}62d7779181dafa09", 11.5),
+                           ("v4:2022-12-22-HB_NORTH", 9.4), ("v4:2025-02-18-HB_NORTH", 10.6)):
                 ep = episode(eid)
                 e = json.loads(ep.read_text())
-                wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
+                wx = sidecar(e)
                 pngs = []
                 for _ in range(2):
                     with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, _gl):
@@ -151,7 +168,22 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def episode(eid: str) -> Path:
+    if eid.startswith("v4:"):
+        space = ROOT / "build" / "hub" / "space" / "runs"
+        index = json.loads((space / "index.json").read_text())["episodes"]
+        hit = next(e for e in index if e["version"] == "v4" and eid[3:] in e["task_id"] and e["tier"] == "front")
+        return space / hit["url"]
     return ROOT / os.path.normpath(f"{R}{eid}.json")
+
+
+def sidecar(e: dict) -> Path:
+    t = e["task"]
+    name = f"{t['d1']}_{t['settlement_point']}_{t['days']}d" if "d1" in t else f"{t['date']}_{t['settlement_point']}"
+    return ROOT / "cache" / "weather" / f"{name}.json"
+
+
+def extra(shot: str | None) -> str:
+    return "" if not shot else shot if "=" in shot else f"shot={shot}"
 
 
 def sheet(stills, out: Path, cols: int = 3, tw: int = 640, th: int = 360) -> None:

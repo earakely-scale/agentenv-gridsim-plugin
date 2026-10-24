@@ -8,6 +8,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { at } from "../data.js";
 import { buildBackdrop } from "./backdrop.js";
 import { buildDirector } from "./director.js";
+import { buildFront, coverOn, frostOn } from "./front.js";
 import { buildLine } from "./line.js";
 import { buildPlant, plantLayout, SOLAR, trackerAngle } from "./plant.js";
 import { buildSky } from "./sky.js";
@@ -62,7 +63,7 @@ export class GridStage {
     this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed, ...(hyb ? { bands: true } : {}) });
     const L = this.yard.layout;
     this.plantL = hyb ? plantLayout(d.site, L, this.yaw, seed) : null;
-    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)), plant: this.plantL });
+    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)), plant: this.plantL, yaw: this.yaw });
     const cams = this.director.spots.map(([x, z, r]) => {
       const v = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
       return [v.x, v.z, r];
@@ -94,10 +95,24 @@ export class GridStage {
     scene.add(this.rain.mesh);
     U.uSnow = { value: 0 };
     const snowy = (d.weather?.obs || []).some((o) => (o.wx || []).some((c) => /SN|PL/.test(c))) || (d.weather?.obs || []).some((o) => (o.temp_c ?? 9) < -2);
-    if (snowy) this.scene.traverse((o) => {
+    if (snowy && !d.forecast) this.scene.traverse((o) => {
       const ms = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of ms) if (m?.isMeshStandardMaterial) snowOn(m, U);
     });
+    if (d.forecast) {
+      U.uFrost = { value: 0 };
+      U.uSnowD = { value: 0 };
+      U.uRime = { value: 0 };
+      if (hyb && !d.lite) for (const mesh of this.plant.panels) frostOn(mesh.material[2], U);
+      if (d.cold) this.scene.traverse((o) => {
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of ms) if (m?.isMeshStandardMaterial) coverOn(m, U, !m.userData.frost);
+      });
+      if (d.front) {
+        this.front = buildFront();
+        scene.add(this.front.mesh);
+      }
+    }
     this.#post();
     if (!this.manual) {
       this.controls = new OrbitControls(this.camera, renderer.domElement);
@@ -169,33 +184,47 @@ export class GridStage {
     const t0 = performance.now();
     this.renderer.info.reset();
     const { d } = this;
-    const tt = Math.max(0, Math.min(24, t));
-    const w = weatherAt(d.weather, tt);
+    const E = d.end ?? 24, v4 = !!d.forecast;
+    const tt = Math.max(0, Math.min(E, t));
+    const wt = v4 ? Math.max(d.t0, Math.min(E, t)) : tt;
+    const w = weatherAt(d.weather, wt);
+    if (v4) w.hubMs = d.hubAt(wt) ?? (w.windMs || 0) * 1.35;
     this.w = w;
     const pre = d.live && t < 0;
-    const s = this.sky.update(pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt, wall, w);
+    const clock = v4 ? wt : pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt;
+    const s = this.sky.update(clock, wall, w);
+    if (this.front) {
+      const f = d.front, lead = 4.5;
+      const shade = this.front.update({ p: (wt - (f.t - lead)) / lead, bearing: f.bearing, s, wall, reduced: this.reduced });
+      if (shade > 0) this.sky.sun.intensity *= 1 - 0.7 * shade;
+    }
     const x = d.hybrid ? (pre ? d.pre(t) : d.at(tt)) : pre ? { ...at(d, 0), mode: "idle", mw: 0, soc: d.b.s0 } : at(d, Math.min(23.999, tt));
-    const mode = t >= 24 ? (d.trunc != null ? "grey" : "idle") : x.mode;
+    const mode = t >= E ? (d.trunc != null ? "grey" : "idle") : x.mode;
     const mw = mode === "charge" || mode === "discharge" ? Math.abs(x.mw) : 0;
     const pmax = mode === "charge" ? d.b.p_ch_mw : d.b.p_dis_mw;
     const wet = Math.min(1, w.rain * 0.9 + w.ts * 0.3 + (w.mist > 0.8 ? 0.2 : 0));
     this.U.uWet.value += (wet - this.U.uWet.value) * Math.min(1, dt * 0.6);
     if (this.manual && dt === 0) this.U.uWet.value = wet;
-    this.U.uSnow.value = snowCover(d.weather, tt);
+    this.U.uSnow.value = snowCover(d.weather, wt);
+    if (v4) {
+      this.U.uFrost.value = d.frostAt(wt);
+      this.U.uSnowD.value = d.snowAt(wt);
+      this.U.uRime.value = d.frostAt(wt);
+    }
     const windYaw = -((w.windDir ?? 180) + 90) * DEG - this.yaw;
     const lights = 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), wind = { kt: w.windKt, yawLocal: windYaw + Math.PI };
     const height = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2));
     if (d.hybrid) {
-      this.yard.update({ mode, mw, pmax, soc: x.socLevels, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind, floor: t >= 24 ? 0 : x.floor / d.E, head: t >= 24 ? 0 : x.head / d.E, draw: x.bands.some((z) => z.live) ? 1 : 0 });
+      this.yard.update({ mode, mw, pmax, soc: x.socLevels, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind, floor: t >= E ? 0 : x.floor / d.E, head: t >= E ? 0 : x.head / d.E, draw: x.bands.some((z) => z.live) ? 1 : 0 });
       const e = x.exp;
       this.line.update({ dir: e > 1 ? 1 : e < -1 ? -1 : 0, load: Math.abs(e) / Math.max(1, d.L), color: e < 0 ? COLORS.charge : x.net > 0.5 ? COLORS.discharge : SOLAR, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
-      const sun = this.sky.sunAt(pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt);
+      const sun = this.sky.sunAt(clock);
       this.plant.update({ tilt: trackerAngle(sun.el, sun.az), off: x.off, pv: x.pvUsed, net: x.net, exp: e, head: x.upMw, night: s.night, dt, height, fog: this.scene.fog.density, day: s.day, reduced: this.reduced });
     } else {
       this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind });
       this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
     }
-    this.backdrop.update({ night: s.night, wall, dt, windMs: w.windMs, windDir: w.windDir, reduced: this.reduced });
+    this.backdrop.update({ night: s.night, wall, dt, windMs: v4 ? w.hubMs : w.windMs, windDir: w.windDir, reduced: this.reduced });
     const fl = lightningAt(wall, w.ts, this.reduced);
     this.sky.flash(fl ? fl.f * 0.9 : 0, fl?.dir);
     this.sky.hemi.intensity += fl ? fl.f * 1.5 : 0;

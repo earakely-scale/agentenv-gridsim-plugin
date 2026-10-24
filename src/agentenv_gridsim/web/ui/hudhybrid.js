@@ -150,7 +150,7 @@ export function buildHybridHud(root, d, { onSeek, onToggle }) {
   return { update, place, timeline };
 }
 
-function socSvg(d, x, ghost) {
+export function socSvg(d, x, ghost) {
   const W = 368, H = 30, y0 = 6, bh = 16, sx = (v) => (Math.max(0, Math.min(d.E, v)) / d.E) * W;
   const fill = sx(x.soc);
   let s = `<rect x="0" y="${y0}" width="${W}" height="${bh}" rx="5" fill="#e1e5e2"/><rect x="0" y="${y0}" width="${fill}" height="${bh}" rx="5" fill="url(#socfill)"/>`;
@@ -175,7 +175,7 @@ function socSvg(d, x, ghost) {
   return `<svg class="socsvg" viewBox="0 0 ${W} ${H}"><defs><linearGradient id="socfill"><stop offset="0" stop-color="#2bc271"/><stop offset="1" stop-color="#5fd893"/></linearGradient></defs>${s}</svg>`;
 }
 
-function barSvg(segs, W = 160, H = 12) {
+export function barSvg(segs, W = 160, H = 12) {
   return `<svg class="mini" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><rect width="${W}" height="${H}" rx="3" fill="#e3e6e3"/>${segs.map(([a, b, fill, stroke]) => (b - a > 0.2 ? `<rect x="${a * W}" y="0" width="${(b - a) * W}" height="${H}" fill="${fill}" ${stroke ? `stroke="${stroke}" stroke-width="0.8"` : ""}/>` : "")).join("")}</svg>`;
 }
 
