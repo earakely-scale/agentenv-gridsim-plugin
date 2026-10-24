@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,22 +8,52 @@ version = "0.1.0"
 description = "GridSimEnv: run a battery on the real Texas grid (ERCOT day-ahead prices), an AgentEnv simulation environment"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-dependencies = ["numpy>=1.26"]
+license-files = ["LICENSE", "NOTICE"]
+# The env image pins its own server dependencies (Dockerfile); agentenv-framework 0.9.1343 breaks env deploys.
+dependencies = [
+    "numpy>=1.26",
+    "agentenv-framework>=0.9.1344,!=0.9.1343",
+    "agentenv-framework-protocol>=0.1.359",
+    "fastmcp==3.4.8",
+    "pydantic>=2.13,<2.14",
+]
 
 [project.optional-dependencies]
 lp = ["highspy>=1.7"]
 build = ["openpyxl>=3.1", "highspy>=1.7"]
-dev = ["pytest>=8", "hypothesis>=6.100", "highspy>=1.7", "openpyxl>=3.1", "ruff>=0.6"]
+dev = ["pytest>=8", "hypothesis>=6.100", "highspy>=1.7", "openpyxl>=3.1", "ruff>=0.6", "hatchling>=1.27",
+       "anthropic==1.11.0", "openai==2.54.0"]
+
+[project.urls]
+Source = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+
+[project.entry-points."agent_env.bundles"]
+gridsim = "agentenv_gridsim.bundles"
+
+[project.entry-points."agent_env.cli_plugins"]
+gridsim = "agentenv_gridsim.cli:gridsim"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gridsim_core", "src/agentenv_gridsim"]
+
+# gridsim_core.task.data_root() finds the packs at the repo's data/ in a checkout and at gridsim_core/data in a wheel.
+[tool.hatch.build.targets.wheel.force-include]
+"data" = "gridsim_core/data"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/data", "/tests", "/agents", "/Dockerfile", "/.dockerignore", "/LICENSE", "/NOTICE"]
 
 [tool.ruff]
 line-length = 120
 target-version = "py311"
 
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/build_pack.py" = ["E501", "E731"]
+"src/gridsim_core/*" = ["E501"]
+"tests/core/*" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"data" = "gridsim_core/data"

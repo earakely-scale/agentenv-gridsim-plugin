@@ -1,0 +1,52 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim",
+    "directives": [
+      {
+        "service": "gridsim",
+        "uri": "urn:gridsim:load-task/v1",
+        "args": {
+          "task_id": "dam-v1-2022-11-14-LZ_WEST-2h-m",
+          "tier": "foresight",
+          "checks": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "deploy-agent",
+    "type": "deploy_agent",
+    "a2a_agent_id": "gridsim-llm",
+    "env_ids": [
+      "gridsim"
+    ]
+  },
+  {
+    "id": "play",
+    "type": "prompt_agent",
+    "prompt_id": "dam-v1-2022-11-14-LZ_WEST-2h-m",
+    "system_prompt": "You operate a grid battery in the ERCOT day-ahead market (DAM) for one operating day: 24 hours, HE01..HE24 (hour ending, Central Prevailing Time). You are a price taker: what you sell or buy in an hour settles at that hour's DAM price in $/MWh. The situation JSON gives the battery and today's 24 prices (prices_usd_per_mwh).\n\nUnits and sign\n- Energy moves in whole units of unit_mwh MWh. State of charge (SoC) is counted in units from 0 to soc_levels and starts at s0.\n- Each hour you choose one integer a. a > 0 discharges a units: you sell a*unit_mwh MWh. a < 0 charges -a units: you buy -a*unit_mwh/eta MWh (losses are on the buy side). a = 0 is idle.\n- SoC after the hour = SoC before - a.\n- Hourly cash = price * MWh sold (MWh bought count as negative) - c_deg * unit_mwh * a when a > 0. A negative price pays you to buy.\n\nRules\n1. -k_ch <= a <= k_dis.\n2. 0 <= SoC <= soc_levels after every hour.\n3. Discharged units summed over the day <= cycle_cap_units.\n4. At the first hour that breaks rule 1, 2 or 3, that hour and every later hour execute as 0.\n5. End obligation: SoC after HE24 must be at least s_end_min. Each missing unit is bought back: unit_mwh/eta MWh at max(the day's highest price, $50/MWh).\n\nProfit = the sum of hourly cash - the end penalty. Make it as large as you can.\n\nTools\n- check_schedule(actions): simulates a schedule without submitting it and returns feasibility, the SoC path, any end shortfall and the profit. You have 3 checks.\n- submit_schedule(actions): submits your final schedule and ends the episode. You submit once.\nactions is a list of exactly 24 integers, HE01 first, for example [0, -2, -2, 0, ..., 3, 3, 0].\nFinish by calling submit_schedule.",
+    "prompt": "{\"task_id\": \"dam-v1-2022-11-14-LZ_WEST-2h-m\", \"tier\": \"foresight\", \"market\": \"ERCOT DAM\", \"date\": \"2022-11-14\", \"settlement_point\": \"LZ_WEST\", \"point_kind\": \"load_zone\", \"hours\": \"HE01..HE24 CPT\", \"battery\": {\"p_dis_mw\": 225.0, \"p_ch_mw\": 225.0, \"energy_mwh\": 450.0, \"unit_mwh\": 75.0, \"k_dis\": 3, \"k_ch\": 3, \"soc_levels\": 6, \"eta\": 0.9, \"c_deg\": 8.0, \"cycle_cap_units\": 9, \"s0\": 6, \"s_end_min\": 6}, \"shortfall_price_floor_usd_per_mwh\": 50.0, \"checks\": 3, \"prices_usd_per_mwh\": [18.69, 19.77, 22.68, 30.98, 38.2, 42.78, 69.5, 75.5, 47.64, 37.48, 34.01, 30.62, 24.44, 11.23, 6.39, 4.16, 14.87, 55.67, 56.84, 51.96, 50.7, 46.95, 42.59, 41.98]}",
+    "max_turns": 4,
+    "model_params": {
+      "max_tokens": 4096
+    },
+    "effort": "high",
+    "timeout_seconds": 1800
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim",
+    "file_artifact_id": "gridsim-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]
