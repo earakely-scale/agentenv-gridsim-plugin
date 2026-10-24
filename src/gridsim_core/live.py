@@ -70,7 +70,7 @@ def expand(hourly) -> list[int]:
 
 def freeze_line(minute: int, tier: str = "foresight") -> int:
     """ceil_to_hour(now) + 1 h (6 h in freeze6h), in minutes from D 00:00."""
-    return int(ceil_to_interval(minute, 60)) + FREEZE_MIN[tier]
+    return int(ceil_to_interval(minute, 60)) + FREEZE_MIN.get(tier, 60)
 
 
 def first_open(minute: int, tier: str = "foresight") -> int:
@@ -186,13 +186,13 @@ def notices_sha(notices) -> str:
     return hashlib.sha256(_dump(sorted(notices or [], key=lambda n: (n["issued_at"], n["event_id"]))).encode()).hexdigest()
 
 
-def schedule(task: dict, tier: str = "foresight", notices=None) -> list[Watch]:
-    """The day's watches: the tier's regular watches plus one per notice freeze class (contract L-D4); over the cap,
-    the classes with the most urgent notices (Notice.priority, then the earliest) keep their watches."""
+def schedule(task: dict, tier: str = "foresight", notices=None, regular=None) -> list[Watch]:
+    """The day's watches: the tier's regular watches (or `regular`, minutes) plus one per notice freeze class (contract
+    L-D4); over the cap, the classes with the most urgent notices (Notice.priority, then the earliest) keep theirs."""
     date = task["date"]
     ns = sorted((parse_notice(n, date) for n in (task.get("notices") or [] if notices is None else notices)),
                 key=lambda n: (n.reveal, n.issued, n.event_id))
-    regular, fl = REGULAR[tier], FREEZE_MIN[tier]
+    regular, fl = REGULAR[tier] if regular is None else tuple(regular), FREEZE_MIN.get(tier, 60)
     classes: dict[int, tuple[int, int]] = {}
     for n in ns:
         c = int(ceil_to_interval(n.reveal, 60))
