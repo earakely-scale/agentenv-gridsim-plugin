@@ -26,7 +26,7 @@ disallows them) and gridstatus.io's hosted API is not used.
 | Background supply and demand | NP3-966-ER 60-Day DAM Disclosure: every three-part energy offer curve, energy-only offer and energy bid of the day not carved into a seat | real offers, aggregated |
 | Seats B, G, R, L and A's "replay" | real portfolios carved from the same files (ESRs, combustion turbines, wind and solar, one load-serving bidder), anonymised | real offers; private costs modelled |
 | Fidelity reference | NP4-523-CD DAM system lambda λ_h | real |
-| Hub price | re-cleared λ'_h + the day's real hub basis b_h = HB_HUBAVG DAM SPP − λ_h (NP4-180-ER, cached) | real basis, held fixed |
+| Hub price | the clear runs in hub prices: every background price is raised by the hub offset o_h = real HB_HUBAVG DAM SPP (NP4-180-ER, cached) − the re-clear of every real offer (V5-P2) | real, held fixed |
 | RT price | historical HB_HUBAVG 15-min RT SPP (cached NP6-905 / NP6-785), hourly mean | real, does not respond to agents |
 | Forecasts as issued | v4's store kinds `ercot_load` (NP3-565-CD), `ercot_wind` (NP4-732-CD), `ercot_solar` (NP4-745-CD), issued_at = postedDatetime (V4-P17); until that store exists, EIA-930 ERCO day-ahead demand forecast and D-2 wind/solar persistence, flagged | real vintages |
 | ISO | replay of the v2 notice archive (`gridsim_core.notices`) at reveal_at = ceil(issued_at, 15 min) | real |
@@ -60,32 +60,71 @@ system scale, so RSI mitigation alone would never bind (V5-P5); price impact is 
 daily DAM value is ~$100/MW-day, so the plan's $2/kW-day headroom bar is 20× too high (V5-P11); a modelled stack misses
 the plan's 90% fidelity bar on most days, which is why no pack uses it.
 
-**Real stack: measured on the sample** (pending: the request is in the C5 status file). On arrival C5 records here: the
-exact NP3-966-ER file and column names before and after RTC+B, the ESR representation (Gen Resource + Controllable Load
-Resource pair before 2025-12-05, single ESR after), zip sizes, replay fidelity against NP4-523 with and without the AS
-truncation (V5-P6) and the commitment rule (V5-P7), RSI and impact hours, and the 64-breakpoint simplification error.
+**Real stack: measured on the sample** (eight NP3-966-ER zips pulled through the API by lane D5: op days 2024-04-16,
+2024-06-19/20, 2024-08-20, 2025-12-10, 2026-05-20/21, 2026-07-21, plus NP4-523-CD 2023-12-13..2026-10-24):
 
-## Decisions (all provisional until Edgar confirms)
+- Files: one zip per op day, posted at op day + 60 at 04:30–06:15 CPT; CSV names carry the **posting** date
+  (`60d_DAM_Gen_Resource_Data-19-OCT-24.csv` is op day 2024-08-20). 13 CSVs before RTC+B; from 2025-12-05 also
+  `60d_DAM_ESR_Data`, `60d_DAM_ESR_ASOffers`, `60d_DAM_AS_Only_Offers`, `60d_DAM_AS_Only_Awards`. Gen and ESR files
+  have 48 columns (curve `QSE submitted Curve-MW1..10` / `-Price1..10`, `HSL`, `LSL`, `Resource Status`, `Awarded
+  Quantity`, start-up and min-gen costs, AS awards); ESR curves run from −max charge to +max discharge. Energy bids and
+  energy-only offers carry `Block/Curve indicator` C (curve), V (variable block) or F (fixed block) and a multi-hour
+  flag. Zips are 6–10 MB; the parser takes 0.8–1.8 s before RTC+B and 4 s after. NP4-523-CD starts on 2023-12-13.
+- DAM volume is financial: at HE18 on 2024-08-20, 270 of 1,390 Gen Resources offered (32.7 GW awarded) plus 15.8 GW
+  of energy-only offers against 48.5 GW of bids. Most ESRs offer at the cap (before RTC+B) or at ±cap/floor (after).
+- **Fidelity of the copper-plate re-clear of every real offer against NP4-523 λ**: 42–81% of non-scarcity hours within
+  $5 or 10% (mean 62%), MAE $3.6–7.3 in those hours; peaks clear far too low (HE20 2024-08-20: λ $652, re-clear $112),
+  the missing part being AS co-optimisation and congestion. The 64-point simplification adds at most $2.27.
+- **Price impact on the real stack** (hours where A's full sale moves the price by ≥ $5): with the hub-offset
+  calibration below, 0 / 1 / 8 hours for 400 / 800 / 1,500 MW on the 2024-08-20 peak and 0 on the five other days
+  checked; with a horizontal residual instead, 3 / 4 / 6 on 2024-08-20, 3 / 3 / 4 on 2026-07-21, 0–3 elsewhere. Real
+  DAM bids (including virtual traders) make the residual curve flat: a QSE-sized battery is a price taker in most
+  hours and price-making is concentrated on peak days.
+- References on the ten fixture tasks: the disclosure anchor earns $150–870/MW-day on 2024-08-20 and $150–270 on
+  2026-07-21; hindsight BR_A (with RT deviations) is 2–5× the anchor; path B grades an offer in 6–9 ms; the anchor's
+  welfare_ratio is 0.47–0.71.
+
+## Decisions (all provisional until Edgar confirms)## Decisions (all provisional until Edgar confirms)
 
 | # | Decision | Taken (provisional), recommendation |
 |---|---|---|
 | V5-P1 | Which days | Only API-era days (2023-12-11 onward) with the real stack. The modelled EIA stack is not used for any pack: a pre-API train extension (2022-04..2023-12, ~600 dates) would train on a market that misses the fidelity bar on 80% of days and has a different provenance from eval. Revisit only if the train pack underfits |
-| V5-P2 | Fidelity and its filter | The plan's filter: replay re-clear λ' within $5 or 10% of NP4-523 λ in ≥ 90% of non-scarcity hours (λ < $100), per task `fidelity`. **Fallback if survival < 50%** on the first 60 parsed days: a per-hour horizontal residual ε_h (MW) on the background makes the replay clear at λ exactly (as the EIA probe does), with the raw fidelity still published and filtered at ≥ 75% |
-| V5-P3 | Hub price | The auction clears system energy (one node, no congestion); the hub price is λ'_h + b_h with b_h the day's real HB_HUBAVG basis. DA–RT spreads at the hub stay real, and b_h is a constant that never changes a best response |
+| V5-P2 | Fidelity and its filter | **Revised on the sample.** The raw re-clear misses the plan's 90% bar on every sample day (42–81%), so the background is calibrated with a per-hour **hub offset** o_h = real HB_HUBAVG DAM − re-clear of every real offer (AS, congestion, losses), added to every background and replay-seat price: the replay clears at the real hub price exactly, and a seat's impact follows the real curve's slope at the re-clear point. Raw fidelity is published per task (`fidelity`). Filter: raw within_ns ≥ 0.5 (survival measured on the full pull). The horizontal residual ε (MW) stays in core as an option; it puts peaks on steeper ground (more impact) at the cost of 9–21% of cleared MW of shift |
+| V5-P3 | Hub price | Superseded by V5-P2's hub offset: one node, no congestion; the offset carries the real hub's AS, congestion and loss component per hour and never changes a best response |
 | V5-P4 | Price formation | The aggregated background (supply minus demand) is a continuous, strictly increasing curve (ERCOT energy offer and bid curves are linear between price/MW points; block bids and offers are linearised over 1 MW) and **always sets the price**. A seat block priced exactly at λ' is awarded pro rata and rounded down to the seat's MW grid. Consequence: every seat's best response is a quantity choice per hour, an exact DP on the grid |
 | V5-P5 | Mitigation | RSI_i < 1 mitigates (the plan), and since it almost never binds, **conduct and impact** (NYISO/ISO-NE/MISO practice) is the operative screen: a supply seat's hour is mitigated when a block is priced above ref + max($10, 50% of ref) and re-pricing those blocks at ref lowers λ' by ≥ max($5, 10%). Physical withholding (offering fewer MW) is measured (conduct row) and priced by the welfare half of the compliant score, not mitigated |
 | V5-P6 | AS in the re-clear | AS are not re-cleared. Each background resource's energy curve is truncated to [LSL + its DAM down-award, HSL − its DAM up-awards] (the AS award columns of the same file), approximating DAM co-optimisation; seats are energy-only in the preview |
-| V5-P7 | Commitment | The plan's rule: a resource with a DAM energy award that day is committed (LSL offered at the floor, curve above LSL); an uncommitted three-part offer enters as its curve above LSL plus min-gen cost spread over LSL. Commitment is frozen at the real day's (it never responds to seats) |
+| V5-P7 | Commitment | Committed (awarded) units offer up to LSL at their curve's first price (not the floor: fidelity 62% vs 56% on the sample), uncommitted ones at the first price plus min-gen cost per MWh; AS truncation as V5-P6; frozen at the real day's commitment |
 | V5-P8 | Seats | Carved from real portfolios and anonymised (ids A, B, G, R, L; no resource or QSE name leaves the data build): A = a group of real ESRs totalling 400–1,500 MW (its real offers are the `replay_A` baseline); B = another ESR group; G = 6–12 real CTs (Resource Type SCGT90/SCLE90, 50–100 MW each); R = wind and solar resources totalling 1–3 GW; L = one real load-serving bidder's energy bids at load zones, 3–8 GW |
 | V5-P9 | Private costs | G: per-unit heat rate drawn from EIA-923's ERCOT CT distribution (until a resource↔plant crosswalk exists), fuel = the day's gas price implied by real CC offers (median CC mid-curve price ÷ 7.2 MMBtu/MWh after VOM), VOM $5, start cost from its three-part offer; R: −PTC $27.50 on 60% of output; L: a fixed tariff (EIA Electric Power Monthly Texas average, energy share 50%) and RT for its unhedged load; A, B: v1 archetype η and c_deg, E = P × the drawn duration (the disclosure has no MWh before RTC+B). No Henry Hub |
 | V5-P10 | Disclosure shipped | Only derived aggregates: per hour ≤ 64 breakpoints per side for the background and ≤ 16 per seat portfolio; the raw zips never ship; ERCOT attribution and no-endorsement as v1 |
 | V5-P11 | Headroom filter | The plan's $2/kW-day is ~20× a battery's daily DAM value. Use BR_A − P_idle ≥ $25/MW-day and P_anchor − P_idle ≥ $10/MW-day |
-| V5-P12 | Pivotal-hour filter | The plan's ≥ 2 hours where A's quantity moves λ' by ≥ $5; A's size drawn with weight toward ≥ 800 MW so most days keep it |
+| V5-P12 | Pivotal-hour filter | **Open (needs Edgar).** On the real stack the plan's "≥ 2 hours with ≥ $5 impact" keeps almost only peak days. Options: (a) keep it and accept a peak-day pack; (b) relax to ≥ 1 hour or ≥ $2; (c) switch V5-P2 to the horizontal residual. Recommendation: (b) for train, (a) as the eval tag `impact_hours` |
 | V5-P13 | Tiers | `floor-sprint` (training, path B) and `floor-day` (eval) build tonight; `compliant` is a scoring of either; `floor-week` deferred |
 | V5-P14 | Bidders | Scripted in-process only (`bidders: "scripted"`): B, G, R, L submit their **real** offers of the day (replay) by default, or a cost-based script (`script: "cost"`) for the ε-Nash reference. The A2A route is specified below and not built: four extra LLM agents per episode, and the preview spends nothing |
 | V5-P15 | Welfare | W counts the DAM clear at bid value for the background and private cost for the seats; welfare_ratio = (W − W_0)/(W\* − W_0) over W_0 = the clear with A and B idle; W\* from a HiGHS LP. Compliant = 0.5·R + 0.5·clip(welfare_ratio, 0, 1) |
 | V5-P16 | Splits | train 2024-02-11..2024-12-31 (the anchor needs D−62 ≥ 2023-12-11), ~325 dates × 9 seat draws ≈ 3,000; eval 2025-01-01..2025-11-30 (200 sprint + 60 floor-day); rtcb 2025-12-05..the latest posted day; showcase `fern-0123` (op days 2026-01-23..27) and, replacing the pre-API `aug23-0810`, `aug24-0820` (2024-08-20, an ERCOT summer peak day [to confirm the record]); each showcase day ±3 days out of every split |
 | V5-P17 | Viewer | Per the standing direction that sim viewers look like real life, the Market Floor is a real-life 3D scene, not the plan's 8-bit hall; the merit-order staircase, gavel and seat board become overlays (viewer lane proposes) |
+
+## As built in phase 2 (refinements of the text below)
+
+- **Battery lattice**: SoC in steps of grid_mw/20 MWh; sells move −20 steps per grid unit, buys +20η (η ∈ {0.80,
+  0.85, 0.90, 0.95}), so every BR DP is exact. No cycle cap in v5 (c_deg prices cycling). The end-shortfall price is
+  fixed per task at max(the real hub DAM maximum, $50).
+- **Prices**: offers, the clear and settlement are all in hub $/MWh (the offset above); `hub_basis_usd` and `eps_mw`
+  are gone from the rows. The anchor maps its disclosure forecast to hub prices with the disclosed day's own offset.
+- **Floor-day watches**: v2's 10-watch cap (7 regular, so up to 3 notice watches); notices revealed before D-1 06:00
+  are on the opening board. `floor-sprint` has no notices.
+- **Seats**: R's actual output is its DAM offer volume (no forecast error modelled tonight); L's load is its bid volume
+  scaled by EIA-930 load/DF; G's heat rates are drawn from EIA-923 2025 ERCOT CTs (seeded); B is the second ESR group.
+- **ε-Nash and the reference profile** start from the replay profile (every seat on its real offers); W counts A and
+  B at their delivered MW and every other participant as bid; W\* is the HiGHS LP with A's and B's SoC.
+- **Code**: `gridsim_core.market_auction` (curves, clear, mitigation, offers, battery settlement),
+  `market_stack` (`parse_disclosure`, `choose_pool`, `build_day`, `sample_seats`, `DayStore`, `Floor`, `disclosure`,
+  `hub_offset`), `market_refs` (`forecast_books`, `anchor`, `battery_dp`, `br_*`, `eps_nash`, `nash`, `welfare`,
+  `welfare_lp`, `references`), `market` (`Session`, `finalize_task`, `anchor_policy`, `play`, `replay`, `grade_offer`,
+  `reward_fn`, `schedule`, `triggers`), `market_prompt`; `scripts/build_market_fixtures.py`; `data/fixtures-market/`
+  (10 tasks on op days 2024-08-20 and 2026-07-21 with their D−61, D−62 and D−1..D−3 days); `tests/market/` (28 tests).
 
 ## Clock and tiers
 
@@ -141,7 +180,7 @@ days: $5,000 and −$250).
 ```
 f(λ) = N_bg,h(λ) + Σ_seats q_i(λ)         q_i(λ) = Σ sell blocks priced ≤ λ − Σ buy blocks priced ≥ λ
 λ' = min{λ : f(λ) ≥ 0}                    bisection on the merged block prices, then inversion of N_bg
-hub price p*_h = λ'_h + b_h               b_h = HB_HUBAVG DAM SPP − NP4-523 λ_h (real, fixed)
+p*_h = λ'_h                               every background price already carries the hub offset o_h (V5-P2)
 ```
 
 If f is continuous at λ', every seat block priced < λ' (sell) or > λ' (buy) is awarded in full and the rest not. If seat
@@ -348,19 +387,21 @@ data/gridsim-market-{train,eval,rtcb,showcase}/tasks.jsonl.gz + manifest.json
 data/fixtures-market/                           20 CI tasks + the days rows they read (D, D−1, D−61, D−62)
 ```
 
-Days row (all curves λ-space, anonymised; `pool` holds the candidate seat portfolios of the day, and whatever a task does
-not carve is added back to the background by exact curve addition):
+Days row (curves in offer $/MWh as submitted, anonymised; `pool` holds the candidate seat portfolios of the day, and
+whatever a task does not carve is added back to the background by exact curve addition; light rows for D−1..D−3 carry
+only the public series):
 
 ```
-{"date":"2024-08-20","era":"ecrs","dst":false,"parser":"966-v1|966-rtcb-v1",
- "lambda_usd":[24],"hub_dam_usd":[24],"hub_basis_usd":[24],"hub_rt_usd":[96],
- "background":{"supply":[[[mw, price], ...] x 24],"demand":[[[mw, price], ...] x 24]},   # ≤ 64 points each, carve-free core
- "pool":{"esr":[{"id":"e1","p_mw","n_resources","sell":[[[mw, price]] x 24],"buy":[...]}],
-         "ct":[{"id":"c1","units":[{"id","mw","lsl","start_usd","min_gen_usd"}],"sell":[...]}],
-         "renew":[{"id":"r1","mw_wind","mw_solar","sell":[...]}],"load":[{"id":"l1","peak_mw","buy":[...]}]},
- "replay":{"lambda_usd":[24],"cleared_mw":[24]},
- "fidelity":{"within_ns","mae_ns_usd","ns_hours","max_err_usd","simplify_err_usd","as_truncated_mw":[24]},
- "eps_mw":[24]|null,"actuals":{"load_mw":[24],"wind_mw":[24],"solar_mw":[24]},"implied_gas_usd_mmbtu":2.71}
+{"date":"2024-08-20","dst":false,"parser":"966-v1|966-rtcb-v1|light",
+ "lambda_usd":[24],"hub_dam_usd":[24],"hub_rt_usd":[96],"df_mw":[24],
+ "actuals":{"load_mw":[24],"wind_mw":[24],"solar_mw":[24]},                    # EIA-930 TEX
+ "background":{"supply":[[[mw, price], ...] x 24],"demand":[[[mw, price], ...] x 24]},   # ≤ 64 points each
+ "pool":{"esr":[{"id":"e1","size_mw","sell":[[[mw, price]] x 24],"buy":[...]}],
+         "ct":[{"id":"c1","size_mw","units":[{"id","mw","lsl","start_usd"}],"sell":[...]}],
+         "renew":[{"id":"r1","size_mw","sell":[...]}],"load":[{"id":"l1","size_mw","buy":[...]}]},
+ "replay":{"lambda_usd":[24],"full_lambda_usd":[24],"cleared_mw":[24]},       # re-clear of what ships / of every offer
+ "fidelity":{"within_ns","ns_hours","mae_ns_usd","mae_usd","max_err_usd","simplify_err_usd"},
+ "implied_gas_usd_mmbtu":1.538}
 ```
 
 Task row:
