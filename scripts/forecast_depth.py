@@ -29,7 +29,7 @@ FIXED_WATCH_HOURS = (0, 6, 10, 14, 18)
 ERCOT_KINDS = ("ercot_load", "ercot_wind", "ercot_solar")
 SAMPLE_WINDOWS = (("fern-0124", "2026-01-24"), ("heather-0114", "2024-01-14"), ("uri-0213", "2021-02-13"),
                   ("spring-0328", "2024-03-28"))
-SPOT_KEYS = (("weather", "DFW"), ("load", "system"), ("load", "NORTH_C"), ("wind", "system"), ("solar", "system"),
+SPOT_KEYS = (("weather", "DFW"), ("load", "system"), ("load", "NCEN"), ("wind", "system"), ("solar", "system"),
              ("price", "HB_NORTH"), ("mcpc", "regup"), ("load_official", "system"), ("ercot_load", "system"),
              ("ercot_wind", "system"), ("ercot_solar", "system"))
 
@@ -380,9 +380,38 @@ def md(c: dict, args) -> str:
           f"Windows: {wins}. For each fixed watch of a `front` window and each of {keys}, the served vintage (the "
           f"latest with reveal_at <= the watch) has issued_at <= the watch in all {lk['served_checks']:,} lookups "
           f"({lk['all_issued_at_le_watch']}); across a window's watches {lk['changes']:,} served vintages changed, "
-          f"{lk['identical_after_change']} of them to a vintage with the same sha. The builder's own leakage tests "
-          "(reveal assertion per feature, sorted quantiles, the canary) are in the store manifest.", ""]
+          f"{lk['identical_after_change']} of them to a vintage with the same sha.", ""]
+    L += builder_section(Path(args.cache) / "store" / "manifest.json", Path(args.data) / "forecast" / "guide-card.json")
     return "\n".join(L) + "\n"
+
+
+def builder_section(manifest: Path, card: Path) -> list[str]:
+    m, g = json.loads(manifest.read_text()), json.loads(card.read_text())
+    lk, can = m.get("leakage", {}), (m.get("leakage", {}).get("canary") or {})
+    worst = lk.get("reveal_assertion", {}).get("worst_minutes_after_issued_at", {})
+    n_before, n_after = can.get("vintages_before_cutoff", 0), can.get("vintages_after_cutoff", 0)
+    L = ["## Builder leakage tests and the guide card", "",
+         "- Reveal assertion: every feature family's latest reveal minus the vintage's issued_at is <= 0 ("
+         + ", ".join(f"{k} {v:g} min" for k, v in worst.items()) + ").",
+         f"- Canary (cutoff {can.get('cutoff_utc')}, reduced build to {can.get('until')}): "
+         f"{can.get('identical_before_cutoff', 0):,} of {n_before:,} vintages issued before the cutoff identical, "
+         f"{can.get('changed_after_cutoff', 0):,} of {n_after:,} after it changed: {can.get('ok')}.",
+         f"- Quantiles sorted per hour: {lk.get('quantiles_sorted')}.", "",
+         "Guide P50 MAE vs persistence at the DAM horizon (14-38 h), $/MWh, and 80% coverage:", ""]
+    rows = []
+    for y, v in g["guide"].items():
+        r = [y]
+        for t in ("da", "rt", "mcpc"):
+            b = v.get(t, {}).get("14-38h", {})
+            r.append(f"{b.get('mae_p50')} / {b.get('mae_persistence')} / {b.get('coverage_80')}")
+        d = g["desk"].get(y, {})
+        r += [d.get("load|system", {}).get("mape"), d.get("wind|system", {}).get("nmae"),
+              d.get("solar|system", {}).get("nmae")]
+        rows.append(r)
+    L += table(["Year", "DA", "RT", "MCPC", "Desk load MAPE", "Desk wind nMAE", "Desk solar nMAE"], rows)
+    L += ["", "The store, its raw pulls (HRRR points, EIA-930 CSVs, ERCOT API zips) and this report's inputs are in "
+              "Scale-internal object storage under `gridsim/v4/` (`store/store-<sha>.tar.zst`, `raw/`).", ""]
+    return L
 
 
 def main():
@@ -395,7 +424,12 @@ def main():
     ap.add_argument("--ercot-end", default="2026-10-23")
     ap.add_argument("--mis-zip", default=str(ROOT / "cache" / "raw" / "hybrid" / "np4_745" / "PVGR_20261024_0655.zip"))
     ap.add_argument("--windows", type=int, default=12)
+    ap.add_argument("--render", action="store_true", help="only re-render the report from DATA/forecast/coverage.json")
     args = ap.parse_args()
+    if args.render:
+        c = json.loads((Path(args.data) / "forecast" / "coverage.json").read_text())
+        (Path(args.docs) / "v4-depth.md").write_text(md(c, args))
+        return
     cache = Path(args.cache)
     store = cache / "store"
     man = json.loads((store / "manifest.json").read_text())
