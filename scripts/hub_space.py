@@ -20,14 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import forecast_view  # noqa: E402
 import hybrid_view  # noqa: E402
 import weather as wx  # noqa: E402
 
-from gridsim_core import hybrid, live  # noqa: E402
+from gridsim_core import forecast, hybrid, live  # noqa: E402
 from gridsim_core.contract import DEGENERATE_EPS  # noqa: E402
 from gridsim_core.grade import grade  # noqa: E402
 from gridsim_core.physics import simulate  # noqa: E402
-from gridsim_core.task import load_pack  # noqa: E402
+from gridsim_core.task import data_root, load_pack  # noqa: E402
 
 WEB = ROOT / "src" / "agentenv_gridsim" / "web"
 PACKS = ("ercot-dam-v1-eval", "ercot-dam-v1-eval-iid", "ercot-dam-v1-rtcb", "showcase", "fixtures",
@@ -40,7 +41,13 @@ HYBRID_PACKS = ("ercot-hybrid-v3-showcase", "ercot-hybrid-v3-eval", "ercot-hybri
                 "ercot-hybrid-v3-train")
 HYBRID_HERO_TASKS = ("hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150",
                      "hyb-v3-2024-03-29-HB_WEST-pv150-b100x2h-poi150")
+FORECAST_PACKS = ("ercot-front-v4-showcase", "ercot-front-v4-eval", "ercot-front-v4-rtcb", "fixtures-forecast",
+                  "ercot-front-v4-train")
+FORECAST_HERO = "fern-0124"
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
+          "reference/rolling-p50": "the rolling anchor (reference)",
+          "reference/persistence": "the blind re-planner (reference)",
+          "reference/naive-dam": "the naive DAM bidder (reference)",
           "reference/naive": "naive (reference)", "reference/as-hog": "AS-hog (reference)",
           "reference/solar-sponge": "the solar sponge (reference)",
           "reference/v2-energy-only": "v2's energy-only plan (reference)"}
@@ -142,12 +149,23 @@ def main(argv: list[str] | None = None) -> int:
                 if schema in ("gridsim.levelup/v1", "gridsim.race/v1"):
                     views[schema.split(".")[1].split("/")[0]] = ep
                     continue
-                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA, hybrid.EPISODE_SCHEMA):
+                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA, hybrid.EPISODE_SCHEMA,
+                                  forecast.EPISODE_SCHEMA):
                     continue
                 if ep["episode_id"] in seen:
                     continue
                 seen.add(ep["episode_id"])
                 v2, v3 = schema == live.EPISODE_SCHEMA, schema == hybrid.EPISODE_SCHEMA
+                if schema == forecast.EPISODE_SCHEMA:
+                    task = forecast_tasks().get(ep["task_id"])
+                    if why := verify_forecast(ep, task):
+                        rejected.append((f, why))
+                        continue
+                    ep = ep | {"race": forecast_race(task, ep["tier"], ep.get("model"))}
+                    name = f"{ep['episode_id']}.json"
+                    (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
+                    entries.append(forecast_entry(ep, name, task))
+                    continue
                 if (v2 and ep["task_id"] in fixture_ids) or (v3 and ep["task_id"] in hybrid_fixtures()):
                     skipped.append(f)
                     continue
@@ -161,15 +179,27 @@ def main(argv: list[str] | None = None) -> int:
                 name = f"{ep['episode_id']}.json"
                 (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
                 entries.append(hybrid_entry(ep, name) if v3 else live_entry(ep, name) if v2 else entry(ep, name, task))
+    if any(e["version"] == "v4" and not e["synthetic"] for e in entries):
+        dropped = [e for e in entries if e["version"] == "v4" and e["synthetic"]]
+        for e in dropped:
+            (out / "runs" / e["url"]).unlink()
+        entries = [e for e in entries if e not in dropped]
+        if dropped:
+            print(f"v4: dropped {len(dropped)} episodes on CI fixture windows (synthetic vintages); real packs exist")
     for e in entries:
-        side = wx.sidecar(e["point"], e["date"], args.weather)
+        side = (wx.window_sidecar(e["point"], e["date"], e["days"], args.weather) if e["version"] == "v4"
+                else wx.sidecar(e["point"], e["date"], args.weather))
         if not (out / "weather" / side.name).exists():
             shutil.copy(side, out / "weather" / side.name)
+        if e["version"] == "v4":
+            e["weather"] = side.name
     featured = feature([e for e in entries if e["version"] == "v1"], args.hero, out)
     if lv := feature_live(entries, out):
         featured.append(lv)
     if hv := feature_hybrid(entries, out):
         featured.append(hv)
+    if fv := feature_forecast(entries, out):
+        featured.append(fv)
     hero = next((e for e in featured if e.get("hero")), None)
     if args.thumbs:
         for e in featured:
@@ -188,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     if skipped:
         print(f"skipped {len(skipped)} episodes on CI fixture days (synthetic notices)")
     print(f"v3: {sum(e['version'] == 'v3' for e in entries)} episodes replayed through gridsim_core.hybrid")
+    print(f"v4: {sum(e['version'] == 'v4' for e in entries)} episodes replayed through gridsim_core.forecast")
     size = sum(x.stat().st_size for x in out.rglob("*") if x.is_file())
     print(f"{len(entries)} episodes ({len(rejected)} rejected), {len(list((out / 'weather').iterdir()))} weather "
           f"sidecars, featured {[e['id'] for e in featured]}, {size / 1e6:.1f} MB -> {out}")
@@ -354,6 +385,129 @@ def hybrid_entry(ep: dict, url: str) -> dict:
             "as_share": round(as_rev / (as_rev + gain), 3) if as_rev + gain > 1e-6 else None,
             "curtailed_mwh": round(curtailed, 1), "neg_hours": sum(1 for p in t["rt"] if p < 0),
             "interest": round(len(deps) + min(4.0, max(t["rt"]) / max(10.0, sorted(t["prices"])[12])), 3)}
+
+
+_FORECAST: dict | None = None
+_FRACE: dict = {}
+
+
+def forecast_tasks() -> dict:
+    global _FORECAST
+    if _FORECAST is None:
+        _FORECAST = {}
+        for pack in FORECAST_PACKS:
+            if (data_root() / pack).is_dir():
+                for t in load_pack(pack):
+                    _FORECAST.setdefault(t["task_id"], t)
+    return _FORECAST
+
+
+def verify_forecast(ep: dict, task: dict | None) -> str | None:
+    """Every recorded call replayed through a fresh gridsim_core.forecast Session on the pack's window gives the
+    recorded output; the window's profit and reward must match."""
+    if task is None:
+        return "not in any forecast pack"
+    s = forecast.Session(task, ep["tier"], source=ep.get("source"))
+    for i, st in enumerate(ep["steps"]):
+        args = dict(st["args"])
+        if st["tool"] == forecast.NOTICE_TOOL:
+            args.setdefault("_via", "trigger")
+        if json.loads(s.call(st["tool"], args)) != st["output"]:
+            return f"step {i} ({st['tool']}) does not replay"
+    if not s.done:
+        s.end_window()
+    g = s.grade()
+    if abs(g["profit_usd"] - ep["profit_usd"]) > 0.01:
+        return f"profit {ep['profit_usd']} != {g['profit_usd']}"
+    if abs(g["reward"] - ep["reward"]) > 1e-6:
+        return f"reward {ep['reward']} != {g['reward']}"
+    return None
+
+
+def forecast_race(task: dict, tier: str, model: str | None) -> list[dict]:
+    """The v4 replay's race lanes (forecast_view.lanes), solved once per window, tier and reference."""
+    key = (task["task_id"], tier, forecast_view.SELF.get(model))
+    if key not in _FRACE:
+        _FRACE[key] = forecast_view.lanes(task, tier, model)
+    return _FRACE[key]
+
+
+def drift(ep: dict) -> float:
+    """How far the price guide moved: per window hour the range of the RT P50 across the runs that covered it, in
+    $/MWh, averaged over the window."""
+    t, d1 = ep["task"], datetime.fromisoformat(ep["task"]["d1"]).replace(tzinfo=CPT)
+    by: dict[int, list[float]] = {}
+    for v in ep["vintages"]["series"]:
+        if v["kind"] != "price" or v["key"] != t["settlement_point"]:
+            continue
+        h0 = round((datetime.fromisoformat(v["start"].replace("Z", "+00:00")) - d1).total_seconds() / 3600)
+        for i, x in enumerate(v["fields"].get("rt_p50") or []):
+            if 0 <= h0 + i < len(ep["hours"]):
+                by.setdefault(h0 + i, []).append(x)
+    spans = [max(x) - min(x) for x in by.values() if len(x) > 1]
+    return round(sum(spans) / len(spans), 2) if spans else 0.0
+
+
+def forecast_entry(ep: dict, url: str, task: dict) -> dict:
+    t, st, r = ep["task"], ep["task"]["site"], ep.get("references") or {}
+    deps = [n for n in ep.get("notices") or [] if n.get("deploy")]
+    top = max((n for n in ep.get("notices") or [] if not n.get("deploy")),
+              key=lambda n: SEVERITY.get(n.get("level"), 0), default=None)
+    lite = ep["tier"] == "front-lite"
+    return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
+            "model_label": ep.get("model_label"), "version": "v4", "tier": ep["tier"], "bundle": ep.get("bundle"),
+            "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"), "r_opt": ep.get("r_hind"),
+            "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"), "p_anchor": r.get("p_anchor"),
+            "p_blind": r.get("p_blind"), "beats_anchor": ep.get("beats_anchor"), "date": t["d1"],
+            "days": len(ep["hours"]) // 24, "point": t["settlement_point"], "region": t["region"], "era": t.get("era"),
+            "source": ep.get("source"),
+            "battery": (f"{st['bess']['p_mw']:g} MW / {st['bess']['e_mwh']:g} MWh" if lite else
+                        f"PV {st['pv_mwac']:g} MWac · {st['bess']['p_mw']:g} MW / {st['bess']['e_mwh']:g} MWh"),
+            "watches": len(ep["watches"]), "deployments": len(deps), "top_notice": top and top.get("level"),
+            "reads": len(ep.get("forecasts_served") or []), "drift": drift(ep),
+            "synthetic": (ep.get("vintages") or {}).get("source") == "synthetic",
+            "showcase": ((task or {}).get("tags") or {}).get("showcase"), "rt_max": max(t["rt"])}
+
+
+def feature_forecast(entries: list[dict], out: Path) -> dict | None:
+    """The v4 preview's featured window: the best real front-tier run on fern-0124, else its rolling anchor, else the
+    window whose price guide drifted the most."""
+    pool = [e for e in entries if e["version"] == "v4"]
+    fern = [e for e in pool if e["showcase"] == FORECAST_HERO and e["tier"] == "front"]
+    e = (max([x for x in fern if real(x)], key=lambda x: x["reward"] or 0, default=None)
+         or next((x for x in fern if x["model"] == "reference/rolling-p50"), None)
+         or max([x for x in pool if x["tier"] == "front"] or pool, key=lambda x: (x["drift"], x["id"]), default=None))
+    if e is None:
+        return None
+    ep = json.loads((out / "runs" / e["url"]).read_text())
+    t, mom = forecast_moment(ep)
+    e |= {"featured": "forecast", "blurb": forecast_blurb(ep, e), "hero_moment": mom, "t_moment": t,
+          "shot": "establish"}
+    return e
+
+
+def forecast_moment(ep: dict) -> tuple[float, str]:
+    """The hour the card's picture shows: the dearest real-time hour of the window, a little past the half hour."""
+    rt = ep["task"]["rt"]
+    h = max(range(len(rt)), key=lambda i: rt[i])
+    return h + 0.6, f"the window's top real-time price, {hour(h % 24)} on day {h // 24 + 1}"
+
+
+def forecast_blurb(ep: dict, e: dict) -> str:
+    t, r = ep["task"], ep.get("references") or {}
+    region = REGIONS.get(t["region"], t["region"])
+    who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
+    h = max(range(len(t["rt"])), key=lambda i: t["rt"][i])
+    gates = sum(1 for x in ep.get("dam") or [] if not x.get("missed"))
+    synth = (" The forecast vintages in this CI window are synthetic; prices, PV and the weather are real."
+             if e["synthetic"] else "")
+    days = len(ep["hours"]) // 24
+    return (f"{region}, {days} operating days from {t['d1']}: {who} bids each day's book at the 10 am DAM gate "
+            f"the day before ({gates} of {days} gates) and re-plans at {len(ep['watches'])} watches as weather "
+            f"runs and bulletins arrive. The price guide moves ${e['drift']:,.0f}/MWh between runs on an average hour; "
+            f"real time reaches ${t['rt'][h]:,.0f}/MWh on day {h // 24 + 1}. It makes ${ep['profit_usd']:,.0f} "
+            f"against the blind re-planner's ${r.get('p_blind', 0):,.0f} and hindsight's ${r.get('p_hind', 0):,.0f}."
+            + synth)
 
 
 def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
@@ -577,9 +731,9 @@ def thumbnail(out: Path, e: dict) -> None:
     thumb = out / "thumbs" / f"{e['id']}.jpg"
     hero = e["featured"] == "hero"
     t = e.get("t_moment") or (evening(ep) if hero else peak(ep) + 0.6)
-    record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb",
-           str(thumb), "--t", str(t), "--extra",
-           f"ui=0&shot={e.get('shot', 'establish')}" if hero or "t_moment" in e else "ui=0")
+    side = e.get("weather", f"{e['date']}_{e['point']}.json")
+    record("--episode", str(path), "--weather", str(out / "weather" / side), "--thumb", str(thumb), "--t", str(t),
+           "--extra", f"ui=0&shot={e.get('shot', 'establish')}" if hero or "t_moment" in e else "ui=0")
     e["thumb"] = f"thumbs/{thumb.name}"
 
 
@@ -615,6 +769,16 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
     text = README
     for k, v in fields.items():
         text = text.replace("{" + k + "}", v)
+    v4 = [e for e in entries_all if e["version"] == "v4"]
+    if v4:
+        counts4 = Counter(e.get("model_label") or e["model"] for e in v4)
+        fv = next((e for e in v4 if e.get("featured") == "forecast"), None)
+        text = text.replace("\n## Links\n", FORECAST_README.format(
+            n=len(v4), models=", ".join(f"{n} of {LABELS.get(m, m)}" for m, n in counts4.most_common()),
+            synth=" These are CI fixture windows: their forecast vintages are synthetic until the forecast store "
+                  "lands; prices, PV, bulletins and the weather are real." if all(e["synthetic"] for e in v4) else "",
+            hero=f"\n\n**The featured v4 window,** [{fv['date']} at {fv['point']}]"
+                 f"({APP}/index.html?episode=runs/{fv['url']}): {fv['blurb']}" if fv else "") + "\n## Links\n")
     v3 = [e for e in entries_all if e["version"] == "v3"]
     if v3:
         counts3 = Counter(e.get("model_label") or e["model"] for e in v3)
@@ -646,6 +810,22 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
                          f"day ({rc['task_id']}).")
         text = text.replace("\n## Links\n", "\n".join(lines) + "\n\n## Links\n")
     return text
+
+
+FORECAST_README = """
+## v4 preview: Weather Front (provisional anchor)
+
+{n} multi-day windows ({models}), schema `gridsim.episode/v4`. v3's solar farm and battery run for three operating days
+(two at the battery-only front-lite tier). Each day's day-ahead book is bid at the 10 am DAM gate the day before, with
+results at 2 pm; between gates the agent re-plans at watches as NOAA HRRR runs, ERCOT and NWS bulletins and prices
+arrive, reading forecasts as they were issued: the desk's load, wind and solar models and its price guide (P10 to P90),
+ERCOT's own forecasts where the window has them. The replay draws each forecast as issued, older runs fading, the
+realized line only up to now, and a scrubber pins the card to what was on the desk, and what the agent read, at any
+watch. The scene follows the observed weather over the three days: the cold front's shelf cloud, the wind shift, frost
+and snow on the panels. R puts idle at 0.2 and the rolling MILP anchor on the guide's P50 at 1.0; the blind re-planner
+and hindsight are reported. Every v4 episode was replayed call by call through `gridsim_core.forecast` when the Space
+was built.{synth}{hero}
+"""
 
 
 LIVE_README = """

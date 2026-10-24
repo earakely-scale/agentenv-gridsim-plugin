@@ -3,6 +3,7 @@
 
 usage: python scripts/weather.py HB_WEST 2024-04-14 [HB_HOUSTON 2024-07-18 ...] [--out cache/weather] [--force]
        python scripts/weather.py --episodes results/runs   (every (point, date) the runs use)
+A v4 window gets one sidecar over its whole span (window_sidecar: d1-1 10:00 to the window end, hours from d1 00:00).
 """
 
 import argparse
@@ -78,9 +79,27 @@ def sidecar(point: str, day: str, out: Path, force: bool = False) -> Path:
     return path
 
 
-def url(station: str, day: str) -> str:
+def url(station: str, day: str, days: int = 1) -> str:
     d = date.fromisoformat(day)
-    return IEM.format(station=station, sts=(d - timedelta(days=1)).isoformat(), ets=(d + timedelta(days=2)).isoformat())
+    return IEM.format(station=station, sts=(d - timedelta(days=1)).isoformat(),
+                      ets=(d + timedelta(days=days + 1)).isoformat())
+
+
+def window_sidecar(point: str, d1: str, days: int, out: Path, force: bool = False) -> Path:
+    """The weather over a v4 window: observations from 16 h before d1 00:00 to 3 h after its end, t in hours from
+    d1 00:00 (negative before it), and `hourly` for each window hour."""
+    path = out / f"{d1}_{point}_{days}d.json"
+    if path.exists() and not force:
+        return path
+    station = STATION[point]
+    raw = out / "iem" / f"{station}_{d1}_{days}d.csv"
+    if force or not raw.exists():
+        raw.parent.mkdir(parents=True, exist_ok=True)
+        raw.write_text(fetch(url(station, d1, days)))
+    side = build(point, d1, raw.read_text(), (-16, 24 * days + 3))
+    side["hourly"] = [nearest(side["obs"], he) for he in range(1, 24 * days + 1)]
+    path.write_text(json.dumps(side | {"days": days}, separators=(",", ":")))
+    return path
 
 
 def fetch(u: str, tries: int = 4) -> str:
@@ -99,7 +118,7 @@ def fetch(u: str, tries: int = 4) -> str:
     raise RuntimeError(u)
 
 
-def build(point: str, day: str, text: str) -> dict:
+def build(point: str, day: str, text: str, span: tuple[float, float] = (-3, 27)) -> dict:
     station = STATION[point]
     name, lat, lon = AIRPORTS[station]
     midnight = datetime.fromisoformat(day).replace(tzinfo=CT)
@@ -109,7 +128,7 @@ def build(point: str, day: str, text: str) -> dict:
             continue
         at = datetime.strptime(r["valid"], "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("UTC"))
         t = (at - midnight).total_seconds() / 3600
-        if -3 <= t <= 27:
+        if span[0] <= t <= span[1]:
             obs.append(observation(r, round(t, 3)))
     obs.sort(key=lambda o: o["t"])
     return {"schema": "gridsim.weather/v1", "point": point, "date": day, "tz": "America/Chicago", "station": station,
