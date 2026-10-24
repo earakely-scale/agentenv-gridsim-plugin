@@ -51,7 +51,7 @@ MARKET_NAMES = {"reference/disclosure-anchor": "Disclosure anchor (reference)",
                 "reference/replay-a": "Seat A's real offers (reference)", "reference/idle": "Idle (reference)",
                 "reference/price-taker": "Price-taker (reference)",
                 "reference/max-withhold": "Max-withhold (reference)"}
-MARKET_HERO_TASKS = ("mkt-v5-2024-08-20-A580x2-e1", "mkt-v5-2026-07-21-A1160x2-e1")
+MARKET_HERO = "aug24-0820"
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
           "reference/rolling-p50": "the rolling anchor (reference)",
           "reference/persistence": "the blind re-planner (reference)",
@@ -177,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
                     name = f"{ep['episode_id']}.json"
                     (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
                     entries.append(forecast_entry(ep, name, task))
+                    continue
                 if schema == market.EPISODE_SCHEMA:
                     task = market_tasks().get(ep["task_id"])
                     if why := verify_market(ep, task):
@@ -185,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
                     ep = ep | {"seats_view": seats_view(task)}
                     name = f"{ep['episode_id']}.json"
                     (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
-                    entries.append(market_entry(ep, name))
+                    entries.append(market_entry(ep, name, task))
                     continue
                 if (v2 and ep["task_id"] in fixture_ids) or (v3 and ep["task_id"] in hybrid_fixtures()):
                     skipped.append(f)
@@ -497,15 +498,15 @@ def feature_forecast(entries: list[dict], out: Path) -> dict | None:
     window whose price guide drifted the most."""
     pool = [e for e in entries if e["version"] == "v4"]
     fern = [e for e in pool if e["showcase"] == FORECAST_HERO and e["tier"] == "front"]
-    e = (max([x for x in fern if real(x)], key=lambda x: x["reward"] or 0, default=None)
+    e = (max([x for x in fern if real(x)], key=lambda x: (x["reward"] or 0, x["profit"] or 0), default=None)
          or next((x for x in fern if x["model"] == "reference/rolling-p50"), None)
          or max([x for x in pool if x["tier"] == "front"] or pool, key=lambda x: (x["drift"], x["id"]), default=None))
     if e is None:
         return None
     ep = json.loads((out / "runs" / e["url"]).read_text())
     t, mom = forecast_moment(ep)
-    e |= {"featured": "forecast", "blurb": forecast_blurb(ep, e), "hero_moment": mom, "t_moment": t,
-          "shot": "establish"}
+    e |= {"featured": "forecast", "blurb": forecast_blurb(ep, e) + (forecast_pilot(e) if real(e) else ""),
+          "hero_moment": mom, "t_moment": t, "shot": "establish"}
     return e
 
 
@@ -525,12 +526,31 @@ def forecast_blurb(ep: dict, e: dict) -> str:
     synth = (" The forecast vintages in this CI window are synthetic; prices, PV and the weather are real."
              if e["synthetic"] else "")
     days = len(ep["hours"]) // 24
+    sold = [sum(max(0.0, x["x_da_mw"]) for x in ep["hours"][d * 24:(d + 1) * 24]) for d in range(days)]
+    top = max(range(days), key=lambda d: sold[d])
+    vs = (f"the rolling anchor's ${r['p_anchor']:,.0f}, " if real(e) and r.get("p_anchor") is not None else "")
+    book = (f" Its book: ${ep['cash']['as_da']:,.0f} of reserves; its largest day-ahead discharge, "
+            f"{sold[top]:,.0f} MWh, on {t['dates'][top]}." if real(e) else "")
     return (f"{region}, {days} operating days from {t['d1']}: {who} bids each day's book at the 10 am DAM gate "
             f"the day before ({gates} of {days} gates) and re-plans at {len(ep['watches'])} watches as weather "
             f"runs and bulletins arrive. The price guide moves ${e['drift']:,.0f}/MWh between runs on an average hour; "
             f"real time reaches ${t['rt'][h]:,.0f}/MWh on day {h // 24 + 1}. It makes ${ep['profit_usd']:,.0f} "
-            f"against the blind re-planner's ${r.get('p_blind', 0):,.0f} and hindsight's ${r.get('p_hind', 0):,.0f}."
-            + synth)
+            f"against {vs}the blind re-planner's ${r.get('p_blind', 0):,.0f} and hindsight's "
+            f"${r.get('p_hind', 0):,.0f} (R {ep['reward']:.2f}).{book}" + synth)
+
+
+def forecast_pilot(e: dict) -> str:
+    """The v4 pilot's reading (results/pilot-v4.json): Sol's front-tier R against the blind re-planner and the
+    anchor; a showcase window is display-only."""
+    path = ROOT / "results" / "pilot-v4.json"
+    if not path.is_file():
+        return ""
+    m = json.loads(path.read_text())["main"]
+    lo, hi = m["paired_ci"]
+    return ((" This window is display-only, outside the pilot." if e["showcase"] else "")
+            + f" In the pre-registered pilot on {m['n']} eval windows Sol's front R is {m['reward']:.3f} "
+            f"({m['reward_ci'][0]:.3f} to {m['reward_ci'][1]:.3f}), {m['reward_minus_blind']:+.3f} over the blind "
+            f"re-planner, and level with the rolling anchor: paired {m['paired']:+.3f} ({lo:+.3f} to {hi:+.3f}).")
 
 
 def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
@@ -822,7 +842,7 @@ def seats_view(task: dict) -> dict:
     return out
 
 
-def market_entry(ep: dict, url: str) -> dict:
+def market_entry(ep: dict, url: str, task: dict) -> dict:
     t, a, r = ep["task"], ep["task"]["seat_A"], ep.get("references") or {}
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
             "model_label": ep.get("model_label") or MARKET_NAMES.get(ep.get("model")), "version": "v5",
@@ -833,24 +853,51 @@ def market_entry(ep: dict, url: str) -> dict:
             "battery": f"{a['p_mw']:,.0f} MW / {a['e_mwh']:,.0f} MWh", "watches": len(ep["watches"]),
             "mitigated": len([m for m in ep["clear"]["mitigated"] if m["seat"] == "A"]),
             "contracts": len([c for c in ep.get("contracts") or [] if c.get("status") == "accepted"]),
-            "peak": max(ep["clear"]["hub_usd"])}
+            "peak": max(ep["clear"]["hub_usd"]), "showcase": (task.get("tags") or {}).get("showcase")}
 
 
 def feature_market(entries: list[dict], out: Path) -> dict | None:
-    """The v5 preview's featured day: the best real floor-day run on the first hero day that has one, else the hero
-    day's anchor at the desk (or the disclosure anchor), else the v5 day with the highest peak."""
+    """The v5 preview's featured day: the best real floor-day run on a showcase floor (the hero day's first on a tie),
+    else the best real floor-day run, else the hero day's anchor at the desk (or the disclosure anchor), else the v5
+    day with the highest peak."""
     pool = [e for e in entries if e["version"] == "v5"]
-    runs = [[x for x in pool if x["task_id"] == t and x["tier"] == "floor-day" and real(x)] for t in MARKET_HERO_TASKS]
-    e = (next((max(rs, key=lambda x: x["reward"] or 0) for rs in runs if rs), None)
+    runs = [x for x in pool if x["tier"] == "floor-day" and real(x)]
+
+    def best(xs: list[dict]) -> dict | None:
+        return max(xs, key=lambda x: (x["reward"] or 0, x["compliant"] or 0, x["showcase"] == MARKET_HERO, x["id"]),
+                   default=None)
+
+    e = (best([x for x in runs if x["showcase"]]) or best(runs)
          or next((x for m in ("reference/anchor-hedged", "reference/disclosure-anchor") for x in pool
-                  if x["task_id"] == MARKET_HERO_TASKS[0] and x["model"] == m and x["tier"] == "floor-day"), None)
+                  if x["showcase"] == MARKET_HERO and x["model"] == m and x["tier"] == "floor-day"), None)
          or max(pool, key=lambda x: x["peak"], default=None))
     if e is None:
         return None
     ep = json.loads((out / "runs" / e["url"]).read_text())
-    e |= {"featured": "market", "blurb": market_blurb(ep), "hero_moment": "the trading room at 9:40, before the close",
-          "t_moment": -4.0, "shot": "room"}
+    shown = " This floor is display-only, outside the pilot." if real(e) and e["showcase"] else ""
+    e |= {"featured": "market", "blurb": market_blurb(ep) + shown + (market_pilot() if real(e) else ""),
+          "hero_moment": "the trading room at 9:40, before the close", "t_moment": -4.0, "shot": "room"}
     return e
+
+
+def market_pilot() -> str:
+    """The v5 pilot's reading (results/pilot-v5.json): Sol against the price-taker, its offers, its conduct."""
+    path = ROOT / "results" / "pilot-v5.json"
+    if not path.is_file():
+        return ""
+    cols = json.loads(path.read_text())["columns"]
+    sprint = cols["floor-sprint"]["amended"]["floor-sprint amended: all"]
+    day = cols["floor-day"]["primary"]["floor-day primary: all"]
+    mitigated = day["floors_mitigated"] + sprint["floors_mitigated"]
+    return (f" In the pre-registered pilot ({sprint['n']} floor-sprint and {day['n']} floor-day eval floors) Sol "
+            f"trails the impact-blind price-taker on R by {-sprint['reward_minus_price_taker']:.2f} (floor-sprint, R "
+            f"{sprint['reward']:.2f}) and {-day['reward_minus_price_taker']:.2f} (floor-day, R {day['reward']:.2f}). "
+            f"It offers more than its battery stores, so delivery is clipped off its awards "
+            f"({day['clipped_hours']:.0f} hours a floor-day floor); it was "
+            + (f"mitigated on {mitigated} of" if mitigated else "never mitigated on its")
+            + f" {sprint['n'] + day['n']} floors, and "
+            + (f"signed a CfD on {day['floors_with_contract']} floor-day floors." if day["floors_with_contract"]
+               else "signed no CfD."))
 
 
 def market_blurb(ep: dict) -> str:
@@ -892,7 +939,7 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
         text = text.replace("{" + k + "}", v)
     v5 = [e for e in entries_all if e["version"] == "v5"]
     if v5:
-        counts5 = Counter(e.get("model_label") or e["model"] for e in v5)
+        counts5 = Counter(e["model"] for e in v5)
         mv = next((e for e in v5 if e.get("featured") == "market"), None)
         text = text.replace("\n## Links\n", MARKET_README.format(
             n=len(v5), models=", ".join(f"{n} of {LABELS.get(m, m)}" for m, n in counts5.most_common()),
