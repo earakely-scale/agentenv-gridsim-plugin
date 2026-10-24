@@ -163,11 +163,11 @@ class Watch:
     notices: tuple[Notice, ...]
 
 
-def parse_notice(n: dict, date: str) -> Notice:
+def parse_notice(n: dict, date: str, reveal_minutes: int = 15) -> Notice:
     issued = to_minutes(n["issued_at"], date)
     text = str(n.get("text") or "")[:NOTICE_CHARS]
     return Notice(str(n["event_id"]), str(n.get("source") or "ERCOT"), str(n.get("kind") or "other"), n.get("level"),
-                  n["issued_at"], issued, int(ceil_to_interval(issued, 15)), str(n.get("name") or n.get("source") or
+                  n["issued_at"], issued, int(ceil_to_interval(issued, reveal_minutes)), str(n.get("name") or n.get("source") or
                                                                                  "ERCOT"),
                   str(n.get("title") or text.split(".")[0][:120]), text,
                   None if n.get("derate_mw") is None else float(n["derate_mw"]), n.get("from"), n.get("until"),
