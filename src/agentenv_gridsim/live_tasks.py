@@ -39,9 +39,10 @@ def agent_env(episode_cap_usd: float | None) -> dict[str, dict[str, str]]:
     return {"env_vars": {"GRIDSIM_MAX_COST_USD": format(episode_cap_usd, "g")}} if episode_cap_usd is not None else {}
 
 
-def load_step(task_id: str, tier: str, env: str = LIVE_ENV) -> dict:
+def load_step(task_id: str, tier: str, env: str = LIVE_ENV, uri: str = LIVE_LOAD_URI,
+              extra: dict | None = None) -> dict:
     return {"id": "load-task", "type": "apply_server_config", "env_id": env,
-            "directives": [{"service": env, "uri": LIVE_LOAD_URI, "args": {"task_id": task_id, "tier": tier}}]}
+            "directives": [{"service": env, "uri": uri, "args": {"task_id": task_id, "tier": tier} | (extra or {})}]}
 
 
 def steps(task: dict, tier: str = "foresight", episode_cap_usd: float | None = None, play: bool = True) -> list[dict]:
@@ -55,14 +56,21 @@ def steps(task: dict, tier: str = "foresight", episode_cap_usd: float | None = N
 
 
 def flow(env: str, verifier: str, task_id: str, tier: str, watch_0_utc: str, watch_triggers: list[dict], system: str,
-         user: str, episode_cap_usd: float | None = None, play: bool = True,
-         model_params: dict = MODEL_PARAMS) -> list[dict]:
-    """The steps of a day in watches on a gateway env, shared by gridsim-live and gridsim-hybrid."""
-    out = [{"id": "deploy", "type": "deploy_env", "env_id": env}, load_step(task_id, tier, env),
+         user: str, episode_cap_usd: float | None = None, play: bool = True, model_params: dict = MODEL_PARAMS, *,
+         load_uri: str = LIVE_LOAD_URI, end: tuple[str, str] = ("end-day", END_DAY_URI), max_turns: int = MAX_TURNS,
+         play_seconds: int = PLAY_SECONDS, tier_hidden: list[str] | None = None,
+         load_args: dict | None = None) -> list[dict]:
+    """The steps of a day (or window) in watches on a gateway env, shared by gridsim-live, gridsim-hybrid and
+    gridsim-forecast: ``end`` is the end step's id and extension, ``tier_hidden`` the agent tools the tier hides,
+    ``load_args`` what the load takes beyond the task id and tier."""
+    out = [{"id": "deploy", "type": "deploy_env", "env_id": env}, load_step(task_id, tier, env, load_uri, load_args),
            {"id": "hide-grid-notice", "type": "modify_env_tool_access", "env_id": env, "action": "disable",
-            "role": "default", "tools": [NOTICE_TOOL]},
-           {"id": "watches", "type": "register_env_triggers", "env_id": env, "watch_roles": ["default"],
-            "triggers": watch_triggers}]
+            "role": "default", "tools": [NOTICE_TOOL]}]
+    if tier_hidden:
+        out.append({"id": "hide-tier-tools", "type": "modify_env_tool_access", "env_id": env, "action": "disable",
+                    "role": "default", "tools": tier_hidden})
+    out.append({"id": "watches", "type": "register_env_triggers", "env_id": env, "watch_roles": ["default"],
+                "triggers": watch_triggers})
     if play:
         out.append({"id": "deploy-agent", "type": "deploy_agent", "a2a_agent_id": AGENT, "env_ids": [env],
                     **agent_env(episode_cap_usd)})
@@ -70,11 +78,11 @@ def flow(env: str, verifier: str, task_id: str, tier: str, watch_0_utc: str, wat
                 "virtual_seconds_per_real_second": 0, "tolerate_missing_sync_time": False})
     if play:
         out.append({"id": "play", "type": "prompt_agent", "prompt_id": task_id, "system_prompt": system,
-                    "prompt": user, "max_turns": MAX_TURNS, "model_params": model_params, "effort": EFFORT,
-                    "timeout_seconds": PLAY_SECONDS})
+                    "prompt": user, "max_turns": max_turns, "model_params": model_params, "effort": EFFORT,
+                    "timeout_seconds": play_seconds})
     return out + [
-        {"id": "end-day", "type": "apply_server_config", "env_id": env,
-         "directives": [{"service": env, "uri": END_DAY_URI, "args": {}}]},
+        {"id": end[0], "type": "apply_server_config", "env_id": env,
+         "directives": [{"service": env, "uri": end[1], "args": {}}]},
         {"id": "grade", "type": "env_outcome_verifier", "env_id": env, "file_artifact_id": verifier,
          "verifier_id": "gridsim", "score_aggregator": "weighted_average"},
     ]

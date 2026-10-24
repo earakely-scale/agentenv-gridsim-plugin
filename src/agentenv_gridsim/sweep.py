@@ -3,7 +3,8 @@
 FineEnvs eval card with the baselines from the pack's references) and results/board.md. With --env gridsim-live, a
 live pack's days played live (the harness is "live"), reported to results/eval-v2.json and results/board-v2.md
 against the live references; with --env gridsim-hybrid, a hybrid pack's site-days, reported to results/eval-v3.json and
-results/board-v3.md against the hybrid references."""
+results/board-v3.md against the hybrid references; with --env gridsim-forecast, a forecast pack's windows, reported to
+results/eval-v4.json and results/board-v4.md against the forecast references."""
 
 import json
 import re
@@ -23,6 +24,10 @@ from agent_env.store.routing import namespace_routing
 from agent_env.task.store import get_task_instance_store
 
 from gridsim_core import CONTRACT_VERSION
+from gridsim_core.forecast import DAM_SUBMITS, FORECAST_CALLS, FORECAST_ENV, FORECAST_VERSION
+from gridsim_core.forecast import MAX_TURNS as FORECAST_MAX_TURNS
+from gridsim_core.forecast import TIERS as FORECAST_TIERS
+from gridsim_core.forecast import TOOLS as FORECAST_TOOLS
 from gridsim_core.grade import grade, reward_value
 from gridsim_core.hybrid import HYBRID_ENV, HYBRID_VERSION
 from gridsim_core.hybrid import TIERS as HYBRID_TIERS
@@ -30,7 +35,8 @@ from gridsim_core.hybrid import TOOLS as HYBRID_TOOLS
 from gridsim_core.live import LIVE_ENV, LIVE_VERSION, MAX_TURNS, PLANNING_CALLS, TOOLS
 from gridsim_core.live import TIERS as LIVE_TIERS
 
-from . import hybrid_tasks, live_tasks, tasks
+from . import forecast_tasks, hybrid_tasks, live_tasks, tasks
+from .forecast import FORECAST_PACK_NAMES
 from .hybrid import HYBRID_PACK_NAMES
 from .live import LIVE_PACK_NAMES
 from .server import PACK_NAMES, TIERS
@@ -43,13 +49,20 @@ LIVE_CARD = Path("results/eval-v2.json")
 LIVE_BOARD = Path("results/board-v2.md")
 HYBRID_CARD = Path("results/eval-v3.json")
 HYBRID_BOARD = Path("results/board-v3.md")
+FORECAST_CARD = Path("results/eval-v4.json")
+FORECAST_BOARD = Path("results/board-v4.md")
 EVAL_PACK = "ercot-dam-v1-eval"
 LIVE_EVAL_PACK = "gridsim-live-eval"
 HYBRID_EVAL_PACK = "ercot-hybrid-v3-eval"
-ENVS = ("gridsim", LIVE_ENV, HYBRID_ENV)
+FORECAST_EVAL_PACK = "ercot-front-v4-eval"
+ENVS = ("gridsim", LIVE_ENV, HYBRID_ENV, FORECAST_ENV)
 LIVE_ERRORS = ("no_commit", "refused", "end_short", "clipped", "no_replanning")
 HYBRID_ERRORS = ("no_commit", "refused", "ftp_charged", "end_short", "governed", "no_replanning", "as_unused")
 HYBRID_BASELINES = ("sponge", "as_hog", "v2_energy")
+FORECAST_ERRORS = ("no_commit", "dam_missed", "refused", "ftp_charged", "end_short", "governed", "no_replanning",
+                   "no_forecasts", "as_unused")
+FORECAST_BASELINES = ("naive", "blind", "roll", "roll3")
+LABELS_V4 = ("front", "calm")
 STRATA = ("low", "mid", "high")
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,40}")
 INSTANCE = re.compile(r"(\d+(?:\.\d+)?)s, instance (\S+)")
@@ -84,12 +97,16 @@ class Sweep:
 
     @property
     def live(self) -> bool:
-        """Played live in watches: gridsim-live or gridsim-hybrid."""
-        return self.env in (LIVE_ENV, HYBRID_ENV)
+        """Played live in watches: gridsim-live, gridsim-hybrid or gridsim-forecast."""
+        return self.env in (LIVE_ENV, HYBRID_ENV, FORECAST_ENV)
 
     @property
     def hybrid(self) -> bool:
         return self.env == HYBRID_ENV
+
+    @property
+    def forecast(self) -> bool:
+        return self.env == FORECAST_ENV
 
     def spec(self) -> dict:
         """sweep.json: the fields, without env for a v1 sweep, so v1 sweeps resume as they were written."""
@@ -162,7 +179,8 @@ def trajectory(uri: str) -> bytes:
 
 def task_ids(spec: str, pack: str = EVAL_PACK, tier: str = "foresight") -> list[str]:
     """``all``, the first N, or comma-separated ids, of the pack's tasks the tier can play, in the pack's order."""
-    module = hybrid_tasks if pack in HYBRID_PACK_NAMES else live_tasks if pack in LIVE_PACK_NAMES else tasks
+    module = (hybrid_tasks if pack in HYBRID_PACK_NAMES else live_tasks if pack in LIVE_PACK_NAMES
+              else forecast_tasks if pack in FORECAST_PACK_NAMES else tasks)
     known = [r["task_id"] for r in module.eligible(module.pack_rows(pack), tier)]
     if spec == "all":
         return known
@@ -185,7 +203,7 @@ def prepare(sweep: Sweep) -> None:
                                    f"tier, bundle, pack and env: {path.read_text().strip()}")
         return
     if sweep.live:
-        (hybrid_tasks if sweep.hybrid else live_tasks).generate(
+        (hybrid_tasks if sweep.hybrid else forecast_tasks if sweep.forecast else live_tasks).generate(
             sweep.pack, sweep.out / "bundle", tier=sweep.tier, task_ids=sweep.tasks,
             episode_cap_usd=sweep.episode_cap_usd)
     else:
@@ -284,6 +302,37 @@ def hybrid_fields(day: dict) -> dict:
             "da": day["da"], "schedule": day["executed"], "errors": hybrid_errors(day), "audit_ok": day["audit"]["ok"]}
 
 
+def forecast_errors(w: dict) -> list[str]:
+    """A forecast window's error taxonomy: nothing accepted, a missed DAM gate, a refused hour, charged
+    failure-to-provide, an end-of-window shortfall, governed hours, no planning call after watch 0, no forecast call
+    on a tier that serves them, no AS revenue on a tier that offers AS."""
+    g = w.get("grade") or {}
+    return [e for e, hit in [("no_commit", not g.get("submitted")), ("dam_missed", g.get("dam_missed")),
+                             ("refused", w.get("refusals")), ("ftp_charged", g.get("ftp_mwh_charged")),
+                             ("end_short", g.get("end_short_mwh")), ("governed", g.get("governor_hours")),
+                             ("no_replanning", not sum((w.get("planning_calls") or [0])[1:])),
+                             ("no_forecasts", w.get("tier") != "blind" and not g.get("forecast_calls")),
+                             ("as_unused", w.get("tier") != "front-lite" and not (g.get("cash") or {}).get("as_da"))]
+            if hit]
+
+
+def forecast_fields(w: dict) -> dict:
+    """A scored forecast run's row fields from its window (data/get): the grade, its weight-0 rows and play counts."""
+    g = w["grade"]
+    return {"profit": g["profit_usd"], "profit_idle": g["p_idle"], "profit_anchor": g["p_anchor"],
+            "profit_opt": g["p_hind"], "raw_ratio": g["raw_ratio"], "valid": bool(g["submitted"]),
+            "source": g["source"], "paired_vs_anchor": g["paired_vs_anchor"], "r_roll3": g["r_roll3"],
+            "forecast_value": g["forecast_value"], "dam_missed": g["dam_missed"], "dam_submits": g["dam_submits"],
+            "forecast_calls": g["forecast_calls"], "as_usd": (g.get("cash") or {}).get("as_da"),
+            "ftp_mwh_charged": g["ftp_mwh_charged"], "ftp_mwh_excused": g["ftp_mwh_excused"],
+            "end_short_mwh": g["end_short_mwh"], "governor_hours": g["governor_hours"], "refusals": g["refusals"],
+            "commits": g["commits"], "watches": w["watches"],
+            "watch_reached": w["frozen"][-1]["watch"] if w["frozen"] else None,
+            "checks": sum(w["planning_calls"]), "planning_calls": w["planning_calls"],
+            "forecast_calls_by_watch": w["forecast_calls"], "dam": w["dam"], "book": w["book"],
+            "schedule": w["executed"], "errors": forecast_errors(w), "audit_ok": w["audit"]["ok"]}
+
+
 def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bool = False, read: bool = True) -> dict:
     """The attempt's row, from the instance its run stored: the verifier's rows and episode, and the play step's
     summary, failure and trajectory. Without ``read`` (the sweep itself failed), from the log alone."""
@@ -323,7 +372,7 @@ def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bo
            "outcome": "scored" if scored else "interrupted" if interrupted else "failed",
            "failed_step": failed_step, "error_code": error_code, "error": error and error[:500], "retryable": False,
            "reward": v["score"] if scored else None,
-           "r_opt": rows["hindsight_capture"]["score"] if scored else None,
+           "r_opt": (rows.get("hindsight_capture") or rows.get("r_hind") or {}).get("score") if scored else None,
            "submitted": bool(g.get("submitted")) if scored else None,
            "valid": bool(g.get("submitted") and g.get("feasible")) if scored else None,
            "feasible": g.get("feasible"), "violation": g.get("violation"), "truncated_at": g.get("truncated_at"),
@@ -338,7 +387,7 @@ def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bo
            "cost_usd": spent, "priced_cost_usd": s.get("priced_cost_usd"), "failed_requests": s.get("failed_requests"),
            "transcript": transcript}
     if sweep.live and scored:
-        row |= (hybrid_fields if sweep.hybrid else live_fields)(episode)
+        row |= (hybrid_fields if sweep.hybrid else forecast_fields if sweep.forecast else live_fields)(episode)
     row["retryable"] = not final([*earlier, row])
     return row
 
@@ -1028,6 +1077,155 @@ def hybrid_board_md(c: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+# ================================================================ forecast report
+def forecast_baselines(rows: list[dict], tier: str) -> dict:
+    """The references' means over these windows at one tier: each stored baseline's reward against this tier's anchor,
+    and the anchor's hindsight capture."""
+    refs = [r["refs"] for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
+    out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0}
+    for name in FORECAST_BASELINES:
+        out[name] = _r(_mean([r[tier]["baselines"][name]["reward"] for r in refs
+                              if name in (r[tier].get("baselines") or {})]))
+    caps = [_live_capture({"p_idle": r[tier]["p_idle"], "p_hind": r[tier]["p_hind"]}, r[tier]["p_anchor"])
+            for r in refs if r[tier].get("p_hind") is not None]
+    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]))
+    return out
+
+
+def forecast_model(board: Board, cell) -> dict:
+    name, _, tier, bundle = cell
+    by_task = board.scored(cell)
+    mean = {t: statistics.mean(r["reward"] for r in rs) for t, rs in by_task.items()}
+    runs = [r for rs in by_task.values() for r in rs]
+    rewards = list(mean.values())
+    lo_hi = ci(rewards) if rewards else None
+    costs = [priced(r) for r in runs if priced(r) is not None]
+    known, unknown = board.spend(cell)
+    effort = sorted({r.get("effort") for r in runs if r.get("effort")})
+    tag = {t: (board.tasks.get(t, {}).get("tags") or {}).get("label") for t in mean}
+    source = {t: rs[0].get("source") for t, rs in by_task.items()}
+
+    def avg(key: str, digits: int = 4):
+        return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
+
+    return {"model": name, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
+            "runs": len(runs), "planned": board.planned(cell), "tasks": len(mean),
+            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
+            "by_label": {lb: _r(_mean([v for t, v in mean.items() if tag[t] == lb])) for lb in LABELS_V4},
+            "by_source": {sc: _r(_mean([v for t, v in mean.items() if source[t] == sc])) for sc in ("desk", "ercot")},
+            "hindsight_capture": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()])),
+            "paired_vs_anchor": avg("paired_vs_anchor"),
+            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
+            "r_roll3": avg("r_roll3"), "forecast_value": avg("forecast_value"),
+            "valid": _r(_mean([float(r["valid"]) for r in runs])), "dam_missed": avg("dam_missed", 2),
+            "dam_submits": avg("dam_submits", 2), "forecast_calls": avg("forecast_calls", 2),
+            "as_usd": avg("as_usd", 2), "ftp_mwh_charged": avg("ftp_mwh_charged", 3),
+            "ftp_mwh_excused": avg("ftp_mwh_excused", 3), "refusals": avg("refusals", 2),
+            "governor_hours": avg("governor_hours", 2),
+            "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in FORECAST_ERRORS},
+            "planning_calls": _r(_mean([r["checks"] for r in runs]), 2), "commits": avg("commits", 2),
+            "finished_by_agent": _r(_mean([float(r["end_reason"] == "done") for r in runs])),
+            "turns": _r(_mean([r["turns"] for r in runs if r["turns"] is not None]), 1),
+            "tokens": {k: _r(_mean([r[f"{k}_tokens"] or 0 for r in runs]), 1) for k in ("input", "output", "cached")},
+            "usd_per_episode": _r(_mean(costs)), "usd_max": _r(max(costs, default=None)),
+            "spend_usd": round(known, 4), "unknown_spend_attempts": unknown}
+
+
+def forecast_card(board: Board) -> dict:
+    models = [forecast_model(board, cell) for cell in board.cells]
+    rows = board.task_rows()
+    split = sorted({r.get("split") for r in rows if r.get("split")})
+    tiers = sorted({s.tier for s in board.sweeps})
+    flags = sorted({f"{k}: {v}" for r in rows for k, v in (r.get("flags") or {}).items() if v})
+    return {
+        "env": FORECAST_ENV, "version": "v4", "forecast_version": FORECAST_VERSION,
+        "contract_version": CONTRACT_VERSION,
+        "authors": [{"name": "Edgar Arakelyan", "github": "earakely-scale", "affiliation": "Scale AI"},
+                    {"name": "Adithya S Kolavi", "github": "adithya-s-k", "affiliation": "Hugging Face"}],
+        "framework": "agentenv",
+        "tasks": {"split": split[0] if len(split) == 1 else split, "n": len(rows), "unit": "forecast windows",
+                  "packs": sorted({s.pack for s in board.sweeps}),
+                  "labels": {lb: sum((r.get("tags") or {}).get("label") == lb for r in rows) for lb in LABELS_V4},
+                  "sources": dict(Counter(r.get("source") or "desk" for r in rows)),
+                  "source": "ERCOT DAM/RT SPPs and DAM AS MCPCs; NOAA HRRR runs as issued; NWS VTEC; ERCOT notices; "
+                            "EIA-930 DF; desk forecasts and the price guide modelled from them",
+                  "selection": "the v4 filters (hindsight headroom, forecast value, anchor over idle) per kW",
+                  "flags": flags},
+        "harness": {"agent": live_tasks.AGENT, "env": FORECAST_ENV, "tools": [*FORECAST_TOOLS, "get_time"],
+                    "max_turns": {t: FORECAST_MAX_TURNS[t] for t in tiers}, "planning_calls_per_watch": PLANNING_CALLS,
+                    "forecast_calls_per_watch": FORECAST_CALLS, "dam_submits_per_gate": DAM_SUBMITS,
+                    "max_tokens": forecast_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
+                    "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual "
+                            "clock)"},
+        "grading": {"reference": "the rolling MILP (HiGHS) played through the Session at every watch",
+                    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or "
+                              "commit_schedule scores 0",
+                    "idle": "no DAM, the battery idle, PV exported at RT",
+                    "anchor": {"front": "P_roll on the desk's P50 guide", "front-lite": "P_roll, battery only",
+                               "freeze-6h": "P_roll under the 6 h freeze", "blind": "P_blind on persistence"},
+                    "hindsight_capture": "r_hind: the reward against P_hind, a weight-0 row",
+                    "weight_0": ["audit", "r_hind", "paired_vs_anchor", "beats_anchor", "r_roll3", "forecast_value",
+                                 "dam_missed", "baselines"],
+                    "audit": "weight 0; a failed audit makes the run unscored",
+                    "excused": "AS shortfall or end-SoC shortfall from drift or deployments after the hour froze",
+                    "judge": False},
+        "baselines": {t: forecast_baselines(board.tier_rows(t), t) for t in tiers},
+        "models": models,
+        "errors": {"taxonomy": list(FORECAST_ERRORS),
+                   "meaning": {"no_commit": "no accepted hour in any submit_dam or commit_schedule (scores 0)",
+                               "dam_missed": "a DAM gate without an accepted hour",
+                               "refused": "a submit or commit with a refused hour",
+                               "ftp_charged": "AS failure-to-provide charged",
+                               "end_short": "SoC at the window end below s_end_min",
+                               "governed": "the governor moved an hour",
+                               "no_replanning": "no planning call after watch 0",
+                               "no_forecasts": "no forecast call on a tier that serves them",
+                               "as_unused": "no AS revenue on a tier that offers AS"}},
+        "sweeps": [asdict(s) | {"tasks": len(s.tasks)} for s in board.sweeps],
+        "links": {"runs": "hf dataset", "replays": "hf space", "code": "github"},
+    }
+
+
+def forecast_board_md(c: dict) -> str:
+    h = c["harness"]
+    turns = ", ".join(f"{t} {n}" for t, n in h["max_turns"].items())
+    lines = ["# GridSim v4 forecast board", "",
+             f"Tasks: {c['tasks']['n']} forecast windows ({', '.join(c['tasks']['packs'])}; "
+             + ", ".join(f"{k} {v}" for k, v in c["tasks"]["labels"].items()) + "; sources "
+             + ", ".join(f"{k} {v}" for k, v in c["tasks"]["sources"].items()) + f"). Harness: {h['agent']} on "
+             f"{h['env']}, turns {turns}, {h['planning_calls_per_watch']} planning and "
+             f"{h['forecast_calls_per_watch']} forecast calls a watch, {h['dam_submits_per_gate']} DAM submits a gate, "
+             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: {c['grading']['reward']}; idle "
+             "(0.2) is no DAM and the battery idle, the anchor (1.0) the rolling MILP on the desk's P50 guide "
+             "(blind: on persistence). Mean R over windows with a 95% bootstrap CI.", ""]
+    if c["tasks"]["flags"]:
+        lines += ["Proxies and flags: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
+    for tier, b in c["baselines"].items():
+        lines.append(f"Baselines ({tier}, {b['n']} windows): idle {_f(b['idle'])}, naive {_f(b['naive'])}, P_blind "
+                     f"{_f(b['blind'])}, P_roll {_f(b['roll'])}, P_roll3 {_f(b['roll3'])}, anchor {_f(b['anchor'])}; "
+                     f"anchor hindsight capture {_f(b['anchor_capture'])}.")
+    lines += ["", "| Model | Tier | Windows | Runs/planned | Mean R (95% CI) | R front/calm | r_hind "
+              "| Paired vs anchor | Beats anchor | r_roll3 | Forecast value | DAM missed | Forecast calls | Refusals "
+              "| Planning calls | Turns | Finished | $/episode (max) | Spend |",
+              "|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for m in c["models"]:
+        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
+        lines.append(" | ".join([
+            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", _f(m["mean"]) + ci95,
+            "/".join(_f(m["by_label"][lb]) for lb in LABELS_V4), _f(m["hindsight_capture"]),
+            _f(m["paired_vs_anchor"]), _f(m["beats_anchor"]), _f(m["r_roll3"]), _f(m["forecast_value"]),
+            _f(m["dam_missed"], ".2f"), _f(m["forecast_calls"], ".1f"), _f(m["refusals"], ".2f"),
+            _f(m["planning_calls"], ".2f"), _f(m["turns"], ".1f"), _f(m["finished_by_agent"]),
+            "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f} (${m['usd_max']:.4f})",
+            f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
+                                        else "")]) + " |")
+    lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
+              "| Model | Tier | " + " | ".join(FORECAST_ERRORS) + " |", "|---|---|" + "---:|" * len(FORECAST_ERRORS)]
+    lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in FORECAST_ERRORS) + " |"
+              for m in c["models"]]
+    return "\n".join(lines) + "\n"
+
+
 def unscored(board: Board) -> list[str]:
     """Every pre-registered run with no scored attempt, and how its amendment, if any, ended."""
     out = []
@@ -1051,17 +1249,18 @@ def unscored(board: Board) -> list[str]:
 
 
 REPORTS = {"gridsim": (card, board_md, CARD, BOARD), LIVE_ENV: (live_card, live_board_md, LIVE_CARD, LIVE_BOARD),
-           HYBRID_ENV: (hybrid_card, hybrid_board_md, HYBRID_CARD, HYBRID_BOARD)}
+           HYBRID_ENV: (hybrid_card, hybrid_board_md, HYBRID_CARD, HYBRID_BOARD),
+           FORECAST_ENV: (forecast_card, forecast_board_md, FORECAST_CARD, FORECAST_BOARD)}
 
 
 def report(sweeps: list[Sweep], card_path: Path | None = None, board_path: Path | None = None,
            amend: dict[str, Sweep] | None = None, columns: dict[str, str] | None = None, narrate=None) -> dict:
     """v1 sweeps to results/eval-v1.json and board.md; live sweeps to eval-v2.json and board-v2.md; hybrid sweeps to
-    eval-v3.json and board-v3.md. ``narrate(card, board)`` returns the fields to add to the card and the text to put
-    under the board's title and after its tables."""
+    eval-v3.json and board-v3.md; forecast sweeps to eval-v4.json and board-v4.md. ``narrate(card, board)`` returns
+    the fields to add to the card and the text to put under the board's title and after its tables."""
     if len({s.env for s in sweeps}) > 1:
-        raise click.UsageError("report v1 and live sweeps separately, and hybrid sweeps on their own: their references "
-                               "differ")
+        raise click.UsageError("report v1 and live sweeps separately, and hybrid sweeps on their own, as forecast "
+                               "sweeps: their references differ")
     make_card, make_board, default_card, default_board = REPORTS[sweeps[0].env]
     board = Board(sweeps, amend, columns)
     c = make_card(board)
@@ -1091,32 +1290,44 @@ def sweep_group():
               help="all, N (the pack's first N), or comma-separated task ids of the pack the tier can play.")
 @click.option("--env", type=click.Choice(ENVS), default="gridsim", show_default=True,
               help=f"gridsim: the v1 battery desk; {LIVE_ENV}: a live pack's days played live in watches; "
-                   f"{HYBRID_ENV}: a hybrid pack's solar-plus-storage site-days played live.")
-@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES + HYBRID_PACK_NAMES),
-              help=f"The task pack. Default: {EVAL_PACK}, {LIVE_EVAL_PACK} with --env {LIVE_ENV}, or "
-                   f"{HYBRID_EVAL_PACK} with --env {HYBRID_ENV}.")
-@click.option("--tier", type=click.Choice(LIVE_TIERS + HYBRID_TIERS),
+                   f"{HYBRID_ENV}: a hybrid pack's solar-plus-storage site-days played live; {FORECAST_ENV}: a "
+                   "forecast pack's windows played live on forecasts as issued.")
+@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES + HYBRID_PACK_NAMES + FORECAST_PACK_NAMES),
+              help=f"The task pack. Default: {EVAL_PACK}, {LIVE_EVAL_PACK} with --env {LIVE_ENV}, "
+                   f"{HYBRID_EVAL_PACK} with --env {HYBRID_ENV}, or {FORECAST_EVAL_PACK} with --env {FORECAST_ENV}.")
+@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS))),
               help="foresight (the default) or blind; live days also take short and freeze6h; hybrid days take "
-                   "energy, reserves (the default) or rtcb.")
+                   "energy, reserves (the default) or rtcb; forecast windows take front-lite, front (the default), "
+                   "blind or freeze-6h.")
 @click.option("--bundle", type=click.Choice(list(tasks.BUNDLES)), default="full", show_default=True,
               help="full: three checks; oneshot: submit_schedule only. Not for live or hybrid days.")
 @click.option("--cap-usd", type=float, required=True,
               help="The model spend the sweep stays within: no attempt starts that could take it past this at the "
                    "episode cap.")
 @click.option("--k", type=click.IntRange(min=1), default=1, show_default=True, help="Reps of each model and task.")
-@click.option("--episode-cap-usd", type=float, default=1.0, show_default=True,
-              help="An episode's cost cap, passed to the agent as GRIDSIM_MAX_COST_USD.")
+@click.option("--episode-cap-usd", type=float,
+              help="An episode's cost cap, passed to the agent as GRIDSIM_MAX_COST_USD. Default: $1, or "
+                   f"${forecast_tasks.EPISODE_CAP_USD:g} with --env {FORECAST_ENV}.")
 @click.option("--parallel", type=click.IntRange(min=1), default=4, show_default=True, help="Attempts at a time.")
 def run_command(name: str, models: str, task_spec: str, env: str, pack: str | None, tier: str | None, bundle: str,
-                cap_usd: float, k: int, episode_cap_usd: float, parallel: int):
+                cap_usd: float, k: int, episode_cap_usd: float | None, parallel: int):
     """Play each model on each task k times, one `agent-env run` per attempt, logged under results/runs/<name>/raw/logs.
     Each attempt is a line of results.jsonl; a failed one is retried up to twice, and running the sweep again plays
     the runs that aren't final yet. Ctrl-C tears the running attempts down."""
     if "" in models.split(","):
         raise click.UsageError("--models takes comma-separated model ids, none empty")
-    live, hybrid = env == LIVE_ENV, env == HYBRID_ENV
-    pack = pack or (LIVE_EVAL_PACK if live else HYBRID_EVAL_PACK if hybrid else EVAL_PACK)
-    tier = tier or ("reserves" if hybrid else "foresight")
+    live, hybrid, forecast = env == LIVE_ENV, env == HYBRID_ENV, env == FORECAST_ENV
+    pack = pack or (LIVE_EVAL_PACK if live else HYBRID_EVAL_PACK if hybrid else FORECAST_EVAL_PACK if forecast
+                    else EVAL_PACK)
+    tier = tier or ("reserves" if hybrid else "front" if forecast else "foresight")
+    episode_cap_usd = episode_cap_usd or (forecast_tasks.EPISODE_CAP_USD if forecast else 1.0)
+    if forecast != (pack in FORECAST_PACK_NAMES):
+        raise click.UsageError(f"{pack} is {'not ' if forecast else ''}a forecast pack; {env} plays "
+                               f"{'forecast' if forecast else 'v1, live or hybrid'} packs")
+    if forecast and tier not in FORECAST_TIERS:
+        raise click.UsageError(f"{env} plays the tiers {', '.join(FORECAST_TIERS)}, not {tier}")
+    if not forecast and tier in FORECAST_TIERS and tier not in LIVE_TIERS:
+        raise click.UsageError(f"{tier} is a forecast tier; {env} doesn't play it")
     if hybrid != (pack in HYBRID_PACK_NAMES):
         raise click.UsageError(f"{pack} is {'not ' if hybrid else ''}a hybrid pack; {env} plays "
                                f"{'hybrid' if hybrid else 'v1 or live'} packs")
@@ -1126,12 +1337,12 @@ def run_command(name: str, models: str, task_spec: str, env: str, pack: str | No
     if hybrid != (tier in HYBRID_TIERS):
         raise click.UsageError(f"{env} plays the tiers {', '.join(HYBRID_TIERS)}, not {tier}" if hybrid
                                else f"{tier} is a hybrid tier; {env} doesn't play it")
-    if (live or hybrid) and bundle != "full":
+    if (live or hybrid or forecast) and bundle != "full":
         raise click.UsageError("--bundle is for v1 sweeps; a live day has one harness")
-    if not (live or hybrid) and tier not in TIERS:
+    if not (live or hybrid or forecast) and tier not in TIERS:
         raise click.UsageError(f"the v1 packs have the tiers {', '.join(TIERS)}, not {tier}")
     sweep = Sweep(name, models.split(","), task_ids(task_spec, pack, tier), k, episode_cap_usd, tier,
-                  "live" if live or hybrid else bundle, pack, env)
+                  "live" if live or hybrid or forecast else bundle, pack, env)
     if not sweep.tasks:
         raise click.UsageError(f"no {tier} tasks in {pack} for --tasks {task_spec}")
     prepare(sweep)

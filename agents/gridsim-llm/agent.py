@@ -8,7 +8,9 @@ has no done flag, so the episode ends on submit_schedule's submitted, at MAX_TOO
 env that lists advance is a live day in watches (gridsim-live): the episode ends on advance's done, with no tool-call
 cap, or once a turn would start within TIME_MARGIN of the time limit, the day then graded on what was committed;
 Anthropic requests carry one rolling cache breakpoint. A live env without commit_da is a hybrid site-day
-(gridsim-hybrid), whose nudges speak of commit_schedule and the AS book."""
+(gridsim-hybrid), whose nudges speak of commit_schedule and the AS book; one that lists submit_dam is a forecast window
+(gridsim-forecast), whose nudges speak of DAM gates: the first advance that would leave an open gate with no DAM hour
+accepted there is not sent, and the agent is told so; a second advance leaves it."""
 
 import json
 import logging
@@ -88,6 +90,15 @@ HYBRID = Mode("This is your last turn: commit now if your book needs a change (c
               "No tool was called. Only the tools count: commit_schedule commits your energy schedule and AS book, "
               "advance moves to the next watch.",
               LIVE.cut_off)
+FORECAST = Mode("This is your last turn: at an open DAM gate, submit_dam now; commit_schedule if your book needs a "
+                "change; the rest of the window then runs on what you submitted and committed.",
+                "No tool was called. Only the tools count: submit_dam sets a day's DA position and AS at its gate, "
+                "commit_schedule commits your energy book, advance moves to the next watch.",
+                "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+                "reasoning short now and call submit_dam (at a DAM gate) or commit_schedule with your current draft, "
+                "or advance.")
+GATE_OPEN = ("Not sent: this watch is a DAM gate and no DAM hour is accepted at it. Call submit_dam for the next "
+             "operating day now, or call advance again to leave that day with no DA position and no AS.")
 
 
 class GridSimConfig(AgentConfig):
@@ -439,7 +450,9 @@ class Episode:
                                        "final": {"submitted": False, "schedule": None},
                                        "usage": {"input_tokens": 0, "output_tokens": 0}, "turns": 0,
                                        "end_reason": None, "errors": []}
-        self.live = self.commit_da = self.caching = False
+        self.live = self.commit_da = self.dam = self.caching = False
+        self.gate = {"open": False, "submitted": False, "nudged": False}
+        self.gate_nudges = 0
         self.last: tuple[int, int] | None = None
         self.last_at = 0.0
         self.reward: float | None = None
@@ -485,6 +498,8 @@ class Episode:
                                 for t in tools]
         self.live = any(t.name == "advance" for t in tools)
         self.commit_da = any(t.name == "commit_da" for t in tools)
+        self.dam = any(t.name == "submit_dam" for t in tools)
+        self.gate["open"] = self.dam and '"phase":"dam_gate"' in opening
         limit = self.config.model_params["max_tokens"]
         agent = make_agent(self.model, tools, system, min(limit, MAX_OUTPUT.get(self.model, limit)), self.effort,
                            self.base.rstrip("/").removesuffix("/v1"), self.key, self.live)
@@ -494,7 +509,7 @@ class Episode:
 
     async def turns(self, env: EnvSession, agent) -> None:
         config, record, price = self.config, self.record, PRICES[self.model]
-        mode = (LIVE if self.commit_da else HYBRID) if self.live else V1
+        mode = (FORECAST if self.dam else LIVE if self.commit_da else HYBRID) if self.live else V1
         max_turns = config.max_turns
         empty = 0
         for turn in range(max_turns):
@@ -564,6 +579,11 @@ class Episode:
                     out = json.dumps({"error": "the episode is over"})
                 elif c.error:
                     out = json.dumps({"error": c.error})
+                elif self.dam and c.name == "advance" and self.gate["open"] and not (
+                        self.gate["submitted"] or self.gate["nudged"]):
+                    out = json.dumps({"error": GATE_OPEN})
+                    self.gate["nudged"] = True
+                    self.gate_nudges += 1
                 else:
                     out = await env.call(c.name, c.arguments)
                     res = _result(out)
@@ -572,6 +592,8 @@ class Episode:
                     self.tool_calls += 1
                     if c.name == "check_schedule":
                         self.checks += 1
+                    if self.dam:
+                        self.follow_gate(c.name, res)
                     if self.live and c.name == "advance" and isinstance(res, dict) and res.get("done") is True:
                         done = True
                         self.reward = float(res["reward"])
@@ -594,6 +616,18 @@ class Episode:
         else:
             record["end_reason"] = record["end_reason"] or "turn_limit"
 
+    def follow_gate(self, name: str, res: Any) -> None:
+        """Whether the current watch is a DAM gate and has an accepted DAM hour, from the env's outputs."""
+        if not isinstance(res, dict):
+            return
+        if name == "submit_dam" and res.get("accepted"):
+            self.gate["submitted"] = True
+        elif name == "advance" and "watch" in res:
+            self.gate = {"open": res.get("phase") == "dam_gate", "submitted": False, "nudged": False}
+        elif name == "get_situation" and "dam_gate" in res:
+            g = res["dam_gate"]
+            self.gate |= {"open": g is not None, "submitted": bool(g and g.get("submitted"))}
+
     def result(self) -> TaskResult:
         record = self.record
         record["seconds"] = round(time.time() - self.started, 1)
@@ -607,6 +641,8 @@ class Episode:
                    "failed_requests": self.failed_requests, "seconds": record["seconds"], "error": self.error}
         if self.live:
             summary |= {"live": True, "reward": self.reward}
+        if self.dam:
+            summary["gate_nudges"] = self.gate_nudges
         text = (f"{record['end_reason']}: {record['turns']} turns, {self.tool_calls} tool calls, ${self.spent:.4f} "
                 f"({self.model})")
         builder = TaskResult.builder()
