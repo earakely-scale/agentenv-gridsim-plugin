@@ -1,7 +1,7 @@
 {
  "pack": "gridsim-market-train",
- "tasks": 2365,
- "dates": 152,
+ "tasks": 2351,
+ "dates": 151,
  "first": "2024-02-12",
  "last": "2024-12-31",
  "day_checks": {
@@ -14,14 +14,14 @@
   }
  },
  "task_filters": {
-  "headroom": 1875,
-  "impact": 3833,
-  "kept": 2365
+  "headroom": 2175,
+  "impact": 3547,
+  "kept": 2351
  },
  "errors": [],
  "n_errors": 0,
  "impact_hours": {
-  "0": 1636,
+  "0": 1622,
   "1": 435,
   "2": 148,
   "4": 30,
@@ -33,14 +33,14 @@
   "7": 12
  },
  "impact_hours_2usd": {
-  "1": 931,
-  "2": 509,
+  "1": 923,
+  "2": 505,
   "3": 255,
   "6": 106,
-  "4": 118,
+  "4": 117,
   "7": 104,
   "9": 64,
-  "5": 128,
+  "5": 127,
   "8": 61,
   "10": 68,
   "12": 5,
@@ -48,11 +48,13 @@
   "15": 2,
   "14": 1
  },
- "anchor_headroom_usd_per_mw_median": 79.89,
+ "anchor_headroom_usd_per_mw_median": 80.47,
+ "floor_day_ok": 2303,
  "filters": {
   "within_ns_min": 0.5,
   "headroom_br_usd_per_mw": 25.0,
   "headroom_anchor_usd_per_mw": 10.0,
+  "headroom_anchor_day_usd_per_mw": "10.0 (floor-day eligibility)",
   "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only"
  },
  "draws": {

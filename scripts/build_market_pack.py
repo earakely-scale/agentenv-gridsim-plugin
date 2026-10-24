@@ -3,10 +3,11 @@ store data/market/days/ (scripts/build_market_days.py): seats drawn from each da
 (`market_stack.sample_seats`) and every reference filled by `market.finalize_task` (CONTRACT-v5 V5-P2, P11, P12, P16).
 
 A task needs its op day D as a full row, D−61 and D−62 as full rows (the anchor's disclosure) and D−1..D−3 (any row).
-Filters: raw fidelity within_ns ≥ 0.5 (V5-P2); headroom BR_A − P_idle ≥ $25/MW-day and P_anchor − P_idle ≥ $10/MW-day
-(V5-P11); train keeps tasks with ≥ 1 hour where A's full sale moves the hub price by ≥ $2 (V5-P12 option b) and every
-row records its impact hours (≥ $5, the plan's measure, and ≥ $2). Eval keeps a stratum of peak days (≥ 2 impact
-hours). Appends the survival per filter to data/market/stats.md."""
+Filters: raw fidelity within_ns ≥ 0.5 (V5-P2); headroom BR_A − P_idle ≥ $25/MW-day and, per tier, P_anchor − P_idle ≥
+$10/MW-day (V5-P11: every task for floor-sprint; a task runs as floor-day only when its floor-day anchor also clears it,
+`tags.floor_day_ok`); train keeps tasks with ≥ 1 hour where A's full sale moves the hub price by ≥ $2 (V5-P12
+option b) and every row records its impact hours (≥ $5, the plan's measure, and ≥ $2). Eval keeps a stratum of peak
+days (≥ 2 impact hours). Appends the survival per filter to data/market/stats.md."""
 
 from __future__ import annotations
 
@@ -143,6 +144,7 @@ def make_tasks(pack: str, d: str, rows: list[dict], cts: list[float], n: int, wi
         r = task["refs"]
         task["tags"] = tags(day, imp, notice_day, showcase)
         hr = r["headroom_usd_per_mw"]
+        task["tags"]["floor_day_ok"] = hr["anchor_day"] >= HEADROOM_ANCHOR
         why = ("headroom" if hr["br"] < HEADROOM_BR or hr["anchor"] < HEADROOM_ANCHOR
                else "impact" if pack.endswith("train") and imp[1] < 1 else None)
         task["_why"], task["_k"] = why, k
@@ -216,8 +218,10 @@ def main():
                     "impact_hours": dict(Counter(t["tags"]["impact_hours"] for t in kept)),
                     "impact_hours_2usd": dict(Counter(t["tags"]["impact_hours_2usd"] for t in kept)),
                     "anchor_headroom_usd_per_mw_median": float(np.median(rewards)) if rewards else None,
+                    "floor_day_ok": sum(bool(t["tags"].get("floor_day_ok")) for t in kept),
                     "filters": {"within_ns_min": MIN_WITHIN_NS, "headroom_br_usd_per_mw": HEADROOM_BR,
                                 "headroom_anchor_usd_per_mw": HEADROOM_ANCHOR,
+                                "headroom_anchor_day_usd_per_mw": f"{HEADROOM_ANCHOR} (floor-day eligibility)",
                                 "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only"},
                     "draws": {"sizes_mw": SIZES, "size_weights": SIZE_W, "durations_h": DURS, "etas": ETAS,
                               "c_deg": C_DEGS, "per_date": 1 if pack == "showcase" else DRAWS[pack]},
@@ -231,7 +235,8 @@ def main():
         stats_lines += [f"### {name}", "",
                         f"- dates {len(plan)}; day checks dropped {dict(verdict)}; passed {len(jobs)}",
                         f"- drawn tasks {len(tasks)}: {dict(task_verdict)} (headroom = V5-P11, impact = V5-P12 b)",
-                        f"- shipped {len(kept)} tasks on {manifest['dates']} dates; impact hours ≥ $5: "
+                        f"- shipped {len(kept)} tasks on {manifest['dates']} dates "
+                        f"({manifest['floor_day_ok']} also clear the floor-day anchor filter); impact hours ≥ $5: "
                         f"{dict(sorted(manifest['impact_hours'].items()))}; ≥ $2: "
                         f"{dict(sorted(manifest['impact_hours_2usd'].items()))}", ""]
     stats = args.data / "market" / "stats.md"
@@ -264,8 +269,10 @@ def select_eval(kept: list[dict]) -> list[dict]:
         t["tags"]["stratum"] = "peak"
     for t in base:
         t["tags"]["stratum"] = "base"
-    fd = ([peak[i] for i in sorted(rng.permutation(len(peak))[:FLOOR_DAY_PEAK])]
-          + [base[i] for i in sorted(rng.permutation(len(base))[:FLOOR_DAY - min(FLOOR_DAY_PEAK, len(peak))])])
+    peak_ok = [t for t in peak if t["tags"]["floor_day_ok"]]
+    base_ok = [t for t in base if t["tags"]["floor_day_ok"]]
+    fd = ([peak_ok[i] for i in sorted(rng.permutation(len(peak_ok))[:FLOOR_DAY_PEAK])]
+          + [base_ok[i] for i in sorted(rng.permutation(len(base_ok))[:FLOOR_DAY - min(FLOOR_DAY_PEAK, len(peak_ok))])])
     for t in peak + base:
         t["tags"]["floor_day"] = any(t is x for x in fd)
     return sorted(peak + base, key=lambda t: t["task_id"])

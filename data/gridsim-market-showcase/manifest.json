@@ -31,10 +31,12 @@
   "20": 1
  },
  "anchor_headroom_usd_per_mw_median": 528.505,
+ "floor_day_ok": 4,
  "filters": {
   "within_ns_min": 0.5,
   "headroom_br_usd_per_mw": 25.0,
   "headroom_anchor_usd_per_mw": 10.0,
+  "headroom_anchor_day_usd_per_mw": "10.0 (floor-day eligibility)",
   "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only"
  },
  "draws": {

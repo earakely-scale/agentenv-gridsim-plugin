@@ -36,10 +36,11 @@ def pack_rows(pack: str) -> list[dict]:
 
 
 def eligible(rows: list[dict], tier: str) -> list[dict]:
-    """The pack's floors a tier can play: the tier's references are in the row, and for floor-day the pack didn't tag
-    the floor out of its floor-day subset (the eval pack's floor_day tag)."""
+    """The pack's floors a tier can play: the tier's references are in the row, and for floor-day the floor-day anchor
+    clears the headroom filter (floor_day_ok) and the pack didn't tag the floor out of its floor-day subset."""
     return [r for r in rows if (r.get("refs") or {}).get(tier)
-            and (tier != "floor-day" or (r.get("tags") or {}).get("floor_day") is not False)]
+            and (tier != "floor-day" or ((r.get("tags") or {}).get("floor_day") is not False
+                                         and (r.get("tags") or {}).get("floor_day_ok") is not False))]
 
 
 def load_step(task_id: str, tier: str, compliant: bool) -> dict:

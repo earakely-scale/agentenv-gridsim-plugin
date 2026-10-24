@@ -20,6 +20,8 @@ from gridsim_core.market_auction import (
     demand_xy,
     lift,
     limits,
+    offer_blocks,
+    parse_offer,
     penalty_price,
     project,
     seat_profit,
@@ -222,10 +224,17 @@ def price_grid(F: Floor, seat: str, profile: dict, qs) -> np.ndarray:
     return out
 
 
-def br_battery(F: Floor, seat: str, profile: dict, tier: str = "floor-sprint") -> dict:
+def br_battery(F: Floor, seat: str, profile: dict, tier: str = "floor-sprint", rt: bool = False) -> dict:
+    """A battery's hindsight best response with the others' offers fixed. Default: the best SoC-feasible awards,
+    delivered as awarded (hindsight on the DA clear, V5-P19). rt=True adds deviations settled at the realised RT
+    price, the upper bound every offer is tested against: the sprint projection DP, or for floor-day the separable
+    financial position plus the physical LP."""
     b = battery_of(F.seats[seat])
     hub = price_grid(F, seat, profile, [k * b.grid for k in ACTS])
     pen = penalty_price(F.hub_real)
+    if not rt:
+        v, ks, _ = battery_dp(b, hub, None, pen, feasible_only=True)
+        return {"value": v, "q_mw": [k * b.grid for k in ks]}
     if tier == "floor-sprint":
         v, ks, _ = battery_dp(b, hub, F.rt, pen)
         return {"value": v, "q_mw": [k * b.grid for k in ks]}
@@ -260,11 +269,11 @@ def br_gas(F: Floor, profile: dict) -> dict:
     return {"value": float(v[0]), "q_mw": out}
 
 
-def _per_hour_br(F: Floor, seat: str, profile: dict, qs, value) -> dict:
+def _per_hour_br(F: Floor, seat: str, profile: dict, qs, value, allowed) -> dict:
     hub = price_grid(F, seat, profile, qs)
     tot, out = 0.0, []
     for h in range(HOURS):
-        vals = [value(h, q, hub[h, j]) for j, q in enumerate(qs)]
+        vals = [value(h, q, hub[h, j]) if allowed(h, q) else -np.inf for j, q in enumerate(qs)]
         j = int(np.argmax(vals))
         tot += vals[j]
         out.append(float(qs[j]))
@@ -272,20 +281,22 @@ def _per_hour_br(F: Floor, seat: str, profile: dict, qs, value) -> dict:
 
 
 def br_renewable(F: Floor, profile: dict) -> dict:
+    """Per hour, the best DA sale no larger than the hour's actual output (no hindsight speculation on RT)."""
     st = F.seats["R"]
     act, fc = np.asarray(st["actual_mw"], float), np.asarray(st["forecast_mw"], float)
     g = max(float(max(act.max(), fc.max())), 1.0) / GRID_STEPS
     res = _per_hour_br(F, "R", profile, [k * g for k in range(GRID_STEPS + 1)],
-                       lambda h, q, p: q * p + (act[h] - q) * F.rt[h])
+                       lambda h, q, p: q * p + (act[h] - q) * F.rt[h], lambda h, q: q <= act[h] + 1e-9)
     return res | {"value": res["value"] + st["ptc_usd"] * st["ptc_share"] * float(act.sum())}
 
 
 def br_retailer(F: Floor, profile: dict) -> dict:
+    """Per hour, the best DA purchase no larger than the hour's actual load."""
     st = F.seats["L"]
     load = np.asarray(st["load_mw"], float)
     g = 1.2 * max(float(np.max(st["forecast_mw"])), 1.0) / GRID_STEPS
     res = _per_hour_br(F, "L", profile, [-k * g for k in range(GRID_STEPS + 1)],
-                       lambda h, q, p: q * p - (load[h] + q) * F.rt[h])
+                       lambda h, q, p: q * p - (load[h] + q) * F.rt[h], lambda h, q: -q <= load[h] + 1e-9)
     return res | {"value": res["value"] + st["tariff_usd"] * float(load.sum())}
 
 
@@ -313,14 +324,17 @@ def idle_profit(F: Floor, seat: str) -> float:
 
 
 def eps_nash(F: Floor, profile: dict, tier: str = "floor-sprint") -> dict:
+    """Each seat's regret against its hindsight best response (others fixed), in $ and as a share in [0, 1] of the
+    seat's range from the worse of its profit and its idle profit up to the best response (0 when that range is under
+    $1); ε-Nash is the largest share (V5-P20)."""
     res = profile_results(F, profile)
     rows = {}
     for s in profile:
         br = best_response(F, s, {k: v for k, v in profile.items() if k != s}, tier)["value"]
         pi, idle = res[s]["profit"], idle_profit(F, s)
-        den = br - idle
-        rows[s] = {"profit_usd": round(pi, 2), "br_usd": round(br, 2),
-                   "eps": round(max(0.0, (br - pi) / den), 6) if den > 1.0 else 0.0}
+        den = br - min(pi, idle)
+        rows[s] = {"profit_usd": round(pi, 2), "br_usd": round(br, 2), "regret_usd": round(br - pi, 2),
+                   "eps": round(min(1.0, max(0.0, (br - pi) / den)), 6) if den > 1.0 else 0.0}
     return {"eps": max(r["eps"] for r in rows.values()), "seats": rows}
 
 
@@ -495,14 +509,35 @@ def welfare_rows(F: Floor, profile: dict, exec_mw: dict) -> dict:
 
 
 def replay_a(F: Floor) -> list[list]:
-    """A's real curve of the day snapped to its grid as ≤ 10 blocks per hour (the replay_A baseline)."""
-    b = battery_of(F.seats["A"])
-    out = []
-    for h in range(HOURS):
-        sell, buy = F.curve("A", h)
-        out.append([("A", 1, mw, p, F.refs["A"][h]) for mw, p in curve_blocks(sell, b.grid, "sell", 5)]
-                   + [("A", -1, mw, p, None) for mw, p in curve_blocks(buy, b.grid, "buy", 5)])
-    return out
+    """A's real curve of the day as a legal offer: each side scaled from the group's largest hourly volume to A's p_mw,
+    snapped to A's grid (≤ 5 sell and 5 buy blocks an hour, the replay_A baseline); buys kept below the lowest sell."""
+    b = a_battery(F)
+    return offer_blocks("A", parse_offer(replay_a_offer(F), b.p, b.grid, F.floor, F.cap)[0], F.refs["A"])
+
+
+def a_battery(F: Floor) -> Battery:
+    return battery_of(F.seats["A"])
+
+
+def replay_a_offer(F: Floor) -> dict:
+    b = a_battery(F)
+    curves = [F.curve("A", h) for h in range(HOURS)]
+    top = [max((c[i][-1][0] if c[i] else 0.0) for c in curves) for i in (0, 1)]
+    ks = [min(1.0, b.p / t) if t > 0 else 1.0 for t in top]
+    hours = []
+    for h, (sell, buy) in enumerate(curves):
+        sb = _legal(curve_blocks([[m * ks[0], p] for m, p in sell], b.grid, "sell", 5), F)
+        bb = _legal(curve_blocks([[m * ks[1], p] for m, p in buy], b.grid, "buy", 5), F)
+        if sb and bb:
+            low = min(p for _, p in sb)
+            bb = [(m, round(min(p, low - 0.01), 2)) for m, p in bb if min(p, low - 0.01) >= F.floor]
+        if sb or bb:
+            hours.append({"he": h + 1, "sell": [[m, p] for m, p in sb], "buy": [[m, p] for m, p in bb]})
+    return {"hours": hours}
+
+
+def _legal(blocks, F: Floor) -> list[tuple[float, float]]:
+    return [(m, round(min(F.cap, max(F.floor, p)), 2)) for m, p in blocks]
 
 
 def replay_full(F: Floor) -> dict:
@@ -510,28 +545,51 @@ def replay_full(F: Floor) -> dict:
     return replay_profile(F) | ({"A": replay_a(F)} if F.seats["A"].get("pool_id") in F.pool else {})
 
 
-def baselines(F: Floor, fc: dict) -> dict:
-    b = battery_of(F.seats["A"])
+def self_schedule_offer(q, floor: float, cap: float) -> dict:
+    return {"hours": [{"he": h + 1, "sell": [[x, floor]] if x > 0 else [], "buy": [[-x, cap]] if x < 0 else []}
+                      for h, x in enumerate(q) if abs(x) > 1e-9]}
+
+
+def baseline_offers(F: Floor, fc: dict) -> dict:
+    """The card baselines as offers seat A could submit: price_taker (its forecast DP ignoring its own impact,
+    self-scheduled), max_withhold (all MW at the cap, buys at the floor) and replay_A (its real offers, scaled)."""
+    b = a_battery(F)
     flat = np.repeat(np.asarray(fc["forecast_hub_usd"], float)[:, None], len(ACTS), 1)
     _, ks, _ = battery_dp(b, flat, None, penalty_price(F.hub_real), feasible_only=True)
-    withhold = [[("A", 1, b.p, F.cap, F.refs["A"][h]), ("A", -1, b.p, F.floor, None)] for h in range(HOURS)]
-    out = {"price_taker": settle_profile(F, {"A": schedule_blocks(F, "A", [k * b.grid for k in ks])}),
-           "max_withhold": settle_profile(F, {"A": withhold})}
+    out = {"price_taker": self_schedule_offer([k * b.grid for k in ks], F.floor, F.cap),
+           "max_withhold": {"hours": [{"he": h, "sell": [[b.p, F.cap]], "buy": [[b.p, F.floor]]}
+                                      for h in range(1, HOURS + 1)]}}
     if F.seats["A"].get("pool_id") in F.pool:
-        out["replay_A"] = settle_profile(F, {"A": replay_a(F)})
+        out["replay_A"] = replay_a_offer(F)
     return out
 
 
+def baselines(F: Floor, fc: dict) -> tuple[dict, dict]:
+    """(settled baselines, refused ones): every baseline goes through parse_offer, so each is a legal offer."""
+    b = a_battery(F)
+    out, bad = {}, {}
+    for name, offer in baseline_offers(F, fc).items():
+        parsed, issues = parse_offer(offer, b.p, b.grid, F.floor, F.cap)
+        if issues:
+            bad[name] = issues[:3]
+            continue
+        out[name] = settle_profile(F, {"A": offer_blocks("A", parsed, F.refs["A"])})
+    return out, bad
+
+
 def references(task: dict, store: DayStore | None = None, nash_ref: bool = False) -> dict:
-    """Every reference a grade needs, computed on the true day (never shown to the agent)."""
+    """Every reference a grade needs, computed on the true day (never shown to the agent). p_br is the hindsight best
+    response on SoC-feasible awards delivered as awarded (V5-P19); p_br_rt adds RT deviations, the bound every offer
+    is tested against."""
     F = Floor(task, store)
     fc = forecast_books(F.store, task)
     idle = settle_profile(F, {"A": [[] for _ in range(HOURS)]})["profit"]
     anc = anchor(F, fc)
     others = replay_profile(F)
-    br_s = br_battery(F, "A", others, "floor-sprint")
-    br_d = br_battery(F, "A", others, "floor-day")
-    base = baselines(F, fc)
+    br = br_battery(F, "A", others)
+    br_rt_s = br_battery(F, "A", others, "floor-sprint", rt=True)
+    br_rt_d = br_battery(F, "A", others, "floor-day", rt=True)
+    base, bad = baselines(F, fc)
     p_anchor = anc["profit"]
 
     def row(r):
@@ -541,13 +599,18 @@ def references(task: dict, store: DayStore | None = None, nash_ref: bool = False
            "forecast": {k: fc[k] for k in ("delta_mw", "forecast_lambda_usd", "forecast_hub_usd", "mae_prev_usd")},
            "floor-sprint": {"p_anchor": round(p_anchor, 6), "anchor": {"q_mw": anc["q_mw"],
                                                                      "hub_usd": [round(x, 2) for x in anc["hub"]]},
-                            "p_br": round(br_s["value"], 6), "br": {"q_mw": br_s["q_mw"]},
+                            "p_br": round(br["value"], 6), "br": {"q_mw": br["q_mw"]},
+                            "p_br_rt": round(br_rt_s["value"], 6),
                             "baselines": {k: row(v) for k, v in base.items()}},
-           "floor-day": {"p_br": round(br_d["value"], 6), "br": {"q_mw": br_d["q_mw"]}},
+           "floor-day": {"p_br": round(br["value"], 6), "br": {"q_mw": br["q_mw"]},
+                         "p_br_rt": round(br_rt_d["value"], 6)},
            "replay_lambda_usd": [round(F.clear(h, replay_full(F)).lam, 2) for h in range(HOURS)]}
-    b = battery_of(F.seats["A"])
-    mw = b.p
-    out["headroom_usd_per_mw"] = {"br": round((br_s["value"] - idle) / mw, 2), "anchor": round((p_anchor - idle) / mw, 2)}
+    if bad:
+        out["baseline_issues"] = bad
+    b = a_battery(F)
+    out["headroom_usd_per_mw"] = {"br": round((br["value"] - idle) / b.p, 2), "anchor": round((p_anchor - idle) / b.p, 2)}
+    pt = base.get("price_taker")
+    out["price_taker_gap_usd_per_mw"] = round((p_anchor - pt["profit"]) / b.p, 2) if pt else None
     out["impact_hours"] = impact_hours(F, others, b)
     if nash_ref:
         out["nash"] = nash(F)

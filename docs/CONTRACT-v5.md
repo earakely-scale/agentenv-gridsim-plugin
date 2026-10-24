@@ -80,6 +80,11 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
   checked; with a horizontal residual instead, 3 / 4 / 6 on 2024-08-20, 3 / 3 / 4 on 2026-07-21, 0–3 elsewhere. Real
   DAM bids (including virtual traders) make the residual curve flat: a QSE-sized battery is a price taker in most
   hours and price-making is concentrated on peak days.
+- **Packs** (rebuilt with the per-tier filters, V5-P11): train 2,351 floors on 151 dates, eval 200 (194 also clear the
+  floor-day anchor filter; 60 run as floor-day, 12 in the peak stratum), rtcb 153 (147), showcase 6 (display only); no
+  baseline is refused. On eval the information-matched price-taker scores R = 1.0 on 105 of 200 floors (mean 0.949;
+  0.909 on the peak stratum); the anchor beats it by more than $0.5/MW-day on 71 and trails it on 59 (V5-P18). The
+  anchor captures a median 0.73 of the feasible hindsight BR in floor-sprint (p10 0.34) and 0.95 in floor-day (V5-P19).
 - References on the ten fixture tasks: the disclosure anchor earns $150–870/MW-day on 2024-08-20 and $150–270 on
   2026-07-21; hindsight BR_A (with RT deviations) is 2–5× the anchor; path B grades an offer in 6–9 ms; the anchor's
   welfare_ratio is 0.47–0.71.
@@ -98,12 +103,15 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
 | V5-P8 | Seats | Carved from real portfolios and anonymised (ids A, B, G, R, L; no resource or QSE name leaves the data build): A = a group of real ESRs totalling 400–1,500 MW (its real offers are the `replay_A` baseline); B = another ESR group; G = 6–12 real CTs (Resource Type SCGT90/SCLE90, 50–100 MW each); R = wind and solar resources totalling 1–3 GW; L = one real load-serving bidder's energy bids at load zones, 3–8 GW |
 | V5-P9 | Private costs | G: per-unit heat rate drawn from EIA-923's ERCOT CT distribution (until a resource↔plant crosswalk exists), fuel = the day's gas price implied by real CC offers (median CC mid-curve price ÷ 7.2 MMBtu/MWh after VOM), VOM $5, start cost from its three-part offer; R: −PTC $27.50 on 60% of output; L: a fixed tariff (EIA Electric Power Monthly Texas average, energy share 50%) and RT for its unhedged load; A, B: v1 archetype η and c_deg, E = P × the drawn duration (the disclosure has no MWh before RTC+B). No Henry Hub |
 | V5-P10 | Disclosure shipped | Only derived aggregates: per hour ≤ 64 breakpoints per side for the background and ≤ 16 per seat portfolio; the raw zips never ship; ERCOT attribution and no-endorsement as v1 |
-| V5-P11 | Headroom filter | The plan's $2/kW-day is ~20× a battery's daily DAM value. Use BR_A − P_idle ≥ $25/MW-day and P_anchor − P_idle ≥ $10/MW-day |
+| V5-P11 | Headroom filter | Per tier: every scored task needs BR_A − P_idle ≥ $25/MW-day and its floor-sprint anchor P_anchor − P_idle ≥ $10/MW-day; a task also runs as floor-day only when its floor-day anchor clears the same $10/MW-day (`tags.floor_day_ok`), so idle never scores 1.0 on a scored floor. Showcase floors stay display-only (unfiltered). The plan's $2/kW-day is ~20× a battery's daily DAM value |
 | V5-P12 | Pivotal-hour filter | **Open (needs Edgar).** On the real stack the plan's "≥ 2 hours with ≥ $5 impact" keeps almost only peak days. Options: (a) keep it and accept a peak-day pack; (b) relax to ≥ 1 hour or ≥ $2; (c) switch V5-P2 to the horizontal residual. Recommendation: (b) for train, (a) as the eval tag `impact_hours` |
 | V5-P13 | Tiers | `floor-sprint` (training, path B) and `floor-day` (eval) build tonight; `compliant` is a scoring of either; `floor-week` deferred |
 | V5-P14 | Bidders | Scripted in-process only (`bidders: "scripted"`): B, G, R, L submit their **real** offers of the day (replay) by default, or a cost-based script (`script: "cost"`) for the ε-Nash reference. The A2A route is specified below and not built: four extra LLM agents per episode, and the preview spends nothing |
 | V5-P15 | Welfare | W counts the DAM clear at bid value for the background and private cost for the seats; welfare_ratio = (W − W_0)/(W\* − W_0) over W_0 = the clear with A and B idle; W\* from a HiGHS LP. Compliant = 0.5·R + 0.5·clip(welfare_ratio, 0, 1) |
 | V5-P16 | Splits | train 2024-02-11..2024-12-31 (the anchor needs D−62 ≥ 2023-12-11), ~325 dates × 9 seat draws ≈ 3,000; eval 2025-01-01..2025-11-30 (200 sprint + 60 floor-day); rtcb 2025-12-05..the latest posted day; showcase `fern-0123` (op days 2026-01-23..27) and, replacing the pre-API `aug23-0810`, `aug24-0820` (2024-08-20, an ERCOT summer peak day [to confirm the record]); each showcase day ±3 days out of every split |
+| V5-P18 | Price-making vs price-taking | **Finding:** on the real stack the disclosure best-responder mostly coincides with the information-matched price-taker (its forecast DP ignoring its own impact): the price-taker baseline scores 1.0 on about half the eval floors (see Feasibility). The reward measures forecasting and scheduling under weak impact, not market power, on most days. **Decision (recommended, built):** keep R against the disclosure anchor (it is impact-aware where impact exists and never rewards withholding), and add weight-0 rows `price_making_gain_usd_per_mw_day` = (P − P_price_taker)/MW and `impact_usd` = Σ award·(price − the price without A's offer); the board shows R on the eval `peak` stratum (≥ 2 impact hours) as its own column. Rejected: the price-taker as anchor (identical on most days, and impact handling would score above 1, off the main scale); scoring only peak hours (SoC links the hours) |
+| V5-P19 | Hindsight BR | `p_br` (regret, capture) is the exact best SoC-feasible award schedule delivered as awarded, the hindsight of the DA clear. The RT-inclusive optimum (deviations settled at the realised RT price: the sprint projection DP, or for floor-day the ±P financial position on every hour's DA–RT spread plus the physical LP) is `p_br_rt`, the bound every offer and withhold-then-deviate is tested against. Before, floor-day BR was mostly hindsight DA–RT speculation, so capture read 0.16–0.35 |
+| V5-P20 | ε-Nash | Per seat, regret in $ and as a share in [0, 1]: (BR_i − π_i)/(BR_i − min(π_i, π_i_idle)), 0 when that range is under $1; ε-Nash is the largest share. Batteries' BR as V5-P19; the renewable seat sells and the retailer buys no more than its actual output or load in each hour |
 | V5-P17 | Viewer | Per the standing direction that sim viewers look like real life, the Market Floor is a real-life 3D scene, not the plan's 8-bit hall; the merit-order staircase, gavel and seat board become overlays (viewer lane proposes) |
 
 ## As built in phase 2 (refinements of the text below)
@@ -115,6 +123,11 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
   are gone from the rows. The anchor maps its disclosure forecast to hub prices with the disclosed day's own offset.
 - **Floor-day watches**: v2's 10-watch cap (7 regular, so up to 3 notice watches); notices revealed before D-1 06:00
   are on the opening board. `floor-sprint` has no notices.
+- **Baselines are legal offers**: price_taker and the anchor self-schedule on A's grid; max_withhold offers P at the
+  cap and bids P at the floor; replay_A scales each side of the real ESR group's curve from its largest hourly volume to
+  A's p_mw (≤ 5 sell and 5 buy blocks, buys below the hour's lowest sell). Each goes through `parse_offer`; a refused one is dropped and listed in
+  `refs.baseline_issues`. The episode's `seats_public` carries each seat's `size_mw`, and its `stack` is in hub prices
+  (the offset added), so a viewer's re-clear of it lands within the simplification error.
 - **Seats**: R's actual output is its DAM offer volume (no forecast error modelled tonight); L's load is its bid volume
   scaled by EIA-930 load/DF; G's heat rates are drawn from EIA-923 2025 ERCOT CTs (seeded); B is the second ESR group.
 - **ε-Nash and the reference profile** start from the replay profile (every seat on its real offers); W counts A and
@@ -263,8 +276,10 @@ One monotone ESR curve per hour, written as blocks (λ-space prices, as ERCOT of
   HiGHS LP over seat awards with A's and B's SoC constraints, G's capacity (start costs relaxed), R's forecast and L's
   bids, the background as its curve; W_0 the clear with A and B idle. `welfare_ratio = (W − W_0)/(W* − W_0)` (1.0 when
   W\* − W_0 ≤ $1), `dwl_usd = W* − W`.
-- **Reward**: no valid submit → 0; else `R = grade.reward_value(P, P_idle, P_anchor)` (clip(0.2 + 0.8·…), 6 decimals).
-  `compliant_reward = round(0.5·R + 0.5·clip(welfare_ratio, 0, 1), 6)`. No format credit.
+- **Reward**: no valid submit → 0 on every scored row (`reward` and `compliant_reward`); else `R =
+  grade.reward_value(P, P_idle, P_anchor)` (clip(0.2 + 0.8·…), 6 decimals). `compliant_reward = round(0.5·R +
+  0.5·clip(welfare_ratio, 0, 1), 6)`. No format credit. `beats_anchor` compares round(P, 6) with the stored 6-decimal
+  P_anchor + 1e-6, so the anchor does not beat itself.
 - **Weight-0 rows**: `regret_usd = BR_A − P`, `regret_norm = (BR_A − P)/(BR_A − P_idle)`, `beats_anchor`, `eps_nash`,
   `welfare_ratio`, `dwl_usd`, `profit_usd_per_kw_day`, `rank` (A's π/MW among the seats), the contract row, the conduct
   row {mitigated_hours, withholding_index = (MW offered above 1.5·ref + SoC-feasible MW not offered, in hours with

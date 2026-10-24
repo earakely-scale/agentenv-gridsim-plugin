@@ -39,24 +39,24 @@ storage.
 ### gridsim-market-train
 
 - dates 318; day checks dropped {'missing day row': 10, 'fidelity': 8, 'pool': 1}; passed 299
-- drawn tasks 8073: {'headroom': 1875, 'impact': 3833, 'kept': 2365} (headroom = V5-P11, impact = V5-P12 b)
-- shipped 2365 tasks on 152 dates; impact hours ≥ $5: {0: 1636, 1: 435, 2: 148, 3: 20, 4: 30, 5: 42, 6: 15, 7: 12, 8: 7, 9: 20}; ≥ $2: {1: 931, 2: 509, 3: 255, 4: 118, 5: 128, 6: 106, 7: 104, 8: 61, 9: 64, 10: 68, 11: 13, 12: 5, 14: 1, 15: 2}
+- drawn tasks 8073: {'headroom': 2175, 'impact': 3547, 'kept': 2351} (headroom = V5-P11, impact = V5-P12 b)
+- shipped 2351 tasks on 151 dates (2303 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 1622, 1: 435, 2: 148, 3: 20, 4: 30, 5: 42, 6: 15, 7: 12, 8: 7, 9: 20}; ≥ $2: {1: 923, 2: 505, 3: 255, 4: 117, 5: 127, 6: 106, 7: 104, 8: 61, 9: 64, 10: 68, 11: 13, 12: 5, 14: 1, 15: 2}
 
 ### gridsim-market-eval
 
 - dates 334; day checks dropped {'missing day row': 12, 'fidelity': 55}; passed 267
-- drawn tasks 1602: {'headroom': 263, 'kept': 1339} (headroom = V5-P11, impact = V5-P12 b)
-- shipped 200 tasks on 200 dates; impact hours ≥ $5: {0: 186, 1: 2, 2: 4, 3: 2, 4: 2, 5: 1, 6: 2, 11: 1}; ≥ $2: {0: 126, 1: 30, 2: 15, 3: 4, 4: 5, 5: 4, 6: 3, 7: 5, 8: 2, 9: 2, 10: 1, 11: 1, 14: 1, 18: 1}
+- drawn tasks 1602: {'headroom': 298, 'kept': 1304} (headroom = V5-P11, impact = V5-P12 b)
+- shipped 200 tasks on 200 dates (194 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 186, 1: 2, 2: 4, 3: 2, 4: 2, 5: 1, 6: 2, 11: 1}; ≥ $2: {0: 130, 1: 29, 2: 13, 3: 4, 4: 5, 5: 4, 6: 2, 7: 5, 8: 2, 9: 2, 10: 1, 11: 1, 14: 1, 18: 1}
 
 ### gridsim-market-rtcb
 
 - dates 253; day checks dropped {'missing day row': 16, 'fidelity': 56}; passed 181
-- drawn tasks 1086: {'kept': 742, 'headroom': 344} (headroom = V5-P11, impact = V5-P12 b)
-- shipped 153 tasks on 153 dates; impact hours ≥ $5: {0: 150, 1: 1, 5: 2}; ≥ $2: {0: 124, 1: 16, 2: 2, 3: 4, 4: 1, 6: 4, 7: 2}
+- drawn tasks 1086: {'kept': 647, 'headroom': 439} (headroom = V5-P11, impact = V5-P12 b)
+- shipped 153 tasks on 153 dates (147 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 150, 1: 1, 5: 2}; ≥ $2: {0: 125, 1: 16, 2: 2, 3: 3, 4: 1, 6: 4, 7: 2}
 
 ### gridsim-market-showcase
 
 - dates 6; day checks dropped {}; passed 6
 - drawn tasks 6: {'kept': 4, 'headroom': 2} (headroom = V5-P11, impact = V5-P12 b)
-- shipped 6 tasks on 6 dates; impact hours ≥ $5: {0: 1, 1: 1, 4: 1, 5: 1, 21: 2}; ≥ $2: {1: 1, 9: 1, 16: 1, 20: 1, 21: 1, 24: 1}
+- shipped 6 tasks on 6 dates (4 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 1, 1: 1, 4: 1, 5: 1, 21: 2}; ≥ $2: {1: 1, 9: 1, 16: 1, 20: 1, 21: 1, 24: 1}
 

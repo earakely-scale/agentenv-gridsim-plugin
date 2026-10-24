@@ -119,7 +119,10 @@ def finalize_task(task: dict, store: DayStore | None = None, nash_ref: bool = Fa
     day = store.get(task["date"])
     task["fidelity"] = day.get("fidelity")
     task["notices_sha"] = notices_sha(task.get("notices"))
-    task["refs"]["floor-day"]["p_anchor"] = round(play(task, "floor-day", anchor_policy, store=store).profit(), 6)
+    p_day = play(task, "floor-day", anchor_policy, store=store).profit()
+    refs = task["refs"]
+    refs["floor-day"]["p_anchor"] = round(p_day, 6)
+    refs["headroom_usd_per_mw"]["anchor_day"] = round((p_day - refs["p_idle"]) / task["seats"]["A"]["p_mw"], 2)
     return task
 
 
@@ -659,13 +662,18 @@ class Session(WatchDay):
         p, p_idle = self.profit(), r["p_idle"]
         p_anchor = tier_refs["p_anchor"]
         reward = reward_value(p, p_idle, p_anchor) if self.submitted else 0.0
+        p_br, pt = tier_refs["p_br"], r["floor-sprint"]["baselines"].get("price_taker")
         g = {"submitted": self.submitted, "tier": self.tier, "reward": reward, "profit_usd": _r6(p),
-             "pnl": self.pnl(), "p_idle": p_idle, "p_anchor": p_anchor, "p_br": tier_refs["p_br"],
+             "pnl": self.pnl(), "p_idle": p_idle, "p_anchor": p_anchor, "p_br": p_br,
+             "p_br_rt": tier_refs.get("p_br_rt"),
              "raw_ratio": _r6((p - p_idle) / (p_anchor - p_idle)) if p_anchor - p_idle > DEGENERATE_EPS else None,
-             "regret_usd": _r6(tier_refs["p_br"] - p),
-             "regret_norm": _r6((tier_refs["p_br"] - p) / (tier_refs["p_br"] - p_idle))
-             if tier_refs["p_br"] - p_idle > DEGENERATE_EPS else None,
-             "beats_anchor": p > p_anchor + DEGENERATE_EPS,
+             "regret_usd": _r6(p_br - p),
+             "regret_norm": _r6((p_br - p) / (p_br - p_idle)) if p_br - p_idle > DEGENERATE_EPS else None,
+             "capture_vs_br": _r6((p - p_idle) / (p_br - p_idle)) if p_br - p_idle > DEGENERATE_EPS else None,
+             "beats_anchor": _r6(p) > p_anchor + 1e-6,
+             "price_making_gain_usd_per_mw_day": _r6((p - pt["profit"]) / self.b.p)
+             if pt and self.tier == "floor-sprint" else None,
+             "impact_usd": _r6(self.impact_usd()),
              "profit_usd_per_kw_day": _r6(p / (self.b.p * 1000)),
              "mitigated_hours": self.cleared["mitigated"] if self.cleared else [],
              "clipped_hours": [] if self.cleared is None or self.committed else
@@ -681,20 +689,23 @@ class Session(WatchDay):
             en = eps_nash(self.F, prof, self.tier)
             g |= {"welfare_ratio": wr["welfare_ratio"], "dwl_usd": wr["dwl_usd"], "eps_nash": en["eps"],
                   "seat_results": en["seats"], "rank": self._rank(en["seats"])}
-            g["compliant_reward"] = round(0.5 * reward + 0.5 * min(1.0, max(0.0, wr["welfare_ratio"])), 6)
+            g["compliant_reward"] = (round(0.5 * reward + 0.5 * min(1.0, max(0.0, wr["welfare_ratio"])), 6)
+                                     if self.submitted else 0.0)
         else:
-            g["compliant_reward"] = None
+            g["compliant_reward"] = None if self.submitted else 0.0
         self._grade = g
         return g
 
+    def impact_usd(self) -> float:
+        """What A's own awards did to its DA revenue through price: Σ award·(price − the price without A's offer)."""
+        if self.cleared is None:
+            return 0.0
+        prof = replay_profile(self.F) | {"A": [[] for _ in range(HOURS)]}
+        return float(sum(a * (p - self.F.clear(h, prof).lam) for h, (a, p) in
+                         enumerate(zip(self.cleared["awards"], self.cleared["hub"], strict=True))))
+
     def _rank(self, seats: dict) -> int:
-        size = {"A": self.b.p}
-        st = self.task["seats"]
-        for s in seats:
-            kind = KIND[s]
-            size[s] = (st[s]["p_mw"] if kind == "battery" else sum(u["mw"] for u in st[s]["units"]) if kind == "gas"
-                       else max(st[s]["actual_mw"]) if kind == "renewable" else max(st[s]["load_mw"]))
-        per = {s: seats[s]["profit_usd"] / max(size[s], 1.0) for s in seats}
+        per = {s: seats[s]["profit_usd"] / max(seat_size(s, self.task["seats"][s]), 1.0) for s in seats}
         return int(1 + sum(v > per["A"] for s, v in per.items() if s != "A"))
 
     def conduct(self) -> dict:
@@ -789,7 +800,8 @@ class Session(WatchDay):
                 "trained": trained, "checkpoint_step": checkpoint_step, "seed": seed,
                 "task": {"date": self.date, "era": t.get("era"), "point": t.get("point"), "region": t.get("region"),
                          "seat_A": st["A"],
-                         "seats_public": {s: {"name": st[s].get("name"), "kind": KIND[s]} for s in st if s != "A"},
+                         "seats_public": {s: {"name": st[s].get("name"), "kind": KIND[s],
+                                              "size_mw": _r2(seat_size(s, st[s]))} for s in st if s != "A"},
                          "lambda_real": [_r2(x) for x in self.F.lam_real], "hub_dam_real": [_r2(x) for x in self.F.hub_real],
                          "hub_rt_real": [_r2(x) for x in self.F.day["hub_rt_usd"]], "flags": t.get("flags")},
                 "watches": [{"index": w.index, "time": w.time, "time_utc": w.time_utc,
@@ -838,6 +850,13 @@ class Session(WatchDay):
                                                               focus))},
                         "seats": seats})
         return out
+
+
+def seat_size(seat: str, st: dict) -> float:
+    """A seat's public size in MW: battery power, gas units' capacity, peak renewable output or peak load."""
+    kind = KIND[seat]
+    return float(st["p_mw"] if kind == "battery" else sum(u["mw"] for u in st["units"]) if kind == "gas"
+                 else max(st["actual_mw"]) if kind == "renewable" else max(st["load_mw"]))
 
 
 def replay(task: dict, tier: str, notices, transcript: list[dict], store: DayStore | None = None) -> dict:

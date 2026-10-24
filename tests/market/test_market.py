@@ -7,8 +7,16 @@ import numpy as np
 import pytest
 
 from gridsim_core import market
-from gridsim_core.market_auction import Book, battery_of, book, clear_hour, clear_mitigated, self_schedule
-from gridsim_core.market_refs import battery_dp, physical_lp, profile_results, welfare, welfare_lp
+from gridsim_core.market_auction import Book, battery_of, book, clear_hour, clear_mitigated, parse_offer, self_schedule
+from gridsim_core.market_refs import (
+    baseline_offers,
+    battery_dp,
+    forecast_books,
+    physical_lp,
+    profile_results,
+    welfare,
+    welfare_lp,
+)
 from gridsim_core.market_stack import DayStore, Floor, hour_curves
 
 FIX = Path(__file__).resolve().parents[2] / "data" / "fixtures-market"
@@ -60,8 +68,9 @@ def test_replay_clears_at_the_real_hub_price(task):
 def test_br_dominates_sampled_offers_and_references(task):
     rng = random.Random(task["task_id"])
     r = task["refs"]
-    br = r["floor-sprint"]["p_br"]
-    assert br >= r["floor-sprint"]["p_anchor"] - 1e-6 and br >= r["p_idle"] - 1e-6
+    br = r["floor-sprint"]["p_br_rt"]
+    assert r["floor-sprint"]["p_br"] >= max(r["floor-sprint"]["p_anchor"], r["p_idle"]) - 1e-6
+    assert br >= r["floor-sprint"]["p_br"] - 1e-6
     for _ in range(12):
         g = market.grade_offer(task, random_offer(rng, task["seats"]["A"]["grid_mw"]), STORE)
         assert g["profit_usd"] <= br + 1e-6
@@ -81,7 +90,7 @@ def test_withhold_then_deviate_never_beats_br(task):
     assert out["accepted"], out
     while not s.done:
         s.call("advance", {})
-    assert s.profit() <= task["refs"]["floor-day"]["p_br"] + 1e-6
+    assert s.profit() <= task["refs"]["floor-day"]["p_br_rt"] + 1e-6
     assert physical_lp(b, s.F.rt) >= v - 1e-6
 
 
@@ -104,7 +113,8 @@ def test_idle_scores_the_floor_and_no_submit_scores_zero():
     assert market.grade_offer(task, {"hours": []}, STORE)["reward"] == pytest.approx(0.2)
     s = market.Session(task, "floor-sprint", store=STORE)
     s.end_floor()
-    assert s.grade(rows=False)["reward"] == 0.0
+    g = s.grade()
+    assert g["reward"] == 0.0 and g["compliant_reward"] == 0.0 and not g["beats_anchor"]
     bad = market.grade_offer(task, {"hours": [{"he": 1, "sell": [[7.0, 30]]}]}, STORE)
     assert bad["reward"] == 0.0 and bad["submitted"] is False
 
@@ -185,3 +195,39 @@ def test_battery_dp_is_the_price_taker_optimum_on_flat_prices():
     v, ks, _ = battery_dp(b, np.repeat(prices[:, None], 41, 1), None, 50.0, feasible_only=True)
     assert v <= physical_lp(b, prices) + 1e-6
     assert all(-20 <= k <= 20 for k in ks)
+
+
+@pytest.mark.parametrize("task", TASKS, ids=lambda t: t["task_id"])
+def test_every_baseline_is_a_legal_offer(task):
+    F = Floor(task, STORE)
+    b = battery_of(task["seats"]["A"])
+    for name, offer in baseline_offers(F, forecast_books(STORE, task)).items():
+        assert parse_offer(offer, b.p, b.grid, F.floor, F.cap)[1] == [], name
+    assert "baseline_issues" not in task["refs"]
+
+
+def test_the_anchor_does_not_beat_itself_and_eps_is_a_share():
+    task = TASKS[3]
+    s = market.play(task, "floor-sprint", market.anchor_policy, store=STORE)
+    g = s.grade()
+    assert g["reward"] == pytest.approx(1.0) and not g["beats_anchor"]
+    assert 0.0 <= g["eps_nash"] <= 1.0 and all(0.0 <= v["eps"] <= 1.0 for v in g["seat_results"].values())
+    assert g["capture_vs_br"] <= 1.0 + 1e-9
+
+
+def test_scored_tasks_have_headroom_in_both_tiers():
+    for t in TASKS:
+        h = t["refs"]["headroom_usd_per_mw"]
+        if h["anchor"] >= 10 and h["anchor_day"] >= 10:
+            assert t["refs"]["floor-sprint"]["p_anchor"] > t["refs"]["p_idle"]
+
+
+@pytest.mark.parametrize("pack", ["gridsim-market-eval", "gridsim-market-rtcb", "gridsim-market-train"])
+def test_packs_have_legal_baselines_and_per_tier_headroom(pack):
+    for line in gzip.open(FIX.parent / pack / "tasks.jsonl.gz"):
+        t = json.loads(line)
+        r = t["refs"]
+        assert "baseline_issues" not in r, t["task_id"]
+        assert r["headroom_usd_per_mw"]["anchor"] >= 10 and r["headroom_usd_per_mw"]["br"] >= 25
+        if t["tags"].get("floor_day"):
+            assert t["tags"]["floor_day_ok"] and r["headroom_usd_per_mw"]["anchor_day"] >= 10
