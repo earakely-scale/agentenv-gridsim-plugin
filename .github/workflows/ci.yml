@@ -114,6 +114,7 @@ jobs:
           agent-env run gridsim-forecast --task wiring-nodam | tee forecast-wiring.log
           grep -qE 'tasks/wiring-nodam\.json v[0-9]+: scored below 1 \([^:]+: 0\)' forecast-wiring.log
           python scripts/forecast_e2e.py --lookahead
-          python scripts/forecast_e2e.py
+          python scripts/forecast_e2e.py --policy naive
           python scripts/forecast_e2e.py --tier blind
+          python scripts/forecast_e2e.py --tier front-lite
           python scripts/forecast_e2e.py --task front-v4-2023-08-24-HB_HOUSTON-pv150-b100x2h-poi150

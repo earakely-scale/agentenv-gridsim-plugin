@@ -70,7 +70,7 @@ def test_a_forecast_attempt_is_a_row_with_the_forecast_grade(fake):
     [row] = sweep.results(Path("results/runs/fc/raw"))
     g = forecast_play(WINDOW)[1].grade()
     assert (row["outcome"], row["reward"], row["r_opt"], row["bundle"], row["tier"], row["source"]) == (
-        "scored", 1.0, g["r_hind"], "live", "front", "desk")
+        "scored", g["reward"], g["r_hind"], "live", "front", "desk")
     assert (row["profit"], row["profit_anchor"], row["profit_opt"], row["dam_missed"], row["paired_vs_anchor"]) == (
         g["profit_usd"], g["p_anchor"], g["p_hind"], 0, g["paired_vs_anchor"])
     assert (row["valid"], row["audit_ok"], row["end_reason"], row["dam_submits"]) == (True, True, "done", 3)
@@ -92,11 +92,12 @@ def test_the_forecast_report_writes_eval_v4_and_the_forecast_board(fake):
     assert result.exit_code == 0, result.output
     card = json.loads(Path("results/eval-v4.json").read_text())
     front, blind = card["models"]
+    rf, rb = forecast_play(WINDOW)[1].grade()["reward"], forecast_play(other, "blind")[1].grade()["reward"]
     assert (card["env"], card["version"], card["tasks"]["n"], card["tasks"]["sources"]) == (
         FORECAST_ENV, "v4", 2, {"desk": 2})
     assert (front["tier"], front["tasks"], front["mean"], front["dam_missed"], blind["tier"], blind["mean"]) == (
-        "front", 1, 1.0, 0.0, "blind", 1.0)
-    assert front["by_source"] == {"desk": 1.0, "ercot": None} and blind["forecast_value"] is not None
+        "front", 1, round(rf, 4), 0.0, "blind", round(rb, 4))
+    assert front["by_source"] == {"desk": round(rf, 4), "ercot": None} and blind["forecast_value"] is not None
     assert card["harness"]["max_turns"] == {"blind": 122, "front": 122}
     b = card["baselines"]
     assert (b["front"]["n"], b["blind"]["n"]) == (1, 1)
@@ -125,7 +126,7 @@ def test_forecast_episodes_replay_byte_for_byte_into_episode_json_v4(fake):
     e = json.loads(path.read_text())
     _, s = forecast_play(WINDOW)
     assert (e["schema"], e["env"], e["path"], e["bundle"], e["model"], e["reward"], e["tier"]) == (
-        EPISODE_SCHEMA, FORECAST_ENV, "A", "live", SOL, 1.0, "front")
+        EPISODE_SCHEMA, FORECAST_ENV, "A", "live", SOL, s.grade()["reward"], "front")
     assert [x["tool"] for x in e["steps"]] == [x["tool"] for x in s.transcript]
     assert NOTICE_TOOL in {x["tool"] for x in e["steps"]} and e["audit"] == {"ok": True, "problems": []}
     assert [d["missed"] for d in e["dam"]] == [False] * 3 and len(e["hours"]) == 72

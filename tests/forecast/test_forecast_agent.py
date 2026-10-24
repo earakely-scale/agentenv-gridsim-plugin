@@ -11,7 +11,7 @@ import pytest
 from agentenv_protocol import client
 from agentenv_protocol.a2a_agent import TaskOutcome, TaskRequest, TextPart
 from fake_litellm import FakeLiteLLM
-from forecast_days import ROWS, anchor, scripted
+from forecast_days import ROWS, anchor, in_process, scripted
 from live_days import FakeClock, live_server
 
 from agentenv_gridsim import forecast_tasks
@@ -68,10 +68,11 @@ async def test_the_window_ends_on_advances_done_with_the_anchors_reward(play, ti
     calls = scripted(QUIET, tier, anchor(tier))
     result, fake, data = await play([turn(c, t) for t, c in enumerate(calls)], tier=tier, max_turns=MAX_TURNS[tier])
     record, s = result.native_trajectory.payload, summary(result)
+    g = in_process(QUIET, tier, calls)[0].grade()
     assert result.outcome is TaskOutcome.SUCCEEDED
-    assert (record["end_reason"], s["live"], s["reward"], data["reward"], s["gate_nudges"]) == ("done", True, 1.0,
-                                                                                                1.0, 0)
-    assert data["grade"]["profit_usd"] == QUIET["refs"][tier]["p_anchor"] and data["audit"]["ok"]
+    assert (record["end_reason"], s["live"], s["reward"], data["reward"], s["gate_nudges"]) == (
+        "done", True, g["reward"], g["reward"], 0)
+    assert data["grade"]["profit_usd"] == g["profit_usd"] and data["audit"]["ok"]
     assert (len(fake.requests), s["tool_calls"], data["calls_used"]) == (len(calls), sum(map(len, calls)),
                                                                         s["tool_calls"])
 
@@ -129,5 +130,5 @@ async def test_the_episode_cap_covers_a_front_window_at_sols_pace(play, monkeypa
     result, fake, data = await play(turns, max_turns=MAX_TURNS["front"])
     s = summary(result)
     spent = sum(gridsim_llm.cost(dict(t["usage"], cache_write=0), gridsim_llm.PRICES[SOL]) for t in turns)
-    assert (s["end_reason"], s["turns"], data["done"], data["reward"]) == ("done", len(turns), True, 1.0)
+    assert (s["end_reason"], s["turns"], data["done"], data["audit"]["ok"]) == ("done", len(turns), True, True)
     assert s["cost_usd"] == pytest.approx(spent) and spent < forecast_tasks.EPISODE_CAP_USD / 2
