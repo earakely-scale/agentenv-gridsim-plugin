@@ -1,0 +1,1144 @@
+{
+  "env": "gridsim-battery",
+  "version": "v1",
+  "contract_version": "1.0",
+  "authors": [
+    {
+      "name": "Edgar Arakelyan",
+      "github": "earakely-scale",
+      "affiliation": "Scale AI"
+    },
+    {
+      "name": "Adithya S Kolavi",
+      "github": "adithya-s-k",
+      "affiliation": "Hugging Face"
+    }
+  ],
+  "framework": "agentenv",
+  "tasks": {
+    "split": [
+      "eval_2025",
+      "rtcb"
+    ],
+    "n": 750,
+    "unit": "battery-hub-days",
+    "packs": [
+      "ercot-dam-v1-eval",
+      "ercot-dam-v1-rtcb"
+    ],
+    "source": "ERCOT NP4-180-ER hub/LZ DAM SPPs; EIA-860 archetypes",
+    "selection": "low-spread and greedy-easy filters; 2025 held out"
+  },
+  "harness": {
+    "agent": "gridsim-llm",
+    "tools": [
+      "get_situation",
+      "check_schedule",
+      "submit_schedule"
+    ],
+    "max_turns": 4,
+    "max_tokens": 4096,
+    "effort": "high",
+    "bundles": {
+      "full": "3 checks",
+      "oneshot": "submit_schedule only"
+    }
+  },
+  "grading": {
+    "reference": "exact DP over integer SoC (LP bound reported)",
+    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1)",
+    "anchor": {
+      "foresight": "P_opt (exact DP)",
+      "blind": "max(P_persist, P_ridge)"
+    },
+    "hindsight_capture": "r_opt: the reward against P_opt, a weight-0 row",
+    "optimal": "R >= 0.99",
+    "ci": "95% bootstrap over tasks, 10,000 resamples",
+    "excused": "none",
+    "judge": false
+  },
+  "baselines": {
+    "idle": 0.2,
+    "random": 0.0622,
+    "clock": 0.4683,
+    "threshold": 0.6491,
+    "greedy": 0.7487,
+    "persistence_dp_blind": 0.9505,
+    "persistence_dp_blind_r_opt": 0.8667,
+    "n": 750,
+    "n_blind": 502
+  },
+  "models": [
+    {
+      "model": "openai/gpt-6.1-sol",
+      "label": "GPT-6.1 Sol",
+      "trained": "base",
+      "column": "A",
+      "pack": "ercot-dam-v1-eval",
+      "tier": "foresight",
+      "bundle": "full",
+      "effort": "high",
+      "sweeps": [
+        "v1-board-sol-full"
+      ],
+      "runs": 500,
+      "planned": 500,
+      "unscored": 0,
+      "tasks": 500,
+      "mean": 0.9999,
+      "ci95": [
+        0.9997,
+        1.0
+      ],
+      "hindsight_capture": 0.9999,
+      "optimal": 0.996,
+      "r_opt_optimal": 0.996,
+      "valid": 1.0,
+      "submitted": 1.0,
+      "errors": {
+        "overfill": 0,
+        "sell_before_charge": 0,
+        "rate": 0,
+        "cycle_cap": 0,
+        "end_short": 0,
+        "all_idle": 0
+      },
+      "checks_used": 1.0,
+      "checks": {
+        "1": 499,
+        "2": 1
+      },
+      "by_checks": {
+        "1": {
+          "n": 499,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        },
+        "2": {
+          "n": 1,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "by_archetype": {
+        "1h": {
+          "n": 172,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "2h": {
+          "n": 166,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "4h": {
+          "n": 162,
+          "mean": 0.9997,
+          "r_opt": 0.9997
+        }
+      },
+      "by_binding": {
+        "cycle_cap": {
+          "n": 103,
+          "mean": 0.9996,
+          "r_opt": 0.9996
+        },
+        "end_soc": {
+          "n": 65,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "none": {
+          "n": 169,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        },
+        "rate": {
+          "n": 163,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "by_day": {
+        "negative_prices": {
+          "n": 27,
+          "mean": 0.9983,
+          "r_opt": 0.9983
+        },
+        "neither": {
+          "n": 459,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "spike": {
+          "n": 14,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "usd_per_episode": 0.0157,
+      "usd_median": 0.0145,
+      "spend_usd": 8.236,
+      "unscored_spend_usd": 0.3899,
+      "unknown_spend_attempts": 0,
+      "attempts": 514,
+      "unscored_attempts": {
+        "cost_cap": 14
+      },
+      "tokens": {
+        "input": 3012.5,
+        "output": 976.5,
+        "cached": 51.4,
+        "total": 2049801
+      },
+      "wall_seconds": {
+        "median": 27.7,
+        "mean": 30.4,
+        "max": 88.1
+      },
+      "started_utc": [
+        "2026-10-24T06:58:56Z",
+        "2026-10-24T07:26:14Z"
+      ],
+      "baselines": {
+        "idle": {
+          "reward": 0.2,
+          "r_opt": 0.2,
+          "n": 500
+        },
+        "random": {
+          "reward": 0.0716,
+          "r_opt": 0.0716,
+          "n": 500
+        },
+        "clock": {
+          "reward": 0.4849,
+          "r_opt": 0.4849,
+          "n": 500
+        },
+        "threshold": {
+          "reward": 0.6418,
+          "r_opt": 0.6418,
+          "n": 500
+        },
+        "greedy": {
+          "reward": 0.7611,
+          "r_opt": 0.7611,
+          "n": 500
+        },
+        "dp_optimum": {
+          "reward": 1.0,
+          "r_opt": 1.0,
+          "n": 500
+        },
+        "persistence_dp": {
+          "reward": 0.882,
+          "r_opt": 0.882,
+          "n": 300
+        },
+        "ridge_dp": {
+          "reward": 0.7988,
+          "r_opt": 0.7988,
+          "n": 300
+        },
+        "blind_anchor": {
+          "reward": 0.9204,
+          "r_opt": 0.9204,
+          "n": 300
+        }
+      },
+      "lp_bound": {
+        "p_opt_mean": 11726.75,
+        "p_lp_mean": 11726.75,
+        "gap_usd_mean": 0.0,
+        "gap_usd_max": 0.0,
+        "tasks_with_gap": 0,
+        "n": 500
+      },
+      "prereg": {
+        "runs": 486,
+        "planned": 500,
+        "unscored": 14,
+        "tasks": 486,
+        "mean": 0.9999,
+        "ci95": [
+          0.9997,
+          1.0
+        ],
+        "hindsight_capture": 0.9999,
+        "optimal": 0.9959,
+        "r_opt_optimal": 0.9959,
+        "valid": 1.0,
+        "submitted": 1.0,
+        "errors": {
+          "overfill": 0,
+          "sell_before_charge": 0,
+          "rate": 0,
+          "cycle_cap": 0,
+          "end_short": 0,
+          "all_idle": 0
+        },
+        "checks_used": 1
+      },
+      "amendment": {
+        "sweeps": [
+          "v1-board-sol-full-amend"
+        ],
+        "runs": 14,
+        "episode_cap_usd": [
+          0.4
+        ],
+        "prereg_episode_cap_usd": [
+          0.1
+        ]
+      }
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "label": "GPT-6.1 Sol",
+      "trained": "base",
+      "column": "B",
+      "pack": "ercot-dam-v1-eval",
+      "tier": "foresight",
+      "bundle": "oneshot",
+      "effort": "high",
+      "sweeps": [
+        "v1-board-sol-oneshot"
+      ],
+      "runs": 500,
+      "planned": 500,
+      "unscored": 0,
+      "tasks": 500,
+      "mean": 0.9999,
+      "ci95": [
+        0.9998,
+        1.0
+      ],
+      "hindsight_capture": 0.9999,
+      "optimal": 0.996,
+      "r_opt_optimal": 0.996,
+      "valid": 1.0,
+      "submitted": 1.0,
+      "errors": {
+        "overfill": 0,
+        "sell_before_charge": 0,
+        "rate": 0,
+        "cycle_cap": 0,
+        "end_short": 0,
+        "all_idle": 0
+      },
+      "checks_used": 0,
+      "checks": {
+        "0": 500
+      },
+      "by_checks": {
+        "0": {
+          "n": 500,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        }
+      },
+      "by_archetype": {
+        "1h": {
+          "n": 172,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "2h": {
+          "n": 166,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "4h": {
+          "n": 162,
+          "mean": 0.9997,
+          "r_opt": 0.9997
+        }
+      },
+      "by_binding": {
+        "cycle_cap": {
+          "n": 103,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        },
+        "end_soc": {
+          "n": 65,
+          "mean": 0.9998,
+          "r_opt": 0.9998
+        },
+        "none": {
+          "n": 169,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "rate": {
+          "n": 163,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        }
+      },
+      "by_day": {
+        "negative_prices": {
+          "n": 27,
+          "mean": 0.9998,
+          "r_opt": 0.9998
+        },
+        "neither": {
+          "n": 459,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        },
+        "spike": {
+          "n": 14,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "usd_per_episode": 0.0117,
+      "usd_median": 0.0104,
+      "spend_usd": 5.979,
+      "unscored_spend_usd": 0.1282,
+      "unknown_spend_attempts": 0,
+      "attempts": 503,
+      "unscored_attempts": {
+        "cost_cap": 3
+      },
+      "tokens": {
+        "input": 882.6,
+        "output": 993.6,
+        "cached": 0,
+        "total": 953041
+      },
+      "wall_seconds": {
+        "median": 26.8,
+        "mean": 30.1,
+        "max": 96.5
+      },
+      "started_utc": [
+        "2026-10-24T06:59:04Z",
+        "2026-10-24T07:25:27Z"
+      ],
+      "baselines": {
+        "idle": {
+          "reward": 0.2,
+          "r_opt": 0.2,
+          "n": 500
+        },
+        "random": {
+          "reward": 0.0716,
+          "r_opt": 0.0716,
+          "n": 500
+        },
+        "clock": {
+          "reward": 0.4849,
+          "r_opt": 0.4849,
+          "n": 500
+        },
+        "threshold": {
+          "reward": 0.6418,
+          "r_opt": 0.6418,
+          "n": 500
+        },
+        "greedy": {
+          "reward": 0.7611,
+          "r_opt": 0.7611,
+          "n": 500
+        },
+        "dp_optimum": {
+          "reward": 1.0,
+          "r_opt": 1.0,
+          "n": 500
+        },
+        "persistence_dp": {
+          "reward": 0.882,
+          "r_opt": 0.882,
+          "n": 300
+        },
+        "ridge_dp": {
+          "reward": 0.7988,
+          "r_opt": 0.7988,
+          "n": 300
+        },
+        "blind_anchor": {
+          "reward": 0.9204,
+          "r_opt": 0.9204,
+          "n": 300
+        }
+      },
+      "lp_bound": {
+        "p_opt_mean": 11726.75,
+        "p_lp_mean": 11726.75,
+        "gap_usd_mean": 0.0,
+        "gap_usd_max": 0.0,
+        "tasks_with_gap": 0,
+        "n": 500
+      },
+      "prereg": {
+        "runs": 497,
+        "planned": 500,
+        "unscored": 3,
+        "tasks": 497,
+        "mean": 0.9999,
+        "ci95": [
+          0.9998,
+          1.0
+        ],
+        "hindsight_capture": 0.9999,
+        "optimal": 0.996,
+        "r_opt_optimal": 0.996,
+        "valid": 1.0,
+        "submitted": 1.0,
+        "errors": {
+          "overfill": 0,
+          "sell_before_charge": 0,
+          "rate": 0,
+          "cycle_cap": 0,
+          "end_short": 0,
+          "all_idle": 0
+        },
+        "checks_used": 0
+      },
+      "amendment": {
+        "sweeps": [
+          "v1-board-sol-oneshot-amend"
+        ],
+        "runs": 3,
+        "episode_cap_usd": [
+          0.4
+        ],
+        "prereg_episode_cap_usd": [
+          0.1
+        ]
+      }
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "label": "GPT-6.1 Sol",
+      "trained": "base",
+      "column": "C",
+      "pack": "ercot-dam-v1-eval",
+      "tier": "blind",
+      "bundle": "full",
+      "effort": "high",
+      "sweeps": [
+        "v1-board-sol-blind"
+      ],
+      "runs": 300,
+      "planned": 300,
+      "unscored": 0,
+      "tasks": 300,
+      "mean": 0.9721,
+      "ci95": [
+        0.9624,
+        0.9804
+      ],
+      "hindsight_capture": 0.9165,
+      "optimal": 0.7233,
+      "r_opt_optimal": 0.2167,
+      "valid": 1.0,
+      "submitted": 1.0,
+      "errors": {
+        "overfill": 0,
+        "sell_before_charge": 0,
+        "rate": 0,
+        "cycle_cap": 0,
+        "end_short": 0,
+        "all_idle": 0
+      },
+      "checks_used": 1.0,
+      "beats_anchor": 0.4033,
+      "checks": {
+        "0": 1,
+        "1": 299
+      },
+      "by_checks": {
+        "0": {
+          "n": 1,
+          "mean": 0.9978,
+          "r_opt": 0.9602
+        },
+        "1": {
+          "n": 299,
+          "mean": 0.972,
+          "r_opt": 0.9164
+        }
+      },
+      "by_archetype": {
+        "1h": {
+          "n": 102,
+          "mean": 0.9698,
+          "r_opt": 0.9303
+        },
+        "2h": {
+          "n": 105,
+          "mean": 0.9653,
+          "r_opt": 0.9083
+        },
+        "4h": {
+          "n": 93,
+          "mean": 0.9822,
+          "r_opt": 0.9106
+        }
+      },
+      "by_binding": {
+        "cycle_cap": {
+          "n": 70,
+          "mean": 0.9714,
+          "r_opt": 0.905
+        },
+        "end_soc": {
+          "n": 43,
+          "mean": 0.9793,
+          "r_opt": 0.9395
+        },
+        "none": {
+          "n": 94,
+          "mean": 0.9604,
+          "r_opt": 0.9149
+        },
+        "rate": {
+          "n": 93,
+          "mean": 0.981,
+          "r_opt": 0.9162
+        }
+      },
+      "by_day": {
+        "negative_prices": {
+          "n": 12,
+          "mean": 0.9794,
+          "r_opt": 0.8228
+        },
+        "neither": {
+          "n": 279,
+          "mean": 0.9715,
+          "r_opt": 0.9189
+        },
+        "spike": {
+          "n": 9,
+          "mean": 0.979,
+          "r_opt": 0.9662
+        }
+      },
+      "usd_per_episode": 0.0193,
+      "usd_median": 0.0185,
+      "spend_usd": 7.5153,
+      "unscored_spend_usd": 1.7278,
+      "unknown_spend_attempts": 0,
+      "attempts": 363,
+      "unscored_attempts": {
+        "cost_cap": 63
+      },
+      "tokens": {
+        "input": 5362.3,
+        "output": 1324.2,
+        "cached": 2460.8,
+        "total": 2296541
+      },
+      "wall_seconds": {
+        "median": 36.5,
+        "mean": 38.2,
+        "max": 103.1
+      },
+      "started_utc": [
+        "2026-10-24T06:59:12Z",
+        "2026-10-24T07:30:01Z"
+      ],
+      "baselines": {
+        "idle": {
+          "reward": 0.2,
+          "r_opt": 0.2,
+          "n": 300
+        },
+        "random": {
+          "reward": 0.0765,
+          "r_opt": 0.0757,
+          "n": 300
+        },
+        "clock": {
+          "reward": 0.5163,
+          "r_opt": 0.4869,
+          "n": 300
+        },
+        "threshold": {
+          "reward": 0.6976,
+          "r_opt": 0.6548,
+          "n": 300
+        },
+        "greedy": {
+          "reward": 0.8209,
+          "r_opt": 0.7828,
+          "n": 300
+        },
+        "persistence_dp": {
+          "reward": 0.9568,
+          "r_opt": 0.882,
+          "n": 300
+        },
+        "ridge_dp": {
+          "reward": 0.8611,
+          "r_opt": 0.7988,
+          "n": 300
+        },
+        "blind_anchor": {
+          "reward": 1.0,
+          "r_opt": 0.9204,
+          "n": 300
+        },
+        "dp_optimum": {
+          "reward": 1.0,
+          "r_opt": 1.0,
+          "n": 300
+        }
+      },
+      "lp_bound": {
+        "p_opt_mean": 11417.64,
+        "p_lp_mean": 11417.64,
+        "gap_usd_mean": 0.0,
+        "gap_usd_max": 0.0,
+        "tasks_with_gap": 0,
+        "n": 300
+      },
+      "prereg": {
+        "runs": 237,
+        "planned": 300,
+        "unscored": 63,
+        "tasks": 237,
+        "mean": 0.9769,
+        "ci95": [
+          0.9678,
+          0.9846
+        ],
+        "hindsight_capture": 0.9245,
+        "optimal": 0.7511,
+        "r_opt_optimal": 0.2658,
+        "valid": 1.0,
+        "submitted": 1.0,
+        "errors": {
+          "overfill": 0,
+          "sell_before_charge": 0,
+          "rate": 0,
+          "cycle_cap": 0,
+          "end_short": 0,
+          "all_idle": 0
+        },
+        "checks_used": 1,
+        "beats_anchor": 0.3924
+      },
+      "amendment": {
+        "sweeps": [
+          "v1-board-sol-blind-amend"
+        ],
+        "runs": 63,
+        "episode_cap_usd": [
+          0.4
+        ],
+        "prereg_episode_cap_usd": [
+          0.1
+        ]
+      }
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "label": "GPT-6.1 Sol",
+      "trained": "base",
+      "column": "D",
+      "pack": "ercot-dam-v1-rtcb",
+      "tier": "foresight",
+      "bundle": "full",
+      "effort": "high",
+      "sweeps": [
+        "v1-board-sol-rtcb"
+      ],
+      "runs": 250,
+      "planned": 250,
+      "unscored": 0,
+      "tasks": 250,
+      "mean": 1.0,
+      "ci95": [
+        0.9999,
+        1.0
+      ],
+      "hindsight_capture": 1.0,
+      "optimal": 1.0,
+      "r_opt_optimal": 1.0,
+      "valid": 1.0,
+      "submitted": 1.0,
+      "errors": {
+        "overfill": 0,
+        "sell_before_charge": 0,
+        "rate": 0,
+        "cycle_cap": 0,
+        "end_short": 0,
+        "all_idle": 0
+      },
+      "checks_used": 1.0,
+      "checks": {
+        "1": 249,
+        "2": 1
+      },
+      "by_checks": {
+        "1": {
+          "n": 249,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "2": {
+          "n": 1,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "by_archetype": {
+        "1h": {
+          "n": 81,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "2h": {
+          "n": 92,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        },
+        "4h": {
+          "n": 77,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "by_binding": {
+        "cycle_cap": {
+          "n": 38,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "end_soc": {
+          "n": 33,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "none": {
+          "n": 110,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "rate": {
+          "n": 69,
+          "mean": 0.9999,
+          "r_opt": 0.9999
+        }
+      },
+      "by_day": {
+        "negative_prices": {
+          "n": 25,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "neither": {
+          "n": 222,
+          "mean": 1.0,
+          "r_opt": 1.0
+        },
+        "spike": {
+          "n": 3,
+          "mean": 1.0,
+          "r_opt": 1.0
+        }
+      },
+      "usd_per_episode": 0.0161,
+      "usd_median": 0.014,
+      "spend_usd": 4.15,
+      "unscored_spend_usd": 0.1334,
+      "unknown_spend_attempts": 0,
+      "attempts": 255,
+      "unscored_attempts": {
+        "cost_cap": 5
+      },
+      "tokens": {
+        "input": 3071.8,
+        "output": 1005.2,
+        "cached": 68,
+        "total": 1041111
+      },
+      "wall_seconds": {
+        "median": 28.6,
+        "mean": 32.2,
+        "max": 94.5
+      },
+      "started_utc": [
+        "2026-10-24T06:59:20Z",
+        "2026-10-24T07:25:41Z"
+      ],
+      "baselines": {
+        "idle": {
+          "reward": 0.2,
+          "r_opt": 0.2,
+          "n": 250
+        },
+        "random": {
+          "reward": 0.0433,
+          "r_opt": 0.0433,
+          "n": 250
+        },
+        "clock": {
+          "reward": 0.4352,
+          "r_opt": 0.4352,
+          "n": 250
+        },
+        "threshold": {
+          "reward": 0.6638,
+          "r_opt": 0.6638,
+          "n": 250
+        },
+        "greedy": {
+          "reward": 0.724,
+          "r_opt": 0.724,
+          "n": 250
+        },
+        "persistence_dp": {
+          "reward": 0.844,
+          "r_opt": 0.844,
+          "n": 202
+        },
+        "ridge_dp": {
+          "reward": 0.7641,
+          "r_opt": 0.7641,
+          "n": 202
+        },
+        "blind_anchor": {
+          "reward": 0.8878,
+          "r_opt": 0.8878,
+          "n": 202
+        },
+        "dp_optimum": {
+          "reward": 1.0,
+          "r_opt": 1.0,
+          "n": 250
+        }
+      },
+      "lp_bound": {
+        "p_opt_mean": 8699.23,
+        "p_lp_mean": 8699.23,
+        "gap_usd_mean": 0.0,
+        "gap_usd_max": 0.0,
+        "tasks_with_gap": 0,
+        "n": 250
+      },
+      "prereg": {
+        "runs": 245,
+        "planned": 250,
+        "unscored": 5,
+        "tasks": 245,
+        "mean": 1.0,
+        "ci95": [
+          0.9999,
+          1.0
+        ],
+        "hindsight_capture": 1.0,
+        "optimal": 1.0,
+        "r_opt_optimal": 1.0,
+        "valid": 1.0,
+        "submitted": 1.0,
+        "errors": {
+          "overfill": 0,
+          "sell_before_charge": 0,
+          "rate": 0,
+          "cycle_cap": 0,
+          "end_short": 0,
+          "all_idle": 0
+        },
+        "checks_used": 1
+      },
+      "amendment": {
+        "sweeps": [
+          "v1-board-sol-rtcb-amend"
+        ],
+        "runs": 5,
+        "episode_cap_usd": [
+          0.4
+        ],
+        "prereg_episode_cap_usd": [
+          0.1
+        ]
+      }
+    }
+  ],
+  "errors": {
+    "taxonomy": [
+      "overfill",
+      "sell_before_charge",
+      "rate",
+      "cycle_cap",
+      "end_short",
+      "all_idle"
+    ],
+    "meaning": {
+      "overfill": "soc_above_N",
+      "sell_before_charge": "soc_below_0",
+      "rate": "rate",
+      "cycle_cap": "cycle_cap",
+      "end_short": "end SoC below s_end_min",
+      "all_idle": "a schedule of 24 zeros"
+    }
+  },
+  "sweeps": [
+    {
+      "name": "v1-board-sol-full",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 500,
+      "k": 1,
+      "episode_cap_usd": 0.1,
+      "tier": "foresight",
+      "bundle": "full",
+      "pack": "ercot-dam-v1-eval"
+    },
+    {
+      "name": "v1-board-sol-oneshot",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 500,
+      "k": 1,
+      "episode_cap_usd": 0.1,
+      "tier": "foresight",
+      "bundle": "oneshot",
+      "pack": "ercot-dam-v1-eval"
+    },
+    {
+      "name": "v1-board-sol-blind",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 300,
+      "k": 1,
+      "episode_cap_usd": 0.1,
+      "tier": "blind",
+      "bundle": "full",
+      "pack": "ercot-dam-v1-eval"
+    },
+    {
+      "name": "v1-board-sol-rtcb",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 250,
+      "k": 1,
+      "episode_cap_usd": 0.1,
+      "tier": "foresight",
+      "bundle": "full",
+      "pack": "ercot-dam-v1-rtcb"
+    },
+    {
+      "name": "v1-board-sol-full-amend",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 14,
+      "k": 1,
+      "episode_cap_usd": 0.4,
+      "tier": "foresight",
+      "bundle": "full",
+      "pack": "ercot-dam-v1-eval",
+      "amends": "v1-board-sol-full"
+    },
+    {
+      "name": "v1-board-sol-oneshot-amend",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 3,
+      "k": 1,
+      "episode_cap_usd": 0.4,
+      "tier": "foresight",
+      "bundle": "oneshot",
+      "pack": "ercot-dam-v1-eval",
+      "amends": "v1-board-sol-oneshot"
+    },
+    {
+      "name": "v1-board-sol-blind-amend",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 63,
+      "k": 1,
+      "episode_cap_usd": 0.4,
+      "tier": "blind",
+      "bundle": "full",
+      "pack": "ercot-dam-v1-eval",
+      "amends": "v1-board-sol-blind"
+    },
+    {
+      "name": "v1-board-sol-rtcb-amend",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 5,
+      "k": 1,
+      "episode_cap_usd": 0.4,
+      "tier": "foresight",
+      "bundle": "full",
+      "pack": "ercot-dam-v1-rtcb",
+      "amends": "v1-board-sol-rtcb"
+    }
+  ],
+  "links": {
+    "runs": "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/viewer/v1_episodes",
+    "replays": "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv",
+    "code": "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+  },
+  "date": "2026-10-24",
+  "prereg": "docs/prereg/v1-board.md",
+  "commit": "1f0c24c",
+  "amendment": {
+    "text": "The pre-registered per-episode cap of $0.10 (4\u00d7 the smoke median, rounded up) collided with the agent's pessimistic pre-request cost guard. It estimates about $0.08-0.11 worst-case per request. So some episodes stopped as unscored \"cost_cap\" failures, all of them guard trips and none model failures: A 14, B 3, C 63, D 5. Retries at the same cap failed again. Those exact tasks were re-run once at a $0.40 episode cap, as sweeps `*-amend`. All scored. Both are reported: the pre-registered column (scored only) and the amended column (pre-reg scored + amend). The amended column is the headline, with this footnote, because dropping 21% of blind days biases toward easy days.",
+    "headline": "amended",
+    "sweeps": {
+      "v1-board-sol-full": "v1-board-sol-full-amend",
+      "v1-board-sol-oneshot": "v1-board-sol-oneshot-amend",
+      "v1-board-sol-blind": "v1-board-sol-blind-amend",
+      "v1-board-sol-rtcb": "v1-board-sol-rtcb-amend"
+    },
+    "episode_cap_usd": {
+      "prereg": 0.1,
+      "amended": 0.4
+    },
+    "stopped": {
+      "A": 14,
+      "B": 3,
+      "C": 63,
+      "D": 5
+    }
+  },
+  "spend_usd": 25.8802,
+  "hypotheses": [
+    {
+      "row": "Sol, full, foresight",
+      "hypothesis": "~0.90-0.95",
+      "measured": 0.9999
+    },
+    {
+      "row": "Sol, oneshot, foresight",
+      "hypothesis": "below full, by an amount not predicted",
+      "measured": 0.9999,
+      "minus_full": 0.0
+    },
+    {
+      "row": "Greedy (filtered pack)",
+      "hypothesis": "~0.78 (tuned to 0.75-0.80)",
+      "measured": 0.7611
+    },
+    {
+      "row": "Threshold",
+      "hypothesis": "~0.62",
+      "measured": 0.6418
+    },
+    {
+      "row": "Sol, blind",
+      "hypothesis": "no prior; first measurement",
+      "measured": 0.9721,
+      "r_opt": 0.9165,
+      "beats_anchor": 0.4033
+    }
+  ]
+}
