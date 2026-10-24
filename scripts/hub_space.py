@@ -1,7 +1,9 @@
 """Assemble the static Hugging Face Space: the viewer (web/), every Episode JSON under the runs folders re-verified
-through gridsim_core, the weather sidecars, a runs index with the featured days and the README. Nothing is uploaded.
+through gridsim_core (a .jsonl holds one per line), the weather sidecars, a runs index with the featured days and the
+README. Nothing is uploaded.
 
-usage: python scripts/hub_space.py [--runs results/runs] [--out build/hub/space] [--thumbs] [--hero EPISODE_ID]
+usage: python scripts/hub_space.py [--runs results/runs [TRAIN_EPISODES]] [--out build/hub/space] [--thumbs]
+       [--hero EPISODE_ID]
 """
 
 import argparse
@@ -120,30 +122,34 @@ def main(argv: list[str] | None = None) -> int:
     entries, rejected, skipped, views = [], [], [], {}
     fixture_ids, seen = fixtures(), set()
     for folder in args.runs:
-        for f in sorted(folder.rglob("*.json")):
-            if f.name == "index.json" or "raw" in f.relative_to(folder).parts[:-1]:
+        for f in sorted(folder.rglob("*.json*")):
+            if f.suffix not in (".json", ".jsonl") or f.name == "index.json" \
+                    or "raw" in f.relative_to(folder).parts[:-1]:
                 continue
-            ep = json.loads(f.read_text())
-            schema = ep.get("schema") if isinstance(ep, dict) else None
-            if schema in ("gridsim.levelup/v1", "gridsim.race/v1"):
-                views[schema.split(".")[1].split("/")[0]] = ep
-                continue
-            if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
-                continue
-            if ep["episode_id"] in seen:
-                continue
-            seen.add(ep["episode_id"])
-            v2 = schema == live.EPISODE_SCHEMA
-            if v2 and ep["task_id"] in fixture_ids:
-                skipped.append(f)
-                continue
-            task = live_tasks().get(ep["task_id"]) if v2 else tasks.get(ep["task_id"])
-            if why := (verify_live(ep, task) if v2 else verify(ep, task)):
-                rejected.append((f, why))
-                continue
-            name = f"{ep['episode_id']}.json"
-            (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
-            entries.append(live_entry(ep, name) if v2 else entry(ep, name, task))
+            text = f.read_text()
+            rows = [json.loads(x) for x in text.splitlines() if x.strip()] if f.suffix == ".jsonl" \
+                else [json.loads(text)]
+            for ep in rows:
+                schema = ep.get("schema") if isinstance(ep, dict) else None
+                if schema in ("gridsim.levelup/v1", "gridsim.race/v1"):
+                    views[schema.split(".")[1].split("/")[0]] = ep
+                    continue
+                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
+                    continue
+                if ep["episode_id"] in seen:
+                    continue
+                seen.add(ep["episode_id"])
+                v2 = schema == live.EPISODE_SCHEMA
+                if v2 and ep["task_id"] in fixture_ids:
+                    skipped.append(f)
+                    continue
+                task = live_tasks().get(ep["task_id"]) if v2 else tasks.get(ep["task_id"])
+                if why := (verify_live(ep, task) if v2 else verify(ep, task)):
+                    rejected.append((f, why))
+                    continue
+                name = f"{ep['episode_id']}.json"
+                (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
+                entries.append(live_entry(ep, name) if v2 else entry(ep, name, task))
     for e in entries:
         side = wx.sidecar(e["point"], e["date"], args.weather)
         if not (out / "weather" / side.name).exists():
