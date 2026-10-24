@@ -7,7 +7,8 @@ from gridsim_core.hybrid import Session
 
 ROWS = hybrid_tasks.pack_rows("fixtures-hybrid")
 assert ROWS, "no hybrid fixture days in data/fixtures-hybrid"
-DAY = next(r for r in ROWS if r.get("deployments") and hybrid_tasks.eligible([r], "reserves"))
+DAY = next(r for r in ROWS if r.get("deployments") and not r["tags"].get("showcase")
+           and hybrid_tasks.eligible([r], "reserves"))
 
 
 def scripted(task: dict, tier: str, policy) -> list[list[tuple[str, dict]]]:
