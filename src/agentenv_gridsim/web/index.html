@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GridSimEnv · The Battery Desk</title>
+  <meta name="description" content="Replays of a model running a grid battery in Texas for one day on real ERCOT day-ahead prices, in 3D.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three-0.180.0/build/three.module.js",
+      "three/addons/": "./vendor/three-0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <main id="app" aria-live="polite"><div class="boot">Loading the Battery Desk…</div></main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
