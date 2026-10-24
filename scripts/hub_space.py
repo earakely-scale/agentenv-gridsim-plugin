@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     for pack in PACKS:
         for t in load_pack(pack):
             tasks.setdefault(t["task_id"], t)
-    entries, rejected = [], []
+    entries, rejected, skipped = [], [], []
     for folder in args.runs:
         for f in sorted(folder.rglob("*.json")):
             if f.name == "index.json" or "raw" in f.relative_to(folder).parts[:-1]:
@@ -123,6 +123,9 @@ def main(argv: list[str] | None = None) -> int:
             if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
                 continue
             v2 = schema == live.EPISODE_SCHEMA
+            if v2 and ep["task_id"] in fixtures():
+                skipped.append(f)
+                continue
             task = live_tasks().get(ep["task_id"]) if v2 else tasks.get(ep["task_id"])
             if why := (verify_live(ep, task) if v2 else verify(ep, task)):
                 rejected.append((f, why))
@@ -147,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     (out / "README.md").write_text(readme(entries, featured[0] if featured else None))
     for f, why in rejected:
         print(f"REJECTED {f}: {why}")
+    if skipped:
+        print(f"skipped {len(skipped)} episodes on CI fixture days (synthetic notices)")
     size = sum(x.stat().st_size for x in out.rglob("*") if x.is_file())
     print(f"{len(entries)} episodes ({len(rejected)} rejected), {len(list((out / 'weather').iterdir()))} weather "
           f"sidecars, featured {[e['id'] for e in featured]}, {size / 1e6:.1f} MB -> {out}")
@@ -180,6 +185,10 @@ def live_tasks() -> dict:
     if _LIVE is None:
         _LIVE = {t["task_id"]: t for pack in LIVE_PACKS for t in load_pack(pack)}
     return _LIVE
+
+
+def fixtures() -> set[str]:
+    return {t["task_id"] for t in load_pack("fixtures-live")}
 
 
 def verify_live(ep: dict, task: dict | None) -> str | None:

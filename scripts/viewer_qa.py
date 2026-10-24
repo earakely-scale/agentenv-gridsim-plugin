@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from record import ROOT, find_chrome, serve, session, viewer_url  # noqa: E402
 
 R = "results/runs/reference/"
+LIVE = "../live-reference/"
 MATRIX = [
     ("west · noon · idle (negative price)", "dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 12.6, "establish"),
     ("west · dusk · discharge", "dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3, "ramp"),
@@ -38,6 +39,14 @@ MATRIX = [
     ("central · night", "dam-v1-2025-08-11-LZ_AEN-4h-v-foresight-opt", 21.5, "city"),
     ("blind · before the day", "dam-v1-2021-02-14-HB_WEST-2h-p-blind-persist", -1.0, None),
     ("end · score and penalty bill", "dam-v1-2024-04-10-HB_WEST-1h-q-foresight-short", 24.5, None),
+    ("v2 · the day before: DA position", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", -1.0, None),
+    ("v2 · morning watch, ERCOT Watch", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 10.2, None),
+    ("v2 · EEA2 and the real-time spike", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75, None),
+    ("v2 · naive holds through the spike", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-naive", 19.75,
+     "establish"),
+    ("v2 · derate clips the frozen plan", f"{LIVE}live-v2-2024-01-02-LZ_CPS-1h-y-derate-foresight-roll", 18.6, None),
+    ("v2 · Uri, re-planning in the freeze", f"{LIVE}live-v2-2021-02-15-HB_HOUSTON-2h-i-foresight-roll", 7.6, None),
+    ("v2 · end score", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 24.5, None),
 ]
 QUIET = ("favicon",)
 
@@ -48,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--only", help="Substring of the labels to render.")
     p.add_argument("--perf", help="Episode id for the full-day frame-time and memory run.")
     p.add_argument("--size", default="1920x1080")
+    p.add_argument("--determinism", action="store_true",
+                   help="Render a v1 and a v2 frame in two fresh sessions each; the PNGs must be byte-identical.")
     args = p.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
     w, h = (int(v) for v in args.size.split("x"))
@@ -70,8 +81,9 @@ def main(argv: list[str] | None = None) -> int:
                 stills.append((label, args.out / name))
                 for ev in page.events:
                     m = ev.get("method")
-                    if m == "Runtime.exceptionThrown" or (m == "Log.entryAdded"
-                                                          and ev["params"]["entry"]["level"] == "error"):
+                    logged = m == "Log.entryAdded" and ev["params"]["entry"]["level"] == "error"
+                    if m == "Runtime.exceptionThrown" or logged or (m == "Runtime.consoleAPICalled" and ev["params"]["type"] in ("error", "warn")
+                                and "toNonIndexed" not in json.dumps(ev["params"])):
                         text = json.dumps(ev["params"])[:300]
                         if not any(q in text for q in QUIET):
                             failures.append(f"{label}: {text}")
@@ -97,6 +109,22 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"t={r['t']:.1f} shot={r['shot']} p50={r['frameMsP50']:.1f}ms p95={r['frameMsP95']:.1f}ms "
                           f"calls={r['calls']} tris={r['tris']} geo={r['geometries']} tex={r['textures']} "
                           f"heap={r['heap']:.0f}MB")
+        if args.determinism:
+            for eid, t in (("dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3),
+                           (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75)):
+                ep = ROOT / f"{R}{eid}.json"
+                e = json.loads(ep.read_text())
+                wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
+                pngs = []
+                for _ in range(2):
+                    with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, _gl):
+                        for dt in (0, 1 / 30, 1 / 30):
+                            page.js(f"gridsim.time({t}, {{dt: {dt}}})")
+                        pngs.append(base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"]))
+                same = pngs[0] == pngs[1]
+                print(f"determinism {Path(eid).name} t={t}: {'identical' if same else 'DIFFERENT'}")
+                if not same:
+                    failures.append(f"determinism: {eid} at {t} differs between sessions")
     if stills:
         sheet(stills, args.out / "qa-contact.jpg")
     for f in failures:

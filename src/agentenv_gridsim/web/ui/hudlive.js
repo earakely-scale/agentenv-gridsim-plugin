@@ -75,7 +75,7 @@ export function buildLiveHud(root, d, { onSeek, onToggle }) {
   timeline.querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => onToggle(btn.dataset.a || "speed", btn.dataset.s ? +btn.dataset.s : null)));
 
   const events = newsEvents(d);
-  let lastKey = "", lastPlan = -1;
+  let lastKey = "", lastPlan = -1, lastEv = null;
   function update(t, { playing, speed, directing }) {
     const min = clockMin(t);
     const x = d.at(Math.min(23.999, Math.max(0, t)));
@@ -106,10 +106,13 @@ export function buildLiveHud(root, d, { onSeek, onToggle }) {
       pnl.innerHTML = pnlHtml(d, settled, ended);
       bulls.innerHTML = bulletinsHtml(d, t);
       const ev = events.filter((e) => t >= e.t && t < e.until).at(-1);
-      if (ev) {
-        news.className = `news ${ev.kind}`;
-        news.innerHTML = `${ev.badge ? `<span class="badge ${ev.badge[1]}">${esc(ev.badge[0])}</span>` : "<i></i>"}<span>${esc(ev.text)}</span>`;
-      } else news.className = "news off";
+      if (ev !== lastEv) {
+        lastEv = ev;
+        if (ev) {
+          news.className = `news ${ev.kind}`;
+          news.innerHTML = `${ev.badge ? `<span class="badge ${ev.badge[1]}">${esc(ev.badge[0])}</span>` : "<i></i>"}<span>${esc(ev.text)}</span>`;
+        } else news.className = "news off";
+      }
       for (const l of lanes) {
         const v = ended ? l.final : t <= 0 ? 0 : (x.i > 0 ? l.cum[x.i - 1] : 0) + (l.cum[x.i] - (x.i > 0 ? l.cum[x.i - 1] : 0)) * x.u;
         const row = race.querySelector(`.lane[data-k="${l.k}"]`);
@@ -133,8 +136,11 @@ export function buildLiveHud(root, d, { onSeek, onToggle }) {
       timeline.querySelectorAll("[data-s]").forEach((s) => s.classList.toggle("on", +s.dataset.s === speed));
       timeline.querySelector('[data-a="director"]').classList.toggle("on", directing);
       intro.hidden = t >= -0.15;
-      intro.classList.toggle("committed", t >= -1.2);
     }
+    const ramp = (a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
+    news.style.opacity = lastEv ? Math.min(ramp(lastEv.t, lastEv.t + 0.12), 1 - ramp(lastEv.until - 0.12, lastEv.until)) : 0;
+    intro.style.opacity = 1 - ramp(-0.45, -0.15);
+    intro.style.setProperty("--pos", 0.25 + 0.75 * ramp(-1.45, -1.2));
     tl.update(t, settled, w);
   }
   return { update, place, timeline };
