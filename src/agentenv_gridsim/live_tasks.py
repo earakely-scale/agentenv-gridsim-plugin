@@ -39,9 +39,9 @@ def agent_env(episode_cap_usd: float | None) -> dict[str, dict[str, str]]:
     return {"env_vars": {"GRIDSIM_MAX_COST_USD": format(episode_cap_usd, "g")}} if episode_cap_usd is not None else {}
 
 
-def load_step(task_id: str, tier: str) -> dict:
-    return {"id": "load-task", "type": "apply_server_config", "env_id": LIVE_ENV,
-            "directives": [{"service": LIVE_ENV, "uri": LIVE_LOAD_URI, "args": {"task_id": task_id, "tier": tier}}]}
+def load_step(task_id: str, tier: str, env: str = LIVE_ENV) -> dict:
+    return {"id": "load-task", "type": "apply_server_config", "env_id": env,
+            "directives": [{"service": env, "uri": LIVE_LOAD_URI, "args": {"task_id": task_id, "tier": tier}}]}
 
 
 def steps(task: dict, tier: str = "foresight", episode_cap_usd: float | None = None, play: bool = True) -> list[dict]:
@@ -50,24 +50,31 @@ def steps(task: dict, tier: str = "foresight", episode_cap_usd: float | None = N
     end the day and grade it. Without ``play``, no agent: end-day delivers every watch's notices itself."""
     s = Session(task, tier)
     system, user = (m["content"] for m in messages(s))
-    out = [{"id": "deploy", "type": "deploy_env", "env_id": LIVE_ENV}, load_step(task["task_id"], tier),
-           {"id": "hide-grid-notice", "type": "modify_env_tool_access", "env_id": LIVE_ENV, "action": "disable",
+    return flow(LIVE_ENV, VERIFIER, task["task_id"], tier, s.watch_time_utc(0), triggers(s.watches), system, user,
+                episode_cap_usd, play)
+
+
+def flow(env: str, verifier: str, task_id: str, tier: str, watch_0_utc: str, watch_triggers: list[dict], system: str,
+         user: str, episode_cap_usd: float | None = None, play: bool = True) -> list[dict]:
+    """The steps of a day in watches on a gateway env, shared by gridsim-live and gridsim-hybrid."""
+    out = [{"id": "deploy", "type": "deploy_env", "env_id": env}, load_step(task_id, tier, env),
+           {"id": "hide-grid-notice", "type": "modify_env_tool_access", "env_id": env, "action": "disable",
             "role": "default", "tools": [NOTICE_TOOL]},
-           {"id": "watches", "type": "register_env_triggers", "env_id": LIVE_ENV, "watch_roles": ["default"],
-            "triggers": triggers(s.watches)}]
+           {"id": "watches", "type": "register_env_triggers", "env_id": env, "watch_roles": ["default"],
+            "triggers": watch_triggers}]
     if play:
-        out.append({"id": "deploy-agent", "type": "deploy_agent", "a2a_agent_id": AGENT, "env_ids": [LIVE_ENV],
+        out.append({"id": "deploy-agent", "type": "deploy_agent", "a2a_agent_id": AGENT, "env_ids": [env],
                     **agent_env(episode_cap_usd)})
-    out.append({"id": "clock", "type": "sync_env_clock", "env_id": LIVE_ENV, "virtual_time": s.watch_time_utc(0),
+    out.append({"id": "clock", "type": "sync_env_clock", "env_id": env, "virtual_time": watch_0_utc,
                 "virtual_seconds_per_real_second": 0, "tolerate_missing_sync_time": False})
     if play:
-        out.append({"id": "play", "type": "prompt_agent", "prompt_id": task["task_id"], "system_prompt": system,
+        out.append({"id": "play", "type": "prompt_agent", "prompt_id": task_id, "system_prompt": system,
                     "prompt": user, "max_turns": MAX_TURNS, "model_params": MODEL_PARAMS, "effort": EFFORT,
                     "timeout_seconds": PLAY_SECONDS})
     return out + [
-        {"id": "end-day", "type": "apply_server_config", "env_id": LIVE_ENV,
-         "directives": [{"service": LIVE_ENV, "uri": END_DAY_URI, "args": {}}]},
-        {"id": "grade", "type": "env_outcome_verifier", "env_id": LIVE_ENV, "file_artifact_id": VERIFIER,
+        {"id": "end-day", "type": "apply_server_config", "env_id": env,
+         "directives": [{"service": env, "uri": END_DAY_URI, "args": {}}]},
+        {"id": "grade", "type": "env_outcome_verifier", "env_id": env, "file_artifact_id": verifier,
          "verifier_id": "gridsim", "score_aggregator": "weighted_average"},
     ]
 
@@ -83,17 +90,26 @@ def generate(pack: str, out: Path, *, tier: str = "foresight", task_ids: list[st
     of the pack the tier can play, in the pack's order."""
     if pack not in LIVE_PACK_NAMES:
         raise click.UsageError(f"{pack} is not a live pack: {', '.join(LIVE_PACK_NAMES)}")
-    rows = eligible(pack_rows(pack), tier, zone)
-    if task_ids is not None:
-        known = {r["task_id"] for r in rows}
-        if unknown := [t for t in task_ids if t not in known]:
-            raise click.UsageError(f"not {tier} days of {pack}: {', '.join(unknown)}")
-        rows = [r for r in rows if r["task_id"] in task_ids]
-    _write(out / "README.md", f"GridSim live {pack}, {tier} tier: {len(rows)} battery-days, each played live in "
-                              f"watches by the {AGENT} agent on {LIVE_ENV} and graded by {VERIFIER}.\n\n"
-                              f"{LICENCE}\n".encode())
-    _write(out / f"artifacts/{VERIFIER}/verify.py", VERIFY.read_bytes())
-    for row in rows:
-        _write(out / "tasks" / f"{row['task_id']}.json",
-               (json.dumps(steps(row, tier, episode_cap_usd), indent=2, ensure_ascii=False) + "\n").encode())
-    return [r["task_id"] for r in rows]
+    rows = select(eligible(pack_rows(pack), tier, zone), task_ids, f"{tier} days of {pack}")
+    readme = (f"GridSim live {pack}, {tier} tier: {len(rows)} battery-days, each played live in watches by the {AGENT} "
+              f"agent on {LIVE_ENV} and graded by {VERIFIER}.\n\n{LICENCE}\n")
+    return write_bundle(out, readme, VERIFIER, VERIFY.read_bytes(),
+                        {r["task_id"]: steps(r, tier, episode_cap_usd) for r in rows})
+
+
+def select(rows: list[dict], task_ids: list[str] | None, what: str) -> list[dict]:
+    if task_ids is None:
+        return rows
+    known = {r["task_id"] for r in rows}
+    if unknown := [t for t in task_ids if t not in known]:
+        raise click.UsageError(f"not {what}: {', '.join(unknown)}")
+    return [r for r in rows if r["task_id"] in task_ids]
+
+
+def write_bundle(out: Path, readme: str, verifier: str, verify: bytes, tasks: dict[str, list[dict]]) -> list[str]:
+    _write(out / "README.md", readme.encode())
+    _write(out / f"artifacts/{verifier}/verify.py", verify)
+    for task_id, task_steps in tasks.items():
+        _write(out / "tasks" / f"{task_id}.json",
+               (json.dumps(task_steps, indent=2, ensure_ascii=False) + "\n").encode())
+    return list(tasks)
