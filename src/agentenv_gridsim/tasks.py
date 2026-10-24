@@ -76,7 +76,8 @@ def steps(task: dict, tier: str = "foresight", bundle: str = "full", episode_cap
 
 def eligible(rows: list[dict], tier: str, zone: str | None = None) -> list[dict]:
     """The pack's tasks a tier can play (blind needs the task's blind inputs), at one settlement point if asked."""
-    return [r for r in rows if (tier == "foresight" or r.get("blind")) and zone in (None, r["settlement_point"])]
+    return [r for r in rows if (tier == "foresight" or (r.get("blind") and (r.get("refs") or {}).get("blind")))
+            and zone in (None, r["settlement_point"])]
 
 
 def _write(path: Path, data: bytes) -> None:

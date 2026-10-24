@@ -13,6 +13,7 @@ from agentenv_protocol import client
 from fastmcp import Client
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
+from sweep_fake import fake  # noqa: F401
 
 from agentenv_gridsim.server import LOAD_URI, GridSimEnv, read_pack
 from gridsim_core.task import data_root
