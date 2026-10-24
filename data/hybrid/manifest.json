@@ -145,6 +145,14 @@
    "bytes": 366,
    "sha256": "7721356abc61c25bc354acc4a00e048b7f898844c99292976aa51ed93d7680f1"
   },
+  "cache/raw/hybrid/nprr/1186NPRR-36_PUCT_Report_041124.docx": {
+   "url": "https://www.ercot.com/files/docs/2024/04/12/1186NPRR-36%20PUCT%20Report%20041124.docx",
+   "product": null,
+   "rtid": null,
+   "published": null,
+   "bytes": 402663,
+   "sha256": "7674f0795b585f35b73930e3c9d298295634989f3504c34d8887d69a3f9d2aa3"
+  },
   "cache/raw/hybrid/rt_adders_yearly/HIST_RT15MPRICEADDER_2025.zip": {
    "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1180319245",
    "product": "NP6-793-ER",
@@ -240,8 +248,8 @@
    "sha256": "e4c0884e155aa698eb1df72342567671fa46894b6c5a2c4ad7e38feed1d03cd1"
   },
   "durations.json": {
-   "bytes": 1252,
-   "sha256": "4a4b1a62aaca9b119360e631c8ba9b0479de13cc17a76412b5c7a021e848aa7b"
+   "bytes": 1623,
+   "sha256": "8bd44461f72f09d56b5d1244d969feddaa3f02b704f00b452908bb3af14bf8da"
   },
   "solar_cf.jsonl.gz": {
    "bytes": 94607,

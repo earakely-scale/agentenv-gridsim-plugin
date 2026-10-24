@@ -59,7 +59,8 @@
   }
  },
  "notes": {
-  "A-B regup, regdn, rrs": "1 h, a conservative assumption (V3-D1, not settled from protocol text). NPRR1186 (in force 2024-06-27) asks SoC to cover the AS responsibility for the rest of the operating hour, 1 MWh per MW at the top of the hour",
+  "A-B rule": "NPRR1186 (PUCT-approved 2024-04-11, Nodal Protocols 8.1(4)(a)(ii)(A) and 6.5.5.2(14)): an up AS's SoC requirement is R x (time left in the operating hour + duration - 1 h), FFR R x 0.25 h; Reg-Down headroom is R x time left in the hour. So R x duration at the top of each hour, R x (duration - 1 h) at its end",
+  "A-B regup, regdn, rrs": "1 h: the rule's (duration - 1 h) term implies at least 1 h, and the text does not state the values; still flagged (V3-D1). Checking R x duration at both ends of the hour is conservative against the in-hour slope. Before NPRR1186 went live no SoC rule applied",
   "B ecrs, A-B nspin": "2 h ECRS and 4 h Non-Spin sustained capability (NPRR1096)",
   "C": "NPRR1282 under RTC+B (PUCT-approved 2025-07-31): Reg and RRS 0.5 h, ECRS 1 h, Non-Spin 4 h"
  },

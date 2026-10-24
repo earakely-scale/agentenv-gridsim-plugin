@@ -30,8 +30,9 @@ Loader: `gridsim_core.hybrid_inputs` (`as_prices`, `solar_cf`, `pv_profile_mw`, 
 | RT AS price adders era C | NP6-793-ER Historical RT ORDC and Reliability Deployment Prices (15-min) | 13240 | HIST_RT15MPRICEADDER_2025, _2026 (fetched, not built) |
 | Deployments | lane N's archive: ERCOT Operations Messages tagged `as_deployment` | n/a | data/notices/notices.jsonl.gz |
 | Hybrid configs | EIA-860 2025 (2___Plant, 3_3 Solar, 3_4 Energy Storage) | n/a | eia8602025.zip |
+| Pre-RTC+B SoC rule | NPRR1186 PUCT Report (ercot.com/mktrules/issues/NPRR1186) | n/a | 1186NPRR-36_PUCT_Report_041124.docx |
 
-ERCOT MIS endpoints (`/misapp/servlets/IceDocListJsonWS`, `/misdownload/servlets/mirDownload`) are listed under `Disallow` in ercot.com's robots.txt. They were used as v1 used them, at 1 request per second with a named user agent, for 30 files in all; everything is cached so a rebuild makes no requests. EIA files come from `/electricity/data/eia860m/xls/` (allowed; `/archive/` is disallowed and was not used).
+ERCOT MIS endpoints (`/misapp/servlets/IceDocListJsonWS`, `/misdownload/servlets/mirDownload`) are listed under `Disallow` in ercot.com's robots.txt. They were used as v1 used them, at 1 request per second with a named user agent, about 30 MIS requests in all; everything is cached so a rebuild makes no requests. EIA files come from `/electricity/data/eia860m/xls/` (allowed; `/archive/` is disallowed and was not used).
 
 ## 1. DA AS clearing prices
 
@@ -76,7 +77,8 @@ ERCOT MIS endpoints (`/misapp/servlets/IceDocListJsonWS`, `/misdownload/servlets
 | ecrs | n/a | 2 h | 1 h |
 | nspin | 4 h | 4 h | 4 h |
 
-- Reg and RRS at 1 h in eras A-B stay a conservative assumption (V3-D1). NPRR1186 (PUCT-approved 2024-04-11, in force 2024-06-27 per ERCOT notice M-B060424-01) requires an ESR's SoC to cover its AS responsibility for the rest of the operating hour (1 MWh per MW at the top of the hour, falling through the hour); that matches 1 h checked at the hour start but the protocol text was not read tonight, and before 2024-06-27 no SoC rule applied. ECRS 2 h and Non-Spin 4 h follow NPRR1096's sustained-capability titles. Not settled; keep the flag.
+- **The pre-RTC+B rule, from the NPRR1186 protocol text** (PUCT Report 1186NPRR-36, approved 2024-04-11; Nodal Protocols 8.1(4)(a)(ii)(A) and 6.5.5.2(14)(a)(ii)(A); fetched to `cache/raw/hybrid/nprr/`): the SoC an ESR must hold for each up AS (ECRS, Non-Spin, RRS, Reg-Up; FFR and FRRS aside) is its responsibility R times (the time left in the operating hour + the AS duration − 1 h); RRS from FFR needs R × 0.25 h; Reg-Down needs headroom R × the time left in the hour. At the top of each hour that is R × duration, sloping to R × (duration − 1 h) at its end.
+- What stays open (V3-D1): the text uses "the duration of the Ancillary Service" without stating the values. 1 h for Reg and RRS is consistent with it (the (duration − 1 h) term implies at least 1 h) and is kept, flagged. ECRS 2 h and Non-Spin 4 h follow NPRR1096's sustained-capability titles. NPRR1186 went live 2024-06-27 (ERCOT notice M-B060424-01); before that no SoC rule applied, so applying the table from 2021 is a modelling choice. v3's check of R × duration at both ends of each hour is conservative against the in-hour slope.
 
 ## 4. Deployments
 

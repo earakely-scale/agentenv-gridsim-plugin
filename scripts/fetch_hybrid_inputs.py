@@ -31,6 +31,8 @@ MIS = {
 FILES = {
     "fuel_mix/FuelMixReport_PreviousYears.zip": ERCOT + "/files/docs/2021/03/10/FuelMixReport_PreviousYears.zip",
     "fuel_mix/IntGenbyFuel2026.xlsx": ERCOT + "/files/docs/2026/02/09/IntGenbyFuel2026.xlsx",
+    "nprr/1186NPRR-36_PUCT_Report_041124.docx":
+        ERCOT + "/files/docs/2024/04/12/1186NPRR-36%20PUCT%20Report%20041124.docx",
     "eia860m/september_generator2026.xlsx":
         "https://www.eia.gov/electricity/data/eia860m/xls/september_generator2026.xlsx",
 }
