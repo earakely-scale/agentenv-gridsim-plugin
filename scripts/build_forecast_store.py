@@ -635,21 +635,24 @@ def guide_frames(ctx: dict, grid: dict, wx: dict, desk: dict, rv: Reveal) -> dic
         pc, pn, y_da, y_rt, da_t = price_cols(p)
         X = [np.broadcast_to(c, t.shape) for c in common + [temp] + pc] + [np.full(t.shape, ci)]
         names = cnames + ["t2m_point"] + pn + ["point"]
-        blocks["da"].append((X, y_da, known))
-        blocks["rt"].append((X + [da_t], y_rt, np.zeros(t.shape, bool)))
+        anchor = fill(pc[0], np.broadcast_to(pc[1], t.shape))
+        blocks["da"].append((X, y_da, known, anchor))
+        blocks["rt"].append((X + [da_t], y_rt, np.zeros(t.shape, bool), np.where(np.isfinite(da_t), da_t, anchor)))
         G.setdefault("persist", {})[p] = (pc[0], window_persist(hourly_from_days(cal, prices[f"rt_{p}"]), t, a))
     for target in ("da", "rt"):
-        Xs = [np.stack([c.reshape(-1).astype(np.float32) for c in X], axis=1) for X, _, _ in blocks[target]]
+        Xs = [np.stack([c.reshape(-1).astype(np.float32) for c in X], axis=1) for X, _, _, _ in blocks[target]]
+        y = np.concatenate([y.reshape(-1) for _, y, _, _ in blocks[target]])
+        anchor = np.concatenate([an.reshape(-1) for _, _, _, an in blocks[target]])
         out[f"price_{target}"] = {
-            "X": np.concatenate(Xs), "y": np.concatenate([y.reshape(-1) for _, y, _ in blocks[target]]),
-            "known": np.concatenate([k.reshape(-1) for _, _, k in blocks[target]]),
+            "X": np.concatenate(Xs), "y": y - anchor, "y_abs": y, "anchor": anchor,
+            "known": np.concatenate([k.reshape(-1) for _, _, k, _ in blocks[target]]),
             "names": names + (["da_known_t"] if target == "rt" else []),
             "reveal": np.concatenate([np.broadcast_to(
                 cal["min_1330"][np.clip(td - 1, 0, nd - 1)] if target == "da" else (t + 1) * 60, t.shape).reshape(-1)
                 for _ in POINTS13]), "n_groups": len(POINTS13)}
     hub_cols, hub_names, _, _, _ = price_cols(HUB)
     tmean = np.mean([wx["t2m_f"][:, pi[ctx["zone_pt"][z]], :] for z in LOAD_KEYS[1:]], axis=0)
-    Xs, ys = [], []
+    Xs, ys, anchors = [], [], []
     for ci, prod in enumerate(PRODUCTS):
         m = hyb[f"mcpc_{prod}"]
         with np.errstate(invalid="ignore"):
@@ -659,8 +662,11 @@ def guide_frames(ctx: dict, grid: dict, wx: dict, desk: dict, rv: Reveal) -> dic
             [np.full(t.shape, ci)]
         Xs.append(np.stack([c.reshape(-1).astype(np.float32) for c in X], axis=1))
         ys.append(m[td, hour_t].reshape(-1))
+        anchors.append(fill(msh, np.broadcast_to(mmean[:, None], t.shape)).reshape(-1))
         G.setdefault("persist", {})[f"mcpc_{prod}"] = (msh, None)
-    out["mcpc"] = {"X": np.concatenate(Xs), "y": np.concatenate(ys), "known": np.zeros(len(ys) * R * H, bool),
+    y, anchor = np.concatenate(ys), np.concatenate(anchors)
+    out["mcpc"] = {"X": np.concatenate(Xs), "y": y - anchor, "y_abs": y, "anchor": anchor,
+                   "known": np.zeros(len(ys) * R * H, bool),
                    "names": cnames + ["t2m_mean"] + [f"hub_{n}" for n in hub_names] +
                    ["mcpc_last_same_hour", "mcpc_last_mean", "product"],
                    "reveal": np.concatenate([np.broadcast_to(cal["min_1330"][np.clip(td - 1, 0, nd - 1)],
@@ -669,6 +675,11 @@ def guide_frames(ctx: dict, grid: dict, wx: dict, desk: dict, rv: Reveal) -> dic
     for v in out.values():
         v["categorical"] = [len(v["names"]) - (2 if v["names"][-1] == "da_known_t" else 1)]
     return out
+
+
+def fill(x: np.ndarray, fallback: np.ndarray) -> np.ndarray:
+    """The persistence anchor the guide predicts around: x, else the fallback, else 0."""
+    return np.where(np.isfinite(x), x, np.where(np.isfinite(fallback), fallback, 0.0))
 
 
 def window_persist(rt_h: np.ndarray, t: np.ndarray, a: np.ndarray) -> np.ndarray:
@@ -712,7 +723,7 @@ def guide_models(frames: dict, grid: dict, years: list[int], args) -> dict[str, 
     for (key, _, tr, pr, q), p, n in run_pool(tasks, args.workers):
         ntrain[f"{tr}|q{q}"] = n
         if p is not None:
-            preds[(key, q)][masks[pr]] = p
+            preds[(key, q)][masks[pr]] = p + frames[key]["anchor"][masks[pr]]
     G["guide_ntrain"] = ntrain
     for key in frames:
         s = np.sort(np.stack([preds[(key, q)] for q in QS]), axis=0)
@@ -970,7 +981,7 @@ def guide_card(grid: dict, frames: dict, preds: dict, desk_frames_: dict, desk: 
         if key == "price_rt":
             persist = np.concatenate([G["persist"][p][1].reshape(-1) for p in POINTS13])
         for y in years:
-            pr = np.tile(np.repeat((a >= year_start(y)) & (a < year_start(y + 1)), H), g) & ~np.isnan(fr["y"])
+            pr = np.tile(np.repeat((a >= year_start(y)) & (a < year_start(y + 1)), H), g) & ~np.isnan(fr["y_abs"])
             if key == "price_da":
                 pr &= ~fr["known"]
             row = {}
@@ -978,7 +989,7 @@ def guide_card(grid: dict, frames: dict, preds: dict, desk_frames_: dict, desk: 
                 m = pr & (kk > lo) & (kk <= hi)
                 if not m.any():
                     continue
-                yy = fr["y"][m]
+                yy = fr["y_abs"][m]
                 p10, p50, p90 = (preds[(key, q)][m] for q in QS)
                 pm = persist[m]
                 row[b] = {"n": int(m.sum()), "pinball_p10": round(float(pinball(yy, p10, 0.1)), 3),
@@ -1048,6 +1059,9 @@ def build(args, ctx: dict | None = None, write: bool = True) -> dict:
                         "ercot_postings": len(posts)},
              "guide_years": {str(y): {"fit_on_issued_before": str(pd.Timestamp(dt.datetime(y, 1, 1), tz=CPT)),
                                       "serves": f"HRRR runs issued in {y} (CPT)"} for y in years},
+             "guide_target": "residual around the persistence anchor (DA: the last revealed DA day's same hour; RT: "
+                             "the revealed DA price of the hour, else that anchor; MCPC: the last revealed day's same "
+                             "hour), quantile loss; vintages add the anchor back",
              "monthly_origin": {f"{k}|{y}": "no history before the year (DA MCPC from 2021-01-01): refitted at each "
                                             "month start on rows revealed before it; January has no vintages"
                                 for k, y in sorted(MONTHLY_ORIGIN)},
