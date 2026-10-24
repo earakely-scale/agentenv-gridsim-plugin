@@ -145,7 +145,8 @@ def roll(key, rows=log):
 
 fig, ax = plt.subplots(3, 1, figsize=(10.5, 10), sharex=True, gridspec_kw={"height_ratios": [3, 2, 1.4]})
 a = ax[0]
-a.plot(steps, [r["reward_mean"] for r in log], color="#9bb7d4", lw=0.8, label="train reward per step (64 rollouts, T 1.1)")
+a.plot(steps, [r["reward_mean"] for r in log], color="#9bb7d4", lw=0.8,
+       label="train reward per step (64 rollouts, T 1.1)")
 a.plot(steps[k - 1:], roll("reward_mean"), color="#1f5aa6", lw=2, label=f"train reward, {k}-step mean")
 for st, col in (("full", "#d1495b"), ("empty", "#2a7f3f"), ("half", "#7a4fa3")):
     a.plot(steps[k - 1:], roll(f"reward_{st}"), color=col, lw=1, ls="--", label=f"train reward, starts {st}")
