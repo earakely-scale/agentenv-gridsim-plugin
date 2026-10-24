@@ -130,6 +130,19 @@ class Notice:
     derate_mw: float | None = None
     start: str | None = None
     until: str | None = None
+    action: str | None = None
+
+    @property
+    def priority(self) -> int:
+        """Which notice watches survive the 10-watch cap: emergencies first, cancellations last."""
+        lv = str(self.level or "")
+        if self.action == "cancel":
+            return 8
+        if self.source == "NWS" or self.kind.startswith("nws:"):
+            return {"Warning": 5, "Watch": 6}.get(lv, 7)
+        if self.derate_mw is not None or lv.startswith("EEA") and lv != "EEA_exit" or lv == "Emergency":
+            return 0
+        return {"conservation": 1, "EEA_exit": 2, "Watch": 2, "Advisory": 3, "OCN": 4}.get(lv, 4)
 
     def args(self) -> dict:
         return {"event_id": self.event_id, "name": self.name, "text": self.text, "level": self.level,
@@ -153,7 +166,8 @@ def parse_notice(n: dict, date: str) -> Notice:
                   n["issued_at"], issued, int(ceil_to_interval(issued, 15)), str(n.get("name") or n.get("source") or
                                                                                  "ERCOT"),
                   str(n.get("title") or text.split(".")[0][:120]), text,
-                  None if n.get("derate_mw") is None else float(n["derate_mw"]), n.get("from"), n.get("until"))
+                  None if n.get("derate_mw") is None else float(n["derate_mw"]), n.get("from"), n.get("until"),
+                  n.get("action"))
 
 
 def notices_sha(notices) -> str:
@@ -161,17 +175,20 @@ def notices_sha(notices) -> str:
 
 
 def schedule(task: dict, tier: str = "foresight", notices=None) -> list[Watch]:
-    """The day's watches: the tier's regular watches plus one per notice freeze class (contract L-D4)."""
+    """The day's watches: the tier's regular watches plus one per notice freeze class (contract L-D4); over the cap,
+    the classes with the most urgent notices (Notice.priority, then the earliest) keep their watches."""
     date = task["date"]
     ns = sorted((parse_notice(n, date) for n in (task.get("notices") or [] if notices is None else notices)),
                 key=lambda n: (n.reveal, n.issued, n.event_id))
     regular, fl = REGULAR[tier], FREEZE_MIN[tier]
-    classes: dict[int, int] = {}
+    classes: dict[int, tuple[int, int]] = {}
     for n in ns:
         c = int(ceil_to_interval(n.reveal, 60))
         if 0 < n.reveal < DAY_END and c + fl < DAY_END and c not in regular:
-            classes[c] = max(classes.get(c, n.reveal), n.reveal)
-    times = sorted(set(regular) | set(sorted(classes.values())[:MAX_WATCHES - len(regular)]))
+            m, pr = classes.get(c, (n.reveal, n.priority))
+            classes[c] = (max(m, n.reveal), min(pr, n.priority))
+    kept = sorted(classes.values(), key=lambda mp: (mp[1], mp[0]))[:MAX_WATCHES - len(regular)]
+    times = sorted(set(regular) | {m for m, _ in kept})
     slots: dict[int, list[Notice]] = {m: [] for m in times}
     for n in ns:
         m = next((m for m in times if m >= n.reveal), None)

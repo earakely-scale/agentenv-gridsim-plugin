@@ -3,43 +3,43 @@
  "live_version": "2.0",
  "contract_version": "1.0",
  "count": 100,
- "count_blind": 90,
- "count_short": 100,
- "count_notice_days": 0,
+ "count_blind": 95,
+ "count_short": 91,
+ "count_notice_days": 30,
  "date_range": [
-  "2025-12-07",
+  "2025-12-12",
   "2026-10-08"
  ],
  "by_ep": {
-  "1h": 50,
-  "2h": 40,
-  "4h": 10
+  "1h": 43,
+  "2h": 44,
+  "4h": 13
  },
  "by_point": {
   "HB_BUSAVG": 6,
-  "HB_HOUSTON": 10,
-  "HB_HUBAVG": 10,
+  "HB_HOUSTON": 5,
+  "HB_HUBAVG": 4,
   "HB_NORTH": 4,
-  "HB_PAN": 3,
-  "HB_SOUTH": 8,
-  "HB_WEST": 3,
-  "LZ_AEN": 8,
-  "LZ_CPS": 6,
-  "LZ_HOUSTON": 8,
-  "LZ_LCRA": 10,
-  "LZ_NORTH": 7,
-  "LZ_RAYBN": 7,
-  "LZ_SOUTH": 6,
-  "LZ_WEST": 4
+  "HB_PAN": 4,
+  "HB_SOUTH": 7,
+  "HB_WEST": 6,
+  "LZ_AEN": 13,
+  "LZ_CPS": 5,
+  "LZ_HOUSTON": 4,
+  "LZ_LCRA": 12,
+  "LZ_NORTH": 5,
+  "LZ_RAYBN": 5,
+  "LZ_SOUTH": 12,
+  "LZ_WEST": 8
  },
  "means": {
-  "naive_reward": 0.6642,
-  "naive_capture": 0.2794,
-  "roll_capture": 0.4381,
-  "watches": 5.0,
-  "roll_commits": 3.08
+  "naive_reward": 0.779,
+  "naive_capture": 0.3374,
+  "roll_capture": 0.4392,
+  "watches": 5.4,
+  "roll_commits": 2.8
  },
- "tasks_sha256": "665a06e944803f6a2aa39f032a4462c811f03845785aecbfc9b80e153c07d605",
+ "tasks_sha256": "b50f4081ef8a9cb2d7928b211b2ccf10c1342f28d0110a94db20b043d5c09de2",
  "sources": {
   "RTMLZHBSPP_2019.zip": "99663eea4a9002d30ce9064fb0d5225558f9f43d632c760dd23f2f5b6a4e00f9",
   "RTMLZHBSPP_2020.zip": "2c5154762e26cef8ad619a97a3d4346668713fe1d458b6e57ea79e43ead2381f",
@@ -77,47 +77,127 @@
  },
  "per_split": {
   "train": {
-   "candidates": 199240,
-   "eligible": 4307,
-   "eligible_share": 0.0216,
+   "candidates": 196782,
+   "eligible": 32601,
+   "eligible_share": 0.1657,
+   "by_kind": {
+    "notice": [
+     28858,
+     28802
+    ],
+    "quiet": [
+     126197,
+     2557
+    ],
+    "unknown": [
+     41727,
+     1242
+    ]
+   },
+   "notice_eligible_without_exemption": 637,
    "fail_divergence": 458,
    "fail_headroom": 113,
-   "fail_share": 194738,
-   "fail_usd": 184183,
+   "fail_share": 192150,
+   "fail_usd": 181521,
    "kept": 4000,
-   "point_days": 2028
+   "kept_by_kind": {
+    "notice": 1600,
+    "unknown": 752,
+    "quiet": 1648
+   },
+   "point_days": 3394
   },
   "eval": {
-   "candidates": 17803,
-   "eligible": 358,
-   "eligible_share": 0.0201,
+   "candidates": 21389,
+   "eligible": 5877,
+   "eligible_share": 0.2748,
+   "by_kind": {
+    "notice": [
+     5582,
+     5582
+    ],
+    "quiet": [
+     6819,
+     136
+    ],
+    "unknown": [
+     8988,
+     159
+    ]
+   },
+   "notice_eligible_without_exemption": 181,
    "fail_divergence": 0,
    "fail_headroom": 0,
-   "fail_share": 17405,
-   "fail_usd": 16512,
+   "fail_share": 20870,
+   "fail_usd": 19623,
    "kept": 300,
-   "point_days": 150
+   "kept_by_kind": {
+    "notice": 150,
+    "quiet": 136,
+    "unknown": 14
+   },
+   "point_days": 221
   },
   "test": {
    "candidates": 13979,
-   "eligible": 296,
-   "eligible_share": 0.0212,
+   "eligible": 1948,
+   "eligible_share": 0.1394,
+   "by_kind": {
+    "notice": [
+     1736,
+     1736
+    ],
+    "quiet": [
+     5265,
+     112
+    ],
+    "unknown": [
+     6978,
+     100
+    ]
+   },
+   "notice_eligible_without_exemption": 86,
    "fail_divergence": 0,
    "fail_headroom": 0,
-   "fail_share": 13670,
-   "fail_usd": 12854,
+   "fail_share": 13668,
+   "fail_usd": 12842,
    "kept": 200,
+   "kept_by_kind": {
+    "notice": 60,
+    "quiet": 72,
+    "unknown": 68
+   },
    "point_days": 200
   },
   "rtcb": {
    "candidates": 13114,
-   "eligible": 346,
-   "eligible_share": 0.0264,
+   "eligible": 1004,
+   "eligible_share": 0.0766,
+   "by_kind": {
+    "notice": [
+     664,
+     664
+    ],
+    "quiet": [
+     10918,
+     295
+    ],
+    "unknown": [
+     1532,
+     45
+    ]
+   },
+   "notice_eligible_without_exemption": 5,
    "fail_divergence": 3,
    "fail_headroom": 0,
-   "fail_share": 12757,
-   "fail_usd": 11958,
+   "fail_share": 12758,
+   "fail_usd": 11950,
    "kept": 100,
+   "kept_by_kind": {
+    "notice": 30,
+    "quiet": 59,
+    "unknown": 11
+   },
    "point_days": 100
   }
  },
@@ -126,7 +206,48 @@
    "2019-01-01",
    "2024-12-31"
   ],
-  "eval": "every third 2024 date ((d - 2024-01-01) % 3 == 1)",
+  "eval": "every third 2024 date ((d - 2024-01-01) % 3 == 1) and every 2024 ERCOT notice day",
+  "eval_ercot_notice_days": [
+   "2024-01-08",
+   "2024-01-09",
+   "2024-01-11",
+   "2024-01-13",
+   "2024-01-14",
+   "2024-01-15",
+   "2024-01-16",
+   "2024-01-17",
+   "2024-04-02",
+   "2024-04-11",
+   "2024-04-12",
+   "2024-04-24",
+   "2024-04-25",
+   "2024-04-26",
+   "2024-04-27",
+   "2024-04-28",
+   "2024-04-30",
+   "2024-05-02",
+   "2024-05-03",
+   "2024-05-07",
+   "2024-05-08",
+   "2024-05-09",
+   "2024-05-10",
+   "2024-05-11",
+   "2024-05-15",
+   "2024-05-16",
+   "2024-05-17",
+   "2024-07-03",
+   "2024-07-05",
+   "2024-07-06",
+   "2024-07-08",
+   "2024-08-06",
+   "2024-08-12",
+   "2024-08-16",
+   "2024-08-17",
+   "2024-09-08",
+   "2024-09-09",
+   "2024-11-07",
+   "2024-11-08"
+  ],
   "test": [
    "2025-01-01",
    "2025-11-30"
@@ -145,7 +266,44 @@
   },
   "showcase_pad_days": 3
  },
- "notices": "none attached yet; run --merge-notices",
+ "notices": {
+  "archive": "data/notices (lane N, FD-4325)",
+  "payload": "summary, ids, times, levels (V2-D4)",
+  "nws_kept": [
+   "BZ.A",
+   "BZ.W",
+   "EC.A",
+   "EC.W",
+   "EH.A",
+   "EH.W",
+   "EW.A",
+   "EW.W",
+   "HT.Y",
+   "HU.A",
+   "HU.W",
+   "HW.A",
+   "HW.W",
+   "HZ.A",
+   "HZ.W",
+   "IS.A",
+   "IS.W",
+   "TR.A",
+   "TR.W",
+   "WC.A",
+   "WC.W",
+   "WS.A",
+   "WS.W",
+   "XH.A",
+   "XH.W"
+  ],
+  "notice_days_exempt": true,
+  "notice_share_targets": {
+   "train": 0.4,
+   "eval": 0.5,
+   "test": 0.3,
+   "rtcb": 0.3
+  }
+ },
  "build_command": "python scripts/build_live_pack.py --workers 12",
  "bundles": {
   "sep23-0906": "live-v2-2023-09-06-LZ_CPS-2h-n",
