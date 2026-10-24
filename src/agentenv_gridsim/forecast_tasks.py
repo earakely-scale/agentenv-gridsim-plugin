@@ -58,13 +58,14 @@ def steps(task: dict, tier: str = "front", episode_cap_usd: float | None = None,
     """Deploy, load the window, hide grid_notice (and, blind, the forecast tools), one trigger per watch after the
     first that delivers its notices and deployment payloads when the agent's advance opens it, deploy gridsim-llm, arm
     the clock frozen at watch 0, play on the forecast desk card, end the window and grade it. Without ``play``, no
-    agent; with ``lookahead``, the opening asks for a forecast issued after now and then only advances."""
+    agent; with ``lookahead``, the opening asks for a forecast issued after now and then only advances (a turn a watch
+    and one more at each DAM gate, where the harness holds the first advance back)."""
     s = Session(task, tier)
     user = opening(s)
     turns = MAX_TURNS[tier]
     if lookahead:
         user += "\n\n" + LOOKAHEAD.format(at=s.watches[1].time)
-        turns = len(s.watches) + 2
+        turns = len(s.watches) + s.n + 2
     return flow(FORECAST_ENV, VERIFIER, task["task_id"], tier, s.watch_time_utc(0), triggers(s.watches),
                 system_prompt(tier, s.win.era, s.source), user, episode_cap_usd, play, MODEL_PARAMS,
                 load_uri=FORECAST_LOAD_URI, end=("end-window", END_WINDOW_URI), max_turns=turns,

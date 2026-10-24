@@ -74,7 +74,7 @@ def test_the_bundle_plays_the_fixture_window_at_each_tier_and_its_wiring_tasks(l
     look = {s["id"]: s for s in bundle_task("wiring-lookahead")}["play"]
     s = Session(WINDOW, "front")
     assert look["prompt"].startswith(opening(s)) and f'issued_at "{s.watches[1].time}"' in look["prompt"]
-    assert look["max_turns"] == len(s.watches) + 2
+    assert look["max_turns"] == len(s.watches) + 3 + 2
     bundle = checked(find_bundle("gridsim-forecast"))
     entries = {(e.kind, e.name): e for e in bundle.entries}
     assert sorted(name for kind, name in entries if kind is BundleKind.TASK) == sorted(want)
