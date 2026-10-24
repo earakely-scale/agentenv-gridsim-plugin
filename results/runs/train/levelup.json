@@ -3,56 +3,114 @@
  "task_id": "dam-v1-2025-06-06-LZ_CPS-1h-l",
  "model": "Qwen/Qwen3-1.7B",
  "rule": "the largest base-to-trained gain in reward among held-out days where the trained model scores at least 0.85",
- "note": "day chosen by hand (dam-v1-2025-06-06-LZ_CPS-1h-l), not by the rule",
+ "note": "day chosen by hand, not by the rule, which picks dam-v1-2025-10-05-LZ_AEN-1h-f",
+ "why": "Base scores 0 on every held-out day, so the rule's gain is just the final reward, and it picks a day the SFT warm start already plays at 0.99: nothing levels up. This day was fixed for arm 2 before arm 2b ran and is kept, so arm 2b's frames are not picked for their own result",
  "decoding": "sampled for every frame where the run has it",
  "days": {
   "candidates": 50,
-  "doing_well": 12
+  "doing_well": 19
  },
  "context": {
   "tasks": 200,
   "base": 0.0,
+  "sft": 0.5418,
+  "arms": [
+   {
+    "label": "arm 2 (exploratory, not pre-registered)",
+    "step": 75,
+    "reward": 0.579
+   },
+   {
+    "label": "arm 2b (exploratory continuation)",
+    "step": 180,
+    "reward": 0.6684
+   }
+  ],
+  "trained": 0.6684,
+  "greedy": 0.764,
+  "threshold": 0.6371,
+  "reading": "level with the threshold rule (paired +0.03 [-0.02, +0.09]) and below the greedy rule (paired -0.10 [-0.14, -0.05])",
   "opening": {
    "hour": 2,
    "charge": false,
    "share": [
-    28,
+    34,
     200
    ]
   }
  },
- "total_steps": 75,
+ "total_steps": 180,
  "gain": 0.979795,
  "frames": [
   {
    "episode_id": "b6756321c78407ab",
    "trained": "base",
    "step": 0,
-   "reward": 0.0
+   "reward": 0.0,
+   "arm": "arm 2 (exploratory, not pre-registered)"
   },
   {
    "episode_id": "8885e2ef03dc5edb",
    "trained": "sft",
    "step": 0,
-   "reward": 0.150916
+   "reward": 0.150916,
+   "arm": "arm 2 (exploratory, not pre-registered)"
   },
   {
    "episode_id": "f842a748a63d6f0b",
    "trained": "grpo",
    "step": 25,
-   "reward": 0.849865
+   "reward": 0.849865,
+   "arm": "arm 2 (exploratory, not pre-registered)"
   },
   {
    "episode_id": "3cb776a2c4c78d75",
    "trained": "grpo",
    "step": 50,
-   "reward": 0.979795
+   "reward": 0.979795,
+   "arm": "arm 2 (exploratory, not pre-registered)"
   },
   {
    "episode_id": "f9838c7c13a2a002",
    "trained": "grpo",
    "step": 75,
-   "reward": 0.979795
+   "reward": 0.979795,
+   "arm": "arm 2 (exploratory, not pre-registered)"
+  },
+  {
+   "episode_id": "1bc1fd2d78be9dd5",
+   "trained": "grpo",
+   "step": 100,
+   "reward": 0.979795,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "f4f9401390ee2358",
+   "trained": "grpo",
+   "step": 125,
+   "reward": 0.979795,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "d6c40568ba5ef34d",
+   "trained": "grpo",
+   "step": 150,
+   "reward": 0.979795,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "504b2a9eebd8d3b1",
+   "trained": "grpo",
+   "step": 175,
+   "reward": 0.979795,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "19b4d570c50b21cb",
+   "trained": "grpo",
+   "step": 180,
+   "reward": 0.979795,
+   "arm": "arm 2b (exploratory continuation)"
   }
  ]
 }
