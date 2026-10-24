@@ -24,6 +24,8 @@ tags:
 - real-world-data
 - grpo
 - trl
+- solar
+- ancillary-services
 configs:
 - config_name: v1_tasks
   default: true
@@ -56,6 +58,62 @@ configs:
   data_files:
   - split: eval_2025
     path: episodes/v1/eval_2025.parquet
+- config_name: v2_tasks
+  data_files:
+  - split: train
+    path: tasks/v2/train.parquet
+  - split: eval_2024
+    path: tasks/v2/eval_2024.parquet
+  - split: test_2025
+    path: tasks/v2/test_2025.parquet
+  - split: rtcb
+    path: tasks/v2/rtcb.parquet
+- config_name: v2_showcase
+  data_files:
+  - split: showcase
+    path: tasks/v2/showcase.parquet
+- config_name: v2_references
+  data_files:
+  - split: train
+    path: references/v2/train.parquet
+  - split: eval_2024
+    path: references/v2/eval_2024.parquet
+  - split: test_2025
+    path: references/v2/test_2025.parquet
+  - split: rtcb
+    path: references/v2/rtcb.parquet
+  - split: showcase
+    path: references/v2/showcase.parquet
+- config_name: v2_episodes
+  data_files:
+  - split: eval_2024
+    path: episodes/v2/eval_2024.parquet
+- config_name: v3_tasks
+  data_files:
+  - split: train
+    path: tasks/v3/train.parquet
+  - split: eval
+    path: tasks/v3/eval.parquet
+  - split: rtcb
+    path: tasks/v3/rtcb.parquet
+- config_name: v3_showcase
+  data_files:
+  - split: showcase
+    path: tasks/v3/showcase.parquet
+- config_name: v3_references
+  data_files:
+  - split: train
+    path: references/v3/train.parquet
+  - split: eval
+    path: references/v3/eval.parquet
+  - split: rtcb
+    path: references/v3/rtcb.parquet
+  - split: showcase
+    path: references/v3/showcase.parquet
+- config_name: v3_episodes
+  data_files:
+  - split: eval
+    path: episodes/v3/eval.parquet
 ---
 
 <div align="center">
@@ -75,6 +133,11 @@ configs:
 </div>
 
 ---
+
+> **Also here, as previews:** [v2, The Live Grid](#v2-preview-the-live-grid), the same batteries played live through
+> the day on real-time prices and grid bulletins, and [v3, Sun, Storage and Reserves](#v3-preview-sun-storage-and-reserves),
+> a solar farm and a battery behind one meter selling energy and ERCOT reserves. Each has its own configs, references
+> and pilot runs. v1 is the release; the previews have open design decisions.
 
 ## The task
 
@@ -175,14 +238,13 @@ own, so they never mix into a split.
 | `v1_references` | each split above | 20,000 / 500 / 500 / 250 / 761 | per battery-day: P_opt and its schedule, P_idle, the LP bound, the clock, threshold, greedy and random-feasible schedules with their profits and rewards, and for blind battery-days the persistence and ridge schedules and the anchor |
 | `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,320 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, and 37 reference episodes the Space also replays |
 
-<!-- TODO: v1_episodes row counts after the training runs land -->
-
 `raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line (`<pack>.jsonl`), with each
 pack's manifest (sources and their SHA-256, filters, counts, the battery table) and `stats.md`, the pack statistics.
 `runs/` holds the Episode JSON (`gridsim.episode/v1`) the replay Space reads, with `runs/index.json` listing them, and
 `results/` the eval card `eval-v1.json` and `board.md`. Each bundle published for `agent-env hf run` adds the bundle
 under `bundles/` and agentenv-hf's `<bundle>_tasks` config, and `<bundle>_episodes` once it has recorded runs (see
-[Run it yourself](#run-it-yourself)). A config with no rows yet is left off this card.
+[Run it yourself](#run-it-yourself)). A config with no rows yet is left off this card. `training/` holds the
+training summary ([Training](#training)); the v2 and v3 previews have configs of their own, set out in their sections.
 
 ## Use
 
@@ -367,7 +429,7 @@ where models separate, against the anchor's own hindsight capture on the same da
 the full board: the amendment, the breakdowns by checks used, battery class, binding constraint and day type, cost and
 time, the hypotheses against what was measured, and the unscored runs.
 
-<!-- TODO: add the trained rows after training -->
+The trained Qwen3-1.7B results are under [Training](#training).
 
 ## Training
 
@@ -376,13 +438,25 @@ split with one prompt and one completion per battery-day: the prompt is exactly 
 harness's system prompt and situation), the completion ends in a `submit_schedule` call, and the reward is
 `gridsim_core.trl.reward_fn`, the same `grade` the env's verifier uses, in under a millisecond. Path A proves the
 policy in full AgentEnv episodes: the trained model plays the `oneshot` bundle on the env, so the two paths grade the
-same schedule identically. Path-B evaluations write the same Episode JSON as the env's runs, so checkpoints appear in
-`v1_episodes` with `trained` set to `grpo` and their `checkpoint_step`, and replay in the Space.
+same schedule identically.
 
-**In progress:** the results land with the training lane.
+Qwen3-1.7B (bf16, LoRA, thinking off) trained on one GPU and was graded on 200 `eval_2025` battery-days at the
+foresight tier with the `oneshot` prompt, sampled at temperature 0.7. The base model writes no valid schedule
+(R 0.000). Each arm was held to the same two bars on those 200 days: beat the threshold rule, and beat the greedy
+rule, each with the 95% intervals apart and at least 98% of schedules valid. Arm 1 was registered before it ran; arm 2
+was designed after arm 1's result.
 
-<!-- TODO: the training results (Qwen3-1.7B and 4B GRPO, base vs trained on eval_2025, with CIs), the LoRA
-checkpoints and the Colab land with the training lane -->
+<!-- training -->
+The training summary lands with the training lane.
+<!-- /training -->
+
+- **Arm 1:** a warm start on 200 DP-optimal schedules, each with a template rationale, then 280 GRPO steps. GRPO
+  straight from the base model never produced a valid schedule, so it had no reward signal to learn from.
+- **Arm 2:** a warm start on 1,500 DP-optimal schedules whose rationale tracks the state of charge, which alone
+  scores 0.542 (0.493 to 0.589), then 75 GRPO steps: +0.037 (−0.016 to 0.091), not significant, though feasible
+  schedules rose from 64% to 77.5%.
+- Neither arm met either bar. `training/` holds each arm's summary, checkpoint evaluations and training curves, and
+  `training/arms.json` the bars and results. The LoRA adapters are not published.
 
 ## Simplifications
 
@@ -436,6 +510,167 @@ when that record isn't published); `assistant_text`; `input_tokens`, `output_tok
 `file`, the episode's JSON under `runs/`. Every episode is graded again with `gridsim_core` before it is published,
 and the build stops if any reward, profit or situation differs.
 
+## v2 preview: The Live Grid
+
+> **A preview, not a release.** The env, the packs and the grading are built and tested, and one registered pilot
+> has run. The headline metric is still open (below), so columns and numbers may change before v2 ships. The contract
+> is [`docs/CONTRACT-v2.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v2.md).
+
+**The task.** The same archetype batteries at the same hubs and load zones as v1, but the day is played live. The
+clock starts at 14:00 the day before the operating day (D), when the day-ahead market closes, and runs to midnight on
+D in watches: 14:00 on D-1, then 00:00, 06:00, 12:00 and 18:00 on D, plus one for each batch of grid bulletins, at
+most 10 a day. At watch 0 the agent commits a day-ahead (DA) position, 24 hourly integers, and a physical schedule.
+The battery then runs in 15-minute intervals, each settling at its real-time (RT) settlement point price once it has
+ended. At each later watch the agent sees the settled RT prices and any new bulletins, and may change the intervals
+past the freeze line (the next whole hour plus one hour), with 3 planning calls a watch. Profit is two-settlement: DA
+cash on the position, RT cash on the deviation from it, less degradation and any end shortfall. An episode allows 52
+turns.
+
+The tiers: `foresight` (D's DA prices at watch 0), `blind` (only the previous 7 days' DA prices until 00:00 on D),
+`short` (only the 14:00, 00:00 and 12:00 regular watches) and `freeze6h` (a six-hour freeze line). Each row of
+`v2_tasks` is one battery-day at one tier.
+
+**Grading.** R = clip(0.2 + 0.8 · (P − P_idle) / (P_roll − P_idle), 0, 1), v1's formula against the rolling anchor
+P_roll: it commits the naive DA position at watch 0, then at every watch solves the exact dynamic program over the
+open intervals on the DA prices plus the latest RT−DA gap, decaying over two hours. It reads no bulletin. Naive is
+v1's optimum on the DA prices, committed as the position and the schedule and never changed. Hindsight capture,
+(P − P_idle) / (P_hind − P_idle), is reported at weight 0; P_hind is the exact optimum with the day's RT prices known.
+
+**Open decision: the headline metric.** On the pilot's 40 days naive alone scores R 0.850 and the anchor captures
+only 0.498 of hindsight, so R is squeezed between naive and the anchor: 37.5% of Sol's days sit at R = 1. Hindsight
+capture keeps the order idle 0 < naive 0.425 < anchor 0.498 < hindsight 1 and leaves room above the anchor. It is the
+candidate headline, with R as a second row and naive as the floor for any claim about bulletins.
+
+| Config | Split | Rows | Battery-days | Dates | Notice / quiet / unknown days | Naive R | Naive capture | Anchor capture |
+|---|---|---:|---:|---|---|---:|---:|---:|
+| `v2_tasks` | `train` | 15,189 | 4,000 | 2019 to 2024, the eval dates left out | 1,600 / 1,648 / 752 | 0.768 | 0.353 | 0.453 |
+| | `eval_2024` | 1,128 | 300 | every third 2024 date and every 2024 ERCOT notice day | 150 / 136 / 14 | 0.857 | 0.434 | 0.524 |
+| | `test_2025` | 779 | 200 | 1 January to 30 November 2025 | 60 / 72 / 68 | 0.764 | 0.358 | 0.475 |
+| | `rtcb` | 386 | 100 | 5 December 2025 to 17 October 2026 | 30 / 59 / 11 | 0.779 | 0.337 | 0.439 |
+| `v2_showcase` | `showcase` | 309 | 90 | Uri, Elliott, Heather, Fern, August 2023 and 6 September 2023, ±3 days out of every split; display only | 88 / 2 / 0 | 0.904 | 0.415 | 0.432 |
+
+Naive R and the captures are at the foresight tier, from `raw/packs/live-stats.md`. A notice day has an ERCOT
+grid-condition bulletin or a load-moving NWS warning for the point's region; an unknown day falls in a gap of the
+bulletin archive. A battery-day is kept when its RT prices stray from DA by at least $40 per MW over the day,
+hindsight beats idle by $10 per MW, and the anchor beats naive by $5 per MW and a share of the headroom. Notice days
+skip that last test, so naive can beat the anchor there. `v2_references` has, per battery-day, P_idle, naive (its
+profit and DA position), hindsight (its profit, DA and RT parts, position and schedule) and the LP bound, and for each
+tier the anchor's profit, position, executed schedule and commits and naive's R. `v2_episodes` has one row per
+recorded run, like `v1_episodes`, with the DA position, the schedule as committed and as executed, the P&L split and
+the transcript.
+
+**Bulletins, paraphrased.** The env delivers ERCOT operations notices (OCNs, Advisories, Watches, Emergencies,
+Energy Emergency Alerts and conservation appeals) and NWS warnings, watches and heat advisories for the point's
+region, each at the first watch after it was issued, never earlier. The dataset carries none of their wording. An
+ERCOT bulletin is one line naming its type, its level and a reason category, such as "ERCOT issued a Watch (a
+projected shortage of reserves)."; an NWS bulletin is built from the warning's type, counties and end time, such as
+"NWS FWD: Excessive Heat Warning for Dallas, Tarrant, Collin and 2 more counties until 2023-09-08 21:00 CPT.". The
+same lines are in the task rows, the prompts, `raw/packs/` and the episodes, and every episode replays on the rows as
+published. The plugin's own packs word some ERCOT bulletins differently, so `raw/packs/` differs from them in that
+text and its hash only; the references depend on when bulletins arrive, never on their words.
+
+**Pilot.** GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played 40 `eval_2024` days at the foresight
+tier, 20 notice days and 20 quiet ones, as registered in [`docs/prereg/v2-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v2-pilot.md),
+plus the 6 September 2023 hero day for display. The intervals are 95% bootstrap intervals over days.
+
+| Policy | Mean R (95% CI) | Hindsight capture (95% CI) | Beats the anchor | Re-plans |
+|---|---|---|---:|---|
+| GPT-6.1 Sol | **0.883** (0.840 to 0.924) | **0.437** (0.360 to 0.517) | 9 of 40 days | on 12 of 40 days, 7.1% of later watches |
+| naive | 0.850 | 0.425 | – | never |
+| rolling anchor | 1.000 | 0.498 | – | at 38.6% of later watches |
+
+- Sol commits naive's DA position at watch 0 on 33 of 40 days and mostly holds it. When it re-plans it mostly
+  gains: 10 of the 12 re-planned days beat naive, by $21 to $9,418, mostly at the 12:00 and 18:00 watches on the
+  settled RT prices.
+- It beats the anchor on 9 days, all notice days, and they are exactly the 9 days where naive beats the anchor. Its
+  capture minus naive's on notice days is −0.004 (−0.027 to 0.011): no sign yet that it uses the bulletins.
+- On the hero day (HB_NORTH on 6 September 2023, when ERCOT declared an EEA2 in the evening) it read the
+  reserve-shortage Watch, kept its evening discharge and never re-planned across 9 later watches: R 0.596, the same
+  as naive, and capture 0.077 against the anchor's 0.156. Profit $14,940, against $30,157 for the anchor and $193,619
+  in hindsight.
+- 41 runs, all scored at the first attempt, $2.03 in all. Every episode replays byte for byte on
+  `gridsim_core.live` and passes its audit. The full reading is in
+  [`results/board-v2.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v2.md).
+
+## v3 preview: Sun, Storage and Reserves
+
+> **A preview, not a release.** The env, the packs and the grading are built and tested, and one registered pilot
+> has run. Design decisions are open (below). The contract is [`docs/CONTRACT-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v3.md).
+
+**The task.** A solar farm and a battery share one meter at an ERCOT hub or load zone, played live in watches as in
+v2 but by the hour. At watch 0 (14:00 on D-1) the agent commits a book for D: each hour's battery move in MW
+(positive discharges) and awards in up to five reserve products, Regulation Up and Down, Responsive Reserve (RRS),
+ERCOT Contingency Reserve (ECRS) and Non-Spin, paid the day's DA clearing prices. The book becomes the DA position
+when watch 0 ends. Each hour settles at its RT price once it has ended. Regulation awards move the battery's charge by
+a drift drawn for each hour, and ERCOT's real RRS, ECRS and Non-Spin deployments that day draw reserve energy at
+their real times. The charge must back every up-award for its product's duration and leave room for RegDn; a
+governor nudges an hour's move to keep that, and a shortfall the agent could have seen coming is charged as failure
+to provide. Plans are in MW, sent as hourly blocks; 52 turns and 3 planning calls a watch.
+
+The tiers: `energy` (no reserves) and `reserves` (the DA awards are fixed after watch 0). A third, real-time
+reserves tier after ERCOT's RTC+B is built but not playable, since no history of ERCOT's real-time reserve prices was
+found: `rtcb` days play the `reserves` tier with DA reserve prices only. Each row of `v3_tasks` is one site-day at one
+tier; `oneshot_prompt` is the one-decision prompt path-B training uses.
+
+**Grading.** R as in v1 and v2, against P_anchor: a rolling mixed-integer plan (HiGHS) with the agent's
+information, one solve per watch over the open hours, energy and reserves together, RT expected at DA. At weight 0:
+hindsight capture against P_hind (one plan that knows the RT prices, the drift and the deployments), the energy-only
+R (the energy tier's anchor on the reserves scale), the reserves' share of revenue, and failure-to-provide MWh. The
+reference baselines are AS-hog (reserves only, no energy position), the solar sponge (charge only from PV the meter
+cannot take) and v2's energy-only rolling plan.
+
+**Open decisions.**
+- **The reserves tier is the test, and it is undecided.** On 30 days Sol is far ahead of AS-hog but level with the
+  energy-only plan (below); settling that takes about the full 300 eval days.
+- **The hero day's seeded drift.** The regulation drift is a seeded draw, not ERCOT telemetry, and it ignores the
+  grid. On the 6 September 2023 hero day (HB_WEST) it buys energy into the evening price spike while the DA awards are
+  locked, so the reserves anchor ($345k) ends below the energy-only plan ($482k). The hero is display only and its
+  replays play the energy tier; in the splits, a day where any baseline reaches 0.97 against the anchor is dropped.
+- **AC-only sites never clip.** EIA-860 2025 shows no DC-coupled solar-plus-storage site in ERCOT, and every site's
+  meter is at least its PV's AC rating, so no PV is ever clipped. The solar sponge equals idle, and the energy tier is
+  close to saturated: v2's PV-blind plan scores 0.989 on `eval`.
+- **Continuous MW.** Plans are continuous MW, not the 25 MW steps first planned (those made the solver intractable),
+  so a plan can differ from the book by fractions of a MW; a value within 0.005 MW of the book counts as the book's.
+
+| Config | Split | Rows | Site-days | Dates | Notice / deployment days | Anchor − idle | Anchor capture | AS-hog R | Energy-only R | v2 energy-only R |
+|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|
+| `v3_tasks` | `train` | 4,800 | 2,400 | 2021 to 2024 | 981 / 307 | $53,192 | 0.699 | 0.754 | 0.497 | 0.440 |
+| | `eval` | 600 | 300 | January to November 2025, 100 per reserve-value stratum | 92 / 12 | $14,005 | 0.505 | 0.492 | 0.794 | 0.786 |
+| | `rtcb` | 400 | 200 | 6 December 2025 to 30 September 2026 | 44 / 20 | $9,621 | 0.439 | 0.357 | 0.775 | 0.764 |
+| `v3_showcase` | `showcase` | 8 | 4 | 10 August 2023, 6 September 2023, 29 March 2024, 26 January 2026; display only | 3 / 2 | $245,682 | 0.483 | 0.734 | 0.803 | 0.751 |
+
+Means at the reserves tier, from `raw/packs/hybrid-stats.md`; at the energy tier v2's energy-only plan scores 0.826
+on `train` and 0.98 to 0.99 on `eval` and `rtcb`. The sites are archetypes: 40% a 150 MW-AC solar farm with a
+100 MW / 200 MWh battery, 60% sized from the co-located solar and storage in EIA-860 2025's ERCOT records, with the
+meter at the PV's AC rating or 1.2 times it. PV output is ERCOT's system-wide hourly solar availability scaled to the
+site. `v3_references` has, per site-day and tier, the anchor's profit, book and commits, hindsight, the LP bound, the
+one-shot optimum and its plan, and each baseline's profit and R. `v3_episodes` has one row per recorded run, with the
+book, the DA position, the cash split and the transcript.
+
+**Pilot.** GPT-6.1 Sol played 30 `eval` days at the reserves tier, 10 per reserve-value stratum, and the same
+draw's next 10 days at the energy tier, as registered in [`docs/prereg/v3-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v3-pilot.md),
+plus 29 March 2024 at both tiers for display.
+
+<!-- board:v3 -->
+The v3 pilot's board lands with its eval card.
+<!-- /board:v3 -->
+
+On the same days: AS-hog 0.464, the energy-only plan 0.836 (the same as v2 energy-only on every one of the 30) and
+the anchor's capture 0.480 at the reserves tier; v2 energy-only 0.979 and the anchor's capture 0.484 at the energy
+tier.
+
+- **Reserves.** R 0.811 (0.740 to 0.877). Sol beats AS-hog by 0.347 (0.251 to 0.439), on 27 of 30 days; against the
+  energy-only plan it is −0.025 (−0.100 to 0.042), undecided at this size. Capture 0.397 against the anchor's 0.480.
+- **Where it loses.** Sol earns nearly the anchor's reserve revenue, $5,985 a day against $6,241, but leans on RRS
+  and RegDn and barely sells ECRS or Non-Spin. The gap is on the energy side: it books 2.4 times the anchor's RegDn in
+  the day's six dearest hours, so the drift buys energy at peak RT prices.
+- **Format.** One day was lost to a malformed commit, 25 RegDn values for 24 hours: the whole watch-0 commit was
+  refused and the day ran with no reserves.
+- **Energy tier: saturated.** R 1.000 (0.999 to 1.000) on 10 days.
+- 42 runs, all scored, $7.03 in all. Every episode replays byte for byte on `gridsim_core.hybrid`; `v3_episodes` also
+  holds 25 reference runs the Space replays (the anchor, AS-hog, the solar sponge and v2 energy-only on 10 days). The
+  full reading is in [`results/board-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v3.md).
+
 ## Licence and attribution
 
 The dataset carries several sets of terms, hence `license: other`; the plugin's
@@ -469,6 +704,15 @@ EIA-860 annual electric generator data (2025 release, Schedule 3_4, Energy Stora
 <https://www.eia.gov/electricity/data/eia860/>, a work of the U.S. Government. Source: U.S. Energy Information
 Administration.
 
+**v2 and v3 previews: more ERCOT data, under the same terms.** The previews add ERCOT's real-time settlement point
+prices at the hubs and load zones (NP6-785-ER, *Historical RTM Load Zone and Hub Prices*), its day-ahead
+ancillary-service clearing prices (NP4-181-ER and NP4-188-CD, *DAM Clearing Prices for Capacity*), its system-wide
+solar output (PG7-126-M, *Hourly Aggregated Wind and Solar Output*, and the *Fuel Mix Report*), and the dates, times,
+types and levels of its operations messages and news releases, reserve deployments included. No ERCOT notice text is
+reproduced: each bulletin is our own one-line paraphrase. Solar capacity for 2021, 2022 and 2026 uses the EIA's Form
+EIA-860M (public domain). NWS watches, warnings and advisories come from the Iowa Environmental Mesonet's archive of
+NWS VTEC products (Iowa State University; NWS data in the public domain), reduced to the product, counties and times.
+
 **Apache-2.0: the code.** The grader (`gridsim_core`), the verifier and bundle files under `bundles/` and the plugin
 that builds this dataset are Apache-2.0. The prompts, references and transcripts are derived from the ERCOT prices
 and carry ERCOT's terms with them.
@@ -477,7 +721,7 @@ and carry ERCOT's terms with them.
 Environmental Mesonet's ASOS archive (Iowa State University), credited there.
 
 `scripts/hub_dataset.py` in the plugin builds this dataset, after agentenv-hf's scan of every file for keys and token
-shapes. Neither ERCOT, the EIA nor the IEM is affiliated with it or endorses it.
+shapes. Neither ERCOT, the EIA, the NWS nor the IEM is affiliated with it or endorses it.
 
 ## Citation
 
