@@ -8,7 +8,6 @@ export { clockMin };
 export const HYBRID_SCHEMA = "gridsim.episode/v3";
 export const PRODUCTS = ["regup", "regdn", "rrs", "ecrs", "nspin"];
 export const UP = ["regup", "rrs", "ecrs", "nspin"];
-export const EVENT = ["rrs", "ecrs", "nspin"];
 /** Products are told apart by a letter and a hatch, never a hue: cyan is charge and amber discharge everywhere. */
 export const PROD = {
   regup: { name: "RegUp", glyph: "U", hatch: "fwd" },

@@ -1,6 +1,6 @@
-"""QA the replay viewer headlessly: stills across regions, light, weather and battery states into a contact sheet, a
-check that each page loads without console errors or off-host requests, and a full-day run that tracks frame time,
-GPU memory counts and the JS heap.
+"""QA the replay viewer headlessly: stills across regions, light, weather and battery states (v1, v2, and v3 from the
+built Space) into a contact sheet, a check that each page loads without console errors or off-host requests, and a
+full-day run that tracks frame time, GPU memory counts and the JS heap.
 
 usage: python scripts/viewer_qa.py --out DIR [--runs results/runs/reference] [--perf EPISODE]
 """
@@ -19,6 +19,7 @@ from record import ROOT, find_chrome, serve, session, viewer_url  # noqa: E402
 
 R = "results/runs/reference/"
 LIVE = "../live-reference/"
+V3 = "../../../build/hub/space/runs/"
 MATRIX = [
     ("west · noon · idle (negative price)", "dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 12.6, "establish"),
     ("west · dusk · discharge", "dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3, "ramp"),
@@ -48,6 +49,19 @@ MATRIX = [
     ("v2 · derate clips the frozen plan", f"{LIVE}live-v2-2024-01-02-LZ_CPS-1h-y-derate-foresight-roll", 18.6, None),
     ("v2 · Uri, re-planning in the freeze", f"{LIVE}live-v2-2021-02-15-HB_HOUSTON-2h-i-foresight-roll", 7.6, None),
     ("v2 · end score", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 24.5, None),
+    ("v3 · the day before: the day-ahead book", f"{V3}39595d5a766915d8", -1.0, None),
+    ("v3 · noon solar peak", f"{V3}39595d5a766915d8", 12.6, "solar"),
+    ("v3 · the meter holds headroom for ECRS", f"{V3}39595d5a766915d8", 9.5, "poi"),
+    ("v3 · negative price: panels stowed", f"{V3}a462ee1611f971de", 11.5, "stow"),
+    ("v3 · evening discharge with ECRS reserved", f"{V3}bf8e0cd185d70bde", 18.5, None),
+    ("v3 · ECRS deployed: the band drains", f"{V3}39595d5a766915d8", 17.45, None),
+    ("v3 · AS-hog: failures to provide", f"{V3}5ca0fe87174565a3", 8.6, None),
+    ("v3 · Sunset EEA, energy tier", f"{V3}8b2c0b970fb5813b", 19.6, None),
+    ("v3 · RTC+B as T2, January", f"{V3}3bce12ff2e338919", 10.5, None),
+    ("v3 · aerial over the array", f"{V3}b729969d339a352c", 9.5, "array"),
+    ("v3 · night", f"{V3}39595d5a766915d8", 22.5, None),
+    ("v3 · end score", f"{V3}5ca0fe87174565a3", 24.5, None),
+    ("v3 · phone layout", f"{V3}39595d5a766915d8", 17.45, None, "390x844"),
 ]
 QUIET = ("favicon",)
 
@@ -66,14 +80,15 @@ def main(argv: list[str] | None = None) -> int:
     chrome = find_chrome(None)
     stills, failures = [], []
     with serve(ROOT) as port:
-        for label, eid, t, shot in MATRIX:
+        for label, eid, t, shot, *size in MATRIX:
             if args.only and args.only not in label:
                 continue
             ep = episode(eid)
             e = json.loads(ep.read_text())
             wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
             url = viewer_url(port, ep, wx, False, f"shot={shot}" if shot else "")
-            with session(url, chrome, w, h, enable=("Runtime", "Log", "Network")) as (page, ready, gl):
+            sw, sh = (int(v) for v in size[0].split("x")) if size else (w, h)
+            with session(url, chrome, sw, sh, enable=("Runtime", "Log", "Network")) as (page, ready, gl):
                 for dt in (0, 1 / 30, 1 / 30):
                     page.js(f"gridsim.time({t}, {{dt: {dt}}})")
                 png = base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"])
@@ -112,7 +127,8 @@ def main(argv: list[str] | None = None) -> int:
                           f"heap={r['heap']:.0f}MB")
         if args.determinism:
             for eid, t in (("dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3),
-                           (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75)):
+                           (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75),
+                           (f"{V3}39595d5a766915d8", 17.45), (f"{V3}a462ee1611f971de", 11.5)):
                 ep = episode(eid)
                 e = json.loads(ep.read_text())
                 wx = ROOT / "cache" / "weather" / f"{e['task']['date']}_{e['task']['settlement_point']}.json"
@@ -148,7 +164,10 @@ def sheet(stills, out: Path, cols: int = 3, tw: int = 640, th: int = 360) -> Non
         font = ImageFont.load_default()
     for i, (label, path) in enumerate(stills):
         x, y = (i % cols) * tw, (i // cols) * (th + 26)
-        im.paste(Image.open(path).convert("RGB").resize((tw, th), Image.LANCZOS), (x, y + 26))
+        src = Image.open(path).convert("RGB")
+        k = min(tw / src.width, th / src.height)
+        fit = src.resize((round(src.width * k), round(src.height * k)), Image.LANCZOS)
+        im.paste(fit, (x + (tw - fit.width) // 2, y + 26 + (th - fit.height) // 2))
         d.text((x + 8, y + 4), label, fill="#1c2329", font=font)
     im.save(out, quality=86)
 

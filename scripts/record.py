@@ -109,6 +109,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def telling_hour(ep: dict) -> float:
+    if ep.get("schema") == "gridsim.episode/v3":
+        for n in sorted((n for n in ep["notices"] if n.get("deploy")), key=lambda n: n["deploy"]["start_min"]):
+            if ep["hours"][min(23, n["deploy"]["start_min"] // 60)]["awards"].get(n["deploy"]["product"]):
+                return n["deploy"]["start_min"] / 60 + 0.35
+        rt = ep["task"]["rt"]
+        return max(range(24), key=lambda h: rt[h]) + 0.5
     if ep.get("schema") == "gridsim.episode/v2":
         rt = ep["task"]["rt"]
         return (max(range(96), key=lambda i: rt[i]) + 1) / 4 + 0.1

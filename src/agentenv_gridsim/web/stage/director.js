@@ -122,7 +122,7 @@ export function buildDirector(d, L, { night, plant = null }) {
       },
       poi(u) {
         const mx = L.sx + 15, mz = 11.5;
-        return { pos: [mx + 7 - 2 * u, 3.4, mz + 9.5 - u], look: [mx - 1.8, 1.9, mz - 1], fov: 44 };
+        return { pos: [mx + 5.2 - 1.5 * u, 2.9, mz + 6.8 - 0.8 * u], look: [mx - 2.4, 2.4, mz - 2], fov: 42 };
       },
       deploy(u) {
         return { pos: [L.cx - 14 + 22 * u, 17, zf + 36], look: [L.sx + 70, 4, -8], fov: 46 };

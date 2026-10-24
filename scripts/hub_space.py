@@ -364,7 +364,8 @@ def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
         return None
     ep = json.loads((out / "runs" / e["url"]).read_text())
     t, mom = hybrid_moment(ep)
-    e |= {"featured": "hybrid", "blurb": hybrid_blurb(ep), "hero_moment": mom, "t_moment": t}
+    e |= {"featured": "hybrid", "blurb": hybrid_blurb(ep), "hero_moment": mom, "t_moment": t,
+          "shot": "deploy" if "deployment" in mom else "ramp"}
     return e
 
 
@@ -383,13 +384,18 @@ def hybrid_blurb(ep: dict) -> str:
     who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
     deps = sorted((n for n in ep["notices"] if n.get("deploy")), key=lambda n: n["deploy"]["start_min"])
     names = {"rrs": "RRS", "ecrs": "ECRS", "nspin": "Non-Spin"}
+    held = next((n for n in deps if ep["hours"][min(23, n["deploy"]["start_min"] // 60)]["awards"].get(
+        n["deploy"]["product"])), None)
     dep = (f" ERCOT deploys {' and '.join(dict.fromkeys(names[n['deploy']['product']] for n in deps))} from "
-           f"{hm(deps[0]['deploy']['start_min'])}, and the reserved charge drains to the line." if deps else "")
+           f"{hm(deps[0]['deploy']['start_min'])}" if deps else "")
+    dep += (f"; at {hm(held['deploy']['start_min'])} the {names[held['deploy']['product']]} it holds is called and "
+            "the reserved charge drains to the line." if held else "." if deps else "")
     h = max(range(24), key=lambda i: t["rt"][i])
     c = ep["cash"]
     return (f"{region}, a {t['site']['pv_mwac']:g} MWac solar farm and a {t['site']['bess']['p_mw']:g} MW battery "
-            f"behind one meter: {who} sells energy and five reserve products at 2 pm the day before, then re-plans "
-            f"at {len(ep['watches']) - 1} watches.{dep} Real-time prices reach ${t['rt'][h]:,.0f}/MWh at {hour(h)}. "
+            f"behind one meter: {who} sells a day-ahead book of energy and reserves at 2 pm the day before, then "
+            f"re-plans at {len(ep['watches']) - 1} watches.{dep} Real-time prices reach ${t['rt'][h]:,.0f}/MWh at "
+            f"{hour(h)}. "
             f"It makes ${ep['profit_usd']:,.0f} (reserves ${c['as_da'] + c['as_rt']:,.0f}), against hindsight's "
             f"${r.get('p_hind', 0):,.0f}.")
 
@@ -567,7 +573,8 @@ def thumbnail(out: Path, e: dict) -> None:
     hero = e["featured"] == "hero"
     t = e.get("t_moment") or (evening(ep) if hero else peak(ep) + 0.6)
     record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb",
-           str(thumb), "--t", str(t), "--extra", "ui=0&shot=establish" if hero or "t_moment" in e else "ui=0")
+           str(thumb), "--t", str(t), "--extra",
+           f"ui=0&shot={e.get('shot', 'establish')}" if hero or "t_moment" in e else "ui=0")
     e["thumb"] = f"thumbs/{thumb.name}"
 
 

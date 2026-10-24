@@ -494,3 +494,9 @@ span.gl { display: inline-block; min-width: 14px; height: 14px; line-height: 13p
 .legend b.xm { color: #cf3e33; font-weight: 750; margin: 0 3px 0 2px; }
 .legend b.xm.ex { color: #9aa3a9; margin-left: 6px; }
 .planlog .pill.part, .planlog .pill.no { white-space: normal; }
+@media (max-width: 900px) {
+  .ep.is-hybrid .timeline { bottom: 60px; }
+  .tl.hyb .rows { display: none; }
+  .tl.live.hyb { padding-left: 0; }
+  .tl.live.hyb .hours { left: 0; }
+}

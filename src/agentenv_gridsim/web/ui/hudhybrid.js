@@ -517,7 +517,7 @@ function buildTimeline(d) {
       out.push({ h: x.h, e: t });
     }
     if (x.governor) {
-      const t = svgEl("text", { x: (x.h + 0.5) * cw, y: Y.eMid + Y.eH + 9, class: "govm", "text-anchor": "middle" });
+      const t = svgEl("text", { x: (x.h + 0.5) * cw, y: Y.pBot + 6.5, class: "govm", "text-anchor": "middle" });
       t.textContent = "gov";
       out.push({ h: x.h, e: t });
     }
