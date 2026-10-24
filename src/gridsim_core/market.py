@@ -28,6 +28,7 @@ from gridsim_core.market_auction import (
     battery_of,
     clear_mitigated,
     dump,
+    lift,
     offer_blocks,
     offer_json,
     parse_offer,
@@ -804,23 +805,29 @@ class Session(WatchDay):
                 "audit": self.audit(), "messages": messages or [], "usage": usage, "wall_seconds": wall_seconds}
 
     def stack_view(self, points: int = 48) -> list[dict]:
-        """Per hour, the background supply and demand curves (≤ 48 points a side) and each seat's offer, for the viewer."""
+        """Per hour, the background supply and demand curves (≤ 48 points a side) and each seat's offer, for the viewer,
+        in hub prices like the clear (the hub offset added to every curve, as the book does)."""
         out = []
         for h in range(HOURS):
             sup, dem = hour_curves(self.F.day, h, self.F.carve)
             focus = (-20000.0, 20000.0) if self.cleared is None else None
+            off = float(self.F.offset[h])
+
+            def hub(pts, off=off):
+                return [[m, _r2(min(self.F.cap, max(self.F.floor, p)))] for m, p in lift(pts, off)]
             seats = {}
             for s, o in sorted(self.profile.items()):
                 if o == "replay":
                     sell, buy = self.F.curve(s, h)
-                    seats[s] = {"sell": simplify(sell, 16), "buy": simplify(buy, 16)}
+                    seats[s] = {"sell": hub(simplify(sell, 16)), "buy": hub(simplify(buy, 16))}
                 else:
                     seats[s] = {"sell": [[_r2(m), _r2(p)] for _, side, m, p, _ in o[h] if side > 0],
                                 "buy": [[_r2(m), _r2(p)] for _, side, m, p, _ in o[h] if side < 0]}
             out.append({"he": h + 1,
-                        "background": {"supply": simplify(aggregate(sup, "supply", self.F.floor, self.F.cap), points, focus),
-                                       "demand": simplify(aggregate(dem, "demand", self.F.floor, self.F.cap), points,
-                                                          focus)},
+                        "background": {"supply": hub(simplify(aggregate(sup, "supply", self.F.floor, self.F.cap), points,
+                                                              focus)),
+                                       "demand": hub(simplify(aggregate(dem, "demand", self.F.floor, self.F.cap), points,
+                                                              focus))},
                         "seats": seats})
         return out
 
