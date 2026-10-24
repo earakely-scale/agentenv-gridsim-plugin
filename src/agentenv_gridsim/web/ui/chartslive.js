@@ -25,7 +25,8 @@ export function buildLiveCharts(root, d) {
   const top = Math.min(Math.max(...rt, ...da), cap);
   const pa = axes(Math.min(0, ...rt, ...da), top * 1.05, (v) => price(v));
   const clip = rt.map((v) => Math.min(v, top * 1.05));
-  const over = rt.map((v, i) => (v > top * 1.05 ? `<text x="${x(i + 0.5)}" y="${T + 9}" font-size="9.5" text-anchor="middle" fill="#cf3e33">${price(v)}</text>` : "")).join("");
+  const pk = rt.indexOf(Math.max(...rt));
+  const over = rt[pk] > top * 1.05 ? `<text x="${Math.min(x(pk + 0.5), W - R - 60)}" y="${T + 9}" font-size="10" text-anchor="middle" fill="#cf3e33">peak ${price(rt[pk])} (off scale)</text>` : "";
   const priceSvg = svg(pa.s + clip.map((v, i) => `<rect x="${x(i)}" y="${Math.min(pa.y(v), pa.y(0))}" width="${x(1) - x(0) - 0.6}" height="${Math.abs(pa.y(v) - pa.y(0))}" fill="${v < 0 ? "#9a7fd0" : "#9fb0bc"}"/>`).join("") + line(da, pa.y, "#2c3440", { dash: true, step: 4 }) + over);
   const k = Math.max(d.b.k_ch, d.b.k_dis) * d.b.unit_mwh * 4;
   const sa = axes(-k, k, (v) => `${v > 0 ? "+" : ""}${Math.round(v)}`);

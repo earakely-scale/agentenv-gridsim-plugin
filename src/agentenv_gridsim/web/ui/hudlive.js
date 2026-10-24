@@ -180,12 +180,13 @@ function pnlHtml(d, settled, ended) {
 function bulletinsHtml(d, t) {
   const got = d.notices.filter((n) => n.deliverT != null && n.deliverT <= t + 1e-9);
   if (!got.length) return "";
-  const shown = got.slice(-3).reverse();
+  const recent = got.filter((n) => t - n.deliverT < 2 || n.deliverT === got.at(-1).deliverT);
+  const shown = recent.slice(-2).reverse();
   return shown.map((n, i) => {
     const fresh = i === 0 && t - n.deliverT < 0.75;
     const issued = n.issued.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Chicago" }).toLowerCase();
     return `<div class="card bul ${fresh ? "fresh" : ""}"><div class="bh"><span class="badge ${n.badge[1]}">${esc(n.badge[0])}</span><span class="src">${esc(n.name || n.source)}</span><span class="when">issued ${issued}${n.watch === 0 ? " · on the board" : ` · read at ${plain(d.watches[n.watch].min)}`}</span></div><p>${esc(n.text)}</p></div>`;
-  }).join("") + (got.length > 3 ? `<div class="more-b">${got.length - 3} earlier bulletin${got.length - 3 > 1 ? "s" : ""}</div>` : "");
+  }).join("") + (got.length > shown.length ? `<div class="more-b">${got.length - shown.length} earlier bulletin${got.length - shown.length > 1 ? "s" : ""} in the timeline</div>` : "");
 }
 
 function planHtml(d, t) {
