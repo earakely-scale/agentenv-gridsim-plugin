@@ -1,0 +1,64 @@
+{
+ "schema": "gridsim.levelup/v1",
+ "task_id": "dam-v1-2025-09-29-HB_HOUSTON-1h-i",
+ "model": "Qwen/Qwen3-1.7B",
+ "rule": "the largest base-to-trained gain in reward among held-out days where the trained model scores at least 0.85",
+ "note": null,
+ "decoding": "sampled for every frame where the run has it",
+ "days": {
+  "candidates": 50,
+  "doing_well": 2
+ },
+ "total_steps": 280,
+ "gain": 0.907813,
+ "frames": [
+  {
+   "episode_id": "27d32165192ea7f3",
+   "trained": "base",
+   "step": 0,
+   "reward": 0.0
+  },
+  {
+   "episode_id": "dfc8f156ade83e6d",
+   "trained": "sft",
+   "step": 0,
+   "reward": 0.0
+  },
+  {
+   "episode_id": "a9b36af94e5fcac5",
+   "trained": "grpo",
+   "step": 50,
+   "reward": 0.0
+  },
+  {
+   "episode_id": "8efceaaa3ec7833f",
+   "trained": "grpo",
+   "step": 100,
+   "reward": 0.907813
+  },
+  {
+   "episode_id": "78542a0b7c2aec58",
+   "trained": "grpo",
+   "step": 150,
+   "reward": 0.907813
+  },
+  {
+   "episode_id": "a71bfb629e71d507",
+   "trained": "grpo",
+   "step": 200,
+   "reward": 0.907813
+  },
+  {
+   "episode_id": "1a08fef7c25abeff",
+   "trained": "grpo",
+   "step": 250,
+   "reward": 0.907813
+  },
+  {
+   "episode_id": "ef29fd1a6824a45f",
+   "trained": "grpo",
+   "step": 280,
+   "reward": 0.907813
+  }
+ ]
+}

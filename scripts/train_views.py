@@ -26,8 +26,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--episodes", type=Path, required=True)
     p.add_argument("--out", type=Path, default=ROOT / "results" / "runs" / "train")
     p.add_argument("--day", help="Override the rule with this task id (the manifest records the override).")
+    p.add_argument("--decoding", choices=("sampled", "greedy"), default="sampled",
+                   help="One decoding for every frame and lane; the checkpoints were evaluated sampled.")
     args = p.parse_args(argv)
-    eps = [e for f in sorted(args.episodes.rglob("*.json")) if (e := read(f))]
+    eps = [e for f in sorted(args.episodes.rglob("*.json*")) for e in read(f)]
+    want = [e for e in eps if (e.get("seed") is not None) == (args.decoding == "sampled")]
+    stages = {(e["task_id"], e["trained"], e["checkpoint_step"]) for e in want}
+    eps = want + [e for e in eps if (e["task_id"], e["trained"], e["checkpoint_step"]) not in stages]
     days: dict[str, dict] = {}
     for e in eps:
         d = days.setdefault(e["task_id"], {"base": [], "sft": [], "grpo": []})
@@ -37,6 +42,8 @@ def main(argv: list[str] | None = None) -> int:
         base, final = pick(d["base"]), final_of(d["grpo"])
         if base and final:
             rows.append((tid, r(final) - r(base), r(final), len({e["checkpoint_step"] for e in d["grpo"]})))
+    if any(x[3] > 2 for x in rows):
+        rows = [x for x in rows if x[3] > 2]
     if not rows:
         raise SystemExit(f"no day in {args.episodes} has both a base and a trained episode")
     good = [x for x in rows if x[2] >= DOES_WELL]
@@ -62,6 +69,8 @@ def main(argv: list[str] | None = None) -> int:
     steps = [e["checkpoint_step"] for e in d["grpo"] if e["checkpoint_step"] is not None]
     model = final.get("model") or "trained model"
     levelup = {"schema": "gridsim.levelup/v1", "task_id": tid, "model": model, "rule": RULE, "note": note,
+               "decoding": f"{args.decoding} for every frame where the run has it",
+               "days": {"candidates": len(rows), "doing_well": len(good)},
                "total_steps": max(steps, default=None), "gain": round(r(final) - r(frames[0]), 6),
                "frames": [{"episode_id": e["episode_id"], "trained": e["trained"], "step": e["checkpoint_step"],
                            "reward": e.get("reward")} for e in frames]}
@@ -74,14 +83,15 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def read(f: Path) -> dict | None:
+def read(f: Path) -> list[dict]:
+    """The path-B episodes in a .json file or a .jsonl of them."""
     try:
-        e = json.loads(f.read_text())
+        text = f.read_text()
+        rows = [json.loads(x) for x in text.splitlines() if x.strip()] if f.suffix == ".jsonl" else [json.loads(text)]
     except (OSError, json.JSONDecodeError):
-        return None
-    if not (isinstance(e, dict) and e.get("schema") == "gridsim.episode/v1" and e.get("trained")):
-        return None
-    return e | {"trained": str(e["trained"]).lower()}
+        return []
+    return [e | {"trained": str(e["trained"]).lower()} for e in rows
+            if isinstance(e, dict) and e.get("schema") == "gridsim.episode/v1" and e.get("trained")]
 
 
 def r(e: dict) -> float:
