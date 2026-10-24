@@ -197,21 +197,24 @@ def triggers(watches: list[Watch]) -> list[dict]:
 
 def plan_dp(b: Battery, prices, s0: int, d0: int = 0, pen_unit: float | None = None, kd=None, kc=None) -> list[int] | None:
     """Exact best schedule over len(prices) steps from SoC s0 with d0 discharge units used, per-step rate limits; a hard
-    end target when pen_unit is None (None if unreachable), else the per-unit shortfall penalty. v1's tie order."""
+    end target when pen_unit is None (None if unreachable), else the per-unit shortfall penalty. v1's tie order. The
+    discharge dimension is dropped when the cycle cap cannot bind."""
     t_n, n, cap = len(prices), b.n, b.cap - d0
     kd = [b.k_dis] * t_n if kd is None else list(kd)
     kc = [b.k_ch] * t_n if kc is None else list(kc)
+    free = cap >= min(sum(kd), s0 + sum(kc))
+    w = 1 if free else cap + 1
     acts = sorted(range(-b.k_ch, b.k_dis + 1), key=lambda a: (abs(a), a))
     short = np.maximum(0, b.s_end_min - np.arange(n + 1))
-    v = np.repeat((np.where(short > 0, -np.inf, 0.0) if pen_unit is None else -short * pen_unit)[:, None], cap + 1, 1)
-    policy = np.zeros((t_n, n + 1, cap + 1), dtype=np.int8)
-    q = np.empty((len(acts), n + 1, cap + 1))
+    v = np.repeat((np.where(short > 0, -np.inf, 0.0) if pen_unit is None else -short * pen_unit)[:, None], w, 1)
+    policy = np.zeros((t_n, n + 1, w), dtype=np.int8)
+    q = np.empty((len(acts), n + 1, w))
     for h in range(t_n - 1, -1, -1):
         q.fill(-np.inf)
         for i, a in enumerate(acts):
-            lo, hi, da = max(0, a), min(n, n + a), max(a, 0)
-            if -kc[h] <= a <= kd[h] and lo <= hi and da <= cap:
-                q[i, lo:hi + 1, :cap + 1 - da] = cash(b, prices[h], a)[1] + v[lo - a:hi - a + 1, da:]
+            lo, hi, da = max(0, a), min(n, n + a), 0 if free else max(a, 0)
+            if -kc[h] <= a <= kd[h] and lo <= hi and da < w:
+                q[i, lo:hi + 1, :w - da] = cash(b, prices[h], a)[1] + v[lo - a:hi - a + 1, da:]
         pick = np.argmax(q >= q.max(axis=0) - TIE_TOL, axis=0)
         policy[h] = pick
         v = np.take_along_axis(q, pick[None], 0)[0]
@@ -221,7 +224,7 @@ def plan_dp(b: Battery, prices, s0: int, d0: int = 0, pen_unit: float | None = N
     for h in range(t_n):
         a = acts[policy[h, s, d]]
         out.append(a)
-        s, d = s - a, d + max(a, 0)
+        s, d = s - a, d + (0 if free else max(a, 0))
     return out
 
 
@@ -850,12 +853,12 @@ def forecast(s: Session, da_pred=None) -> np.ndarray:
 
 def roll_policy(da_pred=None, da_plan=None):
     """The notice-blind rolling re-planner: DA position at watch 0, then the exact DP over open intervals on the
-    decayed-basis forecast at every watch, committed when it differs."""
+    decayed-basis forecast at every watch, committed when it differs. It plays through call(), as an agent would."""
 
     def policy(s: Session):
         if s.watch == 0 and s.da_pos is None:
             pos = da_plan if da_plan is not None else hourly_plan(s.hb, s.da if da_pred is None else da_pred)
-            s.commit_da(pos)
+            s.call("commit_da", {"position": pos})
         fo = s.first_open
         if fo >= INTERVALS or not s.calls_left:
             return
@@ -869,7 +872,7 @@ def roll_policy(da_pred=None, da_plan=None):
         if plan is None:
             plan = plan_dp(g, f, st, d, s.pen_unit, s.kd[fo:], s.kc[fo:])
         if plan != cur[fo:]:
-            s.commit_schedule(plan, hhmm(15 * fo), "15m")
+            s.call("commit_schedule", {"actions": plan, "start": hhmm(15 * fo), "step": "15m"})
 
     return policy
 
@@ -877,20 +880,19 @@ def roll_policy(da_pred=None, da_plan=None):
 def naive_policy(da_plan):
     def policy(s: Session):
         if s.watch == 0 and s.da_pos is None:
-            s.commit_da(da_plan)
+            s.call("commit_da", {"position": da_plan})
 
     return policy
 
 
 def play(task: dict, tier: str, notices, policy, *, reference: bool = True) -> Session:
-    """Run a policy at every watch (the triggers deliver each watch's notices after advance) to the end of the day."""
+    """Run a policy at every watch through call(), with each watch's notices delivered after advance as the gateway's
+    triggers do, to the end of the day; the transcript replays byte for byte."""
     s = Session(task, tier, notices, reference=reference)
     while not s.done:
         policy(s)
-        s.advance()
-        if not s.done:
-            for n in s.watches[s.watch].notices:
-                s.notice(**s._kw(n), via="trigger")
+        s.call("advance")
+        s.deliver_watch_notices()
     return s
 
 
