@@ -74,7 +74,7 @@ from from_hour, hour by hour (a refused hour keeps its old entry). They share {P
 watch. plan = {{{{"energy": ...}}}}: MW values from from_hour to the last window hour (or all of them), or blocks \
 [{{{{"from": 30, "to": 34, "mw": 50}}}}] in window hours (hours no block covers are 0).
 - submit_dam(operating_day, plan, pv_da_share): at the gate, the next day's 24 hours: plan = {{{{"energy": ...{{as_fields}}}}}} \
-in that day's hours 0..23 (lists or blocks). It sets the day's DA position{{as_note}} and your book for that day.
+in that day's hours 0..23 (lists or blocks). It sets the day's DA position{{as_note}} and your book for that day.{{keep_note}}
 - advance(): ends this watch.
 - get_time(), if offered, reads the same virtual clock in UTC."""
 
@@ -101,7 +101,10 @@ def system_prompt(tier: str = "front", era: str = "B", source: str = "desk") -> 
         parts.append(_FORECASTS.format(load_note=note, calls=FORECAST_CALLS))
     parts.append(_TOOLS.format(as_fields="" if lite else ', "regup": ..., "regdn": ..., "rrs": ..., "ecrs": ..., '
                                                          '"nspin": ...',
-                               as_note="" if lite else " and AS awards"))
+                               as_note="" if lite else " and AS awards",
+                               keep_note="" if lite else " To keep an AS field as it is, leave it out of the plan "
+                                                         "(a field never submitted is 0); a field that does not parse "
+                                                         "refuses the whole submit."))
     return "\n\n".join(parts)
 
 
@@ -149,7 +152,8 @@ def tool_schemas(tier: str = "front") -> list[dict]:
         "from_hour": hour | {"description": "first window hour the plan covers; defaults to frozen_until_hour"}}}
     dam_props = {"energy": field | {"description": "battery MW for the day's hours 0..23, or blocks"}}
     if tier != "front-lite":
-        dam_props |= {k: field | {"description": f"{NAMES[k]} award MW per hour (0..23) as blocks"} for k in PRODUCTS}
+        dam_props |= {k: field | {"description": f"{NAMES[k]} award MW per hour (0..23) as blocks; leave it out to "
+                                                 "keep it as it is"} for k in PRODUCTS}
     dam = {"type": "object", "required": ["operating_day", "plan"], "properties": {
         "operating_day": {"type": "string", "description": "YYYY-MM-DD, the day after the gate"},
         "plan": {"type": "object", "required": ["energy"], "properties": dam_props},

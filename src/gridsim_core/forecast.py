@@ -193,6 +193,15 @@ def priority(n: Notice) -> int:
     return {"conservation": 1, "EEA_exit": 2, "Watch": 2, "Advisory": 6}.get(lv, 7)
 
 
+def keep_hint(e: PlanError) -> PlanError:
+    """A field's parse error that says how to keep the field as it is (agents wrote "keep" for an AS field)."""
+    if e.field == "energy":
+        return PlanError(e.field, f"{e}; energy is always sent: to keep an hour as booked, send its booked MW")
+    if e.field in PRODUCTS:
+        return PlanError(e.field, f"{e}; to keep {NAMES[e.field]} as it is, leave {e.field} out of the plan")
+    return e
+
+
 # vintages: the window's forecasts as issued
 
 
@@ -962,7 +971,10 @@ class Session(WatchDay):
         fh = self._hour_arg(self.first_open if from_hour is None else from_hour)
         if fh is None:
             raise PlanError("from_hour", f"from_hour must be a window hour 0..{self.H - 1} or \"YYYY-MM-DD HH:MM\"")
-        fh, fields = parse_plan(plan, fh, self.H, ("energy",))
+        try:
+            fh, fields = parse_plan(plan, fh, self.H, ("energy",))
+        except PlanError as e:
+            raise keep_hint(e) from None
         return fh, fields["energy"]
 
     def _evaluate(self, vals: list[float], fh: int) -> tuple[dict, list[int], list[int], list[dict]]:
@@ -1048,6 +1060,7 @@ class Session(WatchDay):
         try:
             _, fields = parse_plan(plan, 0, 24, FIELDS)
         except PlanError as e:
+            e = keep_hint(e)
             self.refusals.append({"watch": self.watch, "call": self.calls, "refused": [e.row()]})
             return {"accepted": [], "refused": [e.row()], "operating_day": day, "x_da_mw": None, "pv_da_mw": None,
                     "awards": None, "projected": self._project()["summary"], "submits_left": self.submits_left}
@@ -1326,7 +1339,8 @@ class Session(WatchDay):
                 "end_short_mwh": _r6(self.end_short), "governor_hours": len(self.governor),
                 "refusals": sum(len(x["refused"]) for x in self.refusals),
                 "commits": sum(bool(x["committed"]) for x in self.commits),
-                "dam_submits": len(self.dam_log), "forecast_calls": sum(self.forecast_calls)}
+                "dam_submits": len(self.dam_log), "forecast_calls": sum(self.forecast_calls),
+                "baselines": tr.get("baselines")}
         return self._grade
 
     def audit(self, get_time_reads=None) -> dict:
