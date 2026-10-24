@@ -3,6 +3,7 @@
 
 usage: python scripts/weather.py HB_WEST 2024-04-14 [HB_HOUSTON 2024-07-18 ...] [--out cache/weather] [--force]
        python scripts/weather.py --episodes results/runs   (every (point, date) the runs use)
+A v5 Market Floor day starts at 6 am the day before: its sidecar (DATE_POINT_d1.json) also holds that day's reports.
 """
 
 import argparse
@@ -55,8 +56,10 @@ def main(argv: list[str] | None = None) -> int:
             ep = json.loads(f.read_text())
             if isinstance(ep, dict) and ep.get("schema") == "gridsim.episode/v1":
                 pairs.append((ep["task"]["settlement_point"], ep["task"]["date"]))
-    for point, day in dict.fromkeys(pairs):
-        path = sidecar(point, day, args.out, force=args.force)
+            if isinstance(ep, dict) and ep.get("schema") == "gridsim.episode/v5":
+                pairs.append((ep["task"]["point"], ep["task"]["date"], True))
+    for point, day, *d1 in dict.fromkeys(pairs):
+        path = sidecar(point, day, args.out, force=args.force, d1=bool(d1))
         print(f"{point} {day} -> {path}")
     return 0
 
@@ -65,8 +68,8 @@ def sidecar_path(out: Path, point: str, day: str) -> Path:
     return out / f"{day}_{point}.json"
 
 
-def sidecar(point: str, day: str, out: Path, force: bool = False) -> Path:
-    path = sidecar_path(out, point, day)
+def sidecar(point: str, day: str, out: Path, force: bool = False, d1: bool = False) -> Path:
+    path = out / f"{day}_{point}_d1.json" if d1 else sidecar_path(out, point, day)
     if path.exists() and not force:
         return path
     station = STATION[point]
@@ -74,7 +77,7 @@ def sidecar(point: str, day: str, out: Path, force: bool = False) -> Path:
     if force or not raw.exists():
         raw.parent.mkdir(parents=True, exist_ok=True)
         raw.write_text(fetch(url(station, day)))
-    path.write_text(json.dumps(build(point, day, raw.read_text()), separators=(",", ":")))
+    path.write_text(json.dumps(build(point, day, raw.read_text(), -20 if d1 else -3), separators=(",", ":")))
     return path
 
 
@@ -99,7 +102,7 @@ def fetch(u: str, tries: int = 4) -> str:
     raise RuntimeError(u)
 
 
-def build(point: str, day: str, text: str) -> dict:
+def build(point: str, day: str, text: str, lo: float = -3) -> dict:
     station = STATION[point]
     name, lat, lon = AIRPORTS[station]
     midnight = datetime.fromisoformat(day).replace(tzinfo=CT)
@@ -109,7 +112,7 @@ def build(point: str, day: str, text: str) -> dict:
             continue
         at = datetime.strptime(r["valid"], "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("UTC"))
         t = (at - midnight).total_seconds() / 3600
-        if -3 <= t <= 27:
+        if lo <= t <= 27:
             obs.append(observation(r, round(t, 3)))
     obs.sort(key=lambda o: o["t"])
     return {"schema": "gridsim.weather/v1", "point": point, "date": day, "tz": "America/Chicago", "station": station,
