@@ -1,0 +1,31 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim",
+    "directives": [
+      {
+        "service": "gridsim",
+        "uri": "urn:gridsim:load-task/v1",
+        "args": {
+          "task_id": "dam-v1-2022-11-14-LZ_WEST-2h-m",
+          "tier": "foresight",
+          "checks": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim",
+    "file_artifact_id": "gridsim-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]

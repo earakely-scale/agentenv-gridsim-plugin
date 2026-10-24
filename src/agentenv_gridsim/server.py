@@ -22,7 +22,8 @@ from gridsim_core.parse import parse_actions
 from gridsim_core.prompt import situation_text, tool_schemas
 from gridsim_core.task import TIERS, data_root
 
-PACK_NAMES = ("fixtures", "ercot-dam-v1-eval", "ercot-dam-v1-eval-iid", "ercot-dam-v1-rtcb", "ercot-dam-v1-train")
+PACK_NAMES = ("fixtures", "ercot-dam-v1-eval", "ercot-dam-v1-eval-iid", "ercot-dam-v1-rtcb", "showcase",
+              "ercot-dam-v1-train")
 MAX_CHECKS = 3
 MAX_TOOL_CALLS = 24
 LOAD_URI = "urn:gridsim:load-task/v1"
