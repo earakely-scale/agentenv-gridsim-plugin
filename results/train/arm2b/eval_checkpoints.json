@@ -1,0 +1,306 @@
+[
+ {
+  "checkpoint_step": 100,
+  "n_tasks": 50,
+  "n": 50,
+  "reward_mean": 0.6249,
+  "reward_std": 0.3173,
+  "valid_rate": 1.0,
+  "tool_call_rate": 1.0,
+  "feasible_rate": 0.8,
+  "rate_ok": 0.76,
+  "rate_all_idle": 0.0,
+  "rate_overfill": 0.04,
+  "rate_sell_before_charge": 0.06,
+  "rate_rate": 0.08,
+  "rate_cycle_cap": 0.02,
+  "rate_end_short": 0.04,
+  "rate_malformed": 0.0,
+  "rate_truncated": 0.0,
+  "completion_len_mean": 239.1,
+  "ci95": [
+   0.5347,
+   0.7092
+  ],
+  "by_start": {
+   "empty": {
+    "n": 18,
+    "reward_mean": 0.6807,
+    "ci95": [
+     0.5185,
+     0.8301
+    ]
+   },
+   "full": {
+    "n": 19,
+    "reward_mean": 0.5679,
+    "ci95": [
+     0.4365,
+     0.6923
+    ]
+   },
+   "half": {
+    "n": 13,
+    "reward_mean": 0.6309,
+    "ci95": [
+     0.4526,
+     0.7928
+    ]
+   }
+  },
+  "by_curriculum": {
+   "C0": {
+    "n": 17,
+    "reward_mean": 0.7303,
+    "ci95": [
+     0.5968,
+     0.8495
+    ]
+   },
+   "C1": {
+    "n": 10,
+    "reward_mean": 0.3479,
+    "ci95": [
+     0.1891,
+     0.5199
+    ]
+   },
+   "C2": {
+    "n": 23,
+    "reward_mean": 0.6675,
+    "ci95": [
+     0.5409,
+     0.7832
+    ]
+   }
+  }
+ },
+ {
+  "checkpoint_step": 125,
+  "n_tasks": 50,
+  "n": 50,
+  "reward_mean": 0.6943,
+  "reward_std": 0.2716,
+  "valid_rate": 1.0,
+  "tool_call_rate": 1.0,
+  "feasible_rate": 0.9,
+  "rate_ok": 0.84,
+  "rate_all_idle": 0.0,
+  "rate_overfill": 0.02,
+  "rate_sell_before_charge": 0.04,
+  "rate_rate": 0.02,
+  "rate_cycle_cap": 0.02,
+  "rate_end_short": 0.06,
+  "rate_malformed": 0.0,
+  "rate_truncated": 0.0,
+  "completion_len_mean": 239.0,
+  "ci95": [
+   0.6185,
+   0.7663
+  ],
+  "by_start": {
+   "empty": {
+    "n": 18,
+    "reward_mean": 0.8025,
+    "ci95": [
+     0.6871,
+     0.8962
+    ]
+   },
+   "full": {
+    "n": 19,
+    "reward_mean": 0.5792,
+    "ci95": [
+     0.4539,
+     0.7023
+    ]
+   },
+   "half": {
+    "n": 13,
+    "reward_mean": 0.7129,
+    "ci95": [
+     0.563,
+     0.8328
+    ]
+   }
+  },
+  "by_curriculum": {
+   "C0": {
+    "n": 17,
+    "reward_mean": 0.8035,
+    "ci95": [
+     0.7092,
+     0.8843
+    ]
+   },
+   "C1": {
+    "n": 10,
+    "reward_mean": 0.5686,
+    "ci95": [
+     0.4176,
+     0.7123
+    ]
+   },
+   "C2": {
+    "n": 23,
+    "reward_mean": 0.6683,
+    "ci95": [
+     0.5398,
+     0.788
+    ]
+   }
+  }
+ },
+ {
+  "checkpoint_step": 150,
+  "n_tasks": 50,
+  "n": 50,
+  "reward_mean": 0.7214,
+  "reward_std": 0.2544,
+  "valid_rate": 1.0,
+  "tool_call_rate": 1.0,
+  "feasible_rate": 0.9,
+  "rate_ok": 0.9,
+  "rate_all_idle": 0.0,
+  "rate_overfill": 0.04,
+  "rate_sell_before_charge": 0.04,
+  "rate_rate": 0.0,
+  "rate_cycle_cap": 0.02,
+  "rate_end_short": 0.0,
+  "rate_malformed": 0.0,
+  "rate_truncated": 0.0,
+  "completion_len_mean": 239.8,
+  "ci95": [
+   0.6489,
+   0.7899
+  ],
+  "by_start": {
+   "empty": {
+    "n": 18,
+    "reward_mean": 0.8293,
+    "ci95": [
+     0.7309,
+     0.9074
+    ]
+   },
+   "full": {
+    "n": 19,
+    "reward_mean": 0.571,
+    "ci95": [
+     0.4393,
+     0.6979
+    ]
+   },
+   "half": {
+    "n": 13,
+    "reward_mean": 0.7919,
+    "ci95": [
+     0.7141,
+     0.8661
+    ]
+   }
+  },
+  "by_curriculum": {
+   "C0": {
+    "n": 17,
+    "reward_mean": 0.8352,
+    "ci95": [
+     0.7706,
+     0.8982
+    ]
+   },
+   "C1": {
+    "n": 10,
+    "reward_mean": 0.6126,
+    "ci95": [
+     0.4602,
+     0.7505
+    ]
+   },
+   "C2": {
+    "n": 23,
+    "reward_mean": 0.6847,
+    "ci95": [
+     0.5617,
+     0.7969
+    ]
+   }
+  }
+ },
+ {
+  "checkpoint_step": 175,
+  "n_tasks": 50,
+  "n": 50,
+  "reward_mean": 0.7321,
+  "reward_std": 0.2434,
+  "valid_rate": 1.0,
+  "tool_call_rate": 1.0,
+  "feasible_rate": 0.84,
+  "rate_ok": 0.84,
+  "rate_all_idle": 0.0,
+  "rate_overfill": 0.06,
+  "rate_sell_before_charge": 0.06,
+  "rate_rate": 0.02,
+  "rate_cycle_cap": 0.02,
+  "rate_end_short": 0.0,
+  "rate_malformed": 0.0,
+  "rate_truncated": 0.0,
+  "completion_len_mean": 242.8,
+  "ci95": [
+   0.6632,
+   0.796
+  ],
+  "by_start": {
+   "empty": {
+    "n": 18,
+    "reward_mean": 0.8315,
+    "ci95": [
+     0.7332,
+     0.9089
+    ]
+   },
+   "full": {
+    "n": 19,
+    "reward_mean": 0.5989,
+    "ci95": [
+     0.4697,
+     0.7217
+    ]
+   },
+   "half": {
+    "n": 13,
+    "reward_mean": 0.7891,
+    "ci95": [
+     0.7124,
+     0.8614
+    ]
+   }
+  },
+  "by_curriculum": {
+   "C0": {
+    "n": 17,
+    "reward_mean": 0.837,
+    "ci95": [
+     0.7731,
+     0.8992
+    ]
+   },
+   "C1": {
+    "n": 10,
+    "reward_mean": 0.605,
+    "ci95": [
+     0.4522,
+     0.7466
+    ]
+   },
+   "C2": {
+    "n": 23,
+    "reward_mean": 0.7099,
+    "ci95": [
+     0.5941,
+     0.8146
+    ]
+   }
+  }
+ }
+]
