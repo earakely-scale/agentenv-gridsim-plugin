@@ -121,7 +121,7 @@ def test_a_hybrid_and_a_live_sweep_are_reported_apart(fake):
     live.out.mkdir(parents=True)
     (live.out / "sweep.json").write_text(json.dumps(live.spec()))
     result = CliRunner().invoke(gridsim, ["sweep", "report", "hy", "lv"])
-    assert result.exit_code == 2 and "hybrid sweeps on their own" in result.output
+    assert result.exit_code == 2 and "hybrid, forecast and market sweeps each on their own" in result.output
 
 
 def test_hybrid_episodes_replay_byte_for_byte_into_episode_json_v3(fake):

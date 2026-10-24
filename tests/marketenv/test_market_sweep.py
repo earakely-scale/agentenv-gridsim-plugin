@@ -134,7 +134,7 @@ def test_a_market_and_a_hybrid_sweep_are_reported_apart(fake):
     other.out.mkdir(parents=True)
     (other.out / "sweep.json").write_text(json.dumps(other.spec()))
     result = CliRunner().invoke(gridsim, ["sweep", "report", "mk", "hy"])
-    assert result.exit_code == 2 and "market sweeps too" in result.output
+    assert result.exit_code == 2 and "market sweeps each on their own" in result.output
 
 
 @pytest.mark.parametrize(("args", "error"), [

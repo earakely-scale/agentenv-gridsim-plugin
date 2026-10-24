@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def weather_path(ep: dict) -> Path:
-    """The cached sidecar an episode plays in (a v4 window's spans the window, a v5 floor's also holds the day before)."""
+    """The cached sidecar an episode plays in: a v4 window's spans it, a v5 floor's also holds the day before."""
     t = ep["task"]
     if ep.get("schema") == "gridsim.episode/v5":
         return ROOT / "cache" / "weather" / f"{t['date']}_{t['point']}_d1.json"

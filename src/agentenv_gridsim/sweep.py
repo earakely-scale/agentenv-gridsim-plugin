@@ -1490,7 +1490,8 @@ def sweep_group():
               help=f"The task pack. Default: {EVAL_PACK}, {LIVE_EVAL_PACK} with --env {LIVE_ENV}, "
                    f"{HYBRID_EVAL_PACK} with --env {HYBRID_ENV}, {FORECAST_EVAL_PACK} with --env {FORECAST_ENV}, or "
                    f"{MARKET_EVAL_PACK} with --env {MARKET_ENV}.")
-@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS + MARKET_TIERS))),
+@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS
+                                                              + MARKET_TIERS))),
               help="foresight (the default) or blind; live days also take short and freeze6h; hybrid days take "
                    "energy, reserves (the default) or rtcb; forecast windows take front-lite, front (the default), "
                    "blind or freeze-6h; market floors floor-sprint (the default) or floor-day.")

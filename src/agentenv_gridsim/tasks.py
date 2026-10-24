@@ -128,7 +128,8 @@ def tasks_group():
               help="The task pack; a gridsim-live pack (or fixtures-live) writes live days on gridsim-live, a hybrid "
                    "pack (or fixtures-hybrid) site-days on gridsim-hybrid, a forecast pack (or fixtures-forecast) "
                    "windows on gridsim-forecast, a market pack (or fixtures-market) floors on gridsim-market.")
-@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS + MARKET_TIERS))),
+@click.option("--tier", type=click.Choice(list(dict.fromkeys(LIVE_TIERS + HYBRID_TIERS + FORECAST_TIERS
+                                                              + MARKET_TIERS))),
               help="foresight (the default): the day's prices; blind: the day before's and the week before's. Live "
                    "packs also take short (the regular watches D-1 14:00, D 00:00 and 12:00 plus notice watches) and "
                    "freeze6h. Hybrid packs take energy, reserves (the default) or rtcb. Forecast packs take "
