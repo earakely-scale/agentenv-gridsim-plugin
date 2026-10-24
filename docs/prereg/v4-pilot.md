@@ -205,3 +205,14 @@ paired where a difference is shown; front minus calm resamples within each label
 - **DA PV share (V4-P5):** reported as used if Sol sets `pv_da_share` below 1 at a fifth or more of its kept gates.
 
 ## Deviations
+
+None in the registered runs. The smoke spent s = $1.91 (3 scored, $0.586, $0.671, $0.653; m = $0.6533), so the
+projection was $20.20 and the pilot went on with E = $2.62, `--cap-usd` 40.65 (main) and 12.19 (front-lite), then
+44.76 (display). All 35 runs scored at the first attempt: no retry, no cap stop, no resume, nothing unscored; spend
+$16.50 of $60 (smoke $1.91, main $11.40, front-lite $1.93, display $1.26). Every episode replays byte for byte into
+Episode JSON v4 on the box (`agent-env gridsim episodes`) and again through a fresh Session on the laptop, every audit
+ok. One statement above was loose: the 16-vCPU quota bound the sweep processes, not the Docker containers they
+started; the box's load average was at most 11.1 of 32 when sampled with the other lane running. `scripts/pilot_v4.py` is unchanged
+since this file's commit; `agent-env gridsim sweep report v4-pilot-sol v4-pilot-sol-lite` wrote `results/eval-v4.json`
+and `results/board-v4.md`, and the Pilot and Reading sections were added below the generated board. Results:
+`results/board-v4.md`, `results/pilot-v4.json`, the Episode JSON under `results/runs/v4-pilot-sol*/`.
