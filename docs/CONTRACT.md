@@ -110,12 +110,12 @@ Packs (sizes are targets; build_pack.py records the actual counts in the manifes
 - `showcase`: Uri 2021-02-10..22, Elliott 2022-12-22..24, 2023-08, 2023-09-06, Heather 2024-01-13..17 (display only).
 - `data/fixtures/`: 20 tasks (mixed tiers/archetypes, incl. a max-price<=0 day and an s_end_min>s0 day) for CI.
 
-Filters: drop DST-transition days and any day without exactly 24 hourly values; within-date dedup (corr > 0.999 and max abs diff < $1); low-spread drop when `(P_opt - P_idle) < $8 per MW of p_dis`; drop 80% of tasks where greedy >= 0.97; tune so greedy mean sits ~0.75-0.80 and ~15% drop as low-spread; commit the tuning table in `data/stats.md`.
+Filters: drop DST-transition days and any day without exactly 24 hourly values; within-date dedup (corr > 0.999 and max abs diff < $1); low-spread drop when `(P_opt - P_idle) < $22 per MW of p_dis` (tuned: $8 dropped only 3%); drop 80% of tasks where greedy >= 0.97; tune so greedy mean sits ~0.75-0.80 and ~15% drop as low-spread; commit the tuning table in `data/stats.md`.
 
 ## Tools (env `gridsim`, server env, no gateway)
 
 - `get_situation()` -> the situation JSON (free).
-- `check_schedule(actions)` -> `{feasible, truncated_at, violation, soc_path, end_shortfall_units, profit_usd, checks_left}`; max 3; never a reward or reference.
+- `check_schedule(actions)` -> `{feasible, truncated_at, violation, soc_path, end_shortfall_units, profit_usd, checks_left}`; max 3; never a reward or reference. In the blind tier `profit_usd` is null (it would reveal the hidden prices); use `gridsim_core.episode.check_result(..., tier)`.
 - `submit_schedule(actions)` -> `{submitted, feasible, truncated_at, violation, soc_path, profit_usd}`; ends the episode. Unparseable -> `{submitted:false, error}` and uses a call.
 - Caps: 24 calls, 3 checks, 4 turns; calls after done error.
 - Harness: `apply_server_config urn:gridsim:load-task/v1 {task_id, tier, checks}`; `data/get` -> `{task_id, tier, checks_used, calls_used, done, end_reason, schedule, grade, reward}` (grade/reward only after done); `data/reset`.
