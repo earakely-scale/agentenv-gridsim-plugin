@@ -114,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         for t in load_pack(pack):
             tasks.setdefault(t["task_id"], t)
     entries, rejected, skipped, views = [], [], [], {}
+    fixture_ids = fixtures()
     for folder in args.runs:
         for f in sorted(folder.rglob("*.json")):
             if f.name == "index.json" or "raw" in f.relative_to(folder).parts[:-1]:
@@ -126,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
                 continue
             v2 = schema == live.EPISODE_SCHEMA
-            if v2 and ep["task_id"] in fixtures():
+            if v2 and ep["task_id"] in fixture_ids:
                 skipped.append(f)
                 continue
             task = live_tasks().get(ep["task_id"]) if v2 else tasks.get(ep["task_id"])
@@ -216,7 +217,9 @@ def write_views(views: dict, entries: list[dict], out: Path, thumbs: bool) -> di
 
 
 def fixtures() -> set[str]:
-    return {t["task_id"] for t in load_pack("fixtures-live")}
+    """CI fixture days that are in no real live pack."""
+    real_ids = {t["task_id"] for p in LIVE_PACKS if p != "fixtures-live" for t in load_pack(p)}
+    return {t["task_id"] for t in load_pack("fixtures-live")} - real_ids
 
 
 def verify_live(ep: dict, task: dict | None) -> str | None:

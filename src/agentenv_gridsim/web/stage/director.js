@@ -16,7 +16,11 @@ export function buildDirector(d, L, { night }) {
     if (h > 1 && x.mode !== d.hours[h - 1].mode && x.mode !== "grey") claim(h - 0.1, h + 1.4, "push");
   });
   if ((d.live ? d.hours.map((x) => x.price) : d.prices)[d.peakH] > d.median * 1.6) claim(d.peakH - 1.25, d.peakH + 1.5, "ramp");
-  for (const w of d.watches || []) if (w.index > 0 && w.notices.length) claim(w.t - 0.05, w.t + 1.2, "line");
+  for (const w of d.watches || []) {
+    if (w.index === 0 || !w.notices.length) continue;
+    const m = d.hours[Math.min(23, Math.floor(w.t))].mode;
+    claim(w.t - 0.05, w.t + 1.2, m === "discharge" || m === "charge" ? "ramp" : d.region.city.lights >= 0.85 ? "city" : "establish");
+  }
   const negH = d.hours.find((x) => x.neg && x.action < 0)?.h ?? d.firstNeg;
   if (negH >= 0) claim(negH - 0.1, negH + 1.9, "neg");
   if (d.trunc != null) claim(d.trunc - 0.1, d.trunc + 2.2, "violation");
@@ -69,8 +73,8 @@ export function buildDirector(d, L, { night }) {
       return { pos: orbit(look, [-140, 45, 94], 1.08 * (1 - 0.07 * u), -0.1 + 0.16 * u), look, fov: 36 };
     },
     high(u, s) {
-      const a = 2.3 + (s.n % 3) * 0.5 + 0.25 * u;
-      return { pos: [L.cx + Math.cos(a) * 190, 95, Math.sin(a) * -190], look: [L.cx + 40, 0, 0], fov: 46 };
+      const a = 2.3 + (s.n % 3) * 0.5 + 0.25 * u, k = diag / 155;
+      return { pos: [mid + Math.cos(a) * 190 * k, 95 * k, Math.sin(a) * -190 * k], look: [mid + 4 * k, 0, 0], fov: 46 };
     },
     push(u) {
       return { pos: [hero.x + 30 - 12 * u, 6 - 1.4 * u, hero.z + 12 - 2 * u], look: [hero.x - 22, 1.6, hero.z - 2], fov: 44 };
