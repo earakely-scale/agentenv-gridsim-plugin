@@ -17,8 +17,10 @@ never finished, or whose audit failed, fails the step, so the run is not scored.
   Elliott's notices and a Non-Spin deployment; its forecast vintages are synthetic until the forecast store lands) at
   that tier with the gridsim-llm agent (`agent-env gridsim setup --agent`, `--model <litellm model id>`): 72 turns
   for `front-lite`, 122 for the others, 16,384 output tokens a turn.
-- The showcase windows (`fern-0124`, `heather-0114`, `uri-0213`, `spring-0328`) appear here at the `front` tier once
-  the showcase pack is built.
+- `fern-0124` (Winter Storm Fern, 2026-01-24..26 at HB_NORTH), `heather-0114` (2024-01-14..16 at HB_NORTH),
+  `uri-0213` (Winter Storm Uri, 2021-02-13..15 at HB_HOUSTON, desk forecasts) and `spring-0328` (a calm spring window
+  with negative prices, 2024-03-28..30 at HB_WEST) play the showcase pack's windows at the `front` tier, on ERCOT's own
+  load, wind and solar postings except Uri's.
 - `wiring-nodam` runs the fixture window's steps without the agent and needs no model: end-window delivers every
   watch's notices itself, every DAM gate is missed, and it scores 0 with the audit passing.
 - `wiring-lookahead` asks the agent for a price forecast issued after now, which the env refuses, and then only to

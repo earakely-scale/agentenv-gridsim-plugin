@@ -82,10 +82,10 @@ jobs:
           agent-env run results/bundles/gridsim-live-eval-foresight --dry-run
           agent-env gridsim tasks generate --pack ercot-hybrid-v3-eval --tier reserves
           agent-env run results/bundles/ercot-hybrid-v3-eval-reserves --dry-run
-          agent-env gridsim tasks generate --pack fixtures-forecast --tier front
-          agent-env gridsim tasks generate --pack fixtures-forecast --tier blind
-          agent-env run results/bundles/fixtures-forecast-front --dry-run
-          agent-env run results/bundles/fixtures-forecast-blind --dry-run
+          agent-env gridsim tasks generate --pack ercot-front-v4-eval --tier front
+          agent-env gridsim tasks generate --pack ercot-front-v4-eval --tier blind
+          agent-env run results/bundles/ercot-front-v4-eval-front --dry-run
+          agent-env run results/bundles/ercot-front-v4-eval-blind --dry-run
       - name: The image passes the parity and no-leak gates
         run: |
           docker run -d -p 18765:18765 agentenv-gridsim-env
