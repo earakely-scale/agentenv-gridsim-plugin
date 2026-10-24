@@ -82,8 +82,8 @@ def main(argv: list[str] | None = None) -> int:
                 for ev in page.events:
                     m = ev.get("method")
                     logged = m == "Log.entryAdded" and ev["params"]["entry"]["level"] == "error"
-                    if m == "Runtime.exceptionThrown" or logged or (m == "Runtime.consoleAPICalled" and ev["params"]["type"] in ("error", "warn")
-                                and "toNonIndexed" not in json.dumps(ev["params"])):
+                    console = m == "Runtime.consoleAPICalled" and ev["params"]["type"] in ("error", "warn")
+                    if m == "Runtime.exceptionThrown" or logged or (console and "toNonIndexed" not in json.dumps(ev)):
                         text = json.dumps(ev["params"])[:300]
                         if not any(q in text for q in QUIET):
                             failures.append(f"{label}: {text}")
