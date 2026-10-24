@@ -359,13 +359,14 @@ def _mean(xs: list[float]) -> float | None:
 def baselines(rows: list[dict]) -> dict:
     """The references' mean rewards over these tasks: idle by construction; clock, threshold and greedy as the pack
     stored them on the day's prices; persistence-DP, its D-1-price schedule settled on the day, on the tasks with blind
-    inputs, graded by gridsim_core at the blind tier."""
+    inputs, graded by gridsim_core at the blind tier (its reward against the blind anchor, and its r_opt)."""
     out: dict = {"idle": 0.2}
     for name in BASELINES:
         out[name] = _r(_mean([r["refs"]["foresight"]["baselines"][name]["reward"] for r in rows]))
     blind = [r for r in rows if r.get("blind") and (r["refs"].get("blind") or {}).get("persist")]
-    out["persistence_dp_blind"] = _r(_mean([grade(r, r["refs"]["blind"]["persist"], "blind")["reward"]
-                                            for r in blind]))
+    graded = [grade(r, r["refs"]["blind"]["persist"], "blind") for r in blind]
+    out["persistence_dp_blind"] = _r(_mean([g["reward"] for g in graded]))
+    out["persistence_dp_blind_r_opt"] = _r(_mean([g["r_opt"] for g in graded]))
     out["n"] = len(rows)
     out["n_blind"] = len(blind)
     return out
