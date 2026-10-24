@@ -82,6 +82,10 @@ jobs:
           agent-env run results/bundles/gridsim-live-eval-foresight --dry-run
           agent-env gridsim tasks generate --pack ercot-hybrid-v3-eval --tier reserves
           agent-env run results/bundles/ercot-hybrid-v3-eval-reserves --dry-run
+          agent-env gridsim tasks generate --pack fixtures-market --tier floor-sprint
+          agent-env run results/bundles/fixtures-market-floor-sprint --dry-run
+          agent-env gridsim tasks generate --pack fixtures-market --tier floor-day --compliant
+          agent-env run results/bundles/fixtures-market-floor-day-compliant --dry-run
       - name: The image passes the parity and no-leak gates
         run: |
           docker run -d -p 18765:18765 agentenv-gridsim-env
@@ -104,3 +108,12 @@ jobs:
           grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' hybrid-wiring.log
           python scripts/hybrid_e2e.py
           python scripts/hybrid_e2e.py --tier energy --policy sponge
+      - name: The market wiring floors score 0, 0.828241 and 0.2, and scripted floors replay byte for byte
+        timeout-minutes: 15
+        run: |
+          agent-env run gridsim-market --task wiring-noplay --task wiring-late --task wiring-disclosure | tee market-wiring.log
+          grep -qE 'tasks/wiring-noplay\.json v[0-9]+: scored below 1 \([^:]+: 0\)' market-wiring.log
+          grep -qE 'tasks/wiring-late\.json v[0-9]+: scored below 1 \([^:]+: 0\.828241\)' market-wiring.log
+          grep -qE 'tasks/wiring-disclosure\.json v[0-9]+: scored below 1 \([^:]+: 0\.2\)' market-wiring.log
+          python scripts/market_e2e.py
+          python scripts/market_e2e.py --tier floor-sprint --policy replay --compliant

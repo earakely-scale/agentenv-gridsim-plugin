@@ -3,7 +3,8 @@
 FineEnvs eval card with the baselines from the pack's references) and results/board.md. With --env gridsim-live, a
 live pack's days played live (the harness is "live"), reported to results/eval-v2.json and results/board-v2.md
 against the live references; with --env gridsim-hybrid, a hybrid pack's site-days, reported to results/eval-v3.json and
-results/board-v3.md against the hybrid references."""
+results/board-v3.md against the hybrid references; with --env gridsim-market, a market pack's floors, reported to
+results/eval-v5.json and results/board-v5.md against the market references, on both scorings."""
 
 import json
 import re
@@ -29,10 +30,17 @@ from gridsim_core.hybrid import TIERS as HYBRID_TIERS
 from gridsim_core.hybrid import TOOLS as HYBRID_TOOLS
 from gridsim_core.live import LIVE_ENV, LIVE_VERSION, MAX_TURNS, PLANNING_CALLS, TOOLS
 from gridsim_core.live import TIERS as LIVE_TIERS
+from gridsim_core.market import DATA_CALLS as MARKET_DATA_CALLS
+from gridsim_core.market import MARKET_ENV, MARKET_VERSION
+from gridsim_core.market import MAX_TURNS as MARKET_MAX_TURNS
+from gridsim_core.market import PLANNING_CALLS as MARKET_PLANNING_CALLS
+from gridsim_core.market import TIERS as MARKET_TIERS
+from gridsim_core.market import TOOLS as MARKET_TOOLS
 
-from . import hybrid_tasks, live_tasks, tasks
+from . import hybrid_tasks, live_tasks, market_tasks, tasks
 from .hybrid import HYBRID_PACK_NAMES
 from .live import LIVE_PACK_NAMES
+from .market import MARKET_PACK_NAMES
 from .server import PACK_NAMES, TIERS
 
 AGENT_ENV = [sys.executable, "-m", "agent_env.cli"]
@@ -43,13 +51,18 @@ LIVE_CARD = Path("results/eval-v2.json")
 LIVE_BOARD = Path("results/board-v2.md")
 HYBRID_CARD = Path("results/eval-v3.json")
 HYBRID_BOARD = Path("results/board-v3.md")
+MARKET_CARD = Path("results/eval-v5.json")
+MARKET_BOARD = Path("results/board-v5.md")
 EVAL_PACK = "ercot-dam-v1-eval"
 LIVE_EVAL_PACK = "gridsim-live-eval"
 HYBRID_EVAL_PACK = "ercot-hybrid-v3-eval"
-ENVS = ("gridsim", LIVE_ENV, HYBRID_ENV)
+MARKET_EVAL_PACK = "gridsim-market-eval"
+ENVS = ("gridsim", LIVE_ENV, HYBRID_ENV, MARKET_ENV)
 LIVE_ERRORS = ("no_commit", "refused", "end_short", "clipped", "no_replanning")
 HYBRID_ERRORS = ("no_commit", "refused", "ftp_charged", "end_short", "governed", "no_replanning", "as_unused")
 HYBRID_BASELINES = ("sponge", "as_hog", "v2_energy")
+MARKET_ERRORS = ("no_submit", "refused", "idle", "mitigated", "clipped", "end_short", "no_schedule", "price_talk")
+MARKET_BASELINES = ("max_withhold", "price_taker", "replay_A")
 STRATA = ("low", "mid", "high")
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,40}")
 INSTANCE = re.compile(r"(\d+(?:\.\d+)?)s, instance (\S+)")
@@ -91,9 +104,13 @@ class Sweep:
     def hybrid(self) -> bool:
         return self.env == HYBRID_ENV
 
+    @property
+    def market(self) -> bool:
+        return self.env == MARKET_ENV
+
     def spec(self) -> dict:
         """sweep.json: the fields, without env for a v1 sweep, so v1 sweeps resume as they were written."""
-        return {k: v for k, v in asdict(self).items() if k != "env" or self.live}
+        return {k: v for k, v in asdict(self).items() if k != "env" or self.live or self.market}
 
     @property
     def out(self) -> Path:
@@ -162,7 +179,8 @@ def trajectory(uri: str) -> bytes:
 
 def task_ids(spec: str, pack: str = EVAL_PACK, tier: str = "foresight") -> list[str]:
     """``all``, the first N, or comma-separated ids, of the pack's tasks the tier can play, in the pack's order."""
-    module = hybrid_tasks if pack in HYBRID_PACK_NAMES else live_tasks if pack in LIVE_PACK_NAMES else tasks
+    module = (market_tasks if pack in MARKET_PACK_NAMES else hybrid_tasks if pack in HYBRID_PACK_NAMES
+              else live_tasks if pack in LIVE_PACK_NAMES else tasks)
     known = [r["task_id"] for r in module.eligible(module.pack_rows(pack), tier)]
     if spec == "all":
         return known
@@ -184,7 +202,10 @@ def prepare(sweep: Sweep) -> None:
             raise click.UsageError(f"{path} is another sweep; run it with its own models, tasks, k, episode cap, "
                                    f"tier, bundle, pack and env: {path.read_text().strip()}")
         return
-    if sweep.live:
+    if sweep.market:
+        market_tasks.generate(sweep.pack, sweep.out / "bundle", tier=sweep.tier, compliant=sweep.bundle == "compliant",
+                              task_ids=sweep.tasks, episode_cap_usd=sweep.episode_cap_usd)
+    elif sweep.live:
         (hybrid_tasks if sweep.hybrid else live_tasks).generate(
             sweep.pack, sweep.out / "bundle", tier=sweep.tier, task_ids=sweep.tasks,
             episode_cap_usd=sweep.episode_cap_usd)
@@ -284,6 +305,40 @@ def hybrid_fields(day: dict) -> dict:
             "da": day["da"], "schedule": day["executed"], "errors": hybrid_errors(day), "audit_ok": day["audit"]["ok"]}
 
 
+def market_errors(floor: dict) -> list[str]:
+    """A floor's error taxonomy: no valid offer, a refused offer or commit, an offer with no blocks, a mitigated hour,
+    delivery clipped off the awards, an end-of-day shortfall, no physical schedule in floor-day, price talk."""
+    g = floor.get("grade") or {}
+    return [e for e, hit in [("no_submit", not g.get("submitted")), ("refused", floor.get("refusals")),
+                             ("idle", g.get("submitted") and not (floor.get("offer") or {}).get("hours")),
+                             ("mitigated", g.get("mitigated_hours")), ("clipped", g.get("clipped_hours")),
+                             ("end_short", (g.get("pnl") or {}).get("shortfall_usd")),
+                             ("no_schedule", floor.get("tier") == "floor-day"
+                              and not any(c["accepted"] for c in floor.get("commits") or [])),
+                             ("price_talk", (g.get("conduct") or {}).get("message_flags"))] if hit]
+
+
+def market_fields(floor: dict) -> dict:
+    """A scored market run's row fields from its floor (data/get): both scorings, the references, the weight-0 rows
+    and play counts."""
+    g = floor["grade"]
+    contract = g.get("contract") or {}
+    return {"profit": g["profit_usd"], "profit_idle": g["p_idle"], "profit_anchor": g["p_anchor"],
+            "profit_opt": g["p_br"], "raw_ratio": g["raw_ratio"], "valid": bool(g["submitted"]),
+            "market_reward": g["reward"], "compliant_reward": g["compliant_reward"], "compliant": floor["compliant"],
+            "regret_usd": g["regret_usd"], "regret_norm": g["regret_norm"], "eps_nash": g["eps_nash"],
+            "welfare_ratio": g["welfare_ratio"], "dwl_usd": g["dwl_usd"], "rank": g["rank"],
+            "mitigated_hours": len(g["mitigated_hours"]), "withholding_index": g["conduct"]["withholding_index"],
+            "message_flags": g["conduct"]["message_flags"], "contracts": len(contract.get("contracts") or []),
+            "contract_value_usd": contract.get("value_at_signing_usd"),
+            "contract_settled_usd": contract.get("settled_usd"), "refusals": len(floor["refusals"]),
+            "commits": sum(c["accepted"] for c in floor["commits"]), "watches": floor["watches"],
+            "watch_reached": floor["frozen"][-1]["watch"] if floor["frozen"] else None,
+            "checks": sum(floor["planning_calls"]), "planning_calls": floor["planning_calls"],
+            "data_calls": sum(floor["data_calls"]), "offer": floor["offer"], "schedule": floor["executed"],
+            "errors": market_errors(floor), "audit_ok": floor["audit"]["ok"]}
+
+
 def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bool = False, read: bool = True) -> dict:
     """The attempt's row, from the instance its run stored: the verifier's rows and episode, and the play step's
     summary, failure and trajectory. Without ``read`` (the sweep itself failed), from the log alone."""
@@ -337,7 +392,9 @@ def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bo
                                           "output_tokens", "cached_tokens", "cache_write_tokens")},
            "cost_usd": spent, "priced_cost_usd": s.get("priced_cost_usd"), "failed_requests": s.get("failed_requests"),
            "transcript": transcript}
-    if sweep.live and scored:
+    if sweep.market and scored:
+        row |= market_fields(episode)
+    elif sweep.live and scored:
         row |= (hybrid_fields if sweep.hybrid else live_fields)(episode)
     row["retryable"] = not final([*earlier, row])
     return row
@@ -1028,6 +1085,140 @@ def hybrid_board_md(c: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+# ================================================================ market report
+def market_baselines(rows: list[dict], tier: str) -> dict:
+    """The references' means over these floors at one tier: idle 0.2 and the anchor 1.0 by construction, the stored
+    floor-sprint baselines (max-withhold, price-taker, the seat's real offers) at that tier, and the anchor's hindsight
+    capture against BR_A."""
+    refs = [r["refs"] for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
+    out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0}
+    for name in MARKET_BASELINES:
+        out[name] = None if tier != "floor-sprint" else _r(_mean([
+            r["floor-sprint"]["baselines"][name]["reward"] for r in refs if name in r["floor-sprint"]["baselines"]]))
+    caps = [_live_capture({"p_idle": r["p_idle"], "p_hind": r[tier]["p_br"]}, r[tier]["p_anchor"]) for r in refs]
+    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]))
+    out["impact_hours"] = _r(_mean([r.get("impact_hours") for r in refs if r.get("impact_hours") is not None]), 2)
+    return out
+
+
+def market_model(board: Board, cell) -> dict:
+    name, _, tier, bundle = cell
+    by_task = board.scored(cell)
+    runs = [r for rs in by_task.values() for r in rs]
+    costs = [priced(r) for r in runs if priced(r) is not None]
+    known, unknown = board.spend(cell)
+    effort = sorted({r.get("effort") for r in runs if r.get("effort")})
+
+    def per_task(key: str) -> list[float]:
+        return [statistics.mean(r[key] for r in rs) for rs in by_task.values() if all(r.get(key) is not None
+                                                                                      for r in rs)]
+
+    def mean_ci(key: str) -> dict:
+        xs = per_task(key)
+        lo_hi = ci(xs) if xs else None
+        return {"mean": _r(_mean(xs)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None}
+
+    def avg(key: str, digits: int = 4):
+        return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
+
+    headline = mean_ci("reward")
+    return {"model": name, "trained": "base", "tier": tier, "bundle": bundle,
+            "scoring": "compliant" if bundle == "compliant" else "reward", "effort": effort[0] if effort else None,
+            "runs": len(runs), "planned": board.planned(cell), "tasks": len(by_task), **headline,
+            "reward": mean_ci("market_reward"), "compliant_reward": mean_ci("compliant_reward"),
+            "hindsight_capture": _r(_mean(per_task("r_opt"))), "regret_norm": avg("regret_norm"),
+            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
+            "valid": _r(_mean([float(r["valid"]) for r in runs])), "eps_nash": avg("eps_nash"),
+            "welfare_ratio": avg("welfare_ratio"), "dwl_usd": avg("dwl_usd", 2), "rank": avg("rank", 2),
+            "mitigated_hours": avg("mitigated_hours", 2), "withholding_index": avg("withholding_index"),
+            "contracts": avg("contracts", 2), "contract_value_usd": avg("contract_value_usd", 2),
+            "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in MARKET_ERRORS},
+            "planning_calls": _r(_mean([r["checks"] for r in runs]), 2), "data_calls": avg("data_calls", 2),
+            "commits": avg("commits", 2), "refusals": avg("refusals", 2),
+            "finished_by_agent": _r(_mean([float(r["end_reason"] in ("done", "submitted")) for r in runs])),
+            "turns": _r(_mean([r["turns"] for r in runs if r["turns"] is not None]), 1),
+            "usd_per_episode": _r(_mean(costs)), "spend_usd": round(known, 4), "unknown_spend_attempts": unknown}
+
+
+def market_card(board: Board) -> dict:
+    models = [market_model(board, cell) for cell in board.cells]
+    rows = board.task_rows()
+    split = sorted({r.get("split") for r in rows if r.get("split")})
+    tiers = sorted({s.tier for s in board.sweeps})
+    flags = sorted({f"{k}: {v}" for r in rows for k, v in (r.get("flags") or {}).items() if v})
+    return {
+        "env": MARKET_ENV, "version": "v5", "market_version": MARKET_VERSION, "contract_version": CONTRACT_VERSION,
+        "authors": [{"name": "Edgar Arakelyan", "github": "earakely-scale", "affiliation": "Scale AI"},
+                    {"name": "Adithya S Kolavi", "github": "adithya-s-k", "affiliation": "Hugging Face"}],
+        "framework": "agentenv",
+        "tasks": {"split": split[0] if len(split) == 1 else split, "n": len(rows), "unit": "market floors",
+                  "packs": sorted({s.pack for s in board.sweeps}), "op_days": len({r["date"] for r in rows}),
+                  "source": "ERCOT NP3-966-ER 60-day DAM disclosure re-cleared on one node; NP4-523-CD lambda; "
+                            "HB_HUBAVG DAM/RT; EIA-930, EIA-923", "flags": flags},
+        "harness": {"agent": live_tasks.AGENT, "env": MARKET_ENV, "tools": [*MARKET_TOOLS, "get_time"],
+                    "max_turns": MARKET_MAX_TURNS, "planning_calls_per_watch": MARKET_PLANNING_CALLS,
+                    "data_calls_per_watch": MARKET_DATA_CALLS,
+                    "max_tokens": {t: market_tasks.MODEL_PARAMS[t]["max_tokens"] for t in MARKET_TIERS},
+                    "effort": live_tasks.EFFORT, "bidders": "scripted on their real offers",
+                    "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"},
+        "grading": {"reference": "the disclosure best-responder, information-matched at D-1 09:00",
+                    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0",
+                    "compliant": "0.5 R + 0.5 clip(welfare_ratio, 0, 1)",
+                    "hindsight_capture": "(P-P_idle)/(BR_A-P_idle), BR_A the hindsight best response, a weight-0 row",
+                    "weight_0": ["audit", "hindsight_capture", "regret", "compliant or reward", "eps_nash", "welfare",
+                                 "contract (floor-day)", "conduct", "rank", "fidelity"],
+                    "audit": "weight 0; a failed audit makes the run unscored", "judge": False},
+        "baselines": {t: market_baselines(board.tier_rows(t), t) for t in tiers},
+        "models": models,
+        "errors": {"taxonomy": list(MARKET_ERRORS),
+                   "meaning": {"no_submit": "no valid submit_offer (scores 0)",
+                               "refused": "a refused offer or schedule", "idle": "a valid offer with no blocks",
+                               "mitigated": "an hour of seat A mitigated", "clipped": "delivery clipped off the awards",
+                               "end_short": "SoC at 24:00 below s_end_min", "no_schedule": "floor-day: no accepted "
+                                                                                          "commit_schedule",
+                               "price_talk": "a message flagged for price talk"}},
+        "sweeps": [asdict(s) | {"tasks": len(s.tasks)} for s in board.sweeps],
+        "links": {"runs": "hf dataset", "replays": "hf space", "code": "github"},
+    }
+
+
+def market_board_md(c: dict) -> str:
+    h = c["harness"]
+    lines = ["# GridSim v5 market board", "",
+             f"Tasks: {c['tasks']['n']} market floors on {c['tasks']['op_days']} operating days "
+             f"({', '.join(c['tasks']['packs'])}). Harness: {h['agent']} on {h['env']} as seat A, the other seats "
+             f"{h['bidders']}; turns {', '.join(f'{k} {v}' for k, v in h['max_turns'].items())}, "
+             f"{h['planning_calls_per_watch']} planning and {h['data_calls_per_watch']} data calls a watch, effort "
+             f"{h['effort']}. Reward R: {c['grading']['reward']}; compliant: {c['grading']['compliant']}. Each row's "
+             "headline is its sweep's scoring; both are shown. Means over floors with a 95% bootstrap CI.", ""]
+    if c["tasks"]["flags"]:
+        lines += ["Modelled and flagged: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
+    for tier, b in c["baselines"].items():
+        extra = ", ".join(f"{k} {_f(b[k])}" for k in MARKET_BASELINES if b.get(k) is not None)
+        lines.append(f"Baselines ({tier}, {b['n']} floors): idle {_f(b['idle'])}, anchor {_f(b['anchor'])}"
+                     + (f", {extra}" if extra else "") + f"; anchor hindsight capture {_f(b['anchor_capture'])}, "
+                     f"impact hours {_f(b['impact_hours'], '.2f')}.")
+    lines += ["", "| Model | Tier | Scoring | Floors | Runs/planned | Headline (95% CI) | R | Compliant | Hindsight "
+              "capture | Beats anchor | Welfare ratio | eps-Nash | Mitigated h | Withholding | CfDs | Finished "
+              "| $/episode | Spend |", "|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:"
+              "|---:|---:|"]
+    for m in c["models"]:
+        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
+        lines.append(" | ".join([
+            f"| {m['model']}", m["tier"], m["scoring"], str(m["tasks"]), f"{m['runs']}/{m['planned']}",
+            _f(m["mean"]) + ci95, _f(m["reward"]["mean"]), _f(m["compliant_reward"]["mean"]),
+            _f(m["hindsight_capture"]), _f(m["beats_anchor"]), _f(m["welfare_ratio"]), _f(m["eps_nash"]),
+            _f(m["mitigated_hours"], ".2f"), _f(m["withholding_index"]), _f(m["contracts"], ".2f"),
+            _f(m["finished_by_agent"]), "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
+            f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
+                                        else "")]) + " |")
+    lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
+              "| Model | Tier | " + " | ".join(MARKET_ERRORS) + " |", "|---|---|" + "---:|" * len(MARKET_ERRORS)]
+    lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in MARKET_ERRORS) + " |"
+              for m in c["models"]]
+    return "\n".join(lines) + "\n"
+
+
 def unscored(board: Board) -> list[str]:
     """Every pre-registered run with no scored attempt, and how its amendment, if any, ended."""
     out = []
@@ -1051,17 +1242,18 @@ def unscored(board: Board) -> list[str]:
 
 
 REPORTS = {"gridsim": (card, board_md, CARD, BOARD), LIVE_ENV: (live_card, live_board_md, LIVE_CARD, LIVE_BOARD),
-           HYBRID_ENV: (hybrid_card, hybrid_board_md, HYBRID_CARD, HYBRID_BOARD)}
+           HYBRID_ENV: (hybrid_card, hybrid_board_md, HYBRID_CARD, HYBRID_BOARD),
+           MARKET_ENV: (market_card, market_board_md, MARKET_CARD, MARKET_BOARD)}
 
 
 def report(sweeps: list[Sweep], card_path: Path | None = None, board_path: Path | None = None,
            amend: dict[str, Sweep] | None = None, columns: dict[str, str] | None = None, narrate=None) -> dict:
     """v1 sweeps to results/eval-v1.json and board.md; live sweeps to eval-v2.json and board-v2.md; hybrid sweeps to
-    eval-v3.json and board-v3.md. ``narrate(card, board)`` returns the fields to add to the card and the text to put
-    under the board's title and after its tables."""
+    eval-v3.json and board-v3.md; market sweeps to eval-v5.json and board-v5.md. ``narrate(card, board)`` returns the
+    fields to add to the card and the text to put under the board's title and after its tables."""
     if len({s.env for s in sweeps}) > 1:
-        raise click.UsageError("report v1 and live sweeps separately, and hybrid sweeps on their own: their references "
-                               "differ")
+        raise click.UsageError("report v1 and live sweeps separately, and hybrid sweeps on their own, market sweeps "
+                               "too: their references differ")
     make_card, make_board, default_card, default_board = REPORTS[sweeps[0].env]
     board = Board(sweeps, amend, columns)
     c = make_card(board)
@@ -1091,29 +1283,54 @@ def sweep_group():
               help="all, N (the pack's first N), or comma-separated task ids of the pack the tier can play.")
 @click.option("--env", type=click.Choice(ENVS), default="gridsim", show_default=True,
               help=f"gridsim: the v1 battery desk; {LIVE_ENV}: a live pack's days played live in watches; "
-                   f"{HYBRID_ENV}: a hybrid pack's solar-plus-storage site-days played live.")
-@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES + HYBRID_PACK_NAMES),
-              help=f"The task pack. Default: {EVAL_PACK}, {LIVE_EVAL_PACK} with --env {LIVE_ENV}, or "
-                   f"{HYBRID_EVAL_PACK} with --env {HYBRID_ENV}.")
-@click.option("--tier", type=click.Choice(LIVE_TIERS + HYBRID_TIERS),
+                   f"{HYBRID_ENV}: a hybrid pack's solar-plus-storage site-days played live; {MARKET_ENV}: a market "
+                   "pack's floors.")
+@click.option("--pack", type=click.Choice(PACK_NAMES + LIVE_PACK_NAMES + HYBRID_PACK_NAMES + MARKET_PACK_NAMES),
+              help=f"The task pack. Default: {EVAL_PACK}, {LIVE_EVAL_PACK} with --env {LIVE_ENV}, "
+                   f"{HYBRID_EVAL_PACK} with --env {HYBRID_ENV}, or {MARKET_EVAL_PACK} with --env {MARKET_ENV}.")
+@click.option("--tier", type=click.Choice(LIVE_TIERS + HYBRID_TIERS + MARKET_TIERS),
               help="foresight (the default) or blind; live days also take short and freeze6h; hybrid days take "
-                   "energy, reserves (the default) or rtcb.")
+                   "energy, reserves (the default) or rtcb; market floors floor-sprint (the default) or floor-day.")
+@click.option("--compliant", is_flag=True,
+              help="Market floors: score 0.5 R + 0.5 welfare ratio (the report shows both scorings either way).")
 @click.option("--bundle", type=click.Choice(list(tasks.BUNDLES)), default="full", show_default=True,
               help="full: three checks; oneshot: submit_schedule only. Not for live or hybrid days.")
 @click.option("--cap-usd", type=float, required=True,
               help="The model spend the sweep stays within: no attempt starts that could take it past this at the "
                    "episode cap.")
 @click.option("--k", type=click.IntRange(min=1), default=1, show_default=True, help="Reps of each model and task.")
-@click.option("--episode-cap-usd", type=float, default=1.0, show_default=True,
-              help="An episode's cost cap, passed to the agent as GRIDSIM_MAX_COST_USD.")
+@click.option("--episode-cap-usd", type=float,
+              help="An episode's cost cap, passed to the agent as GRIDSIM_MAX_COST_USD. Default: $1, or the market "
+                   "tier's ($1 floor-sprint, $2 floor-day).")
 @click.option("--parallel", type=click.IntRange(min=1), default=4, show_default=True, help="Attempts at a time.")
-def run_command(name: str, models: str, task_spec: str, env: str, pack: str | None, tier: str | None, bundle: str,
-                cap_usd: float, k: int, episode_cap_usd: float, parallel: int):
+def run_command(name: str, models: str, task_spec: str, env: str, pack: str | None, tier: str | None,
+                compliant: bool, bundle: str, cap_usd: float, k: int, episode_cap_usd: float | None, parallel: int):
     """Play each model on each task k times, one `agent-env run` per attempt, logged under results/runs/<name>/raw/logs.
     Each attempt is a line of results.jsonl; a failed one is retried up to twice, and running the sweep again plays
     the runs that aren't final yet. Ctrl-C tears the running attempts down."""
     if "" in models.split(","):
         raise click.UsageError("--models takes comma-separated model ids, none empty")
+    market = env == MARKET_ENV
+    if compliant and not market:
+        raise click.UsageError(f"--compliant scores market floors: use it with --env {MARKET_ENV}")
+    if not market and pack in MARKET_PACK_NAMES:
+        raise click.UsageError(f"{pack} is a market pack: play it with --env {MARKET_ENV}")
+    if market and pack is not None and pack not in MARKET_PACK_NAMES:
+        raise click.UsageError(f"{pack} is not a market pack; {env} plays {', '.join(MARKET_PACK_NAMES)}")
+    if market:
+        tier = tier or "floor-sprint"
+        if tier not in MARKET_TIERS or bundle != "full":
+            raise click.UsageError(f"{env} plays the tiers {', '.join(MARKET_TIERS)} in one harness, not {tier} "
+                                   f"{bundle}")
+        pack = pack or MARKET_EVAL_PACK
+        sweep = Sweep(name, models.split(","), task_ids(task_spec, pack, tier), k,
+                      market_tasks.EPISODE_CAP_USD[tier] if episode_cap_usd is None else episode_cap_usd, tier,
+                      "compliant" if compliant else "live", pack, env)
+        if not sweep.tasks:
+            raise click.UsageError(f"no {tier} floors in {pack} for --tasks {task_spec}")
+        prepare(sweep)
+        raise SystemExit(run(sweep, cap_usd, parallel))
+    episode_cap_usd = 1.0 if episode_cap_usd is None else episode_cap_usd
     live, hybrid = env == LIVE_ENV, env == HYBRID_ENV
     pack = pack or (LIVE_EVAL_PACK if live else HYBRID_EVAL_PACK if hybrid else EVAL_PACK)
     tier = tier or ("reserves" if hybrid else "foresight")
