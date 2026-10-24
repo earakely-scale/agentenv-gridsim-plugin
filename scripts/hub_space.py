@@ -113,13 +113,16 @@ def main(argv: list[str] | None = None) -> int:
     for pack in PACKS:
         for t in load_pack(pack):
             tasks.setdefault(t["task_id"], t)
-    entries, rejected, skipped = [], [], []
+    entries, rejected, skipped, views = [], [], [], {}
     for folder in args.runs:
         for f in sorted(folder.rglob("*.json")):
             if f.name == "index.json" or "raw" in f.relative_to(folder).parts[:-1]:
                 continue
             ep = json.loads(f.read_text())
             schema = ep.get("schema") if isinstance(ep, dict) else None
+            if schema in ("gridsim.levelup/v1", "gridsim.race/v1"):
+                views[schema.split(".")[1].split("/")[0]] = ep
+                continue
             if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
                 continue
             v2 = schema == live.EPISODE_SCHEMA
@@ -144,8 +147,10 @@ def main(argv: list[str] | None = None) -> int:
         for e in featured[1:]:
             thumbnail(out, e)
         still(out, featured[0])
+    training = write_views(views, entries, out, args.thumbs)
     index = [{k: v for k, v in e.items() if v is not None} for e in entries]
-    (out / "runs" / "index.json").write_text(json.dumps({"schema": "gridsim.runs/v1", "episodes": index},
+    (out / "runs" / "index.json").write_text(json.dumps({"schema": "gridsim.runs/v1", "episodes": index}
+                                                        | ({"training": training} if training else {}),
                                                         separators=(",", ":")))
     (out / "README.md").write_text(readme(entries, featured[0] if featured else None))
     for f, why in rejected:
@@ -185,6 +190,29 @@ def live_tasks() -> dict:
     if _LIVE is None:
         _LIVE = {t["task_id"]: t for pack in LIVE_PACKS for t in load_pack(pack)}
     return _LIVE
+
+
+def write_views(views: dict, entries: list[dict], out: Path, thumbs: bool) -> dict | None:
+    """The training views whose every episode made it into the Space, as runs/<view>.json, with thumbnails."""
+    ids = {e["id"] for e in entries}
+    training = {}
+    for kind, m in views.items():
+        refs = [x["episode_id"] for x in m.get("frames") or m.get("lanes") or []]
+        if not refs or not set(refs) <= ids:
+            print(f"the {kind} view is left out: {len(set(refs) - ids)} of its episodes are not in the Space")
+            continue
+        (out / "runs" / f"{kind}.json").write_text(json.dumps(m, separators=(",", ":")))
+        training[kind] = {"url": f"runs/{kind}.json", "task_id": m["task_id"]} | (
+            {"model": m["model"], "gain": m["gain"], "note": m["note"], "frames": len(m["frames"])}
+            if kind == "levelup" else {"lanes": [x["label"] for x in m["lanes"]]})
+        if thumbs:
+            e = next(e for e in entries if e["id"] == refs[0])
+            thumb = out / "thumbs" / f"{kind}.jpg"
+            record("--view", f"{kind}={out / 'runs' / f'{kind}.json'}", "--weather",
+                   str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb", str(thumb), "--t",
+                   str(3.2 + 6.5 * len(refs) + 1.5 if kind == "levelup" else 2 + 72 * 19.5 / 24))
+            training[kind]["thumb"] = f"thumbs/{thumb.name}"
+    return training or None
 
 
 def fixtures() -> set[str]:

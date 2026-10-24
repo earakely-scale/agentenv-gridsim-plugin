@@ -29,6 +29,7 @@ export async function picker(app, q) {
       <p>A model runs one grid battery in Texas for one day: it reads the day's 24 hourly ERCOT day-ahead prices, commits 24 charge and discharge actions, and is graded against the exact optimum. Every replay below is a recorded episode, shown in the place's real light and weather.${runs.some((r) => r.version === "v2") ? ` <b>v2 preview, The Live Grid:</b> a day-ahead position the day before, then a 15-minute schedule re-planned at watches as real-time prices settle and ERCOT bulletins arrive.` : ""}</p></div></header>
     ${hero ? featured(hero) : ""}
     ${also.length ? `<section class="also">${also.map(featured).join("")}</section>` : ""}
+    ${index.training ? `<section class="also">${trainingCards(index.training, base)}</section>` : ""}
     <section class="filters card">
       ${opts("version").length > 1 ? sel("version", "Version", opts("version"), (v) => VERSION[v] || v) : ""}
       ${sel("model", "Model", opts("model"), (m) => modelName(m, labels[m]))}
@@ -56,7 +57,7 @@ export async function picker(app, q) {
     count.textContent = `${rows.length} of ${runs.length} episodes`;
     more.hidden = rows.length <= shown;
     more.textContent = `Show more (${Math.min(shown, rows.length)} of ${rows.length} shown)`;
-    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a></td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}</td><td>${r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${r.version === "v2" ? `${r.reward == null ? "—" : r.reward.toFixed(3)} <span class="dim">· ${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "% hindsight"}</span>` : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</td></tr>`).join("");
+    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a></td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}${r.path === "B" && r.trained ? ` <span class="dim">${esc(r.trained.toUpperCase() === "GRPO" ? "GRPO" : r.trained)}${r.checkpoint_step != null ? ` step ${r.checkpoint_step}` : ""}</span>` : ""}</td><td>${r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${r.version === "v2" ? `${r.reward == null ? "—" : r.reward.toFixed(3)} <span class="dim">· ${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "% hindsight"}</span>` : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</td></tr>`).join("");
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(state)) if (v && !(k === "sort" && v === "reward")) p.set(k === "text" ? "q" : k, v);
     history.replaceState(null, "", `${location.pathname}${p.toString() ? "?" + p : ""}`);
@@ -75,6 +76,13 @@ export async function picker(app, q) {
 
 const KIND = { beats: "Blind: beats the forecasters", trails: "Blind: trails the forecasters", live: "v2 preview · The Live Grid (provisional anchor)" };
 const VERSION = { v1: "v1 · day-ahead", v2: "v2 preview (provisional anchor)" };
+
+function trainingCards(t, base) {
+  const card = (k, kind, title, text) => t[k] ? `<a class="hero card small" href="index.html?${k}=${encodeURIComponent(base + t[k].url.replace(/^runs\//, ""))}">${t[k].thumb ? `<img src="${esc(t[k].thumb)}" alt="${esc(title)}" loading="lazy">` : ""}<div class="txt"><h5>${kind}</h5><h2>${esc(title)}</h2><p>${text}</p><span class="go">Watch →</span></div></a>` : "";
+  const lv = t.levelup, rc = t.race;
+  return card("levelup", "Training · LEVEL UP", `${modelName(lv?.model || "")} learns one battery-day`, lv ? `One held-out day (${esc(lv.task_id)}) replayed at ${lv.frames} checkpoints, the plan converging on the exact optimum; reward gain ${lv.gain >= 0 ? "+" : ""}${lv.gain.toFixed(2)}.${lv.note ? ` <b>${esc(lv.note)}.</b>` : ""}` : "") +
+    card("race", "Training · Race", "Base, SFT, GRPO and GPT-6.1 Sol on one clock", rc ? `${rc.lanes.map(esc).join(" · ")} on the same day and prices.` : "");
+}
 
 function featured(r) {
   const thumb = r.thumb ? `<img src="${esc(r.thumb)}" alt="${esc(r.point)} on ${esc(r.date)}: the battery yard at ${esc(r.hero_moment || "the day's key hour")}" loading="lazy">` : "";
