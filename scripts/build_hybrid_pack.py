@@ -217,6 +217,10 @@ def pack_stats(tasks: list) -> dict:
                                                      for r, t in zip(rows, tasks, strict=True)
                                                      if r.get("p_energy_only") is not None),
                      "anchor_governor_hours_mean": mean(r["anchor"]["governor_hours"] for r in rows),
+                     "anchor_soft_share": mean(r["anchor"]["soft_solves"] / max(1, r["anchor"]["watches"])
+                                               for r in rows),
+                     "anchor_repaired_mean": mean(r["anchor"]["repaired_entries"] for r in rows),
+                     "clip_mwh_total": round(sum(t["tags"]["clip_mwh"] for t in tasks), 3),
                      "anchor_ftp_usd_mean": mean(r["anchor"]["ftp_usd"] for r in rows),
                      "anchor_as_usd_mean": mean(r["anchor"]["as_usd"] for r in rows)}
     return out
@@ -251,8 +255,9 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
                      f"{f['fail_baseline']} | {f['eligible']} | {f['kept']} |")
     lines += ["", "## Baselines and references (means over each pack)", "",
               "| Pack | Tier | Anchor - idle ($) | Anchor / hindsight capture | Sponge | v2 energy-only (blind) | "
-              "AS-hog | Energy-only MILP | Anchor AS revenue ($) | Anchor governor hours |",
-              "|---|---|---|---|---|---|---|---|---|---|"]
+              "AS-hog | Energy-only MILP | Anchor AS revenue ($) | Anchor governor hours | Anchor soft solves "
+              "(share of watches) | Anchor entries repaired |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for name, ts in packs.items():
         st = pack_stats(ts)
         for tier in ("energy", "reserves"):
@@ -261,7 +266,8 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
             lines.append(f"| `{name}` | {tier} | {x['anchor_minus_idle_usd']} | {x['capture_anchor_vs_hind']} | "
                          f"{b['sponge']} | {b['v2_energy']} | {b['as_hog'] if b['as_hog'] is not None else '-'} | "
                          f"{x['energy_only_reward_mean'] if x['energy_only_reward_mean'] is not None else '-'} | "
-                         f"{x['anchor_as_usd_mean']} | {x['anchor_governor_hours_mean']} |")
+                         f"{x['anchor_as_usd_mean']} | {x['anchor_governor_hours_mean']} | {x['anchor_soft_share']} | "
+                         f"{x['anchor_repaired_mean']} |")
     ev = packs.get(PACKS["eval"], [])
     if ev:
         lines += ["", "## Eval strata (by AS value at DA: the reserves-tier oneshot optimum minus the energy-tier one, "
@@ -285,6 +291,16 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
               "FD-4322 default (PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh), 60% lane D3's EIA-860 grid by weight; "
               "POI = PV AC, 25% at the 1.2x variant; AC coupling only (C3-D15).",
               "- PV is the system-wide availability cf (lane D3) for every region, ILR x cf clipped at PV AC (proxy).",
+              "- **The sponge and its filter are inert in these packs**: AC coupling with POI >= PV AC leaves no PV "
+              "the meter cannot export (clippable MWh, every pack: "
+              + ", ".join(f"{n} {round(sum(t['tags']['clip_mwh'] for t in ts), 3)}" for n, ts in packs.items())
+              + "), so the sponge equals idle (0.2) and never comes within 3% of the anchor. Clipping is computed "
+              "exactly where it exists (continuous MW; tests on dc-coupled and POI < PV AC sites). Whether to add such "
+              "sites is Edgar's call (decision 2).",
+              "- Anchor soft solves: after watch 0 the reserves tier keeps the DA awards, and realized drift can leave "
+              "an hour whose awards no move can back; the hard MILP is then infeasible, the soft one minimises the "
+              "shortfall, and the repair walk turns the entries the Session refuses into the governor's move (C3-D17), "
+              "so the anchor's commits are never refused. A hard solution is never repaired (tested).",
               "- Regulation drift is a seeded draw, not ERCOT telemetry; deployments use frac 1.0 (stress case).",
               "- Era C days (rtcb pack) are played as T2 with DA AS only; RT AS (T3) is not modelled tonight.", ""]
     (out / "hybrid-stats.md").write_text("\n".join(lines))
