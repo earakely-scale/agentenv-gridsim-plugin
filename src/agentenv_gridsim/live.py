@@ -85,8 +85,9 @@ class WatchEnv(AgentEnvEnvironment):
                 "virtual_time": virtual_time, "virtual_seconds_per_real_second": 0})
             response.raise_for_status()
 
-    def load(self, task_id: str, tier: str) -> dict:
-        """Loading again would replay the day with its notices and prices already seen, unseen by the audit."""
+    def load(self, task_id: str, tier: str, **session) -> dict:
+        """Loading again would replay the day with its notices and prices already seen, unseen by the audit.
+        ``session`` goes to the Session as keyword arguments."""
         if self.loaded:
             raise ValueError("a day was already loaded in this env: each live day needs a new deploy")
         if tier not in self.TIERS:
@@ -94,7 +95,7 @@ class WatchEnv(AgentEnvEnvironment):
         if (row := self.tasks.get(task_id)) is None:
             raise ValueError(f"unknown task id {task_id!r}")
         self.reset()
-        self.session = self.SESSION(row, tier)
+        self.session = self.SESSION(row, tier, **session)
         self.loaded = True
         return {"task_id": task_id, "tier": tier, "watches": len(self.session.watches)}
 

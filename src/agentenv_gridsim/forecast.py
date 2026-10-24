@@ -84,9 +84,13 @@ class GridSimForecastEnv(WatchEnv):
                                              "derate_mw": derate_mw, "from": start, "until": until, "deploy": deploy})
 
     @extension(FORECAST_LOAD_URI, description="Start a forecast window on the task with this id at a tier (front-lite, "
-                                               "front, blind or freeze-6h); an env plays one window.")
-    def forecast_load(self, task_id: str, tier: str = TIER) -> dict:
-        return self.load(task_id, tier) | {"days": self.session.n}
+                                               "front, blind or freeze-6h), on its own forecast source or, for the "
+                                               "desk ablation, source desk; an env plays one window.")
+    def forecast_load(self, task_id: str, tier: str = TIER, source: str | None = None) -> dict:
+        if source not in (None, "desk"):
+            raise ValueError(f"source overrides a window's forecasts with the desk's only, not {source!r}")
+        return self.load(task_id, tier, **({"source": source} if source else {})) | {
+            "days": self.session.n, "source": self.session.source}
 
     @extension(END_WINDOW_URI, description="Play the unreached watches on the submitted DAM entries and the committed "
                                            "book, then grade and audit the window.")

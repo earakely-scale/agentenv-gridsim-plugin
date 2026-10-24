@@ -162,9 +162,11 @@ async def test_load_once_end_window_and_data(env, client):
                       ({"task_id": WINDOW["task_id"], "tier": "reserves"}, "unknown tier 'reserves'")]:
         with pytest.raises(ValueError, match=why):
             env.forecast_load(**args)
+    with pytest.raises(ValueError, match="with the desk's only, not 'ercot'"):
+        env.forecast_load(WINDOW["task_id"], "front", "ercot")
     s = Session(WINDOW, "front")
-    assert env.forecast_load(WINDOW["task_id"]) == {"task_id": WINDOW["task_id"], "tier": "front",
-                                                    "watches": len(s.watches), "days": 3}
+    assert env.forecast_load(WINDOW["task_id"], source="desk") == {
+        "task_id": WINDOW["task_id"], "tier": "front", "watches": len(s.watches), "days": 3, "source": "desk"}
     with pytest.raises(ValueError, match="needs a new deploy"):
         env.forecast_load(WINDOW["task_id"])
     end = env.end_window()

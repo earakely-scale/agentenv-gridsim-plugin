@@ -54,13 +54,14 @@ def eligible(rows: list[dict], tier: str, zone: str | None = None) -> list[dict]
 
 
 def steps(task: dict, tier: str = "front", episode_cap_usd: float | None = None, play: bool = True,
-          lookahead: bool = False) -> list[dict]:
+          lookahead: bool = False, source: str | None = None) -> list[dict]:
     """Deploy, load the window, hide grid_notice (and, blind, the forecast tools), one trigger per watch after the
     first that delivers its notices and deployment payloads when the agent's advance opens it, deploy gridsim-llm, arm
     the clock frozen at watch 0, play on the forecast desk card, end the window and grade it. Without ``play``, no
     agent; with ``lookahead``, the opening asks for a forecast issued after now and then only advances (a turn a watch
-    and one more at each DAM gate, where the harness holds the first advance back)."""
-    s = Session(task, tier)
+    and one more at each DAM gate, where the harness holds the first advance back); ``source`` desk is the desk
+    ablation of an ercot window."""
+    s = Session(task, tier, source=source)
     user = opening(s)
     turns = MAX_TURNS[tier]
     if lookahead:
@@ -69,20 +70,22 @@ def steps(task: dict, tier: str = "front", episode_cap_usd: float | None = None,
     return flow(FORECAST_ENV, VERIFIER, task["task_id"], tier, s.watch_time_utc(0), triggers(s.watches),
                 system_prompt(tier, s.win.era, s.source), user, episode_cap_usd, play, MODEL_PARAMS,
                 load_uri=FORECAST_LOAD_URI, end=("end-window", END_WINDOW_URI), max_turns=turns,
-                play_seconds=PLAY_SECONDS, tier_hidden=list(FORECAST_TOOLS) if tier == "blind" else None)
+                play_seconds=PLAY_SECONDS, tier_hidden=list(FORECAST_TOOLS) if tier == "blind" else None,
+                load_args={"source": source} if source else None)
 
 
 def generate(pack: str, out: Path, *, tier: str = "front", task_ids: list[str] | None = None,
-             zone: str | None = None, episode_cap_usd: float | None = None) -> list[str]:
+             zone: str | None = None, episode_cap_usd: float | None = None, source: str | None = None) -> list[str]:
     """Writes the bundle into ``out``: README.md, the verifier and tasks/<task_id>.json for ``task_ids`` or every
     window of the pack the tier can play, in the pack's order."""
     if pack not in FORECAST_PACK_NAMES:
         raise click.UsageError(f"{pack} is not a forecast pack: {', '.join(FORECAST_PACK_NAMES)}")
     rows = select(eligible(pack_rows(pack), tier, zone), task_ids, f"{tier} windows of {pack}")
-    readme = (f"GridSim forecast {pack}, {tier} tier: {len(rows)} solar-plus-storage windows, each played live in "
+    on = " on the desk's forecasts" if source else ""
+    readme = (f"GridSim forecast {pack}, {tier} tier{on}: {len(rows)} solar-plus-storage windows, each played live in "
               f"watches by the {AGENT} agent on {FORECAST_ENV} and graded by {VERIFIER}.\n\n{LICENCE}\n")
     return write_bundle(out, readme, VERIFIER, VERIFY.read_bytes(),
-                        {r["task_id"]: steps(r, tier, episode_cap_usd) for r in rows})
+                        {r["task_id"]: steps(r, tier, episode_cap_usd, source=source) for r in rows})
 
 
 def bundle_tasks() -> dict[str, list[dict]]:

@@ -104,12 +104,24 @@ def test_tasks_generate_defaults_a_forecast_pack_to_front(tmp_path, monkeypatch)
     assert WINDOW["task_id"] in written and all("HB_NORTH" in t for t in written)
 
 
+def test_tasks_generate_writes_the_desk_ablation_with_the_source_in_the_load(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(gridsim, ["tasks", "generate", "--pack", "fixtures-forecast", "--source", "desk"])
+    assert result.exit_code == 0, result.output
+    out = tmp_path / "results/bundles/fixtures-forecast-front-desk"
+    steps = json.loads((out / "tasks" / f"{WINDOW['task_id']}.json").read_text())
+    assert steps[1]["directives"][0]["args"] == {"task_id": WINDOW["task_id"], "tier": "front", "source": "desk"}
+    assert steps == json.loads(json.dumps(forecast_tasks.steps(WINDOW, "front", source="desk")))
+    assert "front tier on the desk's forecasts" in (out / "README.md").read_text()
+
+
 @pytest.mark.parametrize(("args", "error"), [
     (["--pack", "fixtures-forecast", "--tier", "reserves"], "fixtures-forecast doesn't take reserves"),
     (["--pack", "fixtures-forecast", "--tier", "foresight"], "fixtures-forecast doesn't take foresight"),
     (["--pack", "fixtures-hybrid", "--tier", "front"], "front is a forecast tier"),
     (["--pack", "fixtures-forecast", "--bundle", "oneshot"], "a forecast window has one harness"),
-    (["--pack", "fixtures-forecast", "--zone", "LZ_NOWHERE"], "fixtures-forecast has no front tasks at LZ_NOWHERE")])
+    (["--pack", "fixtures-forecast", "--zone", "LZ_NOWHERE"], "fixtures-forecast has no front tasks at LZ_NOWHERE"),
+    (["--pack", "fixtures-hybrid", "--source", "desk"], "--source is for forecast packs")])
 def test_tasks_generate_keeps_forecast_tiers_to_forecast_packs(tmp_path, args, error):
     result = CliRunner().invoke(gridsim, ["tasks", "generate", *args, "--out", str(tmp_path / "b")])
     assert result.exit_code == 2 and error in result.output, result.output

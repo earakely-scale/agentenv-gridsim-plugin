@@ -134,9 +134,12 @@ def tasks_group():
               help="full: get_situation, three checks and submit_schedule; oneshot: submit_schedule only. Not for "
                    "live or hybrid packs.")
 @click.option("--zone", metavar="POINT", help="Only this settlement point's days, e.g. HB_WEST.")
+@click.option("--source", type=click.Choice(["desk"]),
+              help="Forecast packs: play every window on the desk's forecasts (the desk ablation of ercot windows).")
 @click.option("--out", type=click.Path(file_okay=False, path_type=Path),
               help="The bundle folder to write. Default: results/bundles/<pack>-<tier>-<bundle>.")
-def generate_command(pack: str, tier: str | None, bundle: str, zone: str | None, out: Path | None):
+def generate_command(pack: str, tier: str | None, bundle: str, zone: str | None, source: str | None,
+                     out: Path | None):
     """Write a bundle with one task per battery-day of the pack the tier can play: deploy the env, load the day,
     play it with gridsim-llm on gridsim_core's prompt and grade it with gridsim-verifier. A live pack's days are
     played live on gridsim-live in watches, its notices delivered by triggers, and graded by gridsim-live-verifier; a
@@ -144,14 +147,16 @@ def generate_command(pack: str, tier: str | None, bundle: str, zone: str | None,
     windows on gridsim-forecast, graded by gridsim-forecast-verifier."""
     hybrid, forecast = pack in HYBRID_PACK_NAMES, pack in FORECAST_PACK_NAMES
     tier = tier or ("reserves" if hybrid else "front" if forecast else "foresight")
+    if source and not forecast:
+        raise click.UsageError("--source is for forecast packs")
     if forecast != (tier in FORECAST_TIERS) and (forecast or tier not in LIVE_TIERS):
         raise click.UsageError(f"forecast packs have the tiers {', '.join(FORECAST_TIERS)}; {pack} doesn't take "
                                f"{tier}" if forecast else f"{tier} is a forecast tier; {pack} is not a forecast pack")
     if forecast:
         if bundle != "full":
             raise click.UsageError("--bundle is for the v1 packs; a forecast window has one harness")
-        out = out or Path("results/bundles") / f"{pack}-{tier}"
-        names = forecast_tasks.generate(pack, out, tier=tier, zone=zone)
+        out = out or Path("results/bundles") / f"{pack}-{tier}{'-desk' if source else ''}"
+        names = forecast_tasks.generate(pack, out, tier=tier, zone=zone, source=source)
         if not names:
             raise click.UsageError(f"{pack} has no {tier} tasks" + (f" at {zone}" if zone else ""))
         click.echo(f"Wrote {len(names)} tasks into {out}; play one with: agent-env run {out} --task {names[0]} "
