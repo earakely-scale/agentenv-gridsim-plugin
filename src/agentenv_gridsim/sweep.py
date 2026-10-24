@@ -17,6 +17,7 @@ import click
 from agent_env.config import get_config
 from agent_env.store.routing import namespace_routing
 from agent_env.task.store import get_task_instance_store
+
 from gridsim_core import CONTRACT_VERSION
 from gridsim_core.grade import grade
 
@@ -222,7 +223,8 @@ def outcome(sweep: Sweep, attempt: Attempt, earlier: list[dict], interrupted: bo
            "end_shortfall_units": g.get("end_shortfall_units"), "errors": errors_of(episode) if scored else None,
            "profit": g.get("profit"), "profit_idle": g.get("profit_idle"), "profit_anchor": g.get("profit_anchor"),
            "profit_opt": g.get("profit_opt"), "beats_anchor": g.get("beats_anchor"),
-           "schedule": episode.get("schedule"), "checks": episode.get("checks_used"), "calls": episode.get("calls_used"),
+           "schedule": episode.get("schedule"), "checks": episode.get("checks_used"),
+           "calls": episode.get("calls_used"),
            "env_end_reason": episode.get("end_reason"),
            **{key: s.get(key) for key in ("end_reason", "effort", "turns", "tool_calls", "input_tokens",
                                           "output_tokens", "cached_tokens", "cache_write_tokens")},
@@ -414,7 +416,8 @@ class Board:
         known, unknown = self.spend(cell)
         errors = {e: sum(e in (r["errors"] or []) for r in runs) for e in ERRORS}
         effort = sorted({r.get("effort") for r in runs if r.get("effort")})
-        out = {"model": model, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
+        out = {"model": model, "trained": "base", "tier": tier, "bundle": bundle,
+               "effort": effort[0] if effort else None,
                "runs": len(runs), "planned": self.planned(cell), "tasks": len(mean),
                "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
                "hindsight_capture": _r(_mean(r_opt)),
@@ -469,16 +472,17 @@ def _f(x: float | None, f: str = ".3f") -> str:
 
 def board_md(c: dict) -> str:
     b = c["baselines"]
+    h = c["harness"]
     lines = ["# GridSim v1 board", "",
-             f"Tasks: {c['tasks']['n']} battery-days ({', '.join(c['tasks']['packs'])}). Harness: {c['harness']['agent']},"
-             f" {c['harness']['max_turns']} turns, {c['harness']['max_tokens']} output tokens a turn, effort "
-             f"{c['harness']['effort']}. Reward: {c['grading']['reward']}; foresight anchor P_opt, blind anchor "
-             "max(P_persist, P_ridge). Mean R over tasks with a 95% bootstrap CI; valid: submitted and feasible.", "",
+             f"Tasks: {c['tasks']['n']} battery-days ({', '.join(c['tasks']['packs'])}). Harness: {h['agent']}, "
+             f"{h['max_turns']} turns, {h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: "
+             f"{c['grading']['reward']}; foresight anchor P_opt, blind anchor max(P_persist, P_ridge). Mean R over "
+             "tasks with a 95% bootstrap CI; valid: submitted and feasible.", "",
              f"Baselines on these tasks: idle {_f(b['idle'])}, clock {_f(b['clock'])}, threshold "
              f"{_f(b['threshold'])}, greedy {_f(b['greedy'])}, persistence-DP (blind, {b['n_blind']} tasks) "
              f"{_f(b['persistence_dp_blind'])}.", "",
-             "| Model | Tier | Bundle | Tasks | Runs/planned | Mean R (95% CI) | Hindsight r_opt | Valid | Beats anchor "
-             "| Checks used | $/episode | Spend |",
+             "| Model | Tier | Bundle | Tasks | Runs/planned | Mean R (95% CI) | Hindsight r_opt | Valid "
+             "| Beats anchor | Checks used | $/episode | Spend |",
              "|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|"]
     for m in c["models"]:
         ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
@@ -527,7 +531,8 @@ def sweep_group():
 
 @sweep_group.command("run")
 @click.option("--name", required=True,
-              help="The sweep's name: its results go to results/runs/<name>/raw/, its Episode JSON to results/runs/<name>/.")
+              help="The sweep's name: its results go to results/runs/<name>/raw/, its Episode JSON to "
+                   "results/runs/<name>/.")
 @click.option("--models", required=True, help="Comma-separated LiteLLM model ids, e.g. openai/gpt-6.1-sol.")
 @click.option("--tasks", "task_spec", required=True,
               help="all, N (the pack's first N), or comma-separated task ids of the pack the tier can play.")

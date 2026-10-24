@@ -2,6 +2,7 @@
 must agree with the env's own grade; 0 when nothing was submitted. A weight-0 row carries the hindsight capture."""
 
 from agentenv_protocol import client
+
 from gridsim_core.grade import grade
 
 TOLERANCE = 1e-6

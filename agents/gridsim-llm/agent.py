@@ -57,8 +57,8 @@ SUBMIT = "submit_schedule"
 LAST_TURN = "This is your last turn: call submit_schedule now with your best schedule."
 NO_CALL = ("No tool was called. Schedules only count through the tools: call submit_schedule with your final 24 "
            "actions.")
-CUT_OFF = ("Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep reasoning "
-           "short now and call submit_schedule with your best schedule.")
+CUT_OFF = ("Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+           "reasoning short now and call submit_schedule with your best schedule.")
 
 
 class GridSimConfig(AgentConfig):
