@@ -36,6 +36,7 @@ async function main() {
     return;
   }
   const ep = await json(epUrl);
+  if (ep.schema === "gridsim.episode/v5") return (await import("./marketapp.js")).marketApp(app, q, ep);
   const v4 = ep.schema === "gridsim.episode/v4";
   const wxUrl = q.get("weather") || `${q.get("wxbase") || "weather"}/${v4 ? `${ep.task.d1}_${ep.task.settlement_point}_${ep.hours.length / 24}d` : `${ep.task.date}_${ep.task.settlement_point}`}.json`;
   const weather = await json(wxUrl).catch(() => null);

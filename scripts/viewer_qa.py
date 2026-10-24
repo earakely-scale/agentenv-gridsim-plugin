@@ -1,9 +1,9 @@
-"""QA the replay viewer headlessly: stills across regions, light, weather and battery states (v1, v2, and v3 and v4
-from the built Space; v4 rows name a task id, resolved through the Space's index) into a contact sheet, a check that
-each page loads without console errors or off-host requests, and a full-day run that tracks frame time, GPU memory
-counts and the JS heap.
+"""QA the replay viewer headlessly: stills across regions, light, weather and battery states (v1, v2, and v3, v4 and v5
+from the built Space; v4 and v5 rows name a task and a model, resolved through the Space's index) into a contact sheet,
+a check that each page loads without console errors or off-host requests, and a full-day run that tracks frame time,
+GPU memory counts and the JS heap.
 
-usage: python scripts/viewer_qa.py --out DIR [--runs results/runs/reference] [--perf EPISODE]
+usage: python scripts/viewer_qa.py --out DIR [--only LABEL] [--perf EPISODE] [--determinism]
 """
 
 import argparse
@@ -16,11 +16,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from record import ROOT, find_chrome, serve, session, viewer_url  # noqa: E402
+from record import ROOT, find_chrome, serve, session, viewer_url, weather_path  # noqa: E402
 
 R = "results/runs/reference/"
 LIVE = "../live-reference/"
 V3 = "../../../build/hub/space/runs/"
+V5 = {"hedged": "v5:2024-08-20-A800x2:anchor-hedged:floor-day", "withhold": "v5:2024-08-20:max-withhold:floor-day",
+      "sprint": "v5:2024-08-20-A800x2:disclosure-anchor:floor-sprint", "july": "v5:2026-07-21:anchor:floor-day"}
 MATRIX = [
     ("west · noon · idle (negative price)", "dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 12.6, "establish"),
     ("west · dusk · discharge", "dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3, "ramp"),
@@ -77,6 +79,29 @@ MATRIX = [
     ("v4 · end of the window: the score", "v4:2023-08-24-HB_HOUSTON", 72.6, None),
     ("v4 · reduced motion", "v4:2025-02-18-HB_NORTH", 11.6, "reduced=1"),
     ("v4 · phone layout", "v4:2022-12-22-HB_NORTH", 9.2, None, "390x844"),
+    ("v5 · 6 am, the trading floor opens", V5["hedged"], -5.75, "room"),
+    ("v5 · 9:15, morning sun through the east glass", V5["hedged"], -4.62, "window"),
+    ("v5 · seat A's desk: the offer ladder", V5["hedged"], -4.45, "desk"),
+    ("v5 · the CfD on the turret", V5["hedged"], -4.1, "deal"),
+    ("v5 · 10:00, the DAM closes", V5["hedged"], -3.47, "clock"),
+    ("v5 · 1:30 pm, the merit order at the peak", V5["hedged"], -1.7, "merit"),
+    ("v5 · the day's prices and awards", V5["hedged"], -0.9, "prices"),
+    ("v5 · 3:30 am, seat A charges", V5["hedged"], 3.5, "push"),
+    ("v5 · 2 pm, gas-G's peakers running", V5["hedged"], 14.0, "gas"),
+    ("v5 · 12:30 pm, renew-R's trackers", V5["hedged"], 12.5, "solar"),
+    ("v5 · the rival's yard", V5["hedged"], 15.5, "byard"),
+    ("v5 · renew-R's wind farm", V5["hedged"], 17.5, "wind"),
+    ("v5 · 7 pm peak, discharging toward Austin", V5["hedged"], 19.5, "ramp"),
+    ("v5 · Austin at the peak", V5["hedged"], 20.2, "city"),
+    ("v5 · the market monitor mitigates seat A", V5["withhold"], 15.5, None),
+    ("v5 · the desk at the 6 pm watch", V5["hedged"], 18.2, "desk"),
+    ("v5 · end score", V5["hedged"], 24.5, None),
+    ("v5 · floor-sprint, the awards", V5["sprint"], -1.0, None),
+    ("v5 · July 2026, the evening peak", V5["july"], 19.6, None),
+    ("v5 · charts drawer", V5["hedged"], 20.0, "charts=1"),
+    ("v5 · reduced motion", V5["hedged"], 11.2, "reduced=1"),
+    ("v5 · phone layout", V5["hedged"], -4.45, None, "390x844"),
+    ("v5 · phone, operating day", V5["hedged"], 19.5, None, "390x844"),
 ]
 QUIET = ("favicon",)
 
@@ -100,8 +125,10 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             ep = episode(eid)
             e = json.loads(ep.read_text())
-            wx = sidecar(e)
-            url = viewer_url(port, ep, wx, False, extra(shot))
+            wx = weather_path(e)
+            raw = shot and "=" in shot
+            url = viewer_url(port, ep, wx, raw and shot == "reduced=1", (shot if raw and shot != "reduced=1" else "")
+                             if raw else f"shot={shot}" if shot else "")
             sw, sh = (int(v) for v in size[0].split("x")) if size else (w, h)
             with session(url, chrome, sw, sh, enable=("Runtime", "Log", "Network")) as (page, ready, gl):
                 for dt in (0, 1 / 30, 1 / 30):
@@ -126,10 +153,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.perf:
             ep = episode(args.perf)
             e = json.loads(ep.read_text())
-            wx = sidecar(e)
+            wx = weather_path(e)
             with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, gl):
                 rows = []
-                t0, span = (-14, len(e["hours"]) + 16) if "d1" in e["task"] else (-2, 26)
+                t0, span = ((-14, len(e["hours"]) + 16) if e.get("schema") == "gridsim.episode/v4"
+                            else (-6, 30) if e.get("schema") == "gridsim.episode/v5" else (-2, 26))
                 for i in range(0, 2161):
                     t = t0 + i * span / 2160
                     page.js(f"gridsim.time({t:.4f}, {{dt: 1 / 30}})")
@@ -145,10 +173,11 @@ def main(argv: list[str] | None = None) -> int:
             for eid, t in (("dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3),
                            (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75),
                            (f"{V3}8bb20ee94689d6d1", 17.45), (f"{V3}62d7779181dafa09", 11.5),
-                           ("v4:2022-12-22-HB_NORTH", 9.4), ("v4:2025-02-18-HB_NORTH", 10.6)):
+                           ("v4:2022-12-22-HB_NORTH", 9.4), ("v4:2025-02-18-HB_NORTH", 10.6),
+                           (V5["hedged"], -4.45), (V5["hedged"], 19.5)):
                 ep = episode(eid)
                 e = json.loads(ep.read_text())
-                wx = sidecar(e)
+                wx = weather_path(e)
                 pngs = []
                 for _ in range(2):
                     with session(viewer_url(port, ep, wx, False), chrome, w, h) as (page, _, _gl):
@@ -168,23 +197,15 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def episode(eid: str) -> Path:
-    if eid.startswith("v4:"):
+    if eid.startswith(("v4:", "v5:")):
         space = ROOT / "build" / "hub" / "space" / "runs"
         index = json.loads((space / "index.json").read_text())["episodes"]
-        hit = next(e for e in index if e["version"] == "v4" and eid[3:] in e["task_id"] and e["tier"] == "front")
+        version, task, *rest = eid.split(":")
+        model, tier = rest or ("", "front")
+        hit = next(e for e in index if e["version"] == version and task in e["task_id"] and e["tier"] == tier
+                   and model in e["model"])
         return space / hit["url"]
     return ROOT / os.path.normpath(f"{R}{eid}.json")
-
-
-def sidecar(e: dict) -> Path:
-    t = e["task"]
-    name = (f"{t['d1']}_{t['settlement_point']}_{len(e['hours']) // 24}d" if "d1" in t
-            else f"{t['date']}_{t['settlement_point']}")
-    return ROOT / "cache" / "weather" / f"{name}.json"
-
-
-def extra(shot: str | None) -> str:
-    return "" if not shot else shot if "=" in shot else f"shot={shot}"
 
 
 def sheet(stills, out: Path, cols: int = 3, tw: int = 640, th: int = 360) -> None:
