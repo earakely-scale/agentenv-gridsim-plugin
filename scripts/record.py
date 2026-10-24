@@ -97,6 +97,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def telling_hour(ep: dict) -> float:
+    if ep.get("schema") == "gridsim.episode/v2":
+        rt = ep["task"]["rt"]
+        return (max(range(96), key=lambda i: rt[i]) + 1) / 4 + 0.1
     prices = ep["task"]["prices"]
     acts = ep.get("final_schedule") or [0] * 24
     best = max(range(24), key=lambda h: abs(prices[h]) * (1 + abs(acts[h])))

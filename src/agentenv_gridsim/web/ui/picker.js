@@ -17,19 +17,20 @@ export async function picker(app, q) {
   }
   const base = url.replace(/[^/]*$/, "");
   const wx = q.get("wxbase") ? `&wxbase=${encodeURIComponent(q.get("wxbase"))}` : "";
-  const runs = index.episodes.map((e) => ({ ...e, href: `index.html?episode=${encodeURIComponent(base + e.url)}${wx}` }));
+  const runs = index.episodes.map((e) => ({ ...e, version: e.version || "v1", href: `index.html?episode=${encodeURIComponent(base + e.url)}${wx}` }));
   document.body.classList.add("list-page");
-  const state = { model: q.get("model") || "", tier: q.get("tier") || "", bundle: q.get("bundle") || "", region: q.get("region") || "", text: q.get("q") || "", sort: q.get("sort") || "reward" };
+  const state = { version: q.get("version") || "", model: q.get("model") || "", tier: q.get("tier") || "", bundle: q.get("bundle") || "", region: q.get("region") || "", text: q.get("q") || "", sort: q.get("sort") || "reward" };
   const opts = (k) => [...new Set(runs.map((r) => r[k]).filter(Boolean))].sort();
   const hero = runs.find((r) => r.hero) || runs[0];
   const also = runs.filter((r) => r.featured && !r.hero);
   const labels = Object.fromEntries(runs.map((r) => [r.model, r.model_label]));
   app.innerHTML = `<div class="list">
     <header><div><h1>GridSimEnv <span>· The Battery Desk</span></h1>
-      <p>A model runs one grid battery in Texas for one day: it reads the day's 24 hourly ERCOT day-ahead prices, commits 24 charge and discharge actions, and is graded against the exact optimum. Every replay below is a recorded episode, shown in the place's real light and weather.</p></div></header>
+      <p>A model runs one grid battery in Texas for one day: it reads the day's 24 hourly ERCOT day-ahead prices, commits 24 charge and discharge actions, and is graded against the exact optimum. Every replay below is a recorded episode, shown in the place's real light and weather.${runs.some((r) => r.version === "v2") ? ` <b>v2 preview, The Live Grid:</b> a day-ahead position the day before, then a 15-minute schedule re-planned at watches as real-time prices settle and ERCOT bulletins arrive.` : ""}</p></div></header>
     ${hero ? featured(hero) : ""}
     ${also.length ? `<section class="also">${also.map(featured).join("")}</section>` : ""}
     <section class="filters card">
+      ${opts("version").length > 1 ? sel("version", "Version", opts("version"), (v) => VERSION[v] || v) : ""}
       ${sel("model", "Model", opts("model"), (m) => modelName(m, labels[m]))}
       ${sel("tier", "Tier", opts("tier"))}
       ${sel("bundle", "Bundle", opts("bundle"))}
@@ -49,13 +50,13 @@ export async function picker(app, q) {
   more.addEventListener("click", () => ((shown += PAGE * 3), render()));
   const render = () => {
     const t = state.text.toLowerCase();
-    let rows = runs.filter((r) => (!state.model || r.model === state.model) && (!state.tier || r.tier === state.tier) && (!state.bundle || r.bundle === state.bundle) && (!state.region || r.region === state.region) && (!t || `${r.date} ${r.point} ${r.task_id} ${r.model}`.toLowerCase().includes(t)));
+    let rows = runs.filter((r) => (!state.version || r.version === state.version) && (!state.model || r.model === state.model) && (!state.tier || r.tier === state.tier) && (!state.bundle || r.bundle === state.bundle) && (!state.region || r.region === state.region) && (!t || `${r.date} ${r.point} ${r.task_id} ${r.model}`.toLowerCase().includes(t)));
     const by = { reward: (a, b) => (b.reward ?? -1) - (a.reward ?? -1), low: (a, b) => (a.reward ?? 2) - (b.reward ?? 2), date: (a, b) => (a.date < b.date ? 1 : -1), profit: (a, b) => (b.profit ?? 0) - (a.profit ?? 0) }[state.sort];
     rows = rows.sort(by);
     count.textContent = `${rows.length} of ${runs.length} episodes`;
     more.hidden = rows.length <= shown;
     more.textContent = `Show more (${Math.min(shown, rows.length)} of ${rows.length} shown)`;
-    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a></td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}</td><td><span class="tier ${esc(r.tier)}">${esc(r.tier)}</span></td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num"><span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}</td></tr>`).join("");
+    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a></td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}</td><td>${r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${r.version === "v2" ? `${r.reward == null ? "—" : r.reward.toFixed(3)} <span class="dim">· ${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "% hindsight"}</span>` : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</td></tr>`).join("");
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(state)) if (v && !(k === "sort" && v === "reward")) p.set(k === "text" ? "q" : k, v);
     history.replaceState(null, "", `${location.pathname}${p.toString() ? "?" + p : ""}`);
@@ -72,10 +73,11 @@ export async function picker(app, q) {
   }
 }
 
-const KIND = { beats: "Blind: beats the forecasters", trails: "Blind: trails the forecasters" };
+const KIND = { beats: "Blind: beats the forecasters", trails: "Blind: trails the forecasters", live: "v2 preview · The Live Grid (provisional anchor)" };
+const VERSION = { v1: "v1 · day-ahead", v2: "v2 preview (provisional anchor)" };
 
 function featured(r) {
   const thumb = r.thumb ? `<img src="${esc(r.thumb)}" alt="${esc(r.point)} on ${esc(r.date)}: the battery yard at ${esc(r.hero_moment || "the day's key hour")}" loading="lazy">` : "";
   return `<a class="hero card${r.hero ? "" : " small"}" href="${r.href}">${thumb}<div class="txt"><h5>${KIND[r.featured] || "Featured day"}</h5><h2>${esc(r.date)} · ${esc(r.point)} <span>${esc(POINTS[r.point]?.name || "")}</span></h2>
-    <p>${esc(r.blurb || "")}</p><p class="dim">${esc(modelName(r.model, r.model_label))} · ${esc(r.tier)} · reward ${r.reward == null ? "—" : r.reward.toFixed(3)}</p><span class="go">Watch the replay →</span></div></a>`;
+    <p>${esc(r.blurb || "")}</p><p class="dim">${esc(modelName(r.model, r.model_label))} · ${esc(r.tier)} · ${r.version === "v2" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)} · hindsight capture ${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "%"}` : `reward ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</p><span class="go">Watch the replay →</span></div></a>`;
 }

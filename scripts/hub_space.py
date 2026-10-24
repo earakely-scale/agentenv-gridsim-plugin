@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import weather as wx  # noqa: E402
 
+from gridsim_core import live  # noqa: E402
 from gridsim_core.contract import DEGENERATE_EPS  # noqa: E402
 from gridsim_core.grade import grade  # noqa: E402
 from gridsim_core.physics import simulate  # noqa: E402
@@ -27,6 +28,11 @@ WEB = ROOT / "src" / "agentenv_gridsim" / "web"
 PACKS = ("ercot-dam-v1-eval", "ercot-dam-v1-eval-iid", "ercot-dam-v1-rtcb", "showcase", "fixtures",
          "ercot-dam-v1-train")
 HERO_TASK = "dam-v1-2025-03-15-HB_WEST-1h-t"
+LIVE_PACKS = ("gridsim-live-showcase", "gridsim-live-eval", "gridsim-live-test-2025", "gridsim-live-rtcb",
+              "fixtures-live", "gridsim-live-train")
+LIVE_HERO_TASK = "live-v2-2023-09-06-HB_NORTH-2h-l"
+SEVERITY = {"EEA3": 7, "EEA2": 6, "EEA1": 5, "Emergency": 5, "conservation": 4, "Watch": 3, "Warning": 3, "Advisory": 2,
+            "OCN": 1}
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
@@ -113,20 +119,24 @@ def main(argv: list[str] | None = None) -> int:
             if f.name == "index.json" or "raw" in f.relative_to(folder).parts[:-1]:
                 continue
             ep = json.loads(f.read_text())
-            if not isinstance(ep, dict) or ep.get("schema") != "gridsim.episode/v1":
+            schema = ep.get("schema") if isinstance(ep, dict) else None
+            if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
                 continue
-            task = tasks.get(ep["task_id"])
-            if why := verify(ep, task):
+            v2 = schema == live.EPISODE_SCHEMA
+            task = live_tasks().get(ep["task_id"]) if v2 else tasks.get(ep["task_id"])
+            if why := (verify_live(ep, task) if v2 else verify(ep, task)):
                 rejected.append((f, why))
                 continue
             name = f"{ep['episode_id']}.json"
-            (out / "runs" / name).write_text(json.dumps(ep, separators=(",", ":")))
-            entries.append(entry(ep, name, task))
+            (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
+            entries.append(live_entry(ep, name) if v2 else entry(ep, name, task))
     for e in entries:
         side = wx.sidecar(e["point"], e["date"], args.weather)
         if not (out / "weather" / side.name).exists():
             shutil.copy(side, out / "weather" / side.name)
-    featured = feature(entries, args.hero, out)
+    featured = feature([e for e in entries if e["version"] == "v1"], args.hero, out)
+    if lv := feature_live(entries, out):
+        featured.append(lv)
     if args.thumbs:
         for e in featured[1:]:
             thumbnail(out, e)
@@ -162,11 +172,103 @@ def verify(ep: dict, task: dict | None) -> str | None:
     return None
 
 
+_LIVE: dict | None = None
+
+
+def live_tasks() -> dict:
+    global _LIVE
+    if _LIVE is None:
+        _LIVE = {t["task_id"]: t for pack in LIVE_PACKS for t in load_pack(pack)}
+    return _LIVE
+
+
+def verify_live(ep: dict, task: dict | None) -> str | None:
+    """Every recorded call replayed through a fresh Session on the pack's day and notices gives the recorded output;
+    the day's profit and reward must match."""
+    if task is None:
+        return "not in any live pack"
+    s = live.Session(task, ep["tier"])
+    for i, st in enumerate(ep["steps"]):
+        args = dict(st["args"])
+        if st["tool"] == live.NOTICE_TOOL:
+            args.setdefault("_via", "trigger")
+        if json.loads(s.call(st["tool"], args)) != st["output"]:
+            return f"step {i} ({st['tool']}) does not replay"
+    if not s.done:
+        s.end_day()
+    g = s.grade()
+    if abs(g["profit_usd"] - ep["profit_usd"]) > 0.01:
+        return f"profit {ep['profit_usd']} != {g['profit_usd']}"
+    if abs(g["reward"] - ep["reward"]) > 1e-6:
+        return f"reward {ep['reward']} != {g['reward']}"
+    return None
+
+
+def live_entry(ep: dict, url: str) -> dict:
+    t, b, r = ep["task"], ep["task"]["battery"], ep.get("references") or {}
+    top = max(ep.get("notices") or [], key=lambda n: SEVERITY.get(n.get("level"), 0), default=None)
+    return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
+            "model_label": ep.get("model_label"), "version": "v2", "tier": ep["tier"], "bundle": ep.get("bundle"),
+            "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"),
+            "r_opt": ep.get("capture_vs_hindsight"), "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"),
+            "p_anchor": r.get("p_roll"), "p_naive": r.get("p_naive"), "naive_reward": ep.get("naive_reward"),
+            "beats_anchor": ep.get("beats_anchor"), "date": t["date"], "point": t["settlement_point"],
+            "region": t["region"], "archetype": b.get("archetype"),
+            "battery": f"{b['p_dis_mw']:g} MW / {b['energy_mwh']:g} MWh", "watches": len(ep["watches"]),
+            "notices": len(ep.get("notices") or []), "top_notice": top and top.get("level"),
+            "rt_max": max(t["rt"]), "interest": round(max(t["rt"]) / max(10.0, sorted(t["prices"])[12]), 3)}
+
+
+def feature_live(entries: list[dict], out: Path) -> dict | None:
+    """The v2 preview's featured day: the best real run on the hero day, else its rolling anchor, else the live day
+    with the most urgent bulletin."""
+    pool = [e for e in entries if e["version"] == "v2"]
+    day = [e for e in pool if e["task_id"] == LIVE_HERO_TASK]
+    e = (max([x for x in day if real(x)], key=lambda x: x["reward"] or 0, default=None)
+         or next((x for x in day if x["model"] == "reference/rolling-anchor"), None)
+         or max(pool, key=lambda x: (SEVERITY.get(x["top_notice"], 0), x["interest"]), default=None))
+    if e is None:
+        return None
+    ep = json.loads((out / "runs" / e["url"]).read_text())
+    e |= {"featured": "live", "blurb": live_blurb(ep), "hero_moment": "the most urgent bulletin's watch",
+          "t_moment": live_moment(ep)}
+    return e
+
+
+def live_moment(ep: dict) -> float:
+    w = max((x for x in ep["watches"] if x["index"] > 0), key=lambda x: max(
+        [SEVERITY.get(n["level"], 0) for n in ep["notices"] if n["event_id"] in x["notices"]], default=0))
+    hh, mm = w["time"].split(" ")[1].split(":")
+    return int(hh) + int(mm) / 60 + 0.3
+
+
+def hm(minute: int) -> str:
+    h, m = divmod(minute, 60)
+    return f"{h % 12 or 12}{f':{m:02d}' if m else ''} {'am' if h % 24 < 12 else 'pm'}"
+
+
+def clock(label: str) -> str:
+    return hm(int(label[-5:-3]) * 60 + int(label[-2:]))
+
+
+def live_blurb(ep: dict) -> str:
+    t = ep["task"]
+    region = REGIONS.get(t["region"], t["region"])
+    top = max(ep["notices"], key=lambda n: SEVERITY.get(n.get("level"), 0), default=None)
+    rt = max(range(96), key=lambda i: t["rt"][i])
+    spike = f"real-time prices reach ${t['rt'][rt]:,.0f}/MWh at {hm(15 * rt)}"
+    if not top:
+        return f"{region}, live: {spike}."
+    w = ep["watches"][top["watch"]] if top.get("watch") is not None else None
+    when = f", read at the {clock(w['time'])} watch with the freeze line at {clock(w['freeze_line'])}" if w else ""
+    return f"{region}, live: ERCOT's {top['level']} bulletin arrives{when}, and {spike}."
+
+
 def entry(ep: dict, url: str, task: dict | None) -> dict:
     t, b = ep["task"], ep["task"]["battery"]
     blind = ((task or {}).get("refs") or {}).get("blind") if ep["tier"] == "blind" else None
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
-            "model_label": ep.get("model_label"), "tier": ep["tier"], "bundle": ep.get("bundle"),
+            "version": "v1", "model_label": ep.get("model_label"), "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "checkpoint_step": ep.get("checkpoint_step"),
             "reward": ep.get("reward"), "r_opt": ep.get("r_opt"), "profit": ep.get("profit_usd"),
             "p_opt": (ep.get("references") or {}).get("p_opt"), "date": t["date"], "point": t["settlement_point"],
@@ -263,9 +365,9 @@ def thumbnail(out: Path, e: dict) -> None:
     ep = json.loads(path.read_text())
     thumb = out / "thumbs" / f"{e['id']}.jpg"
     hero = e["featured"] == "hero"
+    t = e.get("t_moment") or (evening(ep) if hero else peak(ep) + 0.6)
     record("--episode", str(path), "--weather", str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb",
-           str(thumb), "--t", str(evening(ep) if hero else peak(ep) + 0.6), "--extra",
-           "ui=0&shot=establish" if hero else "ui=0")
+           str(thumb), "--t", str(t), "--extra", "ui=0&shot=establish" if hero or "t_moment" in e else "ui=0")
     e["thumb"] = f"thumbs/{thumb.name}"
 
 
@@ -279,6 +381,8 @@ def still(out: Path, e: dict) -> None:
 
 
 def readme(entries: list[dict], hero: dict | None) -> str:
+    v2 = [e for e in entries if e["version"] == "v2"]
+    entries = [e for e in entries if e["version"] == "v1"]
     counts = Counter(e["model_label"] or e["model"] for e in entries if real(e))
     refs = sum(not real(e) for e in entries)
     models = ", ".join(f"{n:,} runs of {m}" for m, n in counts.most_common()) + (
@@ -292,7 +396,26 @@ def readme(entries: list[dict], hero: dict | None) -> str:
     text = README
     for k, v in fields.items():
         text = text.replace("{" + k + "}", v)
+    if v2:
+        live_counts = Counter(e["model_label"] or e["model"] for e in v2)
+        lv = next((e for e in v2 if e.get("featured") == "live"), None)
+        text = text.replace("\n## Links\n", LIVE_README.format(
+            n=len(v2), models=", ".join(f"{n} of {m}" for m, n in live_counts.most_common()),
+            hero=f"\n\n**The featured live day,** [{lv['date']} at {lv['point']}]"
+                 f"({APP}/index.html?episode=runs/{lv['url']}): {lv['blurb']}" if lv else "") + "\n## Links\n")
     return text
+
+
+LIVE_README = """
+## v2 preview: The Live Grid (provisional anchor)
+
+{n} live battery-days ({models}), schema `gridsim.episode/v2`. The agent commits a day-ahead position at 2 pm the day
+before, then re-plans its 15-minute schedule at watches through the day, never inside the freeze line an hour ahead,
+while real-time prices settle and ERCOT and NWS bulletins arrive (paraphrased summaries only). Settlement is
+two-settlement: the position at day-ahead prices, every deviation at real-time prices. R puts idle at 0.2 and the
+rolling anchor at 1.0; the anchor is provisional and sits near naive on many days, so each replay also shows hindsight
+capture. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{hero}
+"""
 
 
 if __name__ == "__main__":
