@@ -1,0 +1,151 @@
+GridSimEnv data: terms and sources
+
+This file covers the task packs under data/ (ercot-dam-v1-train, ercot-dam-v1-eval, ercot-dam-v1-eval-iid,
+ercot-dam-v1-rtcb, showcase and fixtures: tasks.jsonl.gz and manifest.json), data/stats.md and data/ridge-v1.json, and
+everything derived from them: the prompts, situations, references, schedules, Episode JSON and transcripts this
+repository writes, and the Hugging Face dataset earakely-scale/GridSimEnv-AgentEnv. The code is Apache-2.0 (LICENSE);
+NOTICE lists every source.
+
+1. ERCOT prices: ERCOT's terms, not relicensed
+
+Every price in the packs, and every number derived from them, comes from public data of the Electric Reliability
+Council of Texas, Inc. (ERCOT): report NP4-180-ER, "Historical DAM Load Zone and Hub Prices" (report type 13060),
+https://www.ercot.com/mp/data-products/data-product-details?id=NP4-180-ER, the yearly files DAMLZHBSPP_2014.zip to
+DAMLZHBSPP_2026.zip, whose SHA-256 each pack's manifest.json records.
+
+The ERCOT data is used, reproduced and redistributed under ERCOT's Website User Agreement, section 5 below, as a
+compilation and analysis of raw data provided in public portions of ercot.com. It is not relicensed: neither this file
+nor the Apache-2.0 licence of the code nor any Creative Commons licence applies to it, and anyone who uses it is bound
+by ERCOT's terms. ERCOT does not guarantee the accuracy of this compilation. Source: ERCOT. GridSimEnv is not
+affiliated with or endorsed by ERCOT. The ERCOT logo, "ERCOT" and "The Texas Connection" are trademarks of ERCOT
+(section 9); this repository uses none of them beyond naming the source.
+
+1a. ERCOT Website User Agreement, verbatim, from https://www.ercot.com/help/terms, accessed 2026-10-24
+
+Last updated: 07/20/2023
+
+1. By accessing this website, you agree to the terms of this Website User Agreement ("Agreement") set out below. If
+you do not agree with the terms of this Agreement, do not access this website or any pages thereof. “This website”
+shall mean ERCOT.com, including any subpage, links, document, reports, data, software code, and statements posted on
+ERCOT.com, including any other sites that may be accessed through ERCOT.com, and any information provided by ERCOT
+through use of the Info Request process or any other information obtained by contacting ERCOT or its employees
+through ERCOT.com (hereinafter “this website”).
+
+2. THIS WEBSITE AND ALL INFORMATION POSTED ON OR OBTAINED THROUGH THIS WEBSITE IS PROVIDED "AS IS" WITHOUT ANY
+WARRANTIES OF ANY KIND. ERCOT MAKES NO REPRESENTATIONS WITH RESPECT TO SAID INFORMATION AND DISCLAIMS ALL EXPRESS AND
+IMPLIED WARRANTIES AND CONDITIONS OF ANY KIND, INCLUDING WITHOUT LIMITATION, REPRESENTATIONS, WARRANTIES, OR
+CONDITIONS REGARDING ACCURACY, TIMELINESS, COMPLETENESS, NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR ANY
+PARTICULAR PURPOSE.
+
+3. BY USING THIS WEBSITE, YOU AGREE YOU ARE WAIVING AND RELEASING ANY CLAIMS THAT YOU MAY HAVE NOW, OR THAT MAY ARISE
+IN THE FUTURE, AGAINST ERCOT, INCLUDING ANY EMPLOYEES OR CONTRACTORS OF ERCOT, FOR ANY LOSSES OR HARM OF ANY KIND
+RELATING TO USE OF THIS WEBSITE. ERCOT ASSUMES NO RESPONSIBILITY TO YOU OR ANY THIRD PARTY FOR THE CONSEQUENCES OF
+ANY INACCURACY, ERROR, OR OMISSION, REGARDLESS OF CAUSE. ERCOT SHALL NOT BE LIABLE TO YOU OR ANY THIRD PARTY FOR, AND
+YOU AGREE TO INDEMNIFY ERCOT, ITS DIRECTORS, OFFICERS, EMPLOYEES AND REPRESENTATIVES FOR ANY CLAIMS, DAMAGES, OR
+LOSSES OF ANY KIND ARISING OUT OF OR RELATING TO USE OF THIS WEBSITE (INCLUDING ANY BREACH OF THIS AGREEMENT), AND
+REGARDLESS OF WHETHER ANY CLAIMS, DAMAGES, OR LOSSES WERE CAUSED BY YOU OR BY ERCOT. ANY SUCH CLAIMS, DAMAGES, OR
+LOSSES INCLUDE, BUT ARE NOT LIMITED TO, ANY LOST PROFITS, LOST OPPORTUNITIES, SPECIAL INCIDENTAL, DIRECT, INDIRECT OR
+CONSEQUENTIAL DAMAGES, EVEN IF ERCOT IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE OR OF A CLAIM, OR POTENTIAL CLAIM,
+BY ANOTHER PARTY, INCLUDING A CLAIM FOR PUNITIVE DAMAGES.
+
+4. This website contains links to sites not maintained by ERCOT. You are advised that any use of a linked website is
+solely at your risk. ERCOT cannot and does not make any warranties or representations with respect to any information
+available through these links and disclaims any opinions expressed on such websites. Links to other websites or
+references to products, services or publications other than those of ERCOT do not imply the endorsement or approval
+by ERCOT of such websites, products, services, or publications.
+
+5. The information presented on this website has been compiled by or for ERCOT for general information purposes only.
+The publicly available contents of this website may be used, reproduced, and redistributed, provided that the
+contents are not modified and that you maintain all copyright and other notices contained in the contents, including
+this Agreement. Notwithstanding the foregoing, raw data provided in public portions of this website may be used,
+reproduced, and redistributed in compilations, charts, and analyses without maintaining such notices. ERCOT does not
+guarantee the accuracy of any such compilations, charts, or analyses.
+
+6. Use of this website in a manner that negatively affects the performance of this website or other ERCOT systems is
+prohibited. ERCOT reserves the right to take any and all action reasonably necessary to prevent such activity,
+including but not limited to monitoring website use and blocking access to this website. As a condition of your use
+of this website, you will not use this website for any purpose that is unlawful or not in accordance with this
+Agreement. ERCOT reserves the right, in its sole discretion, to terminate your access to this website or any portion
+thereof at any time, without notice.
+
+7. This Agreement shall be interpreted and enforced in accordance with the laws of the State of Texas, without
+reference to any rules of conflict of laws. With respect to any suit, action or other proceeding arising from or
+relating to this Agreement, you hereby irrevocably agree to the exclusive personal jurisdiction and venue of the
+United States District Court for the Western District of Texas or any Texas State Court within Travis County, Texas.
+
+8. Use of ERCOT list Server (email) list for marketing products and/or services is strictly prohibited. Host domains
+of violators will be denied access to the ERCOT server.
+
+9. The ERCOT logo, "ERCOT," and "The Texas Connection" are either trademarks or registered trademarks of ERCOT and
+may not be used without the prior written permission of ERCOT.
+
+10. ERCOT reserves the right to change the terms of use contained within this Agreement at any time without notice.
+You are responsible for reviewing this Agreement each time you use this website. Changes to the Agreement will become
+effective upon posting. Your continued use of this website constitutes your agreement to all of the terms and
+conditions of this Agreement.
+
+1b. ERCOT Market Data Transparency Terms of Use, Version 1.2 (08/11/2020), verbatim, from
+https://www.ercot.com/files/docs/2020/08/11/Market_Data_Transparency_Terms_of_Use_v1_2.docx (linked from
+https://www.ercot.com/services/mdt), accessed 2026-10-24. These terms govern automated access to ERCOT's reports.
+
+Terms of Use
+
+ERCOT publishes public, secure, and certified market information on its websites at regular intervals. These reports
+can be accessed by Market Participants using an Application Programmatic Interface (API), External Web Services
+(EWS), ERCOT.com and the Market Information System (MIS). Protocols require that ERCOT ensure all Market Participants
+have access to the ERCOT MIS on a nondiscriminatory basis (Section 12).
+
+ERCOT policy requires that query or scan rates not exceed three times the frequency an extract or report is
+generated. The ERCOT Market Information List (EMIL) shows how often each extract or report is generated and posted by
+ERCOT. Users can find this information under the “Generation Frequency” area of the EMIL.
+
+  EMIL ID | Report Type ID | Product Name | Generating Frequency
+  NP6-905-CD | 12301 | Settlement Point Prices at Resource Nodes, Hubs and Load Zones | Chron - 15 Minutes
+
+Example: Query rate for NP6-905-CD should not exceed once every 5 minutes or a maximum of 3 times in 15 minutes.
+
+Violations to This Policy
+
+This policy applies to both:
+- Automated screen scraping programs that access the ERCOT URL(s) listed in the table
+- Programs that use an API to query and download report data via the API or EWS
+The objectives of this policy are to:
+- Prevent overloading of ERCOT computing resources that may occur due to excessive queries
+- Ensure optimal transactional request/response performance to all Market Participants
+Note: Query submission at a faster rate will not provide additional benefits to the Market Participant.
+
+In case of violations to this policy, ERCOT reserves the right to block an offending IP address, or a group of IP
+addresses, at the Organizationally Unique Identifier (OUI) level. Further, ERCOT reserves the right to block IP
+addresses at the domain level, with the effect that offending systems will not be able to access any ERCOT web pages
+or services. The entity will be unblocked once the adjusted queries are in line with this policy.
+
+For questions or clarifications related to this policy, Market Participants may:
+- Call their Account Manager directly
+- Call Client Services at (512) 248-3900
+- Send an email to ClientServices@ercot.com
+For questions or clarifications related to technical issues, Market Participants may:
+- Call the ERCOT HelpDesk at (512) 248-6800 or 1-866-870-8124
+- Send an email to HelpDesk@ercot.com
+
+2. EIA-860: public domain
+
+The battery archetypes (the design table in each manifest's "letters" and the fleet fit in "eia_fit" and stats.md) are
+sized from the U.S. Energy Information Administration's Form EIA-860 annual electric generator data, 2025
+(eia8602025.zip: Schedule 3_4, Energy Storage, and Schedule 2, Plant), https://www.eia.gov/electricity/data/eia860/,
+a work of the U.S. Government. From https://www.eia.gov/about/copyrights_reuse.php, accessed 2026-10-24:
+
+"U.S. government publications are in the public domain and are not subject to copyright protection. You may use
+and/or distribute any of our data, files, databases, reports, graphs, charts, and other information products that are
+on our website or that you receive through our email distribution service. However, if you use or reproduce any of
+our information products, you should use an acknowledgment, which includes the publication date, such as: "Source:
+U.S. Energy Information Administration (Oct 2008).""
+
+Source: U.S. Energy Information Administration, Form EIA-860, 2025 data. The batteries in the packs are archetypes
+sized from the ERCOT fleet, not any real site. The EIA does not endorse this work.
+
+3. Iowa Environmental Mesonet: attribution
+
+The viewer and the replay Space show each day's weather at the point's representative airport from ASOS observations
+archived by the Iowa Environmental Mesonet (IEM), Iowa State University, https://mesonet.agron.iastate.edu/. The
+observations are U.S. Government (NWS/FAA) data in the public domain; the IEM asks for attribution, given here. They
+are fetched into cache/weather and are not in data/ or the Hugging Face dataset.

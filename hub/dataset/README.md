@@ -180,9 +180,9 @@ own, so they never mix into a split.
 `raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line (`<pack>.jsonl`), with each
 pack's manifest (sources and their SHA-256, filters, counts, the battery table) and `stats.md`, the pack statistics.
 `runs/` holds the Episode JSON (`gridsim.episode/v1`) the replay Space reads, with `runs/index.json` listing them, and
-`results/` the eval card `eval-v1.json` and `board.md`. Each bundle published for `agent-env hf run` adds agentenv-hf's
-`<bundle>_tasks` and `<bundle>_episodes` configs and the bundle under `bundles/` (see
-[Run it yourself](#run-it-yourself)).
+`results/` the eval card `eval-v1.json` and `board.md`. Each bundle published for `agent-env hf run` adds the bundle
+under `bundles/` and agentenv-hf's `<bundle>_tasks` config, and `<bundle>_episodes` once it has recorded runs (see
+[Run it yourself](#run-it-yourself)). A config with no rows yet is left off this card.
 
 ## Use
 
@@ -227,8 +227,8 @@ trainer = GRPOTrainer(model="Qwen/Qwen3-1.7B", reward_funcs=reward_fn, train_dat
                       args=GRPOConfig(output_dir="gridsim-grpo"))
 ```
 
-The training recipe that produced the published checkpoints (chat template with the tool schema, thinking off, LoRA,
-the C0 to C2 curriculum) is in the plugin; see [Training](#training).
+This is the minimal wiring; the recipe behind the published runs (the chat template with the tool schema, thinking
+off, LoRA, the C0 to C2 curriculum) lands with the training results ([Training](#training)).
 
 ## Run it yourself
 
@@ -247,11 +247,13 @@ agent-env run gridsim --task smoke
 Then play a battery-day straight from this dataset with a model on your LiteLLM endpoint:
 
 ```bash
+export LITELLM_BASE_URL=https://your-litellm-proxy/v1 LITELLM_API_KEY=...
 agent-env hf run earakely-scale/GridSimEnv-AgentEnv@v0.1.0 --bundle ercot-dam-v1-eval \
     --task dam-v1-2025-02-25-LZ_AEN-2h-o --model openai/gpt-6.1-sol
 ```
 
-<!-- TODO: confirm the published bundle names and tiers once the plugin's bundles are final -->
+<!-- TODO: confirm the published bundle names and tiers once the plugin's bundles are final; `hf run` needs
+agentenv-hf installed, so add it to the plugin's dependencies as agentenv-portsim does -->
 
 `hf run` downloads this card and `bundles/` at the tag's commit, checks that the plugin the card's `agentenv` table
 names is installed, shows what it will run and asks first; `--dry-run` runs nothing. To sweep a model over a pack

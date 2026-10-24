@@ -1,0 +1,29 @@
+agentenv-gridsim
+Copyright 2026 the agentenv-gridsim contributors
+
+This product is licensed under the Apache License, Version 2.0 (LICENSE). The data under data/ is not: it carries its
+sources' terms, set out in full in data/LICENSE.
+
+This product includes code ported from agentenv-portsim (https://github.com/earakely-scale/agentenv-portsim-plugin),
+licensed under the Apache License, Version 2.0: the harness loop and model adapters of agents/gridsim-llm/agent.py
+(from agents/portsim-llm/agent.py), and the sweep machinery of src/agentenv_gridsim/sweep.py (from
+src/agentenv_portsim/sweep.py).
+
+The viewer under src/agentenv_gridsim/web/ vendors three.js 0.180.0 (https://github.com/mrdoob/three.js), MIT licence,
+in web/vendor/three-0.180.0/ with its LICENSE; its scene is procedural (web/ASSETS.md).
+
+Data
+
+- Prices: the task packs under data/ are derived from ERCOT's Day-Ahead Market settlement point prices for the
+  hubs and load zones (report NP4-180-ER, "Historical DAM Load Zone and Hub Prices"), published by the Electric
+  Reliability Council of Texas, Inc. (ERCOT) at https://www.ercot.com/mp/data-products/data-product-details?id=NP4-180-ER.
+  They are used under ERCOT's Website User Agreement (https://www.ercot.com/help/terms), section 5, which data/LICENSE
+  quotes in full with the Market Data Transparency Terms of Use v1.2. The ERCOT data is not relicensed under
+  Apache-2.0 or any Creative Commons licence. Source: ERCOT. ERCOT does not endorse this product or any result derived
+  from it, is not affiliated with it, and is not responsible for its accuracy. No ERCOT logo or trademark is used.
+- Battery archetypes: sized from the U.S. Energy Information Administration's Form EIA-860 annual electric
+  generator data, 2025 (https://www.eia.gov/electricity/data/eia860/), a work of the U.S. Government in the public
+  domain. Source: U.S. Energy Information Administration.
+- Weather in the viewer: ASOS observations at each point's representative airport, from the Iowa Environmental
+  Mesonet (IEM), Iowa State University (https://mesonet.agron.iastate.edu/); NWS and FAA observations in the public
+  domain, credited as the IEM asks. Fetched into cache/weather, not distributed in data/.
