@@ -1,4 +1,4 @@
-"""Build data/notices/notices.jsonl, the ERCOT notice archive for GridSimEnv v2 (FD-4325).
+"""Build data/notices/notices.jsonl.gz, the ERCOT notice archive for GridSimEnv v2.
 
 Sources (raw pages cached under cache/raw/notices/, so a re-run only parses):
   ops_live     ERCOT Operations Messages (control-room OCN/Advisory/Watch/Emergency/EEA, AS deployments), the last six
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import gzip
 import hashlib
 import html
 import json
@@ -108,7 +109,7 @@ def collect_ops_live(do_fetch: bool) -> list[dict]:
     page, path, _ = fetch(OPS, "ops_live") if do_fetch else (cache_read(OPS, "ops_live"), None, False)
     if page is None:
         return []
-    s = page.decode("utf-8", "replace")
+    s = decode(page)
     urls = [OPS] + [f"{OPS}?m={m}&y={y}" for m, y in re.findall(r"href=\?m=(\d+)&y=(\d+)", s)]
     out = []
     for url in urls:
@@ -140,6 +141,8 @@ def collect_ops_wayback(do_fetch: bool) -> list[dict]:
 
 
 def decode(page: bytes) -> str:
+    while page[:2] == b"\x1f\x8b":
+        page = gzip.decompress(page)
     try:
         return page.decode("utf-8")
     except UnicodeDecodeError:
@@ -161,7 +164,7 @@ def collect_news(do_fetch: bool) -> list[dict]:
         body = fetch(url, "news")[0] if do_fetch else cache_read(url, "news")
         if body is None:
             continue
-        s = body.decode("utf-8", "replace")
+        s = decode(body)
         for d, href, title in re.findall(
             r"(\d{2}/\d{2}/\d{4})\s*</td>\s*<td[^>]*>\s*<a[^>]*href=\"(/news/release/[^\"]+)\"[^>]*>(.*?)</a>", s, re.S
         ):
@@ -171,7 +174,7 @@ def collect_news(do_fetch: bool) -> list[dict]:
             ):
                 continue
             rel = fetch(ERCOT + href, "news")[0] if do_fetch else cache_read(ERCOT + href, "news")
-            text = news_text(rel.decode("utf-8", "replace")) if rel else ""
+            text = news_text(decode(rel)) if rel else ""
             day = dt.datetime.strptime(d, "%m/%d/%Y").date()
             out.append({"source": "ercot_news", "url": ERCOT + href, "day": day, "title": title, "text": text})
     return out
@@ -198,7 +201,7 @@ def collect_mkt(do_fetch: bool) -> list[dict]:
         body = fetch(url, "mkt_list")[0] if do_fetch else cache_read(url, "mkt_list")
         if body is None:
             break
-        rows = re.findall(r"<tr[^>]*>(.*?)</tr>", body.decode("utf-8", "replace"), re.S)
+        rows = re.findall(r"<tr[^>]*>(.*?)</tr>", decode(body), re.S)
         n = 0
         for tr in rows:
             m = re.search(
@@ -222,7 +225,7 @@ def collect_mkt(do_fetch: bool) -> list[dict]:
         want = row["day"] is None or MKT_OPS_WORDS.search(row["subject"])
         url = f"{ERCOT}/services/comm/mkt_notices/{nid}"
         body = (fetch(url, "mkt_detail")[0] if do_fetch else cache_read(url, "mkt_detail")) if want else None
-        det = mkt_detail(body.decode("utf-8", "replace")) if body else {}
+        det = mkt_detail(decode(body)) if body else {}
         out.append(
             {
                 "source": "ercot_market_notice",
@@ -326,6 +329,8 @@ def classify_ops(text: str, ercot_type: str) -> tuple[str, str, str, list[str]]:
         tags.append("daily_loss_of_gen")
     if "transmission emergency" in tl:
         tags.append("transmission_emergency")
+    if "geomagnetic" in tl:
+        tags.append("geomagnetic")
     if re.search(
         r"solution (?:run |processing )?time|running solution|long run|internal (?:issue|system)|"
         r"input error|price validation|currently unavailable|not solv|has not solved|timeline deviation|"
@@ -371,11 +376,12 @@ def classify_ops(text: str, ercot_type: str) -> tuple[str, str, str, list[str]]:
 
 def grid_condition(typ: str, tags: list[str]) -> bool:
     """A system-wide supply, demand or weather condition (EEA, conservation, Weather Watch, capacity Watch/Advisory/OCN
-    or Emergency), not a market-system delay, a local transmission problem or a test."""
+    or Emergency), not a market-system delay, a geomagnetic advisory, a local transmission problem or a test."""
     if typ in ("EEA1", "EEA2", "EEA3", "conservation_appeal", "weather_watch"):
         return True
     return typ in ("Watch", "Advisory", "OCN", "Emergency") and not set(tags) & {
         "market_system",
+        "geomagnetic",
         "transmission_emergency",
         "transmission",
         "dc_tie",
@@ -406,8 +412,8 @@ def classify_news(title: str) -> tuple[str, str, str]:
 def affects_of(text: str, typ: str) -> tuple[str | None, list[str] | None]:
     """(affects, regions): a stated local area and the GridSimEnv regions it maps to, else system-wide."""
     m = re.search(
-        r"\b(?:in|for|near|around) (?:the )?((?:[A-Z][\w.'-]*\s?){1,4}?)(?: County| Counties| area| Area| "
-        r"region| Region| Texas| zone| Load Zone)\b",
+        r"\b(?:in|for|near|around) (?:the )?((?:(?:[A-Z][\w.'-]*|and)\s?){1,6}?)(?: County| Counties| area| Area| "
+        r"region| Region| Regions| Texas| [Ww]eather [Zz]ones?| zones?| Load Zone)\b",
         text,
     ) or re.search(
         r"\b(?:in|for) (?:the )?(Far West Texas|Rio Grande Valley|Lower Rio Grande Valley|Valley|Panhandle|"
@@ -420,7 +426,12 @@ def affects_of(text: str, typ: str) -> tuple[str | None, list[str] | None]:
         low = area.lower()
         if low in ("region", "system", "ercot region") or not low:
             return "system-wide", None
-        regions = sorted({r for k, r in AREAS.items() if k in low})
+        found = set()
+        for k in sorted(AREAS, key=len, reverse=True):
+            if k in low:
+                found.add(AREAS[k])
+                low = low.replace(k, " ")
+        regions = sorted(found)
         return area, regions or None
     if typ in SYSTEM_TYPES:
         return "system-wide", None
@@ -546,7 +557,7 @@ def build_ops(raw: list[dict]) -> list[dict]:
                 "action": action,
                 "ercot_type": et,
                 "status": status,
-                "title": text if len(text) <= 160 else text[:157] + "...",
+                "title": text if len(text) <= 80 else text[:80].rsplit(" ", 1)[0] + "...",
                 "issued_at": issued_s,
                 "issued_at_utc": iso(issued.astimezone(dt.UTC)),
                 "timestamp_quality": "minute",
@@ -751,9 +762,8 @@ def main() -> None:
         rows += build_mkt(collect_mkt(do_fetch))
     rows.sort(key=lambda r: (r["issued_at_utc"] or r["issued_at"] + "T23:59:59", r["notice_id"]))
     OUT.mkdir(parents=True, exist_ok=True)
-    with open(OUT / "notices.jsonl", "w") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False, sort_keys=False) + "\n")
+    with gzip.GzipFile(OUT / "notices.jsonl.gz", "wb", mtime=0) as f:
+        f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode())
     c = Counter((r["channel"], r["timestamp_quality"]) for r in rows)
     print(len(rows), dict(c))
 

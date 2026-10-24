@@ -1,10 +1,11 @@
 """ERCOT notices and NWS alerts on the v2 live day: the reveal rule and the per-(date, point) lookups the pack builder
-uses. Data: data/notices/notices.jsonl, nws_vtec.jsonl and ops_coverage.json from scripts/scrape_notices.py and
+uses. Data: data/notices/notices.jsonl.gz, nws_vtec.jsonl.gz and ops_coverage.json from scripts/scrape_notices.py and
 scripts/join_vtec.py."""
 
 from __future__ import annotations
 
 import datetime as dt
+import gzip
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -41,12 +42,17 @@ def day_bounds(date: str | dt.date) -> tuple[dt.datetime, dt.datetime]:
 def load(root: str | None = None) -> tuple[tuple[dict, ...], tuple[dict, ...], dict]:
     base = Path(root) if root else data_root() / "notices"
 
-    def rows(name: str) -> tuple[dict, ...]:
-        p = base / name
-        return tuple(json.loads(line) for line in p.open()) if p.exists() else ()
-
     cov = base / "ops_coverage.json"
-    return rows("notices.jsonl"), rows("nws_vtec.jsonl"), json.loads(cov.read_text())["days"] if cov.exists() else {}
+    return rows(base, "notices"), rows(base, "nws_vtec"), json.loads(cov.read_text())["days"] if cov.exists() else {}
+
+
+def rows(base: Path, stem: str) -> tuple[dict, ...]:
+    """`stem`.jsonl.gz as committed, or a plain `stem`.jsonl."""
+    for p, opener in ((base / f"{stem}.jsonl.gz", gzip.open), (base / f"{stem}.jsonl", open)):
+        if p.exists():
+            with opener(p, "rt") as f:
+                return tuple(json.loads(line) for line in f)
+    return ()
 
 
 def coverage(date: str | dt.date, root: str | None = None) -> float:

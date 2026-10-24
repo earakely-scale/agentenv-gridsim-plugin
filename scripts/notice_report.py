@@ -10,6 +10,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from gridsim_core.notices import NWS_DAY_PHENOMENA
+from gridsim_core.notices import rows as notice_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 D = ROOT / "data" / "notices"
@@ -30,22 +31,29 @@ TYPES = [
 ]
 # (label, day, type, level, action, expected CPT clock time or None, source of the expectation)
 KNOWN = [
-    ("Sep 6 2023 EEA2", "2023-09-06", "EEA2", None, "issue", "19:25", "FD-4321; ERCOT System Ops Update 2023-10-09"),
-    ("Sep 6 2023 EEA1 (step down)", "2023-09-06", "EEA1", None, "issue", "20:27", "FD-4321"),
-    ("Sep 6 2023 normal", "2023-09-06", "Emergency", "EEA_exit", "end", "20:37", "FD-4321"),
+    ("Sep 6 2023 EEA2", "2023-09-06", "EEA2", None, "issue", "19:25", "v2 plan; ERCOT System Ops Update 2023-10-09"),
+    ("Sep 6 2023 EEA1 (step down)", "2023-09-06", "EEA1", None, "issue", "20:27", "v2 plan"),
+    ("Sep 6 2023 normal", "2023-09-06", "Emergency", "EEA_exit", "end", "20:37", "v2 plan"),
     ("Sep 6 2023 conservation appeal", "2023-09-06", "conservation_appeal", None, "issue", None, "[to find]"),
-    ("Uri EEA3", "2021-02-15", "EEA3", None, "issue", "01:23", "FD-4321 (display-only)"),
+    ("Uri EEA3", "2021-02-15", "EEA3", None, "issue", "01:23", "v2 plan (display-only)"),
     ("Uri EEA1", "2021-02-15", "EEA1", None, "issue", None, "[to find]"),
     ("Uri EEA2", "2021-02-15", "EEA2", None, "issue", None, "[to find]"),
     ("Elliott Dec 20-24 2022 (any grid notice)", "2022-12-20..2022-12-24", None, None, "issue", None, "[to find]"),
-    ("Elliott Dec 22-24 2022: no conservation appeal", "2022-12-22..2022-12-24", "conservation_appeal", None, "issue",
-     "none", "[to confirm]"),
-    ("Elliott Dec 22-24 2022: no EEA", "2022-12-22..2022-12-24", "EEA*", None, "issue", "none", "FD-4321"),
+    (
+        "Elliott Dec 22-24 2022: no conservation appeal",
+        "2022-12-22..2022-12-24",
+        "conservation_appeal",
+        None,
+        "issue",
+        "none",
+        "[to confirm]",
+    ),
+    ("Elliott Dec 22-24 2022: no EEA", "2022-12-22..2022-12-24", "EEA*", None, "issue", "none", "v2 plan"),
     ("Heather appeal for Jan 15 2024", "2024-01-14", "conservation_appeal", None, "issue", None, "[to find]"),
     ("Heather appeal for Jan 16 2024", "2024-01-15", "conservation_appeal", None, "issue", None, "[to find]"),
     ("Heather Jan 13-17 2024 (any grid notice)", "2024-01-13..2024-01-17", None, None, "issue", None, "[to find]"),
     ("Aug 20 2023 voluntary conservation", "2023-08-20", "conservation_appeal", None, "issue", None, "[to find]"),
-    ("Fern Jan 24-27 2026: no EEA", "2026-01-24..2026-01-27", "EEA*", None, "issue", "none", "FD-4321"),
+    ("Fern Jan 24-27 2026: no EEA", "2026-01-24..2026-01-27", "EEA*", None, "issue", "none", "v2 plan"),
     (
         "Fern Jan 24-27 2026: no conservation",
         "2026-01-24..2026-01-27",
@@ -53,7 +61,7 @@ KNOWN = [
         None,
         "issue",
         "none",
-        "FD-4321",
+        "v2 plan",
     ),
 ]
 
@@ -64,11 +72,11 @@ NOTES = """\
 - No machine-readable ERCOT notice feed was found: no RSS or JSON behind Operations Messages, Market Notices
   or news releases, and none in the sitemap; we did not find a notice product in the public API (not checked
   exhaustively). TXANS keeps no public history. The grid-conditions dashboard is current-state only, which
-  suits the forward capture (FD-4328), not history.
+  suits the daily forward capture, not history.
 - ercot.com keeps Operations Messages for six months only (`?m=MM&y=YYYY` for older months returns an empty
   table). Everything older comes from Internet Archive captures of the same ERCOT page (provenance
   `ercot_ops_wayback`, `url` is the capture). The old site (to about 2021) also had monthly archive pages
-  (`/opsmessages/YYYY/MM`), which the Archive captured for Sep 2020 to Feb 2021.
+  (`/opsmessages/YYYY/MM`), which the Archive captured for most months from May 2019 to Oct 2021.
 - Market Notices: the archive search reaches back three years (from 2023-10-24); older notices are reachable
   only by id (ids listed in ercot.com's sitemap are included). Detail pages, which carry the `Sent:` minute,
   were fetched only for subjects that look operational; the rest are dated rows tagged `market_notice`.
@@ -79,13 +87,22 @@ NOTES = """\
 - Crawling: ercot.com at 1 request/s, web.archive.org at one request per 4 s, IEM at its robots.txt crawl
   delay (120 s); a named user agent; every response cached under `cache/raw/notices/` (git-ignored), so a
   rebuild (`--no-fetch`) makes no requests. No source blocked the crawl.
+- About 70 Archive captures came back gzip-encoded (the raw bytes ERCOT served); they are decompressed before
+  parsing.
+- Uri EEA3: ERCOT's own message says "At 01:20, rotating outages are in progress" and was posted at 01:25:40
+  CST; the plan's 01:23 is not in ERCOT's log (it matches neither the stated nor the posted time). For the
+  reveal rule only the posted time matters: it reveals at 01:30 either way.
+- Notice days come to about 10-30% of fully covered days per year (ERCOT notices or load-moving NWS
+  warnings), below the plan's ~40% estimate. Counting NWS heat advisories (HT.Y, the second most common
+  product) as well would raise the share in summer; `NWS_DAY_PHENOMENA` in `gridsim_core.notices` sets this.
+- `text` is verbatim ERCOT text inside `notices.jsonl.gz`, which sits in `data/` and so ships in the wheel
+  and the env image. Strip it (or drop `data/notices` from the wheel) before anything public, per V2-D4.
 
 """.splitlines()
 
 
 def rows(name):
-    p = D / name
-    return [json.loads(x) for x in p.open()] if p.exists() else []
+    return list(notice_rows(D, name))
 
 
 def local(r):
@@ -222,7 +239,7 @@ def notice_day_table(ns, vt, days):
         + " | either, mean over regions (covered days) |",
         "|---" * (4 + len(regions)) + "|",
     ]
-    for y in YEARS:
+    for y in range(2019, YEARS.stop):
         start, end = dt.date(y, 1, 1), min(dt.date(y, 12, 31), dt.date(2026, 10, 23))
         ds = [start + dt.timedelta(k) for k in range((end - start).days + 1)]
         cov = [
@@ -244,12 +261,12 @@ def notice_day_table(ns, vt, days):
 
 
 def main():
-    ns, vt = rows("notices.jsonl"), rows("nws_vtec.jsonl")
+    ns, vt = rows("notices"), rows("nws_vtec")
     cov = json.loads((D / "ops_coverage.json").read_text()) if (D / "ops_coverage.json").exists() else {"days": {}}
     out = [
         "# ERCOT notice archive: coverage and QA",
         "",
-        f"Generated by `scripts/notice_report.py` from `notices.jsonl` ({len(ns)} rows), `nws_vtec.jsonl` "
+        f"Generated by `scripts/notice_report.py` from `notices.jsonl.gz` ({len(ns)} rows), `nws_vtec.jsonl.gz` "
         f"({len(vt)} rows) and `ops_coverage.json`. Times are Central prevailing time (CPT) unless marked UTC.",
         "",
     ]
@@ -331,7 +348,7 @@ def main():
         "### Grid-condition notices (the ones a battery desk acts on)",
         "",
         "`grid_condition` = EEA, conservation appeal, Weather Watch, or a Watch/Advisory/OCN/Emergency that is not a "
-        "market-system delay, a local transmission problem, a DC tie or a test.",
+        "market-system delay, a geomagnetic advisory, a local transmission problem, a DC tie or a test.",
         "",
         "| Year | issued | minute-stamped | share |",
         "|---|---|---|---|",
@@ -410,6 +427,25 @@ def main():
         "the fall-back night is ambiguous on the new pages (no zone printed); those rows take the first (CDT) "
         "reading.",
     ]
+    lags = defaultdict(list)
+    for r in ns:
+        if (
+            r["channel"] == "operations_message"
+            and r.get("event_time")
+            and r.get("grid_condition")
+            and r.get("action") != "cancel"
+        ):
+            t = dt.datetime.fromisoformat(r["issued_at"])
+            k = f"{r['tz_basis']}, {'summer' if t.utcoffset() == dt.timedelta(hours=-5) else 'winter'}"
+            lags[k].append((t - dt.datetime.fromisoformat(r["event_time"])).total_seconds() / 60)
+    out.append(
+        "- Posted minus stated time (`At HH:MM` in the text), median minutes: "
+        + "; ".join(
+            f"{k} {sorted(v)[len(v) // 2]:.1f} (n={len(v)}, {sum(0 <= x < 30 for x in v) / len(v):.0%} within 0-30 min)"
+            for k, v in sorted(lags.items())
+        )
+        + ". Grid-condition messages only. The same few minutes in summer and winter rules out an hour's shift."
+    )
     fb = [
         r
         for r in ns
@@ -427,12 +463,14 @@ def main():
     out += [
         "## NWS alerts (IEM VTEC)",
         "",
-        "`nws_vtec.jsonl`: one row per (VTEC event, GridSimEnv region) for heat, cold, winter, severe-storm, "
+        "`nws_vtec.jsonl.gz`: one row per (VTEC event, GridSimEnv region) for heat, cold, winter, severe-storm, "
         "tropical and wind products (warning W, watch A, advisory Y) whose zones or counties include one of the "
         "region's representative counties (`scripts/join_vtec.py` REGION_COUNTIES). `issued_at_utc` is the product "
         "issue time (IEM `product_issue`), `effective_from_utc` the VTEC begin time, `expires_at_utc` the final "
         "expiry. IEM folds CON/EXT/EXP/CAN updates into one event row, so there is nothing more to dedupe. Data: "
-        "NOAA/NWS via the Iowa Environmental Mesonet; attribution required, no endorsement implied.",
+        "NOAA/NWS via the Iowa Environmental Mesonet; attribution required, no endorsement implied. An event's IEM "
+        "page is `https://mesonet.agron.iastate.edu/vtec/?year={year}&wfo=K{wfo}&phenomena={phenomena}"
+        "&significance={significance}&eventid={eventid}`.",
         "",
         "| Year | rows | "
         + " | ".join(["west", "panhandle", "north", "houston", "south", "central"])

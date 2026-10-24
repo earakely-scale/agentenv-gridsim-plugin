@@ -1,9 +1,9 @@
 """NWS watches, warnings and advisories (VTEC) for the GridSimEnv regions, from the Iowa Environmental Mesonet archive.
 
-One request per year (IEM's vtec_events_bystate, one row per VTEC event, so CON/EXT/EXP/CAN updates are already folded),
-at IEM's robots.txt crawl delay of 120 s, cached under cache/raw/notices/iem/. Writes data/notices/nws_vtec.jsonl: one
-row per (event, region) for the weather phenomena a battery desk cares about, in the counties that stand for each
-region of gridsim_core.task.REGIONS.
+One request per year (IEM's vtec_events_bystate, one row per VTEC event, so CON/EXT/EXP/CAN updates are already
+folded), at IEM's robots.txt crawl delay of 120 s, cached under cache/raw/notices/iem/. Writes
+data/notices/nws_vtec.jsonl.gz: one row per (event, region) for the weather phenomena a battery desk cares about, in the
+counties that stand for each region of gridsim_core.task.REGIONS.
 
 python scripts/join_vtec.py [--years 2019-2026] [--no-fetch]
 """
@@ -11,6 +11,7 @@ python scripts/join_vtec.py [--years 2019-2026] [--no-fetch]
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import re
 import sys
@@ -111,22 +112,19 @@ def main() -> None:
                         "issued_at_utc": e.get("product_issue") or e["issue"],
                         "effective_from_utc": e["issue"],
                         "expires_at_utc": e["expire"],
-                        "init_expire_utc": e.get("init_expire"),
                         "wfo": e["wfo"],
                         "eventid": e["eventid"],
                         "year": y,
                         "counties": counties,
                         "n_locations": len((e.get("locations") or "").split(",")),
                         "area_km2": e.get("area"),
-                        "url": "https://mesonet.agron.iastate.edu" + e["uri"],
                         "timestamp_quality": "minute",
                     }
                 )
     rows.sort(key=lambda r: (r["issued_at_utc"], r["notice_id"]))
     OUT.mkdir(parents=True, exist_ok=True)
-    with open(OUT / "nws_vtec.jsonl", "w") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+    with gzip.GzipFile(OUT / "nws_vtec.jsonl.gz", "wb", mtime=0) as f:
+        f.write("".join(json.dumps(r) + "\n" for r in rows).encode())
     print(len(rows), dict(seen))
 
 

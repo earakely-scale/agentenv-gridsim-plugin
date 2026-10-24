@@ -107,7 +107,7 @@ def test_notices_for_buckets_and_watches(tmp_path):
     assert not is_notice_day("2023-08-01", "HB_HOUSTON", root=root)
 
 
-@pytest.mark.skipif(not (notices.data_root() / "notices" / "notices.jsonl").exists(), reason="no notice archive")
+@pytest.mark.skipif(not (notices.data_root() / "notices" / "notices.jsonl.gz").exists(), reason="no notice archive")
 def test_sep6_2023_hero_timeline():
     ns = notices_for("2023-09-06", "HB_NORTH")
     ops = [n for n in ns if n.get("channel") == "operations_message" and n["when"] == "intraday"]
