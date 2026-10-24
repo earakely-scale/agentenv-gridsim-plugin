@@ -1,0 +1,2518 @@
+{
+ "pack": "gridsim-market-eval",
+ "seed": 5324,
+ "showcase_pack": "gridsim-market-showcase",
+ "smoke_pack": "gridsim-market-train",
+ "columns": {
+  "sprint": [
+   {
+    "task_id": "mkt-v5-2025-01-12-A800x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-01-12",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.9,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.5417,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 42627.98,
+    "anchor_capture": 0.802552,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.113533,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.768811,
+      "welfare_ratio": 0.537622,
+      "profit": 42627.981482
+     },
+     "price_taker": {
+      "reward": 0.998505,
+      "compliant": 0.768031,
+      "welfare_ratio": 0.537556,
+      "profit": 42548.310151
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.113533,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.0,
+      "compliant": 0.214381,
+      "welfare_ratio": 0.428761,
+      "profit": -25838.630165
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-01-24-A1000x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-01-24",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.5417,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 1,
+    "anchor_minus_idle_usd": 17650.99,
+    "anchor_capture": 0.155499,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.074288,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.549261,
+      "welfare_ratio": 0.098521,
+      "profit": 17650.990779
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.55828,
+      "welfare_ratio": 0.116561,
+      "profit": 19763.630025
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.074288,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.0,
+      "compliant": 0.0,
+      "welfare_ratio": -0.000301,
+      "profit": -5603.813377
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-02-20-A1500x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-02-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 0.0,
+    "impact_hours": 11,
+    "impact_hours_2usd": 18,
+    "within_ns": 0.5455,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 2260375.67,
+    "anchor_capture": 0.980391,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.008374,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.914271,
+      "welfare_ratio": 0.828542,
+      "profit": 2260375.671036
+     },
+     "price_taker": {
+      "reward": 0.998479,
+      "compliant": 0.913407,
+      "welfare_ratio": 0.828335,
+      "profit": 2256077.603589
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.008374,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.008374,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-02-25-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-02-25",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.625,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 63367.36,
+    "anchor_capture": 0.735364,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.057868,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.740305,
+      "welfare_ratio": 0.48061,
+      "profit": 63367.35861
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.793816,
+      "welfare_ratio": 0.587633,
+      "profit": 75096.601473
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.057868,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.057868,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-07-A800x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-03-07",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 1.0,
+    "eta": 0.8,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.6364,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 72700.78,
+    "anchor_capture": 0.846295,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.027268,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.735988,
+      "welfare_ratio": 0.471976,
+      "profit": 72700.784786
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.751313,
+      "welfare_ratio": 0.502626,
+      "profit": 77148.79209
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.027268,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.027268,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-16-A1500x2-e3",
+    "tier": "floor-sprint",
+    "date": "2025-03-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 8,
+    "within_ns": 0.5455,
+    "notice_day": true,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 255930.1,
+    "anchor_capture": 0.688203,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.699057,
+      "welfare_ratio": 0.398115,
+      "profit": 255930.100211
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.724407,
+      "welfare_ratio": 0.448815,
+      "profit": 280251.983553
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.160815,
+      "compliant": 0.104396,
+      "welfare_ratio": 0.047976,
+      "profit": -12535.917401
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-20-A1500x2-e4",
+    "tier": "floor-sprint",
+    "date": "2025-03-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 0.0,
+    "impact_hours": 2,
+    "impact_hours_2usd": 8,
+    "within_ns": 0.5,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 244167.8,
+    "anchor_capture": 0.802837,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.736741,
+      "welfare_ratio": 0.473483,
+      "profit": 244167.800132
+     },
+     "price_taker": {
+      "reward": 0.967,
+      "compliant": 0.712012,
+      "welfare_ratio": 0.457023,
+      "profit": 234095.878404
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-24-A1500x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-03-24",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 11,
+    "within_ns": 0.9091,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 301415.28,
+    "anchor_capture": 0.549667,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.665555,
+      "welfare_ratio": 0.331111,
+      "profit": 301415.275674
+     },
+     "price_taker": {
+      "reward": 0.468057,
+      "compliant": 0.298388,
+      "welfare_ratio": 0.128718,
+      "profit": 100995.673178
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.18844,
+      "compliant": 0.09422,
+      "welfare_ratio": -0.004497,
+      "profit": -4355.51798
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-15-A1500x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-04-15",
+    "stratum": "base",
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.5833,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 74750.75,
+    "anchor_capture": 0.655611,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.036262,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.71195,
+      "welfare_ratio": 0.423901,
+      "profit": 74750.747953
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.713928,
+      "welfare_ratio": 0.427857,
+      "profit": 75324.396512
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.036262,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.036262,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-20-A1500x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-04-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 8.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.7143,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 29066.61,
+    "anchor_capture": 0.064638,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.12871,
+      "welfare_ratio": 0.057419,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.559762,
+      "welfare_ratio": 0.119523,
+      "profit": 29066.614628
+     },
+     "price_taker": {
+      "reward": 0.937139,
+      "compliant": 0.526325,
+      "welfare_ratio": 0.11551,
+      "profit": 26782.676762
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.12871,
+      "welfare_ratio": 0.057419,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.12871,
+      "welfare_ratio": 0.057419,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-26-A1200x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-04-26",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 4.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.7917,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 44918.23,
+    "anchor_capture": 0.368179,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.65912,
+      "welfare_ratio": 0.31824,
+      "profit": 44918.232906
+     },
+     "price_taker": {
+      "reward": 0.258816,
+      "compliant": 0.168141,
+      "welfare_ratio": 0.077467,
+      "profit": 3302.380881
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-29-A1500x2-e3",
+    "tier": "floor-sprint",
+    "date": "2025-04-29",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 2,
+    "impact_hours_2usd": 5,
+    "within_ns": 0.6667,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 62889.72,
+    "anchor_capture": 0.507254,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.645586,
+      "welfare_ratio": 0.291171,
+      "profit": 62889.720556
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.740716,
+      "welfare_ratio": 0.481432,
+      "profit": 103810.5152
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-16-A1500x1-e3",
+    "tier": "floor-sprint",
+    "date": "2025-05-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.9,
+    "c_deg": 0.0,
+    "impact_hours": 2,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.6364,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 181743.65,
+    "anchor_capture": 0.813392,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.674277,
+      "welfare_ratio": 0.348555,
+      "profit": 181743.652917
+     },
+     "price_taker": {
+      "reward": 0.540309,
+      "compliant": 0.349029,
+      "welfare_ratio": 0.15775,
+      "profit": 77311.18995
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-20-A1500x2-e3",
+    "tier": "floor-sprint",
+    "date": "2025-05-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 0.0,
+    "impact_hours": 5,
+    "impact_hours_2usd": 10,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 1427708.01,
+    "anchor_capture": 0.956905,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.781071,
+      "welfare_ratio": 0.562141,
+      "profit": 1427708.01055
+     },
+     "price_taker": {
+      "reward": 0.997638,
+      "compliant": 0.779551,
+      "welfare_ratio": 0.561463,
+      "profit": 1423493.089749
+     },
+     "max_withhold": {
+      "reward": 0.0,
+      "compliant": 0.017593,
+      "welfare_ratio": 0.035185,
+      "profit": -759631.556098
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-21-A1000x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-05-21",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.6957,
+    "notice_day": true,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 94798.08,
+    "anchor_capture": 0.620343,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.749463,
+      "welfare_ratio": 0.498925,
+      "profit": 94798.082976
+     },
+     "price_taker": {
+      "reward": 0.786117,
+      "compliant": 0.583627,
+      "welfare_ratio": 0.381138,
+      "profit": 69453.406192
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-27-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-05-27",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.5417,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 54903.85,
+    "anchor_capture": 0.662188,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.107456,
+      "welfare_ratio": 0.014912,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.776209,
+      "welfare_ratio": 0.552418,
+      "profit": 54903.850421
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.785273,
+      "welfare_ratio": 0.570547,
+      "profit": 55708.799023
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.107456,
+      "welfare_ratio": 0.014912,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.107456,
+      "welfare_ratio": 0.014912,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-06-22-A1000x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-06-22",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 1.0,
+    "eta": 0.95,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.5,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 17018.24,
+    "anchor_capture": 0.658408,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.738606,
+      "welfare_ratio": 0.477213,
+      "profit": 17018.244265
+     },
+     "price_taker": {
+      "reward": 0.980974,
+      "compliant": 0.724899,
+      "welfare_ratio": 0.468823,
+      "profit": 16613.512167
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-06-25-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-06-25",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 76287.7,
+    "anchor_capture": 0.977787,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.906982,
+      "welfare_ratio": 0.813964,
+      "profit": 76287.704216
+     },
+     "price_taker": {
+      "reward": 0.997227,
+      "compliant": 0.904354,
+      "welfare_ratio": 0.811482,
+      "profit": 76023.236354
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-09-A600x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-07-09",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.6667,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 15827.97,
+    "anchor_capture": 0.500783,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.630581,
+      "welfare_ratio": 0.261162,
+      "profit": 15827.966665
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.630581,
+      "welfare_ratio": 0.261162,
+      "profit": 15827.966665
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-17-A600x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-07-17",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.8333,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 79810.55,
+    "anchor_capture": 0.956264,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.752007,
+      "welfare_ratio": 0.504013,
+      "profit": 79810.545074
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.752007,
+      "welfare_ratio": 0.504013,
+      "profit": 79810.545074
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-30-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-07-30",
+    "stratum": "peak",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 971120.17,
+    "anchor_capture": 0.958953,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.108104,
+      "welfare_ratio": 0.016207,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.801468,
+      "welfare_ratio": 0.602936,
+      "profit": 971120.168638
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.812823,
+      "welfare_ratio": 0.625645,
+      "profit": 1008047.074881
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.108104,
+      "welfare_ratio": 0.016207,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.108104,
+      "welfare_ratio": 0.016207,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-05-A1500x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-08-05",
+    "stratum": "base",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.875,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 92632.4,
+    "anchor_capture": 0.982104,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.829012,
+      "welfare_ratio": 0.658023,
+      "profit": 92632.399352
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.827671,
+      "welfare_ratio": 0.655342,
+      "profit": 93061.257343
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-19-A1500x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-08-19",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 14,
+    "within_ns": 0.7368,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 333500.85,
+    "anchor_capture": 0.986721,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.738224,
+      "welfare_ratio": 0.476447,
+      "profit": 333500.852258
+     },
+     "price_taker": {
+      "reward": 0.997977,
+      "compliant": 0.739534,
+      "welfare_ratio": 0.481092,
+      "profit": 332657.633167
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-25-A600x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-08-25",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 1.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.625,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 22215.0,
+    "anchor_capture": 0.747399,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.612707,
+      "welfare_ratio": 0.225413,
+      "profit": 22215.000239
+     },
+     "price_taker": {
+      "reward": 0.833129,
+      "compliant": 0.506099,
+      "welfare_ratio": 0.179069,
+      "profit": 17581.212719
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-01-A1500x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-09-01",
+    "stratum": "base",
+    "p_mw": 1500,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 4,
+    "within_ns": 0.5833,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 154094.64,
+    "anchor_capture": 0.806924,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.10033,
+      "welfare_ratio": 0.000659,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.832968,
+      "welfare_ratio": 0.665936,
+      "profit": 154094.636496
+     },
+     "price_taker": {
+      "reward": 0.958738,
+      "compliant": 0.804381,
+      "welfare_ratio": 0.650024,
+      "profit": 146146.849605
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.10033,
+      "welfare_ratio": 0.000659,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.10033,
+      "welfare_ratio": 0.000659,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-05-A800x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-09-05",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 34438.44,
+    "anchor_capture": 0.461628,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.654795,
+      "welfare_ratio": 0.30959,
+      "profit": 34438.43982
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.68019,
+      "welfare_ratio": 0.360379,
+      "profit": 40098.470636
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-26-A1500x4-e3",
+    "tier": "floor-sprint",
+    "date": "2025-10-26",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 2,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.5,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 118269.87,
+    "anchor_capture": 0.410928,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.118645,
+      "welfare_ratio": 0.03729,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.645904,
+      "welfare_ratio": 0.291809,
+      "profit": 118269.866337
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.650048,
+      "welfare_ratio": 0.300095,
+      "profit": 122624.800436
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.118645,
+      "welfare_ratio": 0.03729,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.178706,
+      "compliant": 0.12225,
+      "welfare_ratio": 0.065793,
+      "profit": -3148.108162
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-27-A600x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-10-27",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.6957,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 62459.19,
+    "anchor_capture": 0.606147,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.122194,
+      "welfare_ratio": 0.044387,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.665749,
+      "welfare_ratio": 0.331499,
+      "profit": 62459.188114
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.700199,
+      "welfare_ratio": 0.400398,
+      "profit": 77406.367058
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.122194,
+      "welfare_ratio": 0.044387,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.086736,
+      "compliant": 0.132863,
+      "welfare_ratio": 0.178991,
+      "profit": -8843.008989
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-11-13-A1000x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-11-13",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.5,
+    "notice_day": true,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 51224.16,
+    "anchor_capture": 0.581425,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.676355,
+      "welfare_ratio": 0.35271,
+      "profit": 51224.160574
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.68077,
+      "welfare_ratio": 0.361541,
+      "profit": 52548.56345
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.162756,
+      "compliant": 0.097926,
+      "welfare_ratio": 0.033097,
+      "profit": -2384.72742
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-11-16-A1500x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-11-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.9048,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 228280.72,
+    "anchor_capture": 0.76436,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.72872,
+      "welfare_ratio": 0.457441,
+      "profit": 228280.7201
+     },
+     "price_taker": {
+      "reward": 0.999756,
+      "compliant": 0.729169,
+      "welfare_ratio": 0.458582,
+      "profit": 228211.217775
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.193899,
+      "compliant": 0.11688,
+      "welfare_ratio": 0.039861,
+      "profit": -1740.789467
+     }
+    }
+   }
+  ],
+  "day": [
+   {
+    "task_id": "mkt-v5-2025-01-12-A800x4-e1",
+    "tier": "floor-day",
+    "date": "2025-01-12",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.9,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.5417,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 41242.58,
+    "anchor_capture": 0.776469,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.113533,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.800962,
+      "welfare_ratio": 0.601924,
+      "profit": 41242.581482
+     },
+     "price_taker": {
+      "reward": 0.992936,
+      "compliant": 0.797432,
+      "welfare_ratio": 0.601929,
+      "profit": 40878.410151
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.832168,
+      "welfare_ratio": 0.664336,
+      "profit": 81293.2
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.832168,
+      "welfare_ratio": 0.664336,
+      "profit": 73878.492058
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-02-20-A1500x2-e1",
+    "tier": "floor-day",
+    "date": "2025-02-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 0.0,
+    "impact_hours": 11,
+    "impact_hours_2usd": 18,
+    "within_ns": 0.5455,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 2283969.92,
+    "anchor_capture": 0.990624,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.008374,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.916687,
+      "welfare_ratio": 0.833375,
+      "profit": 2283969.921036
+     },
+     "price_taker": {
+      "reward": 0.993205,
+      "compliant": 0.915037,
+      "welfare_ratio": 0.836868,
+      "profit": 2264569.478589
+     },
+     "max_withhold": {
+      "reward": 0.407489,
+      "compliant": 0.622617,
+      "welfare_ratio": 0.837744,
+      "profit": 592372.6875
+     },
+     "replay_A": {
+      "reward": 0.407489,
+      "compliant": 0.622617,
+      "welfare_ratio": 0.837744,
+      "profit": 592372.6875
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-16-A1500x2-e3",
+    "tier": "floor-day",
+    "date": "2025-03-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 8,
+    "within_ns": 0.5455,
+    "notice_day": true,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 398657.35,
+    "anchor_capture": 1.072,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.78943,
+      "welfare_ratio": 0.578859,
+      "profit": 398657.350211
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.791176,
+      "welfare_ratio": 0.582352,
+      "profit": 449543.483553
+     },
+     "max_withhold": {
+      "reward": 0.816352,
+      "compliant": 0.693901,
+      "welfare_ratio": 0.571449,
+      "profit": 307141.6875
+     },
+     "replay_A": {
+      "reward": 0.836093,
+      "compliant": 0.703771,
+      "welfare_ratio": 0.571449,
+      "profit": 316979.020099
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-15-A1500x1-e1",
+    "tier": "floor-day",
+    "date": "2025-04-15",
+    "stratum": "base",
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.5833,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 99639.69,
+    "anchor_capture": 0.873903,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.036262,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.833009,
+      "welfare_ratio": 0.666019,
+      "profit": 99639.685453
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.833009,
+      "welfare_ratio": 0.666019,
+      "profit": 100141.334012
+     },
+     "max_withhold": {
+      "reward": 0.989431,
+      "compliant": 0.827725,
+      "welfare_ratio": 0.666019,
+      "profit": 98323.3125
+     },
+     "replay_A": {
+      "reward": 0.989431,
+      "compliant": 0.827725,
+      "welfare_ratio": 0.666019,
+      "profit": 98323.3125
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-21-A1000x2-e1",
+    "tier": "floor-day",
+    "date": "2025-05-21",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.6957,
+    "notice_day": true,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 145526.46,
+    "anchor_capture": 0.952301,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.893657,
+      "welfare_ratio": 0.787314,
+      "profit": 145526.457976
+     },
+     "price_taker": {
+      "reward": 0.975163,
+      "compliant": 0.882255,
+      "welfare_ratio": 0.789347,
+      "profit": 141008.406192
+     },
+     "max_withhold": {
+      "reward": 0.841736,
+      "compliant": 0.814525,
+      "welfare_ratio": 0.787314,
+      "profit": 116736.875
+     },
+     "replay_A": {
+      "reward": 0.841736,
+      "compliant": 0.814525,
+      "welfare_ratio": 0.787314,
+      "profit": 116736.875
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-09-A600x4-e1",
+    "tier": "floor-day",
+    "date": "2025-07-09",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.6667,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 49087.59,
+    "anchor_capture": 1.553088,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.699463,
+      "welfare_ratio": 0.398926,
+      "profit": 49087.585782
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.699463,
+      "welfare_ratio": 0.398926,
+      "profit": 49087.585782
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.735472,
+      "welfare_ratio": 0.470944,
+      "profit": 57852.15
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.735472,
+      "welfare_ratio": 0.470944,
+      "profit": 57852.15
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-25-A600x1-e1",
+    "tier": "floor-day",
+    "date": "2025-08-25",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 1.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.625,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 27368.43,
+    "anchor_capture": 0.920781,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.646686,
+      "welfare_ratio": 0.293372,
+      "profit": 27368.425239
+     },
+     "price_taker": {
+      "reward": 0.952489,
+      "compliant": 0.622931,
+      "welfare_ratio": 0.293372,
+      "profit": 25743.037719
+     },
+     "max_withhold": {
+      "reward": 0.786376,
+      "compliant": 0.538431,
+      "welfare_ratio": 0.290485,
+      "profit": 20060.25
+     },
+     "replay_A": {
+      "reward": 0.786376,
+      "compliant": 0.538431,
+      "welfare_ratio": 0.290485,
+      "profit": 20060.25
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-05-A800x4-e1",
+    "tier": "floor-day",
+    "date": "2025-09-05",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 56131.84,
+    "anchor_capture": 0.752416,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.82502,
+      "welfare_ratio": 0.65004,
+      "profit": 56131.83982
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.82502,
+      "welfare_ratio": 0.65004,
+      "profit": 58115.870636
+     },
+     "max_withhold": {
+      "reward": 0.937336,
+      "compliant": 0.800936,
+      "welfare_ratio": 0.664535,
+      "profit": 51735.0
+     },
+     "replay_A": {
+      "reward": 0.937336,
+      "compliant": 0.800936,
+      "welfare_ratio": 0.664535,
+      "profit": 51735.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-26-A1500x4-e3",
+    "tier": "floor-day",
+    "date": "2025-10-26",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 2,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.5,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 233720.07,
+    "anchor_capture": 0.812059,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.118645,
+      "welfare_ratio": 0.03729,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.811546,
+      "welfare_ratio": 0.623093,
+      "profit": 233720.068542
+     },
+     "price_taker": {
+      "reward": 0.982302,
+      "compliant": 0.802118,
+      "welfare_ratio": 0.621933,
+      "profit": 228549.627642
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.813692,
+      "welfare_ratio": 0.627385,
+      "profit": 313663.875
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.813437,
+      "welfare_ratio": 0.626874,
+      "profit": 310739.730073
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-11-16-A1500x2-e2",
+    "tier": "floor-day",
+    "date": "2025-11-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.9048,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 258415.93,
+    "anchor_capture": 0.865263,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.78511,
+      "welfare_ratio": 0.57022,
+      "profit": 258415.927336
+     },
+     "price_taker": {
+      "reward": 0.999675,
+      "compliant": 0.784947,
+      "welfare_ratio": 0.57022,
+      "profit": 258310.800011
+     },
+     "max_withhold": {
+      "reward": 0.693652,
+      "compliant": 0.631936,
+      "welfare_ratio": 0.57022,
+      "profit": 159459.375
+     },
+     "replay_A": {
+      "reward": 0.717537,
+      "compliant": 0.643879,
+      "welfare_ratio": 0.57022,
+      "profit": 167174.625006
+     }
+    }
+   }
+  ],
+  "showcase": [
+   {
+    "task_id": "mkt-v5-2024-08-20-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2024-08-20",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 1,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.6667,
+    "notice_day": true,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 679869.1,
+    "anchor_capture": 0.997631,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.079799,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.844576,
+      "welfare_ratio": 0.689152,
+      "profit": 679869.098337
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.844576,
+      "welfare_ratio": 0.689152,
+      "profit": 679869.098337
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.844854,
+      "welfare_ratio": 0.689708,
+      "profit": 3742697.4
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.844854,
+      "welfare_ratio": 0.689708,
+      "profit": 3742620.024648
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2026-01-23-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2026-01-23",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.7917,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": -13157.84,
+    "anchor_capture": -1.011322,
+    "baselines": {
+     "idle": {
+      "reward": 1.0,
+      "compliant": 0.5,
+      "welfare_ratio": -0.611546,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.5,
+      "welfare_ratio": -0.519337,
+      "profit": -13157.838358
+     },
+     "price_taker": {
+      "reward": 0.0,
+      "compliant": 0.0,
+      "welfare_ratio": -0.56876,
+      "profit": -24957.921252
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.5,
+      "welfare_ratio": -0.453952,
+      "profit": 18177.6
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.5,
+      "welfare_ratio": -0.453952,
+      "profit": 13637.3949
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2026-01-24-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2026-01-24",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 16,
+    "within_ns": 0.0,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": -19606.37,
+    "anchor_capture": -0.082746,
+    "baselines": {
+     "idle": {
+      "reward": 1.0,
+      "compliant": 0.5,
+      "welfare_ratio": 0.0,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.717628,
+      "welfare_ratio": 0.435256,
+      "profit": -19606.372272
+     },
+     "price_taker": {
+      "reward": 0.0,
+      "compliant": 0.217628,
+      "welfare_ratio": 0.435256,
+      "profit": -20562.523519
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.724663,
+      "welfare_ratio": 0.449326,
+      "profit": 65977.1
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.724663,
+      "welfare_ratio": 0.449326,
+      "profit": -2061.962457
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2026-01-25-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2026-01-25",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 21,
+    "impact_hours_2usd": 24,
+    "within_ns": null,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 522760.15,
+    "anchor_capture": 0.494162,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.128778,
+      "welfare_ratio": 0.057555,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.749738,
+      "welfare_ratio": 0.499477,
+      "profit": 522760.148875
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.750085,
+      "welfare_ratio": 0.50017,
+      "profit": 564568.961156
+     },
+     "max_withhold": {
+      "reward": 0.428076,
+      "compliant": 0.467931,
+      "welfare_ratio": 0.507785,
+      "profit": 149036.5
+     },
+     "replay_A": {
+      "reward": 0.0,
+      "compliant": 0.248372,
+      "welfare_ratio": 0.496744,
+      "profit": -563606.943409
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2026-01-26-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2026-01-26",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 21,
+    "impact_hours_2usd": 21,
+    "within_ns": 0.0,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 1376829.04,
+    "anchor_capture": 0.68563,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.102213,
+      "welfare_ratio": 0.004426,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.714282,
+      "welfare_ratio": 0.428565,
+      "profit": 1376829.044424
+     },
+     "price_taker": {
+      "reward": 0.959095,
+      "compliant": 0.704599,
+      "welfare_ratio": 0.450103,
+      "profit": 1306430.583628
+     },
+     "max_withhold": {
+      "reward": 0.220149,
+      "compliant": 0.335523,
+      "welfare_ratio": 0.450897,
+      "profit": 34677.7
+     },
+     "replay_A": {
+      "reward": 0.441559,
+      "compliant": 0.44622,
+      "welfare_ratio": 0.450881,
+      "profit": 415731.099812
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2026-01-27-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2026-01-27",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 5,
+    "impact_hours_2usd": 20,
+    "within_ns": 0.2857,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 182273.05,
+    "anchor_capture": 0.675503,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.227306,
+      "welfare_ratio": 0.254613,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.851434,
+      "welfare_ratio": 0.702868,
+      "profit": 182273.046903
+     },
+     "price_taker": {
+      "reward": 0.860026,
+      "compliant": 0.780186,
+      "welfare_ratio": 0.700346,
+      "profit": 150381.139131
+     },
+     "max_withhold": {
+      "reward": 0.218101,
+      "compliant": 0.459442,
+      "welfare_ratio": 0.700784,
+      "profit": 4124.2
+     },
+     "replay_A": {
+      "reward": 0.268561,
+      "compliant": 0.484521,
+      "welfare_ratio": 0.70048,
+      "profit": 15620.974048
+     }
+    }
+   }
+  ],
+  "smoke-sprint": [
+   {
+    "task_id": "mkt-v5-2024-11-11-A600x2-e1",
+    "tier": "floor-sprint",
+    "date": "2024-11-11",
+    "stratum": null,
+    "p_mw": 600,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 8.0,
+    "impact_hours": 1,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.8261,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 51627.34,
+    "anchor_capture": 0.376245,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.023262,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.600513,
+      "welfare_ratio": 0.201025,
+      "profit": 51627.337157
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.600974,
+      "welfare_ratio": 0.201949,
+      "profit": 52089.918554
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.023262,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.050517,
+      "compliant": 0.035879,
+      "welfare_ratio": 0.02124,
+      "profit": -9646.778806
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2024-10-27-A1500x2-e3",
+    "tier": "floor-sprint",
+    "date": "2024-10-27",
+    "stratum": null,
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.8,
+    "c_deg": 0.0,
+    "impact_hours": 1,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.875,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 97206.8,
+    "anchor_capture": 0.64087,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.133812,
+      "welfare_ratio": 0.067624,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.718218,
+      "welfare_ratio": 0.436437,
+      "profit": 97206.801375
+     },
+     "price_taker": {
+      "reward": 0.994447,
+      "compliant": 0.717298,
+      "welfare_ratio": 0.44015,
+      "profit": 96532.093689
+     },
+     "max_withhold": {
+      "reward": 0.2,
+      "compliant": 0.133812,
+      "welfare_ratio": 0.067624,
+      "profit": 0.0
+     },
+     "replay_A": {
+      "reward": 0.187369,
+      "compliant": 0.13785,
+      "welfare_ratio": 0.088332,
+      "profit": -1534.767977
+     }
+    }
+   }
+  ],
+  "smoke-day": [
+   {
+    "task_id": "mkt-v5-2024-06-24-A1500x4-e2",
+    "tier": "floor-day",
+    "date": "2024-06-24",
+    "stratum": null,
+    "p_mw": 1500,
+    "hours": 4.0,
+    "eta": 0.9,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.8182,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 330990.47,
+    "anchor_capture": 0.983553,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.01237,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.927808,
+      "welfare_ratio": 0.855615,
+      "profit": 330990.470544
+     },
+     "price_taker": {
+      "reward": 1.0,
+      "compliant": 0.927647,
+      "welfare_ratio": 0.855295,
+      "profit": 344333.689455
+     },
+     "max_withhold": {
+      "reward": 0.360535,
+      "compliant": 0.610426,
+      "welfare_ratio": 0.860318,
+      "profit": 66419.25
+     },
+     "replay_A": {
+      "reward": 0.360535,
+      "compliant": 0.610426,
+      "welfare_ratio": 0.860318,
+      "profit": 66419.25
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2024-03-18-A1000x4-e2",
+    "tier": "floor-day",
+    "date": "2024-03-18",
+    "stratum": null,
+    "p_mw": 1000,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 2.0,
+    "impact_hours": 1,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.7083,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 369692.76,
+    "anchor_capture": 1.381121,
+    "baselines": {
+     "idle": {
+      "reward": 0.2,
+      "compliant": 0.1,
+      "welfare_ratio": -0.013008,
+      "profit": 0.0
+     },
+     "anchor": {
+      "reward": 1.0,
+      "compliant": 0.920921,
+      "welfare_ratio": 0.841843,
+      "profit": 369692.764556
+     },
+     "price_taker": {
+      "reward": 0.867453,
+      "compliant": 0.854596,
+      "welfare_ratio": 0.841739,
+      "profit": 308440.617532
+     },
+     "max_withhold": {
+      "reward": 1.0,
+      "compliant": 0.920994,
+      "welfare_ratio": 0.841987,
+      "profit": 453017.5
+     },
+     "replay_A": {
+      "reward": 1.0,
+      "compliant": 0.920994,
+      "welfare_ratio": 0.841987,
+      "profit": 453017.5
+     }
+    }
+   }
+  ]
+ }
+}
