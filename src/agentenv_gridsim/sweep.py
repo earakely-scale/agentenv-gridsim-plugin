@@ -629,6 +629,14 @@ class Board:
         ids = {t for cell in self.cells for t in self.scored(cell)} or {t for s in self.sweeps for t in s.tasks}
         return [self.tasks[t] for t in sorted(ids) if t in self.tasks]
 
+    def tier_rows(self, tier: str) -> list[dict]:
+        """The days played at ``tier``, which its baselines are averaged over when sweeps at two tiers share a
+        board."""
+        cells = [cell for cell in self.cells if cell[1] == tier]
+        ids = {t for cell in cells for t in self.scored(cell)} or {t for s in self.sweeps if s.tier == tier
+                                                                   for t in s.tasks}
+        return [self.tasks[t] for t in sorted(ids) if t in self.tasks]
+
 
 def card(board: Board) -> dict:
     models = [board.model(cell) for cell in board.cells]
@@ -839,7 +847,7 @@ def live_card(board: Board) -> dict:
                     "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
                     "audit": "weight 0; a failed audit makes the run unscored",
                     "excused": "derate clipping inside the freeze", "judge": False},
-        "baselines": {t: live_baselines(rows, t) for t in tiers},
+        "baselines": {t: live_baselines(board.tier_rows(t), t) for t in tiers},
         "models": models,
         "errors": {"taxonomy": list(LIVE_ERRORS),
                    "meaning": {"no_commit": "no accepted commit_da or commit_schedule (scores 0)",
@@ -967,7 +975,7 @@ def hybrid_card(board: Board) -> dict:
                     "audit": "weight 0; a failed audit makes the run unscored",
                     "excused": "AS shortfall or end-SoC shortfall from drift or deployments after the hour froze",
                     "judge": False},
-        "baselines": {t: hybrid_baselines(rows, t) for t in tiers},
+        "baselines": {t: hybrid_baselines(board.tier_rows(t), t) for t in tiers},
         "models": models,
         "errors": {"taxonomy": list(HYBRID_ERRORS),
                    "meaning": {"no_commit": "no accepted hour in any commit (scores 0)",

@@ -166,3 +166,10 @@ difference is shown.
   R = 1.
 
 ## Deviations
+
+None in the runs. All 42 runs scored at the first attempt and none reached the $1.00 cap, so no amendment sweep ran;
+the four sweeps ran at the same time as registered and spent $7.03 in all (main $5.70, energy $0.86, showcase $0.05
+and $0.42). One change to the report code, none to a registered number: `sweep report` averaged each tier's baselines
+over all 40 days of the two sweeps (the reserves line read AS-hog 0.465 and energy-only 0.814), and f2ab862 averages
+each tier's over its own days before `results/board-v3.md` was written. `scripts/pilot_v3.py`, which computes the
+registered metrics, is unchanged. Results: `results/board-v3.md` (Pilot and Reading), `results/pilot-v3.json`.

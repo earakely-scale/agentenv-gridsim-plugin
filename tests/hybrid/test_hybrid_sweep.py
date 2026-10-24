@@ -9,7 +9,7 @@ from click.testing import CliRunner
 from hybrid_days import DAY, scripted
 from sweep_fake import play, stored, summary
 
-from agentenv_gridsim import sweep
+from agentenv_gridsim import hybrid_tasks, sweep
 from agentenv_gridsim.cli import gridsim
 from gridsim_core.hybrid import EPISODE_SCHEMA, HYBRID_ENV, NOTICE_TOOL, Session, as_hog_policy
 
@@ -96,6 +96,23 @@ def test_the_hybrid_report_writes_eval_v3_and_the_hybrid_board(fake):
     assert m["by_as_stratum"] == {s: m["mean"] if s == DAY["tags"].get("as_stratum") else None for s in sweep.STRATA}
     assert m["beats_sponge"] == float(g["reward"] > refs["baselines"]["sponge"]["reward"])
     assert Path("results/board-v3.md").read_text().startswith("# GridSim v3 hybrid board")
+
+
+def test_each_tier_s_baselines_are_over_the_days_played_at_it(fake):
+    assert run_hybrid(fake).exit_code == 0
+    other = next(t for t in hybrid_tasks.pack_rows("fixtures-hybrid") if t["task_id"] != DAY["task_id"])
+    record, s = hybrid_play(other, "energy")
+    (fake.root / "records" / f"{other['task_id']}.json").write_text(json.dumps(record))
+    fake.script({f"{SOL}|{other['task_id']}": [{"context": hybrid_scored(s, f"file:///{other['task_id']}.json")}]})
+    result = CliRunner().invoke(gridsim, ["sweep", "run", "--name", "hy-e", *HYBRID, "--models", SOL, "--tasks",
+                                          other["task_id"], "--tier", "energy", "--cap-usd", "10"])
+    assert result.exit_code == 0, result.output
+    assert CliRunner().invoke(gridsim, ["sweep", "report", "hy", "hy-e"]).exit_code == 0
+    b = json.loads(Path("results/eval-v3.json").read_text())["baselines"]
+    assert (b["reserves"]["n"], b["energy"]["n"]) == (1, 1)
+    assert (b["reserves"]["as_hog"], b["energy"]["v2_energy"]) == (
+        round(DAY["refs"]["reserves"]["baselines"]["as_hog"]["reward"], 4),
+        round(other["refs"]["energy"]["baselines"]["v2_energy"]["reward"], 4))
 
 
 def test_a_hybrid_and_a_live_sweep_are_reported_apart(fake):
