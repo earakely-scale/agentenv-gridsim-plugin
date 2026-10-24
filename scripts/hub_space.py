@@ -907,8 +907,10 @@ def market_blurb(ep: dict) -> str:
     sell = sum(max(0.0, x) for x in ep["awards"]["A"])
     cfd = [x for x in ep.get("contracts") or [] if x.get("status") == "accepted"]
     deal = (f" and signs a {cfd[0]['mw']:,.0f} MW CfD with the retailer" if cfd else "")
+    mw = f"{a['p_mw']:,.0f}"
+    article = "an" if mw.startswith("8") or mw.split(",")[0] in ("11", "18") else "a"
     return (f"ERCOT's day-ahead market on {t['date']}, re-cleared from the real 60-day disclosure: {who} offers "
-            f"seat A, a {a['p_mw']:,.0f} MW battery portfolio, against four anonymised real portfolios at 9 am the day "
+            f"seat A, {article} {mw} MW battery portfolio, against four anonymised real portfolios at 9 am the day "
             f"before{deal}. The hub clears ${c['hub_usd'][h]:,.0f}/MWh at {hour(h)} (ERCOT's real "
             f"${t['hub_dam_real'][h]:,.0f}); seat A sells {sell:,.0f} MWh. It makes ${ep['profit_usd']:,.0f}, R "
             f"{ep['reward']:.2f}, compliant {ep['compliant_reward']:.2f}.")
