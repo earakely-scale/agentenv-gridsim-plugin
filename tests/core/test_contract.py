@@ -6,8 +6,17 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from gridsim_core import CONTRACT_VERSION
-from gridsim_core.contract import (AS_DURATION_H, AS_ERAS, ERAS, as_duration_h, as_era, as_products, ceil_to_interval,
-                                   era, price_violations)
+from gridsim_core.contract import (
+    AS_DURATION_H,
+    AS_ERAS,
+    ERAS,
+    as_duration_h,
+    as_era,
+    as_products,
+    ceil_to_interval,
+    era,
+    price_violations,
+)
 
 
 def test_version():
