@@ -137,21 +137,27 @@ def test_merge_notices_attaches_and_recomputes(tmp_path):
     import build_live_pack as blp
 
     shutil.copytree(DATA / "fixtures-live", tmp_path / "fixtures-live")
-    task = next(t for t in FIXTURES if not t["notices"])
+    task = next(t for t in FIXTURES if not t["task_id"].endswith(("-notice", "-derate")))
     day = task["date"]
-    rows = [{"event_id": "M-test-1", "source": "ERCOT", "kind": "conservation", "level": "Advisory", "name": "ERCOT",
-             "issued_at": blp.local_iso(day, 16 * 60 + 5), "title": "Conservation appeal", "text": "x" * 900,
-             "points": None, "extra": 1},
-            {"event_id": "W-test-2", "source": "NWS", "kind": "weather", "level": "Warning", "name": "NWS",
-             "issued_at": blp.local_iso(day, 9 * 60), "title": "Heat warning", "text": "Heat.", "points": ["NOPE"]}]
-    src = tmp_path / "notices.jsonl"
-    src.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    blp.merge_notices(argparse.Namespace(merge_notices=str(src), out=str(tmp_path), workers=2))
+    iso = blp.local_iso(day, 16 * 60 + 5)
+    row = {"notice_id": "OPS-test-1", "source": "ERCOT", "channel": "operations_message", "type": "conservation",
+           "level": "conservation", "action": "issue", "issued_at": iso,
+           "issued_at_utc": live._as_utc(iso).isoformat(), "timestamp_quality": "minute",
+           "summary": "ERCOT asked the public to conserve electricity.", "text": "VERBATIM ERCOT TEXT " * 40,
+           "grid_condition": True, "regions": None, "tags": []}
+    arch = tmp_path / "notices"
+    arch.mkdir()
+    (arch / "notices.jsonl").write_text(json.dumps(row) + "\n")
+    (arch / "nws_vtec.jsonl").write_text("")
+    days = {(dt.date.fromisoformat(day) + dt.timedelta(days=k)).isoformat(): 1.0 for k in range(-5, 3)}
+    (arch / "ops_coverage.json").write_text(json.dumps({"days": days}))
+    blp.merge_notices(argparse.Namespace(merge_notices=str(arch), out=str(tmp_path), workers=2))
     merged = {t["task_id"]: t for t in load(tmp_path / "fixtures-live" / "tasks.jsonl.gz")}
     t = merged[task["task_id"]]
-    assert [n["event_id"] for n in t["notices"]] == ["M-test-1"] and len(t["notices"][0]["text"]) == 600
-    assert "extra" not in t["notices"][0] and t["tags"]["notice_day"] and t["tags"]["watches"] == 6
+    assert [n["event_id"] for n in t["notices"]] == ["OPS-test-1"]
+    assert t["notices"][0]["text"] == row["summary"] and "VERBATIM" not in json.dumps(merged)
+    assert t["tags"]["day_kind"] == "notice" and t["tags"]["watches"] == 6
     assert t["notices_sha"] == live.notices_sha(t["notices"]) and t["refs"]["notices_sha"] == t["notices_sha"]
-    assert live.stored_refs(t, "foresight") is not None and live.stored_refs(task, "foresight") is not None
+    assert live.stored_refs(t, "foresight") is not None
     m = json.loads((tmp_path / "fixtures-live" / "manifest.json").read_text())
     assert m["notices"]["tasks_changed"] >= 1

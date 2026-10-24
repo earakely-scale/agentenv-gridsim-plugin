@@ -28,6 +28,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_pack as v1  # noqa: E402
 
 from gridsim_core import CONTRACT_VERSION, live  # noqa: E402
+from gridsim_core import notices as archive  # noqa: E402
 from gridsim_core.contract import era  # noqa: E402
 from gridsim_core.grade import reward_value  # noqa: E402
 from gridsim_core.task import REGIONS, make_battery, point_kind, stable_seed  # noqa: E402
@@ -50,6 +51,13 @@ EP_MIX = v1.EP_MIX
 FILTER = {"divergence_usd_per_mw": 40.0, "roll_minus_naive_share": 0.05, "roll_minus_naive_usd_per_mw": 5.0,
           "hind_headroom_usd_per_mw": 10.0}
 NAIVE_R_CEILING = 0.7
+NOTICE_DAYS_EXEMPT = True
+"""Contract L-D9: notice days skip the anchor-beats-naive criterion (X6 days, scored by the beat-anchor rate)."""
+NOTICE_SHARE = {"train": 0.40, "eval": 0.50, "test": 0.30, "rtcb": 0.30}
+"""Notice-day share: a target for train and eval, a cap for test and rtcb (L-D9 lets notice days pass the filter)."""
+NWS_KEEP = {(ph, sg) for ph in archive.NWS_DAY_PHENOMENA for sg in ("W", "A")} | {("HT", "Y")}
+NWS_LEVEL = {"W": "Warning", "A": "Watch", "Y": "Advisory"}
+ERCOT_EVAL_DAYS: set[str] = set()
 SHARE_STEPS = (0.05, 0.075, 0.10, 0.125, 0.15)
 TUNE_DIVERGENCE = (20.0, 40.0, 60.0)
 BLIND_MIN_USD_PER_MW = 1.0
@@ -156,12 +164,14 @@ def near_showcase(d: str) -> str | None:
 
 
 def split(d: str) -> str | None:
-    """train | eval | test | rtcb | showcase | None; eval is every third 2024 date, out of train."""
+    """train | eval | test | rtcb | showcase | None; eval is every third 2024 date plus every 2024 ERCOT notice day,
+    out of train."""
     if d in SHOWCASE.values():
         return "showcase"
     if near_showcase(d):
         return None
-    if d.startswith(EVAL_YEAR) and (dt.date.fromisoformat(d) - dt.date(2024, 1, 1)).days % 3 == 1:
+    if d.startswith(EVAL_YEAR) and ((dt.date.fromisoformat(d) - dt.date(2024, 1, 1)).days % 3 == 1
+                                    or d in ERCOT_EVAL_DAYS):
         return "eval"
     if TRAIN[0] <= d <= TRAIN[1]:
         return "train"
@@ -194,14 +204,63 @@ def pick_letter(d: str, p: str, table: dict, salt: str = "live", ep: int | None 
     return table[f"{ep}h"][(h // 100000) % 26]
 
 
+def core_notice(n: dict, date: str) -> dict:
+    """An archive row as the Session's notice: ids, times, level and lane N's paraphrased summary, never the verbatim
+    text (V2-D4); NWS rows get a generated one-line summary."""
+    if n["source"] == "NWS":
+        cs = n.get("counties") or []
+        where = ", ".join(cs[:3]) + (f" and {len(cs) - 3} more counties" if len(cs) > 3 else "")
+        until = live.label(live.to_minutes(n["expires_at_utc"], date), date)
+        text = f"NWS {n['wfo']}: {n['name']} for {where or n['region']} until {until} CPT."
+        return {"event_id": n["notice_id"], "source": "NWS", "kind": f"nws:{n['phenomena']}.{n['significance']}",
+                "level": NWS_LEVEL.get(n["significance"]), "issued_at": n["issued_at_utc"], "name": f"NWS {n['wfo']}",
+                "title": n["name"], "text": text[:live.NOTICE_CHARS]}
+    minute = n["timestamp_quality"] == "minute" and n.get("issued_at_utc")
+    label = f"ERCOT {n.get('level') or n.get('type') or 'notice'}"
+    return {"event_id": n["notice_id"], "source": "ERCOT", "kind": str(n.get("type") or "other"),
+            "level": n.get("level"), "issued_at": n["issued_at_utc"] if minute else n["reveal_at"], "name": "ERCOT",
+            "title": label + (" cancelled" if n.get("action") == "cancel" else ""), "action": n.get("action"),
+            "text": str(n.get("summary") or n.get("level") or "")[:live.NOTICE_CHARS]}
+
+
+def day_notices(date: str, point: str, root: str | None = None) -> list[dict]:
+    """The live day's notices at a point: ERCOT grid-condition rows and the region's load-moving NWS warnings and
+    watches plus heat advisories (provisional)."""
+    rows = [n for n in archive.notices_for(date, point, root=root)
+            if n["source"] == "ERCOT" or (n.get("phenomena"), n.get("significance")) in NWS_KEEP]
+    return [core_notice(n, date) for n in rows]
+
+
+def day_kind(date: str, point: str, root: str | None = None) -> str:
+    """notice | quiet (fully covered by the archive, no notice) | unknown (an archive gap: not known quiet)."""
+    if archive.is_notice_day(date, point, root):
+        return "notice"
+    return "quiet" if archive.coverage(date, root) >= 1.0 else "unknown"
+
+
+def ercot_notice_day(date: str) -> bool:
+    return any(n["source"] == "ERCOT" and n["when"] != "board" and n.get("action") == "issue"
+               and n["timestamp_quality"] == "minute" for n in archive.notices_for(date, "HB_HUBAVG", nws=False))
+
+
+_DAY: dict = {}
+
+
+def day_info(date: str, point: str) -> tuple[list, str]:
+    if (date, point) not in _DAY:
+        _DAY[(date, point)] = (day_notices(date, point), day_kind(date, point))
+    return _DAY[(date, point)]
+
+
 def make_candidate(key: tuple, dam: dict, rt: dict, table: dict, ep: int | None = None, salt: str = "live") -> dict:
     d, p = key
     b = live_battery(pick_letter(d, p, table, salt, ep))
+    ns, kind = day_info(d, p)
     return {"task_id": f"live-v2-{d}-{p}-{b['archetype']}", "live_version": live.LIVE_VERSION,
             "contract_version": CONTRACT_VERSION, "pack": None, "split": None, "date": d, "settlement_point": p,
             "point_kind": point_kind(p), "region": REGIONS[p], "prices": [round(float(v), 2) for v in dam[key]],
-            "rt": [round(float(v), 2) for v in rt[key]], "blind": v1.lags(dam, d, p), "battery": b, "notices": [],
-            "notices_sha": live.notices_sha([])}
+            "rt": [round(float(v), 2) for v in rt[key]], "blind": v1.lags(dam, d, p), "battery": b, "notices": ns,
+            "notices_sha": live.notices_sha(ns), "_kind": kind}
 
 
 def eligibility(t: dict) -> dict:
@@ -215,10 +274,13 @@ def eligibility(t: dict) -> dict:
             "hind_headroom_usd_per_mw": round(head / mw, 6)}
 
 
-def eligible(e: dict, f: dict = FILTER) -> bool:
-    return (e["divergence_usd_per_mw"] >= f["divergence_usd_per_mw"]
-            and e["hind_headroom_usd_per_mw"] >= f["hind_headroom_usd_per_mw"]
-            and e["roll_minus_naive_share"] is not None
+def eligible(e: dict, f: dict = FILTER, notice: bool = False) -> bool:
+    """FD-4321's filter; a notice day skips the anchor-beats-naive criterion when NOTICE_DAYS_EXEMPT (L-D9)."""
+    base = (e["divergence_usd_per_mw"] >= f["divergence_usd_per_mw"]
+            and e["hind_headroom_usd_per_mw"] >= f["hind_headroom_usd_per_mw"])
+    if notice and NOTICE_DAYS_EXEMPT:
+        return base
+    return (base and e["roll_minus_naive_share"] is not None
             and e["roll_minus_naive_share"] >= f["roll_minus_naive_share"]
             and e["roll_minus_naive_usd_per_mw"] >= f["roll_minus_naive_usd_per_mw"])
 
@@ -228,8 +290,11 @@ def tags(t: dict, showcase: str | None = None) -> dict:
     m = int(t["date"][5:7])
     season = "winter" if m in (12, 1, 2) else "spring" if m <= 5 else "summer" if m <= 8 else "fall"
     ws = live.schedule(t, "foresight")
+    kind = t.get("_kind") or day_info(t["date"], t["settlement_point"])[1]
     return {"watches": len(ws), "short_ok": len(live.schedule(t, "short")) <= live.SHORT_MAX_WATCHES,
-            "notice_day": any(w.notices for w in ws[1:]), "notices": len(t["notices"]), "season": season,
+            "day_kind": kind, "notice_day": kind == "notice", "coverage": archive.coverage(t["date"]),
+            "notices": len(t["notices"]), "notice_watches": len(ws) - len(live.REGULAR["foresight"]),
+            "after_day": len(live.after_day(t)), "season": season,
             "era": era(t["date"])["name"], "neg_intervals": int((rt < 0).sum()),
             "rt_spike": bool(rt.max() >= max(500.0, 3 * float(np.median(np.abs(rt))))),
             "blind_eval": bool((t["refs"]["roll"].get("blind") or {}).get("p_roll") is not None),
@@ -309,7 +374,7 @@ def tune(cands: list) -> tuple[dict, list]:
         for share in SHARE_STEPS:
             f = FILTER | {"divergence_usd_per_mw": div, "roll_minus_naive_share": share}
             for sp in ("train", "eval", "test", "rtcb"):
-                pool = [c for c in cands if c["_split"] == sp]
+                pool = [c for c in cands if c["_split"] == sp and c["_kind"] != "notice"]
                 kept = [c for c in pool if eligible(c["eligibility"], f)]
                 nr = [naive_r(c) for c in kept]
                 rows.append({"split": sp, "divergence": div, "share": share, "candidates": len(pool),
@@ -318,7 +383,8 @@ def tune(cands: list) -> tuple[dict, list]:
     chosen = dict(FILTER)
     for share in SHARE_STEPS:
         chosen["roll_minus_naive_share"] = share
-        ev = [naive_r(c) for c in cands if c["_split"] == "eval" and eligible(c["eligibility"], chosen)]
+        ev = [naive_r(c) for c in cands if c["_split"] == "eval" and c["_kind"] != "notice"
+              and eligible(c["eligibility"], chosen)]
         if ev and float(np.mean(ev)) <= NAIVE_R_CEILING:
             break
     return chosen, rows
@@ -444,17 +510,22 @@ def write_stats(out: Path, packs: dict, cands: list, chosen: dict, tuning: list,
                 dedup_stats: dict, timing: dict):
     lines = ["# GridSimEnv v2 live pack statistics", "",
              f"Built by `scripts/build_live_pack.py` (live {live.LIVE_VERSION}, core contract {CONTRACT_VERSION}). "
-             "All numbers are measured on the packs. No notices are attached yet (FD-4325 runs in parallel); every "
-             "day is a quiet day until `--merge-notices` fills them.", "",
+             "All numbers are measured on the packs. Notices come from lane N's archive (`gridsim_core.notices`, "
+             "FD-4325); a day is `notice`, `quiet` (archive coverage 1.0, no notice) or `unknown` (an archive gap).",
+             "",
              "## Packs", "",
-             "| pack | tasks | blind | short | notice days | naive R | naive capture | anchor capture | watches | "
-             "anchor commits |", "|---|---|---|---|---|---|---|---|---|---|"]
+             "| pack | tasks | notice / quiet / unknown | blind | short | naive R | naive R notice | naive R quiet | "
+             "naive capture | anchor capture | watches | anchor commits |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for name, tasks in packs.items():
         m = means(tasks)
-        lines.append(f"| {PACKS[name]} | {len(tasks)} | {sum(t['tags']['blind_eval'] for t in tasks)} | "
-                     f"{sum(t['tags']['short_ok'] for t in tasks)} | {sum(t['tags']['notice_day'] for t in tasks)} | "
-                     f"{m.get('naive_reward')} | {m.get('naive_capture')} | {m.get('roll_capture')} | "
-                     f"{m.get('watches')} | {m.get('roll_commits')} |")
+        k = collections.Counter(t["tags"]["day_kind"] for t in tasks)
+        by = {kind: [naive_r(t) for t in tasks if t["tags"]["day_kind"] == kind] for kind in ("notice", "quiet")}
+        nr = {kind: round(float(np.mean(v)), 4) if v else None for kind, v in by.items()}
+        lines.append(f"| {PACKS[name]} | {len(tasks)} | {k['notice']} / {k['quiet']} / {k['unknown']} | "
+                     f"{sum(t['tags']['blind_eval'] for t in tasks)} | {sum(t['tags']['short_ok'] for t in tasks)} | "
+                     f"{m.get('naive_reward')} | {nr['notice']} | {nr['quiet']} | {m.get('naive_capture')} | "
+                     f"{m.get('roll_capture')} | {m.get('watches')} | {m.get('roll_commits')} |")
     lines += ["", "Naive R is naive's reward under the shared contract with the rolling anchor at 1.0 (idle 0.2). "
               "Capture is (P - P_idle) / (P_hind - P_idle), the weight-0 hindsight row.", ""]
     lines += ["## Distributions (quantiles p5, p25, p50, p75, p95, mean)", ""]
@@ -476,10 +547,31 @@ def write_stats(out: Path, packs: dict, cands: list, chosen: dict, tuning: list,
                                                         for t in tasks if t["refs"]["roll"].get("blind")),
                   "| RT-DA divergence $/MW " + quantiles(t["eligibility"]["divergence_usd_per_mw"] for t in tasks),
                   ""]
-    lines += ["## Eligibility filter", "",
+    lines += ["## Notices", "",
+              "| pack | tasks with a notice watch | notice watches (mean) | at the 10-watch cap | notices after the "
+              "last watch | anchor beats naive on notice days | distinct notice point-days |",
+              "|---|---|---|---|---|---|---|"]
+    for name, tasks in packs.items():
+        nt = [t for t in tasks if t["tags"]["day_kind"] == "notice"]
+        beats = sum(t["refs"]["roll"]["foresight"]["p_roll"] > t["refs"]["p_naive"] + 1e-6 for t in nt)
+        lines.append(f"| {PACKS[name]} | {sum(t['tags']['notice_watches'] > 0 for t in tasks)} | "
+                     f"{np.mean([t['tags']['notice_watches'] for t in tasks]):.2f} | "
+                     f"{sum(t['tags']['watches'] >= live.MAX_WATCHES for t in tasks)} | "
+                     f"{sum(t['tags']['after_day'] for t in tasks)} | {beats} of {len(nt)} | "
+                     f"{len({(t['date'], t['settlement_point']) for t in nt})} |")
+    lines += ["", "Candidates and eligible tasks by day kind (notice days skip the anchor-beats-naive criterion, L-D9; "
+              "the last column is how many notice-day candidates would pass without that exemption):", "",
+              "| split | notice | quiet | unknown | notice eligible without L-D9 | kept by kind |",
+              "|---|---|---|---|---|---|"]
+    for sp, s_ in filt.items():
+        bk = s_["by_kind"]
+        lines.append(f"| {sp} | {bk['notice'][0]} / {bk['notice'][1]} | {bk['quiet'][0]} / {bk['quiet'][1]} | "
+                     f"{bk['unknown'][0]} / {bk['unknown'][1]} | {s_['notice_eligible_without_exemption']} | "
+                     f"{json.dumps(s_['kept_by_kind'])} |")
+    lines += ["", "## Eligibility filter", "",
               f"Chosen: {json.dumps(chosen)}. Spec start: {json.dumps(FILTER)}. V2-D5: the anchor-beats-naive share "
               f"is raised in steps {list(SHARE_STEPS)} until naive's mean R on the eval pool is at most "
-              f"{NAIVE_R_CEILING} (capped at 15%).", "",
+              f"{NAIVE_R_CEILING} (capped at 15%), measured on non-notice candidates.", "",
               f"Candidates are point-days x battery draws per point-day ({json.dumps(SALTS)}); selection takes one "
               "battery per point-day before a second.", "",
               "| split | candidates | eligible | share | kept |", "|---|---|---|---|---|"]
@@ -518,6 +610,8 @@ def build(args):
     rt, rt_stats = load_rt(raw / "ercot-rt", Path(args.cache), args.workers)
     dam, _ = v1.load_dam(raw / "ercot", ROOT / "cache" / "parsed", args.workers)
     log(f"{len(rt)} RT and {len(dam)} DA point-days at {time.time() - t0:.0f}s")
+    ERCOT_EVAL_DAYS.update(d for d in sorted({k[0] for k in rt if k[0].startswith(EVAL_YEAR)}) if ercot_notice_day(d))
+    log(f"{len(ERCOT_EVAL_DAYS)} {EVAL_YEAR} ERCOT notice days join the eval dates")
     keys = sorted(k for k in rt if k in dam and split(k[0]) is not None)
     keys, dedup_stats = dedup(keys, dam, rt)
     table = json.loads((ROOT / "data" / "ercot-dam-v1-train" / "manifest.json").read_text())["letters"]
@@ -540,16 +634,29 @@ def build(args):
     filt, sel = {}, {}
     for sp in ("train", "eval", "test", "rtcb"):
         pool = [c for c in cands if c["_split"] == sp]
-        ok = [c for c in pool if eligible(c["eligibility"], chosen)]
+        ok = [c for c in pool if eligible(c["eligibility"], chosen, c["_kind"] == "notice")]
         e, f = [c["eligibility"] for c in pool], chosen
+        kinds = collections.Counter(c["_kind"] for c in pool)
+        okk = collections.Counter(c["_kind"] for c in ok)
+        strict = sum(eligible(c["eligibility"], chosen) for c in pool if c["_kind"] == "notice")
         filt[sp] = {"candidates": len(pool), "eligible": len(ok),
                     "eligible_share": round(len(ok) / max(len(pool), 1), 4),
+                    "by_kind": {k: [kinds[k], okk[k]] for k in ("notice", "quiet", "unknown")},
+                    "notice_eligible_without_exemption": strict,
                     "fail_divergence": sum(x["divergence_usd_per_mw"] < f["divergence_usd_per_mw"] for x in e),
                     "fail_headroom": sum(x["hind_headroom_usd_per_mw"] < f["hind_headroom_usd_per_mw"] for x in e),
                     "fail_share": sum((x["roll_minus_naive_share"] or -1) < f["roll_minus_naive_share"] for x in e),
                     "fail_usd": sum(x["roll_minus_naive_usd_per_mw"] < f["roll_minus_naive_usd_per_mw"] for x in e)}
-        sel[sp] = select(ok, TARGETS[sp], sp)
+        if sp in NOTICE_SHARE:
+            notice = select([c for c in ok if c["_kind"] == "notice"], round(NOTICE_SHARE[sp] * TARGETS[sp]), sp + "|n")
+            rest = [c for c in ok if c["_kind"] == ("quiet" if sp == "eval" else c["_kind"]) and c["_kind"] != "notice"]
+            sel[sp] = notice + select(rest, TARGETS[sp] - len(notice), sp + "|q")
+            if sp == "eval" and len(sel[sp]) < TARGETS[sp]:
+                sel[sp] += select([c for c in ok if c["_kind"] == "unknown"], TARGETS[sp] - len(sel[sp]), "eval|u")
+        else:
+            sel[sp] = select(ok, TARGETS[sp], sp)
         filt[sp]["kept"] = len(sel[sp])
+        filt[sp]["kept_by_kind"] = dict(collections.Counter(c["_kind"] for c in sel[sp]))
         filt[sp]["point_days"] = len({(t["date"], t["settlement_point"]) for t in sel[sp]})
     show = []
     for name, d in SHOWCASE.items():
@@ -583,40 +690,33 @@ def build(args):
     sources.update({p.name: sha256(p) for p in sorted((raw / "ercot").glob("DAMLZHBSPP_*.zip"))})
     cmd = "python scripts/build_live_pack.py " + " ".join(sys.argv[1:])
     meta = {"sources": sources, "filter": chosen, "filter_spec": FILTER, "per_split": filt,
-            "holdouts": {"train": TRAIN, "eval": f"every third {EVAL_YEAR} date ((d - 2024-01-01) % 3 == 1)",
+            "holdouts": {"train": TRAIN, "eval": f"every third {EVAL_YEAR} date ((d - 2024-01-01) % 3 == 1) and every "
+                                                 f"{EVAL_YEAR} ERCOT notice day", "eval_ercot_notice_days":
+                         sorted(ERCOT_EVAL_DAYS),
                          "test": TEST, "rtcb": RTCB, "showcase": SHOWCASE, "showcase_pad_days": SHOWCASE_PAD},
-            "notices": "none attached yet; run --merge-notices", "build_command": cmd.strip(), "bundles": bundles,
+            "notices": {"archive": "data/notices (lane N, FD-4325)", "payload": "summary, ids, times, levels (V2-D4)",
+                        "nws_kept": sorted(f"{a}.{b}" for a, b in NWS_KEEP), "notice_days_exempt": NOTICE_DAYS_EXEMPT,
+                        "notice_share_targets": NOTICE_SHARE},
+            "build_command": cmd.strip(), "bundles": bundles,
             "hero": HERO}
     for name, tasks in packs.items():
         write_pack(out, name, tasks, meta)
+    slim = [{"task_id": c["task_id"], "_split": c["_split"], "_kind": c["_kind"], "eligibility": c["eligibility"],
+             "refs": {k: c["refs"][k] for k in ("p_idle", "p_naive", "p_hind")} | {"roll": {"foresight": {
+                 "p_roll": c["refs"]["roll"]["foresight"]["p_roll"]}}}} for c in cands]
+    with gzip.open(Path(args.cache) / "stats-input.json.gz", "wt") as f:
+        json.dump({"cands": slim, "chosen": chosen, "tuning": tuning, "filt": filt, "rt_stats": rt_stats,
+                   "dedup_stats": dedup_stats, "timing": timing}, f)
     write_stats(out, packs, cands, chosen, tuning, filt, rt_stats, dedup_stats, timing)
     log(f"done in {time.time() - t0:.0f}s: " + ", ".join(f"{PACKS[k]} {len(v)}" for k, v in packs.items()))
 
 
-def map_notice(n: dict) -> dict:
-    """Lane N's notice record to the core notice shape (contract CONTRACT-v2.md, Watches); unknown keys dropped."""
-    keys = ("event_id", "source", "kind", "level", "issued_at", "name", "title", "text", "derate_mw", "from", "until")
-    out = {k: n.get(k) for k in keys}
-    out["text"] = str(out["text"] or "")[:live.NOTICE_CHARS]
-    return out
-
-
-def notices_for(t: dict, rows: list) -> list:
-    """Notices issued from 24 h before watch 0 to D 24:00, system-wide or listing the task's point."""
-    lo, hi = live.W0 - 24 * 60, live.DAY_END
-    out = []
-    for n in rows:
-        pts = n.get("points")
-        if pts is not None and t["settlement_point"] not in pts:
-            continue
-        if lo <= live.to_minutes(n["issued_at"], t["date"]) < hi:
-            out.append(map_notice(n))
-    return sorted(out, key=lambda n: (n["issued_at"], n["event_id"]))
-
-
 def merge_notices(args):
-    """Attach notices to every built live pack and recompute refs, eligibility and tags (filters are not re-run)."""
-    rows = [json.loads(line) for line in Path(args.merge_notices).read_text().splitlines() if line.strip()]
+    """Re-attach the archive's notices (gridsim_core.notices at --merge-notices, a data/notices directory) to every
+    built live pack and recompute refs, eligibility and tags of the tasks whose notices changed (filters not re-run)."""
+    root = str(Path(args.merge_notices))
+    archive.load.cache_clear()
+    archive._by_day.cache_clear()
     out = Path(args.out)
     ridge = json.loads((ROOT / "data" / "ridge-v1.json").read_text())
     for name in ("train", "eval", "test", "rtcb", "showcase", "fixtures"):
@@ -629,7 +729,8 @@ def merge_notices(args):
         for t in tasks:
             if t["task_id"].endswith(("-notice", "-derate")):
                 continue
-            ns = notices_for(t, rows)
+            ns = day_notices(t["date"], t["settlement_point"], root)
+            _DAY[(t["date"], t["settlement_point"])] = (ns, day_kind(t["date"], t["settlement_point"], root))
             if live.notices_sha(ns) != t["notices_sha"]:
                 t["notices"], t["notices_sha"] = ns, live.notices_sha(ns)
                 changed.append(t)
@@ -637,12 +738,11 @@ def merge_notices(args):
             redone = {t["task_id"]: t for t in pool.map(_full_worker, changed, chunksize=8)}
         tasks = [finalize(redone.get(t["task_id"], t), name, t["tags"]["showcase"]) for t in tasks]
         meta = json.loads((d / "manifest.json").read_text())
-        meta = {k: v for k, v in meta.items() if k in ("sources", "filter", "filter_spec", "per_split", "holdouts",
-                                                     "build_command", "bundles", "hero")}
-        meta["notices"] = {"source": str(args.merge_notices), "sha256": sha256(Path(args.merge_notices)),
-                           "tasks_changed": len(changed)}
+        keep = ("sources", "filter", "filter_spec", "per_split", "holdouts", "build_command", "bundles", "hero")
+        meta = {k: v for k, v in meta.items() if k in keep + ("notices",)}
+        meta["notices"] = dict(meta.get("notices") or {}, merged_from=root, tasks_changed=len(changed))
         write_pack(out, name, tasks, meta)
-        log(f"{PACKS[name]}: {len(changed)} tasks got notices")
+        log(f"{PACKS[name]}: {len(changed)} tasks got new notices")
 
 
 def main():
@@ -653,10 +753,18 @@ def main():
     ap.add_argument("--workers", type=int, default=max(1, (mp.cpu_count() or 2) - 2))
     ap.add_argument("--limit", type=int, default=0, help="candidates to keep (a quick dry run)")
     ap.add_argument("--parse-only", action="store_true")
-    ap.add_argument("--merge-notices", default=None)
+    ap.add_argument("--stats-only", action="store_true", help="rewrite live-stats.md from the packs and the last build")
+    ap.add_argument("--merge-notices", default=None, help="a notices archive directory (data/notices) to re-attach")
     args = ap.parse_args()
     if args.merge_notices:
         return merge_notices(args)
+    if args.stats_only:
+        with gzip.open(Path(args.cache) / "stats-input.json.gz", "rt") as f:
+            st = json.load(f)
+        packs = {k: [json.loads(line) for line in gzip.open(Path(args.out) / v / "tasks.jsonl.gz", "rt")]
+                 for k, v in PACKS.items()}
+        return write_stats(Path(args.out), packs, st["cands"], st["chosen"], st["tuning"], st["filt"], st["rt_stats"],
+                           st["dedup_stats"], st["timing"])
     if args.parse_only:
         rt, st = load_rt(Path(args.raw) / "ercot-rt", Path(args.cache), args.workers)
         return log(f"{len(rt)} RT point-days: {st}")

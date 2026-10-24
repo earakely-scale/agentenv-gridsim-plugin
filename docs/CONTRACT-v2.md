@@ -33,11 +33,13 @@ Lane decisions where FD-4321 is silent or self-contradictory (also provisional):
 | L-D1 | **DA MWh carry v1's buy-side losses.** A DA buy of d units books d·unit·4/η MWh, exactly what a physical schedule that follows the position draws, so following the DA position has zero RT deviation and P_naive equals v1's P_opt on the same hourly battery. (FD-4321's formula writes d_h·P/4 for both signs.) |
 | L-D2 | **The physical schedule follows the DA position until the first accepted `commit_schedule`.** An accepted `commit_da` sets the physical schedule to the position expanded ×4 if no schedule was committed yet (a COP that follows the DA award). With no commit at all the battery idles. |
 | L-D3 | **End target is a commit rule.** `commit_da` and `commit_schedule` refuse a schedule ending below `s_end_min` ("end_target"). The shortfall penalty still applies to idle and to derate-clipped execution. P_hind and P_roll use the same hard end target. |
-| L-D4 | **Watch merging** keeps the reveal rule: notice watches that would share a freeze line (same `ceil_to_hour(reveal_at)`) merge into one watch at the latest of their reveal times; a class whose freeze line equals a regular watch's is absorbed by that watch; a class whose freeze line is at or after D 24:00 makes no watch. At most 10 watches; extra classes (in time order) merge into the next watch at or after their reveal time. A notice with no watch at or after its reveal time is `after_day` and never delivered. |
+| L-D4 | **Watch merging** keeps the reveal rule: notice watches that would share a freeze line (same `ceil_to_hour(reveal_at)`) merge into one watch at the latest of their reveal times; a class whose freeze line equals a regular watch's is absorbed by that watch; a class whose freeze line is at or after D 24:00 makes no watch. At most 10 watches; over the cap the classes holding the most urgent notices keep their watches (EEA, Emergency and derates; conservation appeals; Watches and EEA exits; Advisories; OCNs; NWS warnings, watches, advisories; cancellations last; then the earliest), and the rest merge into the next watch at or after their reveal time. A notice with no watch at or after its reveal time is `after_day` and never delivered. |
 | L-D5 | **`short` tier** = regular watches D-1 14:00, D 00:00 and D 12:00 plus notice watches; a task is short-eligible when that gives ≤ 4 watches (`tags.short_ok`). |
 | L-D6 | **Batteries** are v1's archetype letters re-gridded to k_dis = 4: same P, E/P, η, c_deg, cycles; k_ch = 4 when v1's k_ch ≥ k_dis, else 3; s0 and s_end_min keep their fraction of N. One live unit is P/16 MWh. (Core accepts any v1 battery: the live unit is always v1's `q_15` = unit_mwh/4.) |
 | L-D7 | **Every planning-tool call uses a planning call while calls remain**, refused or malformed ones included; a call made with none left, or after the day, is an error that uses none. |
 | L-D8 | `blind` anchor = max over the persistence and ridge DA predictors of the rolling re-planner (mirrors v1's blind anchor). |
+| L-D9 | **Notice days skip the anchor-beats-naive eligibility criterion** (divergence and headroom still apply). They are the X6 days, judged by beat-anchor rate and (P − P_roll)/(P_hind − P_idle); with the criterion only a handful of 2024 notice days survive. Naive's R is reported separately for notice and quiet tasks. |
+| L-D10 | **Notices in packs** come from lane N's archive (`gridsim_core.notices.notices_for`): ERCOT grid-condition rows (cancellations included) and the region's NWS warnings and watches for load-moving phenomena plus heat advisories. The payload is lane N's paraphrased `summary` (NWS: a generated one-line summary), ids, times and levels, never the verbatim text (V2-D4). A day is `notice` (`notices.is_notice_day`), `quiet` (archive coverage 1.0 and no notice) or `unknown` (an archive gap). |
 
 ## Clock, grid and battery
 
@@ -69,7 +71,7 @@ Lane decisions where FD-4321 is silent or self-contradictory (also provisional):
 {"event_id": "ercot-M-A090623-02", "source": "ERCOT|NWS|asset", "kind": "eea|conservation|watch|advisory|ocn|weather|derate|other",
  "level": "EEA2|Emergency|Watch|Advisory|OCN|Warning|...|null", "issued_at": "2023-09-06T19:25:00-05:00",
  "name": "ERCOT", "title": "short summary line", "text": "trimmed to 600 chars",
- "derate_mw": null, "from": null, "until": null}
+ "derate_mw": null, "from": null, "until": null, "action": "issue|cancel|end|null"}
 ```
 
   `issued_at` is ISO 8601 with an offset (or Z). `reveal_at = ceil_to_interval(issued_at, 15)`. A notice with
@@ -253,9 +255,10 @@ other notices recomputes them. Packs: `gridsim-live-train` (~4,000, 2019–2024 
 (20 CI tasks, including a derate fixture). `scripts/build_live_pack.py --merge-notices data/notices/notices.jsonl`
 re-attaches notices and recomputes refs, eligibility and tags without re-parsing.
 
-Lane N's `notices.jsonl` rows are the notice shape above plus an optional `points` list (null = system-wide; NWS
-county alerts list the settlement points they cover). A task gets the rows issued from 24 h before watch 0 to D 24:00
-that are system-wide or list its point; unknown keys are dropped and text is trimmed to 600 characters.
+`--merge-notices DIR` re-reads a lane N archive directory (`notices.jsonl[.gz]`, `nws_vtec.jsonl[.gz]`,
+`ops_coverage.json`) through `gridsim_core.notices` and re-attaches each task's notices (L-D10). The eval dates are
+every third 2024 date plus every 2024 ERCOT notice day (all out of train); eval targets 150 notice-day and 150 quiet
+tasks, train oversamples notice days up to 40%; the manifests record the actual counts.
 
 **Eligibility** (FD-4321, measured and tuned in `data/live-stats.md`): RT–DA divergence Σ|RT_t − DA_h(t)|·0.25 ≥
 $40/MW; P_hind − P_idle ≥ $10/MW; P_roll − P_naive ≥ $5/MW and ≥ a share of (P_hind − P_idle) that V2-D5 raises from
