@@ -4,11 +4,11 @@
  "model": "Qwen/Qwen3-1.7B",
  "rule": "the largest base-to-trained gain in reward among held-out days where the trained model scores at least 0.85",
  "note": "day chosen by hand, not by the rule, which picks dam-v1-2025-10-05-LZ_AEN-1h-f",
- "why": "Base scores 0 on every held-out day, so the rule's gain is just the final reward, and it picks a day the SFT warm start already plays at 0.99: nothing levels up. This day was fixed for arm 2 before arm 2b ran and is kept, so arm 2b's frames are not picked for their own result",
+ "why": "Base scores 0 on every held-out day, so the rule's gain is just the final reward, and it picks a day the SFT warm start already plays at 0.99: nothing levels up. This day was fixed for arm 2 before arms 2b and 2c ran and is kept, so their frames are not picked for their own result",
  "decoding": "sampled for every frame where the run has it",
  "days": {
-  "candidates": 50,
-  "doing_well": 19
+  "candidates": 200,
+  "doing_well": 76
  },
  "context": {
   "tasks": 200,
@@ -24,22 +24,27 @@
     "label": "arm 2b (exploratory continuation)",
     "step": 180,
     "reward": 0.6684
+   },
+   {
+    "label": "arm 2c (exploratory continuation)",
+    "step": 330,
+    "reward": 0.7197
    }
   ],
-  "trained": 0.6684,
+  "trained": 0.7197,
   "greedy": 0.764,
   "threshold": 0.6371,
-  "reading": "level with the threshold rule (paired +0.03 [-0.02, +0.09]) and below the greedy rule (paired -0.10 [-0.14, -0.05])",
+  "reading": "above the threshold rule (paired +0.08 [+0.03, +0.13]) and level with the greedy rule (paired -0.04 [-0.09, +0.00])",
   "opening": {
    "hour": 2,
    "charge": false,
    "share": [
-    34,
+    36,
     200
    ]
   }
  },
- "total_steps": 180,
+ "total_steps": 330,
  "gain": 0.979795,
  "frames": [
   {
@@ -111,6 +116,48 @@
    "step": 180,
    "reward": 0.979795,
    "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "b7a63393189a3eae",
+   "trained": "grpo",
+   "step": 205,
+   "reward": 0.979795,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "0722f3b1b4c752e7",
+   "trained": "grpo",
+   "step": 230,
+   "reward": 0.979795,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "70a20030a6a1b4ab",
+   "trained": "grpo",
+   "step": 255,
+   "reward": 0.979795,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "96763a2a125b6f01",
+   "trained": "grpo",
+   "step": 280,
+   "reward": 0.979795,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "e63d114b48cd60db",
+   "trained": "grpo",
+   "step": 305,
+   "reward": 0.979795,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "4ffaed877ff164c1",
+   "trained": "grpo",
+   "step": 330,
+   "reward": 0.979795,
+   "arm": "arm 2c (exploratory continuation)"
   }
  ]
 }

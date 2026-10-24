@@ -15,17 +15,22 @@
     "label": "arm 2b (exploratory continuation)",
     "step": 180,
     "reward": 0.6684
+   },
+   {
+    "label": "arm 2c (exploratory continuation)",
+    "step": 330,
+    "reward": 0.7197
    }
   ],
-  "trained": 0.6684,
+  "trained": 0.7197,
   "greedy": 0.764,
   "threshold": 0.6371,
-  "reading": "level with the threshold rule (paired +0.03 [-0.02, +0.09]) and below the greedy rule (paired -0.10 [-0.14, -0.05])",
+  "reading": "above the threshold rule (paired +0.08 [+0.03, +0.13]) and level with the greedy rule (paired -0.04 [-0.09, +0.00])",
   "opening": {
    "hour": 2,
    "charge": false,
    "share": [
-    34,
+    36,
     200
    ]
   }
@@ -40,8 +45,8 @@
    "label": "Qwen3-1.7B SFT warm start"
   },
   {
-   "episode_id": "19b4d570c50b21cb",
-   "label": "Qwen3-1.7B arm 2b (exploratory continuation)"
+   "episode_id": "4ffaed877ff164c1",
+   "label": "Qwen3-1.7B arm 2c (exploratory continuation)"
   },
   {
    "episode_id": "dam-v1-2025-06-06-LZ_CPS-1h-l-9d42cavi",
