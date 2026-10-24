@@ -394,3 +394,17 @@ body.list-page { overflow: auto; background: #eef0ec; }
 }
 .rows .small { font-size: 11.5px; }
 @media (max-width: 900px) { .lvl-stack, .race-board { bottom: 46px; padding: 10px 12px; } }
+@media (max-height: 820px) and (min-width: 901px) {
+  .ep.is-live { --tl: 150px; }
+  .ep.is-live .card { padding: 10px 14px; }
+  .left-col { gap: 8px; }
+  .left-col .place .meta, .left-col .place .where + .where { display: none; }
+  .ep.is-live .place .clock { font-size: 30px; }
+  .ep.is-live .place .price { font-size: 26px; }
+  .ep.is-live .place .act { margin: 4px 0 6px; font-size: 15.5px; }
+  .ep.is-live .soc { margin-bottom: 4px; }
+  .bulletins .bul:not(:first-child) { display: none; }
+  .bul p { font-size: 12.5px; }
+  .ep.is-live .race svg { height: 50px; }
+  .ep.is-live .score.live .r { font-size: 24px; }
+}

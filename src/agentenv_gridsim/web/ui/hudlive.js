@@ -130,7 +130,8 @@ export function buildLiveHud(root, d, { onSeek, onToggle }) {
         lastPlan = w.index;
         think.innerHTML = planHtml(d, t);
         const cur = think.querySelector(".wrow.now");
-        if (cur) think.scrollTop = Math.max(0, cur.offsetTop - think.clientHeight + cur.offsetHeight + 8);
+        if (ended) think.scrollTop = think.scrollHeight;
+        else if (cur) think.scrollTop = Math.max(0, cur.offsetTop - think.clientHeight + cur.offsetHeight + 8);
       }
       timeline.querySelector(".play").textContent = playing ? "❚❚ Pause" : "▶ Play";
       timeline.querySelectorAll("[data-s]").forEach((s) => s.classList.toggle("on", +s.dataset.s === speed));
