@@ -127,8 +127,45 @@ function gaugeMaterial(levels) {
   });
 }
 
+/** A continuous SoC gauge with the reserve bands of a hybrid day: the up-reserve floor hatched from the bottom, the
+ * RegDn headroom hatched from the top; a band being deployed pulses. */
+function bandGaugeMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { uSoc: { value: 0.5 }, uEnd: { value: 0.5 }, uFloor: { value: 0 }, uHead: { value: 0 }, uDraw: { value: 0 }, uGlow: { value: 1 } },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform float uSoc, uEnd, uFloor, uHead, uDraw, uGlow;
+      varying vec2 vUv;
+      void main() {
+        vec2 p = vUv;
+        vec3 frame = vec3(0.09, 0.1, 0.11);
+        float inner = step(0.12, p.x) * step(p.x, 0.88) * step(0.04, p.y) * step(p.y, 0.96);
+        float y = (p.y - 0.04) / 0.92;
+        float k = 1.2 + 0.6 * uGlow;
+        vec3 c = mix(vec3(0.16, 0.19, 0.2), vec3(0.2, 0.95, 0.5) * k, step(y, uSoc));
+        float hatch = step(0.5, fract((p.x * 0.36 + p.y * 1.55) * 9.0));
+        float fl = step(y, uFloor) * step(0.001, uFloor);
+        float hd = step(1.0 - uHead, y) * step(0.001, uHead);
+        vec3 band = vec3(0.95, 0.96, 0.97) * k * (0.75 + 0.25 * uDraw);
+        c = mix(c, band, (fl + hd) * hatch * 0.62);
+        float edge = (1.0 - smoothstep(0.0, 0.01, abs(y - uFloor))) * step(0.001, uFloor) + (1.0 - smoothstep(0.0, 0.01, abs(y - 1.0 + uHead))) * step(0.001, uHead);
+        c = mix(c, vec3(0.95) * k, min(1.0, edge));
+        float mark = 1.0 - smoothstep(0.0, 0.012, abs(y - uEnd));
+        c = mix(c, vec3(1.0, 0.85, 0.35) * 1.6, mark);
+        gl_FragColor = vec4(mix(frame, c, inner), 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+}
+
 /** The battery yard, its substation, fence, lights and O&M building. update(state) drives lights, fans and gauges. */
-export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#c2b394", seed = "yard" } = {}) {
+export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#c2b394", seed = "yard", bands = false } = {}) {
   const L = layout(battery);
   const group = new THREE.Group();
   const white = [
@@ -193,8 +230,8 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
   group.add(fanMesh);
   const barMat = new THREE.MeshStandardMaterial({ color: "#111", emissive: new THREE.Color(COLORS.idle), emissiveIntensity: 1.2, roughness: 0.4 });
   group.add(inst(new THREE.BoxGeometry(ENC.L - 0.7, 0.13, 0.06), barMat, barM, { shadow: false }));
-  const gauge = gaugeMaterial(battery.soc_levels);
-  gauge.uniforms.uEnd.value = battery.s_end_min;
+  const gauge = bands ? bandGaugeMaterial() : gaugeMaterial(battery.soc_levels);
+  gauge.uniforms.uEnd.value = bands ? battery.s_end_min / battery.soc_levels : battery.s_end_min;
   group.add(inst(new THREE.PlaneGeometry(0.36, 1.55), gauge, gaugeM, { shadow: false }));
 
   const skidPad = [], cab = [], tank = [], fin = [], bush = [], led = [];
@@ -242,7 +279,7 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), one = V(1, 1, 1);
   let fanAngle = 0, fanSpeed = 2;
   const col = new THREE.Color();
-  function update({ mode, mw, pmax, soc, night, lights: lightsOn, dt, wall = 0, reduced = false, temp = 25, wind }) {
+  function update({ mode, mw, pmax, soc, night, lights: lightsOn, dt, wall = 0, reduced = false, temp = 25, wind, floor = 0, head = 0, draw = 0 }) {
     const load = Math.abs(mw) / Math.max(1, pmax);
     const target = mode === "grey" ? 3 : 4 + 22 * load + Math.max(0, temp - 20) * 0.35;
     fanSpeed += (target - fanSpeed) * Math.min(1, dt * 1.5);
@@ -261,9 +298,16 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
     hum.material.opacity = active ? (0.25 + 0.55 * load) * (0.35 + 0.65 * night) * beat : 0;
     humBush.emissive.set(COLORS[mode] || COLORS.idle);
     humBush.emissiveIntensity = active ? (0.6 + 1.8 * load) * (0.4 + 0.8 * night) * beat : 0;
-    gauge.uniforms.uSoc.value = soc;
-    gauge.uniforms.uGrey.value = mode === "grey" ? 1 : 0;
     gauge.uniforms.uGlow.value = night;
+    if (bands) {
+      gauge.uniforms.uSoc.value = soc / battery.soc_levels;
+      gauge.uniforms.uFloor.value = floor;
+      gauge.uniforms.uHead.value = head;
+      gauge.uniforms.uDraw.value = draw;
+    } else {
+      gauge.uniforms.uSoc.value = soc;
+      gauge.uniforms.uGrey.value = mode === "grey" ? 1 : 0;
+    }
     ledMat.emissive.set(mode === "grey" || mode === "violation" ? "#ff5a4a" : "#7dffa8");
     lights.update(lightsOn ?? night, dt);
     om.windows.emissiveIntensity = 1.6 * (lightsOn ?? night);

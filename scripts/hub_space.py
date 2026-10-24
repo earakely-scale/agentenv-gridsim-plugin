@@ -20,9 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import hybrid_view  # noqa: E402
 import weather as wx  # noqa: E402
 
-from gridsim_core import live  # noqa: E402
+from gridsim_core import hybrid, live  # noqa: E402
 from gridsim_core.contract import DEGENERATE_EPS  # noqa: E402
 from gridsim_core.grade import grade  # noqa: E402
 from gridsim_core.physics import simulate  # noqa: E402
@@ -35,8 +36,13 @@ HERO_TASK = "dam-v1-2025-03-15-HB_WEST-1h-t"
 LIVE_PACKS = ("gridsim-live-showcase", "gridsim-live-eval", "gridsim-live-test-2025", "gridsim-live-rtcb",
               "fixtures-live", "gridsim-live-train")
 LIVE_HERO_TASK = "live-v2-2023-09-06-HB_NORTH-2h-l"
+HYBRID_PACKS = ("ercot-hybrid-v3-showcase", "ercot-hybrid-v3-eval", "ercot-hybrid-v3-rtcb", "fixtures-hybrid",
+                "ercot-hybrid-v3-train")
+HYBRID_HERO_TASK = "hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150"
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
-          "reference/naive": "naive (reference)"}
+          "reference/naive": "naive (reference)", "reference/as-hog": "AS-hog (reference)",
+          "reference/solar-sponge": "the solar sponge (reference)",
+          "reference/v2-energy-only": "v2's energy-only plan (reference)"}
 CPT = ZoneInfo("America/Chicago")
 SEVERITY = {"EEA3": 7, "EEA2": 6, "EEA1": 5, "Emergency": 5, "conservation": 4, "Watch": 3, "Warning": 3, "Advisory": 2,
             "OCN": 1}
@@ -135,22 +141,25 @@ def main(argv: list[str] | None = None) -> int:
                 if schema in ("gridsim.levelup/v1", "gridsim.race/v1"):
                     views[schema.split(".")[1].split("/")[0]] = ep
                     continue
-                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA):
+                if schema not in ("gridsim.episode/v1", live.EPISODE_SCHEMA, hybrid.EPISODE_SCHEMA):
                     continue
                 if ep["episode_id"] in seen:
                     continue
                 seen.add(ep["episode_id"])
-                v2 = schema == live.EPISODE_SCHEMA
-                if v2 and ep["task_id"] in fixture_ids:
+                v2, v3 = schema == live.EPISODE_SCHEMA, schema == hybrid.EPISODE_SCHEMA
+                if (v2 and ep["task_id"] in fixture_ids) or (v3 and ep["task_id"] in hybrid_fixtures()):
                     skipped.append(f)
                     continue
-                task = live_tasks().get(ep["task_id"]) if v2 else tasks.get(ep["task_id"])
-                if why := (verify_live(ep, task) if v2 else verify(ep, task)):
+                task = (hybrid_tasks().get(ep["task_id"]) if v3 else live_tasks().get(ep["task_id"]) if v2
+                        else tasks.get(ep["task_id"]))
+                if why := (verify_hybrid(ep, task) if v3 else verify_live(ep, task) if v2 else verify(ep, task)):
                     rejected.append((f, why))
                     continue
+                if v3:
+                    ep = ep | {"race": race(task, ep["tier"], ep.get("model"))}
                 name = f"{ep['episode_id']}.json"
                 (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
-                entries.append(live_entry(ep, name) if v2 else entry(ep, name, task))
+                entries.append(hybrid_entry(ep, name) if v3 else live_entry(ep, name) if v2 else entry(ep, name, task))
     for e in entries:
         side = wx.sidecar(e["point"], e["date"], args.weather)
         if not (out / "weather" / side.name).exists():
@@ -158,20 +167,26 @@ def main(argv: list[str] | None = None) -> int:
     featured = feature([e for e in entries if e["version"] == "v1"], args.hero, out)
     if lv := feature_live(entries, out):
         featured.append(lv)
+    if hv := feature_hybrid(entries, out):
+        featured.append(hv)
+    hero = next((e for e in featured if e.get("hero")), None)
     if args.thumbs:
-        for e in featured[1:]:
-            thumbnail(out, e)
-        still(out, featured[0])
+        for e in featured:
+            if e is not hero:
+                thumbnail(out, e)
+        if hero:
+            still(out, hero)
     training = write_views(views, entries, out, args.thumbs)
     index = [{k: v for k, v in e.items() if v is not None} for e in entries]
     (out / "runs" / "index.json").write_text(json.dumps({"schema": "gridsim.runs/v1", "episodes": index}
                                                         | ({"training": training} if training else {}),
                                                         separators=(",", ":")))
-    (out / "README.md").write_text(readme(entries, featured[0] if featured else None, training))
+    (out / "README.md").write_text(readme(entries, hero, training))
     for f, why in rejected:
         print(f"REJECTED {f}: {why}")
     if skipped:
         print(f"skipped {len(skipped)} episodes on CI fixture days (synthetic notices)")
+    print(f"v3: {sum(e['version'] == 'v3' for e in entries)} episodes replayed through gridsim_core.hybrid")
     size = sum(x.stat().st_size for x in out.rglob("*") if x.is_file())
     print(f"{len(entries)} episodes ({len(rejected)} rejected), {len(list((out / 'weather').iterdir()))} weather "
           f"sidecars, featured {[e['id'] for e in featured]}, {size / 1e6:.1f} MB -> {out}")
@@ -265,6 +280,118 @@ def verify_live(ep: dict, task: dict | None) -> str | None:
     if abs(g["reward"] - ep["reward"]) > 1e-6:
         return f"reward {ep['reward']} != {g['reward']}"
     return None
+
+
+_HYBRID: dict | None = None
+_RACE: dict = {}
+
+
+def hybrid_tasks() -> dict:
+    global _HYBRID
+    if _HYBRID is None:
+        _HYBRID = {}
+        for pack in HYBRID_PACKS:
+            for t in load_pack(pack):
+                _HYBRID.setdefault(t["task_id"], t)
+    return _HYBRID
+
+
+def hybrid_fixtures() -> set[str]:
+    """CI hybrid fixture days that are in no real hybrid pack."""
+    real_ids = {t["task_id"] for p in HYBRID_PACKS if p != "fixtures-hybrid" for t in load_pack(p)}
+    return {t["task_id"] for t in load_pack("fixtures-hybrid")} - real_ids
+
+
+def verify_hybrid(ep: dict, task: dict | None) -> str | None:
+    """Every recorded call replayed through a fresh gridsim_core.hybrid Session on the pack's day gives the recorded
+    output; the day's profit and reward must match."""
+    if task is None:
+        return "not in any hybrid pack"
+    s = hybrid.Session(task, ep["tier"])
+    for i, st in enumerate(ep["steps"]):
+        args = dict(st["args"])
+        if st["tool"] == hybrid.NOTICE_TOOL:
+            args.setdefault("_via", "trigger")
+        if json.loads(s.call(st["tool"], args)) != st["output"]:
+            return f"step {i} ({st['tool']}) does not replay"
+    if not s.done:
+        s.end_day()
+    g = s.grade()
+    if abs(g["profit_usd"] - ep["profit_usd"]) > 0.01:
+        return f"profit {ep['profit_usd']} != {g['profit_usd']}"
+    if abs(g["reward"] - ep["reward"]) > 1e-6:
+        return f"reward {ep['reward']} != {g['reward']}"
+    return None
+
+
+def race(task: dict, tier: str, model: str | None) -> list[dict]:
+    """The v3 replay's race lanes (hybrid_view.lanes), solved once per day, tier and reference."""
+    key = (task["task_id"], tier, hybrid_view.SELF.get(model))
+    if key not in _RACE:
+        _RACE[key] = hybrid_view.lanes(task, tier, model)
+    return _RACE[key]
+
+
+def hybrid_entry(ep: dict, url: str) -> dict:
+    t, st, r = ep["task"], ep["task"]["site"], ep.get("references") or {}
+    deps = [n for n in ep.get("notices") or [] if n.get("deploy")]
+    c = ep.get("cash") or {}
+    as_rev = (c.get("as_da") or 0) + (c.get("as_rt") or 0)
+    gain = max(0.0, (c.get("energy_da") or 0) + (c.get("energy_rt") or 0) - (r.get("p_idle") or 0))
+    curtailed = sum(h["curtailed_mw"] for h in ep["hours"])
+    return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
+            "model_label": ep.get("model_label"), "version": "v3", "tier": ep["tier"], "bundle": ep.get("bundle"),
+            "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"),
+            "r_opt": ep.get("capture_vs_hindsight"), "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"),
+            "p_anchor": r.get("p_anchor"), "beats_anchor": ep.get("beats_anchor"), "date": t["date"],
+            "point": t["settlement_point"], "region": t["region"], "era": t.get("era"),
+            "battery": f"PV {st['pv_mwac']:g} MWac · {st['bess']['p_mw']:g} MW / {st['bess']['e_mwh']:g} MWh",
+            "watches": len(ep["watches"]), "deployments": len(deps),
+            "as_share": round(as_rev / (as_rev + gain), 3) if as_rev + gain > 1e-6 else None,
+            "curtailed_mwh": round(curtailed, 1), "neg_hours": sum(1 for p in t["rt"] if p < 0),
+            "interest": round(len(deps) + min(4.0, max(t["rt"]) / max(10.0, sorted(t["prices"])[12])), 3)}
+
+
+def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
+    """The v3 preview's featured day: the best real run on the hero day, else its rolling anchor, else the v3 day with
+    the most deployments."""
+    pool = [e for e in entries if e["version"] == "v3"]
+    day = [e for e in pool if e["task_id"] == HYBRID_HERO_TASK]
+    e = (max([x for x in day if real(x)], key=lambda x: x["reward"] or 0, default=None)
+         or next((x for x in day if x["model"] == "reference/rolling-anchor"), None)
+         or max(pool, key=lambda x: x["interest"], default=None))
+    if e is None:
+        return None
+    ep = json.loads((out / "runs" / e["url"]).read_text())
+    t, mom = hybrid_moment(ep)
+    e |= {"featured": "hybrid", "blurb": hybrid_blurb(ep), "hero_moment": mom, "t_moment": t}
+    return e
+
+
+def hybrid_moment(ep: dict) -> tuple[float, str]:
+    """The first reserve deployment the plant holds an award for, else the evening peak."""
+    for n in sorted((n for n in ep["notices"] if n.get("deploy")), key=lambda n: n["deploy"]["start_min"]):
+        h = min(23, n["deploy"]["start_min"] // 60)
+        if (ep["hours"][h]["awards"].get(n["deploy"]["product"]) or 0) > 0:
+            return n["deploy"]["start_min"] / 60 + 0.35, "the first reserve deployment"
+    return evening(ep), "the evening peak"
+
+
+def hybrid_blurb(ep: dict) -> str:
+    t, r = ep["task"], ep.get("references") or {}
+    region = REGIONS.get(t["region"], t["region"])
+    who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
+    deps = sorted((n for n in ep["notices"] if n.get("deploy")), key=lambda n: n["deploy"]["start_min"])
+    names = {"rrs": "RRS", "ecrs": "ECRS", "nspin": "Non-Spin"}
+    dep = (f" ERCOT deploys {' and '.join(dict.fromkeys(names[n['deploy']['product']] for n in deps))} from "
+           f"{hm(deps[0]['deploy']['start_min'])}, and the reserved charge drains to the line." if deps else "")
+    h = max(range(24), key=lambda i: t["rt"][i])
+    c = ep["cash"]
+    return (f"{region}, a {t['site']['pv_mwac']:g} MWac solar farm and a {t['site']['bess']['p_mw']:g} MW battery "
+            f"behind one meter: {who} sells energy and five reserve products at 2 pm the day before, then re-plans "
+            f"at {len(ep['watches']) - 1} watches.{dep} Real-time prices reach ${t['rt'][h]:,.0f}/MWh at {hour(h)}. "
+            f"It makes ${ep['profit_usd']:,.0f} (reserves ${c['as_da'] + c['as_rt']:,.0f}), against hindsight's "
+            f"${r.get('p_hind', 0):,.0f}.")
 
 
 def live_entry(ep: dict, url: str) -> dict:
@@ -454,6 +581,7 @@ def still(out: Path, e: dict) -> None:
 
 
 def readme(entries: list[dict], hero: dict | None, training: dict | None = None) -> str:
+    entries_all = entries
     v2 = [e for e in entries if e["version"] == "v2"]
     entries = [e for e in entries if e["version"] == "v1"]
     trained = [e for e in entries if e.get("path") == "B" and e.get("trained")]
@@ -475,6 +603,14 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
     text = README
     for k, v in fields.items():
         text = text.replace("{" + k + "}", v)
+    v3 = [e for e in entries_all if e["version"] == "v3"]
+    if v3:
+        counts3 = Counter(e.get("model_label") or e["model"] for e in v3)
+        hv = next((e for e in v3 if e.get("featured") == "hybrid"), None)
+        text = text.replace("\n## Links\n", HYBRID_README.format(
+            n=len(v3), models=", ".join(f"{n} of {LABELS.get(m, m)}" for m, n in counts3.most_common()),
+            hero=f"\n\n**The featured v3 day,** [{hv['date']} at {hv['point']}]"
+                 f"({APP}/index.html?episode=runs/{hv['url']}): {hv['blurb']}" if hv else "") + "\n## Links\n")
     if v2:
         live_counts = Counter(e.get("model_label") or e["model"] for e in v2)
         lv = next((e for e in v2 if e.get("featured") == "live"), None)
@@ -508,6 +644,21 @@ while real-time prices settle and ERCOT and NWS bulletins arrive (paraphrased su
 two-settlement: the position at day-ahead prices, every deviation at real-time prices. R puts idle at 0.2 and the
 rolling anchor at 1.0; the anchor is provisional and sits near naive on many days, so each replay also shows hindsight
 capture. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{board}{hero}
+"""
+
+
+HYBRID_README = """
+## v3 preview: Sun, Storage and Reserves (provisional anchor)
+
+{n} solar-plus-storage days ({models}), schema `gridsim.episode/v3`. A solar farm and a battery share one meter: at 2 pm
+the day before the agent sells a day-ahead book of battery MW and five ancillary services (RegUp, RegDn, RRS, ECRS,
+Non-Spin), each backed by charge for its duration, then re-plans the battery at watches through the day while
+real-time prices settle, regulation drifts the charge and ERCOT deploys what it bought. The scene adds the tracker rows
+(following the real sun, stowed when the price goes negative), the inverter skids, the collector feeders and the meter;
+the reserve bands sit on the battery's charge gauge, told apart by letter and hatch. R puts the solar-only plant at 0.2
+and the rolling MILP anchor at 1.0; hindsight capture, AS share, curtailment and failures to provide are reported, not
+scored. PV is ERCOT's system-wide availability (a proxy) and regulation drift a seeded draw. Every v3 episode was
+replayed call by call through `gridsim_core.hybrid` when the Space was built.{hero}
 """
 
 

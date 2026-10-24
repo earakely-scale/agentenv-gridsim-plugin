@@ -9,6 +9,7 @@ import { at } from "../data.js";
 import { buildBackdrop } from "./backdrop.js";
 import { buildDirector } from "./director.js";
 import { buildLine } from "./line.js";
+import { buildPlant, plantLayout, SOLAR, trackerAngle } from "./plant.js";
 import { buildSky } from "./sky.js";
 import { buildTerrain } from "./terrain.js";
 import { buildRain, lightningAt, snowCover, snowOn, weatherAt } from "./weather.js";
@@ -57,14 +58,16 @@ export class GridStage {
     this.site = new THREE.Group();
     this.site.rotation.y = this.yaw;
     const U = { uWet: { value: 0 } };
-    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed });
+    const hyb = !!d.hybrid;
+    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed, ...(hyb ? { bands: true } : {}) });
     const L = this.yard.layout;
-    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)) });
+    this.plantL = hyb ? plantLayout(d.site, L, this.yaw, seed) : null;
+    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)), plant: this.plantL });
     const cams = this.director.spots.map(([x, z, r]) => {
       const v = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
       return [v.x, v.z, r];
     });
-    this.terrain = buildTerrain(region, { pad: L.pad, yaw: this.yaw, seed, cams });
+    this.terrain = buildTerrain(region, { pad: L.pad, yaw: this.yaw, seed, cams, ...(hyb ? { level: this.plantL.level, keepOut: this.plantL.keepOut } : {}) });
     this.terrain.U.uWet = U.uWet;
     this.U = U;
     scene.add(this.terrain.group);
@@ -75,11 +78,16 @@ export class GridStage {
     };
     this.line = buildLine({ deadEnd: this.yard.sub.deadEnd, heightLocal, km: 9, seed });
     this.site.add(this.yard.group, this.line.group);
+    if (hyb) {
+      this.plant = buildPlant(this.plantL, L, { site: d.site, U, heightAt: this.terrain.heightAt, sub: { lowX: L.sx - 13, deX: this.yard.sub.deadEnd.x } });
+      scene.add(this.plant.world);
+      this.site.add(this.plant.local);
+    }
     scene.add(this.site);
     const nearPj = [[L.cx + 30, -L.D / 2 - 190], [L.cx - L.W / 2 - 160, L.D / 2 + 260]].map(([x, z]) => {
       const v = toWorld(x, z);
       return [v.x, v.z];
-    });
+    }).filter(([x, z]) => !hyb || this.plantL.level(x, z) === 0);
     this.backdrop = buildBackdrop(region, this.terrain.heightAt, this.terrain.avoid, seed, { near: nearPj });
     scene.add(this.backdrop.group);
     this.rain = buildRain();
@@ -166,7 +174,7 @@ export class GridStage {
     this.w = w;
     const pre = d.live && t < 0;
     const s = this.sky.update(pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt, wall, w);
-    const x = pre ? { ...at(d, 0), mode: "idle", mw: 0, soc: d.b.s0 } : at(d, Math.min(23.999, tt));
+    const x = d.hybrid ? (pre ? d.pre(t) : d.at(tt)) : pre ? { ...at(d, 0), mode: "idle", mw: 0, soc: d.b.s0 } : at(d, Math.min(23.999, tt));
     const mode = t >= 24 ? (d.trunc != null ? "grey" : "idle") : x.mode;
     const mw = mode === "charge" || mode === "discharge" ? Math.abs(x.mw) : 0;
     const pmax = mode === "charge" ? d.b.p_ch_mw : d.b.p_dis_mw;
@@ -175,8 +183,18 @@ export class GridStage {
     if (this.manual && dt === 0) this.U.uWet.value = wet;
     this.U.uSnow.value = snowCover(d.weather, tt);
     const windYaw = -((w.windDir ?? 180) + 90) * DEG - this.yaw;
-    this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights: 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind: { kt: w.windKt, yawLocal: windYaw + Math.PI } });
-    this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height: this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2)), day: s.day, reduced: this.reduced });
+    const lights = 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), wind = { kt: w.windKt, yawLocal: windYaw + Math.PI };
+    const height = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2));
+    if (d.hybrid) {
+      this.yard.update({ mode, mw, pmax, soc: x.socLevels, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind, floor: t >= 24 ? 0 : x.floor / d.E, head: t >= 24 ? 0 : x.head / d.E, draw: x.bands.some((z) => z.live) ? 1 : 0 });
+      const e = x.exp;
+      this.line.update({ dir: e > 1 ? 1 : e < -1 ? -1 : 0, load: Math.abs(e) / Math.max(1, d.L), color: e < 0 ? COLORS.charge : x.net > 0.5 ? COLORS.discharge : SOLAR, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
+      const sun = this.sky.sunAt(pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt);
+      this.plant.update({ tilt: trackerAngle(sun.el, sun.az), off: x.off, pv: x.pvUsed, net: x.net, exp: e, head: x.upMw, night: s.night, dt, height, fog: this.scene.fog.density, day: s.day, reduced: this.reduced });
+    } else {
+      this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind });
+      this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
+    }
     this.backdrop.update({ night: s.night, wall, dt, windMs: w.windMs, windDir: w.windDir, reduced: this.reduced });
     const fl = lightningAt(wall, w.ts, this.reduced);
     this.sky.flash(fl ? fl.f * 0.9 : 0, fl?.dir);

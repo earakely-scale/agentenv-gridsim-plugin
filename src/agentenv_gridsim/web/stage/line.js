@@ -46,7 +46,7 @@ function catenary(a, b, sag, n = 18) {
   return pts;
 }
 
-function pulseMaterial() {
+export function pulseMaterial() {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
     uniforms: { uColor: { value: new THREE.Color("#2fd3ff") }, uMap: { value: glowTexture() }, uScale: { value: 600 }, uSize: { value: 2.6 }, uI: { value: 1 }, uFog: { value: 1e-4 } },

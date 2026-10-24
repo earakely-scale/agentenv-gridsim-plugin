@@ -215,16 +215,17 @@ const SHRUB = { creosote: ["#6f7444", "#7a7a4a", "#65693e", "#858353"], mesquite
 const TREE = { oak: ["#4e6233", "#56693a", "#46592f"], pine: ["#3a4f2c", "#344828", "#40562f"] };
 
 /** The land: the ground out to the horizon, the gravel pad, the access road, shrubs and trees. */
-export function buildTerrain(region, { pad, yaw, seed, cams = [] }) {
+export function buildTerrain(region, { pad, yaw, seed, cams = [], level = null, keepOut = null }) {
   const group = new THREE.Group();
   const U = { uWet: { value: 0 } };
   const toLocal = (x, z) => [x * Math.cos(yaw) - z * Math.sin(yaw), x * Math.sin(yaw) + z * Math.cos(yaw)];
-  const heightAt = heightFn(region, (x, z) => {
+  const natural = heightFn(region, (x, z) => {
     const [lx, lz] = toLocal(x, z);
     let d = Math.hypot(Math.max(pad.x0 - lx, 0, lx - pad.x1), Math.max(pad.z0 - lz, 0, lz - pad.z1));
     if (lz > pad.z1) d = Math.min(d, Math.abs(lx - pad.roadX) - 4);
     return smooth(18, 110, d);
   });
+  const heightAt = level ? (x, z) => natural(x, z) * (1 - level(x, z)) : natural;
   const ground = new THREE.Mesh(polarGround(heightAt), groundMaterial(region, U));
   ground.receiveShadow = true;
   group.add(ground);
@@ -234,7 +235,7 @@ export function buildTerrain(region, { pad, yaw, seed, cams = [] }) {
     if (lx > pad.x0 - 30 && lx < pad.x1 + 30 && lz > pad.z0 - 30 && lz < pad.z1 + 30) return true;
     if (lx > pad.x1 && Math.abs(lz - pad.lineZ) < 45) return true;
     if (lz > pad.z1 && Math.abs(lx - pad.roadX) < 9) return true;
-    return false;
+    return keepOut ? keepOut(x, z) : false;
   };
   const bigCams = cams.map(([x, z, r]) => [x, z, r * 2.2]);
   if (region.shrubs) scatter(group, region.shrubs, heightAt, avoid, `${seed}-shrub`, (k, r) => shrubGeometry(k, r), SHRUB[region.shrubs.kind] || SHRUB.grass, cams);

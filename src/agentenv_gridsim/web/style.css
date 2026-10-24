@@ -411,3 +411,86 @@ body.list-page { overflow: auto; background: #eef0ec; }
 .lvl-intro .ctx { font-size: 13px; color: var(--ink2); border-top: 1px solid var(--line); padding-top: 8px; }
 .lvl-toast .all { font-size: 13.5px; color: var(--ink2); margin-top: 6px; max-width: 560px; }
 .race-board .rctx { font-size: 12px; color: var(--ink2); margin: -2px 0 6px; }
+
+/* v3 solar + storage days */
+.ep.is-hybrid { --tl: 200px; }
+.ep.is-hybrid .left-col { width: 410px; }
+.tier.hyb { background: #2e5e4a; color: #fff; }
+.era { display: inline-block; font-size: 10px; font-weight: 750; letter-spacing: 0.06em; padding: 0 6px; border-radius: 4px; border: 1px solid rgba(28, 35, 41, 0.35); color: #3d4a54; margin-left: 6px; vertical-align: 2px; line-height: 15px; }
+.era.eA { background: #f1efe8; }
+.era.eB { background: #e9eef1; }
+.era.eC { background: #2c3440; color: #fff; border-color: #2c3440; }
+.socsvg { width: 100%; height: 30px; display: block; overflow: visible; }
+.socsvg .gl { font: 750 9.5px var(--sans); fill: #1c2329; text-anchor: middle; paint-order: stroke; stroke: rgba(255, 255, 255, 0.9); stroke-width: 2.6px; }
+.socsvg rect.live { animation: band-drain 0.9s ease-in-out infinite alternate; }
+@keyframes band-drain { from { opacity: 1; } to { opacity: 0.45; } }
+.ep.reduced .socsvg rect.live { animation: none; }
+.soc.hyb { margin-bottom: 8px; }
+.soc.hyb .bands { font-size: 11.5px; color: var(--ink2); margin-top: 1px; min-height: 16px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
+.soc.hyb .bands .gh { margin-left: auto; color: var(--faint); font-size: 11px; }
+span.gl { display: inline-block; min-width: 14px; height: 14px; line-height: 13px; text-align: center; font-weight: 750; font-size: 9.5px; border-radius: 3px; border: 1px solid rgba(28, 35, 41, 0.45); margin-right: 3px; color: var(--ink); background: repeating-linear-gradient(45deg, rgba(28, 35, 41, 0.13) 0 2px, rgba(255, 255, 255, 0.7) 2px 4px); vertical-align: 1px; }
+.plantrow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 2px 0 2px; }
+.plantrow span { display: block; font-size: 11px; color: var(--faint); }
+.plantrow b { display: block; font-size: 13.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plantrow svg.mini { width: 100%; height: 10px; display: block; margin-top: 4px; }
+.pnl .r.dim, .pnl .r.dim b { color: var(--faint); font-weight: 500; }
+.asbook { padding: 11px 14px 9px; }
+.bookstrip svg { width: 100%; height: auto; display: block; }
+.bookstrip text.gl2 { font: 750 9px var(--sans); fill: var(--ink); }
+.bookstrip text.nm { font: 500 8.5px var(--sans); fill: var(--ink2); }
+.bookstrip text.hr { font: 500 8px var(--sans); fill: var(--faint); }
+.bookfoot { font-size: 11.5px; color: var(--ink2); margin-top: 3px; min-height: 16px; }
+.pill.part { background: #fdf1df; color: #8a5200; }
+.planlog .rules { font-size: 11.5px; color: var(--ink2); margin: 6px 6px 0; line-height: 1.5; }
+.planlog .rules .dim { font-size: 11px; }
+.badge.dep { background: #b4690e; }
+.card.bul.dep { box-shadow: inset 4px 0 0 #ffa62b, var(--shadow); }
+.card.bul.dep.fresh { box-shadow: inset 4px 0 0 #ffa62b, 0 0 0 2px rgba(28, 35, 41, 0.55), var(--shadow); }
+.news.deploy i { background: var(--discharge-l); }
+.news.meter i { background: #d9c27a; }
+.news.ftp i, .news.refused i { background: var(--bad); }
+.news.governor i { background: var(--ink); }
+.score.hyb .w0 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.score.hyb .w0 span { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); font-weight: 650; white-space: nowrap; }
+.score.hyb .w0 b { display: block; font-size: 15px; font-weight: 700; }
+.score.hyb .w0 em { display: block; font-style: normal; font-size: 10.5px; color: var(--faint); line-height: 1.25; }
+.score.hyb .second .r { font-size: 20px; }
+.tl.hyb text.ftpm { font: 750 17px var(--sans); fill: #cf3e33; }
+.tl.hyb text.govm { font: 600 8px var(--sans); fill: var(--ink2); }
+.legend i.ol { background: none; border: 1.5px solid rgba(28, 35, 41, 0.45); }
+.legend i.dot { border-radius: 50%; background: #2c3440; width: 8px; height: 8px; vertical-align: 0; }
+.legend i.hp { width: 10px; height: 10px; border: 1px solid rgba(28, 35, 41, 0.5); margin: 0 2px 0 4px; }
+.legend i.hp.fwd { background: repeating-linear-gradient(-45deg, rgba(28, 35, 41, 0.6) 0 1.5px, transparent 1.5px 4px); }
+.legend i.hp.back { background: repeating-linear-gradient(45deg, rgba(28, 35, 41, 0.6) 0 1.5px, transparent 1.5px 4px); }
+.legend i.hp.cross { background: repeating-linear-gradient(45deg, rgba(28, 35, 41, 0.55) 0 1.2px, transparent 1.2px 4px), repeating-linear-gradient(-45deg, rgba(28, 35, 41, 0.55) 0 1.2px, transparent 1.2px 4px); }
+.legend i.hp.rows { background: repeating-linear-gradient(0deg, rgba(28, 35, 41, 0.6) 0 1.4px, transparent 1.4px 4px); }
+.legend i.hp.dots { background: radial-gradient(circle, rgba(28, 35, 41, 0.65) 0 1px, transparent 1.3px) 0 0 / 4px 4px; }
+.intro.hyb { width: 660px; }
+.intro.hyb .strip svg { height: 32px; }
+.intro.hyb h5 .era { vertical-align: 0; }
+@media (max-height: 940px) and (min-width: 901px) {
+  .ep.is-hybrid { --tl: 180px; }
+  .ep.is-hybrid .card { padding: 10px 14px; }
+  .ep.is-hybrid .left-col { gap: 8px; }
+  .ep.is-hybrid .place .meta, .ep.is-hybrid .left-col .place .where + .where { display: none; }
+  .ep.is-hybrid .place .clock { font-size: 30px; }
+  .ep.is-hybrid .place .price { font-size: 26px; }
+  .ep.is-hybrid .place .act { margin: 4px 0 6px; font-size: 15.5px; }
+  .ep.is-hybrid .pnl .r { padding: 0.5px 0; }
+  .ep.is-hybrid .bulletins .bul:not(:first-child) { display: none; }
+  .ep.is-hybrid .race svg.spark { height: 46px; }
+  .ep.is-hybrid .race .lane { margin: 3px 0; }
+}
+@media (max-width: 900px) {
+  .ep.is-hybrid { --tl: 170px; }
+  .ep.is-hybrid .left-col { width: calc(100% - 2 * var(--gap)); }
+  .ep.is-hybrid .place .meta, .ep.is-hybrid .soc.hyb .bands .gh { display: none; }
+  .ep.is-hybrid .plantrow { gap: 10px; }
+  .ep.is-hybrid .plantrow b { font-size: 12.5px; }
+  .tl.hyb { height: 128px; }
+  .intro.hyb { width: calc(100% - 2 * var(--gap)); }
+}
+.tl.hyb text.excm { font: 750 15px var(--sans); fill: #9aa3a9; letter-spacing: 0; }
+.legend b.xm { color: #cf3e33; font-weight: 750; margin: 0 3px 0 2px; }
+.legend b.xm.ex { color: #9aa3a9; margin-left: 6px; }
+.planlog .pill.part, .planlog .pill.no { white-space: normal; }

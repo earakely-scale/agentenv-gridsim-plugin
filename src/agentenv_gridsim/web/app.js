@@ -1,9 +1,12 @@
 import { load } from "./data.js";
+import { HYBRID_SCHEMA, loadHybrid } from "./hybrid.js";
 import { LIVE_SCHEMA, loadLive } from "./live.js";
 import { GridStage } from "./stage/stage.js";
 import { buildCharts } from "./ui/charts.js";
+import { buildHybridCharts } from "./ui/chartshybrid.js";
 import { buildLiveCharts } from "./ui/chartslive.js";
 import { buildHud } from "./ui/hud.js";
+import { buildHybridHud } from "./ui/hudhybrid.js";
 import { buildLiveHud } from "./ui/hudlive.js";
 import { buildIntro } from "./ui/intro.js";
 import { buildSound } from "./ui/sound.js";
@@ -35,8 +38,9 @@ async function main() {
   const ep = await json(epUrl);
   const wxUrl = q.get("weather") || `${q.get("wxbase") || "weather"}/${ep.task.date}_${ep.task.settlement_point}.json`;
   const weather = await json(wxUrl).catch(() => null);
-  const live = ep.schema === LIVE_SCHEMA;
-  const d = live ? loadLive(ep, weather) : load(ep, weather);
+  const hybrid = ep.schema === HYBRID_SCHEMA;
+  const live = ep.schema === LIVE_SCHEMA || hybrid;
+  const d = hybrid ? loadHybrid(ep, weather) : live ? loadLive(ep, weather) : load(ep, weather);
   const manual = q.has("record");
   const reduced = q.has("reduced") ? q.get("reduced") !== "0" : matchMedia("(prefers-reduced-motion: reduce)").matches;
   app.innerHTML = "";
@@ -46,25 +50,26 @@ async function main() {
   host.className = "stage-host";
   root.append(host);
   app.append(root);
-  document.title = `${ep.task.settlement_point} ${ep.task.date}${live ? " live" : ""} · GridSimEnv`;
+  document.title = `${ep.task.settlement_point} ${ep.task.date}${hybrid ? " solar + storage" : live ? " live" : ""} · GridSimEnv`;
   root.classList.toggle("is-live", live);
+  root.classList.toggle("is-hybrid", hybrid);
   const stage = new GridStage(host, d, { manual, reduced });
   stage.force = q.get("shot");
   const P = { t: q.has("hour") ? +q.get("hour") - 0.5 : q.has("t") ? +q.get("t") : INTRO, playing: !manual && !q.has("t") && !q.has("hour"), speed: 1, wall: 0 };
   if (q.has("ui") && q.get("ui") === "0") root.classList.add("bare");
-  const charts = (live ? buildLiveCharts : buildCharts)(root, d);
+  const charts = (hybrid ? buildHybridCharts : live ? buildLiveCharts : buildCharts)(root, d);
   const intro = live ? { update() {} } : buildIntro(root, d);
   const sound = buildSound();
   const settings = document.createElement("section");
   settings.className = "card settings";
   settings.hidden = true;
-  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><label><input type="checkbox" name="ghosts" checked> Greedy and threshold ghosts in the race</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour${live ? " · [/] watch" : ""} · 1-4 speed · D camera · C charts</p>`;
+  settings.innerHTML = `<h5>Settings</h5><label><input type="checkbox" name="reduced" ${reduced ? "checked" : ""}> Reduced motion</label><label><input type="checkbox" name="sound"> Sound (transformer hum)</label><label><input type="checkbox" name="ghosts" checked> ${hybrid ? "Energy-only and AS-hog" : "Greedy and threshold"} ghosts in the race</label><p class="dim" style="font-size:12px;margin:6px 0 0">Keys: space play/pause · ←/→ hour${live ? " · [/] watch" : ""} · 1-4 speed · D camera · C charts</p>`;
   root.append(settings);
   root.classList.toggle("reduced", reduced);
   settings.querySelector('[name="reduced"]').addEventListener("change", (e) => ((stage.reduced = e.target.checked), root.classList.toggle("reduced", e.target.checked)));
   settings.querySelector('[name="sound"]').addEventListener("change", (e) => sound.set(e.target.checked));
   settings.querySelector('[name="ghosts"]').addEventListener("change", (e) => root.classList.toggle("no-ghosts", !e.target.checked));
-  const hud = (live ? buildLiveHud : buildHud)(root, d, {
+  const hud = (hybrid ? buildHybridHud : live ? buildLiveHud : buildHud)(root, d, {
     onSeek: (t) => ((P.t = t), stage.direct(stage.directing)),
     onToggle: (a, s) => {
       if (a === "play") P.playing = !P.playing, P.t >= 24 && P.playing && (P.t = INTRO);
