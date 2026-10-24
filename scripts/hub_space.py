@@ -2,7 +2,7 @@
 through gridsim_core (a .jsonl holds one per line), the weather sidecars, a runs index with the featured days and the
 README. Nothing is uploaded.
 
-usage: python scripts/hub_space.py [--runs results/runs [TRAIN_EPISODES]] [--out build/hub/space] [--thumbs]
+usage: python scripts/hub_space.py [--runs results/runs results/train] [--out build/hub/space] [--thumbs]
        [--hero EPISODE_ID]
 """
 
@@ -103,7 +103,7 @@ D toggles the automatic camera.
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--runs", type=Path, nargs="*", default=[ROOT / "results" / "runs"])
+    p.add_argument("--runs", type=Path, nargs="*", default=[ROOT / "results" / "runs", ROOT / "results" / "train"])
     p.add_argument("--out", type=Path, default=ROOT / "build" / "hub" / "space")
     p.add_argument("--weather", type=Path, default=ROOT / "cache" / "weather")
     p.add_argument("--thumbs", action="store_true",
@@ -218,16 +218,25 @@ def write_views(views: dict, entries: list[dict], out: Path, thumbs: bool) -> di
             continue
         (out / "runs" / f"{kind}.json").write_text(json.dumps(m, separators=(",", ":")))
         training[kind] = {"url": f"runs/{kind}.json", "task_id": m["task_id"]} | (
-            {"model": m["model"], "gain": m["gain"], "note": m["note"], "frames": len(m["frames"])}
+            {"model": m["model"], "gain": m["gain"], "note": m["note"], "frames": len(m["frames"]),
+             "overall": overall(m.get("context") or {})}
             if kind == "levelup" else {"lanes": [x["label"] for x in m["lanes"]]})
         if thumbs:
             e = next(e for e in entries if e["id"] == refs[0])
             thumb = out / "thumbs" / f"{kind}.jpg"
             record("--view", f"{kind}={out / 'runs' / f'{kind}.json'}", "--weather",
                    str(out / "weather" / f"{e['date']}_{e['point']}.json"), "--thumb", str(thumb), "--t",
-                   str(3.2 + 6.5 * len(refs) + 1.5 if kind == "levelup" else 2 + 72 * 19.5 / 24))
+                   str(5 + 6.5 * len(refs) + 1.5 if kind == "levelup" else 2 + 72 * 19.5 / 24))
             training[kind]["thumb"] = f"thumbs/{thumb.name}"
     return training or None
+
+
+def overall(c: dict) -> str | None:
+    """The run over every held-out day, for the list card and the README."""
+    if c.get("trained") is None:
+        return None
+    return (f"{c.get('tasks', '')} held-out days the model goes from {c['base']:.2f} (base) to {c['sft']:.2f} (SFT) to "
+            f"{c['trained']:.2f} (GRPO); the greedy rule scores {c.get('greedy', float('nan')):.2f}")
 
 
 def fixtures() -> set[str]:
@@ -480,7 +489,9 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
             name = lu["model"].split("/")[-1]
             lines.append(f"- [LEVEL UP]({APP}/index.html?levelup=runs/levelup.json): {name} on one held-out day "
                          f"({lu['task_id']}) at each of {lu['frames']} checkpoints, reward gain {lu['gain']:+.2f}."
-                         + (f" {lu['note']}." if lu.get("note") else ""))
+                         + (f" {lu['note']}." if lu.get("note") else "")
+                         + (f" Over all {lu['overall']}: valid plans, not yet the simple rules." if lu.get("overall")
+                            else ""))
         if rc := training.get("race"):
             lines.append(f"- [The race]({APP}/index.html?race=runs/race.json): {', '.join(rc['lanes'])} on the same "
                          f"day ({rc['task_id']}).")

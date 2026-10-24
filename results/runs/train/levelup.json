@@ -9,6 +9,22 @@
   "candidates": 50,
   "doing_well": 2
  },
+ "context": {
+  "tasks": 200,
+  "base": 0.0,
+  "sft": 0.2336,
+  "trained": 0.329,
+  "greedy": 0.764,
+  "threshold": 0.6371,
+  "opening": {
+   "hour": 2,
+   "charge": true,
+   "share": [
+    198,
+    200
+   ]
+  }
+ },
  "total_steps": 280,
  "gain": 0.907813,
  "frames": [

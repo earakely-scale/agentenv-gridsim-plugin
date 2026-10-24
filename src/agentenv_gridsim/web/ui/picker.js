@@ -81,7 +81,7 @@ const VERSION = { v1: "v1 · day-ahead", v2: "v2 preview (provisional anchor)" }
 function trainingCards(t, base) {
   const card = (k, kind, title, text) => t[k] ? `<a class="hero card small" href="index.html?${k}=${encodeURIComponent(base + t[k].url.replace(/^runs\//, ""))}">${t[k].thumb ? `<img src="${esc(t[k].thumb)}" alt="${esc(title)}" loading="lazy">` : ""}<div class="txt"><h5>${kind}</h5><h2>${esc(title)}</h2><p>${text}</p><span class="go">Watch →</span></div></a>` : "";
   const lv = t.levelup, rc = t.race;
-  return card("levelup", "Training · LEVEL UP", `${(lv?.model || "").split("/").pop()} learns one battery-day`, lv ? `One held-out day (${esc(lv.task_id)}) replayed at ${lv.frames} checkpoints, the plan converging on the exact optimum; reward gain ${lv.gain >= 0 ? "+" : ""}${lv.gain.toFixed(2)}.${lv.note ? ` <b>${esc(lv.note)}.</b>` : ""}` : "") +
+  return card("levelup", "Training · LEVEL UP", `${(lv?.model || "").split("/").pop()} learns one battery-day`, lv ? `One held-out day (${esc(lv.task_id)}) replayed at ${lv.frames} checkpoints, the plan converging on the exact optimum; reward gain ${lv.gain >= 0 ? "+" : ""}${lv.gain.toFixed(2)}.${lv.note ? ` <b>${esc(lv.note)}.</b>` : ""}${lv.overall ? ` Over all ${esc(lv.overall)}.` : ""}` : "") +
     card("race", "Training · Race", "Base, SFT, GRPO and GPT-6.1 Sol on one clock", rc ? `${rc.lanes.map(esc).join(" · ")} on the same day and prices.` : "");
 }
 

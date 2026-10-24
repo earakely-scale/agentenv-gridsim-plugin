@@ -408,3 +408,6 @@ body.list-page { overflow: auto; background: #eef0ec; }
   .ep.is-live .race svg { height: 50px; }
   .ep.is-live .score.live .r { font-size: 24px; }
 }
+.lvl-intro .ctx { font-size: 13px; color: var(--ink2); border-top: 1px solid var(--line); padding-top: 8px; }
+.lvl-toast .all { font-size: 13.5px; color: var(--ink2); margin-top: 6px; max-width: 560px; }
+.race-board .rctx { font-size: 12px; color: var(--ink2); margin: -2px 0 6px; }

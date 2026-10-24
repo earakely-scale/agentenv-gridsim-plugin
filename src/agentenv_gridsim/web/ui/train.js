@@ -20,6 +20,16 @@ const clock = (t) => {
   return `${h % 12 || 12}:${String(mm).padStart(2, "0")}<small>${h < 12 ? "am" : "pm"}</small>`;
 };
 const STAGE = { base: "Base", sft: "SFT", grpo: "GRPO" };
+const hourName = (h) => (h === 0 ? "midnight" : h === 12 ? "noon" : `${h % 12} ${h < 12 ? "am" : "pm"}`);
+/** The run over every held-out day, from the manifest's context: stage means, the rules, how the plans open. */
+function overall(c, man) {
+  if (!c || c.trained == null) return "";
+  const n = c.tasks ? `${c.tasks} held-out days` : "the held-out days";
+  const rules = c.greedy != null ? ` The greedy rule scores ${c.greedy.toFixed(2)}${c.threshold != null ? `, the threshold rule ${c.threshold.toFixed(2)}` : ""}.` : "";
+  const open = c.opening ? ` ${c.opening.share[0]} of ${c.opening.share[1]} trained plans open by ${c.opening.charge ? "charging" : "trading"} at ${hourName(c.opening.hour)}, whatever the battery already holds.` : "";
+  const days = man?.days ? ` This day is one of ${man.days.doing_well} in ${man.days.candidates} checkpointed days where it reaches 0.85.` : "";
+  return `Across all ${n} the model goes from ${c.base.toFixed(2)} (base) to ${c.sft.toFixed(2)} (SFT) to ${c.trained.toFixed(2)} (GRPO).${rules}${days}${open}`;
+}
 const frameName = (f) => (f.trained === "grpo" ? (f.step != null ? `Step ${f.step}` : "Trained") : STAGE[f.trained] || f.trained);
 
 /** The training views: LEVEL UP (one held-out day at successive checkpoints, the plan converging on the DP ghost)
@@ -113,7 +123,7 @@ const matches = (d) => (d.ghosts.opt ? d.hours.filter((x, h) => x.action === d.g
 
 /** LEVEL UP: an intro, then for each checkpoint the day at speed and a held moment for its reward, then a summary. */
 function levelUp(root, man, ds, stage, q) {
-  const SEG = +q.get("seg") || 6.5, HOLD = 1.1, INTRO = 3.2, OUTRO = 5;
+  const SEG = +q.get("seg") || 6.5, HOLD = 1.1, INTRO = 5, OUTRO = 5.5;
   const DAY = SEG - HOLD, n = ds.length;
   const duration = INTRO + n * SEG + OUTRO;
   const d0 = ds[0], b = d0.b;
@@ -128,7 +138,8 @@ function levelUp(root, man, ds, stage, q) {
   root.append(head, rew, stack, toast, intro);
   intro.innerHTML = `<h5>LEVEL UP · a held-out day</h5><h2>${esc(name)} learns to run one battery-day</h2>
     <p>${d0.dateLabel} at <b>${esc(d0.task.settlement_point)}</b> (${esc(d0.place.name)}): a ${b.p_dis_mw} MW / ${b.energy_mwh} MWh battery, the day's 24 ERCOT day-ahead prices from ${price(d0.minP)} to ${price(d0.maxP)}/MWh. The same day is replayed at each checkpoint of training, against the exact optimum (the grey ghost).</p>
-    <p class="dim">Picked by rule: ${esc(man.rule)}.${man.note ? ` <b>${esc(man.note)}.</b>` : ""}</p>`;
+    <p class="dim">Picked by rule: ${esc(man.rule)}.${man.note ? ` <b>${esc(man.note)}.</b>` : ""}</p>
+    ${overall(man.context, man) ? `<p class="ctx">${esc(overall(man.context, man))}</p>` : ""}`;
   const W = 260, H = 64;
   const rx = (i) => 8 + ((W - 16) * i) / Math.max(1, n - 1), ry = (v) => H - 8 - clamp(v) * (H - 16);
   let lastKey = "";
@@ -167,7 +178,10 @@ function levelUp(root, man, ds, stage, q) {
     const show = hold && k >= 0 && !end;
     toast.style.opacity = show ? Math.min(fade(INTRO + ki * SEG + DAY, INTRO + ki * SEG + DAY + 0.2), 1 - fade(INTRO + (ki + 1) * SEG - 0.15, INTRO + (ki + 1) * SEG)) : end ? fade(INTRO + n * SEG, INTRO + n * SEG + 0.4) : 0;
     if (show) toast.innerHTML = `<div class="t">${prev == null || rewards[ki] > prev + 1e-9 ? "LEVEL UP" : rewards[ki] < prev - 1e-9 ? "SETBACK" : "HOLDS"}</div><div class="v">${esc(frameName(f))} · reward ${prev == null ? "" : `${prev.toFixed(2)} → `}<b>${rewards[ki].toFixed(2)}</b></div>`;
-    else if (end) toast.innerHTML = `<div class="t">TRAINED</div><div class="v">${esc(name)} on this day: reward <b>${rewards[0].toFixed(2)}</b> → <b>${rewards[n - 1].toFixed(2)}</b>${man.total_steps ? ` in ${man.total_steps} GRPO steps` : ""}</div>${man.note ? `<div class="note">${esc(man.note)}</div>` : ""}`;
+    else if (end) {
+      const c = man.context;
+      toast.innerHTML = `<div class="t">TRAINED</div><div class="v">${esc(name)} on this day: reward <b>${rewards[0].toFixed(2)}</b> → <b>${rewards[n - 1].toFixed(2)}</b>${man.total_steps ? ` in ${man.total_steps} GRPO steps` : ""}</div>${man.note ? `<div class="note">${esc(man.note)}</div>` : ""}${c?.trained != null ? `<div class="all">Over all ${c.tasks || ""} held-out days: <b>${c.base.toFixed(2)} → ${c.sft.toFixed(2)} → ${c.trained.toFixed(2)}</b>${c.greedy != null ? `; the greedy rule scores ${c.greedy.toFixed(2)}` : ""}. Valid plans now, not yet the simple rules.</div>` : ""}`;
+    }
   }
   return { duration, at, update };
 }
@@ -194,7 +208,9 @@ function race(root, man, ds, stage, focus0) {
   const all = ds.flatMap((d) => [d.ep.profit_usd, ...d.agentCum, d.pOpt ?? 0]);
   const lo = Math.min(0, ...all), hi = Math.max(1, ...all);
   const zx = (v) => ((v - lo) / (hi - lo)) * 100;
+  const c = man.context;
   board.innerHTML = `<div class="rhead"><h5>Race · the same day, the same prices <small>the yard follows the highlighted lane · keys 1-${ds.length}</small></h5><button data-play class="play">❚❚ Pause</button></div>
+    ${c?.trained != null ? `<div class="rctx">Over all ${c.tasks || ""} held-out days: base ${c.base.toFixed(2)} · SFT ${c.sft.toFixed(2)} · GRPO ${c.trained.toFixed(2)}${c.greedy != null ? ` · greedy rule ${c.greedy.toFixed(2)}` : ""}${c.threshold != null ? ` · threshold rule ${c.threshold.toFixed(2)}` : ""}</div>` : ""}
     <div class="rrow ghost"><span class="lab">DP optimum</span><span class="chips24">${ghostCells(d0)}</span><span class="rsoc"></span><span class="rcash"><span class="bar" style="left:${zx(0)}%;width:${zx(d0.pOpt ?? 0) - zx(0)}%"></span></span><span class="v num">${money(d0.pOpt ?? 0)}</span><span class="g0"></span></div>
     ${man.lanes.map((l, i) => `<div class="rrow lane" data-i="${i}"><span class="lab"><b>${i + 1}</b> ${esc(l.label)}</span><span class="chips24"></span><span class="rsoc"><span></span></span><span class="rcash"><i class="z" style="left:${zx(0)}%"></i><span class="bar"></span></span><span class="v num"></span><span class="g0"></span></div>`).join("")}
     <div class="hrs"><span></span><span>${[0, 6, 12, 18].map((h) => `<em style="left:${(h / 24) * 100}%">${hourLabel(h)}</em>`).join("")}</span><span></span></div>`;

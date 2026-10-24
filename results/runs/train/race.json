@@ -1,6 +1,22 @@
 {
  "schema": "gridsim.race/v1",
  "task_id": "dam-v1-2025-09-29-HB_HOUSTON-1h-i",
+ "context": {
+  "tasks": 200,
+  "base": 0.0,
+  "sft": 0.2336,
+  "trained": 0.329,
+  "greedy": 0.764,
+  "threshold": 0.6371,
+  "opening": {
+   "hour": 2,
+   "charge": true,
+   "share": [
+    198,
+    200
+   ]
+  }
+ },
  "lanes": [
   {
    "episode_id": "27d32165192ea7f3",
