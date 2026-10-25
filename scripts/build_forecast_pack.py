@@ -40,6 +40,7 @@ SPLITS = {"train": ("2021-03-02", "2024-12-29"), "eval": ("2025-01-01", "2025-11
 TARGETS = {"train": 1500, "eval": 60, "rtcb": 20}
 FRONT_SHARE = {"train": 0.6, "eval": 40 / 60, "rtcb": 0.5}
 CANDIDATES = {"train": 20000, "eval": 1200, "rtcb": 400}
+PER_D1 = {"train": 3, "eval": 1, "rtcb": 1}
 PACKS = {"train": "ercot-front-v4-train", "eval": "ercot-front-v4-eval", "rtcb": "ercot-front-v4-rtcb",
          "showcase": "ercot-front-v4-showcase"}
 SHOWCASE = {"fern-0124": ("2026-01-24", "HB_NORTH"), "heather-0114": ("2024-01-14", "HB_NORTH"),
@@ -263,7 +264,7 @@ def build_store_row(args: tuple) -> dict | None:
         return None
     store = Path(store)
     t["actuals"] = actuals(t, Path(eia))
-    source = "ercot" if split != "train" and d1 >= API_START else "desk"
+    source = asked = "ercot" if split != "train" and d1 >= API_START else "desk"
     sl = resolve(t, store, source)
     if source == "ercot" and not ercot_ok(sl, d1):
         source = sl["source"] = "desk"
@@ -274,8 +275,7 @@ def build_store_row(args: tuple) -> dict | None:
         out = F.attach(t, sl, tiers=tiers)
     except (RuntimeError, ValueError) as e:
         return {"_error": str(e), "task_id": t["task_id"]}
-    if split == "train":
-        out["vintages"] = store_ref(t, store, source)
+    out["vintages"] = store_ref(t, store, asked)
     out["tags"] = {"label": lab, "front_signal": sig, "forecast_bust": forecast_bust(out),
                    "watches": {tier: len(F.Session(t | {"vintages": sl}, tier, reference=True).watches)
                                for tier in tiers},
@@ -295,15 +295,16 @@ def _init(cache: str):
     _CACHES = caches(Path(cache))
 
 
-def select(ok: list, n: int, front_share: float, salt: str) -> list:
-    """A stable draw of n rows, front_share of them front-labelled, at most one per d1 per round."""
+def select(ok: list, n: int, front_share: float, salt: str, per_d1: int = 1) -> list:
+    """A stable draw of n rows, front_share of them front-labelled, at most per_d1 of each label per d1; a label short
+    of its share gives all it has."""
     out = []
     for lab, k in (("front", round(n * front_share)), ("calm", n - round(n * front_share))):
         rows = sorted((t for t in ok if t["tags"]["label"] == lab), key=lambda t: stable_seed(f"{salt}|{t['task_id']}"))
-        seen, take = set(), []
+        seen, take = collections.Counter(), []
         for t in rows:
-            if t["d1"] not in seen and len(take) < k:
-                seen.add(t["d1"])
+            if seen[t["d1"]] < per_d1 and len(take) < k:
+                seen[t["d1"]] += 1
                 take.append(t)
         out += take
     return sorted(out, key=lambda t: (t["d1"], t["settlement_point"]))
@@ -324,7 +325,8 @@ def build_one(args: tuple) -> dict:
     return out
 
 
-def write(out: Path, name: str, tasks: list, meta: dict):
+def write(out: Path, name: str, tasks: list, meta: dict,
+          vintages: str = "synthetic until the forecast store lands (V4-P12)"):
     d = out / name
     d.mkdir(parents=True, exist_ok=True)
     with gzip.GzipFile(d / "tasks.jsonl.gz", "wb", mtime=0) as f:
@@ -335,48 +337,71 @@ def write(out: Path, name: str, tasks: list, meta: dict):
         "pack": name, "forecast_version": F.FORECAST_VERSION, "tasks": len(tasks),
         "dates": [min(t["d1"] for t in tasks), max(t["d1"] for t in tasks)] if tasks else None,
         "tiers": list(F.TIERS), "sources": sorted({t["source"] for t in tasks}),
-        "flags": {"vintages": "synthetic until the forecast store lands (V4-P12)", "site": "archetype",
+        "flags": {"vintages": vintages, "site": "archetype",
                   "pv_availability": "proxy, system-wide cf", "reg_drift": "seeded", "rt_as": "not modelled (V4-P6)"},
         "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain"}
         | meta, indent=1) + "\n")
 
 
-def build_packs(args):
-    """The ercot-front-v4-* packs from the store: candidates per split, refs, filters, the front/calm draw."""
-    store, eia = Path(args.store), Path(args.eia)
-    out = Path(args.out)
-    t0 = time.time()
-    stats = {}
+def pack_jobs(args) -> list[tuple]:
+    """One build_store_row job per candidate window of each split, plus the showcase windows."""
     jobs = []
     for split in [s for s in args.splits if s != "showcase"]:
         tiers = ("front-lite",) if split == "train" else F.TIERS
-        n = args.limit or CANDIDATES[split]
-        jobs += [(d1, p, split, tiers, str(store), str(eia), None) for d1, p in candidates(split, n)]
+        jobs += [(d1, p, split, tiers, str(args.store), str(args.eia), None)
+                 for d1, p in candidates(split, args.limit or CANDIDATES[split])]
     if "showcase" in args.splits or not args.splits:
-        jobs += [(d1, p, "showcase", F.TIERS, str(store), str(eia), name) for name, (d1, p) in SHOWCASE.items()]
-    with mp.Pool(args.workers, initializer=_init, initargs=(args.cache,)) as pool:
-        rows = [r for r in pool.imap_unordered(build_store_row, jobs, chunksize=1) if r is not None]
+        jobs += [(d1, p, "showcase", F.TIERS, str(args.store), str(args.eia), name)
+                 for name, (d1, p) in SHOWCASE.items()]
+    return jobs
+
+
+def score_rows(args) -> list[dict]:
+    """Every candidate scored, each row referring to the store (write_packs inlines the chosen eval, rtcb and showcase
+    slices), so the candidates fit in memory."""
+    with mp.Pool(args.workers, initializer=_init, initargs=(args.cache,), maxtasksperchild=100) as pool:
+        return [r for r in pool.imap_unordered(build_store_row, pack_jobs(args), chunksize=1) if r is not None]
+
+
+def inline(t: dict, store: Path) -> dict:
+    """The row with its slice read back from the store, bound to its refs by vintages_sha (V4-P12)."""
+    sl = FI.slice_for(t, store) | {"source": t["source"]}
+    if FI.vintages_sha(sl["series"]) != t["vintages_sha"]:
+        raise SystemExit(f"{t['task_id']}: the store's slice does not match the refs' vintages_sha")
+    return t | {"vintages": sl}
+
+
+def write_packs(rows: list[dict], args):
+    """The ercot-front-v4-* packs from scored candidates: per split the low-spread cut, the filters and the draw."""
+    out, stats = Path(args.out), {}
     errors = [r for r in rows if "_error" in r]
     rows = [r for r in rows if "_error" not in r]
+    vint = f"as issued, from the forecast store v4-store@{store_sha(Path(args.store))[:8]} (V4-P12, V4-P17)"
     for split in [s for s in args.splits if s != "showcase"]:
         tier = "front-lite" if split == "train" else "front"
         pool_rows = [r for r in rows if r["split"] == split]
         floor = hind_floor(pool_rows, tier)
         ok = [r for r in pool_rows if eligible(r["_score"][tier], floor)]
-        chosen = select(ok, args.limit and min(len(ok), TARGETS[split]) or TARGETS[split], FRONT_SHARE[split], split)
+        chosen = select(ok, args.limit and min(len(ok), TARGETS[split]) or TARGETS[split], FRONT_SHARE[split], split,
+                        PER_D1[split])
         labels = collections.Counter(r["tags"]["label"] for r in pool_rows)
         stats[split] = {"candidates": len(pool_rows), "candidate_labels": dict(labels),
                         "hind_floor_usd_per_kw": round(floor, 4), "eligible": len(ok),
                         "eligible_labels": dict(collections.Counter(r["tags"]["label"] for r in ok)),
                         "eligible_d1": {lab: len({r["d1"] for r in ok if r["tags"]["label"] == lab}) for lab in labels},
-                        "chosen": len(chosen), "front": sum(r["tags"]["label"] == "front" for r in chosen),
+                        "per_d1_per_label": PER_D1[split], "chosen": len(chosen),
+                        "front": sum(r["tags"]["label"] == "front" for r in chosen),
                         "sources": dict(collections.Counter(r["source"] for r in chosen)),
                         "mean_ms": round(float(np.mean([r["_ms"] for r in pool_rows])), 1) if pool_rows else None}
-        write(out, PACKS[split], chosen, {"filters": FILTER, "stats": stats[split], "store": args.store})
-    show = sorted((r for r in rows if r["split"] == "showcase"), key=lambda r: r["d1"])
+        if split != "train":
+            chosen = [inline(t, Path(args.store)) for t in chosen]
+        write(out, PACKS[split], chosen, {"filters": FILTER, "solver": F.SOLVER, "stats": stats[split],
+                                          "store": "cache/forecast/store"}, vint)
+    show = [inline(t, Path(args.store)) for t in sorted((r for r in rows if r["split"] == "showcase"),
+                                                         key=lambda r: r["d1"])]
     if show:
-        write(out, PACKS["showcase"], show, {"display_only": True})
-    log(f"packs {stats}; {len(errors)} errors; {time.time() - t0:.0f} s")
+        write(out, PACKS["showcase"], show, {"display_only": True, "solver": F.SOLVER}, vint)
+    log(f"packs {stats}; {len(errors)} errors")
     for e in errors[:5]:
         log(f"error {e['task_id']}: {e['_error']}")
 
@@ -393,7 +418,9 @@ def main():
     ap.add_argument("--workers", type=int, default=max(1, mp.cpu_count() - 2))
     args = ap.parse_args()
     if args.store:
-        build_packs(args)
+        t0 = time.time()
+        write_packs(score_rows(args), args)
+        log(f"{time.time() - t0:.0f} s")
         return
     if not args.fixtures:
         ap.error("pass --fixtures, or --store for the packs")

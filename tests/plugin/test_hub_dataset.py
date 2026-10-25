@@ -71,7 +71,7 @@ def test_market_days_and_seats_carry_no_resource_or_qse_name():
 @pytest.mark.parametrize("pv, run", [
     (hub.V2, "v2-pilot-sol-hero/live-v2-2023-09-06-HB_NORTH-2h-l-openai-gpt-6.1-sol-r1.json"),
     (hub.V3, "hybrid-reference/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-reserves-anchor.json"),
-    (hub.V4, "v4-pilot-sol-show/front-v4-2026-01-24-HB_NORTH-pv150-b100x2h-poi150-openai-gpt-6.1-sol-r1.json"),
+    (hub.V4, "forecast-view/front-v4-2026-01-24-HB_NORTH-pv150-b100x2h-poi150-anchor.json"),
     (hub.V5, "v5-pilot-sol-show/mkt-v5-2026-01-25-A800x2-e1-openai-gpt-6.1-sol-r1.json")])
 def test_an_episode_replays_on_the_plugin_row_and_paraphrased_on_the_published_row(pv, run):
     e = json.loads((ROOT / "results/runs" / run).read_text())

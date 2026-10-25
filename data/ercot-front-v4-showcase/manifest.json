@@ -1,6 +1,6 @@
 {
  "pack": "ercot-front-v4-showcase",
- "forecast_version": "4.0",
+ "forecast_version": "4.1",
  "tasks": 4,
  "dates": [
   "2021-02-13",
@@ -24,5 +24,6 @@
   "rt_as": "not modelled (V4-P6)"
  },
  "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
- "display_only": true
+ "display_only": true,
+ "solver": 2
 }
