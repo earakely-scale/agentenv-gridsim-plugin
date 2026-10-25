@@ -21,6 +21,7 @@ from record import ROOT, find_chrome, serve, session, viewer_url, weather_path  
 R = "results/runs/reference/"
 LIVE = "../live-reference/"
 V3 = "../../../build/hub/space/runs/"
+V3_SOL = "hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-1x0k609v"
 V4 = {"fern": "v4:2026-01-24-HB_NORTH:rolling-p50:front", "heather": "v4:2024-01-14-HB_NORTH:rolling-p50:front",
       "uri": "v4:2021-02-13-HB_HOUSTON:rolling-p50:front", "spring": "v4:2024-03-28-HB_WEST:rolling-p50:front",
       "pan": "v4:2025-10-19-HB_PAN:rolling-p50:front", "storm": "v4:2025-04-02-LZ_RAYBN:gpt-6.1-sol:front",
@@ -57,19 +58,22 @@ MATRIX = [
     ("v2 · derate clips the frozen plan", f"{LIVE}live-v2-2024-01-02-LZ_CPS-1h-y-derate-foresight-roll", 18.6, None),
     ("v2 · Uri, re-planning in the freeze", f"{LIVE}live-v2-2021-02-15-HB_HOUSTON-2h-i-foresight-roll", 7.6, None),
     ("v2 · end score", f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 24.5, None),
-    ("v3 · the day before: the day-ahead book", f"{V3}8bb20ee94689d6d1", -1.0, None),
-    ("v3 · noon solar peak", f"{V3}8bb20ee94689d6d1", 12.6, "solar"),
-    ("v3 · the meter holds headroom for ECRS", f"{V3}8bb20ee94689d6d1", 9.5, "poi"),
-    ("v3 · negative price: panels stowed", f"{V3}62d7779181dafa09", 11.5, "stow"),
-    ("v3 · evening discharge with ECRS reserved", f"{V3}bf8e0cd185d70bde", 18.5, None),
-    ("v3 · ECRS deployed: the band drains", f"{V3}8bb20ee94689d6d1", 17.45, None),
-    ("v3 · AS-hog: failures to provide", f"{V3}0c85533ede822715", 8.6, None),
+    ("v3 · the day before: the day-ahead book", f"{V3}5a642a2295c50ed7", -1.0, None),
+    ("v3 · noon solar peak", f"{V3}5a642a2295c50ed7", 12.6, "solar"),
+    ("v3 · the meter holds headroom for ECRS", f"{V3}5a642a2295c50ed7", 9.5, "poi"),
+    ("v3 · negative price: panels stowed", f"{V3}2346944264970b1d", 11.5, "stow"),
+    ("v3 · late-afternoon discharge with ECRS reserved", f"{V3}f14206b2ec7970ae", 16.5, None),
+    ("v3 · oversized site: the meter clips the PV", f"{V3}52a2ac2c6fcae71e", 12.6, "poi"),
+    ("v3 · ECRS deployed: the band drains", f"{V3}5a642a2295c50ed7", 17.45, None),
+    ("v3 · AS-hog: failures to provide", f"{V3}e404f193e182a3c3", 8.6, None),
     ("v3 · Sunset EEA, energy tier", f"{V3}8b2c0b970fb5813b", 19.6, None),
-    ("v3 · RTC+B as T2, January", f"{V3}fe6271215e91838d", 10.5, None),
-    ("v3 · aerial over the array", f"{V3}57253e9887c8bed7", 9.5, "array"),
-    ("v3 · night", f"{V3}8bb20ee94689d6d1", 22.5, None),
-    ("v3 · end score", f"{V3}0c85533ede822715", 24.5, None),
-    ("v3 · phone layout", f"{V3}8bb20ee94689d6d1", 17.45, None, "390x844"),
+    ("v3 · RTC+B as T2, January", f"{V3}c1ba1700279f89aa", 10.5, None),
+    ("v3 · aerial over the array", f"{V3}f99c37e0cf969880", 9.5, "array"),
+    ("v3 · night", f"{V3}5a642a2295c50ed7", 22.5, None),
+    ("v3 · end score", f"{V3}e404f193e182a3c3", 24.5, None),
+    ("v3 · GPT-6.1 Sol, 10 August 2023: its ECRS is called", f"{V3}{V3_SOL}", 15.85, None),
+    ("v3 · GPT-6.1 Sol, 10 August 2023: the score", f"{V3}{V3_SOL}", 24.5, None),
+    ("v3 · phone layout", f"{V3}5a642a2295c50ed7", 17.45, None, "390x844"),
     ("v4 · Fern: the window opens at the first DAM gate", V4["fern"], -13.7, None),
     ("v4 · Heather: the Arctic front reaches DFW", V4["heather"], -7.4, "front"),
     ("v4 · Heather: the front through, 14 °C in three hours", V4["heather"], -6.9, None),
@@ -182,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.determinism:
             for eid, t in (("dam-v1-2025-03-15-HB_WEST-1h-t-foresight-opt", 20.3),
                            (f"{LIVE}live-v2-2023-09-06-HB_NORTH-2h-l-foresight-roll", 19.75),
-                           (f"{V3}8bb20ee94689d6d1", 17.45), (f"{V3}62d7779181dafa09", 11.5),
+                           (f"{V3}5a642a2295c50ed7", 17.45), (f"{V3}2346944264970b1d", 11.5),
                            (V4["heather"], -6.9), (V4["fern"], 8.0),
                            (V5["hedged"], -4.45), (V5["hedged"], 19.5)):
                 ep = episode(eid)

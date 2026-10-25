@@ -283,11 +283,6 @@ function scoreHtml(d, lanes) {
   const ep = d.ep, R = ep.reward ?? 0, ref = ep.references || {}, w0 = d.weight0;
   const pi = ref.p_idle, pa = ref.p_anchor;
   const pos = (r) => `${Math.max(0, Math.min(1, r)) * 100}%`;
-  const ticks = [["energy", "energy-only"], ["as_hog", "AS-hog"]].map(([k, lab]) => {
-    const l = lanes.find((x) => x.k === k);
-    const r = l ? reward(l.final, pi, pa) : null;
-    return r == null ? "" : `<i class="tick n" style="left:${pos(r)}" title="${lab} ${r.toFixed(2)}"></i>`;
-  }).join("");
   const cap = (k) => {
     const l = lanes.find((x) => x.k === k);
     const r = l ? reward(l.final, pi, pa) : null;
@@ -297,21 +292,24 @@ function scoreHtml(d, lanes) {
   const vs = lanes.find((l) => l.k === "anchor");
   const rel = vs ? ` vs the anchor <b class="${ep.profit_usd - vs.final >= 0 ? "good" : "bad"}">${money(ep.profit_usd - vs.final, { sign: true })}</b>` : "";
   const pct = (v) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+  const capt = (p) => (p == null || pi == null || ref.p_hind == null || ref.p_hind - pi <= 1e-9 ? null : (p - pi) / (ref.p_hind - pi));
+  const c = capt(ep.profit_usd), ca = capt(pa), f3 = (x) => (x == null ? "—" : x.toFixed(3));
+  const dl = c == null || ca == null ? "" : ` · Δ ${c - ca >= 0 ? "+" : "−"}${Math.abs(c - ca).toFixed(3)}`;
   const cells = [
-    ["Hindsight", pct(w0.capture), `of ${money((ref.p_hind ?? 0) - (pi ?? 0))} over idle`],
+    ["R · anchor scale", R.toFixed(3), `${cap("energy")}${cap("as_hog")}anchor 1.0`],
     ["AS share", d.offered.length ? pct(w0.asShare) : "—", "of revenue over idle"],
     ["Clip saved", w0.clipPct == null ? "n/a" : `${Math.round(w0.clipPct)}%`, w0.clipPct == null ? "meter ≥ PV AC" : "of PV over the meter"],
     ["Curtailed", `${Math.round(w0.curtailed)} MWh`, "PV held back"],
     ["Short (FTP)", `${w0.ftpMwh.toFixed(1)} MWh`, `charged · ${w0.excusedMwh.toFixed(1)} excused`],
     ["Governor", `${w0.governor} h`, "moves clipped"],
   ];
-  return `<div class="pair"><div><div class="lbl">R · anchor scale</div><div class="r num">${R.toFixed(3)}</div>
-      <div class="rscale"><span class="fill" style="width:${pos(R)}"></span><i class="tick" style="left:20%" title="idle"></i>${ticks}<i class="tick a" style="left:100%" title="anchor"></i></div>
-      <div class="cap">idle 0.2 · ${cap("energy")}${cap("as_hog")}anchor 1.0</div></div>
+  return `<div class="pair"><div><div class="lbl">Hindsight capture C</div><div class="r num">${f3(c)}</div>
+      <div class="rscale"><span class="fill" style="width:${pos(c ?? 0)}"></span>${ca == null ? "" : `<i class="tick a" style="left:${pos(ca)}" title="anchor ${ca.toFixed(2)}"></i>`}</div>
+      <div class="cap">idle 0 · the anchor's ${f3(ca)}${dl} · hindsight 1</div></div>
     <div class="second"><div class="lbl">Profit</div><div class="r num">${money(ep.profit_usd)}</div><div class="cap">anchor ${money(pa ?? 0)} · hindsight ${money(ref.p_hind ?? 0)}</div></div></div>
     <div class="w0">${cells.map(([k, v, c]) => `<div><span>${k}</span><b class="num">${v}</b><em>${c}</em></div>`).join("")}</div>
     <div class="line">${self}${rel}</div>
-    <div class="line dim">v3 preview · weight-0 rows are reported, not scored. PV is a system-wide proxy; regulation drift is ERCOT's storage-fleet deployment from late 2023, modelled from RT vs DA before.</div>`;
+    <div class="line dim">v3 preview · C heads, R second; the rest is reported, not scored. PV is a system-wide proxy; regulation drift is ERCOT's storage-fleet deployment from late 2023, modelled from RT vs DA before.</div>`;
 }
 
 function spark(lanes, t, lo, hi) {

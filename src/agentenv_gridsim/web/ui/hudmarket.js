@@ -116,7 +116,7 @@ export function buildMarketHud(root, d, { onSeek, onToggle }) {
 function introHtml(d, name) {
   return `<h5>GridSimEnv · The Market Floor <span class="v2tag">v5 preview</span></h5>
     <p><b>${esc(name)}</b> runs seat A, a ${mw(d.P)} / ${mwh(d.E)} battery portfolio, in ERCOT's day-ahead market for <b>${esc(d.dateLabel)}</b>. On the morning before, the desk offers blocks of MW at prices for each hour; at 10:00 the market closes and is re-cleared from ERCOT's real 60-day disclosure, every other offer and bid of the day in place and ${d.seats.length - 1} rival portfolios carved out and anonymised. Awards post at 1:30 pm; on the day the battery delivers them.</p>
-    <p class="dim">R puts idle at 0.2 and the disclosure anchor at 1.0. Hindsight's best response, welfare and ε-Nash are reported, not scored. ${d.tier === "floor-sprint" ? "Floor-sprint: one watch at 9 am; the day follows the awards." : "Floor-day: watches from 6 am the day before to 6 pm on the day."}</p>`;
+    <p class="dim">The score is compliant: half the hindsight capture C, against the best response settled at real-time prices, half the welfare ratio. R puts idle at 0.2 and the disclosure anchor at 1.0. Regret and ε-Nash are reported, not scored. ${d.tier === "floor-sprint" ? "Floor-sprint: one watch at 9 am; the day follows the awards." : "Floor-day: watches from 6 am the day before to 6 pm on the day."}</p>`;
 }
 
 function phaseLine(d, x, t) {
@@ -216,7 +216,7 @@ function pnlHtml(d, t, settled, ended) {
     ${row("Ancillary services", "none: v5 is energy only", "dim")}
     ${row("Degradation", s("deg") < 0.5 ? "$0" : money(-s("deg")))}
     ${row("End-of-day shortfall", pen == null ? "at midnight" : pen ? money(-pen) : "$0", pen ? "bad" : "")}
-    ${row("Total (R is scored on this)", money(ended ? d.ep.profit_usd : s("cash")), "total")}
+    ${row("Total (C and R are scored on this)", money(ended ? d.ep.profit_usd : s("cash")), "total")}
     ${cfd.length ? `<div class="cfdrow">${row(`CfD, retail-L · ${cfd.map((c) => `${mw(c.mw)} ${heList(c.hours)} @ ${price(c.strike)}`).join(", ")}`, sm(cfdSo), cfdSo < -0.5 ? "bad" : cfdSo > 0.5 ? "good" : "")}<span class="note">a contract row, kept apart: never in R</span></div>` : ""}`;
 }
 
@@ -239,15 +239,19 @@ function seatsHtml(d, t, settled, ended) {
 }
 
 function scoreHtml(d, name) {
-  const ep = d.ep, r = d.rows, refs = d.refs, R = ep.reward ?? 0, C = ep.compliant_reward;
+  const ep = d.ep, r = d.rows, refs = d.refs, R = ep.reward ?? 0, w = r.welfare_ratio, hind = ep.p_br_rt, pi = refs.p_idle ?? 0;
+  const capt = (p) => (hind == null || p == null || hind - pi <= 1e-9 ? null : (p - pi) / (hind - pi));
+  const clip = (x) => Math.max(0, Math.min(1, x)), f3 = (x) => (x == null ? "—" : x.toFixed(3));
+  const c = capt(ep.profit_usd), ca = capt(refs.p_anchor), S = c == null || w == null ? null : 0.5 * clip(c) + 0.5 * clip(w);
+  const dl = c == null || ca == null ? "" : ` · Δ ${c - ca >= 0 ? "+" : "−"}${Math.abs(c - ca).toFixed(3)}`;
   const bl = Object.entries(refs.baselines || {}).map(([k, v]) => `${{ price_taker: "price-taker", max_withhold: "max-withhold", replay_A: "seat A's real offers" }[k] || k} ${v.reward.toFixed(2)}`).join(" · ");
   const cond = r.conduct || {}, fid = r.fidelity || {};
   const cell = (k, v, sub = "") => `<div><span>${k}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ""}</div>`;
   const beat = (ep.profit_usd ?? 0) > (refs.p_anchor ?? 0) + 1e-6;
   return `<h5>Score <small>${esc(name)}</small></h5><div class="score live hyb mktscore">
-    <div class="pair"><div><div class="lbl">Reward R</div><div class="r num">${R.toFixed(3)}</div><div class="rscale"><div class="fill" style="width:${Math.min(100, R * 100)}%"></div><i class="tick n" style="left:20%"></i><i class="tick a" style="left:100%"></i></div><div class="cap">idle 0.2 · disclosure anchor 1.0</div></div>
-    <div class="second"><div class="lbl">Compliant score</div><div class="r num">${C == null ? "—" : C.toFixed(3)}</div><div class="cap">0.5·R + 0.5·welfare ratio</div></div></div>
-    <div class="line">Profit <b>${money(ep.profit_usd)}</b>, the anchor's <b>${money(refs.p_anchor ?? 0)}</b>${beat ? ' · <b class="good">beats the anchor</b>' : ""}; hindsight's best response ${money(refs.p_br ?? 0)}.</div>
+    <div class="pair"><div><div class="lbl">Compliant score</div><div class="r num">${f3(S)}</div><div class="rscale"><div class="fill" style="width:${clip(S ?? 0) * 100}%"></div></div><div class="cap">0.5·clip(C) + 0.5·clip(welfare ratio ${w == null ? "—" : w.toFixed(2)})</div></div>
+    <div class="second"><div class="lbl">Hindsight capture C</div><div class="r num">${f3(c)}</div><div class="cap">the anchor's ${f3(ca)}${dl}</div></div></div>
+    <div class="line">Profit <b>${money(ep.profit_usd)}</b>, the anchor's <b>${money(refs.p_anchor ?? 0)}</b>${beat ? ' · <b class="good">beats the anchor</b>' : ""}; hindsight, the best response settled at real time, ${money(hind ?? 0)}. R ${R.toFixed(3)} on the anchor scale (idle 0.2, disclosure anchor 1.0).</div>
     <div class="w0">${cell("Regret", money(r.regret_usd ?? 0), r.regret_norm == null ? "" : `${Math.round(r.regret_norm * 100)}% of the room`)}${cell("$/kW-day", (r.profit_usd_per_kw_day ?? 0).toFixed(3))}${cell("Rank of 5", r.rank ?? "—", "$ per MW")}
       ${cell("Mitigated", `${cond.mitigated_hours ?? 0} h`, "conduct and impact")}${cell("Withholding", (cond.withholding_index ?? 0).toFixed(3), "index; 0 is none")}${cell("Fidelity", fid.within_ns == null ? "—" : `${Math.round(fid.within_ns * 100)}%`, "re-clear vs ERCOT")}</div>
     ${bl ? `<div class="line dim">Baselines on R: ${esc(bl)}.</div>` : ""}</div>`;

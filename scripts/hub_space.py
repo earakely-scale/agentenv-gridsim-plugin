@@ -52,6 +52,7 @@ MARKET_NAMES = {"reference/disclosure-anchor": "Disclosure anchor (reference)",
                 "reference/price-taker": "Price-taker (reference)",
                 "reference/max-withhold": "Max-withhold (reference)"}
 MARKET_HERO = "aug24-0820"
+CARDS = {2: "eval-v2.json", 3: "eval-v3b.json", 4: "eval-v4b.json", 5: "eval-v5b.json"}
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
           "reference/rolling-p50": "the rolling anchor (reference)",
           "reference/persistence": "the blind re-planner (reference)",
@@ -183,7 +184,8 @@ def main(argv: list[str] | None = None) -> int:
                     if why := verify_market(ep, task):
                         rejected.append((f, why))
                         continue
-                    ep = ep | {"seats_view": seats_view(task)}
+                    ep = ep | {"seats_view": seats_view(task),
+                               "p_br_rt": ((task.get("refs") or {}).get(ep["tier"]) or {}).get("p_br_rt")}
                     name = f"{ep['episode_id']}.json"
                     (out / "runs" / name).write_text(json.dumps(ep, ensure_ascii=False, separators=(",", ":")))
                     entries.append(market_entry(ep, name, task))
@@ -317,7 +319,7 @@ def versus(d: dict, what: str) -> str:
 
 
 def card(version: int) -> dict | None:
-    path = ROOT / "results" / f"eval-v{version}.json"
+    path = ROOT / "results" / CARDS[version]
     return json.loads(path.read_text()) if path.is_file() else None
 
 
@@ -565,15 +567,15 @@ def forecast_blurb(ep: dict, e: dict) -> str:
 
 
 def forecast_pilot(e: dict) -> str:
-    """The v4 pilot's reading (results/eval-v4.json): Sol's front-tier hindsight capture against the rolling anchor's
-    and the blind re-planner's, R second; a showcase window is display-only."""
+    """The v4 pilot's reading (results/eval-v4b.json, rules 4.1): Sol's front-tier hindsight capture against the rolling
+    anchor's and the blind re-planner's, R second; a showcase window is display-only."""
     c = card(4)
     m = next((x for x in (c or {}).get("models") or [] if x["tier"] == "front"), None)
     if m is None:
         return ""
     lo, hi = m["capture"]["ci95"]
     return ((" This window is display-only, outside the pilot." if e["showcase"] else "")
-            + f" In the pre-registered pilot on {m['tasks']} eval windows Sol's front capture is "
+            + f" In the pre-registered pilot (rules 4.1) on {m['tasks']} eval windows Sol's front capture is "
             f"{m['capture']['mean']:.3f} ({lo:.3f} to {hi:.3f}) against the rolling anchor's "
             f"{m['anchor_capture']:.3f}, "
             f"{versus(m['delta'], 'the anchor')}, and {versus(m['refs']['blind']['delta'], 'the blind re-planner')}; "
@@ -593,7 +595,8 @@ def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
         return None
     ep = json.loads((out / "runs" / e["url"]).read_text())
     t, mom = hybrid_moment(ep)
-    e |= {"featured": "hybrid", "blurb": hybrid_blurb(ep), "hero_moment": mom, "t_moment": t,
+    e |= {"featured": "hybrid", "blurb": hybrid_blurb(ep) + (hybrid_pilot(e) if real(e) else ""), "hero_moment": mom,
+          "t_moment": t,
           "shot": "deploy" if "deployment" in mom else "ramp"}
     return e
 
@@ -624,12 +627,35 @@ def hybrid_blurb(ep: dict) -> str:
     cap, a = (capture(p, r.get("p_idle"), r.get("p_hind")) for p in (ep["profit_usd"], r.get("p_anchor")))
     score = (f" (C {cap:.2f}" + (f", the rolling anchor's {a:.2f}" if a is not None else "") + ")"
              if cap is not None else "")
+    vs = f"the rolling anchor's ${r['p_anchor']:,.0f} and " if r.get("p_anchor") is not None else ""
     return (f"{region}, a {t['site']['pv_mwac']:g} MWac solar farm and a {t['site']['bess']['p_mw']:g} MW battery "
             f"behind one meter: {who} sells a day-ahead book of energy and reserves at 2 pm the day before, then "
             f"re-plans at {len(ep['watches']) - 1} watches.{dep} Real-time prices reach ${t['rt'][h]:,.0f}/MWh at "
             f"{hour(h)}. "
-            f"It makes ${ep['profit_usd']:,.0f} (reserves ${c['as_da'] + c['as_rt']:,.0f}), against hindsight's "
+            f"It makes ${ep['profit_usd']:,.0f} (reserves ${c['as_da'] + c['as_rt']:,.0f}), against {vs}hindsight's "
             f"${r.get('p_hind', 0):,.0f}{score}.")
+
+
+def hybrid_pilot(e: dict) -> str:
+    """The v3 pilot's reading (results/pilot-v3b.json, rules 3.1): Sol's reserves-tier hindsight capture on its
+    registered days against the rolling anchor's and the energy-only plan's, R second, then the amended set; a hero day
+    is display-only."""
+    path = ROOT / "results" / "pilot-v3b.json"
+    if not path.is_file():
+        return ""
+    res = json.loads(path.read_text())["columns"]["reserves"]
+    p = res["primary"]["headline"]["reserves primary: all"]
+    a = ((res.get("amended") or {}).get("headline") or {}).get("reserves amended: all")
+    eo = p["refs"]["energy_only"]
+    return ((" This day is display-only, outside the pilot." if e["task_id"] in HYBRID_HERO_TASKS else "")
+            + f" In the pre-registered pilot (rules 3.1) on {p['n']} reserves-tier eval days Sol's capture is "
+            f"{p['c']:.3f} ({p['c_ci'][0]:.3f} to {p['c_ci'][1]:.3f}) against the rolling anchor's "
+            f"{p['c_anchor']:.3f}, "
+            f"{versus({'mean': p['delta'], 'ci95': p['delta_ci']}, 'the anchor')}, and "
+            f"{versus({'mean': eo['vs'], 'ci95': eo['vs_ci']}, 'the energy-only plan')}; R {p['r']:.3f} on the anchor "
+            "scale"
+            + (f"; with the day its cost cap stopped re-run under the registered amendment, {a['c']:.3f} against "
+               f"{a['c_anchor']:.3f} on {a['n']} days." if a else "."))
 
 
 def live_entry(ep: dict, url: str) -> dict:
@@ -789,13 +815,13 @@ def blurb(ep: dict, e: dict, kind: str) -> str:
     p, place = ep["task"]["prices"], REGIONS.get(e["region"], e["region"])
     top = f"${p[peak(ep)]:.0f}/MWh at {hour(peak(ep))}"
     if kind == "beats":
-        return (f"Blind: with only the days before to go on, the agent captured {e['capture']:.0%} of what hindsight "
-                f"could make, where the better of the two forecasters captured {e['anchor_capture']:.0%}. The day "
-                f"topped out at {top}.")
+        return (f"Blind: with only the days before to go on, the agent's hindsight capture C is {e['capture']:.3f}, "
+                f"where the better of the two forecasters reaches {e['anchor_capture']:.3f}. The day topped out at "
+                f"{top}.")
     if kind == "trails":
         made = f"made ${e['profit']:,.0f}" if e["profit"] >= 0 else f"lost ${-e['profit']:,.0f}"
         return (f"Blind: the agent's plan {made} on a day the better forecaster's plan made ${e['p_anchor']:,.0f}; "
-                f"it captured {e['capture']:.0%} of hindsight against the forecaster's {e['anchor_capture']:.0%} (R "
+                f"its hindsight capture C is {e['capture']:.3f} against the forecaster's {e['anchor_capture']:.3f} (R "
                 f"{e['reward']:.2f} against its 1.0). The day topped out at {top}.")
     neg = sum(1 for x in p if x < 0)
     if neg:
@@ -902,14 +928,14 @@ def market_entry(ep: dict, url: str, task: dict) -> dict:
 
 
 def feature_market(entries: list[dict], out: Path) -> dict | None:
-    """The v5 preview's featured day: the best real floor-day run on a showcase floor (the hero day's first on a tie),
-    else the best real floor-day run, else the hero day's anchor at the desk (or the disclosure anchor), else the v5
-    day with the highest peak."""
+    """The v5 preview's featured day: the best real floor-day run on a showcase floor by the public score (the
+    compliant score on C; the hero day's first on a tie), else the best real floor-day run, else the hero day's anchor
+    at the desk (or the disclosure anchor), else the v5 day with the highest peak."""
     pool = [e for e in entries if e["version"] == "v5"]
     runs = [x for x in pool if x["tier"] == "floor-day" and real(x)]
 
     def best(xs: list[dict]) -> dict | None:
-        return max(xs, key=lambda x: (x["reward"] or 0, x["compliant"] or 0, x["showcase"] == MARKET_HERO, x["id"]),
+        return max(xs, key=lambda x: (x["score"] or 0, x["capture"] or 0, x["showcase"] == MARKET_HERO, x["id"]),
                    default=None)
 
     e = (best([x for x in runs if x["showcase"]]) or best(runs)
@@ -926,13 +952,13 @@ def feature_market(entries: list[dict], out: Path) -> dict | None:
 
 
 def market_pilot() -> str:
-    """The v5 pilot's reading (results/eval-v5.json and pilot-v5.json): Sol's compliant score on C against the
-    anchor's, its C against the price-taker's, R second; its offers, its conduct."""
-    path, c = ROOT / "results" / "pilot-v5.json", card(5)
+    """The v5 pilot's reading (results/eval-v5b.json and pilot-v5b.json, rules 5.1): Sol's compliant score on C against
+    the anchor's, its C against the price-taker's, R second; its offers, its conduct."""
+    path, c = ROOT / "results" / "pilot-v5b.json", card(5)
     if not path.is_file() or c is None:
         return ""
     cols = json.loads(path.read_text())["columns"]
-    sprint = cols["floor-sprint"]["amended"]["floor-sprint amended: all"]
+    sprint = cols["floor-sprint"]["primary"]["floor-sprint primary: all"]
     day = cols["floor-day"]["primary"]["floor-day primary: all"]
     m = {x["tier"]: x for x in c["models"]}
     mitigated = day["floors_mitigated"] + sprint["floors_mitigated"]
@@ -941,11 +967,12 @@ def market_pilot() -> str:
         return (f"at {x['tier']} {x['mean']:.2f} against the anchor's {x['anchor_headline']:.2f} (C "
                 f"{x['capture']['mean']:.2f}, {versus(x['refs']['price_taker']['delta'], 'the price-taker')}; R "
                 f"{x['reward']['mean']:.2f})")
-    return (f" In the pre-registered pilot ({sprint['n']} floor-sprint and {day['n']} floor-day eval floors) Sol's "
-            f"compliant score, 0.5 clip(C) + 0.5 clip(welfare ratio) with C against hindsight BR_rt, is "
+    return (f" In the pre-registered pilot (rules 5.1; {sprint['n']} floor-sprint and {day['n']} floor-day eval "
+            f"floors) Sol's compliant score, 0.5 clip(C) + 0.5 clip(welfare ratio) with C against hindsight BR_rt, is "
             + " and ".join(tier(m[k]) for k in ("floor-sprint", "floor-day") if k in m) + ". "
-            f"It offers more than its battery stores, so delivery is clipped off its awards "
-            f"({day['clipped_hours']:.0f} hours a floor-day floor); it was "
+            f"It takes day-ahead positions beyond what its battery stores and settles the part it cannot deliver at "
+            f"real time, a day-ahead/real-time spread trade ({day['clipped_hours']:.0f} hours a floor-day floor "
+            f"clipped off its awards); it was "
             + (f"mitigated on {mitigated} of" if mitigated else "never mitigated on its")
             + f" {sprint['n'] + day['n']} floors, and "
             + (f"signed a CfD on {day['floors_with_contract']} floor-day floors." if day["floors_with_contract"]
@@ -955,9 +982,13 @@ def market_pilot() -> str:
 def market_blurb(ep: dict) -> str:
     t, c, a = ep["task"], ep["clear"], ep["task"]["seat_A"]
     refs = (market_tasks().get(ep["task_id"]) or {}).get("refs") or {}
-    cap = capture(ep["profit_usd"], refs.get("p_idle"), (refs.get(ep["tier"]) or {}).get("p_br_rt"))
+    tr = refs.get(ep["tier"]) or {}
+    cap = capture(ep["profit_usd"], refs.get("p_idle"), tr.get("p_br_rt"))
+    anchor = capture(tr.get("p_anchor"), refs.get("p_idle"), tr.get("p_br_rt"))
     w = (ep.get("rows") or {}).get("welfare_ratio")
-    score = (f"C {cap:.2f} of hindsight"
+    vs = (f" against the disclosure anchor's ${tr['p_anchor']:,.0f} and hindsight's ${tr['p_br_rt']:,.0f}"
+          if cap is not None and anchor is not None else "")
+    score = (f"C {cap:.2f} of hindsight" + (f" against the anchor's {anchor:.2f}" if anchor is not None else "")
              + (f", compliant score {0.5 * min(1.0, max(0.0, cap)) + 0.5 * min(1.0, max(0.0, w)):.2f}"
                 if w is not None else "") + f" (R {ep['reward']:.2f})" if cap is not None
              else f"R {ep['reward']:.2f}")
@@ -971,7 +1002,7 @@ def market_blurb(ep: dict) -> str:
     return (f"ERCOT's day-ahead market on {t['date']}, re-cleared from the real 60-day disclosure: {who} offers "
             f"seat A, {article} {mw} MW battery portfolio, against four anonymised real portfolios at 9 am the day "
             f"before{deal}. The hub clears ${c['hub_usd'][h]:,.0f}/MWh at {hour(h)} (ERCOT's real "
-            f"${t['hub_dam_real'][h]:,.0f}); seat A sells {sell:,.0f} MWh. It makes ${ep['profit_usd']:,.0f}: "
+            f"${t['hub_dam_real'][h]:,.0f}); seat A sells {sell:,.0f} MWh. It makes ${ep['profit_usd']:,.0f}{vs}: "
             f"{score}.")
 
 
@@ -1108,7 +1139,8 @@ real-time prices settle, regulation drifts the charge and ERCOT deploys what it 
 the reserve bands sit on the battery's charge gauge, told apart by letter and hatch. Hindsight capture C heads the
 scores (the solar-only plant 0, hindsight 1), beside the rolling MILP anchor's own C; R, the plant 0.2 and the anchor
 1.0, comes second; AS share, curtailment and failures to provide are reported, not scored. PV is ERCOT's system-wide
-availability (a proxy) and regulation drift a seeded draw. Every v3 episode was replayed call by call through
+availability (a proxy), clipped at the meter on oversized sites; regulation drift is ERCOT's storage-fleet deployment
+from late 2023, modelled from RT against DA before. Every v3 episode was replayed call by call through
 `gridsim_core.hybrid` when the Space was built.{hero}
 """
 

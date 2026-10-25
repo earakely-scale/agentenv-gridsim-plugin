@@ -35,7 +35,8 @@ def hind_lane(task: dict, tier: str) -> tuple[list[float], list[float]] | None:
     a_rt = H._awards(m, H.HOURS, 0, prods, None, st.p) if tier == "rtcb" else a_da
     cp = H._plant(m, st, day.dur, st.s0, st.cap, day.pv, day.da, [day.mean_up] * H.HOURS,
                   [day.mean_dn] * H.HOURS, zero, a_da, integer=True, free_curtail=True)
-    ph = H._plant(m, st, day.dur, st.s0, st.cap, day.pv, day.rt, day.reg_up, day.reg_dn, dep, a_rt, integer=True)
+    ph = H._plant(m, st, H.deployed_durations(day.dur, dep), st.s0, st.cap, day.pv, day.rt, day.reg_up, day.reg_dn,
+                  dep, a_rt, integer=True)
     short = m.var(0, math.inf)
     m.add(short + ph["S"][-1], lo=st.s_end)
     hours, obj = [], H._Lin()

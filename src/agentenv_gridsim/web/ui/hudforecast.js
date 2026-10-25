@@ -46,7 +46,7 @@ export function buildForecastHud(root, d, { onSeek, onToggle }) {
   const think = el("section", "card think planlog");
   right.append(race, fan.root, think);
   const timeline = el("section", "card timeline live hyb fc");
-  const attrib = el("div", "attrib", `${ATTRIBUTION.replace("ERCOT DAM settlement point prices", "ERCOT DAM and real-time settlement point prices, DAM AS clearing prices")} Forecasts: ${d.vint.source === "synthetic" ? "synthetic CI vintages" : "desk models on NOAA HRRR as issued"}; load: EIA-930. Bulletins: paraphrased ERCOT and NWS notices.`);
+  const attrib = el("div", "attrib", `${ATTRIBUTION.replace("ERCOT DAM settlement point prices", "ERCOT DAM and real-time settlement point prices, DAM AS clearing prices")} Forecasts: ${d.vint.source === "synthetic" ? "synthetic CI vintages" : d.ep.source === "ercot" ? "ERCOT's (public API) and desk models on NOAA HRRR, as issued" : "desk models on NOAA HRRR as issued"}; load: EIA-930. Bulletins: paraphrased ERCOT and NWS notices.`);
   const back = el("a", "back-link", "← All runs");
   back.href = "./index.html";
   const intro = el("section", "card intro live-intro hyb fc");
@@ -283,22 +283,25 @@ function scoreHtml(d, lanes) {
   const pi = ref.p_idle, pa = ref.p_anchor;
   const pos = (r) => `${Math.max(0, Math.min(1, r)) * 100}%`;
   const rr = (p) => reward(p, pi, pa);
+  const capt = (p) => (p == null || pi == null || ref.p_hind == null || ref.p_hind - pi <= 1e-9 ? null : (p - pi) / (ref.p_hind - pi));
+  const c = capt(ep.profit_usd), ca = capt(pa), f3 = (x) => (x == null ? "—" : x.toFixed(3));
+  const dl = c == null || ca == null ? "" : ` · Δ ${c - ca >= 0 ? "+" : "−"}${Math.abs(c - ca).toFixed(3)}`;
   const ticks = [["blind", ref.p_blind], ["naive", ref.p_naive]].map(([k, p]) => {
-    const r = p == null ? null : rr(p);
-    return r == null ? "" : `<i class="tick ${k === "naive" ? "n" : "b"}" style="left:${pos(r)}" title="${k} ${r.toFixed(2)}"></i>`;
+    const x = capt(p);
+    return x == null ? "" : `<i class="tick ${k === "naive" ? "n" : "b"}" style="left:${pos(x)}" title="${k} ${x.toFixed(2)}"></i>`;
   }).join("");
   const self = ep.model === "reference/rolling-p50" && ep.tier !== "blind" ? "This is the rolling anchor: R is 1 by definition." : ep.beats_anchor ? "Beats the rolling anchor." : "Does not beat the rolling anchor.";
   const missed = (ep.dam || []).filter((x) => x.missed).length;
   const reads = d.watches.reduce((a, w) => a + w.reads.length, 0);
   const rows = [["Rolling anchor (guide P50)", ref.p_roll], ["Three-scenario anchor", ref.p_roll3], ["Blind re-planner", ref.p_blind], ["Naive DAM bidder", ref.p_naive], ["Hindsight", ref.p_hind]]
-    .filter(([, p]) => p != null).map(([k, p]) => `<div class="cr"><span>${k}</span><b class="num">${money(p)}</b><em class="num">${k === "Hindsight" ? "the bound" : `R ${(rr(p) ?? 0).toFixed(2)}`}</em></div>`).join("");
-  return `<div class="pair"><div><div class="lbl">R · anchor scale</div><div class="r num">${R.toFixed(3)}</div>
-      <div class="rscale"><span class="fill" style="width:${pos(R)}"></span><i class="tick" style="left:20%" title="idle"></i>${ticks}<i class="tick a" style="left:100%" title="anchor"></i></div>
-      <div class="cap">idle 0.2 · anchor 1.0 · r_hind ${(ep.r_hind ?? 0).toFixed(3)}</div></div>
-    <div class="second"><div class="lbl">Profit, ${d.n} days</div><div class="r num">${money(ep.profit_usd)}</div><div class="cap">vs the anchor <b class="${ep.profit_usd - (pa ?? 0) >= 0 ? "good" : "bad"}">${money(ep.profit_usd - (pa ?? 0), { sign: true })}</b> · paired ${(ep.paired_vs_anchor ?? 0).toFixed(3)}</div></div></div>
+    .filter(([, p]) => p != null).map(([k, p]) => `<div class="cr"><span>${k}</span><b class="num">${money(p)}</b><em class="num">${k === "Hindsight" ? "C 1, the bound" : `C ${f3(capt(p))} · R ${(rr(p) ?? 0).toFixed(2)}`}</em></div>`).join("");
+  return `<div class="pair"><div><div class="lbl">Hindsight capture C</div><div class="r num">${f3(c)}</div>
+      <div class="rscale"><span class="fill" style="width:${pos(c ?? 0)}"></span>${ticks}${ca == null ? "" : `<i class="tick a" style="left:${pos(ca)}" title="anchor ${ca.toFixed(2)}"></i>`}</div>
+      <div class="cap">idle 0 · the anchor's ${f3(ca)}${dl} · hindsight 1</div></div>
+    <div class="second"><div class="lbl">Profit, ${d.n} days</div><div class="r num">${money(ep.profit_usd)}</div><div class="cap">vs the anchor <b class="${ep.profit_usd - (pa ?? 0) >= 0 ? "good" : "bad"}">${money(ep.profit_usd - (pa ?? 0), { sign: true })}</b> · R ${R.toFixed(3)} on the anchor scale</div></div></div>
     <div class="cmp">${rows}</div>
     <div class="line">${self} DAM gates ${d.n - missed} of ${d.n}${missed ? ` (${missed} missed)` : ""} · ${reads} forecast reads.</div>
-    <div class="line dim">v4 preview · weight-0 rows are reported, not scored. ${d.vint.source === "synthetic" ? "This CI window's forecast vintages are synthetic." : "Forecasts are the desk's, modelled from NOAA HRRR as issued."}</div>`;
+    <div class="line dim">v4 preview · C heads, R on the anchor scale (idle 0.2, anchor 1.0) comes second. ${d.vint.source === "synthetic" ? "This CI window's forecast vintages are synthetic." : ep.source === "ercot" ? "Load, wind and solar forecasts are ERCOT's own as posted; the price guide is the desk's." : "Forecasts are the desk's, modelled from NOAA HRRR as issued."}</div>`;
 }
 
 function spark(lanes, t, lo, hi, H) {
