@@ -1,4 +1,6 @@
-# GridSim v3 hybrid board
+# GridSim v3 hybrid board: the earlier pilot (rules 3.1)
+
+**Earlier pilot, kept on record.** This is the rules-3.1 pilot (`docs/prereg/v3-pilot-b.md`), on the cross-version scale. It settled under rules 3.1, which excused a shortfall the last projection had not shown and scored against a hindsight that held the reservation band hard; rules 3.2 charges every shortfall, makes P_hind the clairvoyant optimum of that settlement (`docs/CONTRACT-v3.md` C3-D19, C3-D20) and refilled the packs. Its C and Δ are on the 3.1 references as played (the anchor's C 0.505 on its 30 days), and its Episode JSON (`results/runs/v3b-*`) replay at the commit it ran on, not on today's code. The current v3 pilot, under rules 3.2, is [`board-v3c.md`](board-v3c.md) (`eval-v3c.json`, `pilot-v3c.json`); the rules-3.0 pilot is [`board-v3.md`](board-v3.md).
 
 Tasks: 40 hybrid site-days (ercot-hybrid-v3-eval; AS strata low 14, mid 12, high 14). Harness: gridsim-llm on gridsim-hybrid, 52 turns, 3 planning calls a watch, 16384 output tokens a turn, effort high. R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0; idle (0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP.
 

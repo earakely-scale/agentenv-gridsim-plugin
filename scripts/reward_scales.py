@@ -2,7 +2,7 @@
 reference on the same tasks, scored on R (anchor scale), hindsight capture C, the paired gap, R against hindsight, the
 anchor-to-hindsight gap, the stretch and the knee; then the stored references on the full eval packs. Reads only
 committed Episode JSON, results/pilot-v5b.json and the packs' rows as the pilots played them (PACKS_AT: the v3 to v5
-packs at rules 3.1, 4.1 and 5.1, the re-pilots'). CIs are 95% percentile bootstrap over tasks (10,000 resamples,
+packs at rules 3.2, 4.1 and 5.1, the current pilots'). CIs are 95% percentile bootstrap over tasks (10,000 resamples,
 seed 0), paired for differences."""
 
 import gzip
@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 RUNS = Path("results/runs")
-PACKS_AT = "b5edf82"
+PACKS_AT = "f3bb2c1"
 EPS = 1e-9
 BOOT = 10_000
 COLUMNS = [("v1 A foresight", "foresight", ["v1-board-sol-full", "v1-board-sol-full-amend"], "ercot-dam-v1-eval"),
@@ -95,8 +95,7 @@ def columns() -> dict[str, list[dict]]:
         refs = {"idle": r["p_idle"], "naive": r["p_naive"], "anchor": r["roll"]["foresight"]["p_roll"]}
         cols["v2 foresight"].append({"p": e["profit_usd"], "p_idle": r["p_idle"], "p_anchor": refs["anchor"],
                                      "p_hind": r["p_hind"], "anchor": "anchor", "refs": refs})
-    for name, sweeps in [("v3 reserves", ["v3b-pilot-sol", "v3b-pilot-sol-amend"]),
-                        ("v3 energy", ["v3b-pilot-sol-energy"])]:
+    for name, sweeps in [("v3 reserves", ["v3c-pilot-sol"]), ("v3 energy", ["v3c-pilot-sol-energy"])]:
         cols[name] = []
         for e in (e for s in sweeps for e in episodes(s)):
             r = e["references"]

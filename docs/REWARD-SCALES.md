@@ -3,10 +3,10 @@
 Which number heads each version's board, which sits beside it, and which one trains. The evidence is GPT-6.1 Sol's
 committed runs (the v1 board's 1,550 and the v2 to v5 pilots' 150) with every reference stored on the same tasks, and
 the references alone on the full eval packs. `scripts/reward_scales.py` regenerates every table below from committed
-files (Episode JSON, `results/pilot-v5b.json`, the packs' rows as the pilots played them, at b5edf82); it spends
+files (Episode JSON, `results/pilot-v5b.json`, the packs' rows as the pilots played them, at f3bb2c1); it spends
 nothing. CIs are 95% percentile bootstrap over tasks (10,000 resamples), paired for differences. The rule was adopted
-on the rules-3.0/4.0/5.0 pilots; the v3 to v5 evidence below is regenerated on the rules-3.1/4.1/5.1 re-pilots
-(`results/board-v3b.md`, `board-v4b.md`, `board-v5b.md`) and their packs. v1 and v2 did not change.
+on the rules-3.0/4.0/5.0 pilots; the v3 to v5 evidence below is regenerated on the current pilots, rules 3.2, 4.1
+and 5.1 (`results/board-v3c.md`, `board-v4b.md`, `board-v5b.md`), and their packs. v1 and v2 did not change.
 
 **Adopted** by Edgar on 2026-10-25, as the rule below, and applied wherever results are reported: `agent-env gridsim
 sweep report` (every `results/eval-v*.json` card and board), the dataset card and the Space; training reads S
@@ -37,13 +37,14 @@ sweep report` (every `results/eval-v*.json` card and board), the dataset card an
    −0.083 (−0.208 to +0.017) where C reads +0.129 (−0.005 to +0.260) and Sol out-earns the price-taker on 7 of 10
    floors.
 2. **R = 1 is a tie class, not a top score.** Sol sits at R = 1 on 20% to 70% of v2 to v5 tasks. Ordinary stored
-   references reach it on about half of each eval pack: the v5 price-taker on 53% of 289 floors, v4's three-scenario
-   re-planner on 53% of 60 windows, v3's one-shot MILP on 60% of 300 days, v2's blind re-planner on 55% of 276. No v2
+   references reach it on half or more of each eval pack: the v5 price-taker on 53% of 289 floors, v4's three-scenario
+   re-planner on 53% of 60 windows, v3's one-shot MILP on 77% of 300 days, v2's blind re-planner on 55% of 276. No v2
    to v5 run reaches C = 1 or exceeds P_hind. One stored reference did at rules 3.1 (none at 3.0): on the v3 eval
    pack the reserves anchor settled $1,651 above P_hind on 2025-06-28 LZ_AEN (below); rules 3.2 fixed the cause
-   (CONTRACT-v3 C3-D19, C3-D20), and no stored v3 reference exceeds P_hind now.
+   (CONTRACT-v3 C3-D19, C3-D20). A property test now checks every stored reference of every v3, v4 and v5 pack and
+   fixture against the hindsight to the cent (v5: BR_rt), and none exceeds it.
 3. **R = 1 is a different share of the attainable in every version.** The anchor's own capture on the eval packs is
-   1.00 (v1 foresight), 0.90 (v1 blind), 0.52 (v2), 0.52 and 0.47 (v3 reserves, energy), 0.51 and 0.43 (v4 front,
+   1.00 (v1 foresight), 0.90 (v1 blind), 0.52 (v2), 0.45 and 0.46 (v3 reserves, energy), 0.51 and 0.43 (v4 front,
    front-lite), 0.40 and 0.34 (v5 floor-sprint, floor-day, against BR_rt). C is one scale across versions; R is not.
 4. **C is not a training reward.** The information-matched anchor scores exactly 1 on every task under R; under C
    its score spreads with SD 0.13 to 0.26 across v2 to v5 tasks, as much as Sol's own spread (0.16 to 0.27; v5
@@ -57,7 +58,7 @@ sweep report` (every `results/eval-v*.json` card and board), the dataset card an
 |---|---|---|---|---|
 | v1 | P_opt, the exact DP on D's prices | an achievable plan (the foresight tier plays it) | never | P_lp = P_opt on every day |
 | v2 | two exact DPs: the DA position on DA − RT, the physical schedule on RT | an achievable clairvoyant plan | never | P_lp above it on 2 of 40 pilot days (max $801) |
-| v3 | the hindsight MILP: a DA copy and a physical copy on realised RT, drift and deployments, sharing the AS book | the exact optimum of a clairvoyant model, not a playable plan | by no run; at rules 3.1 by one stored reference, the reserves anchor on 2025-06-28 LZ_AEN, $53,542 against P_hind's $51,890 (P_lp equals P_hind there), 1 of 300 eval days; at rules 3.2 the Session charges every shortfall and P_hind is the clairvoyant optimum of that settlement (CONTRACT-v3 C3-D19, C3-D20), and no stored reference exceeds it | P_lp above it on 8 of 40 pilot days (max $2,863) |
+| v3 | the hindsight MILP: a DA copy and a physical copy on realised RT, drift and deployments, sharing the AS book | the exact optimum of a clairvoyant model, not a playable plan | by no run; at rules 3.1 by one stored reference, the reserves anchor on 2025-06-28 LZ_AEN, $53,542 against P_hind's $51,890 (P_lp equals P_hind there), 1 of 300 eval days; at rules 3.2 the Session charges every shortfall and P_hind is the clairvoyant optimum of that settlement (CONTRACT-v3 C3-D19, C3-D20), and no stored reference exceeds it | P_lp above it on 27 of 40 pilot days (max $15,766; rules 3.1: 8 of 40, max $2,863) |
 | v4 | v3's hindsight over the window | as v3 | never | P_lp above it on 4 of 30 (max $345) |
 | v5 | BR_A (`p_br`): the DA-clear best response, awards delivered as awarded | **not a bound**: the floor-day anchor exceeds it on 102 of 284 eval floors, Sol on 11 of 40 runs; Sol's floor-sprint C against it reaches −2.8 | yes | – |
 | v5 | BR_rt (`p_br_rt`): the same with deviations settled at realised RT | the clairvoyant bound of the same settlement | never | – |
@@ -78,22 +79,22 @@ tier, only references a blind desk can run). C − its C is the paired (P − P_
 | v1 C blind | 300 | 0.972 (0.962 to 0.980) | 0.62 | 0.896 (0.881 to 0.910) | 0.13 | 1 | 0.901 | -0.005 (-0.019 to +0.009) | -0.028 (-0.037 to -0.020) | persist_dp | +0.043 (+0.027 to +0.059) | +0.015 (+0.004 to +0.027) |
 | v1 D rtcb foresight | 250 | 1.000 (1.000 to 1.000) | 0.99 | 1.000 (1.000 to 1.000) | 0.99 | 0 | 1.000 | -0.000 (-0.000 to +0.000) | -0.000 (-0.000 to +0.000) | greedy | +0.346 (+0.301 to +0.392) | +0.276 (+0.240 to +0.312) |
 | v2 foresight | 40 | 0.883 (0.839 to 0.924) | 0.38 | 0.437 (0.362 to 0.515) | 0.00 | 1 | 0.498 | -0.061 (-0.089 to -0.036) | -0.117 (-0.160 to -0.076) | naive | +0.012 (-0.005 to +0.028) | +0.033 (+0.011 to +0.060) |
-| v3 reserves | 30 | 0.845 (0.757 to 0.918) | 0.30 | 0.451 (0.365 to 0.534) | 0.00 | 1 | 0.505 | -0.054 (-0.092 to -0.019) | -0.155 (-0.244 to -0.082) | energy_only_milp | +0.048 (+0.008 to +0.092) | +0.032 (-0.030 to +0.089) |
-| v3 energy | 10 | 0.990 (0.969 to 1.000) | 0.40 | 0.427 (0.273 to 0.587) | 0.00 | 0 | 0.426 | +0.001 (-0.009 to +0.010) | -0.010 (-0.031 to -0.000) | v2_energy | +0.086 (+0.011 to +0.209) | +0.123 (+0.022 to +0.248) |
+| v3 reserves | 30 | 0.878 (0.820 to 0.927) | 0.33 | 0.404 (0.339 to 0.468) | 0.00 | 0 | 0.449 | -0.045 (-0.074 to -0.017) | -0.122 (-0.179 to -0.073) | energy_only_milp | +0.054 (+0.023 to +0.090) | +0.074 (+0.030 to +0.119) |
+| v3 energy | 10 | 0.989 (0.968 to 1.000) | 0.20 | 0.430 (0.289 to 0.578) | 0.00 | 0 | 0.434 | -0.004 (-0.011 to -0.000) | -0.011 (-0.032 to -0.000) | v2_energy | +0.113 (+0.019 to +0.245) | +0.148 (+0.039 to +0.274) |
 | v4 front | 20 | 0.911 (0.859 to 0.955) | 0.35 | 0.463 (0.373 to 0.552) | 0.00 | 0 | 0.496 | -0.032 (-0.065 to -0.001) | -0.089 (-0.142 to -0.044) | roll3 | -0.031 (-0.058 to -0.004) | -0.063 (-0.100 to -0.029) |
 | v4 front-lite | 10 | 0.873 (0.769 to 0.961) | 0.20 | 0.362 (0.266 to 0.461) | 0.00 | 0 | 0.402 | -0.040 (-0.090 to +0.008) | -0.127 (-0.234 to -0.039) | roll3 | -0.058 (-0.146 to +0.005) | -0.071 (-0.185 to +0.016) |
 | v5 floor-sprint | 30 | 0.696 (0.545 to 0.834) | 0.40 | 0.296 (0.116 to 0.468) | 0.00 | 7 | 0.419 | -0.123 (-0.275 to +0.021) | -0.304 (-0.457 to -0.163) | price_taker | -0.101 (-0.261 to +0.054) | -0.234 (-0.408 to -0.063) |
 | v5 floor-day | 10 | 0.897 (0.776 to 1.000) | 0.70 | 0.566 (0.399 to 0.734) | 0.00 | 0 | 0.446 | +0.120 (-0.015 to +0.248) | -0.103 (-0.228 to +0.000) | price_taker | +0.129 (-0.005 to +0.260) | -0.083 (-0.208 to +0.017) |
 
 C's unpaired CI is wider than R's (v2: 0.153 against 0.085) because it carries each task's information headroom; the
-paired Δ removes it (v2 0.053, v3 0.072, v4 0.064), which is why C is never printed without Δ.
+paired Δ removes it (v2 0.053, v3 0.057, v4 0.064), which is why C is never printed without Δ.
 
 ## The candidates
 
 | Scale | Formula | Reading |
 |---|---|---|
 | (a) R | clip(0.2 + 0.8·(P − P_idle)/(P_anchor − P_idle), 0, 1) | Bounded, information-matched, no task noise at the anchor: right for training up to the anchor. On the board it saturates, is one-sided against the anchor, moves with the anchor and changes meaning across versions. **Second column.** |
-| (b) C | (P − P_idle)/(P_hind − P_idle) | No ceiling where P_hind is a bound (no v2 to v5 run at 1); keeps idle 0 < rule-based heuristics < anchor < hindsight 1 on every pack and shows the three packs where another stored re-planner out-captures the anchor; independent of the anchor; one scale across versions; below 0 on 10 of 1,700 runs (min −0.83). Wide unpaired CI and task noise, so it heads the board with Δ and does not train. **Headline.** |
+| (b) C | (P − P_idle)/(P_hind − P_idle) | No ceiling where P_hind is a bound (no v2 to v5 run at 1); keeps idle 0 < rule-based heuristics < anchor < hindsight 1 on every pack and shows the three packs where another stored re-planner out-captures the anchor; independent of the anchor; one scale across versions; below 0 on 9 of 1,700 runs (min −0.83). Wide unpaired CI and task noise, so it heads the board with Δ and does not train. **Headline.** |
 | (c) Δ | (P − P_anchor)/(P_hind − P_idle) = C − C_anchor | Two-sided, the tightest paired CI: the comparison printed with the headline (v4's `paired_vs_anchor`). Not a headline alone: its zero is the anchor. |
 | (d1) Rh | clip(0.2 + 0.8·C, 0, 1), v1's r_opt and v4's r_hind | An affine copy of C with the same z, plus a floor at C = −0.25 that hides losses (v5 floor-sprint: 13% of floors at 0; z against the anchor 0.60 against C's 0.83). The boards print three hindsight numbers today: Rh (v1's r_opt, v4's r_hind), C (v2, v3, v4's capture) and C against BR_A (v5); C replaces them. |
 | (d2) Q | (P − P_anchor)/(P_hind − P_anchor) | Undefined where the anchor is the hindsight (v1 foresight), unbounded below (v2 −1.2; v5 against BR_A −14). Used only inside S above the anchor, where it is in [0, 1]. |
@@ -126,20 +127,20 @@ so z > 1 means the CI excludes 0.
 | v2 foresight | Q | -0.166 | – | 0.62 | 2.00 | 0.92 | 0.269 |
 | v2 foresight | S | 0.885 | 0.00 | 0.00 | 2.68 | 1.29 | 0.139 |
 | v2 foresight | K | 0.715 | 0.00 | 0.00 | 2.64 | 1.27 | 0.105 |
-| v3 reserves | R | 0.845 | 0.30 | 0.00 | 1.92 | 0.54 | 0.226 |
-| v3 reserves | C | 0.451 | 0.00 | 0.00 | 1.49 | 1.14 | 0.240 |
-| v3 reserves | Rh | 0.561 | 0.00 | 0.00 | 1.49 | 1.14 | 0.192 |
-| v3 reserves | G | -0.054 | – | 0.70 | 1.49 | 1.14 | 0.101 |
-| v3 reserves | Q | -0.104 | – | 0.70 | 1.19 | 1.29 | 0.244 |
-| v3 reserves | S | 0.853 | 0.00 | 0.00 | 1.77 | 0.64 | 0.232 |
-| v3 reserves | K | 0.691 | 0.00 | 0.00 | 1.72 | 0.67 | 0.176 |
-| v3 energy | R | 0.990 | 0.40 | 0.00 | 0.67 | 1.09 | 0.031 |
-| v3 energy | C | 0.427 | 0.00 | 0.00 | 0.12 | 0.87 | 0.256 |
-| v3 energy | Rh | 0.542 | 0.00 | 0.00 | 0.12 | 0.87 | 0.205 |
-| v3 energy | G | 0.001 | – | 0.60 | 0.12 | 0.87 | 0.016 |
-| v3 energy | Q | 0.006 | – | 0.60 | 0.31 | 0.72 | 0.033 |
-| v3 energy | S | 0.992 | 0.00 | 0.00 | 0.45 | 1.10 | 0.032 |
-| v3 energy | K | 0.795 | 0.00 | 0.00 | 0.39 | 1.11 | 0.025 |
+| v3 reserves | R | 0.878 | 0.33 | 0.00 | 2.31 | 1.65 | 0.148 |
+| v3 reserves | C | 0.404 | 0.00 | 0.00 | 1.57 | 1.64 | 0.181 |
+| v3 reserves | Rh | 0.524 | 0.00 | 0.00 | 1.57 | 1.64 | 0.145 |
+| v3 reserves | G | -0.045 | – | 0.67 | 1.57 | 1.64 | 0.078 |
+| v3 reserves | Q | -0.086 | – | 0.67 | 1.41 | 1.40 | 0.170 |
+| v3 reserves | S | 0.883 | 0.00 | 0.00 | 2.15 | 1.68 | 0.152 |
+| v3 reserves | K | 0.713 | 0.00 | 0.00 | 2.10 | 1.69 | 0.116 |
+| v3 energy | R | 0.989 | 0.20 | 0.00 | 0.68 | 1.26 | 0.031 |
+| v3 energy | C | 0.430 | 0.00 | 0.00 | 0.70 | 1.00 | 0.235 |
+| v3 energy | Rh | 0.544 | 0.00 | 0.00 | 0.70 | 1.00 | 0.188 |
+| v3 energy | G | -0.004 | – | 0.80 | 0.70 | 1.00 | 0.011 |
+| v3 energy | Q | -0.006 | – | 0.80 | 0.74 | 0.79 | 0.015 |
+| v3 energy | S | 0.989 | 0.00 | 0.00 | 0.68 | 1.26 | 0.031 |
+| v3 energy | K | 0.792 | 0.00 | 0.00 | 0.68 | 1.26 | 0.023 |
 | v4 front | R | 0.911 | 0.35 | 0.00 | 1.83 | 1.76 | 0.111 |
 | v4 front | C | 0.463 | 0.00 | 0.00 | 1.02 | 1.13 | 0.206 |
 | v4 front | Rh | 0.571 | 0.00 | 0.00 | 1.02 | 1.13 | 0.165 |
@@ -186,12 +187,12 @@ counts any reference (the anchor included) above P_hind.
 |  |  | ridge_dp | 0.861 | 0.36 | 0.747 | 0.00 |  |
 | v2 foresight (eval 300) | 0.524 (0.16 to 0.85) | naive | 0.857 | 0.33 | 0.433 | 0.15 | 0 |
 |  |  | blind_roll | 0.939 | 0.55 | 0.531 | 0.43 |  |
-| v3 reserves (eval 300) | 0.524 (0.26 to 0.78) | v2_energy | 0.764 | 0.00 | 0.373 | 0.00 | 1 |
-|  |  | as_hog | 0.470 | 0.00 | 0.183 | 0.00 |  |
-|  |  | oneshot_milp | 0.953 | 0.60 | 0.537 | 0.60 |  |
-|  |  | energy_only_milp | 0.801 | 0.00 | 0.398 | 0.00 |  |
-| v3 energy (eval 300) | 0.467 (0.18 to 0.78) | v2_energy | 0.953 | 0.69 | 0.438 | 0.02 | 0 |
-|  |  | oneshot_milp | 0.968 | 0.80 | 0.450 | 0.01 |  |
+| v3 reserves (eval 300) | 0.453 (0.21 to 0.70) | v2_energy | 0.784 | 0.00 | 0.332 | 0.00 | 0 |
+|  |  | as_hog | 0.344 | 0.00 | 0.082 | 0.00 |  |
+|  |  | oneshot_milp | 0.970 | 0.77 | 0.488 | 0.77 |  |
+|  |  | energy_only_milp | 0.821 | 0.00 | 0.354 | 0.00 |  |
+| v3 energy (eval 300) | 0.457 (0.17 to 0.77) | v2_energy | 0.955 | 0.68 | 0.428 | 0.01 | 0 |
+|  |  | oneshot_milp | 0.971 | 0.81 | 0.441 | 0.01 |  |
 | v4 front (eval 60) | 0.511 (0.21 to 0.85) | naive | 0.598 | 0.00 | 0.285 | 0.00 | 0 |
 |  |  | blind_roll | 0.738 | 0.00 | 0.377 | 0.00 |  |
 |  |  | roll3 | 0.970 | 0.53 | 0.504 | 0.53 |  |
@@ -208,7 +209,7 @@ counts any reference (the anchor included) above P_hind.
 | v5 floor-day vs BR_A (eval 284) | 0.978 (0.69 to 1.28) | sprint_anchor | 0.780 | 0.15 | 0.689 | 0.15 | 102 |
 
 Under C the stored anchor is not always the best stored reference: v2's blind re-planner (0.531 against 0.524), v3's
-one-shot MILP (0.537 against 0.524) and v4 front-lite's blind and three-scenario re-planners (0.458 and 0.451
+one-shot MILP (0.488 against 0.453) and v4 front-lite's blind and three-scenario re-planners (0.458 and 0.451
 against 0.434) out-capture it. R shows each as a tie at 1 on about half the tasks. A weak anchor is a fact about the
 pack that C exposes and R hides.
 
@@ -223,8 +224,8 @@ Sol's R if a stored alternative were the anchor (the anchor's C is unchanged: it
 | v1 C blind | ridge_dp | 0.747 | 0.979 | 0.78 | 1.000 |
 | v2 foresight | (stored) | 0.498 | 0.883 | 0.38 | 1.000 |
 | v2 foresight | naive | 0.425 | 0.971 | 0.85 | 0.964 |
-| v3 reserves | (stored) | 0.505 | 0.845 | 0.30 | 1.000 |
-| v3 reserves | energy_only_milp | 0.403 | 0.912 | 0.77 | 1.000 |
+| v3 reserves | (stored) | 0.449 | 0.878 | 0.33 | 1.000 |
+| v3 reserves | energy_only_milp | 0.350 | 0.974 | 0.73 | 1.000 |
 | v4 front | (stored) | 0.496 | 0.911 | 0.35 | 1.000 |
 | v4 front | blind_roll | 0.375 | 0.976 | 0.75 | 1.000 |
 | v4 front | roll3 | 0.494 | 0.920 | 0.30 | 0.979 |
@@ -236,7 +237,7 @@ Sol's R if a stored alternative were the anchor (the anchor's C is unchanged: it
 | v5 floor-day | (stored) | 0.446 | 0.897 | 0.70 | 1.000 |
 | v5 floor-day | price_taker | 0.438 | 0.902 | 0.70 | 0.986 |
 
-An anchor weaker by 0.07 to 0.12 of capture lifts Sol's R by 0.07 to 0.09 in v2 to v4 and its R = 1 share to 75% to
+An anchor weaker by 0.07 to 0.12 of capture lifts Sol's R by 0.07 to 0.10 in v2 to v4 and its R = 1 share to 73% to
 85%.
 
 ## Training fitness
@@ -250,8 +251,8 @@ effective ceiling is 1, not 1.2.
 | v1 A foresight | 0.01 | 1.00 | 0.01 | 0.000 | 0.000 | 0.002 | 0.002 |
 | v1 C blind | 0.38 | 0.95 | 0.86 | 0.000 | 0.124 | 0.079 | 0.129 |
 | v2 foresight | 0.62 | 1.00 | 0.97 | 0.000 | 0.247 | 0.137 | 0.248 |
-| v3 reserves | 0.70 | 1.00 | 0.97 | 0.000 | 0.190 | 0.226 | 0.240 |
-| v3 energy | 0.60 | 1.00 | 1.00 | 0.000 | 0.254 | 0.031 | 0.256 |
+| v3 reserves | 0.67 | 1.00 | 1.00 | 0.000 | 0.161 | 0.148 | 0.181 |
+| v3 energy | 0.80 | 1.00 | 1.00 | 0.000 | 0.232 | 0.031 | 0.235 |
 | v4 front | 0.65 | 1.00 | 1.00 | 0.000 | 0.208 | 0.111 | 0.206 |
 | v4 front-lite | 0.80 | 1.00 | 1.00 | 0.000 | 0.131 | 0.157 | 0.160 |
 | v5 floor-sprint | 0.37 | 0.77 | 0.77 | 0.000 | 0.262 | 0.408 | 0.493 |
@@ -295,8 +296,8 @@ below-idle floors at 0; C's own column shows them. What the switch costs: the pu
 - Every board: the headline is C with the anchor's C and Δ (paired 95% CI); R second with its R = 1 and beats-anchor
   shares; comparisons with any reference on C, never as a difference of R.
 - v1: r_opt (0.9165 on the blind column) becomes C (0.896); the foresight columns show C 1.000 and read as solved.
-- v3: reserves C 0.451 against the anchor's 0.505, Δ −0.054 (−0.092 to −0.019); energy C 0.427 against 0.426, Δ
-  +0.001.
+- v3: reserves C 0.404 against the anchor's 0.449, Δ −0.045 (−0.074 to −0.017); energy C 0.430 against 0.434, Δ
+  −0.004.
 - v4: r_hind (0.571) becomes C (0.463); Δ is the contract's `paired_vs_anchor`.
 - v5: C against BR_rt (floor-sprint 0.296 and floor-day 0.566, the anchor 0.419 and 0.446); the compliant score on C;
   `capture_vs_br` stays as the DA-only row.
