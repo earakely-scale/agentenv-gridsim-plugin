@@ -12,7 +12,7 @@ Built by `scripts/build_hybrid_pack.py` (2026-10-24). References: `gridsim_core.
 | `ercot-hybrid-v3-showcase` | 4 | B 3, C 1 | 2023-08-10..2026-01-26 | 3 | 2 | 1 |
 | `fixtures-hybrid` | 20 | A 8, B 8, C 4 | 2021-04-23..2026-08-19 | 6 | 4 | 15 |
 
-## Filters (FD-4322)
+## Filters (the v3 plan)
 
 Thresholds: P_anchor - P_idle >= $500 in both tiers; v1's low-spread drop (energy-tier anchor - idle >= $22 per MW of battery); sponge reward < 0.97 (the sponge within 3% of the anchor); and, extending that rule (C3-D16), every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP below 0.97 against the reserves anchor. Uri and every showcase day +/-3 days are out of every split; DST days and days without 24 hourly inputs are dropped.
 
@@ -77,7 +77,7 @@ Thresholds: P_anchor - P_idle >= $500 in both tiers; v1's low-spread drop (energ
 
 ## Flags
 
-- Sites are archetypes at hubs and load zones (no crosswalk, V3-D11): 40% the FD-4322 default (PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh), 60% lane D3's EIA-860 grid by weight; POI = PV AC, 20% at the 1.2x variant and 40% below PV AC (PV AC / POI one of 1.11, 1.25, 1.4; V3-D12); AC coupling only (C3-D15).
+- Sites are archetypes at hubs and load zones (no crosswalk, V3-D11): 40% the v3 plan's default (PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh), 60% lane D3's EIA-860 grid by weight; POI = PV AC, 20% at the 1.2x variant and 40% below PV AC (PV AC / POI one of 1.11, 1.25, 1.4; V3-D12); AC coupling only (C3-D15).
 - PV is the system-wide availability cf (lane D3) for every region, ILR x cf clipped at PV AC (proxy).
 - Oversized sites clip at the meter (clippable MWh, every pack: ercot-hybrid-v3-train 70651, ercot-hybrid-v3-eval 8973, ercot-hybrid-v3-rtcb 8090, ercot-hybrid-v3-showcase 0, fixtures-hybrid 944), so the energy tier tests charging from clipped solar and the sponge is no longer idle.
 - Anchor soft solves: after watch 0 the reserves tier keeps the DA awards, and realized drift can leave an hour whose awards no move can back; the hard MILP is then infeasible, the soft one minimises the shortfall, and the repair walk turns the entries the Session refuses into the governor's move (C3-D17), so the anchor's commits are never refused. A hard solution is never repaired (tested).

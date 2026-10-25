@@ -1,6 +1,6 @@
 # GridSimEnv v2 live pack statistics
 
-Built by `scripts/build_live_pack.py` (live 2.0, core contract 1.0). All numbers are measured on the packs. Notices come from lane N's archive (`gridsim_core.notices`, FD-4325); a day is `notice`, `quiet` (archive coverage 1.0, no notice) or `unknown` (an archive gap).
+Built by `scripts/build_live_pack.py` (live 2.0, core contract 1.0). All numbers are measured on the packs. Notices come from lane N's archive (`gridsim_core.notices`); a day is `notice`, `quiet` (archive coverage 1.0, no notice) or `unknown` (an archive gap).
 
 ## Packs
 

@@ -68,7 +68,7 @@ def split(d: str) -> str | None:
 
 
 def pick_site(d: str, p: str, salt: str, arch: dict) -> dict:
-    """The default archetype (FD-4322) or a weighted draw from lane D3's EIA-860 grid; POI at PV AC, its 1.2x
+    """The default archetype (the v3 plan's) or a weighted draw from lane D3's EIA-860 grid; POI at PV AC, its 1.2x
     variant, or below PV AC by one of OVERSIZE (PV AC / POI) so the meter clips; degradation $0-8/MWh by draw."""
     h = stable_seed(f"site|{salt}|{d}|{p}")
     u = (h % 10007) / 10007
@@ -246,7 +246,7 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
                      f"{min(t['date'] for t in ts)}..{max(t['date'] for t in ts)} | "
                      f"{sum(t['tags']['notice_day'] for t in ts)} | {sum(t['tags']['deploy_day'] for t in ts)} | "
                      f"{sum(t['tags']['short_ok'] for t in ts)} |")
-    lines += ["", "## Filters (FD-4322)", "",
+    lines += ["", "## Filters (the v3 plan)", "",
               f"Thresholds: P_anchor - P_idle >= ${FILTER['min_headroom_usd']:.0f} in both tiers; v1's low-spread drop "
               f"(energy-tier anchor - idle >= ${FILTER['low_spread_usd_per_mw']:.0f} per MW of battery); sponge reward "
               f"< {FILTER['sponge_reward_max']} (the sponge within 3% of the anchor); and, extending that rule "
@@ -311,8 +311,8 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
               f"- MILP solve (watch 0, 24 open hours): median {timing['solve_ms_median']} ms, p95 "
               f"{timing['solve_ms_p95']} ms over {timing['solve_n']} solves",
               f"- build wall time {timing['wall_s']} s on {args.workers} workers", "",
-              "## Flags", "", "- Sites are archetypes at hubs and load zones (no crosswalk, V3-D11): 40% the "
-              "FD-4322 default (PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh), 60% lane D3's EIA-860 grid by weight; "
+              "## Flags", "", "- Sites are archetypes at hubs and load zones (no crosswalk, V3-D11): 40% the v3 "
+              "plan's default (PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh), 60% lane D3's EIA-860 grid by weight; "
               f"POI = PV AC, {POI_VARIANT_SHARE:.0%} at the 1.2x variant and {OVERSIZE_SHARE:.0%} below PV AC "
               f"(PV AC / POI one of {', '.join(map(str, OVERSIZE))}; V3-D12); AC coupling only (C3-D15).",
               "- PV is the system-wide availability cf (lane D3) for every region, ILR x cf clipped at PV AC (proxy).",

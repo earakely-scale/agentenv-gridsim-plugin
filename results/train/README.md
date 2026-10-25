@@ -13,12 +13,12 @@ Path B is one prompt, one completion and reward = `gridsim_core.trl.reward_fn`, 
    - It is far below the rules: threshold 0.637 [0.601, 0.673] and greedy 0.764 [0.726, 0.800].
 2. **Pre-registered bars.**
    - "Trained beats greedy with non-overlapping CIs and valid ≥ 98%": **not met**. Valid ≥ 98% is met (99.0% sampled, 98.5% greedy). Beating greedy is not met: the paired gap to greedy is −0.435 [−0.476, −0.392].
-   - FD-4333 S5, "the 1.7B beats threshold": **not met** (one seed run).
+   - The training plan's S5, "the 1.7B beats threshold": **not met** (one seed run).
 3. **The base model cannot play at all with this prompt.**
    - Qwen3-1.7B with thinking off submits an all-zero list of 23 entries (22 on 8% of tasks) instead of 24.
    - So: 0/200 valid, R = 0, 3 distinct completions across 200 tasks.
    - Pure GRPO from the base therefore had no signal: 384 rollouts, 0 valid, every group with zero reward spread, loss and gradient exactly 0.
-   - The reported model is FD-4333's pre-registered fallback arm, **SFT warm start + GRPO**. It is a separate arm, not the "GRPO only" row.
+   - The reported model is the training plan's pre-registered fallback arm, **SFT warm start + GRPO**. It is a separate arm, not the "GRPO only" row.
 
 ## Results (200 eval-2025 tasks, foresight, oneshot prompt, path B)
 
@@ -64,16 +64,16 @@ Path B is one prompt, one completion and reward = `gridsim_core.trl.reward_fn`, 
    - All 82 overfill failures truncate at HE03, and 69 of them are full-start days.
 3. By curriculum tag, the trained greedy model scores C0 0.359, C1 0.324 and C2 0.298. No task reaches 0.95; the best is 0.908.
 
-FD-4333's hypothesis was "1.7B ~0.30 → ~0.80". Measured: 0.00 → 0.23 (SFT) → 0.33 (SFT + GRPO).
+The training plan's hypothesis was "1.7B ~0.30 → ~0.80". Measured: 0.00 → 0.23 (SFT) → 0.33 (SFT + GRPO).
 
 ## What ran, in order
 
 1. **Smoke** (2 steps, synthetic tasks): TRL `GRPOTrainer` + LoRA + colocated vLLM run end to end.
 2. **Base eval.** Qwen3-1.7B, thinking off, oneshot prompt, 200 eval-2025 tasks, sampled and greedy: 0/200 valid each, as above. `reward_fn` and the eval scorer agree on all 400 completions.
-3. **The pre-registered recipe as is** (`train_log_pure_grpo.jsonl`): GRPO from the base model with FD-4333's fallback credit (+0.05 for valid non-idle schedules, annealed to 0 by step 100).
+3. **The pre-registered recipe as is** (`train_log_pure_grpo.jsonl`): GRPO from the base model with the training plan's fallback credit (+0.05 for valid non-idle schedules, annealed to 0 by step 100).
    - 12 steps, 384 rollouts: 0 valid, every group zero spread, loss and grad_norm 0 on every step.
    - The credit cannot fire, because it pays only valid schedules.
-4. **SFT warm start** (FD-4333's fallback arm). SFT data: 200 DP-optimal schedules from `ercot-dam-v1-train`, about 67 per curriculum tag; task ids in `sft_task_ids.json`. Each target is a template rationale computed from the DP solution, then the tool call. There is no LLM text. Example:
+4. **SFT warm start** (the training plan's fallback arm). SFT data: 200 DP-optimal schedules from `ercot-dam-v1-train`, about 67 per curriculum tag; task ids in `sft_task_ids.json`. Each target is a template rationale computed from the DP solution, then the tool call. There is no LLM text. Example:
    `Plan: buy HE05 (4 units) at $12/MWh; sell HE18-HE19 (8 units) at $77-$91/MWh; buy HE24 (4 units) at $29/MWh.`
    - Training: LoRA r=32, α=64 on all attention and MLP projections; lr 1e-4 cosine with 10% warmup; 2 epochs; batch 8; 50 optimizer steps; 6 min.
    - The adapter is merged into the base.
@@ -168,7 +168,7 @@ Each completion gets exactly one kind:
 
 ## Deviations (deliberate, all recorded)
 
-1. **SFT warm start before GRPO.** Pure GRPO from the base model had 0% valid at step 0, so there was no reward spread. The pre-registered format credit only pays valid schedules, so it cannot fire. FD-4333 pre-registers this fallback arm for the 4B kill rule; here it is used for the 1.7B.
+1. **SFT warm start before GRPO.** Pure GRPO from the base model had 0% valid at step 0, so there was no reward spread. The pre-registered format credit only pays valid schedules, so it cannot fire. The training plan pre-registers this fallback arm for the 4B kill rule; here it is used for the 1.7B.
 2. **lr 2e-5, not the pre-registered 5e-6.**
    - 5e-6 came from the 4-bit Unsloth recipe. With a bf16 LoRA it was flat for 31 steps, and only one full run fit the timebox.
    - At 2e-5 the train reward rose within about 40 steps. LoRA RL usually wants about 10× the full-fine-tune lr.
@@ -176,7 +176,7 @@ Each completion gets exactly one kind:
 4. **280 steps, not 400–500.** That is what fit about 3 h at 36 s/step.
 5. **Eval sizes.**
    - The final eval uses 200 of the 500 eval-2025 tasks.
-   - Checkpoint evals use a fixed 50-task subset of eval-2025, as the lane brief asked, rather than FD-4333's `val` slice; no `val` split exists yet.
+   - Checkpoint evals use a fixed 50-task subset of eval-2025, as the lane brief asked, rather than the training plan's `val` slice; no `val` split exists yet.
 6. **Thinking off only.** One seed, no 4B run, no path-A (AgentEnv) parity run.
 
 ## What to change next
@@ -194,7 +194,7 @@ Each completion gets exactly one kind:
    - 16 generations per prompt and 8–16 prompts per step, which also cuts the step-to-step noise of 4 prompts;
    - temperature 1.1–1.2, or an entropy bonus;
    - stop or re-warm when zero-spread passes 50%.
-4. **lr.** For the FD-4333 runs, use about 1–2e-5 for a bf16 LoRA, or re-check 5e-6 under Unsloth 4-bit before the W2 smoke.
-5. **The rest of FD-4333.**
+4. **lr.** For the training plan's runs, use about 1–2e-5 for a bf16 LoRA, or re-check 5e-6 under Unsloth 4-bit before the W2 smoke.
+5. **The rest of the training plan.**
    - Then: the 4B, the thinking-on ablation (the 1.7B may track SoC better with thinking) and seeds 1–2.
    - Path-A parity: serve base + merged SFT + the GRPO LoRA through vLLM in the oneshot bundle.

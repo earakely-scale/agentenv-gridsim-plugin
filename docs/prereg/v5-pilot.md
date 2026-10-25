@@ -216,7 +216,7 @@ way, floor-day minus floor-sprint paired on the 10 floors played at both, the sh
   cached tokens, $/episode, turns, audit failures, unscored runs and why, spend per sweep.
 
 ## Hypotheses
-- **H1 (FD-4324's frontier target):** Sol's mean R on the floor-day column lies in 0.45 to 0.80. Read on the point
+- **H1 (the v5 plan's frontier target):** Sol's mean R on the floor-day column lies in 0.45 to 0.80. Read on the point
   estimate, its CI reported. The floor-sprint column is read against the same band as an expectation only.
 - **H2 (price impact pays on peak floors): Sol beats the price-taker on peak floors.** Mean R − price-taker R over the 12
   peak floor-sprint floors: paired CI above 0 supported, below 0 reversed (the impact-blind price-taker beats Sol),

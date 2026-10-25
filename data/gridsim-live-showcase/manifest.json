@@ -265,7 +265,7 @@
   "showcase_pad_days": 3
  },
  "notices": {
-  "archive": "data/notices (lane N, FD-4325)",
+  "archive": "data/notices (lane N)",
   "payload": "summary, ids, times, levels (V2-D4)",
   "nws_kept": [
    "BZ.A",

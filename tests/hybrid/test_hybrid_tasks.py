@@ -1,5 +1,5 @@
-"""Hybrid bundles: FD-4322's episode flow as task steps agent-env accepts, the gridsim-hybrid bundle built from them,
-and `tasks generate` on the hybrid packs."""
+"""Hybrid bundles: the v3 plan's episode flow as task steps agent-env accepts, the gridsim-hybrid bundle built from
+them, and `tasks generate` on the hybrid packs."""
 
 import json
 from importlib.resources import files

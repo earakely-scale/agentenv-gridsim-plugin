@@ -46,7 +46,7 @@ def load_step(task_id: str, tier: str, env: str = LIVE_ENV, uri: str = LIVE_LOAD
 
 
 def steps(task: dict, tier: str = "foresight", episode_cap_usd: float | None = None, play: bool = True) -> list[dict]:
-    """FD-4321's episode flow: deploy, load the day, hide grid_notice, one trigger per watch after the first that
+    """The v2 plan's episode flow: deploy, load the day, hide grid_notice, one trigger per watch after the first that
     delivers its notices when the agent's advance opens it, deploy gridsim-llm, arm the clock frozen at watch 0, play,
     end the day and grade it. Without ``play``, no agent: end-day delivers every watch's notices itself."""
     s = Session(task, tier)

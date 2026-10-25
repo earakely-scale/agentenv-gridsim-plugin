@@ -1,5 +1,5 @@
-"""Live bundles: FD-4321's episode flow as task steps agent-env accepts, the gridsim-live bundle built from them, and
-`tasks generate` on the live packs."""
+"""Live bundles: the v2 plan's episode flow as task steps agent-env accepts, the gridsim-live bundle built from them,
+and `tasks generate` on the live packs."""
 
 import json
 from importlib.resources import files

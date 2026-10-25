@@ -520,7 +520,7 @@ def archetypes() -> dict:
     for a in grid:
         a["weight"] = round(a["weight"] / tot, 4)
     default = {"id": "pv150-b100x2h", "pv_mwac": 150, "pv_mwdc": 195, "ilr": 1.30, "bess_mw": 100, "bess_mwh": 200,
-               "poi_mw": 150, "poi_variants_mw": [150, 180], "coupling": "ac", "source": "FD-4322 example (archetype)"}
+               "poi_mw": 150, "poi_variants_mw": [150, 180], "coupling": "ac", "source": "the v3 plan's example (archetype)"}
     return {"default": default, "fit": fit, "ilr_median": ilr_med, "archetypes": grid, "sites": sites,
             "notes": ["sites = ERCO plants (EIA-860 2025 2___Plant BA code) with operable PV (3_3) and operable storage "
                       "(3_4) at the same plant code, linked by Direct Support Plant ID 1, or a storage plant within NEAR_KM whose "

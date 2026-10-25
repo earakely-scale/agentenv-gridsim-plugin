@@ -146,9 +146,9 @@ difference is shown.
   finished by the agent's own `advance`, audit failures, unscored runs and why, spend per sweep.
 
 ## Hypotheses
-- **H1 (FD-4322's frontier estimate):** Sol's zero-shot mean R on the main column lies in 0.65 to 0.85. Read on the
+- **H1 (the v3 plan's frontier estimate):** Sol's zero-shot mean R on the main column lies in 0.65 to 0.85. Read on the
   point estimate, its CI reported.
-- **H2 (FD-4322's expected failure): Sol under-reserves ECRS SoC.** Called supported if at least 6 of the 30 main days
+- **H2 (the v3 plan's expected failure): Sol under-reserves ECRS SoC.** Called supported if at least 6 of the 30 main days
   are under-reserved in some product and ECRS has the most under-reserved days of the five products; otherwise not
   supported, with the failures that were seen. Registered alternative, read on its own: Sol **under-bids AS** if its
   median AS revenue on the main column is below half the anchor's on the same day.

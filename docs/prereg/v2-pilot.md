@@ -105,9 +105,9 @@ difference is shown.
   days the agent finished with its own `advance`, $/episode (priced tokens), turns, unscored runs and why.
 
 ## Hypotheses
-- FD-4321 estimated frontier API models at ~0.5–0.85 on the spec's old scale (idle 0, naive 0.2, anchor 1.0). On the
+- The v2 plan estimated frontier API models at ~0.5–0.85 on the spec's old scale (idle 0, naive 0.2, anchor 1.0). On the
   provisional anchor scale (idle 0.2, anchor 1.0), where naive itself scores 0.850 on these days, Sol's R is unknown;
-  no point prediction is registered. FD-4321's "the gap should show on notice days" is registered as a direction:
+  no point prediction is registered. The plan's "the gap should show on notice days" is registered as a direction:
   Sol's beats-anchor rate and capture − anchor are higher on notice days than on quiet days. With 20 days a side the
   pilot is not powered to confirm it; it is read as a signal with its CIs.
 - Pilot expectations for the prompt fix, not success bars: Sol finishes the day with its own `advance` on at least 90% of

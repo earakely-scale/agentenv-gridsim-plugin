@@ -275,7 +275,7 @@ def eligibility(t: dict) -> dict:
 
 
 def eligible(e: dict, f: dict = FILTER, notice: bool = False) -> bool:
-    """FD-4321's filter; a notice day skips the anchor-beats-naive criterion when NOTICE_DAYS_EXEMPT (L-D9)."""
+    """The v2 plan's filter; a notice day skips the anchor-beats-naive criterion when NOTICE_DAYS_EXEMPT (L-D9)."""
     base = (e["divergence_usd_per_mw"] >= f["divergence_usd_per_mw"]
             and e["hind_headroom_usd_per_mw"] >= f["hind_headroom_usd_per_mw"])
     if notice and NOTICE_DAYS_EXEMPT:
@@ -510,8 +510,8 @@ def write_stats(out: Path, packs: dict, cands: list, chosen: dict, tuning: list,
                 dedup_stats: dict, timing: dict):
     lines = ["# GridSimEnv v2 live pack statistics", "",
              f"Built by `scripts/build_live_pack.py` (live {live.LIVE_VERSION}, core contract {CONTRACT_VERSION}). "
-             "All numbers are measured on the packs. Notices come from lane N's archive (`gridsim_core.notices`, "
-             "FD-4325); a day is `notice`, `quiet` (archive coverage 1.0, no notice) or `unknown` (an archive gap).",
+             "All numbers are measured on the packs. Notices come from lane N's archive (`gridsim_core.notices`); "
+             "a day is `notice`, `quiet` (archive coverage 1.0, no notice) or `unknown` (an archive gap).",
              "",
              "## Packs", "",
              "| pack | tasks | notice / quiet / unknown | blind | short | naive R | naive R notice | naive R quiet | "
@@ -694,7 +694,7 @@ def build(args):
                                                  f"{EVAL_YEAR} ERCOT notice day", "eval_ercot_notice_days":
                          sorted(ERCOT_EVAL_DAYS),
                          "test": TEST, "rtcb": RTCB, "showcase": SHOWCASE, "showcase_pad_days": SHOWCASE_PAD},
-            "notices": {"archive": "data/notices (lane N, FD-4325)", "payload": "summary, ids, times, levels (V2-D4)",
+            "notices": {"archive": "data/notices (lane N)", "payload": "summary, ids, times, levels (V2-D4)",
                         "nws_kept": sorted(f"{a}.{b}" for a, b in NWS_KEEP), "notice_days_exempt": NOTICE_DAYS_EXEMPT,
                         "notice_share_targets": NOTICE_SHARE},
             "build_command": cmd.strip(), "bundles": bundles,

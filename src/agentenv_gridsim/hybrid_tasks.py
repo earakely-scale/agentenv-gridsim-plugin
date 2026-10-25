@@ -34,7 +34,7 @@ def eligible(rows: list[dict], tier: str, zone: str | None = None) -> list[dict]
 
 
 def steps(task: dict, tier: str = "reserves", episode_cap_usd: float | None = None, play: bool = True) -> list[dict]:
-    """FD-4322's episode flow: deploy, load the day, hide grid_notice, one trigger per watch after the first that
+    """The v3 plan's episode flow: deploy, load the day, hide grid_notice, one trigger per watch after the first that
     delivers its notices and deployment payloads when the agent's advance opens it, deploy gridsim-llm, arm the clock
     frozen at watch 0, play on the hybrid rules card, end the day and grade it. Without ``play``, no agent."""
     s = Session(task, tier)
