@@ -1,0 +1,253 @@
+{
+  "env": "gridsim-hybrid",
+  "version": "v3",
+  "hybrid_version": "3.0",
+  "contract_version": "1.0",
+  "authors": [
+    {
+      "name": "Edgar Arakelyan",
+      "github": "earakely-scale",
+      "affiliation": "Scale AI"
+    },
+    {
+      "name": "Adithya S Kolavi",
+      "github": "adithya-s-k",
+      "affiliation": "Hugging Face"
+    }
+  ],
+  "framework": "agentenv",
+  "tasks": {
+    "split": "eval",
+    "n": 40,
+    "unit": "hybrid site-days",
+    "packs": [
+      "ercot-hybrid-v3-eval"
+    ],
+    "as_strata": {
+      "low": 14,
+      "mid": 12,
+      "high": 14
+    },
+    "source": "ERCOT DAM/RT SPPs and DAM AS MCPCs; NP4-745 solar (availability proxy); EIA-860 sites or archetypes",
+    "selection": "low-spread, sponge-near-anchor and P_anchor - P_idle < $500 days dropped; Uri +-3 days out",
+    "flags": [
+      "deploy_frac: 1.0 assumed (stress case)",
+      "poi: 1.2x",
+      "poi: default",
+      "poi: oversized 1.25",
+      "poi: oversized 1.40",
+      "pv_availability: proxy",
+      "pv_scope: system",
+      "pv_shape: ILR x fleet-AC cf (approximate)",
+      "reg_drift: ercot",
+      "site: archetype"
+    ]
+  },
+  "harness": {
+    "agent": "gridsim-llm",
+    "env": "gridsim-hybrid",
+    "tools": [
+      "get_situation",
+      "check_schedule",
+      "commit_schedule",
+      "advance",
+      "get_time"
+    ],
+    "max_turns": 52,
+    "planning_calls_per_watch": 3,
+    "max_tokens": 16384,
+    "effort": "high",
+    "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual clock)"
+  },
+  "grading": {
+    "reference": "information-matched rolling MILP (HiGHS) played through the Session",
+    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0",
+    "idle": "the solar-only plant",
+    "anchor": "P_anchor: one MILP solve per watch on the day as known then, the same freeze, call budget and governor",
+    "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
+    "weight_0": [
+      "audit",
+      "hindsight_capture",
+      "energy_only",
+      "as_share",
+      "clip_recovered",
+      "ftp"
+    ],
+    "audit": "weight 0; a failed audit makes the run unscored",
+    "excused": "AS shortfall or end-SoC shortfall from drift or deployments after the hour froze",
+    "judge": false
+  },
+  "baselines": {
+    "energy": {
+      "tier": "energy",
+      "n": 10,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "sponge": 0.3924,
+      "as_hog": null,
+      "v2_energy": 0.8663,
+      "energy_only": null,
+      "anchor_capture": 0.426
+    },
+    "reserves": {
+      "tier": "reserves",
+      "n": 30,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "sponge": 0.2555,
+      "as_hog": 0.3985,
+      "v2_energy": 0.7652,
+      "energy_only": 0.8126,
+      "anchor_capture": 0.5051
+    }
+  },
+  "models": [
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "tier": "reserves",
+      "bundle": "live",
+      "effort": "high",
+      "runs": 30,
+      "planned": 30,
+      "tasks": 30,
+      "mean": 0.8448,
+      "ci95": [
+        0.7593,
+        0.9202
+      ],
+      "by_as_stratum": {
+        "low": 0.9423,
+        "mid": 0.8621,
+        "high": 0.73
+      },
+      "hindsight_capture": 0.4512,
+      "beats_anchor": 0.3,
+      "beats_sponge": 0.9667,
+      "valid": 1.0,
+      "as_share": 0.4474,
+      "energy_only_reward": 0.8126,
+      "clip_recovered_pct": 70.42,
+      "ftp_mwh_charged": 11.273,
+      "ftp_mwh_excused": 44.928,
+      "refusals": 1.07,
+      "governor_hours": 4.27,
+      "errors": {
+        "no_commit": 0,
+        "refused": 13,
+        "ftp_charged": 11,
+        "end_short": 5,
+        "governed": 26,
+        "no_replanning": 4,
+        "as_unused": 1
+      },
+      "planning_calls": 5.77,
+      "commits": 2.77,
+      "finished_by_agent": 1.0,
+      "turns": 17.5,
+      "usd_per_episode": 0.1639,
+      "spend_usd": 7.5875,
+      "unknown_spend_attempts": 0
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "tier": "energy",
+      "bundle": "live",
+      "effort": "high",
+      "runs": 10,
+      "planned": 10,
+      "tasks": 10,
+      "mean": 0.9896,
+      "ci95": [
+        0.9688,
+        1.0
+      ],
+      "by_as_stratum": {
+        "low": 1.0,
+        "mid": 0.9998,
+        "high": 0.9741
+      },
+      "hindsight_capture": 0.4271,
+      "beats_anchor": 0.3,
+      "beats_sponge": 1.0,
+      "valid": 1.0,
+      "as_share": 0.0,
+      "energy_only_reward": null,
+      "clip_recovered_pct": 58.82,
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "refusals": 0,
+      "governor_hours": 0,
+      "errors": {
+        "no_commit": 0,
+        "refused": 0,
+        "ftp_charged": 0,
+        "end_short": 1,
+        "governed": 0,
+        "no_replanning": 8,
+        "as_unused": 0
+      },
+      "planning_calls": 2.2,
+      "commits": 1.2,
+      "finished_by_agent": 1.0,
+      "turns": 12.4,
+      "usd_per_episode": 0.0461,
+      "spend_usd": 0.4608,
+      "unknown_spend_attempts": 0
+    }
+  ],
+  "errors": {
+    "taxonomy": [
+      "no_commit",
+      "refused",
+      "ftp_charged",
+      "end_short",
+      "governed",
+      "no_replanning",
+      "as_unused"
+    ],
+    "meaning": {
+      "no_commit": "no accepted hour in any commit (scores 0)",
+      "refused": "a commit with a refused hour",
+      "ftp_charged": "AS failure-to-provide charged",
+      "end_short": "SoC at 24:00 below s_end_min",
+      "governed": "the governor moved an hour",
+      "no_replanning": "no planning call after watch 0",
+      "as_unused": "no AS revenue on a tier that offers AS"
+    }
+  },
+  "sweeps": [
+    {
+      "name": "v3b-pilot-sol",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 30,
+      "k": 1,
+      "episode_cap_usd": 0.53,
+      "tier": "reserves",
+      "bundle": "live",
+      "pack": "ercot-hybrid-v3-eval",
+      "env": "gridsim-hybrid"
+    },
+    {
+      "name": "v3b-pilot-sol-energy",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 10,
+      "k": 1,
+      "episode_cap_usd": 0.53,
+      "tier": "energy",
+      "bundle": "live",
+      "pack": "ercot-hybrid-v3-eval",
+      "env": "gridsim-hybrid"
+    }
+  ],
+  "links": {
+    "runs": "hf dataset",
+    "replays": "hf space",
+    "code": "github"
+  }
+}
