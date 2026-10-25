@@ -223,9 +223,11 @@ def episode_row(e: dict, task: dict, g: dict, record: dict | None, file: str) ->
 
 def episodes(runs_dir: Path, by_id: dict[str, dict]) -> tuple[list[dict], dict[str, bytes], list[dict]]:
     """Every gridsim.episode/v1 JSON under ``runs_dir`` (sweeps' raw folders skipped): its row, its file for the Space
-    under runs/, and the Space's index of them. Raises at the first episode gridsim_core does not reproduce."""
-    rows, files, index = [], {}, []
-    paths = sorted(runs_dir.rglob("*.json")) if runs_dir.is_dir() else []
+    under runs/, and the Space's index of them; an episode a training view copies under train/ keeps its board row.
+    Raises at the first episode gridsim_core does not reproduce."""
+    rows, files, index, seen = [], {}, [], set()
+    paths = sorted(runs_dir.rglob("*.json"), key=lambda p: (p.relative_to(runs_dir).parts[0] == "train", p)) \
+        if runs_dir.is_dir() else []
     for path in paths:
         rel = path.relative_to(runs_dir)
         if "raw" in rel.parts[:-1]:
@@ -241,7 +243,9 @@ def episodes(runs_dir: Path, by_id: dict[str, dict]) -> tuple[list[dict], dict[s
         except Mismatch as err:
             raise Mismatch(f"{rel}: {err}") from None
         file = f"runs/{rel.as_posix()}"
-        rows.append(episode_row(e, task, g, recorded(path, e), file))
+        if e["episode_id"] not in seen:
+            seen.add(e["episode_id"])
+            rows.append(episode_row(e, task, g, recorded(path, e), file))
         files[file] = path.read_bytes()
         index.append({"path": rel.as_posix(), "episode_id": e["episode_id"], "task_id": e["task_id"],
                       "tier": e["tier"], "bundle": e["bundle"], "path_kind": e["path"], "model": e["model"],
@@ -416,7 +420,10 @@ V3 = Preview("v3", {"train": "ercot-hybrid-v3-train", "eval": "ercot-hybrid-v3-e
                     "showcase": "ercot-hybrid-v3-showcase"},
              ("energy", "reserves"), hybrid, hybrid_prompt, "events_sha")
 PREVIEW_STATS = ("live-stats.md", "hybrid-stats.md")
-PREVIEW_RESULTS = {v: (f"eval-{v}.json", f"board-{v}.md", f"pilot-{v}.json") for v in ("v2", "v3", "v4", "v5")}
+CURRENT = {"v2": "v2", "v3": "v3b", "v4": "v4b", "v5": "v5b"}
+PREVIEW_RESULTS = {v: tuple(f for p in dict.fromkeys((v, c)) for f in (f"eval-{p}.json", f"board-{p}.md",
+                                                                          f"pilot-{p}.json"))
+                   for v, c in CURRENT.items()}
 LABELS = {**NAMES, "reference/rolling-anchor": "rolling anchor", "reference/naive": "naive",
           "reference/as-hog": "AS-hog", "reference/solar-sponge": "solar sponge",
           "reference/v2-energy-only": "v2 energy-only"}
@@ -438,10 +445,13 @@ SHINGLE = 7
 ORG = re.compile(r"(?:the )?Electric Reliability Council of Texas,? Inc\.?(?: \(ERCOT\))?", re.I)
 LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]|ocp-apim|"
                   r"b2clogin|ercot-api", re.I)
-TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", True),
-              ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", False),
-              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", False),
-              ("arm2c", "arm2c", "arm 2c: arm 2b, then 150 more GRPO steps from its step 180", False))
+TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", True, "Qwen/Qwen3-1.7B"),
+              ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", False, "Qwen/Qwen3-1.7B"),
+              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", False, "Qwen/Qwen3-1.7B"),
+              ("arm2c", "arm2c", "arm 2c: arm 2b, then 150 more GRPO steps from its step 180", False,
+               "Qwen/Qwen3-1.7B"),
+              ("4b", "4b", "Qwen3-4B: SoC-aware SFT-1500 warm start, then GRPO 330 steps as one schedule", True,
+               "Qwen/Qwen3-4B"))
 TRAIN_FILES = ("summary.json", "eval_checkpoints.json", "curves.png")
 
 LIVE_TASKS = pa.schema([
@@ -1276,8 +1286,8 @@ def previews(x: Extras) -> tuple[dict[str, bytes], dict[str, str]]:
     for name in PREVIEW_STATS:
         files[f"raw/packs/{name}"] = unticket((data_root() / name).read_bytes())
     for v, board in (("v3", board_v3_markdown), ("v4", board_v4_markdown), ("v5", board_v5_markdown)):
-        if f"results/eval-{v}.json" in files:
-            blocks[f"board:{v}"] = board(json.loads(files[f"results/eval-{v}.json"]))
+        if f"results/eval-{CURRENT[v]}.json" in files:
+            blocks[f"board:{v}"] = board(json.loads(files[f"results/eval-{CURRENT[v]}.json"]))
     train_files, arms = training(x.train)
     files |= train_files
     if arms:
@@ -1342,7 +1352,7 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
     """training/<arm>/ (each arm's summary, checkpoint evals and curves, as results/train has them) and
     training/arms.json: per arm, its final policy on the 200 eval_2025 tasks against the two rules it was held to."""
     files, arms = {}, []
-    for name, sub, recipe, prereg in TRAIN_ARMS:
+    for name, sub, recipe, prereg, model in TRAIN_ARMS:
         d = train_dir / sub
         if not (d / "summary.json").is_file():
             continue
@@ -1356,13 +1366,16 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
             ev = json.loads((d / "eval_trained.json").read_text())["baselines"]
             rules = {k: {"model": f"rule:{k}", **v} for k, v in ev.items()}
         final = policies[-1]
-        base = next((r for r in policies if r["model"] == "base"), None) or arms[0]["base"]
+        base = (next((r for r in policies if r["model"] == "base"), None)
+                or next((a["base"] for a in reversed(arms) if a["model"] == model), None))
+        if base is None:
+            raise SystemExit(f"{d / 'summary.json'} has no base row and no earlier {model} arm to take it from")
         bars = [{"bar": f"beats the {rule} rule: 95% CIs apart, valid >= 98%", "rule": rule,
                  "rule_reward": rules[rule]["reward_mean"], "rule_ci95": rules[rule]["ci95"],
                  "met": final["ci95"][0] > rules[rule]["ci95"][1] and final["valid_rate"] >= 0.98}
                 for rule in ("greedy", "threshold")]
         arms.append({"arm": name, "label": s.get("label") or recipe, "recipe": recipe, "pre_registered": prereg,
-                     "model": "Qwen/Qwen3-1.7B", "tasks": s["n_tasks"], "split": "eval_2025", "tier": "foresight",
+                     "model": model, "tasks": s["n_tasks"], "split": "eval_2025", "tier": "foresight",
                      "harness": "oneshot (path B)", "base": {k: base[k] for k in ("reward_mean", "ci95", "valid_rate")},
                      "final": {k: final.get(k) for k in ("model", "checkpoint_step", "reward_mean", "ci95",
                                                          "valid_rate", "feasible_rate")},
@@ -1379,12 +1392,15 @@ def training_markdown(arms: list[dict]) -> str:
              "|---|---|---|---|---:|---|---|"]
     for a in arms:
         f, met = a["final"], {b["rule"]: "met" if b["met"] else "not met" for b in a["bars"]}
-        lines.append(f"| {a['arm'].replace('arm', 'arm ')} | {'yes' if a['pre_registered'] else 'no (exploratory)'} | "
+        lines.append(f"| {a['recipe'].split(': ', 1)[0]} | {'yes' if a['pre_registered'] else 'no (exploratory)'} | "
                      f"{a['recipe'].split(': ', 1)[1]} | **{f['reward_mean']:.3f}** ({f['ci95'][0]:.3f} to "
                      f"{f['ci95'][1]:.3f}) | {100 * f['valid_rate']:.1f}% | {met['threshold']} | {met['greedy']} |")
-    return "\n".join(lines + ["", f"On the same 200 tasks: base Qwen3-1.7B {arms[0]['base']['reward_mean']:.3f} (no "
-                              f"valid schedule), the threshold rule {r['threshold']:.3f}, the greedy rule "
-                              f"{r['greedy']:.3f}, idle 0.200, the DP optimum 1.000."])
+    bases = {a["model"]: a["base"] for a in arms}
+    return "\n".join(lines + ["", "On the same 200 tasks: " + ", ".join(
+        f"base {m.split('/')[-1]} {b['reward_mean']:.3f} ("
+        + ("no valid schedule" if not b["valid_rate"] else f"{100 * b['valid_rate']:.1f}% valid") + ")"
+        for m, b in bases.items()) + f", the threshold rule {r['threshold']:.3f}, the greedy rule {r['greedy']:.3f}, "
+        "idle 0.200, the DP optimum 1.000."])
 
 
 def board_v3_markdown(c: dict) -> str:
@@ -1428,35 +1444,40 @@ def main():
                     help="A folder of gridsim.episode/v2 JSON, or of such folders, published under runs/<folder>/. "
                          "Repeat for several. Default: results/runs/v2-pilot-sol and v2-pilot-sol-hero.")
     ap.add_argument("--v3-runs", type=Path, action="append",
-                    help="The same for gridsim.episode/v3 JSON. Default: results/runs/hybrid-reference and the four "
-                         "v3-pilot-sol* folders.")
+                    help="The same for gridsim.episode/v3 JSON. Default: results/runs/hybrid-reference and the "
+                         "rules-3.1 pilot's six v3b-* folders.")
     ap.add_argument("--v2-results", type=Path, default=ROOT / "results",
                     help="The folder with eval-v2.json, board-v2.md and pilot-v2.json, when there are.")
     ap.add_argument("--v3-results", type=Path, default=ROOT / "results",
-                    help="The folder with eval-v3.json, board-v3.md and pilot-v3.json, when there are.")
+                    help="The folder with eval-v3b.json, board-v3b.md and pilot-v3b.json (the current pilot) and the "
+                         "earlier pilot's eval-v3.json, board-v3.md and pilot-v3.json, when there are.")
     ap.add_argument("--v4-runs", type=Path, action="append",
-                    help="The same for gridsim.episode/v4 JSON. Default: the four v4-pilot-sol* folders.")
+                    help="The same for gridsim.episode/v4 JSON. Default: the rules-4.1 pilot's four v4b-pilot-sol* "
+                         "folders.")
     ap.add_argument("--v5-runs", type=Path, action="append",
-                    help="The same for gridsim.episode/v5 JSON. Default: the three v5-pilot-sol* folders.")
+                    help="The same for gridsim.episode/v5 JSON. Default: the rules-5.1 pilot's three v5b-pilot-sol* "
+                         "folders.")
     ap.add_argument("--v4-results", type=Path, default=ROOT / "results",
-                    help="The folder with eval-v4.json, board-v4.md and pilot-v4.json, when there are.")
+                    help="The folder with the v4 pilots' eval cards, boards and pilot JSON, as for --v3-results.")
     ap.add_argument("--v5-results", type=Path, default=ROOT / "results",
-                    help="The folder with eval-v5.json, board-v5.md and pilot-v5.json, when there are.")
+                    help="The folder with the v5 pilots' eval cards, boards and pilot JSON, as for --v3-results.")
     ap.add_argument("--forecast-store", type=Path, default=FI.store_root(),
                     help="The v4 forecast store the packs were built on, published under raw/v4-store/.")
     ap.add_argument("--train", type=Path, default=ROOT / "results/train",
-                    help="results/train: arm 1 at its top, arms 2, 2b and 2c in arm2/, arm2b/ and arm2c/.")
+                    help="results/train: arm 1 at its top, arms 2, 2b and 2c in arm2/, arm2b/ and arm2c/, the Qwen3-4B "
+                         "run in 4b/ once it lands.")
     ap.add_argument("--preview-ref", default="lane-hub2", help="The branch the card's preview links point at.")
     args = ap.parse_args()
     plugin = f"agentenv-gridsim @ git+{REPO}@{args.plugin_ref}"
     runs_root = ROOT / "results/runs"
     extras = None if args.v1_only else Extras(
         args.v2_runs or [runs_root / "v2-pilot-sol", runs_root / "v2-pilot-sol-hero"],
-        args.v3_runs or [runs_root / n for n in ("hybrid-reference", "v3-pilot-sol", "v3-pilot-sol-energy",
-                                                  "v3-pilot-sol-show-energy", "v3-pilot-sol-show-reserves")],
+        args.v3_runs or [runs_root / n for n in ("hybrid-reference", "v3b-pilot-sol", "v3b-pilot-sol-amend",
+                                                  "v3b-pilot-sol-energy", "v3b-pilot-sol-show", "v3b-smoke",
+                                                  "v3b-smoke-energy")],
         args.v2_results, args.v3_results, args.train, args.preview_ref,
-        args.v4_runs or [runs_root / f"v4-pilot-sol{n}" for n in ("", "-lite", "-smoke", "-show")],
-        args.v5_runs or [runs_root / f"v5-pilot-sol-{n}" for n in ("amend", "day", "show")],
+        args.v4_runs or [runs_root / f"v4b-pilot-sol{n}" for n in ("", "-lite", "-smoke", "-show")],
+        args.v5_runs or [runs_root / f"v5b-pilot-sol{n}" for n in ("", "-day", "-show")],
         args.v4_results, args.v5_results, args.forecast_store)
     with namespace_routing():
         files = build(args.runs, args.results, args.bundle, plugin, extras)

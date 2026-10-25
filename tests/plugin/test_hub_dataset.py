@@ -97,7 +97,9 @@ def test_check_text_refuses_notice_text_buckets_and_ticket_ids():
 
 
 @pytest.mark.parametrize("version, board", [("v1", hub.board_markdown), ("v3", hub.board_v3_markdown),
-                                            ("v4", hub.board_v4_markdown), ("v5", hub.board_v5_markdown)])
+                                            ("v3b", hub.board_v3_markdown), ("v4", hub.board_v4_markdown),
+                                            ("v4b", hub.board_v4_markdown), ("v5", hub.board_v5_markdown),
+                                            ("v5b", hub.board_v5_markdown)])
 def test_the_card_boards_lead_with_hindsight_capture_and_put_r_second(version, board):
     c = json.loads((ROOT / f"results/eval-{version}.json").read_text())
     text = board(c)

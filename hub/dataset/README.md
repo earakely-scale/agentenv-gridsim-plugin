@@ -306,7 +306,7 @@ own, so they never mix into a split.
 | | `rtcb` | 452 | 250 battery-days after ERCOT's real-time co-optimization went live (5 December 2025 to 17 October 2026), and 202 of them at the blind tier |
 | `v1_showcase` | `showcase` | 1,461 | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind: for display, never for scoring a claim |
 | `v1_references` | each split above | 20,000 / 500 / 500 / 250 / 761 | per battery-day: P_opt and its schedule, P_idle, the LP bound, the clock, threshold, greedy and random-feasible schedules with their profits and rewards, and for blind battery-days the persistence and ridge schedules and the anchor |
-| `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,320 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, and 37 reference episodes the Space also replays |
+| `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,336 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, 37 reference episodes the Space also replays, and the 16 Qwen3-1.7B checkpoint episodes of its LEVEL UP view on one `eval_2025` day |
 
 `raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line (`<pack>.jsonl`), with each
 pack's manifest (sources and their SHA-256, filters, counts, the battery table) and `stats.md`, the pack statistics.
@@ -548,6 +548,11 @@ The training summary lands with the training lane.
   each arm's summary, checkpoint evaluations and training curves, and `training/arms.json` the bars and results. The
   LoRA adapters are not published.
 
+A registered run on Qwen3-4B is under way: the arms' recipe as one schedule, SoC-aware SFT-1500 then 330 GRPO steps,
+held to the greedy rule's bar on the same 200 days
+([`docs/prereg/v1-train-4b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v1-train-4b.md)).
+Its results will join the table above.
+
 ## Simplifications
 
 - **A price taker.** The battery's trades never move the price.
@@ -688,18 +693,20 @@ Sol against naive on the same days: +0.012 (−0.004 to +0.028) of the hindsight
 
 ## v3 preview: Sun, Storage and Reserves
 
-> **A preview, not a release.** The env, the packs and the grading are built and tested, and one registered pilot
-> has run. Design decisions are open (below). The contract is [`docs/CONTRACT-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v3.md).
+> **A preview, not a release.** The env, the packs and the grading are built and tested, and a registered pilot has
+> run on rules 3.1. Some design decisions are open (below). The contract is [`docs/CONTRACT-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v3.md).
 
 **The task.** A solar farm and a battery share one meter at an ERCOT hub or load zone, played live in watches as in
 v2 but by the hour. At watch 0 (14:00 on D-1) the agent commits a book for D: each hour's battery move in MW
 (positive discharges) and awards in up to five reserve products, Regulation Up and Down, Responsive Reserve (RRS),
 ERCOT Contingency Reserve (ECRS) and Non-Spin, paid the day's DA clearing prices. The book becomes the DA position
 when watch 0 ends. Each hour settles at its RT price once it has ended. Regulation awards move the battery's charge by
-a drift drawn for each hour, and ERCOT's real RRS, ECRS and Non-Spin deployments that day draw reserve energy at
-their real times. The charge must back every up-award for its product's duration and leave room for RegDn; a
-governor nudges an hour's move to keep that, and a shortfall the agent could have seen coming is charged as failure
-to provide. Plans are in MW, sent as hourly blocks; 52 turns and 3 planning calls a watch.
+the share of the award that ERCOT's storage fleet delivered in that hour, and ERCOT's real RRS, ECRS and Non-Spin
+deployments that day draw reserve energy at their real times; a deployment uses up its product's duration as it runs.
+The charge must back every up-award for its product's duration and leave room for RegDn; a governor nudges an hour's
+move to keep that, and a shortfall the agent could have seen coming is charged as failure to provide. Plans are in MW,
+sent as hourly blocks; a reserve field left out, or sent as `"keep"` or null, keeps the book. 52 turns and 3 planning
+calls a watch.
 
 The tiers: `energy` (no reserves) and `reserves` (the DA awards are fixed after watch 0). A third, real-time
 reserves tier after ERCOT's RTC+B is built but not playable, since no history of ERCOT's real-time reserve prices was
@@ -716,67 +723,95 @@ and v2's energy-only rolling plan, each compared as (P − P_ref) / (P_hind − 
 anchor rising to 1.2 at hindsight (`grade()["stretch_reward"]`); the one-shot path-B reward is R, its anchor being
 the one-shot optimum itself.
 
+**Settled in rules 3.1.**
+- **Measured regulation drift (V3-D8).** ERCOT publishes no regulation-deployment series, so the drift comes from its
+  60-Day SCED Disclosure: the storage fleet's telemetered output against its base points and regulation
+  responsibilities gives the share of the award deployed each hour (RegUp 0.17 and RegDn 0.21 on average). It covers
+  every `eval` day, 162 of 200 `rtcb` days and 704 of 2,400 `train` days; days before 12 October 2023 and the
+  archive's gaps take a fallback fitted to the measured hours, RegUp when RT clears above DA and RegDn when below.
+  `flags.reg_drift` says which.
+- **A deployment uses up its duration (C3-D18).** In an hour where RRS, ECRS or Non-Spin is deployed, its reservation
+  and any shortfall use the duration it has left. On 10 August 2023 the anchor had paid $126k of failure to provide at
+  19:00 for ECRS it had just delivered for two hours; it now pays $10.
+- **Sites that clip (V3-D12).** 40% of sites now have PV AC above the meter (PV AC / POI of 1.11, 1.25 or 1.4), so
+  the meter clips and the energy tier tests charging from clipped solar. At that tier, on `eval`'s 104 such days, the
+  solar sponge scores 0.39, not idle's 0.2, and v2's PV-blind plan 0.91 (0.84 at 1.4), against 0.98 where the meter
+  takes all the PV.
+- **Keeping a field (V3-D13).** A reserve field left out, `"keep"` or null keeps the book's values; a malformed field
+  still refuses the whole call.
+
 **Open decisions.**
-- **The reserves tier is the test, and it is undecided.** On 30 days Sol is far ahead of AS-hog but level with the
-  energy-only plan (below); settling that takes about the full 300 eval days.
-- **The hero day's seeded drift.** The regulation drift is a seeded draw, not ERCOT telemetry, and it ignores the
-  grid. On the 6 September 2023 hero day (HB_WEST) it buys energy into the evening price spike while the DA awards are
-  locked, so the reserves anchor ($345k) ends below the energy-only plan ($482k). The hero is display only and its
-  replays play the energy tier; in the splits, a day where any baseline reaches 0.97 against the anchor is dropped.
-- **AC-only sites never clip.** EIA-860 2025 shows no DC-coupled solar-plus-storage site in ERCOT, and every site's
-  meter is at least its PV's AC rating, so no PV is ever clipped. The solar sponge equals idle, and the energy tier is
-  close to saturated: v2's PV-blind plan scores 0.989 on `eval`.
+- **6 September 2023 stays display only.** RT cleared above DA in all 24 hours of that EEA2 day, so the fallback drift
+  deploys RegUp all day and drains the battery before the evening sale: the reserves anchor ($258k) ends below the
+  energy-only plan ($482k). Its reference replays play the energy tier; in the splits, a day where any baseline
+  reaches 0.97 against the anchor is dropped.
+- **The energy tier is saturated for Sol.** On 10 clipping days it ties the anchor (below), so the tier now tells
+  clipping-aware play from PV-blind play, not this model from the anchor.
 - **Continuous MW.** Plans are continuous MW, not the 25 MW steps first planned (those made the solver intractable),
   so a plan can differ from the book by fractions of a MW; a value within 0.005 MW of the book counts as the book's.
 
 | Config | Split | Rows | Site-days | Dates | Notice / deployment days | Anchor − idle | Anchor capture | AS-hog R | Energy-only R | v2 energy-only R |
 |---|---|---:|---:|---|---|---:|---:|---:|---:|---:|
-| `v3_tasks` | `train` | 4,800 | 2,400 | 2021 to 2024 | 981 / 307 | $53,192 | 0.699 | 0.754 | 0.497 | 0.440 |
-| | `eval` | 600 | 300 | January to November 2025, 100 per reserve-value stratum | 92 / 12 | $14,005 | 0.505 | 0.492 | 0.794 | 0.786 |
-| | `rtcb` | 400 | 200 | 6 December 2025 to 30 September 2026 | 44 / 20 | $9,621 | 0.439 | 0.357 | 0.775 | 0.764 |
-| `v3_showcase` | `showcase` | 8 | 4 | 10 August 2023, 6 September 2023, 29 March 2024, 26 January 2026; display only | 3 / 2 | $245,682 | 0.483 | 0.734 | 0.803 | 0.751 |
+| `v3_tasks` | `train` | 4,800 | 2,400 | 2021 to 2024 | 1,006 / 312 | $51,570 | 0.702 | 0.712 | 0.509 | 0.415 |
+| | `eval` | 600 | 300 | January to November 2025, 100 per reserve-value stratum | 87 / 13 | $14,104 | 0.524 | 0.470 | 0.801 | 0.764 |
+| | `rtcb` | 400 | 200 | 6 December 2025 to 30 September 2026 | 41 / 21 | $9,747 | 0.454 | 0.394 | 0.795 | 0.740 |
+| `v3_showcase` | `showcase` | 8 | 4 | 10 August 2023, 6 September 2023, 29 March 2024, 26 January 2026; display only | 3 / 2 | $273,509 | 0.478 | 0.413 | 0.746 | 0.711 |
 
-Means at the reserves tier, from `raw/packs/hybrid-stats.md`; at the energy tier v2's energy-only plan scores 0.826
-on `train` and 0.98 to 0.99 on `eval` and `rtcb`. The sites are archetypes: 40% a 150 MW-AC solar farm with a
-100 MW / 200 MWh battery, 60% sized from the co-located solar and storage in EIA-860 2025's ERCOT records, with the
-meter at the PV's AC rating or 1.2 times it. PV output is ERCOT's system-wide hourly solar availability scaled to the
-site. `v3_references` has, per site-day and tier, the anchor's profit, book and commits, hindsight, the LP bound, the
-one-shot optimum and its plan, and each baseline's profit and R. `v3_episodes` has one row per recorded run, with the
-book, the DA position, the cash split and the transcript.
+Means at the reserves tier, from `raw/packs/hybrid-stats.md`; at the energy tier v2's energy-only plan scores 0.759
+on `train`, 0.953 on `eval` and 0.931 on `rtcb`. The sites are archetypes: 40% a 150 MW-AC solar farm with a
+100 MW / 200 MWh battery, 60% sized from the co-located solar and storage in EIA-860 2025's ERCOT records; the meter
+sits at the PV's AC rating on 40% of sites, at 1.2 times it on 20% and below it on 40%. PV output is ERCOT's
+system-wide hourly solar availability scaled to the site. `v3_references` has, per site-day and tier, the anchor's
+profit, book and commits, hindsight, the LP bound, the one-shot optimum and its plan, and each baseline's profit and
+R. `v3_episodes` has one row per recorded run, with the book, the DA position, the cash split and the transcript.
 
-**Pilot.** GPT-6.1 Sol played 30 `eval` days at the reserves tier, 10 per reserve-value stratum, and the same
-draw's next 10 days at the energy tier, as registered in [`docs/prereg/v3-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v3-pilot.md),
-plus 29 March 2024 at both tiers for display.
+**Pilot (rules 3.1).** GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played 30 `eval` days at the
+reserves tier, all 13 deployment days and 17 more drawn by reserve-value stratum, and 10 clipping days at the energy
+tier (5 at PV AC / POI 1.25, 5 at 1.4), as registered in [`docs/prereg/v3-pilot-b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v3-pilot-b.md),
+plus 10 August 2023 and 29 March 2024 at the reserves tier for display. One reserves run stopped at its episode cap
+and ran once more under the registered amendment; the table counts it (30 days).
 
 <!-- board:v3 -->
 | Model | Tier | Days | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | C low / mid / high AS | AS share | $ per episode |
 |---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|
-| GPT-6.1 Sol | reserves | 30 | **0.397 (0.311 to 0.484)** | 0.480 | -0.083 (-0.120 to -0.049) | 0.811 (0.738 to 0.876) | 0.200 | 0.200 | 0.349 / 0.312 / 0.530 | 0.510 | $0.1902 |
-| GPT-6.1 Sol | energy | 10 | **0.483 (0.364 to 0.610)** | 0.484 | +0.000 (-0.001 to +0.000) | 1.000 (0.999 to 1.000) | 0.800 | 0.600 | 0.352 / 0.428 / 0.712 | 0.000 | $0.0857 |
+| GPT-6.1 Sol | reserves | 30 | **0.451 (0.367 to 0.536)** | 0.505 | -0.054 (-0.091 to -0.019) | 0.845 (0.759 to 0.920) | 0.300 | 0.300 | 0.576 / 0.387 / 0.390 | 0.447 | $0.1639 |
+| GPT-6.1 Sol | energy | 10 | **0.427 (0.274 to 0.593)** | 0.426 | +0.001 (-0.009 to +0.010) | 0.990 (0.969 to 1.000) | 0.400 | 0.300 | 0.514 / 0.402 / 0.353 | 0.000 | $0.0461 |
 <!-- /board:v3 -->
 
-On the same days, C: AS-hog 0.166, the energy-only plan 0.379 (the same as v2 energy-only on every one of the 30) and
-the anchor 0.480 at the reserves tier; v2 energy-only 0.463 and the anchor 0.483 at the energy tier.
+On the same days, C: the solar sponge 0.037, AS-hog 0.136, v2 energy-only 0.371, the energy-only plan 0.403 and the
+anchor 0.505 at the reserves tier; the sponge 0.098, v2 energy-only 0.341 and the anchor 0.426 at the energy tier.
 
-- **Reserves.** C 0.397 (0.311 to 0.484) against the anchor's 0.480, Δ −0.083 (−0.120 to −0.049). Sol is above
-  AS-hog by +0.231 (+0.159 to +0.306), on 27 of 30 days, and level with the energy-only plan, +0.018 (−0.018 to
-  +0.055), undecided at this size. R 0.811 (0.738 to 0.876) second, 20% of days at R = 1.
-- **Where it loses.** Sol earns nearly the anchor's reserve revenue, $5,985 a day against $6,241, but leans on RRS
-  and RegDn and barely sells ECRS or Non-Spin. The gap is on the energy side: it books 2.4 times the anchor's RegDn in
-  the day's six dearest hours, so the drift buys energy at peak RT prices.
-- **Format.** One day was lost to a malformed commit, 25 RegDn values for 24 hours: the whole watch-0 commit was
-  refused and the day ran with no reserves.
-- **Energy tier: level with the anchor.** C 0.483 (0.364 to 0.610) against the anchor's 0.484, Δ −0.000 (−0.001 to
-  +0.000) on 10 days; R reads it as saturated, 1.000 (0.999 to 1.000), 8 of 10 days at R = 1.
-- 42 runs, all scored, $7.03 in all. Every episode replays byte for byte on `gridsim_core.hybrid`; `v3_episodes` also
-  holds 25 reference runs the Space replays (the anchor, AS-hog, the solar sponge and v2 energy-only on 10 days). The
-  full reading is in [`results/board-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v3.md).
+- **Reserves.** The registered primary, the 29 days scored in the first sweep: C 0.440 (0.354 to 0.526) against the
+  anchor's 0.498, Δ −0.057 (−0.095 to −0.022), R 0.839 with 8 of 29 days at R = 1; the table's 30 days, with the
+  amendment's run, read C 0.451 and Δ −0.054. Sol is above the energy-only plan by +0.044 (+0.003 to +0.089), so on
+  this draw selling reserves with energy earns it more than energy alone; it is above AS-hog by +0.300 and the solar
+  sponge by +0.408. These intervals are the pilot script's (`scripts/pilot_v3b.py`) over the 29 primary days.
+- **The RegDn loss is gone; the gap moved to RegUp.** With the measured drift Sol's RegDn costs it no more than the
+  anchor's (−0.005, −0.064 to +0.049, of the headroom; rules 3.0: +0.109). But Sol books almost no RegUp, 3 MW-h a
+  day against the anchor's 323, and the RegUp drift the anchor sells into RT is worth 0.10 of the headroom
+  (exploratory), more than Sol's whole gap.
+- **Deployment days cost it most.** On the 13 days ERCOT deployed Non-Spin (ECRS too on 2) Δ is −0.109 (−0.162 to
+  −0.060), against −0.016 on the others. Sol held none of the deployed product in those hours, so the loss is the
+  scarcity day's RegUp and reserve revenue, not the deployments.
+- **Energy tier: level with the anchor.** C 0.427 against the anchor's 0.426, Δ +0.001 (−0.009 to +0.010), R 0.990
+  on the 10 clipping days; Sol is above v2's PV-blind plan by +0.086 (+0.011 to +0.209).
+- **Format.** 87 planning calls kept a reserve field with `"keep"` or null and none was refused for it; one day still
+  lost its watch-0 book to a 25-value RRS list.
+- **Display.** On 10 August 2023 (HB_NORTH) Sol out-earns the anchor, $1,620,009 against $1,590,378, C 0.296 against
+  0.282 (R 1.0), committing at both deployment watches. On 29 March 2024, C 0.576 against the anchor's 0.856 (R 0.738).
+- 45 runs, the smoke and display runs included, $8.75 in all; five first attempts hit an upstream gateway error and
+  scored at their registered retry. Every episode replays byte for byte on `gridsim_core.hybrid`; `v3_episodes` also
+  holds 26 reference runs on 10 days the Space replays (the anchor, AS-hog, the solar sponge and v2 energy-only). The
+  full reading is in [`results/board-v3b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v3b.md).
+- **Earlier pilot (rules 3.0),** on packs since rebuilt: reserves C 0.397 against the anchor's 0.480, Δ −0.083
+  (−0.120 to −0.049); its episodes are not in this dataset
+  ([`results/board-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v3.md)).
 
 ## v4 preview: Weather Front
 
-> **A preview, not a release.** The env, the packs, the forecast store and the grading are built and tested, and one
-> registered pilot has run. Design decisions are open (below), so tiers, filters and numbers may change before v4
-> ships. The contract is [`docs/CONTRACT-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v4.md).
+> **A preview, not a release.** The env, the packs, the forecast store and the grading are built and tested, and a
+> registered pilot has run on rules 4.1. Some decisions are open (below), so tiers, filters and numbers may change
+> before v4 ships. The contract is [`docs/CONTRACT-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v4.md).
 
 **The task.** v3's solar farm and battery behind one meter, run for three operating days on forecasts as they were
 issued. The clock opens at 10:00 the day before the first day and runs to midnight after the last, in watches: 16
@@ -804,8 +839,8 @@ serve the windows from 12 December 2023 (`source: ercot`). Earlier windows and t
 desk's load, wind and solar forecasts instead (`source: desk`), modelled from the same HRRR runs. ERCOT's
 day-ahead load forecast as reported to EIA-930 arrives at 06:00 on its day. The price guide is always the desk's: a
 quantile model refitted each year only on data revealed before that year. Nothing is served before its reveal time;
-the store's builder tests it, and each run's audit replays every forecast call against the store. Site PV, the
-regulation drift and the missing RT reserve prices are as in v3.
+the store's builder tests it, and each run's audit replays every forecast call against the store. Site PV and the
+missing RT reserve prices are as in v3; the regulation drift is v3's earlier seeded draw (`flags.reg_drift`).
 
 **Grading.** The headline is hindsight capture C = (P − P_idle) / (P_hind − P_idle), P_hind the exact plan that
 knows the realised prices, PV, drift and deployments, beside the anchor's own C and Δ = C − C_anchor = (P − P_roll) /
@@ -818,7 +853,7 @@ P50 and P90 paths), P_blind, and the naive gate rule, which charges in the 4 che
 DA P50 hours of each day and never re-plans. Training uses S, R up to the anchor rising to 1.2 at hindsight
 (`grade()["stretch_reward"]`).
 
-**Open decisions.**
+**Settled since the plan.**
 - **Pack filters (V4-P18).** The plan's per-kW headroom bars kept under 10% of candidates on the real store, and none
   in `rtcb`: the median window's hindsight headroom is $0.40 per kW in `train` and $0.81 in `eval`. The packs instead
   drop each split's lowest 15% by hindsight headroom per kW, and keep a window only if the anchor beats idle by $0.10
@@ -836,6 +871,11 @@ DA P50 hours of each day and never re-plans. Training uses S, R up to the anchor
   every time the env shows carries its UTC offset (`2025-01-28T10:00-06:00`) and a time passed with one is converted
   (a time after now is still refused); `front-lite`'s card and DAM tool are energy-only; `"keep"` or null leaves a
   reserve field as it is.
+
+**Open decisions.**
+- **Regulation drift.** v4 still draws the seeded drift that rules 3.1 replaced in v3 with ERCOT's measured one.
+- **The front label as a stratum.** In the pilot Δ is −0.030 on front windows and −0.039 on calm ones (difference
+  +0.009, −0.047 to +0.063): at this size the label does not separate Sol's gap.
 
 | Config | Split | Windows | Dates | Front / calm | Forecasts | Anchor − idle | Anchor capture | P_blind R | Naive R | P_roll3 R |
 |---|---|---:|---|---|---|---:|---:|---:|---:|---:|
@@ -860,44 +900,49 @@ The `eval`, `rtcb` and showcase rows embed their window's slice; `train` rows na
 reveal table, the price guide's yearly pinball loss and coverage (`guide-card.json`) and the store's hash. No GRIB file
 and no raw API response is published.
 
-**Pilot.** GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played 20 `eval` windows at `front` (14 front, 6
-calm) and 10 more at `front-lite`, as registered in [`docs/prereg/v4-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v4-pilot.md), plus 3
-smoke windows and Fern and Heather for display. Every window served ERCOT's own forecasts. This is the rules-4.0
-pilot, on the 4.0 packs: its episodes replay at the preview commit it ran on, not on rules 4.1, and a 4.1 pilot
-replaces it.
+**Pilot (rules 4.1).** GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played 20 `eval` windows at `front`
+(14 front, 6 calm) and 10 more at `front-lite`, redrawn on the 4.1 pack, as registered in [`docs/prereg/v4-pilot-b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v4-pilot-b.md),
+plus 3 smoke windows and Fern and Heather for display. Every window served ERCOT's own forecasts.
 
 <!-- board:v4 -->
 | Model | Tier | Windows | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | C front / calm | Forecast calls | $ per episode |
 |---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|
-| GPT-6.1 Sol | front | 20 | **0.458 (0.362 to 0.553)** | 0.477 | -0.019 (-0.057 to +0.017) | 0.909 (0.836 to 0.968) | 0.350 | 0.350 | 0.390 / 0.616 | 25.3 | $0.57 |
-| GPT-6.1 Sol | front-lite | 10 | **0.404 (0.288 to 0.512)** | 0.450 | -0.047 (-0.098 to -0.005) | 0.883 (0.733 to 0.980) | 0.500 | 0.400 | 0.338 / 0.557 | 17.2 | $0.19 |
+| GPT-6.1 Sol | front | 20 | **0.463 (0.375 to 0.554)** | 0.496 | -0.032 (-0.064 to -0.001) | 0.911 (0.859 to 0.956) | 0.350 | 0.350 | 0.394 / 0.624 | 26.8 | $0.60 |
+| GPT-6.1 Sol | front-lite | 10 | **0.362 (0.262 to 0.463)** | 0.402 | -0.040 (-0.091 to +0.008) | 0.873 (0.765 to 0.961) | 0.200 | 0.200 | 0.314 / 0.473 | 18.9 | $0.20 |
 <!-- /board:v4 -->
 
-On the same 20 `front` windows, C: the anchor 0.477, P_roll3 0.475, P_blind 0.346 and the naive gate rule 0.281,
-against Sol's 0.458; R: P_blind 0.720, the naive gate rule 0.643 and P_roll3 0.976, against Sol's 0.909.
+On the same 20 `front` windows, C: the anchor 0.496, P_roll3 0.494, P_blind 0.375 and the naive gate rule 0.270,
+against Sol's 0.463; R: P_roll3 0.973, P_blind 0.762 and the naive gate rule 0.612, against Sol's 0.911.
 
-- **Forecasts are worth reading.** Sol is above persistence (P_blind) by +0.112 (+0.059 to +0.168) of the hindsight
-  headroom, on 15 of 20 windows, and above the naive gate rule by +0.177 (+0.123 to +0.230).
-- **Level with the rolling MILP, by a different book.** Δ −0.019 (−0.057 to +0.017); Sol beats the anchor on 7
-  windows. It bids a smaller DA position and a third less reserve, never ECRS, and commits 5.7 times a window to
-  the anchor's 18.
-- **It bids each day at that day's gate.** No gate was missed, and Sol read a forecast before its first submit at 95%
-  of gates. But it leaves the next day unbooked until its own gate, so only 12 of 40 later-day gates had a standing
-  plan to revise; all 12 were revised.
-- **`front-lite` sits below persistence:** C 0.404 (0.288 to 0.512) against the anchor's 0.450, Δ −0.047 (−0.098 to
-  −0.005), and −0.081 (−0.167 to −0.015) against P_blind's 0.485; the loss is almost all one window (LZ_HOUSTON on 19
-  February 2025, the cold snap, C 0.027 against the anchor's 0.257, R 0.285). It stays a training and warm-up tier.
-- **Fern** (HB_NORTH, 24 to 26 January 2026): C 0.677 against the anchor's 0.603 (R 1.0), $1,151,139 against the
-  anchor's $1,039,573, regulation on the first day, then RRS, ECRS and Non-Spin into the storm with a large DA
-  discharge on the 26th. **Heather**: C 0.703 against the anchor's 0.768 (R 0.932).
-- 35 runs, all scored at the first attempt, $16.50 in all. Every episode replays byte for byte on
-  `gridsim_core.forecast` at rules 4.0 and passes its audit. The full reading is in
-  [`results/board-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v4.md).
+- **Just below the rolling MILP.** Δ −0.032 (−0.064 to −0.001), its interval ending just below 0; Sol beats the anchor
+  on 7 windows, the same 7 at R = 1. It is also below P_roll3, −0.031 (−0.058 to −0.003).
+- **Forecasts are worth reading.** Sol is above persistence (P_blind) by +0.088 (+0.040 to +0.141) of the hindsight
+  headroom, on 15 of 20 windows, and above the naive gate rule by +0.193 (+0.149 to +0.242).
+- **The 4.0 friction is gone.** No forecast call was refused for a malformed time or as issued after now, and no
+  `front-lite` hour as a reserve it cannot offer (rules 4.0: 41, 22 and 288). Sol now sends a blank `issued_at` on
+  almost every call and reads the latest vintage, but it seldom asks how a forecast moved: 8 of 20 windows call
+  `get_forecast_drift`, and no gate had a drift read before its submit.
+- **Where the gap is (exploratory).** Against the anchor replayed from its stored calls, Sol gives up DA energy
+  (−$9,816 a window) and wins most of it back in real time (+$8,669); it sells a fifth less in reserves and commits
+  6.5 times a window to the anchor's 17.6. It missed no gate.
+- **`front-lite` stays a warm-up tier:** C 0.362 (0.262 to 0.463) against the anchor's 0.402, Δ −0.040 (−0.091 to
+  +0.008), and −0.029 (−0.099 to +0.039) against P_blind; the February 2025 cold snap (LZ_HOUSTON) is again the worst
+  window.
+- **Fern** (HB_NORTH, 24 to 26 January 2026): C 0.464 against the anchor's 0.603 (R 0.816), $828,699 against
+  $1,039,166; the 4.0 run had beaten the anchor here. **Heather**: C 0.649 against the anchor's 0.768 (R 0.876).
+- 35 runs, all scored, $24.92 in all: six attempts hit an upstream provider error and scored at their registered
+  retry, and the `front-lite` sweep resumed once after stopping at its budget. Every episode replays byte for byte on
+  `gridsim_core.forecast` and passes its audit. The full reading is in
+  [`results/board-v4b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v4b.md).
+- **Earlier pilot (rules 4.0),** on the 4.0 packs: `front` C 0.458 against the anchor's 0.477, Δ −0.019 (−0.057 to
+  +0.017); its episodes replay only at the commit it ran on and are not in this dataset
+  ([`results/board-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v4.md)).
+  On the 11 windows both pilots ran, rules 4.1 did not lift Sol's capture: −0.031 (−0.073 to +0.000).
 
 ## v5 preview: The Market Floor
 
-> **A preview, not a release.** The env, the packs, the market days and the grading are built and tested, and one
-> registered pilot has run. Design decisions are open (below). The contract is
+> **A preview, not a release.** The env, the packs, the market days and the grading are built and tested, and a
+> registered pilot has run on rules 5.1. Some design decisions are open (below). The contract is
 > [`docs/CONTRACT-v5.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v5.md).
 
 **The task.** The agent is seat A, a battery of 400 to 1,500 MW, in ERCOT's day-ahead market (DAM) for one operating
@@ -941,82 +986,94 @@ costs (CT heat rates from EIA-923, the wind and solar production tax credit, a r
 energy, which the disclosure does not give before RTC+B. Each floor carries its day's raw fidelity: the share of
 non-scarcity hours where the clear of every real offer lands within $5 or 10% of ERCOT's lambda.
 
+**Settled in rules 5.1.**
+- **`train` back to 2022 (V5-P1, V5-P16).** ERCOT's archive holds the disclosure from 1 January 2022, so `train` now
+  takes 3,777 floors on 229 dates from 15 July 2022 to 29 December 2024, 23 of them in 2022 and 93 in 2023. The 2022
+  files carry one RRS award column, which the reserve truncation now reads.
+- **The fidelity bar: 0.7 (V5-P2).** The plan asked for 90% of non-scarcity hours within $5 or 10% of ERCOT's lambda;
+  the clear reaches that on 68 of 1,686 days (median 0.67). A floor's day now needs 0.7, which 812 days pass (65 of
+  363 in 2022, 175 of 361 in 2025), and the hub offset carries the rest.
+- **Two portfolios a date in `eval` (V5-P24).** The bar leaves 147 `eval` dates, so each takes two seat-A draws: 289
+  floors. A date is `peak` when its first draw has 2 or more hours of $5 impact: 6 dates, 12 floors. `floor-day`
+  stays 60 floors, one a date.
+- **Rules 5.1 (V5-P21, V5-P23).** `get_forecast` reads `issued_at` as a time (rules 5.0 compared strings and refused
+  197 of the 5.0 pilot's 276 calls); an offer side, a schedule hour or an AS field left out, `null` or `"keep"` keeps
+  what was last accepted; `get_disclosure` refuses a day with no full disclosure.
+
 **Open decisions.**
 - **The impact filter (V5-P12).** A QSE-sized battery moves the price in few hours: "2 or more hours of $5 impact"
-  keeps almost only peak days (12 of 200 `eval` floors). `train` asks for 1 hour of $2 instead, and `eval` keeps the
-  stricter rule as its `peak` stratum. In the pilot Sol's gap to the price-taker was no smaller on base floors, so for
-  this model a peak-only eval would add nothing.
-- **The fidelity bar: 0.9 or 0.5.** The plan asked for 90% of hours within $5 or 10% of ERCOT's lambda; the clear
-  reaches that on 39 of 982 days (median 0.71), so the packs take 0.5 and the hub offset carries the rest. In the
-  pilot R rose with fidelity (0.70, 0.81 and 0.89 by tercile), which argues for a higher bar on the board, or R by
-  fidelity band.
-- **The price-taker collapse (V5-P18).** On most days the anchor's best response is the impact-blind price-taker's
-  plan: the price-taker scores R = 1.0 on 105 of 200 `eval` floors (mean 0.949). So R mostly measures forecasting and
+  holds on 10 of 289 `eval` floors. `train` asks for 1 hour of $2 instead, and `eval`'s peak dates are a stratum of
+  their own. In the pilot Sol's gap to the anchor changes sign with it: ahead on peak floors, behind on base ones.
+- **The price-taker collapse (V5-P18).** On most floors the anchor's best response is the impact-blind price-taker's
+  plan: the price-taker scores R = 1.0 on 152 of 289 `eval` floors (mean 0.937). So R mostly measures forecasting and
   scheduling under weak impact, not market power. The board adds the price-making gain over the price-taker as a
   weight-0 row and R on the `peak` stratum as a column of its own.
-- **`train` back to 2022.** ERCOT's archive holds the disclosure from 1 January 2022, not only from December 2023.
-  `train` uses 2024 (12 February to 31 December); of the 704 days from January 2022 to 10 December 2023, 74% pass the
-  0.5 fidelity bar (56% in 2022). They are not shipped yet.
 
-| Config | Split | Floors | Dates | Peak (2+ impact hours) | Also `floor-day` | Median fidelity | Anchor capture (median) | Price-taker R | Replay A R | Max-withhold R |
+| Config | Split | Floors | Dates | Peak (2+ impact hours) | Also `floor-day` | Median fidelity | Anchor's C | Price-taker R | Replay A R | Max-withhold R |
 |---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|
-| `v5_tasks` | `train` | 2,351 | 151 dates, 12 February to 31 December 2024 | 294 | 2,303 | 0.75 | 0.680 | 0.956 | 0.137 | 0.194 |
-| | `eval` | 200 | one floor a date, 1 January to 28 November 2025 | 12 | 194 (60 in the `floor-day` set) | 0.71 | 0.731 | 0.949 | 0.176 | 0.199 |
-| | `rtcb` | 153 | one floor a date, 10 December 2025 to 25 August 2026 | 2 | 147 | 0.67 | 0.683 | 0.934 | 0.136 | 0.200 |
+| `v5_tasks` | `train` | 3,777 | 229 dates, 15 July 2022 to 29 December 2024 | 1,189 | 3,708 | 0.79 | 0.392 | 0.945 | 0.166 | 0.185 |
+| | `eval` | 289 | 147 dates, two portfolios a date, 1 January to 28 November 2025 | 12 (6 dates) | 284 (60 in the `floor-day` set) | 0.77 | 0.399 | 0.937 | 0.159 | 0.199 |
+| | `rtcb` | 65 | one floor a date, 16 December 2025 to 25 August 2026 | 1 | 62 | 0.79 | 0.354 | 0.933 | 0.140 | 0.200 |
 | `v5_showcase` | `showcase` | 6 | 20 August 2024 and Winter Storm Fern, 23 to 27 January 2026; display only | 4 | 4 | – | – | 0.790 | 0.215 | 0.467 |
 
-R values are means at `floor-sprint`; anchor capture is P_anchor / P_br. Seat A is 400, 600, 800, 1,000, 1,200 or
-1,500 MW for 1, 2 or 4 hours, with round-trip efficiency 0.80 to 0.95 and degradation $0 to $8 per MWh.
+R values are means at `floor-sprint`; the anchor's C is its mean hindsight capture against BR_rt there. A peak floor
+in `eval` is one on a peak date. Seat A is 400, 600, 800, 1,000, 1,200 or 1,500 MW for 1, 2 or 4 hours, with
+round-trip efficiency 0.80 to 0.95 and degradation $0 to $8 per MWh.
 `v5_references` has, per floor, the anchor's forecast (its net-load shift and the prices it expects), its
 self-schedule, P_anchor, P_br and the RT-inclusive bound at each tier with the hindsight awards, and the price-taker,
 max-withhold and replay-A baselines' profit and R. `v5_episodes` has one row per recorded run: R, compliant, regret,
 capture, welfare ratio, ε-Nash, impact, mitigation, the offer, the awards, the clear, the hourly settlement, the P&L,
 the contracts, every call and the transcript.
 
-**The market days.** `raw/v5-market/days/` holds the 985 operating days the floors are built from, 11 December 2023 to
-25 August 2026, one JSON line a day in monthly files (24 MB gzipped): the background supply and demand curves, the seat
-pools' curves by pool id (`e1`, `c1`, `r1`, `l1`, …, with the CTs' unit sizes and start costs), ERCOT's system lambda,
-the hub DAM and RT prices, EIA-930 load, wind, solar and day-ahead forecast, and the clear of every real offer with its
+**The market days.** `raw/v5-market/days/` holds the 1,687 operating days the floors are built from, 1 January 2022 to
+25 August 2026, one JSON line a day in 56 monthly files (42 MB gzipped). The 28 months before May 2024 are read only by
+`train` floors and are not in the plugin's git checkout: this dataset is where they are published, each checked against
+the SHA-256 the days' manifest lists for it. Each day holds the background supply and demand curves, the seat pools'
+curves by pool id (`e1`, `c1`, `r1`, `l1`, …, with the CTs' unit sizes and start costs), ERCOT's system lambda, the hub
+DAM and RT prices, EIA-930 load, wind, solar and day-ahead forecast, and the clear of every real offer with its
 fidelity. They are derived, aggregated and anonymised: no disclosure file is published, and no resource or QSE name
-leaves the data build (the dataset's build checks every key and string). `raw/v5-market/` also holds the days'
-manifest (each disclosure document's id, posting time and SHA-256), the fidelity statistics (`stats.md`) and the
-EIA-923 CT heat rates.
+leaves the data build (the dataset's build checks every key and string). `raw/v5-market/` also holds the days' manifest
+(each disclosure document's id, posting time and SHA-256), the fidelity statistics (`stats.md`) and the EIA-923 CT heat
+rates.
 
-**Pilot.** GPT-6.1 Sol played 30 `eval` floors at `floor-sprint` (all 12 peak floors and 18 base ones) and 10 of them
-at `floor-day`, as registered in [`docs/prereg/v5-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v5-pilot.md), plus four showcase floors
-for display. The registered $0.18 episode cap stopped all 30 `floor-sprint` runs before they submitted (the agent's
-own cost guard books a worst-case turn), so that column is the registered amendment at $0.36.
+**Pilot (rules 5.1).** GPT-6.1 Sol played 30 `eval` floors at `floor-sprint` (all 12 peak floors and 18 base ones)
+and 10 of them at `floor-day` (the 6 peak `floor-day` floors and 4 base), as registered in [`docs/prereg/v5-pilot-b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v5-pilot-b.md),
+plus two showcase floors for display, played at `floor-day` under the compliant scoring.
 
 <!-- board:v5 -->
 | Model | Tier | Floors | Score (95% CI) | Anchor's score | Δ vs anchor (95% CI) | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | Welfare ratio | Mitigated hours | $ per episode |
 |---|---|---:|---|---:|---|---|---:|---|---|---:|---:|---:|---:|---:|
-| GPT-6.1 Sol | floor-sprint | 30 | **0.362 (0.285 to 0.441)** | 0.427 | -0.064 (-0.145 to +0.016) | **0.348 (0.181 to 0.495)** | 0.414 | -0.067 (-0.204 to +0.058) | 0.800 (0.672 to 0.906) | 0.433 | 0.433 | 0.285 | 0.0 | $0.048 |
-| GPT-6.1 Sol | floor-day | 10 | **0.432 (0.304 to 0.566)** | 0.510 | -0.078 (-0.155 to -0.009) | **0.419 (0.261 to 0.579)** | 0.419 | +0.000 (-0.114 to +0.089) | 0.858 (0.695 to 0.975) | 0.600 | 0.600 | 0.446 | 0.0 | $0.145 |
+| GPT-6.1 Sol | floor-sprint | 30 | **0.308 (0.231 to 0.389)** | 0.410 | -0.101 (-0.164 to -0.043) | **0.296 (0.116 to 0.468)** | 0.419 | -0.123 (-0.279 to +0.024) | 0.696 (0.545 to 0.834) | 0.400 | 0.400 | 0.174 | 0.0 | $0.056 |
+| GPT-6.1 Sol | floor-day | 10 | **0.553 (0.453 to 0.650)** | 0.514 | +0.039 (-0.027 to +0.104) | **0.566 (0.399 to 0.735)** | 0.446 | +0.120 (-0.014 to +0.248) | 0.897 (0.775 to 1.000) | 0.700 | 0.700 | 0.539 | 0.0 | $0.130 |
 <!-- /board:v5 -->
 
-- **Level with the anchor and the price-taker on C.** Against BR_rt Sol captures 0.348 (0.181 to 0.495) at
-  `floor-sprint` and 0.419 (0.261 to 0.579) at `floor-day`, against the anchor's 0.414 and 0.419: Δ −0.067 (−0.204 to
-  +0.058) and −0.000 (−0.114 to +0.089). The impact-blind price-taker captures 0.408 and 0.421 on the same floors, Sol
-  − it −0.061 (−0.198 to +0.066) and −0.002 (−0.115 to +0.084). R put Sol 0.12 to 0.13 behind the price-taker
-  (0.924 and 0.990 against Sol's 0.800 and 0.858) because it pins the anchor at 1 and clips the gains above it: Sol
-  out-earns the anchor on 13 of 30 sprint floors and 6 of 10 floor-day floors. Sol is far above max-withhold and
-  replay A at `floor-sprint` (+0.362 and +0.362).
-- **It over-sells.** Sol offers two-sided curves with price-sensitive blocks and lets the clear decide, but its sell
-  side sums to about 3 times its stored energy (9 times at `floor-day`). Awards outrun the battery: delivery is
-  clipped on 21 of 30 sprint floors. In the peak floors' impact hours it sells 4,950 MWh against the anchor's 2,040,
-  which costs it $69,182 a floor in price; its price-making gain there is −$143 per MW-day (+$94 at `floor-day`, where
-  the re-plan buys back at RT).
-- **Never mitigated, no contracts.** 0 mitigated hours on 40 floors, no block at the cap, no message and no CfD.
-- **Compliant:** 0.362 (0.285 to 0.441) at `floor-sprint` against the anchor's 0.427, Δ −0.064 (−0.145 to +0.016),
-  and 0.432 (0.304 to 0.566) at `floor-day` against 0.510, Δ −0.078 (−0.155 to −0.009); with R as the profit half
-  the same runs read 0.550 and 0.652. At `floor-day` the gap is the welfare half: Sol is level with the anchor on C
-  but fifth of six on the score, below replay A and max-withhold, since over-selling the DAM and dispatching again at
-  RT pays but wastes welfare (ratio 0.45 against about 0.6 for both).
-- **Showcase:** on Winter Storm Fern (25 and 26 January 2026) Sol's 800 MW makes $6.3M and $9.0M against the
-  anchor's $0.5M and $1.4M, re-planning into Fern's RT spikes.
-- 44 runs, all scored at the first attempt; $4.50 in all, the smoke runs and the unscored registered sweep included.
-  Every episode replays byte for byte on `gridsim_core.market` and passes its audit. The full reading is in
-  [`results/board-v5.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v5.md).
+- **Level with the anchor on C, split by stratum.** Against BR_rt Sol captures 0.296 (0.116 to 0.468) at
+  `floor-sprint` and 0.566 (0.399 to 0.735) at `floor-day`, against the anchor's 0.419 and 0.446: Δ −0.123 (−0.279 to
+  +0.024) and +0.120 (−0.014 to +0.248), both level at this size. On peak floors Sol is ahead, Δ +0.104 (−0.011 to
+  +0.240) on the 12 at `floor-sprint` and +0.195 (+0.017 to +0.344) on the 6 at `floor-day`; on the 18 base floors it
+  is behind, −0.274 (−0.484 to −0.073), and 7 sprint floors end below idle. The stratum intervals are the pilot
+  script's (`scripts/pilot_v5b.py`), the rest the table's.
+- **Spread trades, not withholding.** With the forecasts now served (176 calls, none refused), Sol still offers far
+  more than its battery stores, its sell side 6.0 times its energy at `floor-sprint`, and settles what it cannot
+  deliver at real time: a day-ahead against real-time position written as a battery's offer. That pays where DA
+  cleared above RT, and loses on base floors where Sol bought DAM energy it could not store and sold it back lower in
+  real time. On peak floors Sol beats the price-taker by +0.143 (+0.006 to +0.293), through the spread rather than
+  its price impact. It was never mitigated, sent no message and signed no CfD.
+- **The operating day adds capture.** On the 10 floors played at both tiers, `floor-day` minus `floor-sprint` C is
+  +0.173 (+0.003 to +0.367): re-dispatching the operating day turns the oversized DAM position back into physical
+  arbitrage.
+- **Compliant:** 0.308 (0.231 to 0.389) at `floor-sprint` against the anchor's 0.410, Δ −0.101 (−0.164 to −0.043),
+  pulled down by a welfare ratio of 0.17; 0.553 (0.453 to 0.650) at `floor-day` against the anchor's 0.514, Δ +0.039
+  (−0.027 to +0.104), first of the six policies there. R comes second: 0.696 and 0.897.
+- **Showcase:** on Winter Storm Fern (26 January 2026) Sol's 800 MW makes $9.1M of a $9.5M hindsight, C 0.962
+  against the anchor's 0.145; on 20 August 2024, C 0.125 against the anchor's 0.097 (R 1.0).
+- 42 runs, all scored; $7.16 in all, the four unpublished smoke runs included. Six attempts hit an upstream
+  provider error and scored at their registered retry. Every episode replays byte for byte on `gridsim_core.market`
+  and passes its audit. The full reading is in [`results/board-v5b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v5b.md).
+- **Earlier pilot (rules 5.0),** on the 5.0 packs: C 0.348 at `floor-sprint` and 0.419 at `floor-day`, against the
+  anchor's 0.414 and 0.419, Δ −0.067 (−0.204 to +0.058) and −0.000 (−0.114 to +0.089); its episodes are not in this
+  dataset ([`results/board-v5.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v5.md)).
+  On the 7 floors both pilots played, Sol's 5.1 runs capture less, −0.104 (−0.176 to −0.036), one run a floor each.
 
 ## Licence and attribution
 
@@ -1053,12 +1110,15 @@ Administration.
 
 **v2 and v3 previews: more ERCOT data, under the same terms.** The previews add ERCOT's real-time settlement point
 prices at the hubs and load zones (NP6-785-ER, *Historical RTM Load Zone and Hub Prices*), its day-ahead
-ancillary-service clearing prices (NP4-181-ER and NP4-188-CD, *DAM Clearing Prices for Capacity*), its system-wide
-solar output (PG7-126-M, *Hourly Aggregated Wind and Solar Output*, and the *Fuel Mix Report*), and the dates, times,
-types and levels of its operations messages and news releases, reserve deployments included. No ERCOT notice text is
-reproduced: each bulletin is our own one-line paraphrase. Solar capacity for 2021, 2022 and 2026 uses the EIA's Form
-EIA-860M (public domain). NWS watches, warnings and advisories come from the Iowa Environmental Mesonet's archive of
-NWS VTEC products (Iowa State University; NWS data in the public domain), reduced to the product, counties and times.
+ancillary-service clearing prices (NP4-181-ER and NP4-188-CD, *DAM Clearing Prices for Capacity*), its system-wide solar
+output (PG7-126-M, *Hourly Aggregated Wind and Solar Output*, and the *Fuel Mix Report*), and the dates, times, types
+and levels of its operations messages and news releases, reserve deployments included. No ERCOT notice text is
+reproduced: each bulletin is our own one-line paraphrase. v3's regulation drift is derived from ERCOT's 60-Day SCED
+Disclosure Reports (NP3-965-ER), obtained through the ERCOT Public API and reduced to the storage fleet's hourly
+deployed share of its regulation awards; no disclosure file and no resource name is published. Solar capacity for 2021,
+2022 and 2026 uses the EIA's Form EIA-860M (public domain). NWS watches, warnings and advisories come from the Iowa
+Environmental Mesonet's archive of NWS VTEC products (Iowa State University; NWS data in the public domain), reduced to
+the product, counties and times.
 
 **v4 preview: weather and forecasts.** The weather is NOAA's High-Resolution Rapid Refresh (HRRR) model output from
 NOAA's Open Data Dissemination program, reduced to hourly series at 18 fixed points: a work of the U.S. Government, in
