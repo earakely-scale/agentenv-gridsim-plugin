@@ -246,3 +246,24 @@ bootstrap over floors (10,000 resamples, seed 0), paired where a difference is s
   is compressed for Sol (V2-D1's rule) if more than a third of its floor-sprint floors sit at R = 1.
 
 ## Deviations
+
+- **None to the registered design, rules or analysis.** Every sweep ran as written at 34b3cc8, every run scored, no run
+  stopped at its cap (no amendment), and `scripts/pilot_v5b.py` ran unchanged; its output is `results/pilot-v5b.json`
+  and the Pilot section of `results/board-v5b.md`, with the Reading after it.
+- **Retries (the registered retry rule, recorded here as it shaped the spend):** 6 attempts failed with
+  `provider_error`, the provider's stream breaking mid-reply with "Gateway cannot authenticate upstream services" on
+  each resend of a turn, in a burst within the sweeps' first eight minutes (03:45 to 03:53 UTC): floor-sprint `mkt-v5-2025-01-02-A1200x4-e2` and
+  `2025-02-06-A1000x1-e1`, floor-day `2025-01-01-A400x4-e1`, `2025-03-24-A1500x2-e2` and `2025-04-20-A1500x2-e1`, showcase
+  `2024-08-20-A800x2-e1`. The sweep re-ran each once; all six scored at their second attempt. The guard books each
+  failed request at a worst-case turn, so the sweeps booked $7.16 against $3.95 of tokens.
+- **Derived, not deviations:** smoke 4 of 4 scored ($0.38; medians $0.0481 floor-sprint, $0.1414 floor-day), so
+  CAP_S = max($0.40, $0.20) = $0.40 and CAP_D = max($2.00, $0.57) = $2.00; B = $22.62; the needs $5.93 (floor-sprint),
+  $10.25 (floor-day) and $2.85 (showcase) fit in B and were the `--cap-usd`. The three pilot sweeps started together at
+  03:45 UTC on the box lanes P3b and P4b share and stopped by 04:05 UTC. Total $7.16 of $25.
+- **Replay:** all 46 runs (pilot, showcase and smoke) wrote Episode JSON v5 on the box with no mismatch and replayed
+  again on macOS: 45 identical byte for byte; in the aug24 showcase episode only the viewer's simplified merit-order
+  stack for hour 23 (`stack[22].background`, a display field) differs by platform, with every tool output, the score
+  and the profit identical. The committed files are the box's.
+- **H2's reading:** the registered measure counts offered sell energy as if a position beyond the battery were an
+  error. Sol's positions beyond its battery are settled at real time, a DA/RT spread trade that pays on most peak
+  floors; the call (not supported) stands as registered, and the Reading gives the mechanism.
