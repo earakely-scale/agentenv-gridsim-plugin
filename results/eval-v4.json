@@ -67,6 +67,14 @@
     "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual clock)"
   },
   "grading": {
+    "scale": {
+      "headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the anchor's C and delta = C - C_anchor with its paired 95% CI",
+      "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+      "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+      "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a board",
+      "decision": "docs/REWARD-SCALES.md"
+    },
+    "hindsight": "P_hind: v3's hindsight MILP over the window",
     "reference": "the rolling MILP (HiGHS) played through the Session at every watch",
     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or commit_schedule scores 0",
     "idle": "no DAM, the battery idle, PV exported at RT",
@@ -76,7 +84,14 @@
       "freeze-6h": "P_roll under the 6 h freeze",
       "blind": "P_blind on persistence"
     },
-    "hindsight_capture": "r_hind: the reward against P_hind, a weight-0 row",
+    "fields": {
+      "capture": "C (replaces r_hind)",
+      "anchor_capture": "the anchor's C",
+      "delta": "C - C_anchor, paired (the verifier's paired_vs_anchor)",
+      "mean": "R",
+      "r_one": "share of runs at R = 1",
+      "refs": "each reference's C and the paired gap"
+    },
     "weight_0": [
       "audit",
       "r_hind",
@@ -97,22 +112,34 @@
       "n": 20,
       "idle": 0.2,
       "anchor": 1.0,
+      "capture": {
+        "naive": 0.280936,
+        "blind": 0.345998,
+        "roll": 0.476959,
+        "roll3": 0.475029
+      },
       "naive": 0.6435,
       "blind": 0.7203,
       "roll": 1.0,
       "roll3": 0.9757,
-      "anchor_capture": 0.477
+      "anchor_capture": 0.476959
     },
     "front-lite": {
       "tier": "front-lite",
       "n": 10,
       "idle": 0.2,
       "anchor": 1.0,
+      "capture": {
+        "naive": 0.065467,
+        "blind": 0.484551,
+        "roll": 0.450172,
+        "roll3": 0.475712
+      },
       "naive": 0.3514,
       "blind": 0.9811,
       "roll": 1.0,
       "roll3": 0.9647,
-      "anchor_capture": 0.4502
+      "anchor_capture": 0.450172
     }
   },
   "models": [
@@ -130,21 +157,97 @@
         0.8357,
         0.9681
       ],
+      "capture": {
+        "mean": 0.457859,
+        "ci95": [
+          0.361594,
+          0.553411
+        ]
+      },
+      "anchor_capture": 0.476959,
+      "delta": {
+        "mean": -0.0191,
+        "ci95": [
+          -0.056555,
+          0.017058
+        ]
+      },
+      "r": {
+        "mean": 0.9088,
+        "ci95": [
+          0.8357,
+          0.9681
+        ]
+      },
+      "r_one": 0.35,
+      "beats_anchor": 0.35,
+      "below_idle": 0,
+      "no_headroom": 0,
+      "refs": {
+        "naive": {
+          "n": 20,
+          "capture": 0.280936,
+          "delta": {
+            "mean": 0.176923,
+            "ci95": [
+              0.122779,
+              0.229523
+            ]
+          }
+        },
+        "blind": {
+          "n": 20,
+          "capture": 0.345998,
+          "delta": {
+            "mean": 0.111861,
+            "ci95": [
+              0.05888,
+              0.167688
+            ]
+          }
+        },
+        "roll": {
+          "n": 20,
+          "capture": 0.476959,
+          "delta": {
+            "mean": -0.0191,
+            "ci95": [
+              -0.056555,
+              0.017058
+            ]
+          }
+        },
+        "roll3": {
+          "n": 20,
+          "capture": 0.475029,
+          "delta": {
+            "mean": -0.017169,
+            "ci95": [
+              -0.059421,
+              0.020444
+            ]
+          }
+        }
+      },
       "by_label": {
-        "front": 0.8834,
-        "calm": 0.968
+        "front": {
+          "capture": 0.390268,
+          "delta": -0.018665,
+          "r": 0.8834
+        },
+        "calm": {
+          "capture": 0.615574,
+          "delta": -0.020113,
+          "r": 0.968
+        }
       },
       "by_source": {
         "desk": null,
         "ercot": 0.9088
       },
-      "hindsight_capture": 0.5663,
-      "paired_vs_anchor": -0.0191,
-      "beats_anchor": 0.35,
-      "r_roll3": 0.9094,
       "forecast_value": null,
       "valid": 1.0,
-      "dam_missed": 0,
+      "dam_missed": 0.0,
       "dam_submits": 4.4,
       "forecast_calls": 25.3,
       "as_usd": 10831.91,
@@ -191,28 +294,104 @@
         0.7327,
         0.9802
       ],
+      "capture": {
+        "mean": 0.403554,
+        "ci95": [
+          0.288181,
+          0.512314
+        ]
+      },
+      "anchor_capture": 0.450172,
+      "delta": {
+        "mean": -0.046619,
+        "ci95": [
+          -0.098428,
+          -0.004943
+        ]
+      },
+      "r": {
+        "mean": 0.8826,
+        "ci95": [
+          0.7327,
+          0.9802
+        ]
+      },
+      "r_one": 0.5,
+      "beats_anchor": 0.4,
+      "below_idle": 0,
+      "no_headroom": 0,
+      "refs": {
+        "naive": {
+          "n": 10,
+          "capture": 0.065467,
+          "delta": {
+            "mean": 0.338086,
+            "ci95": [
+              0.227354,
+              0.46301
+            ]
+          }
+        },
+        "blind": {
+          "n": 10,
+          "capture": 0.484551,
+          "delta": {
+            "mean": -0.080998,
+            "ci95": [
+              -0.166718,
+              -0.015313
+            ]
+          }
+        },
+        "roll": {
+          "n": 10,
+          "capture": 0.450172,
+          "delta": {
+            "mean": -0.046619,
+            "ci95": [
+              -0.098428,
+              -0.004943
+            ]
+          }
+        },
+        "roll3": {
+          "n": 10,
+          "capture": 0.475712,
+          "delta": {
+            "mean": -0.072158,
+            "ci95": [
+              -0.175336,
+              0.001617
+            ]
+          }
+        }
+      },
       "by_label": {
-        "front": 0.8403,
-        "calm": 0.9812
+        "front": {
+          "capture": 0.337765,
+          "delta": -0.061388,
+          "r": 0.8403
+        },
+        "calm": {
+          "capture": 0.557061,
+          "delta": -0.012157,
+          "r": 0.9812
+        }
       },
       "by_source": {
         "desk": null,
         "ercot": 0.8826
       },
-      "hindsight_capture": 0.5228,
-      "paired_vs_anchor": -0.0466,
-      "beats_anchor": 0.4,
-      "r_roll3": 0.8575,
       "forecast_value": null,
       "valid": 1.0,
-      "dam_missed": 0,
+      "dam_missed": 0.0,
       "dam_submits": 2.4,
       "forecast_calls": 17.2,
       "as_usd": 0.0,
       "ftp_mwh_charged": 0.0,
       "ftp_mwh_excused": 0.0,
       "refusals": 29.1,
-      "governor_hours": 0,
+      "governor_hours": 0.0,
       "errors": {
         "no_commit": 0,
         "dam_missed": 0,

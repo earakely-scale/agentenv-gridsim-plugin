@@ -19,6 +19,14 @@ def reward_value(p: float, p_idle: float, p_anchor: float) -> float:
     return round(min(1.0, max(0.0, 0.2 + 0.8 * (p - p_idle) / den)), 6)
 
 
+def stretch_value(p: float, p_idle: float, p_anchor: float, p_hind: float | None) -> float:
+    """The training reward S: R up to the anchor, then rising linearly to 1.2 at hindsight; S = R where the anchor is
+    the hindsight (v1 foresight, v3 oneshot) or no hindsight is stored."""
+    if p_hind is not None and p > p_anchor + DEGENERATE_EPS and p_hind - p_anchor > DEGENERATE_EPS:
+        return round(min(1.2, 1 + 0.2 * (p - p_anchor) / (p_hind - p_anchor)), 6)
+    return reward_value(p, p_idle, p_anchor)
+
+
 def foresight_refs(task: dict) -> dict:
     """The task's stored foresight refs, or {p_idle, p_opt, opt} computed now."""
     f = (task.get("refs") or {}).get("foresight")

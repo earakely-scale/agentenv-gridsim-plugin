@@ -1,17 +1,20 @@
 """The cross-version reward-scale study behind docs/REWARD-SCALES.md: Sol's pilot and board runs and every stored
 reference on the same tasks, scored on R (anchor scale), hindsight capture C, the paired gap, R against hindsight, the
 anchor-to-hindsight gap, the stretch and the knee; then the stored references on the full eval packs. Reads only
-committed Episode JSON, results/pilot-v5.json and the packs' rows. CIs are 95% percentile bootstrap over tasks
-(10,000 resamples, seed 0), paired for differences."""
+committed Episode JSON, results/pilot-v5.json and the packs' rows as the pilots played them (PACKS_AT: rules 3.1, 4.1
+and 5.1 rebuilt the v3 to v5 packs after). CIs are 95% percentile bootstrap over tasks (10,000 resamples, seed 0),
+paired for differences."""
 
 import gzip
 import json
 import statistics
+import subprocess
 from pathlib import Path
 
 import numpy as np
 
 RUNS = Path("results/runs")
+PACKS_AT = "7b9fd7c"
 EPS = 1e-9
 BOOT = 10_000
 COLUMNS = [("v1 A foresight", "foresight", ["v1-board-sol-full", "v1-board-sol-full-amend"], "ercot-dam-v1-eval"),
@@ -60,7 +63,9 @@ def boot(xs: list[float], seed: int = 0) -> tuple[float, float]:
 
 
 def pack(name: str) -> dict:
-    return {r["task_id"]: r for r in (json.loads(x) for x in gzip.open(Path("data") / name / "tasks.jsonl.gz", "rt"))}
+    blob = subprocess.run(["git", "show", f"{PACKS_AT}:data/{name}/tasks.jsonl.gz"], capture_output=True,
+                          check=True).stdout
+    return {r["task_id"]: r for r in (json.loads(x) for x in gzip.decompress(blob).decode().splitlines())}
 
 
 def episodes(sweep: str) -> list[dict]:

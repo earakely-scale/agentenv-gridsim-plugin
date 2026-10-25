@@ -5,6 +5,7 @@ through the hybrid Session."""
 import json
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from hybrid_days import DAY, scripted
 from sweep_fake import play, stored, summary
@@ -93,8 +94,15 @@ def test_the_hybrid_report_writes_eval_v3_and_the_hybrid_board(fake):
     refs = DAY["refs"]["reserves"]
     assert (b["n"], b["as_hog"], b["sponge"]) == (1, round(refs["baselines"]["as_hog"]["reward"], 4),
                                                   round(refs["baselines"]["sponge"]["reward"], 4))
-    assert m["by_as_stratum"] == {s: m["mean"] if s == DAY["tags"].get("as_stratum") else None for s in sweep.STRATA}
-    assert m["beats_sponge"] == float(g["reward"] > refs["baselines"]["sponge"]["reward"])
+    c, a = g["capture_vs_hindsight"], (refs["p_anchor"] - DAY["refs"]["p_idle"]) / (refs["p_hind"]
+                                                                                     - DAY["refs"]["p_idle"])
+    assert (m["capture"]["mean"], m["anchor_capture"], m["delta"]["mean"]) == (
+        pytest.approx(c, abs=1e-6), round(a, 6), pytest.approx(c - a, abs=1e-6))
+    here = {"capture": m["capture"]["mean"], "delta": m["delta"]["mean"], "r": m["mean"]}
+    assert m["by_as_stratum"] == {s: here if s == DAY["tags"].get("as_stratum") else dict.fromkeys(here)
+                                  for s in sweep.STRATA}
+    assert m["beats_sponge"] == float(g["profit_usd"] > refs["baselines"]["sponge"]["profit"] + 1e-6)
+    assert set(m["refs"]) == {*refs["baselines"], "energy_only"}
     assert Path("results/board-v3.md").read_text().startswith("# GridSim v3 hybrid board")
 
 

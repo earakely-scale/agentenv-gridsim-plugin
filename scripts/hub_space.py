@@ -302,6 +302,25 @@ def write_views(views: dict, entries: list[dict], out: Path, thumbs: bool) -> di
     return training or None
 
 
+def capture(p: float | None, p_idle: float | None, p_hind: float | None) -> float | None:
+    """Hindsight capture C = (P - P_idle)/(P_hind - P_idle), the cross-version headline (docs/REWARD-SCALES.md)."""
+    if p is None or p_idle is None or p_hind is None or p_hind - p_idle <= DEGENERATE_EPS:
+        return None
+    return (p - p_idle) / (p_hind - p_idle)
+
+
+def versus(d: dict, what: str) -> str:
+    """A paired gap with its CI, read as above, below or level with ``what`` by whether the CI excludes 0."""
+    lo, hi = d["ci95"]
+    where = "above" if lo > 0 else "below" if hi < 0 else "level with"
+    return f"{where} {what}: {d['mean']:+.3f} ({lo:+.3f} to {hi:+.3f})"
+
+
+def card(version: int) -> dict | None:
+    path = ROOT / "results" / f"eval-v{version}.json"
+    return json.loads(path.read_text()) if path.is_file() else None
+
+
 def overall(c: dict) -> str | None:
     """The run over every held-out day, for the list card and the README."""
     if c.get("trained") is None:
@@ -401,7 +420,8 @@ def hybrid_entry(ep: dict, url: str) -> dict:
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
             "model_label": ep.get("model_label"), "version": "v3", "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"),
-            "r_opt": ep.get("capture_vs_hindsight"), "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"),
+            "r_opt": ep.get("capture_vs_hindsight"), "capture": ep.get("capture_vs_hindsight"),
+            "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"),
             "p_anchor": r.get("p_anchor"), "beats_anchor": ep.get("beats_anchor"), "date": t["date"],
             "point": t["settlement_point"], "region": t["region"], "era": t.get("era"),
             "battery": f"PV {st['pv_mwac']:g} MWac · {st['bess']['p_mw']:g} MW / {st['bess']['e_mwh']:g} MWh",
@@ -481,6 +501,7 @@ def forecast_entry(ep: dict, url: str, task: dict) -> dict:
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
             "model_label": ep.get("model_label"), "version": "v4", "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"), "r_opt": ep.get("r_hind"),
+            "capture": capture(ep.get("profit_usd"), r.get("p_idle"), r.get("p_hind")),
             "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"), "p_anchor": r.get("p_anchor"),
             "p_blind": r.get("p_blind"), "beats_anchor": ep.get("beats_anchor"), "date": t["d1"],
             "days": len(ep["hours"]) // 24, "point": t["settlement_point"], "region": t["region"], "era": t.get("era"),
@@ -529,6 +550,10 @@ def forecast_blurb(ep: dict, e: dict) -> str:
     sold = [sum(max(0.0, x["x_da_mw"]) for x in ep["hours"][d * 24:(d + 1) * 24]) for d in range(days)]
     top = max(range(days), key=lambda d: sold[d])
     vs = (f"the rolling anchor's ${r['p_anchor']:,.0f}, " if real(e) and r.get("p_anchor") is not None else "")
+    c, a = capture(ep["profit_usd"], r.get("p_idle"), r.get("p_hind")), capture(r.get("p_anchor"), r.get("p_idle"),
+                                                                                 r.get("p_hind"))
+    score = (f"C {c:.2f}" + (f" against the anchor's {a:.2f}" if real(e) and a is not None else "")
+             + f"; R {ep['reward']:.2f}") if c is not None else f"R {ep['reward']:.2f}"
     book = (f" Its book: ${ep['cash']['as_da']:,.0f} of reserves; its largest day-ahead discharge, "
             f"{sold[top]:,.0f} MWh, on {t['dates'][top]}." if real(e) else "")
     return (f"{region}, {days} operating days from {t['d1']}: {who} bids each day's book at the 10 am DAM gate "
@@ -536,21 +561,23 @@ def forecast_blurb(ep: dict, e: dict) -> str:
             f"runs and bulletins arrive. The price guide moves ${e['drift']:,.0f}/MWh between runs on an average hour; "
             f"real time reaches ${t['rt'][h]:,.0f}/MWh on day {h // 24 + 1}. It makes ${ep['profit_usd']:,.0f} "
             f"against {vs}the blind re-planner's ${r.get('p_blind', 0):,.0f} and hindsight's "
-            f"${r.get('p_hind', 0):,.0f} (R {ep['reward']:.2f}).{book}" + synth)
+            f"${r.get('p_hind', 0):,.0f} ({score}).{book}" + synth)
 
 
 def forecast_pilot(e: dict) -> str:
-    """The v4 pilot's reading (results/pilot-v4.json): Sol's front-tier R against the blind re-planner and the
-    anchor; a showcase window is display-only."""
-    path = ROOT / "results" / "pilot-v4.json"
-    if not path.is_file():
+    """The v4 pilot's reading (results/eval-v4.json): Sol's front-tier hindsight capture against the rolling anchor's
+    and the blind re-planner's, R second; a showcase window is display-only."""
+    c = card(4)
+    m = next((x for x in (c or {}).get("models") or [] if x["tier"] == "front"), None)
+    if m is None:
         return ""
-    m = json.loads(path.read_text())["main"]
-    lo, hi = m["paired_ci"]
+    lo, hi = m["capture"]["ci95"]
     return ((" This window is display-only, outside the pilot." if e["showcase"] else "")
-            + f" In the pre-registered pilot on {m['n']} eval windows Sol's front R is {m['reward']:.3f} "
-            f"({m['reward_ci'][0]:.3f} to {m['reward_ci'][1]:.3f}), {m['reward_minus_blind']:+.3f} over the blind "
-            f"re-planner, and level with the rolling anchor: paired {m['paired']:+.3f} ({lo:+.3f} to {hi:+.3f}).")
+            + f" In the pre-registered pilot on {m['tasks']} eval windows Sol's front capture is "
+            f"{m['capture']['mean']:.3f} ({lo:.3f} to {hi:.3f}) against the rolling anchor's "
+            f"{m['anchor_capture']:.3f}, "
+            f"{versus(m['delta'], 'the anchor')}, and {versus(m['refs']['blind']['delta'], 'the blind re-planner')}; "
+            f"R {m['mean']:.3f} on the anchor scale.")
 
 
 def feature_hybrid(entries: list[dict], out: Path) -> dict | None:
@@ -594,12 +621,15 @@ def hybrid_blurb(ep: dict) -> str:
             "the reserved charge drains to the line." if held else "." if deps else "")
     h = max(range(24), key=lambda i: t["rt"][i])
     c = ep["cash"]
+    cap, a = (capture(p, r.get("p_idle"), r.get("p_hind")) for p in (ep["profit_usd"], r.get("p_anchor")))
+    score = (f" (C {cap:.2f}" + (f", the rolling anchor's {a:.2f}" if a is not None else "") + ")"
+             if cap is not None else "")
     return (f"{region}, a {t['site']['pv_mwac']:g} MWac solar farm and a {t['site']['bess']['p_mw']:g} MW battery "
             f"behind one meter: {who} sells a day-ahead book of energy and reserves at 2 pm the day before, then "
             f"re-plans at {len(ep['watches']) - 1} watches.{dep} Real-time prices reach ${t['rt'][h]:,.0f}/MWh at "
             f"{hour(h)}. "
             f"It makes ${ep['profit_usd']:,.0f} (reserves ${c['as_da'] + c['as_rt']:,.0f}), against hindsight's "
-            f"${r.get('p_hind', 0):,.0f}.")
+            f"${r.get('p_hind', 0):,.0f}{score}.")
 
 
 def live_entry(ep: dict, url: str) -> dict:
@@ -608,7 +638,8 @@ def live_entry(ep: dict, url: str) -> dict:
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
             "model_label": ep.get("model_label"), "version": "v2", "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"),
-            "r_opt": ep.get("capture_vs_hindsight"), "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"),
+            "r_opt": ep.get("capture_vs_hindsight"), "capture": ep.get("capture_vs_hindsight"),
+            "profit": ep.get("profit_usd"), "p_opt": r.get("p_hind"),
             "p_anchor": r.get("p_roll"), "p_naive": r.get("p_naive"), "naive_reward": ep.get("naive_reward"),
             "beats_anchor": ep.get("beats_anchor"), "date": t["date"], "point": t["settlement_point"],
             "region": t["region"], "archetype": b.get("archetype"),
@@ -657,8 +688,10 @@ def live_blurb(ep: dict) -> str:
     rt = max(range(96), key=lambda i: t["rt"][i])
     who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
     peak = f"real-time prices reach ${t['rt'][rt]:,.0f}/MWh at {hm(15 * rt)}"
+    cap, a = (capture(p, r.get("p_idle"), r.get("p_hind")) for p in (ep["profit_usd"], r.get("p_roll")))
     tail = (f"It makes ${ep['profit_usd']:,.0f}, against the rolling anchor's ${r.get('p_roll', 0):,.0f} and "
-            f"hindsight's ${r.get('p_hind', 0):,.0f}.")
+            f"hindsight's ${r.get('p_hind', 0):,.0f}"
+            + (f": C {cap:.2f} against the anchor's {a:.2f}." if cap is not None and a is not None else "."))
     top = max(ep["notices"], key=lambda n: SEVERITY.get(n.get("level"), 0), default=None)
     if not top or top.get("watch") is None:
         return f"{region}, live: {peak}. {tail}"
@@ -675,15 +708,19 @@ def live_blurb(ep: dict) -> str:
 def entry(ep: dict, url: str, task: dict | None) -> dict:
     t, b = ep["task"], ep["task"]["battery"]
     blind = ((task or {}).get("refs") or {}).get("blind") if ep["tier"] == "blind" else None
+    r = ep.get("references") or {}
+    hind = (r.get("p_idle"), r.get("p_opt"))
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
             "version": "v1", "model_label": ep.get("model_label"), "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "checkpoint_step": ep.get("checkpoint_step"),
             "reward": ep.get("reward"), "r_opt": ep.get("r_opt"), "profit": ep.get("profit_usd"),
+            "capture": capture(ep.get("profit_usd"), *hind) if ep.get("profit_usd") is not None else None,
             "p_opt": (ep.get("references") or {}).get("p_opt"), "date": t["date"], "point": t["settlement_point"],
             "region": t["region"], "archetype": b.get("archetype"),
             "battery": f"{b['p_dis_mw']:g} MW / {b['energy_mwh']:g} MWh",
             "truncated": ep.get("truncated_at") is not None, "interest": round(interest(t["prices"]), 3),
             **({"p_anchor": blind["p_anchor"], "anchor_r_opt": blind["r_opt_anchor"],
+                "anchor_capture": capture(blind["p_anchor"], *hind),
                 "beats_anchor": (ep.get("profit_usd") or 0) > blind["p_anchor"] + DEGENERATE_EPS} if blind else {})}
 
 
@@ -713,8 +750,10 @@ def feature(entries: list[dict], wanted: str | None, out: Path) -> list[dict]:
     """The hero day, then the blind-tier run that beats its anchor by the most hindsight capture and the one that
     trails it furthest, each with its blurb."""
     hero = pick_hero(entries, wanted)
-    blind = [e for e in entries if real(e) and e["tier"] == "blind" and "anchor_r_opt" in e]
-    beats = max((e for e in blind if e["beats_anchor"]), key=lambda e: e["r_opt"] - e["anchor_r_opt"], default=None)
+    blind = [e for e in entries if real(e) and e["tier"] == "blind" and e.get("anchor_capture") is not None
+             and e["capture"] is not None]
+    beats = max((e for e in blind if e["beats_anchor"]), key=lambda e: e["capture"] - e["anchor_capture"],
+                default=None)
     trails = min(blind, key=lambda e: e["reward"], default=None)
     picked = []
     for e, kind in ((hero, "hero"), (beats, "beats"), (trails, "trails")):
@@ -750,13 +789,14 @@ def blurb(ep: dict, e: dict, kind: str) -> str:
     p, place = ep["task"]["prices"], REGIONS.get(e["region"], e["region"])
     top = f"${p[peak(ep)]:.0f}/MWh at {hour(peak(ep))}"
     if kind == "beats":
-        return (f"Blind: with only the days before to go on, the agent captured {e['r_opt']:.0%} of what hindsight "
-                f"could make, where the better of the two forecasters captured {e['anchor_r_opt']:.0%}. The day topped "
-                f"out at {top}.")
+        return (f"Blind: with only the days before to go on, the agent captured {e['capture']:.0%} of what hindsight "
+                f"could make, where the better of the two forecasters captured {e['anchor_capture']:.0%}. The day "
+                f"topped out at {top}.")
     if kind == "trails":
         made = f"made ${e['profit']:,.0f}" if e["profit"] >= 0 else f"lost ${-e['profit']:,.0f}"
         return (f"Blind: the agent's plan {made} on a day the better forecaster's plan made ${e['p_anchor']:,.0f}; "
-                f"reward {e['reward']:.2f} against its 1.0. The day topped out at {top}.")
+                f"it captured {e['capture']:.0%} of hindsight against the forecaster's {e['anchor_capture']:.0%} (R "
+                f"{e['reward']:.2f} against its 1.0). The day topped out at {top}.")
     neg = sum(1 for x in p if x < 0)
     if neg:
         return (f"{place} on a spring day: {neg} hours of negative prices around midday, when the battery is paid to "
@@ -844,11 +884,16 @@ def seats_view(task: dict) -> dict:
 
 def market_entry(ep: dict, url: str, task: dict) -> dict:
     t, a, r = ep["task"], ep["task"]["seat_A"], ep.get("references") or {}
+    hind = ((task.get("refs") or {}).get(ep["tier"]) or {}).get("p_br_rt")
+    c = capture(ep["profit_usd"], r.get("p_idle"), hind) if ep.get("profit_usd") is not None else None
+    w = (ep.get("rows") or {}).get("welfare_ratio")
     return {"id": ep["episode_id"], "url": url, "task_id": ep["task_id"], "model": ep.get("model") or "unknown",
             "model_label": ep.get("model_label") or MARKET_NAMES.get(ep.get("model")), "version": "v5",
             "tier": ep["tier"], "bundle": ep.get("bundle"),
             "path": ep.get("path"), "trained": ep.get("trained"), "reward": ep.get("reward"),
-            "compliant": ep.get("compliant_reward"), "profit": ep.get("profit_usd"), "p_anchor": r.get("p_anchor"),
+            "compliant": ep.get("compliant_reward"), "capture": c, "score": None if c is None or w is None else round(
+                0.5 * min(1.0, max(0.0, c)) + 0.5 * min(1.0, max(0.0, w)), 6),
+            "profit": ep.get("profit_usd"), "p_anchor": r.get("p_anchor"),
             "p_br": r.get("p_br"), "date": t["date"], "point": t["point"], "region": t.get("region"),
             "battery": f"{a['p_mw']:,.0f} MW / {a['e_mwh']:,.0f} MWh", "watches": len(ep["watches"]),
             "mitigated": len([m for m in ep["clear"]["mitigated"] if m["seat"] == "A"]),
@@ -881,17 +926,24 @@ def feature_market(entries: list[dict], out: Path) -> dict | None:
 
 
 def market_pilot() -> str:
-    """The v5 pilot's reading (results/pilot-v5.json): Sol against the price-taker, its offers, its conduct."""
-    path = ROOT / "results" / "pilot-v5.json"
-    if not path.is_file():
+    """The v5 pilot's reading (results/eval-v5.json and pilot-v5.json): Sol's compliant score on C against the
+    anchor's, its C against the price-taker's, R second; its offers, its conduct."""
+    path, c = ROOT / "results" / "pilot-v5.json", card(5)
+    if not path.is_file() or c is None:
         return ""
     cols = json.loads(path.read_text())["columns"]
     sprint = cols["floor-sprint"]["amended"]["floor-sprint amended: all"]
     day = cols["floor-day"]["primary"]["floor-day primary: all"]
+    m = {x["tier"]: x for x in c["models"]}
     mitigated = day["floors_mitigated"] + sprint["floors_mitigated"]
-    return (f" In the pre-registered pilot ({sprint['n']} floor-sprint and {day['n']} floor-day eval floors) Sol "
-            f"trails the impact-blind price-taker on R by {-sprint['reward_minus_price_taker']:.2f} (floor-sprint, R "
-            f"{sprint['reward']:.2f}) and {-day['reward_minus_price_taker']:.2f} (floor-day, R {day['reward']:.2f}). "
+
+    def tier(x: dict) -> str:
+        return (f"at {x['tier']} {x['mean']:.2f} against the anchor's {x['anchor_headline']:.2f} (C "
+                f"{x['capture']['mean']:.2f}, {versus(x['refs']['price_taker']['delta'], 'the price-taker')}; R "
+                f"{x['reward']['mean']:.2f})")
+    return (f" In the pre-registered pilot ({sprint['n']} floor-sprint and {day['n']} floor-day eval floors) Sol's "
+            f"compliant score, 0.5 clip(C) + 0.5 clip(welfare ratio) with C against hindsight BR_rt, is "
+            + " and ".join(tier(m[k]) for k in ("floor-sprint", "floor-day") if k in m) + ". "
             f"It offers more than its battery stores, so delivery is clipped off its awards "
             f"({day['clipped_hours']:.0f} hours a floor-day floor); it was "
             + (f"mitigated on {mitigated} of" if mitigated else "never mitigated on its")
@@ -902,6 +954,13 @@ def market_pilot() -> str:
 
 def market_blurb(ep: dict) -> str:
     t, c, a = ep["task"], ep["clear"], ep["task"]["seat_A"]
+    refs = (market_tasks().get(ep["task_id"]) or {}).get("refs") or {}
+    cap = capture(ep["profit_usd"], refs.get("p_idle"), (refs.get(ep["tier"]) or {}).get("p_br_rt"))
+    w = (ep.get("rows") or {}).get("welfare_ratio")
+    score = (f"C {cap:.2f} of hindsight"
+             + (f", compliant score {0.5 * min(1.0, max(0.0, cap)) + 0.5 * min(1.0, max(0.0, w)):.2f}"
+                if w is not None else "") + f" (R {ep['reward']:.2f})" if cap is not None
+             else f"R {ep['reward']:.2f}")
     who = ep.get("model_label") or LABELS.get(ep.get("model"), (ep.get("model") or "the agent").split("/")[-1])
     h = max(range(24), key=lambda i: c["hub_usd"][i])
     sell = sum(max(0.0, x) for x in ep["awards"]["A"])
@@ -912,8 +971,8 @@ def market_blurb(ep: dict) -> str:
     return (f"ERCOT's day-ahead market on {t['date']}, re-cleared from the real 60-day disclosure: {who} offers "
             f"seat A, {article} {mw} MW battery portfolio, against four anonymised real portfolios at 9 am the day "
             f"before{deal}. The hub clears ${c['hub_usd'][h]:,.0f}/MWh at {hour(h)} (ERCOT's real "
-            f"${t['hub_dam_real'][h]:,.0f}); seat A sells {sell:,.0f} MWh. It makes ${ep['profit_usd']:,.0f}, R "
-            f"{ep['reward']:.2f}, compliant {ep['compliant_reward']:.2f}.")
+            f"${t['hub_dam_real'][h]:,.0f}); seat A sells {sell:,.0f} MWh. It makes ${ep['profit_usd']:,.0f}: "
+            f"{score}.")
 
 
 def readme(entries: list[dict], hero: dict | None, training: dict | None = None) -> str:
@@ -931,7 +990,9 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
         + ")" if trained else "") + (
         f" and {refs} reference episodes (the DP optimum and the baselines)" if refs else "")
     caption = (f"{hero['date']} at {hero['point']} ({hero['archetype']}, {hero['battery']}): {hero['blurb']} "
-               f"{hero['model_label'] or hero['model']} scored {hero['reward']:.3f}." if hero else "")
+               f"{hero['model_label'] or hero['model']} captured "
+               + (f"{hero['capture']:.1%} of hindsight (R {hero['reward']:.3f})." if hero.get("capture") is not None
+                  else f"R {hero['reward']:.3f}.") if hero else "")
     fields = {"count": f"{len(entries):,}", "models": models, "hero_still": "hero.jpg",
               "hero_url": hero["url"] if hero else "", "hero_caption": caption, "repo": REPO, "dataset": DATASET,
               "app": APP,
@@ -1000,8 +1061,9 @@ arrive, reading forecasts as they were issued: the desk's load, wind and solar m
 ERCOT's own forecasts where the window has them. The replay draws each forecast as issued, older runs fading, the
 realized line only up to now, and a scrubber pins the card to what was on the desk, and what the agent read, at any
 watch. The scene follows the observed weather over the three days: the cold front's shelf cloud, the wind shift, frost
-and snow on the panels. R puts idle at 0.2 and the rolling MILP anchor on the guide's P50 at 1.0; the blind re-planner
-and hindsight are reported. Every v4 episode was replayed call by call through `gridsim_core.forecast` when the Space
+and snow on the panels. Hindsight capture C heads the scores (idle 0, the plan that knows the realised window 1),
+beside the rolling MILP anchor's own C; R, idle 0.2 and the anchor on the guide's P50 1.0, comes second, and the blind
+re-planner is a reference. Every v4 episode was replayed call by call through `gridsim_core.forecast` when the Space
 was built.{synth}{hero}
 """
 
@@ -1012,9 +1074,9 @@ LIVE_README = """
 {n} live battery-days ({models}), schema `gridsim.episode/v2`. The agent commits a day-ahead position at 2 pm the day
 before, then re-plans its 15-minute schedule at watches through the day, never inside the freeze line an hour ahead,
 while real-time prices settle and ERCOT and NWS bulletins arrive (paraphrased summaries only). Settlement is
-two-settlement: the position at day-ahead prices, every deviation at real-time prices. R puts idle at 0.2 and the
-rolling anchor at 1.0; the anchor is provisional and sits near naive on many days, so each replay also shows hindsight
-capture. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{board}{hero}
+two-settlement: the position at day-ahead prices, every deviation at real-time prices. Hindsight capture C heads the
+scores (idle 0, the clairvoyant plan 1), beside the rolling anchor's own C; R, idle 0.2 and the anchor 1.0, comes
+second. Every v2 episode was replayed call by call through `gridsim_core.live` when the Space was built.{board}{hero}
 """
 
 
@@ -1027,8 +1089,9 @@ closes and is re-cleared on one node from every other real offer and bid of that
 (a battery, gas peakers, wind and solar, a retailer) carved out, anonymised and offering what they really offered. A
 market monitor mitigates conduct that moves the price. Awards post at 1:30 pm; on the operating day the battery
 delivers them and settles deviations at real-time prices. The replay starts in the desk's trading room (the market
-clock, the merit order of the hour on the video wall) and cuts to the assets in the field. R puts idle at 0.2 and the
-disclosure anchor at 1.0; the compliant score adds welfare; hindsight's best response, regret, ε-Nash and the CfD row
+clock, the merit order of the hour on the video wall) and cuts to the assets in the field. The public score is
+compliant: half its hindsight capture C (against the best response settled at real-time prices), half its welfare
+ratio, beside the disclosure anchor's; R, idle 0.2 and the anchor 1.0, comes second; regret, ε-Nash and the CfD row
 are reported, not scored. Private costs, the copper plate and the rivals' scripts are modelled. Every v5 episode was
 replayed call by call through `gridsim_core.market` when the Space was built.{hero}
 """
@@ -1042,25 +1105,26 @@ the day before the agent sells a day-ahead book of battery MW and five ancillary
 Non-Spin), each backed by charge for its duration, then re-plans the battery at watches through the day while
 real-time prices settle, regulation drifts the charge and ERCOT deploys what it bought. The scene adds the tracker rows
 (following the real sun, stowed when the price goes negative), the inverter skids, the collector feeders and the meter;
-the reserve bands sit on the battery's charge gauge, told apart by letter and hatch. R puts the solar-only plant at 0.2
-and the rolling MILP anchor at 1.0; hindsight capture, AS share, curtailment and failures to provide are reported, not
-scored. PV is ERCOT's system-wide availability (a proxy) and regulation drift a seeded draw. Every v3 episode was
-replayed call by call through `gridsim_core.hybrid` when the Space was built.{hero}
+the reserve bands sit on the battery's charge gauge, told apart by letter and hatch. Hindsight capture C heads the
+scores (the solar-only plant 0, hindsight 1), beside the rolling MILP anchor's own C; R, the plant 0.2 and the anchor
+1.0, comes second; AS share, curtailment and failures to provide are reported, not scored. PV is ERCOT's system-wide
+availability (a proxy) and regulation drift a seeded draw. Every v3 episode was replayed call by call through
+`gridsim_core.hybrid` when the Space was built.{hero}
 """
 
 
 def live_board() -> str:
-    """The v2 pilot's headline from results/eval-v2.json: hindsight capture first, R second."""
-    card = ROOT / "results" / "eval-v2.json"
-    if not card.exists():
+    """The v2 pilot's headline from results/eval-v2.json: hindsight capture beside the anchor's and the paired gap, R
+    second."""
+    c = card(2)
+    if c is None:
         return ""
-    c = json.loads(card.read_text())
     b = c["baselines"].get("foresight") or {}
-    rows = [f"{LABELS.get(m['model'], m['model'])} captures {m['hindsight_capture']:.0%} of hindsight over "
-            f"{m['tasks']} days (R {m['mean']:.3f})" for m in c["models"]]
+    rows = [f"{LABELS.get(m['model'], m['model'])} captures {m['capture']['mean']:.1%} of hindsight over "
+            f"{m['tasks']} days, {versus(m['delta'], 'the rolling anchor')} (R {m['mean']:.3f})" for m in c["models"]]
     return (f"\n\nThe pilot, pre-registered: {'; '.join(rows)}; naive captures "
-            f"{b.get('naive_capture', 0):.0%} (R {b.get('naive', 0):.3f}) and the rolling anchor "
-            f"{b.get('anchor_capture', 0):.0%} (R 1.000) on the same days.")
+            f"{b.get('naive_capture', 0):.1%} (R {b.get('naive', 0):.3f}) and the rolling anchor "
+            f"{b.get('anchor_capture', 0):.1%} (R 1.000) on the same days.")
 
 
 if __name__ == "__main__":

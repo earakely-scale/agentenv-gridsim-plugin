@@ -1,8 +1,8 @@
 # GridSimEnv v2 "The Live Grid" build contract
 
 The v2 interface every lane builds against: `gridsim_core.live` (core, lane L), the `gridsim-live` gateway env (lane E, a
-port of PortSim's `portsim-live`), the notice archive (lane N) and path B' training. Design source: Linear FD-4321 (v2
-plan) and FD-4319 (shared rules); the v1 contract (`docs/CONTRACT.md`) still holds for everything not restated here.
+port of PortSim's `portsim-live`), the notice archive (lane N) and path B' training. Design source: the v2
+plan and the shared rules; the v1 contract (`docs/CONTRACT.md`) still holds for everything not restated here.
 Nothing in v1 changes: v2 is new modules only (`gridsim_core.live`, `gridsim_core.live_prompt`,
 `scripts/build_live_pack.py`, `data/gridsim-live-*`, `data/fixtures-live/`).
 
@@ -12,12 +12,12 @@ are byte-identical by construction.
 
 ## Decisions (all provisional until Edgar confirms)
 
-FD-4321's recommendations, taken as written:
+The v2 plan's recommendations, taken as written:
 
 | # | Decision | Taken (provisional) |
 |---|---|---|
 | V2-D1 | Anchor family | The notice-blind decayed-basis rolling DP (below). Revisit after the pilot sweep only if it saturates or sits near naive |
-| V2-D2 | Training stretch reward | Training only: above the anchor r = 1 + 0.2·(P − P_roll)/(P_hind − P_roll), capped at 1.2. Never on the card (`grade()["stretch_reward"]`) |
+| V2-D2 | Training stretch reward | Training only: above the anchor r = 1 + 0.2·(P − P_roll)/(P_hind − P_roll), capped at 1.2. Never on the card (`grade()["stretch_reward"]`). **Adopted for every version (Edgar 2026-10-25)** as S, the training reward of the cross-version scale (V2-D10) |
 | V2-D3 | Hard DA tier | `blind`: the DA position is chosen from D-1 and D-7..D-1 DAM only; D's DA prices appear at the 00:00 watch. No bid10 |
 | V2-D4 | Notice text on the Hub | Not decided here; core carries the text it is given (trimmed to 600 chars). Packs ship notices only after Edgar decides |
 | V2-D5 | Eligibility vs naive's score | Measure naive's mean R; if it is above 0.7, raise the "anchor beats naive" threshold from 5% toward 15% of headroom (recorded in `data/live-stats.md`), never move the floor |
@@ -25,12 +25,13 @@ FD-4321's recommendations, taken as written:
 | V2-D7 | Asset derates | The excuse path is built and tested on CI fixtures; no derate bulletins ship |
 | V2-D8 | Turn budget | 52 turns for every task (`live.MAX_TURNS`) |
 | V2-D9 | SCED ticker | Not in core; optional and display-only |
+| V2-D10 | Board headline | **Adopted (Edgar 2026-10-25).** Hindsight capture heads the board (Edgar's own call after the pilot), now one rule for every version ([CONTRACT.md](CONTRACT.md#scoring-across-versions-adopted)): C = `capture_vs_hindsight` beside the anchor's C and Δ = C − C_anchor with its paired CI, R second (with its R = 1 and beats-anchor shares), naive compared as (P − P_naive)/(P_hind − P_idle) |
 
-Lane decisions where FD-4321 is silent or self-contradictory (also provisional):
+Lane decisions where the v2 plan is silent or self-contradictory (also provisional):
 
 | # | Decision |
 |---|---|
-| L-D1 | **DA MWh carry v1's buy-side losses.** A DA buy of d units books d·unit·4/η MWh, exactly what a physical schedule that follows the position draws, so following the DA position has zero RT deviation and P_naive equals v1's P_opt on the same hourly battery. (FD-4321's formula writes d_h·P/4 for both signs.) |
+| L-D1 | **DA MWh carry v1's buy-side losses.** A DA buy of d units books d·unit·4/η MWh, exactly what a physical schedule that follows the position draws, so following the DA position has zero RT deviation and P_naive equals v1's P_opt on the same hourly battery. (The plan's formula writes d_h·P/4 for both signs.) |
 | L-D2 | **The physical schedule follows the DA position until the first accepted `commit_schedule`.** An accepted `commit_da` sets the physical schedule to the position expanded ×4 if no schedule was committed yet (a COP that follows the DA award). With no commit at all the battery idles. |
 | L-D3 | **End target is a commit rule.** `commit_da` and `commit_schedule` refuse a schedule ending below `s_end_min` ("end_target"). The shortfall penalty still applies to idle and to derate-clipped execution. P_hind and P_roll use the same hard end target. |
 | L-D4 | **Watch merging** keeps the reveal rule: notice watches that would share a freeze line (same `ceil_to_hour(reveal_at)`) merge into one watch at the latest of their reveal times; a class whose freeze line equals a regular watch's is absorbed by that watch; a class whose freeze line is at or after D 24:00 makes no watch. At most 10 watches; over the cap the classes holding the most urgent notices keep their watches (EEA, Emergency and derates; conservation appeals; Watches and EEA exits; Advisories; OCNs; NWS warnings, watches, advisories; cancellations last; then the earliest), and the rest merge into the next watch at or after their reveal time. A notice with no watch at or after its reveal time is `after_day` and never delivered. |
@@ -216,7 +217,7 @@ false`, `feasible: false`) use one.
 - **Reward**: no accepted commit (`commit_da` or `commit_schedule`) → 0; otherwise `R = clip(0.2 + 0.8·(P − P_idle)/(P_roll
   − P_idle), 0, 1)` rounded to 6 decimals (v1's `reward_value`). Weight-0 rows: `capture_vs_hindsight = (P −
   P_idle)/(P_hind − P_idle)`, `beats_anchor`, `regret_usd = P_hind − P`, `regret_usd_per_mw`, `naive_reward`,
-  `excused_usd`. Training only: `stretch_reward` (V2-D2).
+  `excused_usd`. Training only: `stretch_reward` (V2-D2). Boards: the cross-version scale (V2-D10).
 - `grade()` → `{"submitted", "reward", "profit_usd", "pnl", "p_idle", "p_naive", "p_roll", "p_hind", "capture_vs_hindsight",
   "beats_anchor", "regret_usd", "regret_usd_per_mw", "naive_reward", "stretch_reward", "excused_usd", "feasible",
   "end_shortfall_units", "commits"}`. `feasible` is false when any interval was clipped or the day ended short.
@@ -260,7 +261,7 @@ re-attaches notices and recomputes refs, eligibility and tags without re-parsing
 every third 2024 date plus every 2024 ERCOT notice day (all out of train); eval targets 150 notice-day and 150 quiet
 tasks, train oversamples notice days up to 40%; the manifests record the actual counts.
 
-**Eligibility** (FD-4321, measured and tuned in `data/live-stats.md`): RT–DA divergence Σ|RT_t − DA_h(t)|·0.25 ≥
+**Eligibility** (the v2 plan, measured and tuned in `data/live-stats.md`): RT–DA divergence Σ|RT_t − DA_h(t)|·0.25 ≥
 $40/MW; P_hind − P_idle ≥ $10/MW; P_roll − P_naive ≥ $5/MW and ≥ a share of (P_hind − P_idle) that V2-D5 raises from
 5% in 2.5-point steps until naive's mean R on the eval pool is ≤ 0.7 (cap 15%). Because the anchor beats naive by that
 margin on only ~2–4% of battery-days, each point-day is drawn with several batteries (train 8, eval 12, test and rtcb

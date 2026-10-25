@@ -3,8 +3,14 @@
 Which number heads each version's board, which sits beside it, and which one trains. The evidence is GPT-6.1 Sol's
 committed runs (the v1 board's 1,550 and the v2 to v5 pilots' 150) with every reference stored on the same tasks, and
 the references alone on the full eval packs. `scripts/reward_scales.py` regenerates every table below from committed
-files (Episode JSON, `results/pilot-v5.json`, the packs' rows); it spends nothing. CIs are 95% percentile bootstrap
-over tasks (10,000 resamples), paired for differences.
+files (Episode JSON, `results/pilot-v5.json`, the packs' rows as the pilots played them, at 7b9fd7c; rules 3.1, 4.1
+and 5.1 rebuilt the v3 to v5 packs after); it spends nothing. CIs are 95% percentile bootstrap over tasks (10,000
+resamples), paired for differences.
+
+**Adopted** by Edgar on 2026-10-25, as the rule below, and applied wherever results are reported: `agent-env gridsim
+sweep report` (every `results/eval-v*.json` card and board), the dataset card and the Space; training reads S
+(`grade.stretch_value`, `grade()["stretch_reward"]` in the v2 to v5 Sessions, v5's `reward_fn`). The contract text is
+[CONTRACT.md, Scoring across versions](CONTRACT.md#scoring-across-versions-adopted).
 
 ## The rule
 
@@ -287,7 +293,8 @@ floor-day 0.652 to 0.432), and floor-sprint's separation from the price-taker, â
 - v4: r_hind (0.566) becomes C (0.458); Î” is the contract's `paired_vs_anchor`.
 - v5: C against BR_rt (floor-sprint 0.348 and floor-day 0.419, the anchor 0.414 and 0.419); the compliant score on C;
   `capture_vs_br` stays as the DA-only row.
-- `reward_fn` in every version: S; in v5 with BR_rt (BR_A can sit below the anchor, which leaves S undefined).
+- `reward_fn` in every version: S; in v5 with BR_rt (BR_A can sit below the anchor, which leaves S undefined). v1's
+  `trl.reward_fn` stays as it is, byte for byte: it trains at the foresight tier, where S = R.
 
 ## Formulas
 

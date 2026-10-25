@@ -223,6 +223,20 @@ def test_reward_fn_reads_the_tool_call():
     assert r[0] == pytest.approx(1.0, abs=1e-6) and r[1] == 0.0
 
 
+def test_reward_fn_trains_on_s_against_br_rt_above_the_anchor():
+    task = TASKS[2]
+    fs = task["refs"]["floor-sprint"]
+    hours = [{"he": h + 1, "sell": [[x, -250]] if x > 0 else [], "buy": [[-x, 5000]] if x < 0 else []}
+             for h, x in enumerate(fs["br"]["q_mw"]) if x]
+    call = json.dumps({"name": "submit_offer", "arguments": {"offer": {"hours": hours}}})
+    g = market.grade_offer(task, {"hours": hours})
+    s = 1 + 0.2 * (g["profit_usd"] - fs["p_anchor"]) / (fs["p_br_rt"] - fs["p_anchor"])
+    assert g["reward"] == 1.0 and g["profit_usd"] > fs["p_anchor"] and g["stretch_reward"] == pytest.approx(s, abs=1e-6)
+    assert market.reward_fn(None, [f"<tool_call>{call}</tool_call>"], task=[task]) == [g["stretch_reward"]]
+    assert g["capture_vs_hindsight"] == pytest.approx(
+        (g["profit_usd"] - task["refs"]["p_idle"]) / (fs["p_br_rt"] - task["refs"]["p_idle"]), abs=1e-6)
+
+
 def test_battery_dp_is_the_price_taker_optimum_on_flat_prices():
     task = TASKS[0]
     b = battery_of(task["seats"]["A"])

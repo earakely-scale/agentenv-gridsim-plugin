@@ -52,14 +52,14 @@ export async function picker(app, q) {
   const render = () => {
     const t = state.text.toLowerCase();
     let rows = runs.filter((r) => (!state.version || r.version === state.version) && (!state.model || r.model === state.model) && (!state.tier || r.tier === state.tier) && (!state.bundle || r.bundle === state.bundle) && (!state.region || r.region === state.region) && (!t || `${r.date} ${r.point} ${r.task_id} ${r.model}`.toLowerCase().includes(t)));
-    const sc = (r) => (r.version === "v2" ? r.r_opt : r.reward);
+    const sc = (r) => (r.version === "v5" ? r.score ?? r.compliant : r.capture ?? r.r_opt ?? r.reward);
     const v5tier = (r) => `<span class="tier" style="background:#4b3a63;color:#fff">v5 · ${esc(r.tier)}</span>`;
     const by = { reward: (a, b) => (sc(b) ?? -1) - (sc(a) ?? -1), low: (a, b) => (sc(a) ?? 2) - (sc(b) ?? 2), date: (a, b) => (a.date < b.date ? 1 : -1), profit: (a, b) => (b.profit ?? 0) - (a.profit ?? 0) }[state.sort];
     rows = rows.sort(by);
     count.textContent = `${rows.length} of ${runs.length} episodes`;
     more.hidden = rows.length <= shown;
     more.textContent = `Show more (${Math.min(shown, rows.length)} of ${rows.length} shown)`;
-    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a>${r.days > 1 ? ` <span class="dim small">+${r.days - 1} days</span>` : ""}</td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}${r.path === "B" && r.trained ? ` <span class="dim">${esc(r.trained.toUpperCase() === "GRPO" ? "GRPO" : r.trained)}${r.checkpoint_step != null ? ` step ${r.checkpoint_step}` : ""}</span>` : ""}</td><td>${r.version === "v5" ? v5tier(r) : r.version === "v4" ? `<span class="tier fc">v4 · ${esc(r.tier)}</span>` : r.version === "v3" ? `<span class="tier hyb">v3 · ${esc(r.tier)}</span>` : r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${r.version === "v5" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)}<br><span class="dim small">compliant ${r.compliant == null ? "—" : r.compliant.toFixed(3)}${r.mitigated ? ` · ${r.mitigated} h mitigated` : ""}</span>` : r.version === "v4" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)}<br><span class="dim small">r_hind ${r.r_opt == null ? "—" : r.r_opt.toFixed(2)}${r.synthetic ? " · CI window" : ""}</span>` : r.version === "v3" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)}<br><span class="dim small">${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "%"} hindsight${r.as_share != null ? ` · AS ${Math.round(r.as_share * 100)}%` : ""}</span>` : r.version === "v2" ? `${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "%"} <span class="dim">hindsight</span><br><span class="dim small">R ${r.reward == null ? "—" : r.reward.toFixed(3)}</span>` : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</td></tr>`).join("");
+    tbody.innerHTML = rows.slice(0, shown).map((r) => `<tr onclick="location.href='${r.href}'"><td><a href="${r.href}">${esc(r.date)}</a>${r.days > 1 ? ` <span class="dim small">+${r.days - 1} days</span>` : ""}</td><td><b>${esc(r.point)}</b> <span class="dim">${esc(POINTS[r.point]?.name || "")}</span></td><td class="dim">${esc(r.battery)}</td><td>${esc(modelName(r.model, r.model_label))}${r.path === "B" && r.trained ? ` <span class="dim">${esc(r.trained.toUpperCase() === "GRPO" ? "GRPO" : r.trained)}${r.checkpoint_step != null ? ` step ${r.checkpoint_step}` : ""}</span>` : ""}</td><td>${r.version === "v5" ? v5tier(r) : r.version === "v4" ? `<span class="tier fc">v4 · ${esc(r.tier)}</span>` : r.version === "v3" ? `<span class="tier hyb">v3 · ${esc(r.tier)}</span>` : r.version === "v2" ? `<span class="tier live">v2 · ${esc(r.tier)}</span>` : `<span class="tier ${esc(r.tier)}">${esc(r.tier)}</span>`}</td><td class="dim">${esc(r.bundle)}</td><td class="r num">${r.profit == null ? "—" : money(r.profit)}</td><td class="r num">${scoreCell(r)}</td></tr>`).join("");
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(state)) if (v && !(k === "sort" && v === "reward")) p.set(k === "text" ? "q" : k, v);
     history.replaceState(null, "", `${location.pathname}${p.toString() ? "?" + p : ""}`);
@@ -90,10 +90,25 @@ function featured(r) {
   const what = r.version === "v5" ? "the field" : "the battery yard";
   const thumb = r.thumb ? `<img src="${esc(r.thumb)}" alt="${esc(r.point)} on ${esc(r.date)}: ${what} at ${esc(r.hero_moment || "the day's key hour")}" loading="lazy">` : "";
   return `<a class="hero card${r.hero ? "" : " small"}" href="${r.href}">${thumb}<div class="txt"><h5>${KIND[r.featured] || "Featured day"}</h5><h2>${esc(r.date)}${r.days > 1 ? `–${esc(endDate(r.date, r.days))}` : ""} · ${esc(r.point)} <span>${esc(POINTS[r.point]?.name || "")}</span></h2>
-    <p>${esc(r.blurb || "")}</p><p class="dim">${esc(modelName(r.model, r.model_label))} · ${esc(r.tier)} · ${r.version === "v5" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)} on the anchor scale · compliant ${r.compliant == null ? "—" : r.compliant.toFixed(3)}` : r.version === "v4" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)} on the anchor scale · r_hind ${r.r_opt == null ? "—" : r.r_opt.toFixed(2)} · guide drift $${Math.round(r.drift ?? 0)}/MWh` : r.version === "v3" ? `R ${r.reward == null ? "—" : r.reward.toFixed(3)} on the anchor scale · hindsight capture ${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "%"}` : r.version === "v2" ? `hindsight capture ${r.r_opt == null ? "—" : Math.round(r.r_opt * 100) + "%"} · R ${r.reward == null ? "—" : r.reward.toFixed(3)} (provisional anchor)` : `reward ${r.reward == null ? "—" : r.reward.toFixed(3)}`}</p><span class="go">Watch the replay →</span></div></a>`;
+    <p>${esc(r.blurb || "")}</p><p class="dim">${esc(modelName(r.model, r.model_label))} · ${esc(r.tier)} · ${scoreLine(r)}</p><span class="go">Watch the replay →</span></div></a>`;
 }
 
 function endDate(d1, days) {
   const x = new Date(Date.parse(`${d1}T12:00:00Z`) + (days - 1) * 86400000);
   return x.toISOString().slice(5, 10);
+}
+
+const f3 = (x) => (x == null ? "—" : x.toFixed(3));
+const R = (r) => `R ${f3(r.reward)}`;
+
+function scoreCell(r) {
+  if (r.version === "v5") return `${f3(r.score)} <span class="dim">compliant</span><br><span class="dim small">C ${f3(r.capture)} · ${R(r)}${r.mitigated ? ` · ${r.mitigated} h mitigated` : ""}</span>`;
+  const extra = r.version === "v4" && r.synthetic ? " · CI window" : r.version === "v3" && r.as_share != null ? ` · AS ${Math.round(r.as_share * 100)}%` : "";
+  const badge = r.version !== "v1" ? "" : `<span class="g ${r.reward == null ? "" : grade(r.reward)}">${r.reward == null ? "" : grade(r.reward)}</span> `;
+  return `${badge}C ${f3(r.capture)}<br><span class="dim small">${R(r)}${extra}</span>`;
+}
+
+function scoreLine(r) {
+  if (r.version === "v5") return `compliant ${f3(r.score)} (its profit half the hindsight capture C ${f3(r.capture)}) · ${R(r)} on the anchor scale`;
+  return `hindsight capture C ${f3(r.capture)} · ${R(r)} on the anchor scale${r.version === "v4" ? ` · guide drift $${Math.round(r.drift ?? 0)}/MWh` : ""}`;
 }

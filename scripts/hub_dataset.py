@@ -259,36 +259,53 @@ def bundle_split(name: str) -> str:
     return max(matches)[1]
 
 
+def mci(x: dict, fmt: str = ".3f") -> str:
+    """A mean with its 95% CI from an eval card."""
+    def f(v):
+        return "–" if v is None else format(round(v, 3) + 0.0, fmt)
+    return f(x["mean"]) + (f" ({f(x['ci95'][0])} to {f(x['ci95'][1])})" if x.get("ci95") else "")
+
+
+SCALE_HEAD = "C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor"
+
+
+def scale_cells(m: dict, share) -> str:
+    """An eval card row's cross-version cells (docs/REWARD-SCALES.md): C bold, the anchor's C, the paired delta, then R
+    with its R = 1 and beats-anchor shares."""
+    return " | ".join([f"**{mci(m['capture'])}**", "–" if m["anchor_capture"] is None else f"{m['anchor_capture']:.3f}",
+                       mci(m["delta"], "+.3f"), mci({"mean": m["mean"], "ci95": m["ci95"]}), share(m["r_one"]),
+                       share(m["beats_anchor"])])
+
+
 def board_markdown(eval_card: dict) -> str:
-    """The card's board: each column's headline, amended when the board was, then its pre-registered scoring and the
+    """The card's board on the cross-version scale (docs/REWARD-SCALES.md): each column's hindsight capture C with the
+    anchor's C and the paired delta, then R, amended when the board was, then its pre-registered scoring and the
     baselines on its days, all from the eval card."""
-    def f(x, fmt=".4f"):
+    def f(x, fmt=".3f"):
         return "–" if x is None else format(x, fmt)
 
     def pct(x):
         return "–" if x is None else f"{100 * x:.1f}%"
 
     models = eval_card["models"]
-    lines = ["| Column | Model | Pack | Tier | Harness | Battery-days | Mean reward (95% CI) | r_opt | Optimal | Valid "
-             "| Beats anchor | $ per episode |", "|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|"]
+    lines = ["Hindsight capture C = (P − P_idle)/(P_opt − P_idle) heads the board, beside the anchor's own C and the "
+             "paired gap Δ = C − C_anchor; R, the anchor scale, comes second. At the foresight tier the anchor is the "
+             "DP optimum, so C = (R − 0.2)/0.8 and a column at C 1 has solved the tier.", "",
+             f"| Column | Model | Pack | Tier | Harness | Battery-days | {SCALE_HEAD} | Valid | $ per episode |",
+             "|---|---|---|---|---|---:|---|---:|---|---|---:|---:|---:|---:|"]
     for m in models:
-        ci = f" ({f(m['ci95'][0])} to {f(m['ci95'][1])})" if m.get("ci95") else ""
         usd = "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}"
         lines.append(f"| {m.get('column') or ''} | {m.get('label') or NAMES.get(m['model'], m['model'])} | "
-                     f"`{m['pack']}` | {m['tier']} | {m['bundle']} | {m['tasks']} | **{f(m['mean'])}**{ci} | "
-                     f"{f(m['hindsight_capture'])} | {pct(m.get('optimal'))} | {pct(m['valid'])} | "
-                     f"{pct(m.get('beats_anchor'))} | {usd} |")
+                     f"`{m['pack']}` | {m['tier']} | {m['bundle']} | {m['tasks']} | {scale_cells(m, pct)} | "
+                     f"{pct(m['valid'])} | {usd} |")
     names = {"idle": "idle", "random": "random", "clock": "clock", "threshold": "threshold", "greedy": "greedy",
              "persistence_dp": "persistence-DP", "ridge_dp": "ridge-DP", "blind_anchor": "blind anchor"}
-    lines += ["", "Baselines graded on each column's battery-days (mean reward; r_opt in brackets at the blind tier):",
-              ""]
+    lines += ["", "Baselines graded on each column's battery-days (mean C / R):", ""]
     for m in models:
         b = m.get("baselines") or {}
-        parts = [f"{name} {f(b[k]['reward'], '.3f')}" + (f" ({f(b[k]['r_opt'], '.3f')})" if m["tier"] == "blind"
-                                                         else "") + ("" if b[k]["n"] == m["planned"]
-                                                                     else f" on {b[k]['n']}")
-                 for k, name in names.items() if k in b]
-        lines.append(f"- {m.get('column') or m['model']}: " + ", ".join(parts) + "; the DP optimum 1.000.")
+        parts = [f"{name} {f(b[k]['capture'])} / {f(b[k]['reward'])}"
+                 + ("" if b[k]["n"] == m["planned"] else f" on {b[k]['n']}") for k, name in names.items() if k in b]
+        lines.append(f"- {m.get('column') or m['model']}: " + ", ".join(parts) + "; the DP optimum 1.000 / 1.000.")
     if amended := [m for m in models if m.get("prereg")]:
         a = eval_card.get("amendment") or {}
         caps = a.get("episode_cap_usd") or {}
@@ -297,8 +314,9 @@ def board_markdown(eval_card: dict) -> str:
                   f"stopped runs before they submitted ({stopped}): the agent's own pre-request cost guard, not the "
                   f"model. Those runs were re-run once at ${caps.get('amended', 0):.2f} and all scored. The "
                   "pre-registered scoring, its scored runs only: " + "; ".join(
-                      f"{m.get('column') or m['model']} {f(m['prereg']['mean'])} ({m['prereg']['runs']} of "
-                      f"{m['prereg']['planned']})" for m in amended) + ". Dropping the stopped runs would bias the "
+                      f"{m.get('column') or m['model']}: C {f(m['prereg']['capture']['mean'])}, R "
+                      f"{f(m['prereg']['mean'], '.4f')} ({m['prereg']['runs']} of {m['prereg']['planned']})"
+                      for m in amended) + ". Dropping the stopped runs would bias the "
                   "blind column toward easy days, so the amended column is the headline."]
     return "\n".join(lines)
 
@@ -1165,38 +1183,35 @@ def preview45(pv: Preview, roots: list[Path], store: Path) -> tuple[dict[str, by
 
 
 def board_v4_markdown(c: dict) -> str:
-    """The v4 pilot's board from its eval card: each tier's mean reward with its CI, by label, and the weight-0 rows."""
+    """The v4 pilot's board from its eval card on the cross-version scale: C with the anchor's C and the paired delta
+    (the verifier's paired_vs_anchor), R second, C by label, and the weight-0 rows."""
     def f(x, fmt=".3f"):
         return "–" if x is None else format(x, fmt)
 
-    lines = ["| Model | Tier | Windows | Mean R (95% CI) | R front / calm | r_hind | Paired vs anchor | Beats anchor "
-             "| Forecast calls | $ per episode |", "|---|---|---:|---|---|---:|---:|---:|---:|---:|"]
+    lines = [f"| Model | Tier | Windows | {SCALE_HEAD} | C front / calm | Forecast calls | $ per episode |",
+             "|---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|"]
     for m in c["models"]:
         lab = m.get("by_label") or {}
-        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | **{f(m['mean'], '.4f')}** "
-                     f"({f(m['ci95'][0], '.4f')} to {f(m['ci95'][1], '.4f')}) | {f(lab.get('front'))} / "
-                     f"{f(lab.get('calm'))} | "
-                     f"{f(m['hindsight_capture'])} | {f(m['paired_vs_anchor'], '+.3f')} | "
-                     f"{f(100 * m['beats_anchor'], '.0f')}% | {f(m['forecast_calls'], '.1f')} | "
-                     f"${f(m['usd_per_episode'], '.2f')} |")
+        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | {scale_cells(m, f)} | "
+                     f"{f((lab.get('front') or {}).get('capture'))} / {f((lab.get('calm') or {}).get('capture'))} | "
+                     f"{f(m['forecast_calls'], '.1f')} | ${f(m['usd_per_episode'], '.2f')} |")
     return "\n".join(lines)
 
 
 def board_v5_markdown(c: dict) -> str:
-    """The v5 pilot's board from its eval card: R and the compliant score with their CIs, and the weight-0 rows."""
+    """The v5 pilot's board from its eval card: the public compliant score (its profit half clip(C), C against BR_rt)
+    beside the anchor's and the paired delta; then C, R and the weight-0 rows."""
     def f(x, fmt=".3f"):
         return "–" if x is None else format(x, fmt)
 
-    def ci(d):
-        return f"**{f(d['mean'], '.4f')}** ({f(d['ci95'][0], '.4f')} to {f(d['ci95'][1], '.4f')})"
-
-    lines = ["| Model | Tier | Floors | Mean R (95% CI) | Compliant (95% CI) | Hindsight capture | Welfare ratio "
-             "| Beats anchor | Mitigated hours | $ per episode |", "|---|---|---:|---|---|---:|---:|---:|---:|---:|"]
+    lines = [f"| Model | Tier | Floors | Score (95% CI) | Anchor's score | Δ vs anchor (95% CI) | {SCALE_HEAD} "
+             "| Welfare ratio | Mitigated hours | $ per episode |",
+             "|---|---|---:|---|---:|---|---|---:|---|---|---:|---:|---:|---:|---:|"]
     for m in c["models"]:
-        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | {ci(m['reward'])} | "
-                     f"{ci(m['compliant_reward'])} | {f(m['hindsight_capture'])} | {f(m['welfare_ratio'])} | "
-                     f"{f(100 * m['beats_anchor'], '.0f')}% | {m['mitigated_hours']} | "
-                     f"${f(m['usd_per_episode'], '.3f')} |")
+        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | **{mci(m)}** | "
+                     f"{f(m['anchor_headline'])} | {mci(m['headline_delta'], '+.3f')} | "
+                     f"{scale_cells(m | {'mean': m['reward']['mean'], 'ci95': m['reward']['ci95']}, f)} | "
+                     f"{f(m['welfare_ratio'])} | {m['mitigated_hours']} | ${f(m['usd_per_episode'])} |")
     return "\n".join(lines)
 
 
@@ -1373,19 +1388,19 @@ def training_markdown(arms: list[dict]) -> str:
 
 
 def board_v3_markdown(c: dict) -> str:
-    """The v3 pilot's board from its eval card: each model and tier's mean reward with its CI, the weight-0 rows and
-    the cost."""
-    def f(x, fmt=".4f"):
+    """The v3 pilot's board from its eval card on the cross-version scale: C with the anchor's C and the paired delta,
+    R second, the weight-0 rows and the cost."""
+    def f(x, fmt=".3f"):
         return "–" if x is None else format(x, fmt)
 
-    lines = ["| Model | Tier | Days | Mean R (95% CI) | Hindsight capture | Beats anchor | Energy-only R | AS share "
-             "| $ per episode |", "|---|---|---:|---|---:|---:|---:|---:|---:|"]
+    lines = [f"| Model | Tier | Days | {SCALE_HEAD} | C low / mid / high AS | AS share | $ per episode |",
+             "|---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|"]
     for m in c["models"]:
-        ci = f" ({f(m['ci95'][0])} to {f(m['ci95'][1])})" if m.get("ci95") else ""
-        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | **{f(m['mean'])}**{ci} | "
-                     f"{f(m['hindsight_capture'], '.3f')} | {f(100 * m['beats_anchor'], '.1f')}% | "
-                     f"{f(m.get('energy_only_reward'))} | {f(m.get('as_share'), '.3f')} | "
-                     f"${f(m.get('usd_per_episode'))} |")
+        st = m.get("by_as_stratum") or {}
+        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | "
+                     f"{scale_cells(m, f)} | " + " / ".join(f((st.get(k) or {}).get("capture"))
+                                                         for k in ("low", "mid", "high"))
+                     + f" | {f(m.get('as_share'))} | ${f(m.get('usd_per_episode'), '.4f')} |")
     return "\n".join(lines)
 
 

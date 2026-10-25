@@ -104,6 +104,13 @@ def test_the_forecast_report_writes_eval_v4_and_the_forecast_board(fake):
     assert (b["front"]["naive"], b["blind"]["roll"]) == (
         round(WINDOW["refs"]["front"]["baselines"]["naive"]["reward"], 4),
         round(other["refs"]["blind"]["baselines"]["roll"]["reward"], 4))
+    g = forecast_play(WINDOW)[1].grade()
+    assert (front["capture"]["mean"], front["delta"]["mean"]) == (
+        pytest.approx(g["capture_vs_hindsight"], abs=1e-6), pytest.approx(g["paired_vs_anchor"], abs=1e-6))
+    assert g["stretch_reward"] == (g["reward"] if g["profit_usd"] <= g["p_anchor"] else pytest.approx(
+        min(1.2, 1 + 0.2 * (g["profit_usd"] - g["p_anchor"]) / (g["p_hind"] - g["p_anchor"])), abs=1e-6))
+    assert front["by_label"] == {lb: dict.fromkeys(("capture", "delta", "r")) for lb in sweep.LABELS_V4}
+    assert set(front["refs"]) == set(WINDOW["refs"]["front"]["baselines"])
     board = Path("results/board-v4.md").read_text()
     assert board.startswith("# GridSim v4 forecast board") and "| openai/gpt-6.1-sol | blind | 1 |" in board
 

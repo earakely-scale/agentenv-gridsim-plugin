@@ -200,7 +200,7 @@ The harness drives the env through its extensions, which the agent never sees:
 | `data/reset` | clears the episode |
 
 `gridsim-verifier` reads `data/get` after the run, grades the schedule again with `gridsim_core` (it must agree with
-the env), and scores the reward, with the hindsight capture `r_opt` as a weight-0 row. A run that submitted nothing
+the env), and scores the reward, with `r_opt` (R against P_opt) as a weight-0 row. A run that submitted nothing
 scores 0, and an env that can't report fails the step.
 
 ## Grading
@@ -216,11 +216,17 @@ scores 0, and an env that can't report fails the step.
   margin over idle, and by nothing up to the 99th percentile.
 - **Blind:** P_anchor is max(P_persist, P_ridge): the DP schedule on the previous day's prices (persistence) and on a
   lagged ridge regression's forecast of the day (`data/ridge-v1.json`, fit on the train split), each settled on the
-  actual day. The blind headline is `r_opt`, the same formula against P_opt; `beats_anchor` reports whether the agent
-  beat its reference.
+  actual day. `beats_anchor` reports whether the agent beat its reference.
 - A run with no valid submit scores 0. There is no format credit, and no judge.
-- The hindsight capture `r_opt` is reported on every run at weight 0, so an agent that beats its anchor shows without
-  changing the scale.
+- `r_opt`, R against P_opt (= 0.2 + 0.8 C), is reported on every run at weight 0.
+
+Boards head with the **hindsight capture** C = (P − P_idle)/(P_opt − P_idle), unclipped, beside the anchor's own C on
+the same days and the paired gap Δ = C − C_anchor; R comes second, a level with its R = 1 and beats-anchor shares, and
+any other reference is compared as (P − P_ref)/(P_opt − P_idle). At the foresight tier the anchor is P_opt, so C =
+(R − 0.2)/0.8: a model at C 1 has solved the tier. Training reads S, R up to the anchor then rising to 1.2 at hindsight;
+at the foresight tier S = R, so `reward_fn` is R. One rule for every version:
+[`docs/CONTRACT.md`](docs/CONTRACT.md#scoring-across-versions-adopted), with the evidence in
+[`docs/REWARD-SCALES.md`](docs/REWARD-SCALES.md).
 
 The same `gridsim_core.grade` runs in the env, in the verifier and in training; the plugin's tests check that the env,
 the verifier and `gridsim_core` agree to 1e-6 on the same 24 actions.
@@ -277,15 +283,16 @@ no real-time prices and no congestion.
 
 ## Baselines
 
-Mean foresight reward per pack ([`data/stats.md`](data/stats.md)); idle is 0.2 and the DP 1.0 by construction.
+Mean hindsight capture C per pack, idle 0 and the DP 1 by construction; the mean foresight R is in
+[`data/stats.md`](data/stats.md) (R = 0.2 + 0.8 C where C ≥ −0.25).
 
-| Pack | Clock | Threshold | Greedy | Random feasible | Blind anchor `r_opt` | Persistence `r_opt` |
+| Pack | Clock | Threshold | Greedy | Random feasible | Blind anchor | Persistence |
 |---|---:|---:|---:|---:|---:|---:|
-| `ercot-dam-v1-train` | 0.573 | 0.606 | 0.761 | 0.064 | 0.904 | 0.858 |
-| `ercot-dam-v1-eval` | 0.485 | 0.642 | 0.761 | 0.072 | 0.920 | 0.882 |
-| `ercot-dam-v1-eval-iid` | 0.555 | 0.607 | 0.751 | 0.067 | – | – |
-| `ercot-dam-v1-rtcb` | 0.435 | 0.664 | 0.724 | 0.043 | 0.888 | 0.844 |
-| `showcase` | 0.627 | 0.602 | 0.832 | 0.125 | 0.894 | 0.882 |
+| `ercot-dam-v1-train` | 0.459 | 0.490 | 0.701 | -0.707 | 0.880 | 0.822 |
+| `ercot-dam-v1-eval` | 0.341 | 0.543 | 0.701 | -0.559 | 0.901 | 0.852 |
+| `ercot-dam-v1-eval-iid` | 0.441 | 0.491 | 0.689 | -0.745 | – | – |
+| `ercot-dam-v1-rtcb` | 0.251 | 0.567 | 0.654 | -0.718 | 0.860 | 0.805 |
+| `showcase` | 0.317 | 0.458 | 0.787 | -1.148 | 0.867 | 0.852 |
 
 - **Clock:** charge at full rate HE02 to HE05, sell at full rate HE18 to HE21.
 - **Threshold:** charge at or below the day's 25th-percentile price, sell at or above its 75th while the spread pays
@@ -301,30 +308,31 @@ GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played every battery-d
 board registered before the first run in [`docs/prereg/v1-board.md`](docs/prereg/v1-board.md): column A is the `full`
 harness at the foresight tier on the held-out `eval` pack (the primary), B the `oneshot` harness on the same days, C the
 `full` harness at the blind tier, and the optional D the `full` harness at the foresight tier on the `rtcb` pack.
-Intervals are 95% bootstrap intervals over battery-days (10,000 resamples); optimal means R ≥ 0.99, valid submitted and
-feasible.
+Intervals are 95% bootstrap intervals over battery-days (10,000 resamples); valid means submitted and feasible. The
+board heads with C, the anchor's C and Δ, R second (above).
 
-| Column | Model | Pack | Tier | Harness | Battery-days | Mean reward (95% CI) | r_opt | Optimal | Valid | Beats anchor | $ per episode |
-|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|
-| A | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | full | 500 | **0.9999** (0.9997 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0157 |
-| B | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | oneshot | 500 | **0.9999** (0.9998 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0117 |
-| C | GPT-6.1 Sol | `ercot-dam-v1-eval` | blind | full | 300 | **0.9721** (0.9624 to 0.9804) | 0.9165 | 72.3% | 100.0% | 40.3% | $0.0193 |
-| D | GPT-6.1 Sol | `ercot-dam-v1-rtcb` | foresight | full | 250 | **1.0000** (0.9999 to 1.0000) | 1.0000 | 100.0% | 100.0% | – | $0.0161 |
+| Column | Model | Pack | Tier | Harness | Battery-days | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | Valid | $ per episode |
+|---|---|---|---|---|---:|---|---:|---|---|---:|---:|---:|---:|
+| A | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | full | 500 | **1.000 (1.000 to 1.000)** | 1.000 | +0.000 (+0.000 to +0.000) | 1.000 (1.000 to 1.000) | 98.8% | 0.0% | 100.0% | $0.0157 |
+| B | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | oneshot | 500 | **1.000 (1.000 to 1.000)** | 1.000 | +0.000 (+0.000 to +0.000) | 1.000 (1.000 to 1.000) | 98.8% | 0.0% | 100.0% | $0.0117 |
+| C | GPT-6.1 Sol | `ercot-dam-v1-eval` | blind | full | 300 | **0.896 (0.881 to 0.910)** | 0.901 | -0.005 (-0.019 to +0.009) | 0.972 (0.962 to 0.980) | 62.3% | 33.0% | 100.0% | $0.0193 |
+| D | GPT-6.1 Sol | `ercot-dam-v1-rtcb` | foresight | full | 250 | **1.000 (1.000 to 1.000)** | 1.000 | +0.000 (+0.000 to +0.000) | 1.000 (1.000 to 1.000) | 98.8% | 0.0% | 100.0% | $0.0161 |
 
-Baselines graded on each column's battery-days (mean reward; r_opt in brackets at the blind tier):
+Baselines graded on each column's battery-days (mean C / R):
 
-- A: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
-- B: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
-- C: idle 0.200 (0.200), random 0.076 (0.076), clock 0.516 (0.487), threshold 0.698 (0.655), greedy 0.821 (0.783), persistence-DP 0.957 (0.882), ridge-DP 0.861 (0.799), blind anchor 1.000 (0.920); the DP optimum 1.000.
-- D: idle 0.200, random 0.043, clock 0.435, threshold 0.664, greedy 0.724, persistence-DP 0.844 on 202, ridge-DP 0.764 on 202, blind anchor 0.888 on 202; the DP optimum 1.000.
+- A: idle 0.000 / 0.200, random -0.559 / 0.072, clock 0.341 / 0.485, threshold 0.543 / 0.642, greedy 0.701 / 0.761, persistence-DP 0.852 / 0.882 on 300, ridge-DP 0.747 / 0.799 on 300, blind anchor 0.901 / 0.920 on 300; the DP optimum 1.000 / 1.000.
+- B: idle 0.000 / 0.200, random -0.559 / 0.072, clock 0.341 / 0.485, threshold 0.543 / 0.642, greedy 0.701 / 0.761, persistence-DP 0.852 / 0.882 on 300, ridge-DP 0.747 / 0.799 on 300, blind anchor 0.901 / 0.920 on 300; the DP optimum 1.000 / 1.000.
+- C: idle 0.000 / 0.200, random -0.507 / 0.076, clock 0.349 / 0.516, threshold 0.565 / 0.698, greedy 0.729 / 0.821, persistence-DP 0.852 / 0.957, ridge-DP 0.747 / 0.861, blind anchor 0.901 / 1.000; the DP optimum 1.000 / 1.000.
+- D: idle 0.000 / 0.200, random -0.718 / 0.043, clock 0.251 / 0.435, threshold 0.567 / 0.664, greedy 0.654 / 0.724, persistence-DP 0.805 / 0.844 on 202, ridge-DP 0.702 / 0.764 on 202, blind anchor 0.860 / 0.888 on 202; the DP optimum 1.000 / 1.000.
 
-The headline is the amended board. The pre-registered $0.10 episode cap stopped runs before they submitted (A 14, B 3, C 63, D 5): the agent's own pre-request cost guard, not the model. Those runs were re-run once at $0.40 and all scored. The pre-registered scoring, its scored runs only: A 0.9999 (486 of 500); B 0.9999 (497 of 500); C 0.9769 (237 of 300); D 1.0000 (245 of 250). Dropping the stopped runs would bias the blind column toward easy days, so the amended column is the headline.
+The headline is the amended board. The pre-registered $0.10 episode cap stopped runs before they submitted (A 14, B 3, C 63, D 5): the agent's own pre-request cost guard, not the model. Those runs were re-run once at $0.40 and all scored. The pre-registered scoring, its scored runs only: A: C 1.000, R 0.9999 (486 of 500); B: C 1.000, R 0.9999 (497 of 500); C: C 0.906, R 0.9769 (237 of 300); D: C 1.000, R 1.0000 (245 of 250). Dropping the stopped runs would bias the blind column toward easy days, so the amended column is the headline.
 
-- **Foresight is saturated.** With the day's 24 prices in view Sol finds the optimum: 0.9999 on A, 99.6% of days
-  optimal, the same on B, 1.0000 on D, and no rule broken in any column (no overfill, sell-before-charge, rate or
-  cycle-cap break, shortfall or all-idle day).
-- **The blind tier separates.** Seeing only the days before, Sol captures r_opt 0.9165 of hindsight against the blind
-  anchor's own 0.9204 on the same 300 days (persistence-DP 0.8820), and beats its anchor on 40.3% of them.
+- **Foresight is solved.** With the day's 24 prices in view Sol finds the optimum: C 1.000 on A (98.8% of days at C =
+  1), the same on B and D, and no rule broken in any column (no overfill, sell-before-charge, rate or cycle-cap break,
+  shortfall or all-idle day).
+- **The blind tier separates.** Seeing only the days before, Sol captures C 0.896 (0.881 to 0.910) of hindsight against
+  the blind anchor's own 0.901 on the same 300 days, Δ -0.005 (-0.019 to +0.009): level with the anchor, and +0.043
+  (+0.028 to +0.059) above persistence-DP. R second: 0.9721, at R = 1 on 62.3%, above the anchor on 33.0%.
 - **One check.** Sol used exactly one of its three checks on 499 of A's 500 runs, on the schedule it then submitted; B,
   with none, scores the same.
 

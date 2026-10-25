@@ -5,6 +5,7 @@ the Session."""
 import json
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from live_days import NOTICE_DAY, QUIET_DAY, naive_calls
 from sweep_fake import play, stored, summary
@@ -94,7 +95,16 @@ def test_the_live_report_writes_eval_v2_and_the_live_board(fake):
     assert card["baselines"]["foresight"]["naive"] == round(sum(
         t["refs"]["roll"]["foresight"]["naive_reward"] for t in (NOTICE_DAY, QUIET_DAY)) / 2, 4)
     assert (m["errors"]["no_replanning"], m["beats_naive"], m["finished_by_agent"]) == (2, 0.0, 1.0)
-    assert Path("results/board-v2.md").read_text().startswith("# GridSim v2 live board")
+    caps = [live_play(t)[1].grade()["capture_vs_hindsight"] for t in (NOTICE_DAY, QUIET_DAY)]
+    anchors = [(t["refs"]["roll"]["foresight"]["p_roll"] - t["refs"]["p_idle"]) / (t["refs"]["p_hind"]
+                                                                                  - t["refs"]["p_idle"])
+               for t in (NOTICE_DAY, QUIET_DAY)]
+    assert (m["capture"]["mean"], m["anchor_capture"]) == (pytest.approx(sum(caps) / 2, abs=2e-6),
+                                                          round(sum(anchors) / 2, 6))
+    assert m["delta"]["mean"] == pytest.approx(sum(caps) / 2 - sum(anchors) / 2, abs=2e-6)
+    assert set(m["refs"]) == {"naive"}
+    board = Path("results/board-v2.md").read_text()
+    assert board.startswith("# GridSim v2 live board") and "| C (95% CI) | Anchor's C | Δ vs anchor (95% CI) |" in board
 
 
 def test_a_v1_and_a_live_sweep_are_reported_apart(fake):

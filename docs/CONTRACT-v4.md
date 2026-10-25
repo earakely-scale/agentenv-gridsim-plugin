@@ -110,6 +110,7 @@ Measured tonight (phase-1 probes, `$SP/gridsim/c4/out`):
 | V4-P23 | Forecast-tool friction (Edgar; the rules-4.0 pilot's misuse) | (a) A blank or null `issued_at` in `get_forecast` is the latest vintage at or before now, as one left out. (b) Every time the env shows is ISO 8601 CPT with its UTC offset (`2025-01-28T10:00-06:00`; watches, notices, alerts, forecasts, refusals, headlines, Episode JSON); a time the agent passes with an offset or `Z` is converted to CPT, one without is read as CPT, and a time after now is still refused. (c) `front-lite`'s card, its `submit_dam` description and schema are energy-only: no reserves, AS, MCPC or `pv_da_share`. A refused forecast call still uses one of the watch's 6 (V4-P14 unchanged) |
 | V4-P24 | Keep fields (Edgar) | As v3: an AS field of a `submit_dam` plan (or of a `check_schedule`/`commit_schedule` plan) sent as `"keep"` or null is unchanged, as one left out; the parse error, the card and the schema say to leave the field out or send `"keep"`. Energy is always sent |
 | V4-P25 | Rules version | `FORECAST_VERSION = "4.1"` for V4-P21..P24. The GPT-6.1 Sol pilot at v4-preview befeefe (`results/runs/v4-pilot-sol*`, `results/board-v4.md`, `results/pilot-v4.json`) is the rules-4.0 pilot and stays on record: its episodes replay only at befeefe (4.0 time labels, `issued_at: ""` refused, the 4.0 packs) and are not re-graded; a new pilot on 4.1 supersedes it |
+| V4-P26 | Scoring (Edgar, adopted 2026-10-25) | The cross-version scale ([CONTRACT.md](CONTRACT.md#scoring-across-versions-adopted)): C against P_hind heads the board and replaces `r_hind` there (`r_hind` = 0.2 + 0.8 C stays a weight-0 row), beside the anchor's C and Δ, which is `paired_vs_anchor`; R second; P_roll3, P_blind and naive compared as (P − P_ref)/(P_hind − P_idle). `grade()` adds `capture_vs_hindsight` (C) and `stretch_reward` (S), the path-B' training reward |
 
 ## ERCOT vintages in the API era (V4-P17)
 
@@ -382,9 +383,11 @@ then submits the gated day, so the DAM plan is checked from the SoC its own comm
 - **Reward**: no accepted hour in any `submit_dam` or `commit_schedule` -> 0; else R = clip(0.2 + 0.8 (P - P_idle) /
   (P_anchor - P_idle), 0, 1) (`grade.reward_value`). Weight-0 rows: `r_hind` (the same with P_hind),
   `paired_vs_anchor` = (P - P_anchor) / (P_hind - P_idle), `beats_anchor`, `r_roll3`, `forecast_value` (blind only:
-  the run graded against P_roll), `dam_missed` (gates without an accepted hour), baselines {profit, reward}.
+  the run graded against P_roll), `dam_missed` (gates without an accepted hour), baselines {profit, reward},
+  `capture_vs_hindsight` (C, the board's headline) and `stretch_reward` (S, training only; V4-P26).
 - `grade()` -> `{"submitted","tier","reward","raw_ratio","profit_usd","cash","p_idle","p_anchor","p_roll","p_roll3",
-  "p_blind","p_naive","p_hind","p_lp","r_hind","paired_vs_anchor","beats_anchor","forecast_value","dam_missed",
+  "p_blind","p_naive","p_hind","p_lp","r_hind","paired_vs_anchor","capture_vs_hindsight","stretch_reward","beats_anchor",
+  "forecast_value","dam_missed",
   "ftp_mwh_charged","ftp_mwh_excused","governor_hours","refusals","commits","dam_submits","forecast_calls"}`.
 - **Reference-solver test** (V4-P20): the anchor's stored calls, replayed through the Session (core) and through the
   env (`scripts/forecast_e2e.py --policy anchor`), reproduce R = 1.0 and the stored P_anchor to the cent; rows without

@@ -29,6 +29,7 @@ from agent_env.store.routing import namespace_routing
 from agent_env.task.store import get_task_instance_store
 
 from gridsim_core import CONTRACT_VERSION
+from gridsim_core.contract import DEGENERATE_EPS
 from gridsim_core.forecast import DAM_SUBMITS, FORECAST_CALLS, FORECAST_ENV, FORECAST_VERSION
 from gridsim_core.forecast import MAX_TURNS as FORECAST_MAX_TURNS
 from gridsim_core.forecast import TIERS as FORECAST_TIERS
@@ -81,15 +82,25 @@ FORECAST_BASELINES = ("naive", "blind", "roll", "roll3")
 LABELS_V4 = ("front", "calm")
 MARKET_ERRORS = ("no_submit", "refused", "idle", "mitigated", "clipped", "end_short", "no_schedule", "price_talk")
 MARKET_BASELINES = ("max_withhold", "price_taker", "replay_A")
-MARKET_HEADLINE = "compliant_reward"
-"""The public board's score (V5-P18): compliant, 0.5 R + 0.5 clip(welfare ratio); R against the disclosure anchor,
-regret and the price-making gain are the research board's. The one name to change ("market_reward" puts R first)."""
+MARKET_HEADLINE = "compliant_capture"
+"""The public board's score (V5-P18 on the cross-version scale): compliant, 0.5 clip(C) + 0.5 clip(welfare ratio),
+C the hindsight capture against BR_rt; C, R against the disclosure anchor, regret and the price-making gain are the
+research board's. The one name to change ("compliant_reward" restores 0.5 R + 0.5 clip(welfare ratio), the env's
+compliant row; "market_reward" puts R first)."""
+MARKET_SCORES = {"compliant_capture": "0.5 clip(C, 0, 1) + 0.5 clip(welfare_ratio, 0, 1), C against BR_rt",
+                 "compliant_reward": "0.5 R + 0.5 clip(welfare_ratio, 0, 1)",
+                 "market_reward": "R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1)"}
+MARKET_PLAYED = {"compliant_capture": "compliant_capture", "compliant_reward": "compliant", "market_reward": "reward"}
+"""The baseline_plays key each headline reads."""
 MARKET_PEAK_HOURS = 2
 """A peak day: at least this many hours where seat A's full sale moves the hub price by $5 or more (V5-P12)."""
-MARKET_PUBLIC = (("Score (95% CI)", "headline"), ("Peak floors", "peak"), ("Welfare ratio", "welfare_ratio"),
-                 ("Beats anchor", "beats_anchor"), ("Finished", "finished_by_agent"))
-MARKET_RESEARCH = (("R (95% CI)", "r"), ("R peak", "r_peak"), ("Regret (norm)", "regret_norm"),
-                   ("Regret $", "regret_usd"), ("Hindsight capture", "hindsight_capture"),
+MARKET_PUBLIC = (("Score (95% CI)", "headline"), ("Anchor's score", "anchor_headline"),
+                 ("Δ vs anchor (95% CI)", "headline_delta"), ("Peak floors", "peak"),
+                 ("Welfare ratio", "welfare_ratio"), ("Beats anchor", "beats_anchor"),
+                 ("Finished", "finished_by_agent"))
+MARKET_RESEARCH = (("C (95% CI)", "c"), ("Anchor's C", "anchor_capture"), ("Δ vs anchor (95% CI)", "delta"),
+                   ("R (95% CI)", "r"), ("R = 1", "r_one"), ("R peak", "r_peak"), ("Regret (norm)", "regret_norm"),
+                   ("Regret $", "regret_usd"), ("C vs BR_A", "capture_vs_br"),
                    ("Price-making gain $/MW-day", "price_making_gain_usd_per_mw_day"), ("eps A", "eps_a"),
                    ("eps-Nash", "eps_nash"), ("Mitigated h", "mitigated_hours"), ("Withholding", "withholding_index"),
                    ("CfDs", "contracts"))
@@ -436,8 +447,9 @@ def market_fields(floor: dict) -> dict:
     g = floor["grade"]
     contract = g.get("contract") or {}
     return {"profit": g["profit_usd"], "profit_idle": g["p_idle"], "profit_anchor": g["p_anchor"],
-            "profit_opt": g["p_br"], "raw_ratio": g["raw_ratio"], "valid": bool(g["submitted"]),
-            "market_reward": g["reward"], "compliant_reward": g["compliant_reward"], "compliant": floor["compliant"],
+            "profit_opt": g["p_br"], "profit_hind": g.get("p_br_rt"), "raw_ratio": g["raw_ratio"],
+            "valid": bool(g["submitted"]), "market_reward": g["reward"], "compliant_reward": g["compliant_reward"],
+            "compliant": floor["compliant"],
             "regret_usd": g["regret_usd"], "regret_norm": g["regret_norm"], "eps_nash": g["eps_nash"],
             "eps_a": g.get("eps_a"), "capture_vs_br": g.get("capture_vs_br"), "impact_usd": g.get("impact_usd"),
             "price_making_gain_usd_per_mw_day": g.get("price_making_gain_usd_per_mw_day"),
@@ -630,31 +642,128 @@ def load(name: str) -> Sweep:
 
 
 def _r(x: float | None, digits: int = 4) -> float | None:
-    return None if x is None else round(x, digits)
+    return None if x is None else round(x, digits) + 0.0
 
 
 def _mean(xs: list[float]) -> float | None:
     return statistics.mean(xs) if xs else None
 
 
+SCALE = {"headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the "
+                     "anchor's C and delta = C - C_anchor with its paired 95% CI",
+         "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+         "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+         "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a "
+                     "board",
+         "decision": "docs/REWARD-SCALES.md"}
+
+
+def capture(p: float | None, p_idle: float | None, p_hind: float | None) -> float | None:
+    """(P - P_idle)/(P_hind - P_idle), None without headroom."""
+    if p is None or p_idle is None or p_hind is None or p_hind - p_idle <= DEGENERATE_EPS:
+        return None
+    return (p - p_idle) / (p_hind - p_idle)
+
+
+def _ci_of(xs: list[float], digits: int = 4) -> dict:
+    lo_hi = ci(xs) if xs else None
+    return {"mean": _r(_mean(xs), digits), "ci95": [_r(lo_hi[0], digits), _r(lo_hi[1], digits)] if lo_hi else None}
+
+
+def scaled(by_task: dict[str, list[dict]], points) -> dict:
+    """The cross-version scale (docs/REWARD-SCALES.md) over a cell's tasks, each task the mean of its scored reps: C
+    with its CI, the anchor's C and the paired delta, R with its CI and its R = 1 and beats-anchor shares, and each
+    stored reference's C with the paired (P - P_ref)/(P_hind - P_idle). ``points(task_id, rows)`` gives the task's
+    p_idle, p_anchor, p_hind and refs (each reference's profit). A run with no valid submission scores C 0."""
+    cs, anchor, rs, beats, below, paired = [], [], [], [], 0, {}
+    runs = [r for rows in by_task.values() for r in rows]
+    for t, rows in by_task.items():
+        pt = points(t, rows)
+        rs.append(statistics.mean(r["reward"] for r in rows))
+        beats += [float(bool(r["submitted"]) and r["profit"] is not None and r["profit"] > pt["p_anchor"] + 1e-6)
+                  for r in rows]
+        a = capture(pt["p_anchor"], pt["p_idle"], pt["p_hind"])
+        if a is None:
+            continue
+        run_c = [capture(r["profit"], pt["p_idle"], pt["p_hind"]) if r["submitted"] else 0.0 for r in rows]
+        below += sum(x < -DEGENERATE_EPS for x in run_c)
+        c = statistics.mean(run_c)
+        cs.append(c)
+        anchor.append(a)
+        for name, p_ref in pt["refs"].items():
+            if (x := capture(p_ref, pt["p_idle"], pt["p_hind"])) is not None:
+                paired.setdefault(name, []).append((c - x, x))
+    return {"capture": _ci_of(cs, 6), "anchor_capture": _r(_mean(anchor), 6),
+            "delta": _ci_of([c - a for c, a in zip(cs, anchor, strict=True)], 6), "r": _ci_of(rs),
+            "r_one": _r(_mean([float(r["reward"] >= 1 - 1e-9) for r in runs])),
+            "beats_anchor": _r(_mean(beats)),
+            "below_idle": below, "no_headroom": len(by_task) - len(cs),
+            "refs": {k: {"n": len(v), "capture": _r(_mean([x for _, x in v]), 6),
+                         "delta": _ci_of([d for d, _ in v], 6)} for k, v in paired.items()}}
+
+
+def _c_cell(x: dict, f: str = ".3f") -> str:
+    """A mean with its 95% CI."""
+    return _f(x["mean"], f) + (f" ({_f(x['ci95'][0], f)} to {_f(x['ci95'][1], f)})" if x["ci95"] else "")
+
+
+def _d_cell(x: dict) -> str:
+    """A paired difference with its 95% CI, signed."""
+    return _f(x["mean"], "+.3f") + (f" ({_f(x['ci95'][0], '+.3f')} to {_f(x['ci95'][1], '+.3f')})"
+                                    if x["ci95"] else "")
+
+
+SCALE_HEAD = ("C (95% CI)", "Anchor's C", "Δ vs anchor (95% CI)", "R (95% CI)", "R = 1", "Beats anchor")
+
+
+def scale_cells(m: dict) -> list[str]:
+    """The headline's cells: C, the anchor's C, the paired delta; then R with its R = 1 and beats-anchor shares."""
+    return [_c_cell(m["capture"]), _f(m["anchor_capture"]), _d_cell(m["delta"]), _c_cell(m["r"]), _f(m["r_one"]),
+            _f(m["beats_anchor"])]
+
+
+def scale_text(hind: str) -> str:
+    return (f"Headline: hindsight capture C = (P − P_idle)/(P_hind − P_idle), unclipped, with P_hind {hind}: idle 0, "
+            "hindsight 1. It is printed beside the anchor's own C on the same tasks and Δ = C − C_anchor, the paired "
+            "gap with its 95% CI. Second: R on the anchor scale (the anchor 1.0), a level that is never differenced, "
+            "with its R = 1 share (a tie with the anchor or better) and the beats-anchor share. Every comparison with "
+            "a reference is (P − P_ref)/(P_hind − P_idle). CIs bootstrap over tasks; the rule and its evidence: "
+            "docs/REWARD-SCALES.md.")
+
+
+def refs_table(models: list[dict], name_of) -> list[str]:
+    """Each model row against each stored reference on its tasks: the reference's C and the paired gap."""
+    lines = ["| Model | Tier | Reference | Its C | Model − it (95% CI) | Tasks |", "|---|---|---|---:|---|---:|"]
+    for m in models:
+        for k, x in m["refs"].items():
+            lines.append(f"| {name_of(m)} | {m['tier']} | {k} | {_f(x['capture'])} | {_d_cell(x['delta'])} | "
+                         f"{x['n']} |")
+    return lines
+
+
 def baselines(rows: list[dict]) -> dict:
-    """The references' mean rewards over these tasks: idle by construction; clock, threshold, greedy and random as
-    the pack stored them on the day's prices; persistence-DP, its D-1-price schedule settled on the day, on the tasks
-    with blind inputs, graded by gridsim_core at the blind tier (its reward against the blind anchor, and its r_opt)."""
+    """The references' mean rewards and hindsight captures over these tasks: idle by construction; clock, threshold,
+    greedy and random as the pack stored them on the day's prices; persistence-DP, its D-1-price schedule settled on
+    the day, on the tasks with blind inputs, graded by gridsim_core at the blind tier (its reward against the blind
+    anchor)."""
     out: dict = {"idle": 0.2}
     for name in BASELINES:
         out[name] = _r(_mean([r["refs"]["foresight"]["baselines"][name]["reward"] for r in rows]))
+        out[f"{name}_capture"] = _r(_mean([capture(r["refs"]["foresight"]["baselines"][name]["profit"],
+                                                   r["refs"]["foresight"]["p_idle"], r["refs"]["foresight"]["p_opt"])
+                                           for r in rows]), 6)
     blind = [r for r in rows if r.get("blind") and (r["refs"].get("blind") or {}).get("persist")]
     graded = [grade(r, r["refs"]["blind"]["persist"], "blind") for r in blind]
     out["persistence_dp_blind"] = _r(_mean([g["reward"] for g in graded]))
-    out["persistence_dp_blind_r_opt"] = _r(_mean([g["r_opt"] for g in graded]))
+    out["persistence_dp_blind_capture"] = _r(_mean([capture(g["profit"], g["profit_idle"], g["profit_opt"])
+                                                    for g in graded]), 6)
     out["n"] = len(rows)
     out["n_blind"] = len(blind)
     return out
 
 
 def references(rows: list[dict], tier: str) -> dict:
-    """Each reference policy graded at the tier on these tasks, its mean reward and r_opt: idle, the pack's random,
+    """Each reference policy graded at the tier on these tasks, its mean reward and C: idle, the pack's random,
     clock, threshold and greedy schedules and the DP optimum on every task; persistence-DP, ridge-DP and the blind
     anchor (the better of the two on the day) on the tasks with blind inputs."""
     graded: dict[str, list[dict]] = {}
@@ -667,7 +776,8 @@ def references(rows: list[dict], tier: str) -> dict:
         plays["dp_optimum"] = f["opt"]
         for name, schedule in plays.items():
             graded.setdefault(name, []).append(grade(t, schedule, tier))
-    return {name: {"reward": _r(_mean([g["reward"] for g in gs])), "r_opt": _r(_mean([g["r_opt"] for g in gs])),
+    return {name: {"reward": _r(_mean([g["reward"] for g in gs])),
+                   "capture": _r(_mean([capture(g["profit"], g["profit_idle"], g["profit_opt"]) for g in gs]), 6),
                    "n": len(gs)} for name, gs in graded.items()}
 
 
@@ -678,6 +788,17 @@ def lp(rows: list[dict]) -> dict:
     return {"p_opt_mean": _r(_mean([x["p_opt"] for x in f]), 2), "p_lp_mean": _r(_mean([x["p_lp"] for x in f]), 2),
             "gap_usd_mean": _r(_mean(gaps), 2), "gap_usd_max": _r(max(gaps), 2),
             "tasks_with_gap": sum(g > 0.005 for g in gaps), "n": len(f)}
+
+
+def v1_points(task: dict, tier: str) -> dict:
+    """A v1 task's scale points at the tier: P_hind is the exact DP optimum, the anchor P_opt (foresight) or the blind
+    anchor; the references the pack's schedules and, on the days with blind inputs, persistence-DP and ridge-DP."""
+    f, b = task["refs"]["foresight"], task["refs"].get("blind")
+    refs = {k: f["baselines"][k]["profit"] for k in BASELINES}
+    if b:
+        refs |= {"persistence_dp": b["p_persist"], "ridge_dp": b["p_ridge"]}
+    return {"p_idle": f["p_idle"], "p_anchor": b["p_anchor"] if tier == "blind" else f["p_opt"], "p_hind": f["p_opt"],
+            "refs": refs}
 
 
 class Board:
@@ -735,28 +856,33 @@ class Board:
         runs = [r for rs in by_task.values() for r in rs]
         rewards = [statistics.mean(r["reward"] for r in rs) for rs in by_task.values()]
         lo_hi = ci(rewards) if rewards else None
+        sc = scaled(by_task, lambda t, rs: v1_points(self.tasks[t], cell[2]))
         out = {"runs": len(runs), "planned": self.planned(cell), "unscored": self.planned(cell) - len(runs),
                "tasks": len(rewards), "mean": _r(_mean(rewards)),
                "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
-               "hindsight_capture": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()])),
+               **{k: sc[k] for k in ("capture", "anchor_capture", "delta", "r", "r_one", "beats_anchor", "below_idle",
+                                     "refs")},
                "optimal": _r(_mean([float(r["reward"] >= OPTIMAL) for r in runs])),
-               "r_opt_optimal": _r(_mean([float(r["r_opt"] >= OPTIMAL) for r in runs])),
                "valid": _r(_mean([float(r["valid"]) for r in runs])),
                "submitted": _r(_mean([float(r["submitted"]) for r in runs])),
                "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in ERRORS},
                "checks_used": _r(_mean([r["checks"] for r in runs if r["checks"] is not None]), 2)}
-        if cell[2] == "blind":
-            out["beats_anchor"] = _r(_mean([float(bool(r["beats_anchor"])) for r in runs]))
         return out
 
-    def by(self, by_task: dict[str, list[dict]], key) -> dict:
-        """Mean reward and r_opt of the tasks in each group ``key`` puts a task row in."""
+    def run_capture(self, r: dict, tier: str) -> float | None:
+        """A v1 run's C: (P - P_idle)/(P_opt - P_idle), 0 without a valid submission."""
+        f = self.tasks[r["task_id"]]["refs"]["foresight"]
+        return capture(r["profit"], f["p_idle"], f["p_opt"]) if r["submitted"] else 0.0
+
+    def by(self, by_task: dict[str, list[dict]], key, tier: str) -> dict:
+        """Mean C and R of the tasks in each group ``key`` puts a task row in."""
         groups: dict[str, list[list[dict]]] = {}
         for t, rs in by_task.items():
             for g in key(self.tasks[t]):
                 groups.setdefault(str(g), []).append(rs)
-        return {g: {"n": len(v), "mean": _r(_mean([statistics.mean(r["reward"] for r in rs) for rs in v])),
-                    "r_opt": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in v]))}
+        return {g: {"n": len(v), "capture": _r(_mean([statistics.mean(self.run_capture(r, tier) or 0.0 for r in rs)
+                                                       for rs in v])),
+                    "mean": _r(_mean([statistics.mean(r["reward"] for r in rs) for rs in v]))}
                 for g, v in sorted(groups.items())}
 
     def model(self, cell) -> dict:
@@ -775,11 +901,11 @@ class Board:
                "effort": effort[0] if effort else None, "sweeps": [s.name for s in self.cells[cell]],
                **self.summary(cell, True),
                "checks": {c: len(rs) for c, rs in sorted(checks.items())},
-               "by_checks": {c: {"n": len(rs), "mean": _r(_mean([r["reward"] for r in rs])),
-                                 "r_opt": _r(_mean([r["r_opt"] for r in rs]))} for c, rs in sorted(checks.items())},
-               "by_archetype": self.by(by_task, lambda t: [t["battery"]["archetype"].split("-")[0]]),
-               "by_binding": self.by(by_task, lambda t: [t["tags"]["binding"]]),
-               "by_day": self.by(by_task, lambda t: [d for d, f in DAY_TYPES.items() if f(t)]),
+               "by_checks": {c: {"n": len(rs), "capture": _r(_mean([self.run_capture(r, tier) or 0.0 for r in rs])),
+                                 "mean": _r(_mean([r["reward"] for r in rs]))} for c, rs in sorted(checks.items())},
+               "by_archetype": self.by(by_task, lambda t: [t["battery"]["archetype"].split("-")[0]], tier),
+               "by_binding": self.by(by_task, lambda t: [t["tags"]["binding"]], tier),
+               "by_day": self.by(by_task, lambda t: [d for d, f in DAY_TYPES.items() if f(t)], tier),
                "usd_per_episode": _r(_mean(costs)), "usd_median": _r(statistics.median(costs)) if costs else None,
                "spend_usd": round(sum(r["cost_usd"] or 0.0 for r in attempts), 4),
                "unscored_spend_usd": round(sum(r["cost_usd"] or 0.0 for r in attempts if r["outcome"] != "scored"), 4),
@@ -829,10 +955,14 @@ def card(board: Board) -> dict:
         "harness": {"agent": tasks.AGENT, "tools": ["get_situation", "check_schedule", "submit_schedule"],
                     "max_turns": tasks.MAX_TURNS, "max_tokens": tasks.MODEL_PARAMS["max_tokens"],
                     "effort": tasks.EFFORT, "bundles": {"full": "3 checks", "oneshot": "submit_schedule only"}},
-        "grading": {"reference": "exact DP over integer SoC (LP bound reported)",
+        "grading": {"scale": SCALE, "reference": "exact DP over integer SoC (LP bound reported)",
+                    "hindsight": "P_opt (exact DP); at the foresight tier the anchor is the hindsight, so C = "
+                                 "(R - 0.2)/0.8 and the tier reads as solved",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1)",
                     "anchor": {"foresight": "P_opt (exact DP)", "blind": "max(P_persist, P_ridge)"},
-                    "hindsight_capture": "r_opt: the reward against P_opt, a weight-0 row",
+                    "fields": {"capture": "C", "anchor_capture": "the anchor's C", "delta": "C - C_anchor, paired",
+                               "mean": "R", "r_one": "share of runs at R = 1", "refs": "each reference's C and the "
+                                                                                          "paired gap"},
                     "optimal": f"R >= {OPTIMAL}", "ci": f"95% bootstrap over tasks, {RESAMPLES:,} resamples",
                     "excused": "none", "judge": False},
         "baselines": baselines(rows),
@@ -841,8 +971,8 @@ def card(board: Board) -> dict:
                    "meaning": {"overfill": "soc_above_N", "sell_before_charge": "soc_below_0", "rate": "rate",
                                "cycle_cap": "cycle_cap", "end_short": "end SoC below s_end_min",
                                "all_idle": "a schedule of 24 zeros"}},
-        "sweeps": [asdict(s) | {"tasks": len(s.tasks)} for s in board.sweeps]
-        + [asdict(a) | {"tasks": len(a.tasks), "amends": name} for name, a in board.amend.items()],
+        "sweeps": [s.spec() | {"tasks": len(s.tasks)} for s in board.sweeps]
+        + [a.spec() | {"tasks": len(a.tasks), "amends": name} for name, a in board.amend.items()],
         "links": LINKS,
         "date": max((m["started_utc"][1] for m in models), default="")[:10] or None,
     }
@@ -861,23 +991,20 @@ def _col(m: dict) -> str:
 
 
 def _cells(models: list[dict], field: str, groups: dict[str, str]) -> list[str]:
-    """A breakdown as a table: a row per group, a column per model row; blind cells give R / r_opt."""
+    """A breakdown as a table: a row per group, a column per model row; each cell C / R (count)."""
     lines = ["| | " + " | ".join(_col(m) for m in models) + " |", "|---|" + "---:|" * len(models)]
     for g, name in groups.items():
         cells = []
         for m in models:
             x = m[field].get(g)
-            cells.append("–" if not x else _f(x["mean"], ".4f")
-                         + (f" / {_f(x['r_opt'], '.4f')}" if m["tier"] == "blind" else "") + f" ({x['n']})")
+            cells.append("–" if not x else f"{_f(x['capture'], '.4f')} / {_f(x['mean'], '.4f')} ({x['n']})")
         lines.append(f"| {name} | " + " | ".join(cells) + " |")
     return lines
 
 
 def headline(m: dict, s: dict, scoring: str) -> str:
-    ci95 = f" ({_f(s['ci95'][0], '.4f')} to {_f(s['ci95'][1], '.4f')})" if s["ci95"] else ""
     return " | ".join([f"| {m.get('column') or ''}", scoring, m["label"], m["pack"], m["tier"], m["bundle"],
-                       f"{s['runs']}/{s['planned']}", _f(s["mean"], ".4f") + ci95, _f(s["hindsight_capture"], ".4f"),
-                       _pct(s["optimal"]), _pct(s["valid"]), _pct(s.get("beats_anchor")),
+                       f"{s['runs']}/{s['planned']}", *scale_cells(s), _pct(s["valid"]),
                        _f(s["checks_used"], ".2f")]) + " |"
 
 
@@ -885,13 +1012,14 @@ def board_md(c: dict, intro: str = "") -> str:
     models = c["models"]
     lines = ["# GridSim v1 board", "", *([intro, ""] if intro else []),
              "## Columns", "",
-             f"Reward R = {c['grading']['reward']}: foresight against P_opt, blind against max(P_persist, P_ridge); "
-             f"r_opt is R against P_opt. Mean R over battery-days, its CI a {c['grading']['ci']}. Optimal: "
-             f"{c['grading']['optimal']} (at the blind tier, at or within 1% of the anchor's scale). Valid: submitted "
-             "and feasible. An amended row adds the amendment's re-runs to the pre-registered sweep's scored runs.", "",
-             "| Column | Scoring | Model | Pack | Tier | Harness | Scored/planned | Mean R (95% CI) | r_opt "
-             "| Optimal | Valid | Beats anchor | Checks used |",
-             "|---|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|"]
+             scale_text("the exact DP optimum P_opt. At the foresight tier the anchor is P_opt itself, so C = "
+                        "(R − 0.2)/0.8, the anchor's C is 1 and a column at C 1 has solved the tier"),
+             f"R = {c['grading']['reward']}: foresight against P_opt, blind against max(P_persist, P_ridge). Means "
+             f"over battery-days, the CI a {c['grading']['ci']}. Valid: submitted and feasible. An amended row adds "
+             "the amendment's re-runs to the pre-registered sweep's scored runs.", "",
+             "| Column | Scoring | Model | Pack | Tier | Harness | Scored/planned | " + " | ".join(SCALE_HEAD)
+             + " | Valid | Checks used |",
+             "|---|---|---|---|---|---|---:|---|---:|---|---|---:|---:|---:|---:|"]
     for m in models:
         if "prereg" in m:
             lines += [headline(m, m, "amended"), headline(m, m["prereg"], "pre-registered")]
@@ -902,11 +1030,11 @@ def board_md(c: dict, intro: str = "") -> str:
               "| Column | " + " | ".join(ERRORS) + " |", "|---|" + "---:|" * len(ERRORS)]
     lines += [f"| {_col(m)} | " + " | ".join(str(m["errors"][e]) for e in ERRORS) + " |" for m in models]
     checks = sorted({k for m in models for k in m["by_checks"]}, key=int)
-    lines += ["", "## Checks", "", "Runs by the number of `check_schedule` calls, with their mean R (and r_opt at "
-              "the blind tier); the count of runs in brackets.", "",
+    lines += ["", "## Checks", "", "Runs by the number of `check_schedule` calls, with their mean C / R; the count of "
+              "runs in brackets.", "",
               *_cells(models, "by_checks", {k: f"{k} check{'' if k == '1' else 's'}" for k in checks}),
               "", "## By battery class, binding constraint and day type", "",
-              "Mean R (and r_opt at the blind tier) over the battery-days in each group, the count in brackets. The "
+              "Mean C / R over the battery-days in each group, the count in brackets. The "
               "binding constraint is the pack's tag for what limits the optimum; a day with negative-price hours and a "
               "spike counts in both.", "",
               *_cells(models, "by_archetype", {"1h": "1 h battery", "2h": "2 h battery", "4h": "4 h battery"}), "",
@@ -930,20 +1058,21 @@ def board_md(c: dict, intro: str = "") -> str:
              "blind_anchor": "Blind anchor", "dp_optimum": "DP optimum"}
     lines += ["", "## Baselines on the same tasks", "",
               "Each reference policy graded by `gridsim_core` at the column's tier on the column's battery-days: mean "
-              "R, and r_opt at the blind tier; persistence-DP, ridge-DP and the blind anchor need the blind inputs, so "
-              "on foresight columns they cover only the days that have them (count in brackets). Threshold and greedy "
-              "read the day's own prices, so at the blind tier they are not policies a blind desk could run.", "",
+              "C / R; persistence-DP, ridge-DP and the blind anchor need the blind inputs, so on foresight columns "
+              "they cover only the days that have them (count in brackets). Threshold and greedy read the day's own "
+              "prices, so at the blind tier they are not policies a blind desk could run.", "",
               "| | " + " | ".join(_col(m) for m in models) + " |", "|---|" + "---:|" * len(models)]
     for key, name in names.items():
         cells = []
         for m in models:
             b = m["baselines"].get(key)
-            cells.append("–" if not b else _f(b["reward"]) + (f" / {_f(b['r_opt'])}" if m["tier"] == "blind" else "")
+            cells.append("–" if not b else f"{_f(b['capture'])} / {_f(b['reward'])}"
                          + (f" ({b['n']})" if b["n"] != m["planned"] else ""))
         lines.append(f"| {name} | " + " | ".join(cells) + " |")
-    lines.append("| **Model** | " + " | ".join(f"**{_f(m['mean'])}**" + (f" / **{_f(m['hindsight_capture'])}**"
-                                                                         if m["tier"] == "blind" else "")
-                                               for m in models) + " |")
+    lines.append("| **Model** | " + " | ".join(f"**{_f(m['capture']['mean'])} / {_f(m['mean'])}**" for m in models)
+                 + " |")
+    lines += ["", "The model against each reference on the same battery-days, (P − P_ref)/(P_opt − P_idle) with its "
+              "paired 95% CI:", "", *refs_table(models, _col)]
     lines += ["", "LP bound (the convex relaxation, in $) against the exact DP optimum on each column's days:", ""]
     for m in models:
         b = m["lp_bound"]
@@ -953,21 +1082,22 @@ def board_md(c: dict, intro: str = "") -> str:
 
 
 # ================================================================ live report
-def _live_capture(r: dict, p: float) -> float | None:
-    head = r["p_hind"] - r["p_idle"]
-    return (p - r["p_idle"]) / head if head > 1e-9 else None
-
-
 def live_baselines(rows: list[dict], tier: str) -> dict:
     """The references' means over these days at one tier: naive's reward under the shared contract, and naive's and
     the anchor's hindsight capture."""
     refs = [r["refs"] for r in rows if (r["refs"]["roll"].get(tier) or {}).get("p_roll") is not None]
-    nc = [x for x in (_live_capture(r, r["p_naive"]) for r in refs) if x is not None]
-    ac = [x for x in (_live_capture(r, r["roll"][tier]["p_roll"]) for r in refs) if x is not None]
+    nc = [x for x in (capture(r["p_naive"], r["p_idle"], r["p_hind"]) for r in refs) if x is not None]
+    ac = [x for x in (capture(r["roll"][tier]["p_roll"], r["p_idle"], r["p_hind"]) for r in refs) if x is not None]
     return {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0,
-            "naive": _r(_mean([r["roll"][tier]["naive_reward"] for r in refs])), "naive_capture": _r(_mean(nc)),
-            "anchor_capture": _r(_mean(ac)),
+            "naive": _r(_mean([r["roll"][tier]["naive_reward"] for r in refs])), "naive_capture": _r(_mean(nc), 6),
+            "anchor_capture": _r(_mean(ac), 6),
             "anchor_commits": _r(_mean([r["roll"][tier]["commits"] for r in refs]), 2)}
+
+
+def live_points(task: dict, tier: str) -> dict:
+    r = task["refs"]
+    return {"p_idle": r["p_idle"], "p_anchor": r["roll"][tier]["p_roll"], "p_hind": r["p_hind"],
+            "refs": {"naive": r["p_naive"]}}
 
 
 def live_model(board: Board, cell) -> dict:
@@ -977,16 +1107,16 @@ def live_model(board: Board, cell) -> dict:
     runs = [r for rs in by_task.values() for r in rs]
     rewards = list(mean.values())
     lo_hi = ci(rewards) if rewards else None
-    capture = [statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()]
+    sc = scaled(by_task, lambda t, rs: live_points(board.tasks[t], tier))
+    naive = {t: board.tasks[t]["refs"]["p_naive"] for t in by_task}
     costs = [priced(r) for r in runs if priced(r) is not None]
     known, unknown = board.spend(cell)
     effort = sorted({r.get("effort") for r in runs if r.get("effort")})
     return {"model": name, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
             "runs": len(runs), "planned": board.planned(cell), "tasks": len(mean),
-            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
-            "hindsight_capture": _r(_mean(capture)),
-            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
-            "beats_naive": _r(_mean([float(r["reward"] > r["naive_reward"]) for r in runs])),
+            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None, **sc,
+            "beats_naive": _r(_mean([float(bool(r["submitted"]) and r["profit"] > naive[r["task_id"]] + 1e-6)
+                                     for r in runs])),
             "valid": _r(_mean([float(r["valid"]) for r in runs])),
             "submitted": _r(_mean([float(r["submitted"]) for r in runs])),
             "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in LIVE_ERRORS},
@@ -1015,10 +1145,14 @@ def live_card(board: Board) -> dict:
                     "max_turns": MAX_TURNS, "planning_calls_per_watch": PLANNING_CALLS,
                     "max_tokens": live_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
                     "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"},
-        "grading": {"reference": "exact DPs on the true day; LP bound reported",
+        "grading": {"scale": SCALE, "hindsight": "P_hind: the exact DPs on the true day (DA position on DA - RT, "
+                                                 "the physical schedule on RT)",
+                    "reference": "exact DPs on the true day; LP bound reported",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_roll-P_idle),0,1); no accepted commit scores 0",
                     "anchor": "P_roll: the notice-blind rolling re-planner under the agent's freeze, budget, DA rule",
-                    "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
+                    "fields": {"capture": "C", "anchor_capture": "the anchor's C", "delta": "C - C_anchor, paired",
+                               "mean": "R", "r_one": "share of runs at R = 1",
+                               "refs": "each reference's C and the paired gap"},
                     "audit": "weight 0; a failed audit makes the run unscored",
                     "excused": "derate clipping inside the freeze", "judge": False},
         "baselines": {t: live_baselines(board.tier_rows(t), t) for t in tiers},
@@ -1038,24 +1172,26 @@ def live_board_md(c: dict) -> str:
     lines = ["# GridSim v2 live board", "",
              f"Tasks: {c['tasks']['n']} live battery-days ({', '.join(c['tasks']['packs'])}). Harness: {h['agent']} "
              f"on {h['env']}, {h['max_turns']} turns, {h['planning_calls_per_watch']} planning calls a watch, "
-             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: {c['grading']['reward']}; the "
-             "anchor (1.0) is the notice-blind rolling re-planner. Mean R over days with a 95% bootstrap CI.", ""]
+             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. R: {c['grading']['reward']}; the "
+             "anchor (1.0) is the notice-blind rolling re-planner.", "",
+             scale_text("the clairvoyant optimum of the same settlement (the DA position on DA − RT, the physical "
+                        "schedule on RT, both exact DPs)"), ""]
     for tier, b in c["baselines"].items():
-        lines.append(f"Baselines ({tier}, {b['n']} days): idle {_f(b['idle'])}, naive (v1's plan, never re-planned) "
-                     f"{_f(b['naive'])}, anchor {_f(b['anchor'])}; hindsight capture naive "
-                     f"{_f(b['naive_capture'])}, anchor {_f(b['anchor_capture'])}.")
-    lines += ["", "| Model | Tier | Days | Runs/planned | Mean R (95% CI) | Hindsight capture | Beats anchor "
-              "| Beats naive | Valid | Planning calls | Commits | Finished | $/episode | Spend |",
-              "|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        lines.append(f"Baselines ({tier}, {b['n']} days): C idle 0, naive (v1's plan, never re-planned) "
+                     f"{_f(b['naive_capture'])}, anchor {_f(b['anchor_capture'])}, hindsight 1; R idle "
+                     f"{_f(b['idle'])}, naive {_f(b['naive'])}, anchor {_f(b['anchor'])}.")
+    lines += ["", "| Model | Tier | Days | Runs/planned | " + " | ".join(SCALE_HEAD) + " | Beats naive | Valid "
+              "| Planning calls | Commits | Finished | $/episode | Spend |",
+              "|---|---|---:|---:|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for m in c["models"]:
-        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
         lines.append(" | ".join([
-            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", _f(m["mean"]) + ci95,
-            _f(m["hindsight_capture"]), _f(m["beats_anchor"]), _f(m["beats_naive"]), _f(m["valid"]),
+            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", *scale_cells(m),
+            _f(m["beats_naive"]), _f(m["valid"]),
             _f(m["planning_calls"], ".2f"), _f(m["commits"], ".2f"), _f(m["finished_by_agent"]),
             "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
             f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
                                         else "")]) + " |")
+    lines += ["", "## Against the references", "", *refs_table(c["models"], lambda m: m["model"])]
     lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
               "| Model | Tier | " + " | ".join(LIVE_ERRORS) + " |", "|---|---|" + "---:|" * len(LIVE_ERRORS)]
     lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in LIVE_ERRORS) + " |"
@@ -1065,19 +1201,32 @@ def live_board_md(c: dict) -> str:
 
 # ================================================================ hybrid report
 def hybrid_baselines(rows: list[dict], tier: str) -> dict:
-    """The references' means over these site-days at one tier: each baseline's stored reward, the energy-only anchor's
-    reward against this tier's anchor, and the anchor's hindsight capture."""
+    """The references' means over these site-days at one tier: each baseline's stored reward and hindsight capture, the
+    energy-only MILP's against this tier's anchor, and the anchor's capture."""
     refs = [r["refs"] for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
-    out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0}
+    out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0, "capture": {}}
     for name in HYBRID_BASELINES:
-        out[name] = _r(_mean([r[tier]["baselines"][name]["reward"] for r in refs
-                              if name in (r[tier].get("baselines") or {})]))
+        have = [r for r in refs if name in (r[tier].get("baselines") or {})]
+        out[name] = _r(_mean([r[tier]["baselines"][name]["reward"] for r in have]))
+        out["capture"][name] = _r(_mean([x for r in have if (x := capture(
+            r[tier]["baselines"][name]["profit"], r["p_idle"], r[tier].get("p_hind"))) is not None]), 6)
+    have = [r for r in refs if r[tier].get("p_energy_only") is not None]
     out["energy_only"] = _r(_mean([reward_value(r[tier]["p_energy_only"], r["p_idle"], r[tier]["p_anchor"])
-                                   for r in refs if r[tier].get("p_energy_only") is not None]))
-    caps = [_live_capture({"p_idle": r["p_idle"], "p_hind": r[tier]["p_hind"]}, r[tier]["p_anchor"])
-            for r in refs if r[tier].get("p_hind") is not None]
-    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]))
+                                   for r in have]))
+    out["capture"]["energy_only"] = _r(_mean([x for r in have if (x := capture(
+        r[tier]["p_energy_only"], r["p_idle"], r[tier].get("p_hind"))) is not None]), 6)
+    caps = [capture(r[tier]["p_anchor"], r["p_idle"], r[tier].get("p_hind")) for r in refs]
+    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]), 6)
     return out
+
+
+def hybrid_points(task: dict, tier: str) -> dict:
+    r = task["refs"]
+    t = r[tier]
+    refs = {k: v["profit"] for k, v in (t.get("baselines") or {}).items()}
+    if t.get("p_energy_only") is not None:
+        refs["energy_only"] = t["p_energy_only"]
+    return {"p_idle": r["p_idle"], "p_anchor": t["p_anchor"], "p_hind": t.get("p_hind"), "refs": refs}
 
 
 def hybrid_model(board: Board, cell) -> dict:
@@ -1093,17 +1242,20 @@ def hybrid_model(board: Board, cell) -> dict:
     sponge = {t: ((board.tasks.get(t, {}).get("refs") or {}).get(tier) or {}).get("baselines", {}).get("sponge")
               for t in mean}
     stratum = {t: (board.tasks.get(t, {}).get("tags") or {}).get("as_stratum") for t in mean}
+    sc = scaled(by_task, lambda t, rs: hybrid_points(board.tasks[t], tier))
+    strata = {s: scaled({t: rs for t, rs in by_task.items() if stratum[t] == s},
+                        lambda t, rs: hybrid_points(board.tasks[t], tier)) for s in STRATA}
 
     def avg(key: str, digits: int = 4):
         return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
 
     return {"model": name, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
             "runs": len(runs), "planned": board.planned(cell), "tasks": len(mean),
-            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
-            "by_as_stratum": {s: _r(_mean([v for t, v in mean.items() if stratum[t] == s])) for s in STRATA},
-            "hindsight_capture": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()])),
-            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
-            "beats_sponge": _r(_mean([float(v > sponge[t]["reward"]) for t, v in mean.items() if sponge[t]])),
+            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None, **sc,
+            "by_as_stratum": {s: {"capture": strata[s]["capture"]["mean"], "delta": strata[s]["delta"]["mean"],
+                                  "r": _r(_mean([v for t, v in mean.items() if stratum[t] == s]))} for s in STRATA},
+            "beats_sponge": _r(_mean([float(bool(r["submitted"]) and r["profit"] > sp["profit"] + 1e-6)
+                                      for r in runs if (sp := sponge[r["task_id"]])])),
             "valid": _r(_mean([float(r["valid"]) for r in runs])),
             "as_share": avg("as_share"), "energy_only_reward": avg("energy_only_reward"),
             "clip_recovered_pct": avg("clip_recovered_pct", 2), "ftp_mwh_charged": avg("ftp_mwh_charged", 3),
@@ -1139,11 +1291,16 @@ def hybrid_card(board: Board) -> dict:
                     "max_tokens": hybrid_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
                     "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual "
                             "clock)"},
-        "grading": {"reference": "information-matched rolling MILP (HiGHS) played through the Session",
+        "grading": {"scale": SCALE,
+                    "hindsight": "P_hind: the hindsight MILP, a DA copy and a physical copy on realised RT, drift and "
+                                 "deployments sharing the AS book",
+                    "reference": "information-matched rolling MILP (HiGHS) played through the Session",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0",
                     "idle": "the solar-only plant", "anchor": "P_anchor: one MILP solve per watch on the day as known "
                                                               "then, the same freeze, call budget and governor",
-                    "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
+                    "fields": {"capture": "C", "anchor_capture": "the anchor's C", "delta": "C - C_anchor, paired",
+                               "mean": "R", "r_one": "share of runs at R = 1",
+                               "refs": "each reference's C and the paired gap"},
                     "weight_0": ["audit", "hindsight_capture", "energy_only", "as_share", "clip_recovered", "ftp"],
                     "audit": "weight 0; a failed audit makes the run unscored",
                     "excused": "AS shortfall or end-SoC shortfall from drift or deployments after the hour froze",
@@ -1168,30 +1325,33 @@ def hybrid_board_md(c: dict) -> str:
              f"Tasks: {c['tasks']['n']} hybrid site-days ({', '.join(c['tasks']['packs'])}; AS strata "
              + ", ".join(f"{k} {v}" for k, v in c["tasks"]["as_strata"].items()) + f"). Harness: {h['agent']} on "
              f"{h['env']}, {h['max_turns']} turns, {h['planning_calls_per_watch']} planning calls a watch, "
-             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: {c['grading']['reward']}; idle "
-             "(0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP. Mean R over days "
-             "with a 95% bootstrap CI.", ""]
+             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. R: {c['grading']['reward']}; idle "
+             "(0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP.", "",
+             scale_text("the hindsight MILP on realised RT, drift and deployments (a DA copy and a physical copy "
+                        "sharing the AS book), idle the solar-only plant"), ""]
     if c["tasks"]["flags"]:
         lines += ["Proxies and flags: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
     for tier, b in c["baselines"].items():
-        lines.append(f"Baselines ({tier}, {b['n']} days): idle {_f(b['idle'])}, sponge {_f(b['sponge'])}, AS-hog "
-                     f"{_f(b['as_hog'])}, v2 energy-only {_f(b['v2_energy'])}, energy-only MILP "
-                     f"{_f(b['energy_only'])}, anchor {_f(b['anchor'])}; anchor hindsight capture "
-                     f"{_f(b['anchor_capture'])}.")
-    lines += ["", "| Model | Tier | Days | Runs/planned | Mean R (95% CI) | R low/mid/high AS | Hindsight capture "
-              "| Beats anchor | Beats sponge | AS share | Clip recovered % | FTP MWh | Refusals | Planning calls "
+        cap = b["capture"]
+        lines.append(f"Baselines ({tier}, {b['n']} days): C idle 0, sponge {_f(cap['sponge'])}, AS-hog "
+                     f"{_f(cap['as_hog'])}, v2 energy-only {_f(cap['v2_energy'])}, energy-only MILP "
+                     f"{_f(cap['energy_only'])}, anchor {_f(b['anchor_capture'])}, hindsight 1; R idle "
+                     f"{_f(b['idle'])}, sponge {_f(b['sponge'])}, AS-hog {_f(b['as_hog'])}, v2 energy-only "
+                     f"{_f(b['v2_energy'])}, energy-only MILP {_f(b['energy_only'])}, anchor {_f(b['anchor'])}.")
+    lines += ["", "| Model | Tier | Days | Runs/planned | " + " | ".join(SCALE_HEAD) + " | C low/mid/high AS "
+              "| Beats sponge | AS share | Clip recovered % | FTP MWh | Refusals | Planning calls "
               "| Finished | $/episode | Spend |",
-              "|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+              "|---|---|---:|---:|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for m in c["models"]:
-        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
         lines.append(" | ".join([
-            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", _f(m["mean"]) + ci95,
-            "/".join(_f(m["by_as_stratum"][s]) for s in STRATA), _f(m["hindsight_capture"]),
-            _f(m["beats_anchor"]), _f(m["beats_sponge"]), _f(m["as_share"]), _f(m["clip_recovered_pct"], ".1f"),
+            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", *scale_cells(m),
+            "/".join(_f(m["by_as_stratum"][s]["capture"]) for s in STRATA),
+            _f(m["beats_sponge"]), _f(m["as_share"]), _f(m["clip_recovered_pct"], ".1f"),
             _f(m["ftp_mwh_charged"]), _f(m["refusals"], ".2f"), _f(m["planning_calls"], ".2f"),
             _f(m["finished_by_agent"]), "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
             f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
                                         else "")]) + " |")
+    lines += ["", "## Against the references", "", *refs_table(c["models"], lambda m: m["model"])]
     lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
               "| Model | Tier | " + " | ".join(HYBRID_ERRORS) + " |", "|---|---|" + "---:|" * len(HYBRID_ERRORS)]
     lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in HYBRID_ERRORS) + " |"
@@ -1201,17 +1361,24 @@ def hybrid_board_md(c: dict) -> str:
 
 # ================================================================ forecast report
 def forecast_baselines(rows: list[dict], tier: str) -> dict:
-    """The references' means over these windows at one tier: each stored baseline's reward against this tier's anchor,
-    and the anchor's hindsight capture."""
-    refs = [r["refs"] for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
-    out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0}
+    """The references' means over these windows at one tier: each stored baseline's reward against this tier's anchor
+    and its hindsight capture, and the anchor's capture."""
+    refs = [r["refs"][tier] for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
+    out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0, "capture": {}}
     for name in FORECAST_BASELINES:
-        out[name] = _r(_mean([r[tier]["baselines"][name]["reward"] for r in refs
-                              if name in (r[tier].get("baselines") or {})]))
-    caps = [_live_capture({"p_idle": r[tier]["p_idle"], "p_hind": r[tier]["p_hind"]}, r[tier]["p_anchor"])
-            for r in refs if r[tier].get("p_hind") is not None]
-    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]))
+        have = [r for r in refs if name in (r.get("baselines") or {})]
+        out[name] = _r(_mean([r["baselines"][name]["reward"] for r in have]))
+        out["capture"][name] = _r(_mean([x for r in have if (x := capture(
+            r["baselines"][name]["profit"], r["p_idle"], r.get("p_hind"))) is not None]), 6)
+    caps = [capture(r["p_anchor"], r["p_idle"], r.get("p_hind")) for r in refs]
+    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]), 6)
     return out
+
+
+def forecast_points(task: dict, tier: str) -> dict:
+    t = task["refs"][tier]
+    return {"p_idle": t["p_idle"], "p_anchor": t["p_anchor"], "p_hind": t.get("p_hind"),
+            "refs": {k: v["profit"] for k, v in (t.get("baselines") or {}).items()}}
 
 
 def forecast_model(board: Board, cell) -> dict:
@@ -1226,19 +1393,20 @@ def forecast_model(board: Board, cell) -> dict:
     effort = sorted({r.get("effort") for r in runs if r.get("effort")})
     tag = {t: (board.tasks.get(t, {}).get("tags") or {}).get("label") for t in mean}
     source = {t: rs[0].get("source") for t, rs in by_task.items()}
+    sc = scaled(by_task, lambda t, rs: forecast_points(board.tasks[t], tier))
+    labels = {lb: scaled({t: rs for t, rs in by_task.items() if tag[t] == lb},
+                         lambda t, rs: forecast_points(board.tasks[t], tier)) for lb in LABELS_V4}
 
     def avg(key: str, digits: int = 4):
         return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
 
     return {"model": name, "trained": "base", "tier": tier, "bundle": bundle, "effort": effort[0] if effort else None,
             "runs": len(runs), "planned": board.planned(cell), "tasks": len(mean),
-            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None,
-            "by_label": {lb: _r(_mean([v for t, v in mean.items() if tag[t] == lb])) for lb in LABELS_V4},
-            "by_source": {sc: _r(_mean([v for t, v in mean.items() if source[t] == sc])) for sc in ("desk", "ercot")},
-            "hindsight_capture": _r(_mean([statistics.mean(r["r_opt"] for r in rs) for rs in by_task.values()])),
-            "paired_vs_anchor": avg("paired_vs_anchor"),
-            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
-            "r_roll3": avg("r_roll3"), "forecast_value": avg("forecast_value"),
+            "mean": _r(_mean(rewards)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None, **sc,
+            "by_label": {lb: {"capture": labels[lb]["capture"]["mean"], "delta": labels[lb]["delta"]["mean"],
+                              "r": _r(_mean([v for t, v in mean.items() if tag[t] == lb]))} for lb in LABELS_V4},
+            "by_source": {k: _r(_mean([v for t, v in mean.items() if source[t] == k])) for k in ("desk", "ercot")},
+            "forecast_value": avg("forecast_value"),
             "valid": _r(_mean([float(r["valid"]) for r in runs])), "dam_missed": avg("dam_missed", 2),
             "dam_submits": avg("dam_submits", 2), "forecast_calls": avg("forecast_calls", 2),
             "as_usd": avg("as_usd", 2), "ftp_mwh_charged": avg("ftp_mwh_charged", 3),
@@ -1279,13 +1447,16 @@ def forecast_card(board: Board) -> dict:
                     "max_tokens": forecast_tasks.MODEL_PARAMS["max_tokens"], "effort": live_tasks.EFFORT,
                     "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual "
                             "clock)"},
-        "grading": {"reference": "the rolling MILP (HiGHS) played through the Session at every watch",
+        "grading": {"scale": SCALE, "hindsight": "P_hind: v3's hindsight MILP over the window",
+                    "reference": "the rolling MILP (HiGHS) played through the Session at every watch",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or "
                               "commit_schedule scores 0",
                     "idle": "no DAM, the battery idle, PV exported at RT",
                     "anchor": {"front": "P_roll on the desk's P50 guide", "front-lite": "P_roll, battery only",
                                "freeze-6h": "P_roll under the 6 h freeze", "blind": "P_blind on persistence"},
-                    "hindsight_capture": "r_hind: the reward against P_hind, a weight-0 row",
+                    "fields": {"capture": "C (replaces r_hind)", "anchor_capture": "the anchor's C",
+                               "delta": "C - C_anchor, paired (the verifier's paired_vs_anchor)", "mean": "R",
+                               "r_one": "share of runs at R = 1", "refs": "each reference's C and the paired gap"},
                     "weight_0": ["audit", "r_hind", "paired_vs_anchor", "beats_anchor", "r_roll3", "forecast_value",
                                  "dam_missed", "baselines"],
                     "audit": "weight 0; a failed audit makes the run unscored",
@@ -1317,30 +1488,34 @@ def forecast_board_md(c: dict) -> str:
              + ", ".join(f"{k} {v}" for k, v in c["tasks"]["sources"].items()) + f"). Harness: {h['agent']} on "
              f"{h['env']}, turns {turns}, {h['planning_calls_per_watch']} planning and "
              f"{h['forecast_calls_per_watch']} forecast calls a watch, {h['dam_submits_per_gate']} DAM submits a gate, "
-             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. Reward: {c['grading']['reward']}; idle "
+             f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. R: {c['grading']['reward']}; idle "
              "(0.2) is no DAM and the battery idle, the anchor (1.0) the rolling MILP on the desk's P50 guide "
-             "(blind: on persistence). Mean R over windows with a 95% bootstrap CI.", ""]
+             "(blind: on persistence).", "",
+             scale_text("v3's hindsight MILP over the window (C replaces r_hind; Δ is the verifier's "
+                        "paired_vs_anchor)"), ""]
     if c["tasks"]["flags"]:
         lines += ["Proxies and flags: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
     for tier, b in c["baselines"].items():
-        lines.append(f"Baselines ({tier}, {b['n']} windows): idle {_f(b['idle'])}, naive {_f(b['naive'])}, P_blind "
-                     f"{_f(b['blind'])}, P_roll {_f(b['roll'])}, P_roll3 {_f(b['roll3'])}, anchor {_f(b['anchor'])}; "
-                     f"anchor hindsight capture {_f(b['anchor_capture'])}.")
-    lines += ["", "| Model | Tier | Windows | Runs/planned | Mean R (95% CI) | R front/calm | r_hind "
-              "| Paired vs anchor | Beats anchor | r_roll3 | Forecast value | DAM missed | Forecast calls | Refusals "
-              "| Planning calls | Turns | Finished | $/episode (max) | Spend |",
-              "|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+        cap = b["capture"]
+        lines.append(f"Baselines ({tier}, {b['n']} windows): C idle 0, naive {_f(cap['naive'])}, P_blind "
+                     f"{_f(cap['blind'])}, P_roll {_f(cap['roll'])}, P_roll3 {_f(cap['roll3'])}, anchor "
+                     f"{_f(b['anchor_capture'])}, hindsight 1; R idle {_f(b['idle'])}, naive {_f(b['naive'])}, "
+                     f"P_blind {_f(b['blind'])}, P_roll {_f(b['roll'])}, P_roll3 {_f(b['roll3'])}, anchor "
+                     f"{_f(b['anchor'])}.")
+    lines += ["", "| Model | Tier | Windows | Runs/planned | " + " | ".join(SCALE_HEAD) + " | C front/calm "
+              "| Forecast value | DAM missed | Forecast calls | Refusals | Planning calls | Turns | Finished "
+              "| $/episode (max) | Spend |",
+              "|---|---|---:|---:|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for m in c["models"]:
-        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
         lines.append(" | ".join([
-            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", _f(m["mean"]) + ci95,
-            "/".join(_f(m["by_label"][lb]) for lb in LABELS_V4), _f(m["hindsight_capture"]),
-            _f(m["paired_vs_anchor"]), _f(m["beats_anchor"]), _f(m["r_roll3"]), _f(m["forecast_value"]),
+            f"| {m['model']}", m["tier"], str(m["tasks"]), f"{m['runs']}/{m['planned']}", *scale_cells(m),
+            "/".join(_f(m["by_label"][lb]["capture"]) for lb in LABELS_V4), _f(m["forecast_value"]),
             _f(m["dam_missed"], ".2f"), _f(m["forecast_calls"], ".1f"), _f(m["refusals"], ".2f"),
             _f(m["planning_calls"], ".2f"), _f(m["turns"], ".1f"), _f(m["finished_by_agent"]),
             "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f} (${m['usd_max']:.4f})",
             f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
                                         else "")]) + " |")
+    lines += ["", "## Against the references", "", *refs_table(c["models"], lambda m: m["model"])]
     lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
               "| Model | Tier | " + " | ".join(FORECAST_ERRORS) + " |", "|---|---|" + "---:|" * len(FORECAST_ERRORS)]
     lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in FORECAST_ERRORS) + " |"
@@ -1349,27 +1524,64 @@ def forecast_board_md(c: dict) -> str:
 
 
 # ================================================================ market report
+_PLAYS: dict[tuple[str, str], dict] = {}
+
+
+def market_plays(task: dict, tier: str) -> dict[str, dict]:
+    """Each card baseline played on the floor in process (core's baseline_plays), with its C against BR_rt and its
+    compliant score on C; cached, as the board and every model row read them."""
+    key = (task["task_id"], tier)
+    if key not in _PLAYS:
+        h, i = task["refs"][tier].get("p_br_rt"), task["refs"]["p_idle"]
+        _PLAYS[key] = {k: v | {"capture": capture(v["profit"], i, h),
+                               "compliant_capture": compliant_capture(v["profit"], i, h, v["welfare_ratio"],
+                                                                      v["submitted"])}
+                       for k, v in baseline_plays(task, tier).items()}
+    return _PLAYS[key]
+
+
+def compliant_capture(p: float | None, p_idle: float, p_hind: float | None, welfare: float | None,
+                      submitted: bool) -> float | None:
+    """The v5 public score: 0.5 clip(C, 0, 1) + 0.5 clip(W/W*, 0, 1), C against BR_rt; 0 without a valid offer."""
+    if not submitted:
+        return 0.0
+    c = capture(p, p_idle, p_hind)
+    if c is None or welfare is None:
+        return None
+    return round(0.5 * min(1.0, max(0.0, c)) + 0.5 * min(1.0, max(0.0, welfare)), 6)
+
+
+def market_points(task: dict, tier: str) -> dict:
+    r = task["refs"]
+    return {"p_idle": r["p_idle"], "p_anchor": r[tier]["p_anchor"], "p_hind": r[tier].get("p_br_rt"),
+            "refs": {k: v["profit"] for k, v in market_plays(task, tier).items() if k in MARKET_BASELINES}}
+
+
 def market_baselines(rows: list[dict], tier: str) -> dict:
-    """The references' means over these floors at one tier: R (idle 0.2 and the anchor 1.0 by construction, the stored
-    floor-sprint baselines), each baseline's compliant score played in process (core's baseline_plays), the same on
-    the peak floors, and the anchor's hindsight capture against BR_A."""
+    """The references' means over these floors at one tier, each played in process (core's baseline_plays): R (idle
+    0.2 and the anchor 1.0 by construction), C against BR_rt, the compliant score on C and on R, the same on the peak
+    floors; the anchor's C against BR_rt and, the DA-only row, against BR_A."""
     rows = [r for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
     refs = [r["refs"] for r in rows]
     out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0}
     for name in MARKET_BASELINES:
         out[name] = None if tier != "floor-sprint" else _r(_mean([
             r["floor-sprint"]["baselines"][name]["reward"] for r in refs if name in r["floor-sprint"]["baselines"]]))
-    plays = {r["task_id"]: baseline_plays(r, tier) for r in rows}
+    plays = {r["task_id"]: market_plays(r, tier) for r in rows}
     peak = [r["task_id"] for r in rows if market_peak(r)]
 
     def means(ids: list[str], key: str) -> dict:
-        return {k: _r(_mean([plays[t][k][key] for t in ids if k in plays[t]])) for k in ("idle", "anchor",
-                                                                                         *MARKET_BASELINES)}
+        digits = 6 if key in ("capture", "compliant_capture") else 4
+        return {k: _r(_mean([plays[t][k][key] for t in ids if k in plays[t] and plays[t][k][key] is not None]), digits)
+                for k in ("idle", "anchor", *MARKET_BASELINES)}
 
-    out["played"] = {key: means(list(plays), key) for key in ("reward", "compliant")}
-    out["peak"] = {"n": len(peak), **{key: means(peak, key) for key in ("reward", "compliant")}}
-    caps = [_live_capture({"p_idle": r["p_idle"], "p_hind": r[tier]["p_br"]}, r[tier]["p_anchor"]) for r in refs]
-    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]))
+    keys = ("reward", "compliant", "capture", "compliant_capture")
+    out["played"] = {key: means(list(plays), key) for key in keys}
+    out["peak"] = {"n": len(peak), **{key: means(peak, key) for key in keys}}
+    caps = [capture(r[tier]["p_anchor"], r["p_idle"], r[tier].get("p_br_rt")) for r in refs]
+    out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]), 6)
+    da = [capture(r[tier]["p_anchor"], r["p_idle"], r[tier]["p_br"]) for r in refs]
+    out["anchor_capture_vs_br"] = _r(_mean([x for x in da if x is not None]), 6)
     out["impact_hours"] = _r(_mean([r.get("impact_hours") for r in refs if r.get("impact_hours") is not None]), 2)
     return out
 
@@ -1388,6 +1600,14 @@ def market_model(board: Board, cell) -> dict:
     known, unknown = board.spend(cell)
     effort = sorted({r.get("effort") for r in runs if r.get("effort")})
     peak = {t for t in by_task if market_peak(board.tasks[t])}
+    for r in runs:
+        refs = board.tasks[r["task_id"]]["refs"]
+        hind = r.get("profit_hind") or refs[tier].get("p_br_rt")
+        r["compliant_capture"] = compliant_capture(r["profit"], refs["p_idle"], hind, r.get("welfare_ratio"),
+                                                   bool(r["submitted"]))
+        r["profit_hind"] = hind
+    sc = scaled(by_task, lambda t, rs: market_points(board.tasks[t], tier))
+    anchor_score = {t: market_plays(board.tasks[t], tier)["anchor"][MARKET_PLAYED[MARKET_HEADLINE]] for t in by_task}
 
     def per_task(key: str, only: set | None = None) -> list[float]:
         return [statistics.mean(r[key] for r in rs) for t, rs in by_task.items()
@@ -1401,18 +1621,23 @@ def market_model(board: Board, cell) -> dict:
     def avg(key: str, digits: int = 4):
         return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
 
+    head = {t: statistics.mean(r[MARKET_HEADLINE] for r in rs) for t, rs in by_task.items()
+            if all(r.get(MARKET_HEADLINE) is not None for r in rs) and anchor_score[t] is not None}
     return {"model": name, "trained": "base", "pack": pack, "tier": tier, "bundle": bundle,
-            "scoring": "compliant" if MARKET_HEADLINE == "compliant_reward" else "reward",
-            "sweep_scoring": "compliant" if bundle == "compliant" else "reward",
+            "scoring": MARKET_HEADLINE, "sweep_scoring": "compliant" if bundle == "compliant" else "reward",
             "effort": effort[0] if effort else None,
             "runs": len(runs), "planned": board.planned(cell), "tasks": len(by_task), **mean_ci(MARKET_HEADLINE),
+            "anchor_headline": _r(_mean([anchor_score[t] for t in head]), 6),
+            "headline_delta": _ci_of([v - anchor_score[t] for t, v in head.items()], 6),
             "peak": {"n": len(peak), **mean_ci(MARKET_HEADLINE, peak)},
+            **{k: sc[k] for k in ("capture", "anchor_capture", "delta", "r_one", "below_idle", "refs")},
             "reward": mean_ci("market_reward"), "reward_peak": mean_ci("market_reward", peak),
-            "compliant_reward": mean_ci("compliant_reward"),
-            "hindsight_capture": _r(_mean(per_task("r_opt"))), "regret_norm": avg("regret_norm"),
+            "compliant_reward": mean_ci("compliant_reward"), "compliant_capture": mean_ci("compliant_capture"),
+            "capture_vs_br": _r(_mean([x for r in runs if r["submitted"] and (x := capture(
+                r["profit"], r["profit_idle"], r["profit_opt"])) is not None])), "regret_norm": avg("regret_norm"),
             "regret_usd": avg("regret_usd", 2),
             "price_making_gain_usd_per_mw_day": avg("price_making_gain_usd_per_mw_day", 2), "eps_a": avg("eps_a"),
-            "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
+            "beats_anchor": sc["beats_anchor"],
             "valid": _r(_mean([float(r["valid"]) for r in runs])), "eps_nash": avg("eps_nash"),
             "welfare_ratio": avg("welfare_ratio"), "dwl_usd": avg("dwl_usd", 2), "rank": avg("rank", 2),
             "mitigated_hours": avg("mitigated_hours", 2), "withholding_index": avg("withholding_index"),
@@ -1447,16 +1672,20 @@ def market_card(board: Board) -> dict:
                     "max_tokens": {t: market_tasks.MODEL_PARAMS[t]["max_tokens"] for t in MARKET_TIERS},
                     "effort": live_tasks.EFFORT, "bidders": "scripted on their real offers",
                     "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"},
-        "grading": {"headline": "compliant" if MARKET_HEADLINE == "compliant_reward" else "reward",
+        "grading": {"scale": SCALE, "headline": MARKET_HEADLINE, MARKET_HEADLINE: MARKET_SCORES[MARKET_HEADLINE],
+                    "hindsight": "BR_rt (p_br_rt): the DA-clear best response with deviations settled at realised RT, "
+                                 "the clairvoyant bound of the same settlement; BR_A stays the DA-only row",
                     "reference": "the disclosure best-responder, information-matched at D-1 09:00",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0",
-                    "compliant": "0.5 R + 0.5 clip(welfare_ratio, 0, 1)",
+                    "compliant": "0.5 R + 0.5 clip(welfare_ratio, 0, 1), the env's compliant row",
                     "peak": f"floors with >= {MARKET_PEAK_HOURS} hours where seat A's full sale moves the hub price "
                             "by >= $5, their own column",
-                    "boards": {"public": "the headline score and the peak column",
-                               "research": "R against the disclosure anchor, regret, hindsight capture, the "
-                                           "price-making gain over the price-taker, eps, conduct"},
-                    "hindsight_capture": "(P-P_idle)/(BR_A-P_idle), BR_A the hindsight best response, a weight-0 row",
+                    "boards": {"public": "the headline score beside the anchor's and the paired delta, and the peak "
+                                         "column",
+                               "research": "C against BR_rt with the anchor's C and the paired delta, R against the "
+                                           "disclosure anchor, regret, C against BR_A, the price-making gain over the "
+                                           "price-taker, eps, conduct"},
+                    "capture_vs_br": "(P-P_idle)/(BR_A-P_idle), the DA-only row (BR_A is not a bound)",
                     "weight_0": ["audit", "hindsight_capture", "regret", "compliant or reward", "eps_nash", "welfare",
                                  "price_making_gain", "contract (floor-day)", "conduct", "rank", "fidelity"],
                     "audit": "weight 0; a failed audit makes the run unscored", "judge": False},
@@ -1475,10 +1704,12 @@ def market_card(board: Board) -> dict:
 
 
 def _market_cell(m: dict, key: str) -> str:
-    """One board cell: a mean with its CI, the peak floors' mean with their count, or a plain mean."""
-    if key in ("headline", "r"):
-        x = m if key == "headline" else m["reward"]
-        return _f(x["mean"]) + (f" ({_f(x['ci95'][0])} to {_f(x['ci95'][1])})" if x["ci95"] else "")
+    """One board cell: a mean with its CI, a paired gap with its CI, the peak floors' mean with their count, or a plain
+    mean."""
+    if key in ("headline", "r", "c"):
+        return _c_cell(m if key == "headline" else m["reward"] if key == "r" else m["capture"])
+    if key in ("headline_delta", "delta"):
+        return _d_cell(m[key])
     if key in ("peak", "r_peak"):
         x = m["peak"] if key == "peak" else m["reward_peak"]
         return "–" if not m["peak"]["n"] else f"{_f(x['mean'])} (n {m['peak']['n']})"
@@ -1498,9 +1729,14 @@ def market_board_md(c: dict) -> str:
     if c["tasks"]["flags"]:
         lines += ["Modelled and flagged: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
     lines += ["## Public board", "",
-              f"Score: {g['headline']} ({g[g['headline']]}). Peak floors: {g['peak']}.", ""]
+              f"Score: {g['headline']} ({g[g['headline']]}), beside the anchor's score on the same floors and the "
+              f"paired Δ. Peak floors: {g['peak']}.", "",
+              scale_text("BR_rt, the DA-clear best response with deviations settled at realised RT (the clairvoyant "
+                         "bound of the same settlement; BR_A, the DA-only row, is not a bound)").replace(
+                  "Headline: hindsight capture C", "The score's profit half is clip(C, 0, 1), C the hindsight capture"),
+              ""]
     for tier, b in c["baselines"].items():
-        on, pk = b["played"][g["headline"]], b["peak"][g["headline"]]
+        on, pk = b["played"][MARKET_PLAYED[g["headline"]]], b["peak"][MARKET_PLAYED[g["headline"]]]
         lines.append(f"Baselines ({tier}, {b['n']} floors, played in process): "
                      + ", ".join(f"{k} {_f(v)}" for k, v in on.items() if v is not None)
                      + (f"; on {b['peak']['n']} peak floors: " + ", ".join(f"{k} {_f(v)}" for k, v in pk.items()
@@ -1514,17 +1750,23 @@ def market_board_md(c: dict) -> str:
                                  "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
                                  f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown"
                                                              if m["unknown_spend_attempts"] else "")]) + " |")
-    lines += ["", "## Research board", "", f"R: {g['reward']}; regret against BR_A, the hindsight best response; the "
-              "price-making gain is (P - P_price_taker) per MW-day on floor-sprint.", ""]
+    lines += ["", "## Research board", "", f"C against BR_rt heads it, with the anchor's C and the paired Δ; R second: "
+              f"{g['reward']}. Regret and C vs BR_A are against BR_A, the DA-only best response; the price-making gain "
+              "is (P - P_price_taker) per MW-day on floor-sprint.", ""]
     for tier, b in c["baselines"].items():
+        cap = b["played"]["capture"]
         extra = ", ".join(f"{k} {_f(b[k])}" for k in MARKET_BASELINES if b.get(k) is not None)
-        lines.append(f"Baselines ({tier}, {b['n']} floors, R): idle {_f(b['idle'])}, anchor {_f(b['anchor'])}"
-                     + (f", {extra}" if extra else "") + f"; anchor hindsight capture {_f(b['anchor_capture'])}, "
+        lines.append(f"Baselines ({tier}, {b['n']} floors): C idle {_f(cap['idle'])}, anchor "
+                     f"{_f(b['anchor_capture'])}, " + ", ".join(f"{k} {_f(cap[k])}" for k in MARKET_BASELINES)
+                     + f", hindsight 1; R idle {_f(b['idle'])}, anchor {_f(b['anchor'])}"
+                     + (f", {extra}" if extra else "") + f"; anchor C vs BR_A {_f(b['anchor_capture_vs_br'])}, "
                      f"impact hours {_f(b['impact_hours'], '.2f')}.")
     lines += ["", "| Model | Tier | Sweep scoring | " + " | ".join(t for t, _ in MARKET_RESEARCH) + " |",
               "|---|---|---|" + "---:|" * len(MARKET_RESEARCH)]
     lines += [" | ".join([f"| {m['model']}", m["tier"], m["sweep_scoring"],
                           *(_market_cell(m, k) for _, k in MARKET_RESEARCH)]) + " |" for m in c["models"]]
+    lines += ["", "Against the references played in process, (P − P_ref)/(BR_rt − P_idle):", "",
+              *refs_table(c["models"], lambda m: m["model"])]
     lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
               "| Model | Tier | " + " | ".join(MARKET_ERRORS) + " |", "|---|---|" + "---:|" * len(MARKET_ERRORS)]
     lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in MARKET_ERRORS) + " |"
@@ -1693,10 +1935,10 @@ def run_command(name: str, models: str, task_spec: str, env: str, pack: str | No
               help="A sweep of NAMES and the sweep that re-ran some of its tasks under an amendment: the headline "
                    "takes each run's score from either, and `prereg` reports the sweep alone. Repeatable.")
 def report_command(names: tuple[str, ...], card_path: Path | None, board_path: Path | None, amend: tuple[str, ...]):
-    """Report the sweeps NAMES: each model at each pack, tier and harness, its mean reward with a 95% bootstrap CI,
-    hindsight capture, optimal and valid rates, error taxonomy, checks used, the breakdowns by battery class, binding
-    constraint and day type, and cost, next to the baselines graded on the same tasks. Live sweeps report against the
-    live references: naive, the rolling anchor and hindsight."""
+    """Report the sweeps NAMES on the cross-version scale (docs/REWARD-SCALES.md): each model at each pack, tier and
+    harness, headed by hindsight capture C with the anchor's C and the paired delta, then R with its R = 1 and
+    beats-anchor shares, each reference's C and the paired gap to it, the error taxonomy, and cost; v1 adds checks used
+    and the breakdowns by battery class, binding constraint and day type, v5 the compliant score on C."""
     if bad := [a for a in amend if a.count("=") != 1]:
         raise click.UsageError(f"--amend takes SWEEP=AMENDMENT, not {bad[0]}")
     sweeps = [load(name) for name in names]

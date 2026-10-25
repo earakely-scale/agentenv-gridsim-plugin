@@ -1,7 +1,8 @@
 """The v1 board: GPT-6.1 Sol's four pre-registered sweeps and their amendment, reported by `agent-env gridsim sweep
-report` into results/eval-v1.json and results/board.md, with the board's own text around the tables: who ran it, the
-pre-registration, the amendment, the hypotheses against what was measured, and a reading. Every number in it comes
-from the sweeps' results, their Episode JSON and the packs.
+report` into results/eval-v1.json and results/board.md on the cross-version scale (docs/REWARD-SCALES.md: hindsight
+capture C heads it, R second), with the board's own text around the tables: who ran it, the pre-registration, the
+amendment, the hypotheses against what was measured, and a reading. Every number in it comes from the sweeps'
+results, their Episode JSON and the packs.
 
 usage: python scripts/board.py
 """
@@ -106,9 +107,13 @@ def narrate(c: dict, board: sweep.Board) -> tuple[dict, str, str]:
     c_pre = board.scored(cells["C"], amended=False)
     c_new = {t: rs for t, rs in board.scored(cells["C"]).items() if t not in c_pre}
     mean_of = lambda by, k: statistics.mean(r[k] for rs in by.values() for r in rs)  # noqa: E731
+    cap_of = lambda by: statistics.mean(board.run_capture(r, "blind") for rs in by.values() for r in rs)  # noqa: E731
+    c_one = statistics.mean(float(board.run_capture(r, "blind") >= 1 - 1e-9)
+                            for rs in board.scored(cells["C"]).values() for r in rs)
     stopped = Counter(r["sweep"] for r in stops)
     low_a = sorted(v for v in a_r.values() if v < sweep.OPTIMAL)
     cb = m["C"]["baselines"]
+    pd = m["C"]["refs"]["persistence_dp"]["delta"]
     days = m["C"]["by_day"]
     neg = days["negative_prices"]
     fore = [r for r in amend_rows if r["tier"] == "foresight"]
@@ -132,7 +137,8 @@ def narrate(c: dict, board: sweep.Board) -> tuple[dict, str, str]:
                  {"row": "Threshold", "hypothesis": HYPOTHESES["threshold"],
                   "measured": m["A"]["baselines"]["threshold"]["reward"]},
                  {"row": "Sol, blind", "hypothesis": HYPOTHESES["C"], "measured": m["C"]["mean"],
-                  "r_opt": m["C"]["hindsight_capture"], "beats_anchor": m["C"]["beats_anchor"]}]}
+                  "capture": m["C"]["capture"]["mean"], "anchor_capture": m["C"]["anchor_capture"],
+                  "delta": m["C"]["delta"], "beats_anchor": m["C"]["beats_anchor"]}]}
 
     start, end = min(r["started_utc"] for r in pre_rows), max(r["started_utc"] for r in pre_rows)
     a_start, a_end = min(r["started_utc"] for r in amend_rows), max(r["started_utc"] for r in amend_rows)
@@ -157,11 +163,17 @@ of the {len(eps):,} scored runs ({calls['submit_schedule']:,} submits, {calls['c
 reward equals both the verifier's and gridsim_core's grade of the schedule (within 1e-6). No run mismatched. The runs
 are in the dataset's `v1_episodes` config with their transcripts and replay in 3D in the Space ([links](#links)).
 
-**Headline: the amended columns.** Foresight is saturated: Sol scores {m['A']['mean']:.4f} on A
-({pct(m['A']['optimal'])} of days optimal), {m['B']['mean']:.4f} on B and {m['D']['mean']:.4f} on D, with no rule
-broken in any of the {len(eps):,} scored runs. The blind tier separates: R {m['C']['mean']:.4f}
-({m['C']['ci95'][0]:.3f} to {m['C']['ci95'][1]:.3f}), r_opt {m['C']['hindsight_capture']:.4f} against the blind
-anchor's own {cb['blind_anchor']['r_opt']:.4f} on the same days, beating its anchor on {pct(m['C']['beats_anchor'])}.
+**Headline: the amended columns,** on the cross-version scale ([docs/REWARD-SCALES.md](../docs/REWARD-SCALES.md)):
+hindsight capture C = (P − P_idle)/(P_opt − P_idle) with the anchor's own C and the paired gap Δ, then R. At the
+foresight tier the anchor is the hindsight, so C = (R − 0.2)/0.8 and the tier reads as solved: C
+{m['A']['capture']['mean']:.3f} on A ({pct(m['A']['r_one'])} of days at C = 1), {m['B']['capture']['mean']:.3f} on B
+and {m['D']['capture']['mean']:.3f} on D, with no rule broken in any of the {len(eps):,} scored runs. The blind tier
+separates: C {m['C']['capture']['mean']:.3f} ({m['C']['capture']['ci95'][0]:.3f} to
+{m['C']['capture']['ci95'][1]:.3f}) against the blind anchor's own {m['C']['anchor_capture']:.3f} on the same days, Δ
+{m['C']['delta']['mean']:+.3f} ({m['C']['delta']['ci95'][0]:+.3f} to {m['C']['delta']['ci95'][1]:+.3f}): level with
+the anchor. Second, R {m['C']['mean']:.4f} ({m['C']['ci95'][0]:.3f} to {m['C']['ci95'][1]:.3f}), at R = 1 on
+{pct(m['C']['r_one'])} of the days, above the anchor on {pct(m['C']['beats_anchor'])}. The r_opt this board printed
+before (0.2 + 0.8 C) is replaced by C.
 
 ## The amendment
 
@@ -187,11 +199,12 @@ What the files show:
   ${amend_caps[0]:.2f} episode cap; all {sum(r['outcome'] == 'scored' for r in amend_rows)} scored, for
   {money(sum(r['cost_usd'] or 0.0 for r in amend_rows))}, the dearest episode
   ${max(r['cost_usd'] or 0.0 for r in amend_rows):.4f}.
-- **The bias.** The stops fell on the days that make Sol work hardest: C's {len(c_new)} re-run days score R
-  {mean_of(c_new, 'reward'):.4f} (r_opt {mean_of(c_new, 'r_opt'):.4f}) against {mean_of(c_pre, 'reward'):.4f}
-  ({mean_of(c_pre, 'r_opt'):.4f}) on the {len(c_pre)} that scored under the cap, so the pre-registered C
-  ({m['C']['prereg']['mean']:.4f}) overstates the full column ({m['C']['mean']:.4f}). The {fore_n} stopped foresight
-  runs (A, B and D) scored {fore_mean:.4f} on average on their re-runs."""
+- **The bias.** The stops fell on the days that make Sol work hardest: column C's {len(c_new)} re-run days capture
+  {cap_of(c_new):.3f} (R {mean_of(c_new, 'reward'):.4f}) against {cap_of(c_pre):.3f} ({mean_of(c_pre, 'reward'):.4f})
+  on the {len(c_pre)} that scored under the cap, so the pre-registered column (C
+  {m['C']['prereg']['capture']['mean']:.3f}, R {m['C']['prereg']['mean']:.4f}) overstates the full one (C
+  {m['C']['capture']['mean']:.3f}, R {m['C']['mean']:.4f}). The {fore_n} stopped foresight runs (A, B and D) scored R
+  {fore_mean:.4f} on average on their re-runs."""
 
     hyp = [("Sol, full, foresight (A)", HYPOTHESES["A"],
             f"{m['A']['mean']:.4f} ({m['A']['ci95'][0]:.4f} to {m['A']['ci95'][1]:.4f})", "above the range"),
@@ -203,32 +216,36 @@ What the files show:
            ("Threshold", HYPOTHESES["threshold"], f"{m['A']['baselines']['threshold']['reward']:.3f} on A's days",
             "near"),
            ("Sol, blind (C)", HYPOTHESES["C"],
-            f"R {m['C']['mean']:.4f} ({m['C']['ci95'][0]:.4f} to {m['C']['ci95'][1]:.4f}), r_opt "
-            f"{m['C']['hindsight_capture']:.4f}, beats the anchor on {pct(m['C']['beats_anchor'])}",
+            f"R {m['C']['mean']:.4f} ({m['C']['ci95'][0]:.4f} to {m['C']['ci95'][1]:.4f}); C "
+            f"{m['C']['capture']['mean']:.3f} against the anchor's {m['C']['anchor_capture']:.3f}, Δ "
+            f"{m['C']['delta']['mean']:+.3f}; beats the anchor on {pct(m['C']['beats_anchor'])}",
             "first measurement")]
     outro = "\n".join([
         "## Hypotheses", "",
-        "The pre-registration's hypotheses, from the spec before any run, against the amended columns.", "",
+        "The pre-registration's hypotheses, from the spec before any run, against the amended columns. They were "
+        "registered on R, so R is what they are read on.", "",
         "| Row | Hypothesis | Measured | Reading |", "|---|---|---|---|",
         *(f"| {a} | {b} | {x} | {y} |" for a, b, x, y in hyp), "",
         "## Reading", "",
-        f"- **Foresight is saturated for Sol,** as FD-4332 warned it would be for a frontier model: A's mean is "
-        f"{m['A']['mean']:.4f}, {pct(m['A']['optimal'])} of its {m['A']['runs']} days score R ≥ 0.99 (the "
-        f"{len(low_a)} others {', '.join(f'{v:.3f}' for v in low_a)}), B matches A, and D's {m['D']['runs']} "
-        f"post-RTC+B days all score {m['D']['mean']:.4f}. Every submitted schedule was valid: no overfill, no "
+        f"- **Foresight is solved for Sol,** as the design expected for a frontier model: A's C is "
+        f"{m['A']['capture']['mean']:.3f} (R {m['A']['mean']:.4f}), {pct(m['A']['optimal'])} of its "
+        f"{m['A']['runs']} days score R ≥ 0.99 (the {len(low_a)} others {', '.join(f'{v:.3f}' for v in low_a)}), B "
+        f"matches A, and D's {m['D']['runs']} post-RTC+B days average C {m['D']['capture']['mean']:.3f}. Every "
+        "submitted schedule was valid: no overfill, no "
         "sell-before-charge, no rate or cycle-cap break, no end-of-day shortfall and no all-idle day in any column. "
         "With 24 prices in view, Sol finds the DP's optimum; the foresight tier stays the training headline for small "
         "models and the check that the harness works, not a way to rank frontier models.",
-        f"- **The blind tier carries the discrimination.** Sol's r_opt is {m['C']['hindsight_capture']:.4f} against "
-        f"the blind anchor's own {cb['blind_anchor']['r_opt']:.4f} on the same {m['C']['planned']} days "
-        f"(persistence-DP {cb['persistence_dp']['r_opt']:.4f}, ridge-DP {cb['ridge_dp']['r_opt']:.4f}): it sits above "
-        "persistence-DP and just under the better of the two forecasters, which a desk can build from the same inputs. "
-        f"It beats its anchor on {pct(m['C']['beats_anchor'])} of the days and scores R ≥ 0.99 on "
-        f"{pct(m['C']['optimal'])}; "
-        f"{pct(m['C']['r_opt_optimal'])} of its blind days score r_opt ≥ 0.99. It does worst on days with "
-        f"negative-price hours (r_opt {neg['r_opt']:.3f} on {neg['n']} days, against "
-        f"{days['neither']['r_opt']:.3f} on the {days['neither']['n']} days with neither negative prices nor a "
-        f"spike), and {below_idle} blind day{'' if below_idle == 1 else 's'} scored below idle.",
+        f"- **The blind tier carries the discrimination.** Sol's C is {m['C']['capture']['mean']:.3f} against the "
+        f"blind anchor's own {m['C']['anchor_capture']:.3f} on the same {m['C']['planned']} days, Δ "
+        f"{m['C']['delta']['mean']:+.3f} ({m['C']['delta']['ci95'][0]:+.3f} to {m['C']['delta']['ci95'][1]:+.3f}); "
+        f"persistence-DP captures {cb['persistence_dp']['capture']:.3f} (Sol − it {pd['mean']:+.3f}, "
+        f"{pd['ci95'][0]:+.3f} to {pd['ci95'][1]:+.3f}) and ridge-DP {cb['ridge_dp']['capture']:.3f}: "
+        "Sol sits above persistence-DP and level with the better of the two forecasters, which a desk can build from "
+        f"the same inputs. It out-earns its anchor on {pct(m['C']['beats_anchor'])} of the days and ties or beats it "
+        f"(R = 1) on {pct(m['C']['r_one'])}, where R − R_anchor reads a deficit by construction; C reaches 1 on "
+        f"{pct(c_one)}. It does worst on days with negative-price hours (C {neg['capture']:.3f} on {neg['n']} days, "
+        f"against {days['neither']['capture']:.3f} on the {days['neither']['n']} days with neither negative prices "
+        f"nor a spike), and {below_idle} blind day{'' if below_idle == 1 else 's'} scored below idle.",
         f"- **Checking: one check, almost always.** Sol used exactly one of its three checks on "
         f"{m['A']['checks'].get('1', 0)} of A's {m['A']['runs']} runs, {m['C']['checks'].get('1', 0)} of C's "
         f"{m['C']['runs']} and {m['D']['checks'].get('1', 0)} of D's {m['D']['runs']}, never three; on {same:,} of the "

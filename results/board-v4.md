@@ -1,16 +1,31 @@
 # GridSim v4 forecast board
 
-Tasks: 30 forecast windows (ercot-front-v4-eval; front 21, calm 9; sources ercot 30). Harness: gridsim-llm on gridsim-forecast, turns front 122, front-lite 72, 3 planning and 6 forecast calls a watch, 3 DAM submits a gate, 16384 output tokens a turn, effort high. Reward: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or commit_schedule scores 0; idle (0.2) is no DAM and the battery idle, the anchor (1.0) the rolling MILP on the desk's P50 guide (blind: on persistence). Mean R over windows with a 95% bootstrap CI.
+Tasks: 30 forecast windows (ercot-front-v4-eval; front 21, calm 9; sources ercot 30). Harness: gridsim-llm on gridsim-forecast, turns front 122, front-lite 72, 3 planning and 6 forecast calls a watch, 3 DAM submits a gate, 16384 output tokens a turn, effort high. R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or commit_schedule scores 0; idle (0.2) is no DAM and the battery idle, the anchor (1.0) the rolling MILP on the desk's P50 guide (blind: on persistence).
+
+Headline: hindsight capture C = (P − P_idle)/(P_hind − P_idle), unclipped, with P_hind v3's hindsight MILP over the window (C replaces r_hind; Δ is the verifier's paired_vs_anchor): idle 0, hindsight 1. It is printed beside the anchor's own C on the same tasks and Δ = C − C_anchor, the paired gap with its 95% CI. Second: R on the anchor scale (the anchor 1.0), a level that is never differenced, with its R = 1 share (a tie with the anchor or better) and the beats-anchor share. Every comparison with a reference is (P − P_ref)/(P_hind − P_idle). CIs bootstrap over tasks; the rule and its evidence: docs/REWARD-SCALES.md.
 
 Proxies and flags: forecasts: desk (modelled from NOAA HRRR as issued); load_official: EIA-930 DF; price_guide: modelled; pv_availability: proxy; reg_drift: seeded; rt_as: n/a; site: archetype.
 
-Baselines (front, 20 windows): idle 0.200, naive 0.643, P_blind 0.720, P_roll 1.000, P_roll3 0.976, anchor 1.000; anchor hindsight capture 0.477.
-Baselines (front-lite, 10 windows): idle 0.200, naive 0.351, P_blind 0.981, P_roll 1.000, P_roll3 0.965, anchor 1.000; anchor hindsight capture 0.450.
+Baselines (front, 20 windows): C idle 0, naive 0.281, P_blind 0.346, P_roll 0.477, P_roll3 0.475, anchor 0.477, hindsight 1; R idle 0.200, naive 0.643, P_blind 0.720, P_roll 1.000, P_roll3 0.976, anchor 1.000.
+Baselines (front-lite, 10 windows): C idle 0, naive 0.065, P_blind 0.485, P_roll 0.450, P_roll3 0.476, anchor 0.450, hindsight 1; R idle 0.200, naive 0.351, P_blind 0.981, P_roll 1.000, P_roll3 0.965, anchor 1.000.
 
-| Model | Tier | Windows | Runs/planned | Mean R (95% CI) | R front/calm | r_hind | Paired vs anchor | Beats anchor | r_roll3 | Forecast value | DAM missed | Forecast calls | Refusals | Planning calls | Turns | Finished | $/episode (max) | Spend |
-|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| openai/gpt-6.1-sol | front | 20 | 20/20 | 0.909 (0.836 to 0.968) | 0.883/0.968 | 0.566 | -0.019 | 0.350 | 0.909 | – | 0.00 | 25.3 | 6.90 | 6.55 | 62.3 | 1.000 | $0.5698 ($0.9753) | $11.40 |
-| openai/gpt-6.1-sol | front-lite | 10 | 10/10 | 0.883 (0.733 to 0.980) | 0.840/0.981 | 0.523 | -0.047 | 0.400 | 0.858 | – | 0.00 | 17.2 | 29.10 | 4.30 | 42.1 | 1.000 | $0.1934 ($0.2536) | $1.93 |
+| Model | Tier | Windows | Runs/planned | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | C front/calm | Forecast value | DAM missed | Forecast calls | Refusals | Planning calls | Turns | Finished | $/episode (max) | Spend |
+|---|---|---:|---:|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| openai/gpt-6.1-sol | front | 20 | 20/20 | 0.458 (0.362 to 0.553) | 0.477 | -0.019 (-0.057 to +0.017) | 0.909 (0.836 to 0.968) | 0.350 | 0.350 | 0.390/0.616 | – | 0.00 | 25.3 | 6.90 | 6.55 | 62.3 | 1.000 | $0.5698 ($0.9753) | $11.40 |
+| openai/gpt-6.1-sol | front-lite | 10 | 10/10 | 0.404 (0.288 to 0.512) | 0.450 | -0.047 (-0.098 to -0.005) | 0.883 (0.733 to 0.980) | 0.500 | 0.400 | 0.338/0.557 | – | 0.00 | 17.2 | 29.10 | 4.30 | 42.1 | 1.000 | $0.1934 ($0.2536) | $1.93 |
+
+## Against the references
+
+| Model | Tier | Reference | Its C | Model − it (95% CI) | Tasks |
+|---|---|---|---:|---|---:|
+| openai/gpt-6.1-sol | front | naive | 0.281 | +0.177 (+0.123 to +0.230) | 20 |
+| openai/gpt-6.1-sol | front | blind | 0.346 | +0.112 (+0.059 to +0.168) | 20 |
+| openai/gpt-6.1-sol | front | roll | 0.477 | -0.019 (-0.057 to +0.017) | 20 |
+| openai/gpt-6.1-sol | front | roll3 | 0.475 | -0.017 (-0.059 to +0.020) | 20 |
+| openai/gpt-6.1-sol | front-lite | naive | 0.065 | +0.338 (+0.227 to +0.463) | 10 |
+| openai/gpt-6.1-sol | front-lite | blind | 0.485 | -0.081 (-0.167 to -0.015) | 10 |
+| openai/gpt-6.1-sol | front-lite | roll | 0.450 | -0.047 (-0.098 to -0.005) | 10 |
+| openai/gpt-6.1-sol | front-lite | roll3 | 0.476 | -0.072 (-0.175 to +0.002) | 10 |
 
 ## Errors
 

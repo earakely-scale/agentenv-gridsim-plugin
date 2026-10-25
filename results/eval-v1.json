@@ -45,13 +45,28 @@
     }
   },
   "grading": {
+    "scale": {
+      "headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the anchor's C and delta = C - C_anchor with its paired 95% CI",
+      "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+      "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+      "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a board",
+      "decision": "docs/REWARD-SCALES.md"
+    },
     "reference": "exact DP over integer SoC (LP bound reported)",
+    "hindsight": "P_opt (exact DP); at the foresight tier the anchor is the hindsight, so C = (R - 0.2)/0.8 and the tier reads as solved",
     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1)",
     "anchor": {
       "foresight": "P_opt (exact DP)",
       "blind": "max(P_persist, P_ridge)"
     },
-    "hindsight_capture": "r_opt: the reward against P_opt, a weight-0 row",
+    "fields": {
+      "capture": "C",
+      "anchor_capture": "the anchor's C",
+      "delta": "C - C_anchor, paired",
+      "mean": "R",
+      "r_one": "share of runs at R = 1",
+      "refs": "each reference's C and the paired gap"
+    },
     "optimal": "R >= 0.99",
     "ci": "95% bootstrap over tasks, 10,000 resamples",
     "excused": "none",
@@ -60,11 +75,15 @@
   "baselines": {
     "idle": 0.2,
     "random": 0.0622,
+    "random_capture": -0.61172,
     "clock": 0.4683,
+    "clock_capture": 0.310865,
     "threshold": 0.6491,
+    "threshold_capture": 0.551379,
     "greedy": 0.7487,
+    "greedy_capture": 0.685172,
     "persistence_dp_blind": 0.9505,
-    "persistence_dp_blind_r_opt": 0.8667,
+    "persistence_dp_blind_capture": 0.833304,
     "n": 750,
     "n_blind": 502
   },
@@ -90,9 +109,100 @@
         0.9997,
         1.0
       ],
-      "hindsight_capture": 0.9999,
+      "capture": {
+        "mean": 0.999849,
+        "ci95": [
+          0.999646,
+          0.99998
+        ]
+      },
+      "anchor_capture": 1.0,
+      "delta": {
+        "mean": -0.000151,
+        "ci95": [
+          -0.000354,
+          -2e-05
+        ]
+      },
+      "r": {
+        "mean": 0.9999,
+        "ci95": [
+          0.9997,
+          1.0
+        ]
+      },
+      "r_one": 0.988,
+      "beats_anchor": 0.0,
+      "below_idle": 0,
+      "refs": {
+        "random": {
+          "n": 500,
+          "capture": -0.55855,
+          "delta": {
+            "mean": 1.558399,
+            "ci95": [
+              1.501962,
+              1.618451
+            ]
+          }
+        },
+        "clock": {
+          "n": 500,
+          "capture": 0.340846,
+          "delta": {
+            "mean": 0.659003,
+            "ci95": [
+              0.626161,
+              0.693489
+            ]
+          }
+        },
+        "threshold": {
+          "n": 500,
+          "capture": 0.543492,
+          "delta": {
+            "mean": 0.456357,
+            "ci95": [
+              0.427665,
+              0.486836
+            ]
+          }
+        },
+        "greedy": {
+          "n": 500,
+          "capture": 0.700837,
+          "delta": {
+            "mean": 0.299012,
+            "ci95": [
+              0.269959,
+              0.329661
+            ]
+          }
+        },
+        "persistence_dp": {
+          "n": 300,
+          "capture": 0.852487,
+          "delta": {
+            "mean": 0.147337,
+            "ci95": [
+              0.128071,
+              0.167538
+            ]
+          }
+        },
+        "ridge_dp": {
+          "n": 300,
+          "capture": 0.747449,
+          "delta": {
+            "mean": 0.252376,
+            "ci95": [
+              0.223915,
+              0.281945
+            ]
+          }
+        }
+      },
       "optimal": 0.996,
-      "r_opt_optimal": 0.996,
       "valid": 1.0,
       "submitted": 1.0,
       "errors": {
@@ -111,69 +221,69 @@
       "by_checks": {
         "1": {
           "n": 499,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9998,
+          "mean": 0.9999
         },
         "2": {
           "n": 1,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "by_archetype": {
         "1h": {
           "n": 172,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "2h": {
           "n": 166,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 0.9999,
+          "mean": 1.0
         },
         "4h": {
           "n": 162,
-          "mean": 0.9997,
-          "r_opt": 0.9997
+          "capture": 0.9996,
+          "mean": 0.9997
         }
       },
       "by_binding": {
         "cycle_cap": {
           "n": 103,
-          "mean": 0.9996,
-          "r_opt": 0.9996
+          "capture": 0.9995,
+          "mean": 0.9996
         },
         "end_soc": {
           "n": 65,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "none": {
           "n": 169,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9999,
+          "mean": 0.9999
         },
         "rate": {
           "n": 163,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "by_day": {
         "negative_prices": {
           "n": 27,
-          "mean": 0.9983,
-          "r_opt": 0.9983
+          "capture": 0.9979,
+          "mean": 0.9983
         },
         "neither": {
           "n": 459,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "spike": {
           "n": 14,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "usd_per_episode": 0.0157,
@@ -203,47 +313,47 @@
       "baselines": {
         "idle": {
           "reward": 0.2,
-          "r_opt": 0.2,
+          "capture": 0.0,
           "n": 500
         },
         "random": {
           "reward": 0.0716,
-          "r_opt": 0.0716,
+          "capture": -0.55855,
           "n": 500
         },
         "clock": {
           "reward": 0.4849,
-          "r_opt": 0.4849,
+          "capture": 0.340846,
           "n": 500
         },
         "threshold": {
           "reward": 0.6418,
-          "r_opt": 0.6418,
+          "capture": 0.543492,
           "n": 500
         },
         "greedy": {
           "reward": 0.7611,
-          "r_opt": 0.7611,
+          "capture": 0.700837,
           "n": 500
         },
         "dp_optimum": {
           "reward": 1.0,
-          "r_opt": 1.0,
+          "capture": 1.0,
           "n": 500
         },
         "persistence_dp": {
           "reward": 0.882,
-          "r_opt": 0.882,
+          "capture": 0.852487,
           "n": 300
         },
         "ridge_dp": {
           "reward": 0.7988,
-          "r_opt": 0.7988,
+          "capture": 0.747449,
           "n": 300
         },
         "blind_anchor": {
           "reward": 0.9204,
-          "r_opt": 0.9204,
+          "capture": 0.900543,
           "n": 300
         }
       },
@@ -265,9 +375,100 @@
           0.9997,
           1.0
         ],
-        "hindsight_capture": 0.9999,
+        "capture": {
+          "mean": 0.999845,
+          "ci95": [
+            0.999634,
+            0.999981
+          ]
+        },
+        "anchor_capture": 1.0,
+        "delta": {
+          "mean": -0.000155,
+          "ci95": [
+            -0.000366,
+            -1.9e-05
+          ]
+        },
+        "r": {
+          "mean": 0.9999,
+          "ci95": [
+            0.9997,
+            1.0
+          ]
+        },
+        "r_one": 0.9877,
+        "beats_anchor": 0.0,
+        "below_idle": 0,
+        "refs": {
+          "random": {
+            "n": 486,
+            "capture": -0.570257,
+            "delta": {
+              "mean": 1.570102,
+              "ci95": [
+                1.512044,
+                1.631511
+              ]
+            }
+          },
+          "clock": {
+            "n": 486,
+            "capture": 0.332586,
+            "delta": {
+              "mean": 0.667259,
+              "ci95": [
+                0.633353,
+                0.700542
+              ]
+            }
+          },
+          "threshold": {
+            "n": 486,
+            "capture": 0.536585,
+            "delta": {
+              "mean": 0.463259,
+              "ci95": [
+                0.433441,
+                0.494207
+              ]
+            }
+          },
+          "greedy": {
+            "n": 486,
+            "capture": 0.698058,
+            "delta": {
+              "mean": 0.301787,
+              "ci95": [
+                0.271524,
+                0.332929
+              ]
+            }
+          },
+          "persistence_dp": {
+            "n": 295,
+            "capture": 0.851681,
+            "delta": {
+              "mean": 0.148141,
+              "ci95": [
+                0.12906,
+                0.168659
+              ]
+            }
+          },
+          "ridge_dp": {
+            "n": 295,
+            "capture": 0.747281,
+            "delta": {
+              "mean": 0.252541,
+              "ci95": [
+                0.22313,
+                0.283279
+              ]
+            }
+          }
+        },
         "optimal": 0.9959,
-        "r_opt_optimal": 0.9959,
         "valid": 1.0,
         "submitted": 1.0,
         "errors": {
@@ -278,7 +479,7 @@
           "end_short": 0,
           "all_idle": 0
         },
-        "checks_used": 1
+        "checks_used": 1.0
       },
       "amendment": {
         "sweeps": [
@@ -314,9 +515,100 @@
         0.9998,
         1.0
       ],
-      "hindsight_capture": 0.9999,
+      "capture": {
+        "mean": 0.999892,
+        "ci95": [
+          0.99974,
+          0.999994
+        ]
+      },
+      "anchor_capture": 1.0,
+      "delta": {
+        "mean": -0.000108,
+        "ci95": [
+          -0.00026,
+          -6e-06
+        ]
+      },
+      "r": {
+        "mean": 0.9999,
+        "ci95": [
+          0.9998,
+          1.0
+        ]
+      },
+      "r_one": 0.988,
+      "beats_anchor": 0.0,
+      "below_idle": 0,
+      "refs": {
+        "random": {
+          "n": 500,
+          "capture": -0.55855,
+          "delta": {
+            "mean": 1.558442,
+            "ci95": [
+              1.50201,
+              1.618552
+            ]
+          }
+        },
+        "clock": {
+          "n": 500,
+          "capture": 0.340846,
+          "delta": {
+            "mean": 0.659047,
+            "ci95": [
+              0.626202,
+              0.693593
+            ]
+          }
+        },
+        "threshold": {
+          "n": 500,
+          "capture": 0.543492,
+          "delta": {
+            "mean": 0.4564,
+            "ci95": [
+              0.427664,
+              0.486829
+            ]
+          }
+        },
+        "greedy": {
+          "n": 500,
+          "capture": 0.700837,
+          "delta": {
+            "mean": 0.299055,
+            "ci95": [
+              0.269906,
+              0.329728
+            ]
+          }
+        },
+        "persistence_dp": {
+          "n": 300,
+          "capture": 0.852487,
+          "delta": {
+            "mean": 0.147465,
+            "ci95": [
+              0.128228,
+              0.167627
+            ]
+          }
+        },
+        "ridge_dp": {
+          "n": 300,
+          "capture": 0.747449,
+          "delta": {
+            "mean": 0.252504,
+            "ci95": [
+              0.224029,
+              0.282121
+            ]
+          }
+        }
+      },
       "optimal": 0.996,
-      "r_opt_optimal": 0.996,
       "valid": 1.0,
       "submitted": 1.0,
       "errors": {
@@ -327,71 +619,71 @@
         "end_short": 0,
         "all_idle": 0
       },
-      "checks_used": 0,
+      "checks_used": 0.0,
       "checks": {
         "0": 500
       },
       "by_checks": {
         "0": {
           "n": 500,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9999,
+          "mean": 0.9999
         }
       },
       "by_archetype": {
         "1h": {
           "n": 172,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "2h": {
           "n": 166,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "4h": {
           "n": 162,
-          "mean": 0.9997,
-          "r_opt": 0.9997
+          "capture": 0.9997,
+          "mean": 0.9997
         }
       },
       "by_binding": {
         "cycle_cap": {
           "n": 103,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9999,
+          "mean": 0.9999
         },
         "end_soc": {
           "n": 65,
-          "mean": 0.9998,
-          "r_opt": 0.9998
+          "capture": 0.9998,
+          "mean": 0.9998
         },
         "none": {
           "n": 169,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "rate": {
           "n": 163,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9998,
+          "mean": 0.9999
         }
       },
       "by_day": {
         "negative_prices": {
           "n": 27,
-          "mean": 0.9998,
-          "r_opt": 0.9998
+          "capture": 0.9997,
+          "mean": 0.9998
         },
         "neither": {
           "n": 459,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9999,
+          "mean": 0.9999
         },
         "spike": {
           "n": 14,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "usd_per_episode": 0.0117,
@@ -406,7 +698,7 @@
       "tokens": {
         "input": 882.6,
         "output": 993.6,
-        "cached": 0,
+        "cached": 0.0,
         "total": 953041
       },
       "wall_seconds": {
@@ -421,47 +713,47 @@
       "baselines": {
         "idle": {
           "reward": 0.2,
-          "r_opt": 0.2,
+          "capture": 0.0,
           "n": 500
         },
         "random": {
           "reward": 0.0716,
-          "r_opt": 0.0716,
+          "capture": -0.55855,
           "n": 500
         },
         "clock": {
           "reward": 0.4849,
-          "r_opt": 0.4849,
+          "capture": 0.340846,
           "n": 500
         },
         "threshold": {
           "reward": 0.6418,
-          "r_opt": 0.6418,
+          "capture": 0.543492,
           "n": 500
         },
         "greedy": {
           "reward": 0.7611,
-          "r_opt": 0.7611,
+          "capture": 0.700837,
           "n": 500
         },
         "dp_optimum": {
           "reward": 1.0,
-          "r_opt": 1.0,
+          "capture": 1.0,
           "n": 500
         },
         "persistence_dp": {
           "reward": 0.882,
-          "r_opt": 0.882,
+          "capture": 0.852487,
           "n": 300
         },
         "ridge_dp": {
           "reward": 0.7988,
-          "r_opt": 0.7988,
+          "capture": 0.747449,
           "n": 300
         },
         "blind_anchor": {
           "reward": 0.9204,
-          "r_opt": 0.9204,
+          "capture": 0.900543,
           "n": 300
         }
       },
@@ -483,9 +775,100 @@
           0.9998,
           1.0
         ],
-        "hindsight_capture": 0.9999,
+        "capture": {
+          "mean": 0.999892,
+          "ci95": [
+            0.99974,
+            0.999994
+          ]
+        },
+        "anchor_capture": 1.0,
+        "delta": {
+          "mean": -0.000108,
+          "ci95": [
+            -0.00026,
+            -6e-06
+          ]
+        },
+        "r": {
+          "mean": 0.9999,
+          "ci95": [
+            0.9998,
+            1.0
+          ]
+        },
+        "r_one": 0.9879,
+        "beats_anchor": 0.0,
+        "below_idle": 0,
+        "refs": {
+          "random": {
+            "n": 497,
+            "capture": -0.559062,
+            "delta": {
+              "mean": 1.558954,
+              "ci95": [
+                1.501776,
+                1.618608
+              ]
+            }
+          },
+          "clock": {
+            "n": 497,
+            "capture": 0.339892,
+            "delta": {
+              "mean": 0.659999,
+              "ci95": [
+                0.626966,
+                0.693702
+              ]
+            }
+          },
+          "threshold": {
+            "n": 497,
+            "capture": 0.541948,
+            "delta": {
+              "mean": 0.457943,
+              "ci95": [
+                0.427637,
+                0.488319
+              ]
+            }
+          },
+          "greedy": {
+            "n": 497,
+            "capture": 0.70029,
+            "delta": {
+              "mean": 0.299602,
+              "ci95": [
+                0.270275,
+                0.329497
+              ]
+            }
+          },
+          "persistence_dp": {
+            "n": 299,
+            "capture": 0.852087,
+            "delta": {
+              "mean": 0.147865,
+              "ci95": [
+                0.128986,
+                0.16858
+              ]
+            }
+          },
+          "ridge_dp": {
+            "n": 299,
+            "capture": 0.747475,
+            "delta": {
+              "mean": 0.252478,
+              "ci95": [
+                0.224044,
+                0.282486
+              ]
+            }
+          }
+        },
         "optimal": 0.996,
-        "r_opt_optimal": 0.996,
         "valid": 1.0,
         "submitted": 1.0,
         "errors": {
@@ -496,7 +879,7 @@
           "end_short": 0,
           "all_idle": 0
         },
-        "checks_used": 0
+        "checks_used": 0.0
       },
       "amendment": {
         "sweeps": [
@@ -532,9 +915,100 @@
         0.9624,
         0.9804
       ],
-      "hindsight_capture": 0.9165,
+      "capture": {
+        "mean": 0.895631,
+        "ci95": [
+          0.880668,
+          0.909978
+        ]
+      },
+      "anchor_capture": 0.900543,
+      "delta": {
+        "mean": -0.004912,
+        "ci95": [
+          -0.019383,
+          0.008739
+        ]
+      },
+      "r": {
+        "mean": 0.9721,
+        "ci95": [
+          0.9624,
+          0.9804
+        ]
+      },
+      "r_one": 0.6233,
+      "beats_anchor": 0.33,
+      "below_idle": 1,
+      "refs": {
+        "random": {
+          "n": 300,
+          "capture": -0.506871,
+          "delta": {
+            "mean": 1.402502,
+            "ci95": [
+              1.343041,
+              1.464825
+            ]
+          }
+        },
+        "clock": {
+          "n": 300,
+          "capture": 0.348819,
+          "delta": {
+            "mean": 0.546812,
+            "ci95": [
+              0.505891,
+              0.588876
+            ]
+          }
+        },
+        "threshold": {
+          "n": 300,
+          "capture": 0.564624,
+          "delta": {
+            "mean": 0.331008,
+            "ci95": [
+              0.292434,
+              0.37167
+            ]
+          }
+        },
+        "greedy": {
+          "n": 300,
+          "capture": 0.728531,
+          "delta": {
+            "mean": 0.1671,
+            "ci95": [
+              0.132933,
+              0.202272
+            ]
+          }
+        },
+        "persistence_dp": {
+          "n": 300,
+          "capture": 0.852487,
+          "delta": {
+            "mean": 0.043144,
+            "ci95": [
+              0.027804,
+              0.058922
+            ]
+          }
+        },
+        "ridge_dp": {
+          "n": 300,
+          "capture": 0.747449,
+          "delta": {
+            "mean": 0.148183,
+            "ci95": [
+              0.118825,
+              0.17903
+            ]
+          }
+        }
+      },
       "optimal": 0.7233,
-      "r_opt_optimal": 0.2167,
       "valid": 1.0,
       "submitted": 1.0,
       "errors": {
@@ -546,7 +1020,6 @@
         "all_idle": 0
       },
       "checks_used": 1.0,
-      "beats_anchor": 0.4033,
       "checks": {
         "0": 1,
         "1": 299
@@ -554,69 +1027,69 @@
       "by_checks": {
         "0": {
           "n": 1,
-          "mean": 0.9978,
-          "r_opt": 0.9602
+          "capture": 0.9502,
+          "mean": 0.9978
         },
         "1": {
           "n": 299,
-          "mean": 0.972,
-          "r_opt": 0.9164
+          "capture": 0.8954,
+          "mean": 0.972
         }
       },
       "by_archetype": {
         "1h": {
           "n": 102,
-          "mean": 0.9698,
-          "r_opt": 0.9303
+          "capture": 0.9129,
+          "mean": 0.9698
         },
         "2h": {
           "n": 105,
-          "mean": 0.9653,
-          "r_opt": 0.9083
+          "capture": 0.8854,
+          "mean": 0.9653
         },
         "4h": {
           "n": 93,
-          "mean": 0.9822,
-          "r_opt": 0.9106
+          "capture": 0.8883,
+          "mean": 0.9822
         }
       },
       "by_binding": {
         "cycle_cap": {
           "n": 70,
-          "mean": 0.9714,
-          "r_opt": 0.905
+          "capture": 0.8812,
+          "mean": 0.9714
         },
         "end_soc": {
           "n": 43,
-          "mean": 0.9793,
-          "r_opt": 0.9395
+          "capture": 0.9244,
+          "mean": 0.9793
         },
         "none": {
           "n": 94,
-          "mean": 0.9604,
-          "r_opt": 0.9149
+          "capture": 0.8936,
+          "mean": 0.9604
         },
         "rate": {
           "n": 93,
-          "mean": 0.981,
-          "r_opt": 0.9162
+          "capture": 0.8952,
+          "mean": 0.981
         }
       },
       "by_day": {
         "negative_prices": {
           "n": 12,
-          "mean": 0.9794,
-          "r_opt": 0.8228
+          "capture": 0.7785,
+          "mean": 0.9794
         },
         "neither": {
           "n": 279,
-          "mean": 0.9715,
-          "r_opt": 0.9189
+          "capture": 0.8987,
+          "mean": 0.9715
         },
         "spike": {
           "n": 9,
-          "mean": 0.979,
-          "r_opt": 0.9662
+          "capture": 0.9578,
+          "mean": 0.979
         }
       },
       "usd_per_episode": 0.0193,
@@ -646,47 +1119,47 @@
       "baselines": {
         "idle": {
           "reward": 0.2,
-          "r_opt": 0.2,
+          "capture": 0.0,
           "n": 300
         },
         "random": {
           "reward": 0.0765,
-          "r_opt": 0.0757,
+          "capture": -0.506871,
           "n": 300
         },
         "clock": {
           "reward": 0.5163,
-          "r_opt": 0.4869,
+          "capture": 0.348819,
           "n": 300
         },
         "threshold": {
           "reward": 0.6976,
-          "r_opt": 0.6548,
+          "capture": 0.564624,
           "n": 300
         },
         "greedy": {
           "reward": 0.8209,
-          "r_opt": 0.7828,
+          "capture": 0.728531,
           "n": 300
         },
         "persistence_dp": {
           "reward": 0.9568,
-          "r_opt": 0.882,
+          "capture": 0.852487,
           "n": 300
         },
         "ridge_dp": {
           "reward": 0.8611,
-          "r_opt": 0.7988,
+          "capture": 0.747449,
           "n": 300
         },
         "blind_anchor": {
           "reward": 1.0,
-          "r_opt": 0.9204,
+          "capture": 0.900543,
           "n": 300
         },
         "dp_optimum": {
           "reward": 1.0,
-          "r_opt": 1.0,
+          "capture": 1.0,
           "n": 300
         }
       },
@@ -708,9 +1181,100 @@
           0.9678,
           0.9846
         ],
-        "hindsight_capture": 0.9245,
+        "capture": {
+          "mean": 0.905615,
+          "ci95": [
+            0.889793,
+            0.920343
+          ]
+        },
+        "anchor_capture": 0.913238,
+        "delta": {
+          "mean": -0.007623,
+          "ci95": [
+            -0.020893,
+            0.004536
+          ]
+        },
+        "r": {
+          "mean": 0.9769,
+          "ci95": [
+            0.9678,
+            0.9846
+          ]
+        },
+        "r_one": 0.6624,
+        "beats_anchor": 0.3122,
+        "below_idle": 0,
+        "refs": {
+          "random": {
+            "n": 237,
+            "capture": -0.536584,
+            "delta": {
+              "mean": 1.442198,
+              "ci95": [
+                1.374598,
+                1.511737
+              ]
+            }
+          },
+          "clock": {
+            "n": 237,
+            "capture": 0.334493,
+            "delta": {
+              "mean": 0.571121,
+              "ci95": [
+                0.526132,
+                0.617327
+              ]
+            }
+          },
+          "threshold": {
+            "n": 237,
+            "capture": 0.526872,
+            "delta": {
+              "mean": 0.378743,
+              "ci95": [
+                0.334891,
+                0.423596
+              ]
+            }
+          },
+          "greedy": {
+            "n": 237,
+            "capture": 0.726953,
+            "delta": {
+              "mean": 0.178662,
+              "ci95": [
+                0.140452,
+                0.218864
+              ]
+            }
+          },
+          "persistence_dp": {
+            "n": 237,
+            "capture": 0.868928,
+            "delta": {
+              "mean": 0.036687,
+              "ci95": [
+                0.023608,
+                0.051095
+              ]
+            }
+          },
+          "ridge_dp": {
+            "n": 237,
+            "capture": 0.755811,
+            "delta": {
+              "mean": 0.149804,
+              "ci95": [
+                0.117265,
+                0.18393
+              ]
+            }
+          }
+        },
         "optimal": 0.7511,
-        "r_opt_optimal": 0.2658,
         "valid": 1.0,
         "submitted": 1.0,
         "errors": {
@@ -721,8 +1285,7 @@
           "end_short": 0,
           "all_idle": 0
         },
-        "checks_used": 1,
-        "beats_anchor": 0.3924
+        "checks_used": 1.0
       },
       "amendment": {
         "sweeps": [
@@ -758,9 +1321,100 @@
         0.9999,
         1.0
       ],
-      "hindsight_capture": 1.0,
+      "capture": {
+        "mean": 0.999947,
+        "ci95": [
+          0.999847,
+          1.0
+        ]
+      },
+      "anchor_capture": 1.0,
+      "delta": {
+        "mean": -5.3e-05,
+        "ci95": [
+          -0.000153,
+          0.0
+        ]
+      },
+      "r": {
+        "mean": 1.0,
+        "ci95": [
+          0.9999,
+          1.0
+        ]
+      },
+      "r_one": 0.988,
+      "beats_anchor": 0.0,
+      "below_idle": 0,
+      "refs": {
+        "random": {
+          "n": 250,
+          "capture": -0.718061,
+          "delta": {
+            "mean": 1.718008,
+            "ci95": [
+              1.633073,
+              1.802714
+            ]
+          }
+        },
+        "clock": {
+          "n": 250,
+          "capture": 0.250904,
+          "delta": {
+            "mean": 0.749043,
+            "ci95": [
+              0.693448,
+              0.805668
+            ]
+          }
+        },
+        "threshold": {
+          "n": 250,
+          "capture": 0.567152,
+          "delta": {
+            "mean": 0.432795,
+            "ci95": [
+              0.389025,
+              0.477984
+            ]
+          }
+        },
+        "greedy": {
+          "n": 250,
+          "capture": 0.653843,
+          "delta": {
+            "mean": 0.346104,
+            "ci95": [
+              0.301912,
+              0.391616
+            ]
+          }
+        },
+        "persistence_dp": {
+          "n": 202,
+          "capture": 0.804815,
+          "delta": {
+            "mean": 0.195119,
+            "ci95": [
+              0.166966,
+              0.224491
+            ]
+          }
+        },
+        "ridge_dp": {
+          "n": 202,
+          "capture": 0.701651,
+          "delta": {
+            "mean": 0.298283,
+            "ci95": [
+              0.26147,
+              0.337147
+            ]
+          }
+        }
+      },
       "optimal": 1.0,
-      "r_opt_optimal": 1.0,
       "valid": 1.0,
       "submitted": 1.0,
       "errors": {
@@ -779,69 +1433,69 @@
       "by_checks": {
         "1": {
           "n": 249,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 0.9999,
+          "mean": 1.0
         },
         "2": {
           "n": 1,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "by_archetype": {
         "1h": {
           "n": 81,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "2h": {
           "n": 92,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9999,
+          "mean": 0.9999
         },
         "4h": {
           "n": 77,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "by_binding": {
         "cycle_cap": {
           "n": 38,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "end_soc": {
           "n": 33,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "none": {
           "n": 110,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "rate": {
           "n": 69,
-          "mean": 0.9999,
-          "r_opt": 0.9999
+          "capture": 0.9998,
+          "mean": 0.9999
         }
       },
       "by_day": {
         "negative_prices": {
           "n": 25,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         },
         "neither": {
           "n": 222,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 0.9999,
+          "mean": 1.0
         },
         "spike": {
           "n": 3,
-          "mean": 1.0,
-          "r_opt": 1.0
+          "capture": 1.0,
+          "mean": 1.0
         }
       },
       "usd_per_episode": 0.0161,
@@ -856,7 +1510,7 @@
       "tokens": {
         "input": 3071.8,
         "output": 1005.2,
-        "cached": 68,
+        "cached": 68.0,
         "total": 1041111
       },
       "wall_seconds": {
@@ -871,47 +1525,47 @@
       "baselines": {
         "idle": {
           "reward": 0.2,
-          "r_opt": 0.2,
+          "capture": 0.0,
           "n": 250
         },
         "random": {
           "reward": 0.0433,
-          "r_opt": 0.0433,
+          "capture": -0.718061,
           "n": 250
         },
         "clock": {
           "reward": 0.4352,
-          "r_opt": 0.4352,
+          "capture": 0.250904,
           "n": 250
         },
         "threshold": {
           "reward": 0.6638,
-          "r_opt": 0.6638,
+          "capture": 0.567152,
           "n": 250
         },
         "greedy": {
           "reward": 0.724,
-          "r_opt": 0.724,
+          "capture": 0.653843,
           "n": 250
         },
         "persistence_dp": {
           "reward": 0.844,
-          "r_opt": 0.844,
+          "capture": 0.804815,
           "n": 202
         },
         "ridge_dp": {
           "reward": 0.7641,
-          "r_opt": 0.7641,
+          "capture": 0.701651,
           "n": 202
         },
         "blind_anchor": {
           "reward": 0.8878,
-          "r_opt": 0.8878,
+          "capture": 0.859782,
           "n": 202
         },
         "dp_optimum": {
           "reward": 1.0,
-          "r_opt": 1.0,
+          "capture": 1.0,
           "n": 250
         }
       },
@@ -933,9 +1587,100 @@
           0.9999,
           1.0
         ],
-        "hindsight_capture": 1.0,
+        "capture": {
+          "mean": 0.999946,
+          "ci95": [
+            0.999842,
+            1.0
+          ]
+        },
+        "anchor_capture": 1.0,
+        "delta": {
+          "mean": -5.4e-05,
+          "ci95": [
+            -0.000158,
+            0.0
+          ]
+        },
+        "r": {
+          "mean": 1.0,
+          "ci95": [
+            0.9999,
+            1.0
+          ]
+        },
+        "r_one": 0.9878,
+        "beats_anchor": 0.0,
+        "below_idle": 0,
+        "refs": {
+          "random": {
+            "n": 245,
+            "capture": -0.722939,
+            "delta": {
+              "mean": 1.722885,
+              "ci95": [
+                1.637453,
+                1.807048
+              ]
+            }
+          },
+          "clock": {
+            "n": 245,
+            "capture": 0.242149,
+            "delta": {
+              "mean": 0.757797,
+              "ci95": [
+                0.701907,
+                0.814885
+              ]
+            }
+          },
+          "threshold": {
+            "n": 245,
+            "capture": 0.560734,
+            "delta": {
+              "mean": 0.439212,
+              "ci95": [
+                0.396574,
+                0.484087
+              ]
+            }
+          },
+          "greedy": {
+            "n": 245,
+            "capture": 0.649351,
+            "delta": {
+              "mean": 0.350594,
+              "ci95": [
+                0.304923,
+                0.397812
+              ]
+            }
+          },
+          "persistence_dp": {
+            "n": 197,
+            "capture": 0.802508,
+            "delta": {
+              "mean": 0.197425,
+              "ci95": [
+                0.168604,
+                0.228156
+              ]
+            }
+          },
+          "ridge_dp": {
+            "n": 197,
+            "capture": 0.69964,
+            "delta": {
+              "mean": 0.300293,
+              "ci95": [
+                0.263094,
+                0.339764
+              ]
+            }
+          }
+        },
         "optimal": 1.0,
-        "r_opt_optimal": 1.0,
         "valid": 1.0,
         "submitted": 1.0,
         "errors": {
@@ -946,7 +1691,7 @@
           "end_short": 0,
           "all_idle": 0
         },
-        "checks_used": 1
+        "checks_used": 1.0
       },
       "amendment": {
         "sweeps": [
@@ -1137,8 +1882,16 @@
       "row": "Sol, blind",
       "hypothesis": "no prior; first measurement",
       "measured": 0.9721,
-      "r_opt": 0.9165,
-      "beats_anchor": 0.4033
+      "capture": 0.895631,
+      "anchor_capture": 0.900543,
+      "delta": {
+        "mean": -0.004912,
+        "ci95": [
+          -0.019383,
+          0.008739
+        ]
+      },
+      "beats_anchor": 0.33
     }
   ]
 }

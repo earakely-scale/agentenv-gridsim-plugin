@@ -18,7 +18,7 @@ import numpy as np
 from gridsim_core.baselines import ridge_predict
 from gridsim_core.contract import DEGENERATE_EPS, ceil_to_interval
 from gridsim_core.dp import TIE_TOL, dp_schedule
-from gridsim_core.grade import reward_value
+from gridsim_core.grade import reward_value, stretch_value
 from gridsim_core.parse import ParseError, parse_actions
 from gridsim_core.physics import cash, penalty_per_unit
 from gridsim_core.task import Battery, battery_of, data_root
@@ -795,9 +795,7 @@ class Session(WatchDay):
             p, p_idle, p_roll, p_hind = self.profit(), r["p_idle"], roll["p_roll"], r["p_hind"]
             submitted = any(c["accepted"] for c in self.commits)
             reward = reward_value(p, p_idle, p_roll) if submitted else 0.0
-            stretch = reward
-            if submitted and p > p_roll + DEGENERATE_EPS and p_hind - p_roll > DEGENERATE_EPS:
-                stretch = _r6(min(1.2, 1 + 0.2 * (p - p_roll) / (p_hind - p_roll)))
+            stretch = stretch_value(p, p_idle, p_roll, p_hind) if submitted else 0.0
             mw = float(self.task["battery"]["p_dis_mw"])
             self._grade = {
                 "submitted": submitted, "tier": self.tier, "reward": reward, "profit_usd": _r6(p), "pnl": self.pnl(),

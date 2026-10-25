@@ -1,16 +1,45 @@
 # GridSim v5 market board
 
-Tasks: 30 market floors on 30 operating days (gridsim-market-eval). Harness: gridsim-llm on gridsim-market as seat A, the other seats scripted on their real offers; turns floor-sprint 6, floor-day 36, 3 planning and 6 data calls a watch, effort high. Reward R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0; compliant: 0.5 R + 0.5 clip(welfare_ratio, 0, 1). Each row's headline is its sweep's scoring; both are shown. Means over floors with a 95% bootstrap CI.
+Tasks: 30 market floors on 30 operating days (gridsim-market-eval), 12 of them peak floors. Harness: gridsim-llm on gridsim-market as seat A, the other seats scripted on their real offers; turns floor-sprint 6, floor-day 36, 3 planning and 6 data calls a watch, effort high. Means over floors with a 95% bootstrap CI.
 
 Modelled and flagged: as: truncated; calibration: hub_offset; copper_plate: True; costs: modelled; forecast: eia930; stack: real.
 
-Baselines (floor-day, 10 floors): idle 0.200, anchor 1.000; anchor hindsight capture 0.957, impact hours 2.10.
-Baselines (floor-sprint, 30 floors): idle 0.200, anchor 1.000, max_withhold 0.193, price_taker 0.924, replay_A 0.179; anchor hindsight capture 0.687, impact hours 1.67.
+## Public board
 
-| Model | Pack | Tier | Scoring | Floors | Runs/planned | Headline (95% CI) | R | Compliant | Hindsight capture | Beats anchor | Welfare ratio | eps-Nash | Mitigated h | Withholding | CfDs | Finished | $/episode | Spend |
-|---|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| openai/gpt-6.1-sol | gridsim-market-eval | floor-sprint | reward | 30 | 30/30 | 0.800 (0.672 to 0.906) | 0.800 | 0.550 | 0.712 | 0.433 | 0.285 | 1.000 | 0.00 | 0.190 | 0.00 | 1.000 | $0.0482 | $2.01 |
-| openai/gpt-6.1-sol | gridsim-market-eval | floor-day | reward | 10 | 10/10 | 0.858 (0.695 to 0.975) | 0.858 | 0.652 | 0.899 | 0.600 | 0.446 | 1.000 | 0.00 | 0.148 | 0.00 | 1.000 | $0.1449 | $1.45 |
+Score: compliant_capture (0.5 clip(C, 0, 1) + 0.5 clip(welfare_ratio, 0, 1), C against BR_rt), beside the anchor's score on the same floors and the paired Δ. Peak floors: floors with >= 2 hours where seat A's full sale moves the hub price by >= $5, their own column.
+
+The score's profit half is clip(C, 0, 1), C the hindsight capture = (P − P_idle)/(P_hind − P_idle), unclipped, with P_hind BR_rt, the DA-clear best response with deviations settled at realised RT (the clairvoyant bound of the same settlement; BR_A, the DA-only row, is not a bound): idle 0, hindsight 1. It is printed beside the anchor's own C on the same tasks and Δ = C − C_anchor, the paired gap with its 95% CI. Second: R on the anchor scale (the anchor 1.0), a level that is never differenced, with its R = 1 share (a tie with the anchor or better) and the beats-anchor share. Every comparison with a reference is (P − P_ref)/(P_hind − P_idle). CIs bootstrap over tasks; the rule and its evidence: docs/REWARD-SCALES.md.
+
+Baselines (floor-day, 10 floors, played in process): idle 0.002, anchor 0.510, max_withhold 0.478, price_taker 0.511, replay_A 0.478; on 4 peak floors: idle 0.005, anchor 0.591, max_withhold 0.497, price_taker 0.597, replay_A 0.500.
+Baselines (floor-sprint, 30 floors, played in process): idle 0.003, anchor 0.427, max_withhold 0.003, price_taker 0.419, replay_A 0.015; on 12 peak floors: idle 0.005, anchor 0.433, max_withhold 0.006, price_taker 0.427, replay_A 0.009.
+
+| Model | Pack | Tier | Floors | Runs/planned | Score (95% CI) | Anchor's score | Δ vs anchor (95% CI) | Peak floors | Welfare ratio | Beats anchor | Finished | $/episode | Spend |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| openai/gpt-6.1-sol | gridsim-market-eval | floor-sprint | 30 | 30/30 | 0.362 (0.285 to 0.441) | 0.427 | -0.064 (-0.145 to +0.016) | 0.375 (n 12) | 0.285 | 0.433 | 1.000 | $0.0482 | $2.01 |
+| openai/gpt-6.1-sol | gridsim-market-eval | floor-day | 10 | 10/10 | 0.432 (0.304 to 0.566) | 0.510 | -0.078 (-0.155 to -0.009) | 0.531 (n 4) | 0.446 | 0.600 | 1.000 | $0.1449 | $1.45 |
+
+## Research board
+
+C against BR_rt heads it, with the anchor's C and the paired Δ; R second: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0. Regret and C vs BR_A are against BR_A, the DA-only best response; the price-making gain is (P - P_price_taker) per MW-day on floor-sprint.
+
+Baselines (floor-day, 10 floors): C idle 0.000, anchor 0.419, max_withhold 0.341, price_taker 0.421, replay_A 0.340, hindsight 1; R idle 0.200, anchor 1.000; anchor C vs BR_A 0.957, impact hours 2.10.
+Baselines (floor-sprint, 30 floors): C idle 0.000, anchor 0.414, max_withhold -0.015, price_taker 0.408, replay_A -0.015, hindsight 1; R idle 0.200, anchor 1.000, max_withhold 0.193, price_taker 0.924, replay_A 0.179; anchor C vs BR_A 0.687, impact hours 1.67.
+
+| Model | Tier | Sweep scoring | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | R peak | Regret (norm) | Regret $ | C vs BR_A | Price-making gain $/MW-day | eps A | eps-Nash | Mitigated h | Withholding | CfDs |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| openai/gpt-6.1-sol | floor-sprint | reward | 0.348 (0.181 to 0.495) | 0.414 | -0.067 (-0.204 to +0.058) | 0.800 (0.672 to 0.906) | 0.433 | 0.838 (n 12) | 0.888 | 177042.81 | 0.112 | – | – | 1.000 | 0.00 | 0.190 | 0.00 |
+| openai/gpt-6.1-sol | floor-day | reward | 0.419 (0.261 to 0.579) | 0.419 | -0.000 (-0.114 to +0.089) | 0.858 (0.695 to 0.975) | 0.600 | 0.969 (n 4) | 0.101 | -38757.30 | 0.899 | – | – | 1.000 | 0.00 | 0.148 | 0.00 |
+
+Against the references played in process, (P − P_ref)/(BR_rt − P_idle):
+
+| Model | Tier | Reference | Its C | Model − it (95% CI) | Tasks |
+|---|---|---|---:|---|---:|
+| openai/gpt-6.1-sol | floor-sprint | price_taker | 0.408 | -0.061 (-0.198 to +0.066) | 30 |
+| openai/gpt-6.1-sol | floor-sprint | max_withhold | -0.015 | +0.362 (+0.189 to +0.520) | 30 |
+| openai/gpt-6.1-sol | floor-sprint | replay_A | -0.015 | +0.362 (+0.192 to +0.512) | 30 |
+| openai/gpt-6.1-sol | floor-day | price_taker | 0.421 | -0.002 (-0.115 to +0.084) | 10 |
+| openai/gpt-6.1-sol | floor-day | max_withhold | 0.341 | +0.078 (-0.100 to +0.266) | 10 |
+| openai/gpt-6.1-sol | floor-day | replay_A | 0.340 | +0.079 (-0.097 to +0.263) | 10 |
 
 ## Errors
 

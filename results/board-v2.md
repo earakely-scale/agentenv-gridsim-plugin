@@ -1,12 +1,20 @@
 # GridSim v2 live board
 
-Tasks: 40 live battery-days (gridsim-live-eval). Harness: gridsim-llm on gridsim-live, 52 turns, 3 planning calls a watch, 8192 output tokens a turn, effort high. Reward: clip(0.2+0.8(P-P_idle)/(P_roll-P_idle),0,1); no accepted commit scores 0; the anchor (1.0) is the notice-blind rolling re-planner. Mean R over days with a 95% bootstrap CI.
+Tasks: 40 live battery-days (gridsim-live-eval). Harness: gridsim-llm on gridsim-live, 52 turns, 3 planning calls a watch, 8192 output tokens a turn, effort high. R: clip(0.2+0.8(P-P_idle)/(P_roll-P_idle),0,1); no accepted commit scores 0; the anchor (1.0) is the notice-blind rolling re-planner.
 
-Baselines (foresight, 40 days): idle 0.200, naive (v1's plan, never re-planned) 0.850, anchor 1.000; hindsight capture naive 0.425, anchor 0.498.
+Headline: hindsight capture C = (P − P_idle)/(P_hind − P_idle), unclipped, with P_hind the clairvoyant optimum of the same settlement (the DA position on DA − RT, the physical schedule on RT, both exact DPs): idle 0, hindsight 1. It is printed beside the anchor's own C on the same tasks and Δ = C − C_anchor, the paired gap with its 95% CI. Second: R on the anchor scale (the anchor 1.0), a level that is never differenced, with its R = 1 share (a tie with the anchor or better) and the beats-anchor share. Every comparison with a reference is (P − P_ref)/(P_hind − P_idle). CIs bootstrap over tasks; the rule and its evidence: docs/REWARD-SCALES.md.
 
-| Model | Tier | Days | Runs/planned | Mean R (95% CI) | Hindsight capture | Beats anchor | Beats naive | Valid | Planning calls | Commits | Finished | $/episode | Spend |
-|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| openai/gpt-6.1-sol | foresight | 40 | 40/40 | 0.883 (0.840 to 0.924) | 0.437 | 0.275 | 0.200 | 1.000 | 2.42 | 2.33 | 1.000 | $0.0462 | $1.95 |
+Baselines (foresight, 40 days): C idle 0, naive (v1's plan, never re-planned) 0.425, anchor 0.498, hindsight 1; R idle 0.200, naive 0.850, anchor 1.000.
+
+| Model | Tier | Days | Runs/planned | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | Beats naive | Valid | Planning calls | Commits | Finished | $/episode | Spend |
+|---|---|---:|---:|---|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| openai/gpt-6.1-sol | foresight | 40 | 40/40 | 0.437 (0.361 to 0.513) | 0.498 | -0.061 (-0.089 to -0.035) | 0.883 (0.838 to 0.924) | 0.375 | 0.225 | 0.250 | 1.000 | 2.42 | 2.33 | 1.000 | $0.0462 | $1.95 |
+
+## Against the references
+
+| Model | Tier | Reference | Its C | Model − it (95% CI) | Tasks |
+|---|---|---|---:|---|---:|
+| openai/gpt-6.1-sol | foresight | naive | 0.425 | +0.012 (-0.004 to +0.028) | 40 |
 
 ## Errors
 

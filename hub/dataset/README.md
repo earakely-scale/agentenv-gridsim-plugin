@@ -254,20 +254,28 @@ of the cycle cap:
 | 20 | 34.00 | +2 | 150 | $4,500.00 | 0 |
 
 Every other hour is idle. The day's profit is **$9,569.63** (P_opt; doing nothing earns $0), net of $1,800 of
-degradation, and scores 1.0. The pack's references on the same day: the greedy rule, which pairs the cheapest hours
-with the dearest later ones, makes one evening round trip for $4,815.38 (reward 0.603); the threshold rule $5,411.63
-(0.652); the clock rule, which charges HE02 to HE05 and sells HE18 to HE21, $1,880.25 (0.357). At the blind tier the
-anchor is the DP schedule on the previous day's prices, settled on this day: $8,937.75, a hindsight capture (`r_opt`)
-of 0.947.
+degradation, and captures all of hindsight: C 1.000, R 1.0. The pack's references on the same day: the greedy rule,
+which pairs the cheapest hours with the dearest later ones, makes one evening round trip for $4,815.38 (C 0.503, R
+0.603); the threshold rule $5,411.63 (C 0.566, R 0.652); the clock rule, which charges HE02 to HE05 and sells HE18 to
+HE21, $1,880.25 (C 0.196, R 0.357). At the blind tier the anchor is the DP schedule on the previous day's prices,
+settled on this day: $8,937.75, a hindsight capture C of 0.934.
 
 ## Grading
 
-A schedule's reward is
+Every GridSim version reports on one scale ([`docs/REWARD-SCALES.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/REWARD-SCALES.md)).
+The headline is the hindsight capture
+
+    C = (P - P_idle) / (P_hind - P_idle)
+
+unclipped, where P is the run's profit, P_idle the profit of doing nothing (negative for the 12 of the 78 battery
+designs whose end obligation is above their starting charge) and P_hind the clairvoyant optimum, in v1 P_opt. It is
+printed beside the anchor's own C on the same days and Δ = C − C_anchor, the paired gap, with its 95% interval; any
+other comparison is (P − P_ref) / (P_hind − P_idle). Second comes the reward on the anchor scale,
 
     R = clip(0.2 + 0.8 * (P - P_idle) / (P_anchor - P_idle), 0, 1)
 
-where P is its profit, P_idle the profit of doing nothing (negative for the 12 of the 78 battery designs whose end
-obligation is above their starting charge) and P_anchor the reference with the same information as the agent:
+a level with its share at R = 1 and its beats-anchor share, never differenced, where P_anchor is the reference with
+the same information as the agent:
 
 - **foresight**: P_opt, the exact optimum. A dynamic program over the state of charge, the units discharged so far
   and every allowed action finds it in under a millisecond, with ties broken deterministically. An LP relaxation
@@ -275,12 +283,15 @@ obligation is above their starting charge) and P_anchor the reference with the s
   its margin over idle, and by nothing up to the 99th percentile.
 - **blind**: max(P_persist, P_ridge), the better of two schedules a desk could make from the same lagged prices,
   each the DP schedule on a price forecast, settled on the actual day: persistence (the previous day's prices) and a
-  lagged ridge regression (`raw/packs/ridge-v1.json`). The blind headline is `r_opt`, the same formula against P_opt.
+  lagged ridge regression (`raw/packs/ridge-v1.json`).
 
-Idle scores 0.2, the anchor 1.0. A run that never submits a parseable schedule scores 0; there is no format credit.
-The hindsight capture `r_opt` (the reward against P_opt) is reported on every row at weight 0. The env, its
-verifier and training all grade with the same code, `gridsim_core.grade`, and the plugin's tests check that the env
-and gridsim_core agree to 1e-6.
+At the foresight tier the anchor is the hindsight, so C = (R − 0.2) / 0.8 and a model at C 1 has solved the tier. At
+the blind tier C replaces the `r_opt` this card printed before (r_opt = 0.2 + 0.8 · C, still a weight-0 row of the
+verifier and a column of the episodes). Idle scores C 0 and R 0.2, the anchor R 1.0. A run that never submits a
+parseable schedule scores 0 on both; there is no format credit. Training uses a third scale, S: R up to the anchor,
+then rising linearly to 1.2 at hindsight. In v1 the trained tier is foresight, where the anchor is the hindsight, so
+S = R and `gridsim_core.trl.reward_fn` is unchanged. The env, its verifier and training all grade with the same code,
+`gridsim_core.grade`, and the plugin's tests check that the env and gridsim_core agree to 1e-6.
 
 ## Tables
 
@@ -429,7 +440,9 @@ agent-env gridsim view                   # the viewer on http://127.0.0.1:8239/
 
 ## Baselines
 
-Mean foresight reward per pack, from `stats.md`. Idle is 0.2 and the DP optimum 1.0 by construction.
+Mean foresight reward per pack, from `stats.md`. Idle is 0.2 and the DP optimum 1.0 by construction. The anchor here
+is the optimum, so a rule's C is (R − 0.2) / 0.8 wherever R is not clipped at 0: on `eval_2025`, clock 0.341, threshold
+0.543 and greedy 0.701.
 
 | Pack | Split | Battery-days | Blind | Clock | Threshold | Greedy | Random feasible |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -446,14 +459,14 @@ Mean foresight reward per pack, from `stats.md`. Idle is 0.2 and the DP optimum 
 - **Random feasible**: uniform over the actions that keep every rule and leave the end obligation reachable.
 
 Each is clipped to the rules hour by hour and repaired to meet the end obligation. At the blind tier, the hindsight
-capture (`r_opt`) of the anchor and of persistence alone:
+capture C of the anchor and of persistence alone:
 
-| Pack | Blind battery-days | Anchor r_opt | Persistence r_opt |
+| Pack | Blind battery-days | Anchor C | Persistence C |
 |---|---:|---:|---:|
-| `ercot-dam-v1-train` | 6,000 | 0.904 | 0.858 |
-| `ercot-dam-v1-eval` | 300 | 0.920 | 0.882 |
-| `ercot-dam-v1-rtcb` | 202 | 0.888 | 0.844 |
-| `showcase` | 700 | 0.894 | 0.882 |
+| `ercot-dam-v1-train` | 6,000 | 0.880 | 0.822 |
+| `ercot-dam-v1-eval` | 300 | 0.901 | 0.852 |
+| `ercot-dam-v1-rtcb` | 202 | 0.860 | 0.805 |
+| `showcase` | 700 | 0.867 | 0.852 |
 
 ## Results
 
@@ -462,29 +475,34 @@ before the first run ([`docs/prereg/v1-board.md`](https://github.com/earakely-sc
 column A is the `full` harness with three checks at the foresight tier on the held-out `eval_2025` battery-days, B the
 `oneshot` harness (the path-B training prompt) on the same days, C the `full` harness at the blind tier, and the
 optional D the `full` harness at the foresight tier on the `rtcb` days. The 95% intervals are bootstrap intervals over
-battery-days (10,000 resamples); optimal means R ≥ 0.99, valid submitted and feasible. Every run is in `v1_episodes`
-with its transcript, and every recorded tool call replays on the env with the same output and reward.
+battery-days (10,000 resamples), paired for Δ; valid means submitted and feasible. Every run is in `v1_episodes` with
+its transcript, and every recorded tool call replays on the env with the same output and reward.
 
 <!-- board:v1 -->
-| Column | Model | Pack | Tier | Harness | Battery-days | Mean reward (95% CI) | r_opt | Optimal | Valid | Beats anchor | $ per episode |
-|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|
-| A | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | full | 500 | **0.9999** (0.9997 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0157 |
-| B | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | oneshot | 500 | **0.9999** (0.9998 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | $0.0117 |
-| C | GPT-6.1 Sol | `ercot-dam-v1-eval` | blind | full | 300 | **0.9721** (0.9624 to 0.9804) | 0.9165 | 72.3% | 100.0% | 40.3% | $0.0193 |
-| D | GPT-6.1 Sol | `ercot-dam-v1-rtcb` | foresight | full | 250 | **1.0000** (0.9999 to 1.0000) | 1.0000 | 100.0% | 100.0% | – | $0.0161 |
+Hindsight capture C = (P − P_idle)/(P_opt − P_idle) heads the board, beside the anchor's own C and the paired gap Δ = C − C_anchor; R, the anchor scale, comes second. At the foresight tier the anchor is the DP optimum, so C = (R − 0.2)/0.8 and a column at C 1 has solved the tier.
 
-Baselines graded on each column's battery-days (mean reward; r_opt in brackets at the blind tier):
+| Column | Model | Pack | Tier | Harness | Battery-days | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | Valid | $ per episode |
+|---|---|---|---|---|---:|---|---:|---|---|---:|---:|---:|---:|
+| A | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | full | 500 | **1.000 (1.000 to 1.000)** | 1.000 | +0.000 (+0.000 to +0.000) | 1.000 (1.000 to 1.000) | 98.8% | 0.0% | 100.0% | $0.0157 |
+| B | GPT-6.1 Sol | `ercot-dam-v1-eval` | foresight | oneshot | 500 | **1.000 (1.000 to 1.000)** | 1.000 | +0.000 (+0.000 to +0.000) | 1.000 (1.000 to 1.000) | 98.8% | 0.0% | 100.0% | $0.0117 |
+| C | GPT-6.1 Sol | `ercot-dam-v1-eval` | blind | full | 300 | **0.896 (0.881 to 0.910)** | 0.901 | -0.005 (-0.019 to +0.009) | 0.972 (0.962 to 0.980) | 62.3% | 33.0% | 100.0% | $0.0193 |
+| D | GPT-6.1 Sol | `ercot-dam-v1-rtcb` | foresight | full | 250 | **1.000 (1.000 to 1.000)** | 1.000 | +0.000 (+0.000 to +0.000) | 1.000 (1.000 to 1.000) | 98.8% | 0.0% | 100.0% | $0.0161 |
 
-- A: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
-- B: idle 0.200, random 0.072, clock 0.485, threshold 0.642, greedy 0.761, persistence-DP 0.882 on 300, ridge-DP 0.799 on 300, blind anchor 0.920 on 300; the DP optimum 1.000.
-- C: idle 0.200 (0.200), random 0.076 (0.076), clock 0.516 (0.487), threshold 0.698 (0.655), greedy 0.821 (0.783), persistence-DP 0.957 (0.882), ridge-DP 0.861 (0.799), blind anchor 1.000 (0.920); the DP optimum 1.000.
-- D: idle 0.200, random 0.043, clock 0.435, threshold 0.664, greedy 0.724, persistence-DP 0.844 on 202, ridge-DP 0.764 on 202, blind anchor 0.888 on 202; the DP optimum 1.000.
+Baselines graded on each column's battery-days (mean C / R):
 
-The headline is the amended board. The pre-registered $0.10 episode cap stopped runs before they submitted (A 14, B 3, C 63, D 5): the agent's own pre-request cost guard, not the model. Those runs were re-run once at $0.40 and all scored. The pre-registered scoring, its scored runs only: A 0.9999 (486 of 500); B 0.9999 (497 of 500); C 0.9769 (237 of 300); D 1.0000 (245 of 250). Dropping the stopped runs would bias the blind column toward easy days, so the amended column is the headline.
+- A: idle 0.000 / 0.200, random -0.559 / 0.072, clock 0.341 / 0.485, threshold 0.543 / 0.642, greedy 0.701 / 0.761, persistence-DP 0.852 / 0.882 on 300, ridge-DP 0.747 / 0.799 on 300, blind anchor 0.901 / 0.920 on 300; the DP optimum 1.000 / 1.000.
+- B: idle 0.000 / 0.200, random -0.559 / 0.072, clock 0.341 / 0.485, threshold 0.543 / 0.642, greedy 0.701 / 0.761, persistence-DP 0.852 / 0.882 on 300, ridge-DP 0.747 / 0.799 on 300, blind anchor 0.901 / 0.920 on 300; the DP optimum 1.000 / 1.000.
+- C: idle 0.000 / 0.200, random -0.507 / 0.076, clock 0.349 / 0.516, threshold 0.565 / 0.698, greedy 0.729 / 0.821, persistence-DP 0.852 / 0.957, ridge-DP 0.747 / 0.861, blind anchor 0.901 / 1.000; the DP optimum 1.000 / 1.000.
+- D: idle 0.000 / 0.200, random -0.718 / 0.043, clock 0.251 / 0.435, threshold 0.567 / 0.664, greedy 0.654 / 0.724, persistence-DP 0.805 / 0.844 on 202, ridge-DP 0.702 / 0.764 on 202, blind anchor 0.860 / 0.888 on 202; the DP optimum 1.000 / 1.000.
+
+The headline is the amended board. The pre-registered $0.10 episode cap stopped runs before they submitted (A 14, B 3, C 63, D 5): the agent's own pre-request cost guard, not the model. Those runs were re-run once at $0.40 and all scored. The pre-registered scoring, its scored runs only: A: C 1.000, R 0.9999 (486 of 500); B: C 1.000, R 0.9999 (497 of 500); C: C 0.906, R 0.9769 (237 of 300); D: C 1.000, R 1.0000 (245 of 250). Dropping the stopped runs would bias the blind column toward easy days, so the amended column is the headline.
 <!-- /board:v1 -->
 
-Foresight is saturated for a frontier model: with the day's prices in view Sol finds the optimum. The blind tier is
-where models separate, against the anchor's own hindsight capture on the same days. The plugin's
+Foresight is solved for a frontier model: with the day's prices in view Sol finds the optimum, C 1.000 on A, B and D.
+The blind tier is where models separate: Sol captures 0.896 (0.881 to 0.910) of hindsight against the blind anchor's
+own 0.901 on the same days, Δ −0.005 (−0.019 to +0.009), level with the anchor; it is above persistence-DP by +0.043
+(+0.028 to +0.059). R comes second: 0.972 (0.962 to 0.980), at R = 1 on 62.3% of the days, above the anchor on 33.0%.
+The plugin's
 [`results/board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/results/board.md) has
 the full board: the amendment, the breakdowns by checks used, battery class, binding constraint and day type, cost and
 time, the hypotheses against what was measured, and the unscored runs.
@@ -496,7 +514,8 @@ The trained Qwen3-1.7B results are under [Training](#training).
 The point of GridSimEnv is to show training on an AgentEnv simulation end to end. Path B trains on the `train`
 split with one prompt and one completion per battery-day: the prompt is exactly `v1_tasks`' `prompt` (the `oneshot`
 harness's system prompt and situation), the completion ends in a `submit_schedule` call, and the reward is
-`gridsim_core.trl.reward_fn`, the same `grade` the env's verifier uses, in under a millisecond. Path A proves the
+`gridsim_core.trl.reward_fn`, the same `grade` the env's verifier uses, in under a millisecond (S = R at the foresight
+tier, so the training reward is R here, and R = 0.2 + 0.8 · C). Path A proves the
 policy in full AgentEnv episodes: the trained model plays the `oneshot` bundle on the env, so the two paths grade the
 same schedule identically.
 
@@ -584,7 +603,7 @@ and the build stops if any reward, profit or situation differs.
 ## v2 preview: The Live Grid
 
 > **A preview, not a release.** The env, the packs and the grading are built and tested, and one registered pilot
-> has run. The headline metric is still open (below), so columns and numbers may change before v2 ships. The contract
+> has run. The headline metric is decided (below); columns and numbers may still change before v2 ships. The contract
 > is [`docs/CONTRACT-v2.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/CONTRACT-v2.md).
 
 **The task.** The same archetype batteries at the same hubs and load zones as v1, but the day is played live. The
@@ -601,18 +620,20 @@ The tiers: `foresight` (D's DA prices at watch 0), `blind` (only the previous 7 
 `short` (only the 14:00, 00:00 and 12:00 regular watches) and `freeze6h` (a six-hour freeze line). Each row of
 `v2_tasks` is one battery-day at one tier.
 
-**Grading.** R = clip(0.2 + 0.8 · (P − P_idle) / (P_roll − P_idle), 0, 1), v1's formula against the rolling anchor
-P_roll: it commits the naive DA position at watch 0, then at every watch solves the exact dynamic program over the
-open intervals on the DA prices plus the latest RT−DA gap, decaying over two hours. It reads no bulletin. Naive is
-v1's optimum on the DA prices, committed as the position and the schedule and never changed. Hindsight capture,
-(P − P_idle) / (P_hind − P_idle), is reported at weight 0; P_hind is the exact optimum with the day's RT prices known.
+**Grading.** The headline is hindsight capture, C = (P − P_idle) / (P_hind − P_idle), with P_hind the exact optimum
+with the day's RT prices known (the DA position on DA − RT, the physical schedule on RT), beside the anchor's own C
+and Δ = C − C_anchor with its paired 95% interval. Second, R = clip(0.2 + 0.8 · (P − P_idle) / (P_roll − P_idle), 0,
+1), v1's formula against the rolling anchor P_roll: it commits the naive DA position at watch 0, then at every watch
+solves the exact dynamic program over the open intervals on the DA prices plus the latest RT−DA gap, decaying over
+two hours. It reads no bulletin. Naive is v1's optimum on the DA prices, committed as the position and the schedule
+and never changed. Training uses S, R up to the anchor rising to 1.2 at hindsight (`grade()["stretch_reward"]`).
 
-**Open decision: the headline metric.** On the pilot's 40 days naive alone scores R 0.850 and the anchor captures
-only 0.498 of hindsight, so R is squeezed between naive and the anchor: 37.5% of Sol's days sit at R = 1. Hindsight
-capture keeps the order idle 0 < naive 0.425 < anchor 0.498 < hindsight 1 and leaves room above the anchor. It is the
-candidate headline, with R as a second row and naive as the floor for any claim about bulletins.
+**The headline, decided.** On the pilot's 40 days naive alone scores R 0.850 and the anchor captures only 0.498 of
+hindsight, so R is squeezed between naive and the anchor: 37.5% of Sol's days sit at R = 1. Hindsight capture keeps
+the order idle 0 < naive 0.425 < anchor 0.498 < hindsight 1 and leaves room above the anchor, so it heads the board,
+with R second and naive the floor for any claim about bulletins.
 
-| Config | Split | Rows | Battery-days | Dates | Notice / quiet / unknown days | Naive R | Naive capture | Anchor capture |
+| Config | Split | Rows | Battery-days | Dates | Notice / quiet / unknown days | Naive R | Naive C | Anchor C |
 |---|---|---:|---:|---|---|---:|---:|---:|
 | `v2_tasks` | `train` | 15,189 | 4,000 | 2019 to 2024, the eval dates left out | 1,600 / 1,648 / 752 | 0.768 | 0.353 | 0.453 |
 | | `eval_2024` | 1,128 | 300 | every third 2024 date and every 2024 ERCOT notice day | 150 / 136 / 14 | 0.857 | 0.434 | 0.524 |
@@ -644,11 +665,13 @@ text and its hash only; the references depend on when bulletins arrive, never on
 tier, 20 notice days and 20 quiet ones, as registered in [`docs/prereg/v2-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v2-pilot.md),
 plus the 6 September 2023 hero day for display. The intervals are 95% bootstrap intervals over days.
 
-| Policy | Mean R (95% CI) | Hindsight capture (95% CI) | Beats the anchor | Re-plans |
-|---|---|---|---:|---|
-| GPT-6.1 Sol | **0.883** (0.840 to 0.924) | **0.437** (0.360 to 0.517) | 9 of 40 days | on 12 of 40 days, 7.1% of later watches |
-| naive | 0.850 | 0.425 | – | never |
-| rolling anchor | 1.000 | 0.498 | – | at 38.6% of later watches |
+| Policy | C (95% CI) | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats the anchor | Re-plans |
+|---|---|---|---|---:|---:|---|
+| GPT-6.1 Sol | **0.437** (0.361 to 0.513) | −0.061 (−0.089 to −0.035) | 0.883 (0.838 to 0.924) | 15 of 40 days | 9 of 40 days | on 12 of 40 days, 7.1% of later watches |
+| naive | 0.425 | −0.073 | 0.850 | – | – | never |
+| rolling anchor | 0.498 | – | 1.000 | – | – | at 38.6% of later watches |
+
+Sol against naive on the same days: +0.012 (−0.004 to +0.028) of the hindsight headroom.
 
 - Sol commits naive's DA position at watch 0 on 33 of 40 days and mostly holds it. When it re-plans it mostly
   gains: 10 of the 12 re-planned days beat naive, by $21 to $9,418, mostly at the 12:00 and 18:00 watches on the
@@ -656,9 +679,9 @@ plus the 6 September 2023 hero day for display. The intervals are 95% bootstrap 
 - It beats the anchor on 9 days, all notice days, and they are exactly the 9 days where naive beats the anchor. Its
   capture minus naive's on notice days is −0.004 (−0.027 to 0.011): no sign yet that it uses the bulletins.
 - On the hero day (HB_NORTH on 6 September 2023, when ERCOT declared an EEA2 in the evening) it read the
-  reserve-shortage Watch, kept its evening discharge and never re-planned across 9 later watches: R 0.596, the same
-  as naive, and capture 0.077 against the anchor's 0.156. Profit $14,940, against $30,157 for the anchor and $193,619
-  in hindsight.
+  reserve-shortage Watch, kept its evening discharge and never re-planned across 9 later watches: C 0.077 against
+  the anchor's 0.156 (R 0.596, the same as naive). Profit $14,940, against $30,157 for the anchor and $193,619 in
+  hindsight.
 - 41 runs, all scored at the first attempt, $2.03 in all. Every episode replays byte for byte on
   `gridsim_core.live` and passes its audit. The full reading is in
   [`results/board-v2.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v2.md).
@@ -683,12 +706,15 @@ reserves tier after ERCOT's RTC+B is built but not playable, since no history of
 found: `rtcb` days play the `reserves` tier with DA reserve prices only. Each row of `v3_tasks` is one site-day at one
 tier; `oneshot_prompt` is the one-decision prompt path-B training uses.
 
-**Grading.** R as in v1 and v2, against P_anchor: a rolling mixed-integer plan (HiGHS) with the agent's
-information, one solve per watch over the open hours, energy and reserves together, RT expected at DA. At weight 0:
-hindsight capture against P_hind (one plan that knows the RT prices, the drift and the deployments), the energy-only
-R (the energy tier's anchor on the reserves scale), the reserves' share of revenue, and failure-to-provide MWh. The
-reference baselines are AS-hog (reserves only, no energy position), the solar sponge (charge only from PV the meter
-cannot take) and v2's energy-only rolling plan.
+**Grading.** The headline is hindsight capture C against P_hind (one plan that knows the RT prices, the drift and
+the deployments), beside the anchor's own C and the paired Δ = C − C_anchor; idle is the solar-only plant. R as in v1
+and v2 comes second, against P_anchor: a rolling mixed-integer plan (HiGHS) with the agent's information, one solve
+per watch over the open hours, energy and reserves together, RT expected at DA. At weight 0: the energy-only R (the
+energy tier's anchor on the reserves scale), the reserves' share of revenue, and failure-to-provide MWh. The reference
+baselines are AS-hog (reserves only, no energy position), the solar sponge (charge only from PV the meter cannot take)
+and v2's energy-only rolling plan, each compared as (P − P_ref) / (P_hind − P_idle). Training uses S, R up to the
+anchor rising to 1.2 at hindsight (`grade()["stretch_reward"]`); the one-shot path-B reward is R, its anchor being
+the one-shot optimum itself.
 
 **Open decisions.**
 - **The reserves tier is the test, and it is undecided.** On 30 days Sol is far ahead of AS-hog but level with the
@@ -723,21 +749,25 @@ draw's next 10 days at the energy tier, as registered in [`docs/prereg/v3-pilot.
 plus 29 March 2024 at both tiers for display.
 
 <!-- board:v3 -->
-The v3 pilot's board lands with its eval card.
+| Model | Tier | Days | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | C low / mid / high AS | AS share | $ per episode |
+|---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|
+| GPT-6.1 Sol | reserves | 30 | **0.397 (0.311 to 0.484)** | 0.480 | -0.083 (-0.120 to -0.049) | 0.811 (0.738 to 0.876) | 0.200 | 0.200 | 0.349 / 0.312 / 0.530 | 0.510 | $0.1902 |
+| GPT-6.1 Sol | energy | 10 | **0.483 (0.364 to 0.610)** | 0.484 | +0.000 (-0.001 to +0.000) | 1.000 (0.999 to 1.000) | 0.800 | 0.600 | 0.352 / 0.428 / 0.712 | 0.000 | $0.0857 |
 <!-- /board:v3 -->
 
-On the same days: AS-hog 0.464, the energy-only plan 0.836 (the same as v2 energy-only on every one of the 30) and
-the anchor's capture 0.480 at the reserves tier; v2 energy-only 0.979 and the anchor's capture 0.484 at the energy
-tier.
+On the same days, C: AS-hog 0.166, the energy-only plan 0.379 (the same as v2 energy-only on every one of the 30) and
+the anchor 0.480 at the reserves tier; v2 energy-only 0.463 and the anchor 0.483 at the energy tier.
 
-- **Reserves.** R 0.811 (0.740 to 0.877). Sol beats AS-hog by 0.347 (0.251 to 0.439), on 27 of 30 days; against the
-  energy-only plan it is −0.025 (−0.100 to 0.042), undecided at this size. Capture 0.397 against the anchor's 0.480.
+- **Reserves.** C 0.397 (0.311 to 0.484) against the anchor's 0.480, Δ −0.083 (−0.120 to −0.049). Sol is above
+  AS-hog by +0.231 (+0.159 to +0.306), on 27 of 30 days, and level with the energy-only plan, +0.018 (−0.018 to
+  +0.055), undecided at this size. R 0.811 (0.738 to 0.876) second, 20% of days at R = 1.
 - **Where it loses.** Sol earns nearly the anchor's reserve revenue, $5,985 a day against $6,241, but leans on RRS
   and RegDn and barely sells ECRS or Non-Spin. The gap is on the energy side: it books 2.4 times the anchor's RegDn in
   the day's six dearest hours, so the drift buys energy at peak RT prices.
 - **Format.** One day was lost to a malformed commit, 25 RegDn values for 24 hours: the whole watch-0 commit was
   refused and the day ran with no reserves.
-- **Energy tier: saturated.** R 1.000 (0.999 to 1.000) on 10 days.
+- **Energy tier: level with the anchor.** C 0.483 (0.364 to 0.610) against the anchor's 0.484, Δ −0.000 (−0.001 to
+  +0.000) on 10 days; R reads it as saturated, 1.000 (0.999 to 1.000), 8 of 10 days at R = 1.
 - 42 runs, all scored, $7.03 in all. Every episode replays byte for byte on `gridsim_core.hybrid`; `v3_episodes` also
   holds 25 reference runs the Space replays (the anchor, AS-hog, the solar sponge and v2 energy-only on 10 days). The
   full reading is in [`results/board-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v3.md).
@@ -777,13 +807,16 @@ quantile model refitted each year only on data revealed before that year. Nothin
 the store's builder tests it, and each run's audit replays every forecast call against the store. Site PV, the
 regulation drift and the missing RT reserve prices are as in v3.
 
-**Grading.** R = clip(0.2 + 0.8 · (P − P_idle) / (P_roll − P_idle), 0, 1), against the rolling anchor P_roll: a
-mixed-integer plan (HiGHS) with the agent's information, one solve per watch on the guide's P50 and the served
-forecasts, bidding each gate and committing the open hours. At `blind` the anchor plans on persistence instead
-(P_blind). At weight 0: `r_hind`, the same formula against P_hind (the exact plan that knows the realised prices, PV,
-drift and deployments), `paired_vs_anchor` = (P − P_roll) / (P_hind − P_idle), P_roll3 (the same re-planner on the
-P10, P50 and P90 paths), P_blind, and the naive gate rule, which charges in the 4 cheapest and discharges in the 4
-dearest DA P50 hours of each day and never re-plans.
+**Grading.** The headline is hindsight capture C = (P − P_idle) / (P_hind − P_idle), P_hind the exact plan that
+knows the realised prices, PV, drift and deployments, beside the anchor's own C and Δ = C − C_anchor = (P − P_roll) /
+(P_hind − P_idle) (the verifier's `paired_vs_anchor`) with its paired 95% interval. C replaces `r_hind`, which stays a
+weight-0 row. Second, R = clip(0.2 + 0.8 · (P − P_idle) / (P_roll − P_idle), 0, 1), against the rolling anchor
+P_roll: a mixed-integer plan (HiGHS) with the agent's information, one solve per watch on the guide's P50 and the
+served forecasts, bidding each gate and committing the open hours. At `blind` the anchor plans on persistence instead
+(P_blind). The references, each compared as (P − P_ref) / (P_hind − P_idle): P_roll3 (the same re-planner on the P10,
+P50 and P90 paths), P_blind, and the naive gate rule, which charges in the 4 cheapest and discharges in the 4 dearest
+DA P50 hours of each day and never re-plans. Training uses S, R up to the anchor rising to 1.2 at hindsight
+(`grade()["stretch_reward"]`).
 
 **Open decisions.**
 - **Pack filters (V4-P18).** The plan's per-kW headroom bars kept under 10% of candidates on the real store, and none
@@ -834,24 +867,29 @@ pilot, on the 4.0 packs: its episodes replay at the preview commit it ran on, no
 replaces it.
 
 <!-- board:v4 -->
-The v4 pilot's board lands with its eval card.
+| Model | Tier | Windows | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | C front / calm | Forecast calls | $ per episode |
+|---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|
+| GPT-6.1 Sol | front | 20 | **0.458 (0.362 to 0.553)** | 0.477 | -0.019 (-0.057 to +0.017) | 0.909 (0.836 to 0.968) | 0.350 | 0.350 | 0.390 / 0.616 | 25.3 | $0.57 |
+| GPT-6.1 Sol | front-lite | 10 | **0.404 (0.288 to 0.512)** | 0.450 | -0.047 (-0.098 to -0.005) | 0.883 (0.733 to 0.980) | 0.500 | 0.400 | 0.338 / 0.557 | 17.2 | $0.19 |
 <!-- /board:v4 -->
 
-On the same 20 `front` windows: P_blind 0.720, the naive gate rule 0.643 and P_roll3 0.976; the anchor's `r_hind` is
-0.582 and its hindsight capture, (P − P_idle) / (P_hind − P_idle), 0.477, against Sol's 0.566 and 0.458.
+On the same 20 `front` windows, C: the anchor 0.477, P_roll3 0.475, P_blind 0.346 and the naive gate rule 0.281,
+against Sol's 0.458; R: P_blind 0.720, the naive gate rule 0.643 and P_roll3 0.976, against Sol's 0.909.
 
-- **Forecasts are worth reading.** R 0.909 (0.836 to 0.968) against persistence's 0.720: +0.189 (0.096 to 0.286),
-  above it on 15 of 20 windows, and +0.265 over the naive gate rule.
-- **Level with the rolling MILP, by a different book.** Paired vs the anchor −0.019 (−0.057 to 0.017); Sol beats it
-  on 7 windows. It bids a smaller DA position and a third less reserve, never ECRS, and commits 5.7 times a window to
+- **Forecasts are worth reading.** Sol is above persistence (P_blind) by +0.112 (+0.059 to +0.168) of the hindsight
+  headroom, on 15 of 20 windows, and above the naive gate rule by +0.177 (+0.123 to +0.230).
+- **Level with the rolling MILP, by a different book.** Δ −0.019 (−0.057 to +0.017); Sol beats the anchor on 7
+  windows. It bids a smaller DA position and a third less reserve, never ECRS, and commits 5.7 times a window to
   the anchor's 18.
 - **It bids each day at that day's gate.** No gate was missed, and Sol read a forecast before its first submit at 95%
   of gates. But it leaves the next day unbooked until its own gate, so only 12 of 40 later-day gates had a standing
   plan to revise; all 12 were revised.
-- **`front-lite` sits below persistence:** 0.883 against P_blind's 0.981, the loss almost all one window (LZ_HOUSTON
-  on 19 February 2025, the cold snap, R 0.285). It stays a training and warm-up tier.
-- **Fern** (HB_NORTH, 24 to 26 January 2026): R 1.0, $1,151,139 against the anchor's $1,039,573, regulation on the
-  first day, then RRS, ECRS and Non-Spin into the storm with a large DA discharge on the 26th. **Heather**: R 0.932.
+- **`front-lite` sits below persistence:** C 0.404 (0.288 to 0.512) against the anchor's 0.450, Δ −0.047 (−0.098 to
+  −0.005), and −0.081 (−0.167 to −0.015) against P_blind's 0.485; the loss is almost all one window (LZ_HOUSTON on 19
+  February 2025, the cold snap, C 0.027 against the anchor's 0.257, R 0.285). It stays a training and warm-up tier.
+- **Fern** (HB_NORTH, 24 to 26 January 2026): C 0.677 against the anchor's 0.603 (R 1.0), $1,151,139 against the
+  anchor's $1,039,573, regulation on the first day, then RRS, ECRS and Non-Spin into the storm with a large DA
+  discharge on the 26th. **Heather**: C 0.703 against the anchor's 0.768 (R 0.932).
 - 35 runs, all scored at the first attempt, $16.50 in all. Every episode replays byte for byte on
   `gridsim_core.forecast` at rules 4.0 and passes its audit. The full reading is in
   [`results/board-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v4.md).
@@ -881,14 +919,19 @@ from EIA-930, the previous day's prices (`get_forecast`), and its own costs and 
 `v5_tasks` is one floor: `prompt` is the path-B prompt (the rules, the situation and the latest disclosed day's
 curves) and `day_prompt` the `floor-day` opening, where the floor also plays at `floor-day`.
 
-**Grading.** R = clip(0.2 + 0.8 · (P − P_idle) / (P_anchor − P_idle), 0, 1), with P_idle = 0 (no offer), against
-the disclosure best-responder: with the agent's information at 09:00 it shifts the curves disclosed for 61 and 62 days
-earlier by the forecast change in net load, best-responds to its own price impact with an exact dynamic program,
-self-schedules, and at `floor-day` re-plans the operating day. A run without a valid offer scores 0. `compliant` scores
-the same run as 0.5 · R + 0.5 · its welfare ratio, the share it delivers of the welfare a planner could add over A and
-B idle. At weight 0: capture and regret against P_br (the best SoC-feasible awards in hindsight), ε-Nash, welfare and
-deadweight loss, the price-making gain over the impact-blind price-taker, the price impact of A's own awards
-(`impact_usd`), mitigated hours and a withholding index.
+**Grading.** The public score is compliant: 0.5 · clip(C, 0, 1) + 0.5 · clip(W / W*, 0, 1), beside the anchor's
+score on the same floors and the paired Δ. C = (P − P_idle) / (BR_rt − P_idle), with P_idle = 0 (no offer), is the
+hindsight capture against BR_rt, the best SoC-feasible response to the day's clear with deviations settled at
+realised RT, the clairvoyant bound of the same settlement; W / W* is the welfare ratio, the share the run delivers of
+the welfare a planner could add over A and B idle. A run without a valid offer scores 0. The research board heads
+with C, the anchor's C and Δ = C − C_anchor; R = clip(0.2 + 0.8 · (P − P_idle) / (P_anchor − P_idle), 0, 1) comes
+second, against the disclosure best-responder: with the agent's information at 09:00 it shifts the curves disclosed
+for 61 and 62 days earlier by the forecast change in net load, best-responds to its own price impact with an exact
+dynamic program, self-schedules, and at `floor-day` re-plans the operating day. The env's `compliant_reward` row
+keeps 0.5 · R + 0.5 · W / W*. At weight 0: capture and regret against BR_A (`p_br`, the day-ahead-only best
+response, not a bound: the anchor exceeds it on some floors), ε-Nash, welfare and deadweight loss, the price-making
+gain over the impact-blind price-taker, the price impact of A's own awards (`impact_usd`), mitigated hours and a
+withholding index. Path B trains on S, R up to the anchor rising to 1.2 at BR_rt (`gridsim_core.market.reward_fn`).
 
 **Real and modelled.** Real: every offer and bid behind the background curve (ERCOT's 60-Day DAM Disclosure,
 aggregated to at most 64 points per hour and side), the seats' offers, ERCOT's system lambda, the hub DAM and RT
@@ -945,21 +988,30 @@ for display. The registered $0.18 episode cap stopped all 30 `floor-sprint` runs
 own cost guard books a worst-case turn), so that column is the registered amendment at $0.36.
 
 <!-- board:v5 -->
-The v5 pilot's board lands with its eval card.
+| Model | Tier | Floors | Score (95% CI) | Anchor's score | Δ vs anchor (95% CI) | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | Welfare ratio | Mitigated hours | $ per episode |
+|---|---|---:|---|---:|---|---|---:|---|---|---:|---:|---:|---:|---:|
+| GPT-6.1 Sol | floor-sprint | 30 | **0.362 (0.285 to 0.441)** | 0.427 | -0.064 (-0.145 to +0.016) | **0.348 (0.181 to 0.495)** | 0.414 | -0.067 (-0.204 to +0.058) | 0.800 (0.672 to 0.906) | 0.433 | 0.433 | 0.285 | 0.0 | $0.048 |
+| GPT-6.1 Sol | floor-day | 10 | **0.432 (0.304 to 0.566)** | 0.510 | -0.078 (-0.155 to -0.009) | **0.419 (0.261 to 0.579)** | 0.419 | +0.000 (-0.114 to +0.089) | 0.858 (0.695 to 0.975) | 0.600 | 0.600 | 0.446 | 0.0 | $0.145 |
 <!-- /board:v5 -->
 
-- **Below the price-taker on both tiers.** The information-matched price-taker scores 0.924 and 0.990 on the same
-  floors: Sol is −0.123 (−0.232 to −0.020) behind it at `floor-sprint` and −0.131 (−0.303 to −0.012) at `floor-day`.
-  It is far above max-withhold and replay A at `floor-sprint` (+0.61 and +0.62).
+- **Level with the anchor and the price-taker on C.** Against BR_rt Sol captures 0.348 (0.181 to 0.495) at
+  `floor-sprint` and 0.419 (0.261 to 0.579) at `floor-day`, against the anchor's 0.414 and 0.419: Δ −0.067 (−0.204 to
+  +0.058) and −0.000 (−0.114 to +0.089). The impact-blind price-taker captures 0.408 and 0.421 on the same floors, Sol
+  − it −0.061 (−0.198 to +0.066) and −0.002 (−0.115 to +0.084). R put Sol 0.12 to 0.13 behind the price-taker
+  (0.924 and 0.990 against Sol's 0.800 and 0.858) because it pins the anchor at 1 and clips the gains above it: Sol
+  out-earns the anchor on 13 of 30 sprint floors and 6 of 10 floor-day floors. Sol is far above max-withhold and
+  replay A at `floor-sprint` (+0.362 and +0.362).
 - **It over-sells.** Sol offers two-sided curves with price-sensitive blocks and lets the clear decide, but its sell
   side sums to about 3 times its stored energy (9 times at `floor-day`). Awards outrun the battery: delivery is
   clipped on 21 of 30 sprint floors. In the peak floors' impact hours it sells 4,950 MWh against the anchor's 2,040,
   which costs it $69,182 a floor in price; its price-making gain there is −$143 per MW-day (+$94 at `floor-day`, where
   the re-plan buys back at RT).
 - **Never mitigated, no contracts.** 0 mitigated hours on 40 floors, no block at the cap, no message and no CfD.
-- **Compliant:** 0.550 and 0.652. At `floor-day` the welfare half drops Sol from third to fifth of six, below replay
-  A and max-withhold: over-selling the DAM and dispatching again at RT pays, but wastes welfare (ratio 0.45 against
-  about 0.6 for both).
+- **Compliant:** 0.362 (0.285 to 0.441) at `floor-sprint` against the anchor's 0.427, Δ −0.064 (−0.145 to +0.016),
+  and 0.432 (0.304 to 0.566) at `floor-day` against 0.510, Δ −0.078 (−0.155 to −0.009); with R as the profit half
+  the same runs read 0.550 and 0.652. At `floor-day` the gap is the welfare half: Sol is level with the anchor on C
+  but fifth of six on the score, below replay A and max-withhold, since over-selling the DAM and dispatching again at
+  RT pays but wastes welfare (ratio 0.45 against about 0.6 for both).
 - **Showcase:** on Winter Storm Fern (25 and 26 January 2026) Sol's 800 MW makes $6.3M and $9.0M against the
   anchor's $0.5M and $1.4M, re-planning into Fern's RT spikes.
 - 44 runs, all scored at the first attempt; $4.50 in all, the smoke runs and the unscored registered sweep included.

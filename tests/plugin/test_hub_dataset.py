@@ -90,7 +90,16 @@ def test_an_episode_replays_on_the_plugin_row_and_paraphrased_on_the_published_r
 
 def test_check_text_refuses_notice_text_buckets_and_ticket_ids():
     notice = "ERCOT is issuing an OCN for the extreme hot weather with forecasted temperatures to be above 103°F"
-    for text in (notice, "s3://a-bucket/key", "see FD-1234"):
+    for text in (notice, "s3://a-bucket/key", "see FD-12"):
         with pytest.raises(SystemExit):
             hub.check_text({"x.json": json.dumps({"t": text}).encode()}, ["x.json"])
-    assert hub.unticket(b"lane N, FD-4325) and FD-4322's range") == b"lane N) and the design plan's range"
+    assert hub.unticket(b"lane N, FD-43) and FD-42's range") == b"lane N) and the design plan's range"
+
+
+@pytest.mark.parametrize("version, board", [("v1", hub.board_markdown), ("v3", hub.board_v3_markdown),
+                                            ("v4", hub.board_v4_markdown), ("v5", hub.board_v5_markdown)])
+def test_the_card_boards_lead_with_hindsight_capture_and_put_r_second(version, board):
+    c = json.loads((ROOT / f"results/eval-{version}.json").read_text())
+    text = board(c)
+    assert "| C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor |" in text
+    assert all(f"**{hub.mci(m['capture'])}**" in text and hub.mci(m["delta"], "+.3f") in text for m in c["models"])

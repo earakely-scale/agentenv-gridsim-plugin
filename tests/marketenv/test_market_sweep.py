@@ -95,10 +95,16 @@ def test_the_market_report_writes_eval_v5_and_the_market_board(fake):
     sprint, day = sorted(card["models"], key=lambda m: m["tier"], reverse=True)
     g = market_play(DAY, "floor-day", compliant=True)[1].grade()
     gs = market_play(SPRINT, "floor-sprint")[1].grade()
+    def score(x):
+        return round(0.5 * min(1, max(0, x["capture_vs_hindsight"])) + 0.5 * min(1, max(0, x["welfare_ratio"])), 4)
+
     assert (sprint["scoring"], sprint["sweep_scoring"], sprint["mean"], sprint["reward"]["mean"]) == (
-        "compliant", "reward", round(gs["compliant_reward"], 4), 1.0)
+        "compliant_capture", "reward", score(gs), 1.0)
     assert (day["scoring"], day["mean"], day["reward"]["mean"], day["compliant_reward"]["mean"]) == (
-        "compliant", round(g["compliant_reward"], 4), 1.0, round(g["compliant_reward"], 4))
+        "compliant_capture", score(g), 1.0, round(g["compliant_reward"], 4))
+    assert (sprint["capture"]["mean"], sprint["r_one"]) == (pytest.approx(gs["capture_vs_hindsight"], abs=1e-6), 1.0)
+    assert sprint["anchor_headline"] == card["baselines"]["floor-sprint"]["played"]["compliant_capture"]["anchor"]
+    assert set(sprint["refs"]) == set(sweep.MARKET_BASELINES)
     assert sprint["peak"]["n"] == int(sweep.market_peak(SPRINT)) == card["tasks"]["peak"]
     assert sprint["price_making_gain_usd_per_mw_day"] == round(gs["price_making_gain_usd_per_mw_day"], 2)
     b = card["baselines"]["floor-sprint"]
@@ -106,12 +112,13 @@ def test_the_market_report_writes_eval_v5_and_the_market_board(fake):
     assert (b["played"]["reward"]["anchor"], b["played"]["compliant"]["anchor"]) == (
         1.0, round(gs["compliant_reward"], 4))
     assert card["baselines"]["floor-day"]["replay_A"] is None and day["errors"]["no_schedule"] == 0
-    assert card["grading"]["headline"] == "compliant"
+    assert card["grading"]["headline"] == "compliant_capture"
     board = Path("results/board-v5.md").read_text()
     public, research = board.split("## Research board")
     assert board.startswith("# GridSim v5 market board") and "## Public board" in public
     assert "Peak floors" in public and "| R (95% CI) |" not in public and "Regret" not in public
-    assert "| R (95% CI) | R peak | Regret (norm) |" in research and "| reward |" in research
+    assert "| C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | R peak |" in research
+    assert "| reward |" in research and "| Score (95% CI) | Anchor's score | Δ vs anchor (95% CI) |" in public
 
 
 def test_market_episodes_replay_byte_for_byte_into_episode_json_v5(fake):

@@ -21,7 +21,7 @@ from gridsim_core import forecast_inputs as FI
 from gridsim_core import hybrid as HY
 from gridsim_core import hybrid_inputs, live
 from gridsim_core.contract import AS_DURATION_H, DEGENERATE_EPS, P_FLOOR, as_era, ceil_to_interval
-from gridsim_core.grade import reward_value
+from gridsim_core.grade import reward_value, stretch_value
 from gridsim_core.hybrid import (
     EQ_TOL,
     EVENT_PRODUCTS,
@@ -1361,6 +1361,8 @@ class Session(WatchDay):
                 "r_hind": reward_value(p, p_idle, p_hind) if submitted and p_hind is not None else (
                     0.0 if p_hind is not None else None),
                 "paired_vs_anchor": _r6((p - p_anchor) / hd) if hd is not None and hd > DEGENERATE_EPS else None,
+                "capture_vs_hindsight": _r6((p - p_idle) / hd) if hd is not None and hd > DEGENERATE_EPS else None,
+                "stretch_reward": stretch_value(p, p_idle, p_anchor, p_hind) if submitted else 0.0,
                 "beats_anchor": _r6(p) > p_anchor + 1e-6,
                 "r_roll3": reward_value(p, p_idle, tr["p_roll3"]) if submitted and tr.get("p_roll3") is not None
                 else None,

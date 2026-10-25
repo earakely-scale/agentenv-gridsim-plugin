@@ -43,10 +43,25 @@
     "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"
   },
   "grading": {
+    "scale": {
+      "headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the anchor's C and delta = C - C_anchor with its paired 95% CI",
+      "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+      "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+      "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a board",
+      "decision": "docs/REWARD-SCALES.md"
+    },
+    "hindsight": "P_hind: the exact DPs on the true day (DA position on DA - RT, the physical schedule on RT)",
     "reference": "exact DPs on the true day; LP bound reported",
     "reward": "clip(0.2+0.8(P-P_idle)/(P_roll-P_idle),0,1); no accepted commit scores 0",
     "anchor": "P_roll: the notice-blind rolling re-planner under the agent's freeze, budget, DA rule",
-    "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
+    "fields": {
+      "capture": "C",
+      "anchor_capture": "the anchor's C",
+      "delta": "C - C_anchor, paired",
+      "mean": "R",
+      "r_one": "share of runs at R = 1",
+      "refs": "each reference's C and the paired gap"
+    },
     "audit": "weight 0; a failed audit makes the run unscored",
     "excused": "derate clipping inside the freeze",
     "judge": false
@@ -58,8 +73,8 @@
       "idle": 0.2,
       "anchor": 1.0,
       "naive": 0.8496,
-      "naive_capture": 0.4249,
-      "anchor_capture": 0.4981,
+      "naive_capture": 0.42485,
+      "anchor_capture": 0.498084,
       "anchor_commits": 2.77
     }
   },
@@ -75,12 +90,49 @@
       "tasks": 40,
       "mean": 0.8829,
       "ci95": [
-        0.8399,
-        0.9242
+        0.8384,
+        0.9236
       ],
-      "hindsight_capture": 0.4367,
-      "beats_anchor": 0.275,
-      "beats_naive": 0.2,
+      "capture": {
+        "mean": 0.436672,
+        "ci95": [
+          0.360858,
+          0.512591
+        ]
+      },
+      "anchor_capture": 0.498084,
+      "delta": {
+        "mean": -0.061412,
+        "ci95": [
+          -0.089152,
+          -0.03499
+        ]
+      },
+      "r": {
+        "mean": 0.8829,
+        "ci95": [
+          0.8384,
+          0.9236
+        ]
+      },
+      "r_one": 0.375,
+      "beats_anchor": 0.225,
+      "below_idle": 1,
+      "no_headroom": 0,
+      "refs": {
+        "naive": {
+          "n": 40,
+          "capture": 0.42485,
+          "delta": {
+            "mean": 0.011822,
+            "ci95": [
+              -0.004442,
+              0.028193
+            ]
+          }
+        }
+      },
+      "beats_naive": 0.25,
       "valid": 1.0,
       "submitted": 1.0,
       "errors": {

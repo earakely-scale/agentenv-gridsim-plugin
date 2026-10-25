@@ -2,7 +2,7 @@
 
 The v5 interface every lane builds against: `gridsim_core.market` (core, lane C5), the `gridsim-market` env (env lane; a
 sibling of v2's `gridsim-live` and v3's `gridsim-hybrid`), the disclosure inputs and packs (data lane), the viewer and
-the GPT-6.1 Sol pilot. Design source: Linear FD-4324 (v5 plan; its critique overrides win) and FD-4319 (shared rules).
+the GPT-6.1 Sol pilot. Design source: the v5 plan (its critique overrides win) and the shared rules.
 `docs/CONTRACT.md` (v1), `docs/CONTRACT-v2.md`, `docs/CONTRACT-v3.md` and `docs/CONTRACT-v4.md` (its forecast store) hold
 for everything not restated here. Nothing in v1-v4 changes: v5 is new modules (`gridsim_core.market`,
 `gridsim_core.market_stack`, `gridsim_core.market_refs`, `gridsim_core.market_prompt`), new scripts
@@ -120,6 +120,7 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
 | V5-P22 | Episode caps | **Confirmed.** The floor-sprint default cap stays $1 (≥ $0.25, above gridsim-llm's per-turn reserve: 16,384 output tokens ≈ $0.167 for GPT-6.1 Sol); `sweep run` refuses an `--episode-cap-usd` below what the agent books before a model's first turn (its opening plus max_tokens of output at the model's price, read from the agent's own price table), naming the reserve. A cap just above the reserve still stops a sprint after about two turns (the rules-5.0 pilot), so a derived cap needs room for the turns' real spend |
 | V5-P23 | Rules version | `MARKET_VERSION` 5.1 (P1, P2, P12, P16, P18, P21, P22, P24; `get_forecast` reads `issued_at` as a time, CPT or ISO 8601, where 5.0 compared strings and refused 197 of 276 pilot calls; `get_disclosure` refuses a light day). The v5-preview pilot (4162fda) stays on record as the rules-5.0 pilot; a rules-5.1 pilot supersedes it |
 | V5-P24 | Eval draws | **Confirmed.** The 0.7 bar leaves 147 eval dates, so eval draws two seat-A portfolios (size, duration, ESR group, η, c_deg, as train draws) on every surviving 2025 date: 289 floors. A date's stratum is the day's (peak when its first draw has ≥ 2 impact hours: 6 dates, 12 floors), the board's peak column counts both; floor-day stays 60 floors, one a date (6 peak). Train and rtcb are unchanged |
+| V5-P25 | Scoring (Edgar, adopted 2026-10-25) | The cross-version scale ([CONTRACT.md](CONTRACT.md#scoring-across-versions-adopted)) with P_hind = BR_rt (`p_br_rt`, the clairvoyant bound of the same settlement; BR_A is not a bound and stays the DA-only row `capture_vs_br`). The public default stays the compliant score (V5-P18), its profit half now clip(C, 0, 1): 0.5 clip(C, 0, 1) + 0.5 clip(W/W\*, 0, 1), printed beside the anchor's and the paired Δ (`sweep.MARKET_HEADLINE = "compliant_capture"`); the research board heads with C, R second. `grade()` adds `capture_vs_hindsight` (C against BR_rt) and `stretch_reward` (S against BR_rt); `reward_fn` (path B, floor-sprint) returns S. The env's `reward` and `compliant_reward` rows are unchanged |
 | V5-P17 | Viewer | Per the standing direction that sim viewers look like real life, the Market Floor is a real-life 3D scene, not the plan's 8-bit hall; the merit-order staircase, gavel and seat board become overlays (viewer lane proposes) |
 
 ## As built in phase 2 (refinements of the text below)
@@ -292,6 +293,8 @@ One monotone ESR curve per hour, written as blocks (λ-space prices, as ERCOT of
   grade.reward_value(P, P_idle, P_anchor)` (clip(0.2 + 0.8·…), 6 decimals). `compliant_reward = round(0.5·R +
   0.5·clip(welfare_ratio, 0, 1), 6)`. No format credit. `beats_anchor` compares round(P, 6) with the stored 6-decimal
   P_anchor + 1e-6, so the anchor does not beat itself.
+- **Scoring and training** (V5-P25): `capture_vs_hindsight` = (P − P_idle)/(BR_rt − P_idle) heads the boards (its
+  clip in the public compliant score); `stretch_reward` = S against BR_rt is the training reward (`reward_fn`).
 - **Weight-0 rows**: `regret_usd = BR_A − P`, `regret_norm = (BR_A − P)/(BR_A − P_idle)`, `beats_anchor`, `eps_nash`,
   `welfare_ratio`, `dwl_usd`, `profit_usd_per_kw_day`, `rank` (A's π/MW among the seats), the contract row, the conduct
   row {mitigated_hours, withholding_index = (MW offered above 1.5·ref + SoC-feasible MW not offered, in hours with

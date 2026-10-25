@@ -14,7 +14,7 @@ import re
 import numpy as np
 
 from gridsim_core.contract import AS_PRODUCTS, DEGENERATE_EPS
-from gridsim_core.grade import reward_value
+from gridsim_core.grade import reward_value, stretch_value
 from gridsim_core.live import (
     BARRIER_SECONDS,
     CLOCK_URI,
@@ -684,14 +684,17 @@ class Session(WatchDay):
         p, p_idle = self.profit(), r["p_idle"]
         p_anchor = tier_refs["p_anchor"]
         reward = reward_value(p, p_idle, p_anchor) if self.submitted else 0.0
-        p_br, pt = tier_refs["p_br"], r["floor-sprint"]["baselines"].get("price_taker")
+        p_br, p_rt, pt = tier_refs["p_br"], tier_refs.get("p_br_rt"), r["floor-sprint"]["baselines"].get("price_taker")
         g = {"submitted": self.submitted, "tier": self.tier, "reward": reward, "profit_usd": _r6(p),
              "pnl": self.pnl(), "p_idle": p_idle, "p_anchor": p_anchor, "p_br": p_br,
-             "p_br_rt": tier_refs.get("p_br_rt"),
+             "p_br_rt": p_rt,
              "raw_ratio": _r6((p - p_idle) / (p_anchor - p_idle)) if p_anchor - p_idle > DEGENERATE_EPS else None,
              "regret_usd": _r6(p_br - p),
              "regret_norm": _r6((p_br - p) / (p_br - p_idle)) if p_br - p_idle > DEGENERATE_EPS else None,
              "capture_vs_br": _r6((p - p_idle) / (p_br - p_idle)) if p_br - p_idle > DEGENERATE_EPS else None,
+             "capture_vs_hindsight": _r6((p - p_idle) / (p_rt - p_idle))
+             if p_rt is not None and p_rt - p_idle > DEGENERATE_EPS else None,
+             "stretch_reward": stretch_value(p, p_idle, p_anchor, p_rt) if self.submitted else 0.0,
              "beats_anchor": _r6(p) > p_anchor + 1e-6,
              "price_making_gain_usd_per_mw_day": _r6((p - pt["profit"]) / self.b.p)
              if pt and self.tier == "floor-sprint" else None,
@@ -982,7 +985,8 @@ def grade_offer(task: dict, offer, store: DayStore | None = None, rows: bool = F
     out = json.loads(s.call("submit_offer", {"offer": offer}))
     if not s.done:
         s.end_floor() if rows else s._finish("refused")
-        g = s.grade(rows=False) | {"submitted": False, "reward": 0.0, "error": out.get("issues") or out.get("error")}
+        g = s.grade(rows=False) | {"submitted": False, "reward": 0.0, "stretch_reward": 0.0,
+                                   "error": out.get("issues") or out.get("error")}
         return g
     return s.grade(rows=rows)
 
@@ -1003,13 +1007,14 @@ def extract_offer(completion):
 
 
 def reward_fn(prompts, completions, task=None, **kw) -> list[float]:
-    """TRL reward_funcs entry: the floor-sprint reward of each completion's submit_offer (0 without one)."""
+    """TRL reward_funcs entry: the floor-sprint training reward S (hindsight BR_rt) of each completion's submit_offer
+    (0 without one)."""
     out = []
     for i, c in enumerate(completions):
         t = task[i] if isinstance(task, (list, tuple)) else task
         t = json.loads(t) if isinstance(t, str) else t
         offer = extract_offer(c)
-        out.append(0.0 if offer is None else float(grade_offer(t, offer)["reward"]))
+        out.append(0.0 if offer is None else float(grade_offer(t, offer)["stretch_reward"]))
     return out
 
 

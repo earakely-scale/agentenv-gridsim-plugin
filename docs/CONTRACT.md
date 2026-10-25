@@ -1,6 +1,6 @@
 # GridSimEnv v1 build contract
 
-This is the shared contract for the v1 lanes (core + packs, plugin, viewer, runs, Hub). The design source is Linear FD-4319 / FD-4320 and its v1 sub-issues; this file fixes the interfaces so lanes can build in parallel. Change it only through the main session.
+This is the shared contract for the v1 lanes (core + packs, plugin, viewer, runs, Hub). The design sources are the GridSim plan and its v1 plan; this file fixes the interfaces so lanes can build in parallel. Change it only through the main session.
 
 ## Repository layout
 
@@ -32,7 +32,8 @@ Style: the agent-env house style (terse code, no comments beyond short docstring
 - **Blind tier** situation carries D-1 [24] and D-7..D-1 [7x24]; no history tool.
 - **submit_schedule** returns profit and feasibility only; the reward and references come from `data/get` after done.
 - **Model for runs**: `openai/gpt-6.1-sol` only, reasoning effort high (Edgar, 2026-10-23: Sol only until a version is final).
-- **Viewer**: a real-life 3D scene (Three.js) of a battery yard at the point's region in that day's light and weather, with a plain-English card and the expert charts behind a toggle. This replaces the 8-bit pixel engine in FD-4334, per Edgar's standing direction that sim viewers look like real life (the 8-bit engine stays possible as a later race/LEVEL UP reel).
+- **Viewer**: a real-life 3D scene (Three.js) of a battery yard at the point's region in that day's light and weather, with a plain-English card and the expert charts behind a toggle. This replaces the 8-bit pixel engine of the first plan, per Edgar's standing direction that sim viewers look like real life (the 8-bit engine stays possible as a later race/LEVEL UP reel).
+- **Scoring across versions** (adopted, Edgar 2026-10-25): hindsight capture C heads every board, R second, S trains; the section below, shared by v2-v5.
 - **Hub repos** are created private for Edgar's review; GitHub repo is private until Edgar flips it.
 
 ## Battery and physics (exact)
@@ -62,9 +63,35 @@ Actions: 24 integers for HE01..HE24 (hour ending, Central Prevailing Time). `a >
 `R = clip(0.2 + 0.8 * (P - P_idle) / (P_anchor - P_idle), 0, 1)`, rounded to 6 decimals; no valid submit -> 0; no format credit.
 
 - foresight: anchor = P_opt (exact DP).
-- blind: anchor = max(P_persist, P_ridge) (DP on predicted prices, settled on the real day); `r_opt` uses P_opt and is the blind headline; also report `beats_anchor`.
-- Hindsight capture `r_opt` is a weight-0 row everywhere.
+- blind: anchor = max(P_persist, P_ridge) (DP on predicted prices, settled on the real day); also report `beats_anchor`.
+- `r_opt` (R against P_opt, = 0.2 + 0.8 C) stays a weight-0 verifier row; boards head with C (next section).
 - Degenerate anchor (P_anchor - P_idle <= 1e-9) never reaches a pack (filtered).
+
+## Scoring across versions (adopted)
+
+Edgar adopted it on 2026-10-25 from the study in [REWARD-SCALES.md](REWARD-SCALES.md); every version's contract points
+here. R stays each env's verifier score; what changes is what a board heads with and what trains.
+
+| | Rule | Where |
+|---|---|---|
+| Headline | Hindsight capture C = (P − P_idle)/(P_hind − P_idle), unclipped, the mean over tasks, printed beside the anchor's own C on the same tasks and Δ = C − C_anchor with its paired 95% CI | `sweep report`: `capture`, `anchor_capture`, `delta`; the dataset card and the Space |
+| Second | R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares | `mean`, `ci95`, `r_one`, `beats_anchor` |
+| Comparisons | Any reference: (P − P_ref)/(P_hind − P_idle) with its paired CI, never R − R_ref | `refs` (each reference's C and the paired gap) |
+| Training | S = R where P ≤ P_anchor; above it min(1.2, 1 + 0.2 (P − P_anchor)/(P_hind − P_anchor)); S = R where P_hind = P_anchor. v2's V2-D2, now every version's; never on a board | `grade.stretch_value`; `grade()["stretch_reward"]` in the v2-v5 Sessions (path B'); `market.reward_fn` (v5 path B) |
+| No valid submission | C 0, R 0, S 0 | |
+
+P_hind, the clairvoyant optimum of the same settlement: v1 P_opt (exact DP); v2 the two exact DPs (the DA position on
+DA − RT, the physical schedule on RT); v3 the hindsight MILP (C3-D13); v4 v3's hindsight over the window; v5 BR_rt
+(`p_br_rt`), with BR_A kept as the DA-only row (`capture_vs_br`), since BR_A is not a bound.
+
+- **v1**: at the foresight tier the anchor is the hindsight, so C = (R − 0.2)/0.8 and S = R: the tier reads as solved.
+  `trl.reward_fn` is unchanged, byte for byte: on every v1 pack (29,237 task-tiers, 262,720 rewards of stored schedules
+  and non-submissions) its outputs hash the same before and after this change, and S equals R on all 146,598 foresight
+  grades. At the blind tier C replaces `r_opt` on the board.
+- **v3 path B** (`oneshot_reward_fn`): its anchor is the oneshot projection's own optimum, so S = R there too.
+- **v5**: the public board stays the compliant score, its profit half now clip(C, 0, 1): 0.5 clip(C, 0, 1) + 0.5
+  clip(W/W\*, 0, 1) (`sweep.MARKET_HEADLINE = "compliant_capture"`), beside the anchor's score and the paired Δ; the
+  research board heads with C. The env's `compliant_reward` row (0.5 R + 0.5 clip(W/W\*)) is unchanged.
 
 ## gridsim_core API (what every lane imports)
 

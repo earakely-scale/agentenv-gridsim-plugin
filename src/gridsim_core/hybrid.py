@@ -17,7 +17,7 @@ import numpy as np
 
 from gridsim_core import hybrid_inputs, live
 from gridsim_core.contract import AS_DURATION_H, DEGENERATE_EPS, P_FLOOR, as_era
-from gridsim_core.grade import reward_value
+from gridsim_core.grade import reward_value, stretch_value
 from gridsim_core.live import (
     CLOCK_URI,
     DAY_END,
@@ -145,7 +145,7 @@ def day_of(task: dict, tier: str) -> Day:
 def make_site(site_id: str = "arch-dc150", *, p_mw: float = 100.0, e_mwh: float = 200.0, unit_mw: float = 25.0,
               eta: float = 0.85, c_deg: float = 4.0, cycles: float = 1.5, s0_frac: float = 0.5, qualified=None,
               **over) -> dict:
-    """An archetype site row (FD-4322: PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh, POI 150 MW)."""
+    """An archetype site row (the v3 plan's: PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh, POI 150 MW)."""
     base = dict(ARCHETYPES.get(site_id, ARCHETYPES["arch-dc150"])) | over
     s0 = round(s0_frac * e_mwh, 6)
     return {"site_id": site_id, "source": "archetype", **base,
@@ -1014,6 +1014,7 @@ class Session(WatchDay):
                 "p_lp": tr.get("p_lp"),
                 "capture_vs_hindsight": _r6((p - p_idle) / (p_hind - p_idle))
                 if p_hind is not None and p_hind - p_idle > DEGENERATE_EPS else None,
+                "stretch_reward": stretch_value(p, p_idle, p_anchor, p_hind) if submitted else 0.0,
                 "beats_anchor": _r6(p) > p_anchor + 1e-6,
                 "energy_only_reward": reward_value(tr["p_energy_only"], p_idle, p_anchor)
                 if tr.get("p_energy_only") is not None else None,
