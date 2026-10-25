@@ -1,9 +1,11 @@
 """portsim-llm's harness loop as the GridSim A2A agent: one battery-day on the env's MCP tools through agent-env's model
 endpoint, on the API each provider serves best. Cost is usage times PRICES, or the estimate of a request when its
 usage is lost (it failed, or the harness cut its stream); when GRIDSIM_MAX_COST_USD is set, an episode stops before a
-request whose estimate could take it past that: the last request's measured input tokens at the cache-read rate while
-the provider reports caching and the cache is warm, the bytes added since as fresh tokens, and max_tokens of output.
-The summary also gives the cost without the failed requests, which may not have been billed, and how many failed. MCP
+request whose estimate would take it past that. The estimate prices a request as its usage will be: the last request's
+measured input tokens at the cache-read rate while the provider reports caching and the cache is warm, the bytes added
+since as fresh tokens (not the last reply's reasoning, priced once as its output), and the most output a reply of the
+episode has used (max_tokens before the first reply, and for a stream the harness cut). The summary also gives the
+cost without the failed requests, which may not have been billed, and how many failed. MCP
 has no done flag, so the episode ends on submit_schedule's submitted, at MAX_TOOL_CALLS calls, or after max_turns. An
 env that lists advance is a live day in watches (gridsim-live): the episode ends on advance's done, with no tool-call
 cap, or once a turn would start within TIME_MARGIN of the time limit, the day then graded on what was committed;
@@ -169,6 +171,7 @@ class Turn:
     calls: list[Call]
     stop: str
     usage: dict = field(default_factory=dict)
+    resent: int = 0
 
 
 def _result(out: str) -> Any:
@@ -227,7 +230,8 @@ class AnthropicAgent:
     async def step(self, request: dict) -> Turn:
         async with self.client.messages.stream(**request) as s:
             msg = await s.get_final_message()
-        self.messages.append({"role": "assistant", "content": [b.model_dump(exclude_none=True) for b in msg.content]})
+        blocks = [b.model_dump(exclude_none=True) for b in msg.content]
+        self.messages.append({"role": "assistant", "content": blocks})
         text, reasoning, calls = "", "", []
         for b in msg.content:
             if b.type == "text":
@@ -241,7 +245,8 @@ class AnthropicAgent:
         cached, written = u.cache_read_input_tokens or 0, u.cache_creation_input_tokens or 0
         usage = {"input": (u.input_tokens or 0) + cached + written, "output": u.output_tokens or 0, "cached": cached,
                  "cache_write": written}
-        return Turn(text, reasoning, calls, msg.stop_reason or "", usage)
+        resent = sum(size_of(b) for b in blocks if b.get("type") in ("thinking", "redacted_thinking"))
+        return Turn(text, reasoning, calls, msg.stop_reason or "", usage, resent)
 
 
 class OpenAIResponsesAgent:
@@ -301,7 +306,8 @@ class OpenAIResponsesAgent:
             stop = f"length ({resp.incomplete_details.reason})"
         return Turn(text, reasoning, calls, stop, {"input": u.input_tokens or 0, "output": u.output_tokens or 0,
                                                    "cached": u.input_tokens_details.cached_tokens or 0,
-                                                   "cache_write": 0})
+                                                   "cache_write": 0},
+                    sum(size_of(item) for item in resp.output if item.type == "reasoning"))
 
 
 class ChatAgent:
@@ -418,18 +424,21 @@ def make_agent(model: str, tools, system: str, max_tokens: int, effort: str | No
     return ChatAgent(model, tools, system, max_tokens, f"{root}/v1", key, effort)
 
 
-def size_of(request: dict) -> int:
+def size_of(request) -> int:
     return len(json.dumps(request, default=lambda o: o.model_dump(mode="json")).encode())
 
 
-def estimate(agent, size: int, last: tuple[int, int] | None, cached: bool, price: tuple[float, float, float]) -> float:
-    """What a request of ``size`` bytes likely costs at most: the last request's measured input tokens (``last`` is
-    (tokens, bytes)) at the cache-read rate when ``cached`` (the provider reports caching and the cache is warm), else
-    fresh; the bytes added since at BYTES_PER_TOKEN a token, fresh (a cache write on Messages); and its output limit in
-    output tokens."""
+def estimate(agent, size: int, last: tuple[int, int] | None, cached: bool, price: tuple[float, float, float],
+             out: int | None = None) -> float:
+    """What a request of ``size`` bytes will likely be priced at: the last request's measured input tokens (``last``
+    is (tokens, bytes), the bytes counting the last reply's reasoning, already priced as output) at the cache-read
+    rate when ``cached`` (the provider reports caching and the cache is warm), else fresh; the bytes added since at
+    BYTES_PER_TOKEN a token, fresh (a cache write on Messages); and ``out`` output tokens, reasoning included, else
+    the output limit."""
     tokens, sent = last or (0, 0)
     fresh = max(0, size - sent) / BYTES_PER_TOKEN + (0 if cached else tokens)
-    out = agent.max_tokens * (5 if agent.route == "chat" else 1)
+    if out is None:
+        out = agent.max_tokens * (5 if agent.route == "chat" else 1)
     return ((tokens if cached else 0) * price[2] + fresh * price[0] * (1.25 if agent.route == "messages" else 1)
             + out * price[1]) / 1e6
 
@@ -472,7 +481,7 @@ class Episode:
         self.last: tuple[int, int] | None = None
         self.last_at = 0.0
         self.reward: float | None = None
-        self.tool_calls = self.checks = self.cached = self.written = 0
+        self.tool_calls = self.checks = self.cached = self.written = self.out_max = 0
         self.spent = self.unbilled = 0.0
         self.failed_requests = 0
         self.failure: tuple[str, str] | None = None
@@ -545,7 +554,7 @@ class Episode:
             request = agent.request()
             size = size_of(request)
             warm = self.caching and time.monotonic() - self.last_at < CACHE_SECONDS
-            most = estimate(agent, size, self.last, warm, price)
+            most = estimate(agent, size, self.last, warm, price, self.out_max or None)
             if self.max_cost is not None and self.spent + most > self.max_cost:
                 return self.fail("cost_cap", f"the next request could cost ${most:.4f}, past the ${self.max_cost:g} "
                                              f"cap with ${self.spent:.4f} spent")
@@ -564,8 +573,13 @@ class Episode:
                         return self.fail("provider_error", error=e)
                     self.record["errors"].append(f"{self.describe(e)} (turn {turn + 1} sent again)")
                     log.warning("turn %d: the reply failed mid-stream, sending it again", turn + 1)
-            self.spent += most if t.stop == HARNESS_CAP else cost(t.usage, price)
-            self.last, self.last_at = (t.usage["input"] or round(size / BYTES_PER_TOKEN), size), time.monotonic()
+            if t.stop == HARNESS_CAP:
+                self.spent += estimate(agent, size, self.last, warm, price)
+            else:
+                self.spent += cost(t.usage, price)
+                self.out_max = max(self.out_max, t.usage["output"])
+            self.last = (t.usage["input"] or round(size / BYTES_PER_TOKEN), size + t.resent)
+            self.last_at = time.monotonic()
             self.caching = self.caching or bool(t.usage["cached"] or t.usage["cache_write"])
             self.cached += t.usage["cached"]
             self.written += t.usage["cache_write"]
