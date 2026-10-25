@@ -420,10 +420,10 @@ V3 = Preview("v3", {"train": "ercot-hybrid-v3-train", "eval": "ercot-hybrid-v3-e
                     "showcase": "ercot-hybrid-v3-showcase"},
              ("energy", "reserves"), hybrid, hybrid_prompt, "events_sha")
 PREVIEW_STATS = ("live-stats.md", "hybrid-stats.md")
-CURRENT = {"v2": "v2", "v3": "v3b", "v4": "v4b", "v5": "v5b"}
-PREVIEW_RESULTS = {v: tuple(f for p in dict.fromkeys((v, c)) for f in (f"eval-{p}.json", f"board-{p}.md",
-                                                                          f"pilot-{p}.json"))
-                   for v, c in CURRENT.items()}
+PILOTS = {"v2": ("v2",), "v3": ("v3", "v3b", "v3c"), "v4": ("v4", "v4b"), "v5": ("v5", "v5b")}
+CURRENT = {v: p[-1] for v, p in PILOTS.items()}
+PREVIEW_RESULTS = {v: tuple(f for p in ps for f in (f"eval-{p}.json", f"board-{p}.md", f"pilot-{p}.json"))
+                   for v, ps in PILOTS.items()}
 LABELS = {**NAMES, "reference/rolling-anchor": "rolling anchor", "reference/naive": "naive",
           "reference/as-hog": "AS-hog", "reference/solar-sponge": "solar sponge",
           "reference/v2-energy-only": "v2 energy-only"}
@@ -1454,12 +1454,12 @@ def main():
                          "Repeat for several. Default: results/runs/v2-pilot-sol and v2-pilot-sol-hero.")
     ap.add_argument("--v3-runs", type=Path, action="append",
                     help="The same for gridsim.episode/v3 JSON. Default: results/runs/hybrid-reference and the "
-                         "rules-3.1 pilot's six v3b-* folders.")
+                         "rules-3.2 pilot's five v3c-* folders.")
     ap.add_argument("--v2-results", type=Path, default=ROOT / "results",
                     help="The folder with eval-v2.json, board-v2.md and pilot-v2.json, when there are.")
     ap.add_argument("--v3-results", type=Path, default=ROOT / "results",
-                    help="The folder with eval-v3b.json, board-v3b.md and pilot-v3b.json (the current pilot) and the "
-                         "earlier pilot's eval-v3.json, board-v3.md and pilot-v3.json, when there are.")
+                    help="The folder with eval-v3c.json, board-v3c.md and pilot-v3c.json (the current pilot) and the "
+                         "earlier pilots' (v3, v3b), when there are.")
     ap.add_argument("--v4-runs", type=Path, action="append",
                     help="The same for gridsim.episode/v4 JSON. Default: the rules-4.1 pilot's four v4b-pilot-sol* "
                          "folders.")
@@ -1481,9 +1481,8 @@ def main():
     runs_root = ROOT / "results/runs"
     extras = None if args.v1_only else Extras(
         args.v2_runs or [runs_root / "v2-pilot-sol", runs_root / "v2-pilot-sol-hero"],
-        args.v3_runs or [runs_root / n for n in ("hybrid-reference", "v3b-pilot-sol", "v3b-pilot-sol-amend",
-                                                  "v3b-pilot-sol-energy", "v3b-pilot-sol-show", "v3b-smoke",
-                                                  "v3b-smoke-energy")],
+        args.v3_runs or [runs_root / n for n in ("hybrid-reference", "v3c-pilot-sol", "v3c-pilot-sol-energy",
+                                                  "v3c-pilot-sol-show", "v3c-smoke", "v3c-smoke-energy")],
         args.v2_results, args.v3_results, args.train, args.preview_ref,
         args.v4_runs or [runs_root / f"v4b-pilot-sol{n}" for n in ("", "-lite", "-smoke", "-show")],
         args.v5_runs or [runs_root / f"v5b-pilot-sol{n}" for n in ("", "-day", "-show")],

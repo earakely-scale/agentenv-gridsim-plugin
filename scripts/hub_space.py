@@ -52,7 +52,7 @@ MARKET_NAMES = {"reference/disclosure-anchor": "Disclosure anchor (reference)",
                 "reference/price-taker": "Price-taker (reference)",
                 "reference/max-withhold": "Max-withhold (reference)"}
 MARKET_HERO = "aug24-0820"
-CARDS = {2: "eval-v2.json", 3: "eval-v3b.json", 4: "eval-v4b.json", 5: "eval-v5b.json"}
+CARDS = {2: "eval-v2.json", 3: "eval-v3c.json", 4: "eval-v4b.json", 5: "eval-v5b.json"}
 LABELS = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "reference/rolling-anchor": "the rolling anchor (reference)",
           "reference/rolling-p50": "the rolling anchor (reference)",
           "reference/persistence": "the blind re-planner (reference)",
@@ -638,25 +638,20 @@ def hybrid_blurb(ep: dict) -> str:
 
 
 def hybrid_pilot(e: dict) -> str:
-    """The v3 pilot's reading (results/pilot-v3b.json, rules 3.1): Sol's reserves-tier hindsight capture on its
-    registered days against the rolling anchor's and the energy-only plan's, R second, then the amended set; a hero day
-    is display-only."""
-    path = ROOT / "results" / "pilot-v3b.json"
+    """The v3 pilot's reading (results/pilot-v3c.json, rules 3.2): Sol's reserves-tier hindsight capture on its
+    registered days against the rolling anchor's and the energy-only plan's, R second; a hero day is display-only."""
+    path = ROOT / "results" / "pilot-v3c.json"
     if not path.is_file():
         return ""
-    res = json.loads(path.read_text())["columns"]["reserves"]
-    p = res["primary"]["headline"]["reserves primary: all"]
-    a = ((res.get("amended") or {}).get("headline") or {}).get("reserves amended: all")
+    p = json.loads(path.read_text())["columns"]["reserves"]["primary"]["headline"]["reserves primary: all"]
     eo = p["refs"]["energy_only"]
     return ((" This day is display-only, outside the pilot." if e["task_id"] in HYBRID_HERO_TASKS else "")
-            + f" In the pre-registered pilot (rules 3.1) on {p['n']} reserves-tier eval days Sol's capture is "
+            + f" In the pre-registered pilot (rules 3.2) on {p['n']} reserves-tier eval days Sol's capture is "
             f"{p['c']:.3f} ({p['c_ci'][0]:.3f} to {p['c_ci'][1]:.3f}) against the rolling anchor's "
             f"{p['c_anchor']:.3f}, "
             f"{versus({'mean': p['delta'], 'ci95': p['delta_ci']}, 'the anchor')}, and "
             f"{versus({'mean': eo['vs'], 'ci95': eo['vs_ci']}, 'the energy-only plan')}; R {p['r']:.3f} on the anchor "
-            "scale"
-            + (f"; with the day its cost cap stopped re-run under the registered amendment, {a['c']:.3f} against "
-               f"{a['c_anchor']:.3f} on {a['n']} days." if a else "."))
+            f"scale, {round(p['r_at_1'] * p['n'])} of {p['n']} days at R = 1.")
 
 
 def live_entry(ep: dict, url: str) -> dict:
