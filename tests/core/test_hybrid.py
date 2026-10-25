@@ -7,6 +7,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from gridsim_core import hybrid as H
+from gridsim_core import hybrid_prompt as HP
 
 DATE_B, DATE_A, DATE_C = "2023-09-06", "2022-07-20", "2026-01-26"
 
@@ -78,6 +79,44 @@ def test_plan_parsing():
                     ({"energy": [0] * 24}, 24), ("nope", 0)]:
         with pytest.raises(H.PlanError):
             H.parse_plan(bad, fh)
+
+
+def test_keep_and_null_keep_an_as_field_and_the_parse_error_says_how(day):
+    assert H.parse_plan({"energy": [0], "regdn": "keep"}, 23, keep=True)[1] == {"energy": [0.0]}
+    with pytest.raises(H.PlanError):
+        H.parse_plan({"energy": [0], "regdn": "keep"}, 23)
+    s = H.Session(day, "reserves")
+    s.call("commit_schedule", {"plan": {"energy": [0] * 24, "regdn": {"from": 0, "to": 6, "mw": 10}}, "from_hour": 0})
+    out = json.loads(s.call("check_schedule", {"plan": {"energy": [0] * 24, "regdn": " Keep "}, "from_hour": 0}))
+    assert out["feasible"] and out["projected"]["as_usd"] > 0
+    out = json.loads(s.call("commit_schedule", {"plan": {"energy": [0] * 24, "regdn": None, "rrs": "keep"},
+                                                "from_hour": 0}))
+    assert len(out["committed"]) == 24 and out["book"]["regdn"][:7] == [10] * 6 + [0]
+    s = H.Session(day, "reserves")
+    out = json.loads(s.call("commit_schedule", {"plan": {"energy": [0] * 24, "regdn": [0] * 25}, "from_hour": 0}))
+    assert out["committed"] == [] and out["refused"][0]["rule"] == "parse"
+    assert 'leave regdn out (or send "keep")' in out["refused"][0]["detail"]
+    out = json.loads(s.call("commit_schedule", {"plan": {"energy": "keep"}, "from_hour": 0}))
+    assert "send its booked MW" in out["refused"][0]["detail"]
+    assert 'send "keep" or null' in HP.system_prompt("reserves", "B")
+
+
+def test_a_deployment_uses_up_its_duration():
+    dur = {"regup": 1.0, "regdn": 1.0, "rrs": 1.0, "ecrs": 2.0, "nspin": 4.0}
+    dep = [dict.fromkeys(H.EVENT_PRODUCTS, 0.0) for _ in range(24)]
+    for h, f in ((17, 2 / 3), (18, 1.0), (19, 1 / 3)):
+        dep[h]["ecrs"] = f
+    du = H.deployed_durations(dur, dep)
+    assert [du[h]["ecrs"] for h in (16, 17, 18, 19, 20)] == pytest.approx([2.0, 2.0, 4 / 3, 1 / 3, 2.0])
+    assert all(d["rrs"] == 1.0 and d["nspin"] == 4.0 for d in du)
+    t = synth(deploy=False) | {"deployments": [
+        {"event_id": "dep-ecrs", "issued_at": f"{DATE_B}T15:40:00-05:00", "product": "ecrs", "frac": 1.0,
+         "start": f"{DATE_B}T16:00:00-05:00", "end": f"{DATE_B}T18:00:00-05:00"}]}
+    s = H.Session(t, "reserves")
+    s.call("commit_schedule", {"plan": {"energy": [0] * 24, "ecrs": {"from": 16, "to": 18, "mw": 50}},
+                               "from_hour": 0})
+    run(s, lambda s: None)
+    assert s.cash["ftp"] == 0 and s.cash["deployment_energy"] > 0
 
 
 def test_watches_reveal_and_deploy_triggers():

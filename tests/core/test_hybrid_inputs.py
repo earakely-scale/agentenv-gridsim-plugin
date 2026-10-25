@@ -50,3 +50,19 @@ def test_archetypes_default():
     assert a["default"]["pv_mwac"] == 150 and a["default"]["bess_mwh"] == 200 and a["default"]["poi_mw"] == 150
     assert abs(sum(x["weight"] for x in a["archetypes"]) - 1) < 1e-3
     assert len({x["id"] for x in a["archetypes"]}) == len(a["archetypes"])
+
+
+def test_reg_drift_measured_where_ercot_covers_the_day_and_modelled_before():
+    m, row = hi.reg_model(), hi.reg_series("2024-03-29")
+    assert row and len(row["up"]) == len(row["dn"]) == 24 and all(row["n"]) and hi.reg_series("2023-10-11") is None
+    assert 0.05 < m["data"]["mean_up"] < 0.4 and 0.05 < m["data"]["mean_dn"] < 0.4
+    da, rt = [30.0] * 24, [80.0 if h >= 12 else -20.0 for h in range(24)]
+    r = hi.reg_hourly("t", "2024-03-29", da, rt)
+    assert r["source"] == "ercot" and r["up"] == row["up"] and r["dn"] == row["dn"]
+    assert (r["mean_up"], r["mean_dn"]) == (m["data"]["mean_up"], m["data"]["mean_dn"])
+    f = hi.reg_hourly("t", "2022-07-01", da, rt)
+    assert f["source"] == "modelled" and f == hi.reg_hourly("t", "2022-07-01", da, rt)
+    assert f != hi.reg_hourly("u", "2022-07-01", da, rt)
+    assert all(u > d for u, d in zip(f["up"][12:], f["dn"][12:], strict=True))
+    assert all(d > u for u, d in zip(f["up"][:12], f["dn"][:12], strict=True))
+    assert all(0 <= x <= 1 for x in f["up"] + f["dn"])

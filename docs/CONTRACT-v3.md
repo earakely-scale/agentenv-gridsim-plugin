@@ -30,7 +30,7 @@ are produced by core as exact strings, so path A and path B' are byte-identical 
 - Constants: `PLANNING_CALLS = 3` (check_schedule and commit_schedule share them per watch), `TURNS_PER_WATCH = 5`,
   `MAX_TURNS = 52`, `BARRIER_SECONDS = 60`, the v2 URNs.
 
-## Decisions (all provisional until Edgar confirms)
+## Decisions (provisional unless marked confirmed)
 
 FD-4322's recommendations, taken as written:
 
@@ -42,17 +42,19 @@ FD-4322's recommendations, taken as written:
 | V3-D4 | Action format | AS as blocks, energy as a list or blocks; `check_schedule` returns the per-hour reserve margin |
 | V3-D5 | Live training path | Path B' in-process `hybrid.Session` with byte-identical replay CI; path A for eval |
 | V3-D6 | Eval stratification | `ercot-hybrid-v3-eval` stratified by AS value; AS share reported |
-| V3-D7 | POI default | PV AC nameplate, with a 1.2x variant (POI = 1.2 x PV AC, e.g. 180 MW); flagged |
-| V3-D8 | Regulation drift | `hybrid_inputs.reg_drift(task_id)` (Beta, means 0.12 RegUp and 0.18 RegDn, concentration 6), stored in the task row, labelled "a seeded draw, not ERCOT telemetry" |
+| V3-D7 | POI default | PV AC nameplate, with a 1.2x variant (POI = 1.2 x PV AC, e.g. 180 MW), and POI below PV AC on oversized sites (V3-D12); flagged |
+| V3-D8 | Regulation drift | **Confirmed (Edgar 2026-10-24), price-aware.** Drift is ERCOT's own where its data reaches, else modelled from the hour's imbalance; stored per task in `reg` with `source` `ercot`, `modelled` or `ercot+modelled` (`flags.reg_drift`), built by `scripts/fetch_reg_deployment.py` + `scripts/build_reg_drift.py` into `data/hybrid/reg_deploy.jsonl.gz`, `reg_model.json` and `reg_deploy.md`, loaded by `hybrid_inputs.reg_hourly`. **Data:** ERCOT publishes no regulation-deployment, ACE or frequency series (the public API's 120 products were listed; the AS deployment factors NP5-520/526/528 are RUC planning inputs from 2025-12-05). The 60-Day SCED Disclosure (NP3-965-ER, via the API archive: postings from 2023-12-11, so operating days 2023-10-12..2026-08-25, 1,039 days, 10 archive gaps) gives each resource's telemetered output, base point and RegUp/RegDn responsibility per disclosed SCED run; the storage fleet's summed gap over its responsibility is its deployed fraction per snapshot (signed, clipped to ±1; up and down hourly fractions are the means of its positive and negative parts), so a site's drift is its award × the fleet's fraction, by hour. Before RTC+B one run per 15 min is disclosed and the base point is the implied target (2/3 of the way from the previous disclosed base point to the run's own; on 254 RTC+B days, where every run is disclosed, it reproduces the every-run hourly fractions with correlation 0.76 both ways, better than either base point alone). Deviating carriers agree in sign on 86% per snapshot (a fleet-wide LFC signal). Measured means RegUp 0.168, RegDn 0.205 of the award per hour (the projection's `reg_drift_mean` on measured days); RegUp rises from 0.15 to 0.26 and RegDn falls from 0.22 to 0.15 as RT - DA goes from below 0 to above $100 (correlation of the hourly net with the spread 0.08). **Fallback** (2021-01-01..2023-10-11 and the gaps, both showcase heroes): RegUp deploys when the hour's RT clears above DA and RegDn when below, at max × tanh(|RT - DA| / scale) of the award plus N(0, 0.02) seeded per task, fitted to the measured hours (up_max 0.203, dn_max 0.226, scale $1/MWh, i.e. one-sided by the sign of the spread); means over 2021..2023-10 RegUp 0.067, RegDn 0.143; labelled modelled. v4's seeded `hybrid_inputs.reg_drift` is unchanged. **Hero check:** on aug10-2023 (the Space's v3 hero) the new drift alone leaves the reserves anchor at $1.382M against the energy-only MILP's $1.371M (energy-only R 0.980, past the 0.97 filter); what held it back was a $126k FTP at 19:00 for ECRS the battery had just delivered for two hours, which C3-D18 removes: reserves anchor $1.590M, energy-only R 0.721, v2 energy-only 0.58, AS-hog 0.43. sept06-2023 (EEA2, RT above DA in all 24 hours by up to $3.9k) is not saved by any imbalance-following drift: reserves anchor $258k ($345k under the seeded draw; $620k with no drift) against $482k energy-only, because RegUp deploys all day and drains the battery before the 19:00 DA sale it buys back at $5.3k while RegDn no longer refills it; it stays display-only (C3-D16). |
 | V3-D9 | Watch 0 | D-1 14:00 commits the DA position and the DA AS book (v2's watch 0) |
 | V3-D10 | T3 | **Dropped tonight**: the RT MCPC report (NP6-331-CD) exists but MIS keeps ~7 days and no history was found. The `rtcb` tier is implemented and refuses to load without `mcpc_rt`; era-C days ship as T2 (DA AS only) in `ercot-hybrid-v3-rtcb`, flagged `rt_as: "not_modelled"` |
 | V3-D11 | Naming real sites | Site id plus region in public outputs; archetype sites are labelled `archetype` |
+| V3-D12 | Oversized-PV sites | **Confirmed (Edgar 2026-10-24).** Sites with PV AC above the POI so the meter clips and the energy tier tests charging from clipped solar: 40% of pack sites take POI = PV AC / r, r in {1.11, 1.25, 1.4} by seeded draw (20% the 1.2x variant, 40% POI = PV AC), POI import = POI, flag `poi: "oversized r"`, site id `...-poi<MW>`. POI is not public: ERCOT's GIS report (RTID 15933) is not among the public API's products and MIS is off limits. Evidence from EIA-860 2025's 22 co-located ERCO PV+storage plants: one reports PV summer capability below its AC nameplate (plant 66420: 355.4 MWac against 320 MW, r = 1.11), two more at 326.6 against 320 (1.02); their DC/AC ratios run 1.18-1.43 (median 1.29). 1.11 is the observed ratio; 1.25 and 1.4 are labelled archetype ratios inside that DC/AC range (a plant whose inverters were sized to its PV DC and whose POI to its AC export clips in the same band). Measured (`data/hybrid-stats.md`; the energy anchor is 1.0 by construction): on eval, v2 energy-only scores 0.953 over the 300 days (0.989 before) and 0.961 / 0.910 / 0.840 on r = 1.11 / 1.25 / 1.4 sites (41% of the r = 1.4 days below 0.9; 0.98 where POI >= PV AC); the solar sponge 0.39 on oversized days (idle's 0.2 elsewhere), with 86 clippable MWh a day. In train (2021-2024, when midday was not yet the cheapest hour) v2 energy-only falls to 0.60-0.74 on oversized sites. r = 1.11 barely moves the tier; r >= 1.25 makes it a test. |
+| V3-D13 | Keeping a field | **Confirmed (Edgar 2026-10-24).** An AS field left out of the plan, sent as `"keep"` (any case, spaces trimmed) or as `null` keeps the book's values; `parse_plan(..., keep=True)` (hybrid only; v4 calls it without and is unchanged). A parse error names the fix: "to keep RegDn as it is, leave regdn out (or send "keep")", and for energy "send its booked MW". A malformed field (wrong length, bad block, not numbers) still refuses the whole call as `parse`. The rules card and the tool schema say so (the pilot's seven `"keep"` refusals and its 25-value RegDn list). |
 
 Core decisions where FD-4322 is silent or ambiguous (also provisional):
 
 | # | Decision |
 |---|---|
-| C3-D1 | **Every plan value is MW, continuous** (ERCOT dispatches and awards in fractions of a MW): energy in [-P, P] (+ discharges), each AS award in [0, P]; no unit grid. The proposed 25 MW grid (energy in {-k..k}, AS in {0..k} units) made the MILP intractable (measured: 1% gap after 20 s per solve, 190 integers); continuous actions with the 24 direction binaries solve exactly in 10-25 ms. Outputs show 2 decimals; a sent value within 0.005 MW of the book counts as the book's (so re-sending displayed values never trips `frozen` or `as_fixed`). |
+| C3-D1 | **Accepted (Edgar 2026-10-24).** **Every plan value is MW, continuous** (ERCOT dispatches and awards in fractions of a MW): energy in [-P, P] (+ discharges), each AS award in [0, P]; no unit grid. The proposed 25 MW grid (energy in {-k..k}, AS in {0..k} units) made the MILP intractable (measured: 1% gap after 20 s per solve, 190 integers); continuous actions with the 24 direction binaries solve exactly in 10-25 ms. Outputs show 2 decimals; a sent value within 0.005 MW of the book counts as the book's (so re-sending displayed values never trips `frozen` or `as_fixed`). |
 | C3-D2 | **Commits are per hour, evaluated in order.** From the first open hour, each hour's whole entry (energy and every product) is checked on the SoC path that the hours before it leave (accepted entries, or the kept book for refused ones). A failing hour first tries its energy alone with the book's AS for that hour: if that passes, the energy is committed and only the AS fields are refused; otherwise the whole entry is refused and keeps its previous book entry. `check_schedule` runs the same evaluation without committing. |
 | C3-D3 | **The DA position is set when watch 0 ends**: x_DA = the projected export of the book then (PV curtailed at negative DA prices or to keep the meter limit, plus the base battery move). The DA AS book is the book's AS then. With no watch-0 commit the book is idle: x_DA is the solar-only plant's, no AS. |
 | C3-D4 | **PV curtailment is the controller's**: per hour, pv = 0 when the hour's price is negative (RT when executed, DA when projected), else min(s, max(0, L - b - Up)): PV is curtailed to keep the meter limit after the battery's base move and to keep **headroom for the hour's up-awards** at the meter, so x + Up <= L always holds; the meter rule refuses only b + Up > L or b - RD < -L_imp. |
@@ -66,9 +68,10 @@ Core decisions where FD-4322 is silent or ambiguous (also provisional):
 | C3-D12 | **RT is expected at DA** for the anchor (FD-4322); no decayed basis as in v2. |
 | C3-D14 | **Deployment size**: lane D3's events carry no fraction (`frac` null; only Non-Spin states system MW), so every deployment uses frac = 1.0 of the award for min(window, duration): the stress case the reservation covers, labelled. |
 | C3-D15 | **AC coupling only in packs** (EIA-860 2025 shows no DC-coupled ERCO sites); s = min(PV MWac, MWac x ILR x cf) with lane D3's system cf, which is already fleet-AC so ILR x cf is an approximate DC shape (flagged). The dc code path stays for later. |
-| C3-D16 | **Baseline filter**: FD-4322's "sponge within 3% of the anchor" drop is extended to every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP: a day where any of them reaches reward 0.97 against the reserves anchor is dropped. Without it 13% of eval days had the T2 anchor below the energy-only MILP: the seeded regulation drift is independent of grid state, so RegDn drift buys energy at RT spikes while T2's awards are locked (the hero day, display-only, keeps it: T2 anchor $350k vs energy-only $482k). |
+| C3-D16 | **Baseline filter**: FD-4322's "sponge within 3% of the anchor" drop is extended to every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP: a day where any of them reaches reward 0.97 against the reserves anchor is dropped. Without it 13% of eval days had the T2 anchor below the energy-only MILP: the seeded regulation drift is independent of grid state, so RegDn drift buys energy at RT spikes while T2's awards are locked (the hero day, display-only, keeps it: T2 anchor $350k vs energy-only $482k). The filter stays with V3-D8's drift: ERCOT's measured storage fleet still absorbs about 15% of its RegDn award in hours where RT clears $100 above DA. |
 | C3-D17 | **Inherited awards.** An hour whose awards equal the book's (every hour after watch 0 in `reserves`, where the DA awards are fixed) starts from a SoC the entry cannot change, so its entry passes when the governor would leave it as it is: the reservation band is checked at the hour's end only (not its start), and when the band, headroom or SoC room cannot all be met the governor's closest move is the one accepted. A refused entry names the rule it breaks (`reserve_up`, `reserve_dn`, `headroom_up`, ...; the detail gives the move to make). New or changed awards keep the full C3-D5 rule at both ends. The rolling MILP mirrors this (end-of-hour band only for fixed awards); when it is infeasible the soft model (penalty scaled to the day's prices, then its LP relaxation) minimises the shortfall and a repair walk replaces the entries the Session refuses with the governor's move, so the anchor's commits are never refused (a hard solution is never repaired; tested on every fixture and samples of eval and train). |
 | C3-D13 | **Hindsight** (weight 0): one MILP with a DA-position copy of the plant (expected drift, DA curtailment free between its rule minimum and s) and a physical copy on realized RT, drift and deployments, sharing the AS book (separate RT AS in era C). An upper reference, not an achievable plan. |
+| C3-D18 | **A deployment uses up its product's duration** (found verifying V3-D8 on aug10-2023). In an hour where an RRS, ECRS or Non-Spin deployment is running, that product's reservation (C3-D5) and shortfall (C3-D8) use the duration it has left: dur_k minus the fraction-hours of its contiguous deployment run before the hour (`hybrid.deployed_durations`), never below 0; other hours keep the era's duration. The Session, its projections, the rolling MILP and hindsight all use it (realized deployments where the hour is played, delivered ones where it is projected). On aug10-2023 the reserves anchor's FTP falls from $126k to $10 (the shortfall was the full 2 h ECRS reservation demanded at 19:00 after two hours of ECRS delivery). Tested in `test_a_deployment_uses_up_its_duration`. Provisional. |
 
 ## Site, units and physics
 
@@ -90,7 +93,10 @@ Site row (`task["site"]`), the archetype (lane D3 supplies real archetypes per h
 - Export x = pv + b + up_deployed - dn_deployed, within [-L_imp, L]. Clippable = max(0, s - L); clip_recovered =
   max(0, pv - L) (PV the battery caught above the meter limit); curtailed = s - pv.
 - Awards a_k (MW) for k in regup, regdn, rrs, ecrs, nspin. Up = RU + RRS + ECRS + NS, Down = RD. Durations dur_k from
-  `contract.as_duration_h(k, date)` (era A/B/C, lane D3). R_up = sum_up dur_k*a_k, R_dn = eta*dur_RD*RD.
+  `contract.as_duration_h(k, date)` (era A/B/C, lane D3), less what a running deployment has used (C3-D18). R_up =
+  sum_up dur_k*a_k, R_dn = eta*dur_RD*RD.
+- Oversized sites (V3-D12) have poi_mw = poi_import_mw below pv_mwac, so s - L > 0 on sunny hours: that PV is curtailed
+  unless the battery charges from it (clip_recovered).
 - `unit_mw` is only a suggested block size for prompts; it is not a rule.
 - Rules per hour (the `rule` strings): `parse`, `frozen` (a frozen hour's entry differs from the book), `power` (|b| > P
   or an award outside 0..P), `headroom_up` (b + Up > P), `headroom_dn` (b - RD < -P),
@@ -120,8 +126,10 @@ Site row (`task["site"]`), the archetype (lane D3 supplies real archetypes per h
   overlap; hours from from_hour that no block covers are 0. One block may be sent bare (not in a list).
 - `energy` as a list (or comma/space-separated string) has 24 - from_hour values (from from_hour) or 24 values (hours
   before from_hour ignored). AS fields also take such lists.
-- An omitted AS field keeps the book's values; `energy` is required. Hours before from_hour keep the book.
-- Malformed input refuses the whole call with one `{"hour": null, "field": f, "rule": "parse", "detail": ...}` row.
+- An AS field left out, sent as `"keep"` or as `null` keeps the book's values (V3-D13); `energy` is required. Hours
+  before from_hour keep the book.
+- Malformed input refuses the whole call with one `{"hour": null, "field": f, "rule": "parse", "detail": ...}` row; the
+  detail ends with how to keep the field (V3-D13).
 
 ## gridsim_core.hybrid API
 
@@ -260,7 +268,7 @@ output showed an hour's RT price or RT MCPC before that hour ended.
  "date","era":"A|B|C","settlement_point","point_kind","region","site":{...},
  "prices":[24 DA SPP],"rt":[24 hourly RT SPP (mean of the four 15-min SPPs)],"pv_cf":[24],"pv_mw":[24],
  "mcpc_da":{"regup":[24],"regdn":[24],"rrs":[24],"ecrs":[24]|absent,"nspin":[24]},"mcpc_rt":{...}|null,
- "reg":{"up":[24],"dn":[24],"mean_up":0.12,"mean_dn":0.18,"source":"seeded","label":"..."},
+ "reg":{"up":[24],"dn":[24],"mean_up","mean_dn","source":"ercot|modelled|ercot+modelled","label":"..."},  # V3-D8
  "notices":[v2 notices],"deployments":[...],"events_sha":"...",
  "refs":{"hybrid_version","events_sha","p_idle",
          "energy":{"p_anchor","anchor":{"book","commits"},"p_hind","p_lp","oneshot":{"p_milp","plan"},
@@ -268,7 +276,8 @@ output showed an hour's RT price or RT MCPC before that hour ended.
          "reserves":{...,"p_energy_only","baselines":{"sponge","as_hog","v2_energy"}},"rtcb":{...}|null},
  "tags":{"watches","short_ok","notice_day","deploy_day","season","as_value_usd","as_stratum":"low|mid|high",
          "clip_mwh","neg_hours","showcase":null|"sept06-2023"},
- "flags":{"pv_availability":"proxy","reg_drift":"seeded","poi":"default","site":"archetype"}}
+ "flags":{"pv_availability":"proxy","reg_drift":"ercot|modelled|ercot+modelled","poi":"default|1.2x|oversized r",
+          "site":"archetype"}}
 ```
 
 Task ids `hyb-v3-{date}-{point}-{site_id}`; the tier is the load config. Packs (counts in the manifests):
@@ -276,7 +285,10 @@ Task ids `hyb-v3-{date}-{point}-{site_id}`; the tier is the load config. Packs (
 `ercot-hybrid-v3-rtcb` (era C days as T2, DA AS only, flagged; V3-D10), `ercot-hybrid-v3-showcase` (`sept06-2023` hero, `aug10-2023`,
 `mar29-2024`, `fern-0126-2026`; display only, each ±3 days out of every split), `data/fixtures-hybrid/` (20 CI tasks).
 Filters: v1's low-spread drop; drop days where the sponge (C3-D16: any baseline) is within 3% of the anchor; drop P_anchor - P_idle < $500;
-Uri ±3 days out of every split.
+Uri ±3 days out of every split. Rebuilt with V3-D8, V3-D12 and C3-D18 (same sizes): train 2,400 (drift measured on 704,
+modelled on 1,696; 965 oversized), eval 300 (all measured; 104 oversized; 853 of 1,328 candidates eligible, 406 failing
+the baseline filter), rtcb 200 (162 measured, 38 modelled after the archive's 2026-08-25 or in its gaps; 81
+oversized), showcase 4, fixtures 20.
 
 ## Episode JSON `gridsim.episode/v3` (path A, path B' and references write the same shape)
 

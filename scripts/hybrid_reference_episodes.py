@@ -23,12 +23,12 @@ TASKS = {
     "hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150": ("reserves", ALL),
     "hyb-v3-2026-01-26-HB_NORTH-pv150-b100x2h-poi150": ("reserves", ("anchor", "as_hog", "v2_energy")),
     "hyb-v3-2023-09-06-HB_WEST-pv150-b100x2h-poi150": ("energy", ("anchor", "sponge")),
-    "hyb-v3-2025-11-07-HB_NORTH-pv300-r80-2h-poi300": ("reserves", ("anchor", "as_hog")),
-    "hyb-v3-2025-04-18-HB_PAN-pv300-r80-2h-poi300": ("reserves", ("anchor", "sponge")),
-    "hyb-v3-2025-03-05-LZ_NORTH-pv100-r80-2h-poi100": ("reserves", ("anchor", "as_hog")),
-    "hyb-v3-2025-05-13-HB_PAN-pv100-r40-1h-poi100": ("reserves", ("anchor", "v2_energy")),
-    "hyb-v3-2025-03-02-LZ_CPS-pv150-b100x2h-poi150": ("reserves", ("anchor", "as_hog")),
-    "hyb-v3-2025-02-15-LZ_WEST-pv150-b100x2h-poi150": ("reserves", ("anchor", "sponge")),
+    "hyb-v3-2025-11-10-LZ_WEST-pv150-b100x2h-poi150": ("reserves", ("anchor", "as_hog")),
+    "hyb-v3-2025-09-08-HB_SOUTH-pv200-r80-2h-poi143": ("energy", ("anchor", "sponge", "v2_energy")),
+    "hyb-v3-2025-06-17-LZ_WEST-pv300-r80-2h-poi240": ("reserves", ("anchor", "sponge")),
+    "hyb-v3-2025-10-21-HB_HOUSTON-pv200-r40-1h-poi240": ("reserves", ("anchor", "as_hog")),
+    "hyb-v3-2025-02-27-LZ_CPS-pv150-r40-2h-poi150": ("reserves", ("anchor", "v2_energy")),
+    "hyb-v3-2025-11-04-LZ_LCRA-pv100-r80-2h-poi90": ("reserves", ("anchor", "sponge")),
 }
 MODELS = {"anchor": "reference/rolling-anchor", "as_hog": "reference/as-hog", "sponge": "reference/solar-sponge",
           "v2_energy": "reference/v2-energy-only"}

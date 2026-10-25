@@ -1,11 +1,13 @@
-"""v3 real-data inputs in data/hybrid/ (built by scripts/build_hybrid_inputs.py): DA AS clearing prices, the hourly
-solar capacity factor, AS deployment events, the EIA-860 hybrid archetypes and the seeded regulation-drift fallback."""
+"""v3 real-data inputs in data/hybrid/ (built by scripts/build_hybrid_inputs.py and scripts/build_reg_drift.py): DA AS
+clearing prices, the hourly solar capacity factor, AS deployment events, the EIA-860 hybrid archetypes, ERCOT's
+storage-fleet regulation deployment with its imbalance-driven fallback, and v4's seeded regulation-drift draw."""
 
 from __future__ import annotations
 
 import datetime as dt
 import gzip
 import json
+import math
 import random
 from functools import lru_cache
 from pathlib import Path
@@ -26,7 +28,7 @@ DRIFT_SPEC = {
     "rounding": 4,
 }
 __all__ = ["AS_PRODUCTS", "DRIFT_SPEC", "archetypes", "as_prices", "deployments", "pv_profile_mw", "reg_drift",
-           "solar_cf", "solar_row"]
+           "reg_hourly", "reg_model", "reg_modelled", "reg_series", "solar_cf", "solar_row"]
 
 
 def root() -> Path:
@@ -93,3 +95,42 @@ def reg_drift(task_id: str, n_hours: int = 24) -> dict:
         m, k = DRIFT_SPEC[p]["mean"], DRIFT_SPEC[p]["concentration"]
         out[key] = [round(rng.betavariate(m * k, (1 - m) * k), DRIFT_SPEC["rounding"]) for _ in range(n_hours)]
     return {**out, "source": "seeded"}
+
+
+@lru_cache(maxsize=2)
+def reg_model(base: str | None = None) -> dict:
+    """The v3 drift spec (data/hybrid/reg_model.json): the measured series' coverage and means, the fallback's fit."""
+    return json.loads((Path(base or root()) / "reg_model.json").read_text())
+
+
+def reg_series(date: str | dt.date, base: str | None = None) -> dict | None:
+    """ERCOT's storage-fleet regulation deployment on `date`: hourly RegUp and RegDn fractions of the award (`up`,
+    `dn`) and the disclosed SCED snapshots behind each hour (`n`)."""
+    return _by_date("reg_deploy.jsonl.gz", base).get(str(date))
+
+
+def reg_modelled(task_id: str, da, rt, base: str | None = None) -> tuple[list[float], list[float]]:
+    """The fallback (V3-D8): RegUp deploys when the hour's RT clears above DA and RegDn when below, at
+    max x tanh(|RT - DA| / scale) of the award, plus small seeded noise; fitted to the measured series."""
+    m = reg_model(base)["fallback"]
+    rng = random.Random(stable_seed(task_id + "|reg-model"))
+    up, dn = [], []
+    for d, r in zip(da, rt, strict=True):
+        g = math.tanh((float(r) - float(d)) / m["scale_usd"])
+        for out, v in ((up, m["up_max"] * max(g, 0.0)), (dn, m["dn_max"] * max(-g, 0.0))):
+            out.append(round(min(1.0, max(0.0, v + rng.gauss(0.0, m["noise_sd"]))), 4))
+    return up, dn
+
+
+def reg_hourly(task_id: str, date: str, da, rt, base: str | None = None) -> dict:
+    """A task's regulation drift: ERCOT's measured hours where the series covers them, the fallback elsewhere."""
+    m, row = reg_model(base), reg_series(date, base)
+    mu, md = reg_modelled(task_id, da, rt, base)
+    if row is None or not any(row["n"]):
+        return {"up": mu, "dn": md, "mean_up": m["fallback"]["mean_up"], "mean_dn": m["fallback"]["mean_dn"],
+                "source": "modelled", "label": m["fallback"]["label"]}
+    have = [n > 0 for n in row["n"]]
+    return {"up": [u if ok else x for u, x, ok in zip(row["up"], mu, have, strict=True)],
+            "dn": [u if ok else x for u, x, ok in zip(row["dn"], md, have, strict=True)],
+            "mean_up": m["data"]["mean_up"], "mean_dn": m["data"]["mean_dn"],
+            "source": "ercot" if all(have) else "ercot+modelled", "label": m["data"]["label"]}

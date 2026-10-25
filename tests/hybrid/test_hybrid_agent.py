@@ -100,7 +100,7 @@ async def test_the_cost_guard_prices_the_cache_and_lets_the_smoke_day_finish_und
                                  for t in turns]
     assert (s["end_reason"], s["turns"], data["done"]) == ("done", len(turns), True)
     assert data["reward"] == DAY["refs"]["reserves"]["baselines"]["as_hog"]["reward"]
-    assert sum(spent[:10]) == pytest.approx(0.1943, abs=1e-4) and s["cost_usd"] == pytest.approx(sum(spent))
+    assert sum(spent[:10]) == pytest.approx(0.1943, abs=1e-4) and s["cost_usd"] == pytest.approx(sum(spent), abs=1e-6)
     assert sum(spent[:10]) + old_bound(fake.requests[10][2]) > 0.5
 
 

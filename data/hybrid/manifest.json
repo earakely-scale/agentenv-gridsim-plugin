@@ -228,6 +228,12 @@
   "cache/raw/ercot-rt/RTMLZHBSPP_2026.zip": {
    "bytes": 10869647,
    "sha256": "e6b05d49ae5ac8b15016dbba713ffec32090e51f1e3c14496cbd2d8aca386a63"
+  },
+  "cache/raw/hybrid/sced60/days": {
+   "days": 1039,
+   "product": "NP3-965-ER",
+   "via": "api.ercot.com/api/public-reports/archive/np3-965-er",
+   "sha256_of_doc_sha256s": "33745432fff7a525dd58cebc48df10b26e88397d72e6345b6b257996a8dec7c8"
   }
  },
  "outputs": {
@@ -254,6 +260,18 @@
   "solar_cf.jsonl.gz": {
    "bytes": 94607,
    "sha256": "5fb5ed482a76070f1d273b14ac56dc8ce17d66889b614841e46fdec14293b4ec"
+  },
+  "reg_deploy.jsonl.gz": {
+   "bytes": 186447,
+   "sha256": "a58378a6aea2a63d40f5a19931ae4e9f8c317dda42b2458694e10e8b70840b1b"
+  },
+  "reg_model.json": {
+   "bytes": 4369,
+   "sha256": "af369ba1f20d7e2acea85577ce04f0552dbecfb18ec3187ebbc214f190e1d738"
+  },
+  "reg_deploy.md": {
+   "bytes": 3938,
+   "sha256": "8cb782dcaf9f99bde5e6ee7c620b42f8a7b24c5f86567405f46aff5c06319333"
   }
  },
  "stats": {

@@ -51,6 +51,7 @@ PLANNING_TOOLS = ("check_schedule", "commit_schedule")
 HOURS = 24
 TOL = 1e-4
 EQ_TOL = 0.005
+KEEP = "keep"
 REG_MEAN = {"up": 0.12, "dn": 0.18}
 CASH_KEYS = ("energy_da", "energy_rt", "as_da", "as_rt", "deployment_energy", "degradation", "ftp", "excused",
              "end_penalty")
@@ -160,22 +161,20 @@ def pv_at_bus(site: dict, cf) -> list[float]:
     return [round(x if site["coupling"] == "dc" else min(site["pv_mwac"], x), 3) for x in dc]
 
 
-def reg_of(task_id: str) -> dict:
-    """The task's regulation drift (V3-D8): lane D3's seeded draw, stored in the row so episodes replay exactly."""
-    r = hybrid_inputs.reg_drift(task_id)
-    return {"up": r["reg_up_frac"], "dn": r["reg_dn_frac"], "mean_up": hybrid_inputs.DRIFT_SPEC["regup"]["mean"],
-            "mean_dn": hybrid_inputs.DRIFT_SPEC["regdn"]["mean"], "source": r["source"],
-            "label": hybrid_inputs.DRIFT_SPEC["label"]}
+def reg_of(task_id: str, date: str, prices, rt) -> dict:
+    """The task's regulation drift (V3-D8): ERCOT's storage-fleet deployment that day, else the imbalance-driven
+    fallback; stored in the row so episodes replay exactly."""
+    return hybrid_inputs.reg_hourly(task_id, date, prices, rt)
 
 
 def site_from_archetype(arch: dict, poi_mw: float | None = None, *, c_deg: float = 4.0, qualified=None) -> dict:
     """A site row from one of lane D3's EIA-860 archetypes (AC-coupled, C3-D15), at its POI or a variant."""
-    poi = float(poi_mw if poi_mw is not None else arch["poi_mw"])
+    poi, pv = float(poi_mw if poi_mw is not None else arch["poi_mw"]), float(arch["pv_mwac"])
+    label = "default" if poi == float(arch["poi_mw"]) else "1.2x" if poi > pv else f"oversized {pv / poi:.2f}"
     return make_site(f"{arch['id']}-poi{poi:g}", p_mw=float(arch["bess_mw"]), e_mwh=float(arch["bess_mwh"]),
-                     c_deg=c_deg, qualified=qualified, coupling="ac", pv_mwac=float(arch["pv_mwac"]),
-                     pv_mwdc=float(arch["pv_mwdc"]), ilr=float(arch["ilr"]), poi_mw=poi, poi_import_mw=poi,
-                     inverter_mw=None, flags={"poi": "default" if poi == float(arch["poi_mw"]) else "1.2x",
-                                              "coupling": "ac (EIA-860 shows no dc-coupled ERCO sites)"})
+                     c_deg=c_deg, qualified=qualified, coupling="ac", pv_mwac=pv, pv_mwdc=float(arch["pv_mwdc"]),
+                     ilr=float(arch["ilr"]), poi_mw=poi, poi_import_mw=poi, inverter_mw=None,
+                     flags={"poi": label, "coupling": "ac (EIA-860 shows no dc-coupled ERCO sites)"})
 
 
 def task_id(date: str, point: str, site_id: str) -> str:
@@ -187,14 +186,15 @@ def make_task(date: str, point: str, site: dict, prices, rt, pv_cf, mcpc_da: dic
     """A task row without refs (Session computes them on demand)."""
     era = as_era(date)
     tid = task_id(date, point, site["site_id"])
+    reg = reg_of(tid, date, prices, rt)
     return {"task_id": tid, "hybrid_version": HYBRID_VERSION, "contract_version": "1.0", "date": date, "era": era,
             "settlement_point": point, "point_kind": point_kind(point), "region": REGIONS.get(point, "central"),
             "site": site, "prices": [float(p) for p in prices], "rt": [float(p) for p in rt],
             "pv_cf": [round(float(c), 5) for c in pv_cf], "pv_mw": pv_at_bus(site, pv_cf),
             "mcpc_da": {k: [float(x) for x in v] for k, v in mcpc_da.items()},
             "mcpc_rt": {k: [float(x) for x in v] for k, v in mcpc_rt.items()} if mcpc_rt else None,
-            "reg": reg_of(tid), "notices": list(notices), "deployments": list(deployments),
-            "flags": {"pv_availability": "proxy", "reg_drift": "seeded", "poi": site.get("flags", {}).get("poi"),
+            "reg": reg, "notices": list(notices), "deployments": list(deployments),
+            "flags": {"pv_availability": "proxy", "reg_drift": reg["source"], "poi": site.get("flags", {}).get("poi"),
                       "site": site.get("source", "archetype")}, **extra}
 
 
@@ -249,6 +249,24 @@ def deploy_hours(payloads, dur: dict, hours: int = HOURS) -> list[dict]:
             ov = max(0, min(b, 60 * h + 60) - max(a, 60 * h))
             if ov:
                 out[h][k] = min(1.0, out[h][k] + d["frac"] * ov / 60)
+    return out
+
+
+def deployed_durations(dur: dict, dep: list[dict]) -> list[dict]:
+    """Each hour's reservation durations (C3-D18): an event product deploying in hour h has already delivered the
+    fraction-hours of its deployment run before h, so it reserves only what its duration has left; other hours keep
+    the era's durations."""
+    out, used = [], dict.fromkeys(EVENT_PRODUCTS, 0.0)
+    for row in dep:
+        cur = dict(dur)
+        for k in EVENT_PRODUCTS:
+            if row[k] > 0:
+                if k in cur:
+                    cur[k] = max(0.0, dur[k] - used[k])
+                used[k] += row[k]
+            else:
+                used[k] = 0.0
+        out.append(cur)
     return out
 
 
@@ -395,8 +413,10 @@ def _values(field: str, v, fh: int, hours: int = HOURS) -> list[float]:
     return vals
 
 
-def parse_plan(plan, from_hour, hours: int = HOURS, fields: tuple = FIELDS) -> tuple[int, dict[str, list[float]]]:
-    """(from_hour, {field: MW values for hours from_hour..hours-1}); omitted AS fields keep the book."""
+def parse_plan(plan, from_hour, hours: int = HOURS, fields: tuple = FIELDS, *,
+               keep: bool = False) -> tuple[int, dict[str, list[float]]]:
+    """(from_hour, {field: MW values for hours from_hour..hours-1}); omitted AS fields keep the book, and with keep
+    an AS field sent as "keep" does too (v3's agents wrote it)."""
     fh = _from_hour(from_hour, hours)
     if isinstance(plan, str):
         try:
@@ -410,7 +430,17 @@ def parse_plan(plan, from_hour, hours: int = HOURS, fields: tuple = FIELDS) -> t
         raise PlanError("plan", f"plan: unknown field {extra[0]!r}; fields are {', '.join(fields)}")
     if "energy" not in plan:
         raise PlanError("energy", "plan: energy is required")
-    return fh, {f: _values(f, v, fh, hours) for f, v in plan.items() if v is not None}
+    return fh, {f: _values(f, v, fh, hours) for f, v in plan.items()
+                if v is not None and not (keep and f != "energy" and isinstance(v, str) and v.strip().lower() == KEEP)}
+
+
+def keep_hint(e: PlanError) -> PlanError:
+    """A parse error that says how to keep the field as it is."""
+    if e.field == "energy":
+        return PlanError(e.field, f"{e}; energy is always sent: to keep an hour as booked, send its booked MW")
+    if e.field in PRODUCTS:
+        return PlanError(e.field, f'{e}; to keep {NAMES[e.field]} as it is, leave {e.field} out (or send "keep")')
+    return e
 
 
 # the hour rules (C3-D5, C3-D17), shared with v4
@@ -532,7 +562,8 @@ class Session(WatchDay):
         self.scheduled = {n.event_id: (n, w.index) for w in self.watches for n in w.notices}
         self.dep_real = deploy_hours([n.deploy for n in (live.parse_notice(x, self.date) for x in events)
                                       if n.deploy], self.day.dur)
-        self._dep_cache: tuple[int, list[dict]] | None = None
+        self.dur_real = deployed_durations(self.day.dur, self.dep_real)
+        self._dep_cache: tuple[int, list[dict], list[dict]] | None = None
         self.done, self.end_reason = False, None
         self.watch, self.calls, self.planning_calls = 0, 0, [0]
         self.book = {f: [0] * HOURS for f in FIELDS}
@@ -626,8 +657,14 @@ class Session(WatchDay):
     def _dep_known(self) -> list[dict]:
         if self._dep_cache is None or self._dep_cache[0] != len(self.delivered):
             pays = [self.scheduled[e][0].deploy for e in self.delivered if self.scheduled[e][0].deploy]
-            self._dep_cache = (len(self.delivered), deploy_hours(pays, self.day.dur))
+            dep = deploy_hours(pays, self.day.dur)
+            self._dep_cache = (len(self.delivered), dep, deployed_durations(self.day.dur, dep))
         return self._dep_cache[1]
+
+    def dur_known(self) -> list[dict]:
+        """The reservation durations per hour given the deployments delivered so far (C3-D18)."""
+        self._dep_known()
+        return self._dep_cache[2]
 
     # the agent's tools
 
@@ -708,7 +745,8 @@ class Session(WatchDay):
     def rules(self, h: int, S: float, cyc: float, e: float, a: dict, inherited: bool = False) -> list[dict]:
         d = self.day
         fixed = {k: self.da[k][h] for k in PRODUCTS} if self.tier == "reserves" and self.da is not None else None
-        return hour_rules(self.site, d.dur, h, S, cyc, e, a, inherited, offered=d.offered, qualified=d.qualified,
+        return hour_rules(self.site, self.dur_known()[h], h, S, cyc, e, a, inherited, offered=d.offered,
+                          qualified=d.qualified,
                           not_offered=lambda f: "the energy tier has no AS" if self.tier == "energy"
                           else f"{NAMES[f]} is not offered on {self.date}", fixed=fixed)
 
@@ -729,7 +767,7 @@ class Session(WatchDay):
                 issues.append(self._issue(h, diff[0], "frozen", f"hour {h} is {state}; hours from {fo} are open"))
                 refused.append(h)
         new, committed = {f: list(self.book[f]) for f in FIELDS}, []
-        S, cyc, dep, d = self.S, self.cyc, self._dep_known(), self.day
+        S, cyc, dep, d, du = self.S, self.cyc, self._dep_known(), self.day, self.dur_known()
         for h in range(self.settled, HOURS):
             if h >= max(fh, fo):
                 e, a = self.entry(h, cand)
@@ -745,7 +783,7 @@ class Session(WatchDay):
                     for f in FIELDS:
                         new[f][h] = cand[f][h]
             e, a = self.entry(h, new)
-            r = step(self.site, d.dur, S, cyc, e, a, d.pv[h], d.da[h], *self._expected(h, a, dep))
+            r = step(self.site, du[h], S, cyc, e, a, d.pv[h], d.da[h], *self._expected(h, a, dep))
             S, cyc = r["S"], cyc + r["dis"]
         return new, committed, sorted(refused), issues
 
@@ -753,7 +791,7 @@ class Session(WatchDay):
         """The day as known now: settled hours as settled, the rest at DA prices with expected drift and delivered
         deployments; per-hour shortfalls and governor flags feed the charged/excused snapshot (C3-D7)."""
         book = self.book if book is None else book
-        st, d, dep = self.site, self.day, self._dep_known()
+        st, d, dep, du = self.site, self.day, self._dep_known(), self.dur_known()
         S, cyc = self.S, self.cyc
         soc = [_r2(x) for x in self.soc_hist]
         margin = [_r2(r["margin"]) for r in self.rows]
@@ -763,7 +801,7 @@ class Session(WatchDay):
         short, governed = {}, {}
         for h in range(self.settled, HOURS):
             e, a = self.entry(h, book)
-            r = step(st, d.dur, S, cyc, e, a, d.pv[h], d.da[h], *self._expected(h, a, dep))
+            r = step(st, du[h], S, cyc, e, a, d.pv[h], d.da[h], *self._expected(h, a, dep))
             c = self._hour_cash(h, r, self.x_da(h, book), a, self.a_da(h, book), d.da[h], None)
             for k in ("energy_da", "energy_rt", "as_da", "as_rt", "degradation"):
                 tot[k] += c[k]
@@ -802,9 +840,9 @@ class Session(WatchDay):
         if err := self._planning():
             return err
         try:
-            fh, fields = parse_plan(plan, self.first_open if from_hour is None else from_hour)
+            fh, fields = parse_plan(plan, self.first_open if from_hour is None else from_hour, keep=True)
         except PlanError as e:
-            return {"feasible": False, "issues": [e.row()], "refused": [], "projected": None,
+            return {"feasible": False, "issues": [keep_hint(e).row()], "refused": [], "projected": None,
                     "clip_recovered_mwh": None, "curtailed_mwh": None, "reserve_margin_mwh_by_hour": None,
                     "excused": self._excused_rows(), "calls_left": self.calls_left}
         new, _, refused, issues = self._evaluate(fields, fh)
@@ -818,8 +856,9 @@ class Session(WatchDay):
         if err := self._planning():
             return err
         try:
-            fh, fields = parse_plan(plan, self.first_open if from_hour is None else from_hour)
+            fh, fields = parse_plan(plan, self.first_open if from_hour is None else from_hour, keep=True)
         except PlanError as e:
+            e = keep_hint(e)
             self.refusals.append({"watch": self.watch, "call": self.calls, "refused": [e.row()]})
             self.commits.append({"watch": self.watch, "from_hour": None, "committed": [], "refused": [],
                                  "call": self.calls})
@@ -879,7 +918,7 @@ class Session(WatchDay):
             a_da = self.a_da(h)
             U = d.reg_up[h] * a["regup"] + sum(self.dep_real[h][k] * a[k] for k in EVENT_PRODUCTS)
             D = d.reg_dn[h] * a["regdn"]
-            r = step(st, d.dur, self.S, self.cyc, e, a, d.pv[h], d.rt[h], U, D)
+            r = step(st, self.dur_real[h], self.S, self.cyc, e, a, d.pv[h], d.rt[h], U, D)
             mrt = {k: d.mrt[k][h] for k in d.mrt} if d.mrt else None
             c = self._hour_cash(h, r, self.x_da(h), a, a_da, d.rt[h], mrt)
             snap = self.snap[h] or {"short": {}, "governed": False}
@@ -1187,12 +1226,13 @@ class _Model:
         return float(h.getInfo().objective_function_value), np.asarray(h.getSolution().col_value)
 
 
-def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price, mu, md, dep, aw, *,
+def _plant(m: _Model, st: Site, dur: dict | list[dict], S0: float, cyc_left: float, pv, price, mu, md, dep, aw, *,
            integer: bool, soft: bool = False, free_curtail: bool = False, inherited=False) -> dict:
     """One copy of the plant over len(pv) hours from SoC S0: continuous dispatch with a direction binary, the AS awards
     aw[t][k] (expressions in MW) and the Session's rules: the reservation band at both ends of each hour (C3-D5), or
     at its end only for inherited awards (C3-D17). Soft: the band may be missed at a penalty and drift is delivered
-    only as far as SoC allows, as the Session's step does (the fallback when the hard model is infeasible)."""
+    only as far as SoC allows, as the Session's step does (the fallback when the hard model is infeasible). dur is
+    the era's durations or one dict per hour (C3-D18)."""
     S = _Lin(k=S0)
     out = {"x": [], "xb": [], "dis": [], "U": [], "dl": [], "cl": [], "S": [S], "slack": []}
     dsum = _Lin()
@@ -1206,8 +1246,9 @@ def _plant(m: _Model, st: Site, dur: dict, S0: float, cyc_left: float, pv, price
         a = aw[t]
         up = sum((a[k] for k in UP), _Lin())
         rd = a["regdn"]
-        rup = sum((a[k] * dur.get(k, 0.0) for k in UP), _Lin())
-        rdn = rd * (st.eta * dur.get("regdn", 0.0))
+        du = dur[t] if isinstance(dur, list) else dur
+        rup = sum((a[k] * du.get(k, 0.0) for k in UP), _Lin())
+        rdn = rd * (st.eta * du.get("regdn", 0.0))
         B = S - dis + ch * st.eta
         m.add(B, 0.0, st.e)
         su = m.var(0, math.inf) if soft else _Lin()
@@ -1288,6 +1329,7 @@ def solve_day(st: Site, day: Day, h0: int, S0: float, cyc: float, *, products=()
     the last resort if HiGHS cannot solve it. The anchor's repair walk makes any of them a book the Session accepts."""
     n = HOURS - h0
     dep = dep or [dict.fromkeys(EVENT_PRODUCTS, 0.0) for _ in range(HOURS)]
+    du = deployed_durations(day.dur, dep)
     pv = day.pv if pv is None else pv
     penalty = 10 * max(100.0, float(np.abs(day.da).max()), day.pen,
                        max((float(v.max()) for v in day.mda.values()), default=0.0))
@@ -1295,7 +1337,7 @@ def solve_day(st: Site, day: Day, h0: int, S0: float, cyc: float, *, products=()
         m = _Model()
         aw = _awards(m, n, h0, products, fixed, st.p)
         price = day.da[h0:]
-        p = _plant(m, st, day.dur, S0, st.cap - cyc, pv[h0:], price, [day.mean_up] * n, [day.mean_dn] * n,
+        p = _plant(m, st, du[h0:], S0, st.cap - cyc, pv[h0:], price, [day.mean_up] * n, [day.mean_dn] * n,
                    dep[h0:], aw, integer=integral, soft=soft, inherited=fixed is not None)
         short = m.var(0, math.inf)
         m.add(short + p["S"][-1], lo=st.s_end)
@@ -1331,7 +1373,8 @@ def hindsight(task: dict, tier: str, notices=None, deployments=None, *, integer:
     a_rt = _awards(m, HOURS, 0, prods, None, st.p) if tier == "rtcb" else a_da
     cp = _plant(m, st, day.dur, st.s0, st.cap, day.pv, day.da, [day.mean_up] * HOURS, [day.mean_dn] * HOURS, zero,
                 a_da, integer=integer, free_curtail=True)
-    ph = _plant(m, st, day.dur, st.s0, st.cap, day.pv, day.rt, day.reg_up, day.reg_dn, dep, a_rt, integer=integer)
+    ph = _plant(m, st, deployed_durations(day.dur, dep), st.s0, st.cap, day.pv, day.rt, day.reg_up, day.reg_dn, dep,
+                a_rt, integer=integer)
     short = m.var(0, math.inf)
     m.add(short + ph["S"][-1], lo=st.s_end)
     obj = _Lin()
@@ -1354,11 +1397,11 @@ def hindsight(task: dict, tier: str, notices=None, deployments=None, *, integer:
 
 def projected_state(s: Session, h: int) -> tuple[float, float]:
     """SoC and discharged MWh at the start of hour h on the current projection."""
-    st, d, dep = s.site, s.day, s._dep_known()
+    st, d, dep, du = s.site, s.day, s._dep_known(), s.dur_known()
     S, cyc = s.S, s.cyc
     for t in range(s.settled, h):
         e, a = s.entry(t)
-        r = step(st, d.dur, S, cyc, e, a, d.pv[t], d.da[t], *s._expected(t, a, dep))
+        r = step(st, du[t], S, cyc, e, a, d.pv[t], d.da[t], *s._expected(t, a, dep))
         S, cyc = r["S"], cyc + r["dis"]
     return S, cyc
 
@@ -1392,7 +1435,7 @@ def repair(s: Session, fo: int, plan: dict) -> tuple[dict, int]:
     """Walk a plan for hours fo..23 through the Session's rules on its projected path; an entry they refuse becomes
     the move the governor would make with the booked awards (C3-D17), so the plan commits whole. (plan, entries
     changed); a hard MILP solution changes none."""
-    st, d, dep = s.site, s.day, s._dep_known()
+    st, d, dep, du = s.site, s.day, s._dep_known(), s.dur_known()
     S, cyc = projected_state(s, fo)
     out, n = {f: list(v) for f, v in plan.items()}, 0
     for i, h in enumerate(range(fo, HOURS)):
@@ -1403,12 +1446,12 @@ def repair(s: Session, fo: int, plan: dict) -> tuple[dict, int]:
         if s.rules(h, S, cyc, e, a, a == booked):
             n += 1
             a = booked
-            e = _clean(govern(e, *limits(st, d.dur, S, cyc, a)))
+            e = _clean(govern(e, *limits(st, du[h], S, cyc, a)))
             out["energy"][i] = e
             for k in PRODUCTS:
                 if k in out:
                     out[k][i] = _clean(a[k])
-        r = step(st, d.dur, S, cyc, e, a, d.pv[h], d.da[h], *s._expected(h, a, dep))
+        r = step(st, du[h], S, cyc, e, a, d.pv[h], d.da[h], *s._expected(h, a, dep))
         S, cyc = r["S"], cyc + r["dis"]
     return out, n
 

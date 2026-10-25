@@ -1,0 +1,234 @@
+{
+ "schema": "gridsim.reg-drift/v1",
+ "data": {
+  "source": "ERCOT public API, NP3-965-ER 60-Day SCED Disclosure Reports (archive from 2023-12-11 postings)",
+  "first": "2023-10-12",
+  "last": "2026-08-25",
+  "days": 1039,
+  "days_all_hours": 1036,
+  "mean_up": 0.1683,
+  "mean_dn": 0.2045,
+  "mean_by_hour": {
+   "up": [
+    0.148,
+    0.134,
+    0.129,
+    0.145,
+    0.159,
+    0.161,
+    0.157,
+    0.171,
+    0.133,
+    0.126,
+    0.114,
+    0.136,
+    0.161,
+    0.177,
+    0.183,
+    0.193,
+    0.214,
+    0.235,
+    0.234,
+    0.246,
+    0.205,
+    0.168,
+    0.166,
+    0.145
+   ],
+   "dn": [
+    0.216,
+    0.247,
+    0.24,
+    0.219,
+    0.206,
+    0.18,
+    0.176,
+    0.179,
+    0.269,
+    0.275,
+    0.28,
+    0.243,
+    0.221,
+    0.202,
+    0.19,
+    0.182,
+    0.151,
+    0.141,
+    0.155,
+    0.145,
+    0.172,
+    0.202,
+    0.198,
+    0.219
+   ]
+  },
+  "coherence_mean": 0.865,
+  "corr_net_vs_spread": 0.077,
+  "label": "Regulation drift is ERCOT's energy storage fleet regulation deployment in that hour (60-Day SCED Disclosure, NP3-965-ER)",
+  "method": "per snapshot: carriers' sum of (telemetered net output - base point) over their RegUp responsibility when positive, RegDn when negative, clipped to [-1, 1]; charging-side CLRs before RTC+B count consumption as negative output; hourly up/dn = mean positive/negative part",
+  "reference_bp": "the target the base points imply at the run's time, two thirds of the way from the previous disclosed base point to the run's own before RTC+B; the previous SCED run's base point from RTC+B",
+  "reference_pre_rtcb": "i1",
+  "validation": {
+   "bp3": {
+    "hours": 6095,
+    "corr_up": 0.715,
+    "corr_dn": 0.718,
+    "mae_up": 0.0883,
+    "mae_dn": 0.1015,
+    "mean_truth": [
+     0.168,
+     0.1938
+    ],
+    "mean_sample": [
+     0.1816,
+     0.2307
+    ]
+   },
+   "bp": {
+    "hours": 6095,
+    "corr_up": 0.706,
+    "corr_dn": 0.705,
+    "mae_up": 0.083,
+    "mae_dn": 0.0941,
+    "mean_truth": [
+     0.168,
+     0.1938
+    ],
+    "mean_sample": [
+     0.1661,
+     0.211
+    ]
+   },
+   "i3": {
+    "hours": 6095,
+    "corr_up": 0.764,
+    "corr_dn": 0.764,
+    "mae_up": 0.0748,
+    "mae_dn": 0.084,
+    "mean_truth": [
+     0.168,
+     0.1938
+    ],
+    "mean_sample": [
+     0.1605,
+     0.206
+    ]
+   }
+  }
+ },
+ "fallback": {
+  "rule": "up = up_max * tanh(max(RT - DA, 0) / scale), dn = dn_max * tanh(max(DA - RT, 0) / scale), each plus N(0, noise_sd) clipped to [0, 1]; RT and DA are the task's settlement point's hourly prices",
+  "up_max": 0.2031,
+  "dn_max": 0.2256,
+  "scale_usd": 1,
+  "noise_sd": 0.02,
+  "seed": "gridsim_core.task.stable_seed(task_id + '|reg-model'), random.Random",
+  "fit": "least squares over 24792 measured hours at HB_HUBAVG, scale on a grid [1, 2, 3, 5, 10, 20, 30, 50, 100, 200]",
+  "label": "Regulation drift is modelled: RegUp deploys when the hour's RT clears above DA, RegDn when below, fitted to ERCOT's storage fleet deployment",
+  "per_side": {
+   "up": {
+    "scale_usd": 1,
+    "max": 0.2031,
+    "sse": 253.76189992591094
+   },
+   "dn": {
+    "scale_usd": 1,
+    "max": 0.2256,
+    "sse": 470.879868183853
+   }
+  },
+  "mean_up": 0.067,
+  "mean_dn": 0.1434
+ },
+ "spread_table": [
+  {
+   "rt_minus_da": [
+    -Infinity,
+    -100
+   ],
+   "hours": 166,
+   "up": 0.233,
+   "dn": 0.167,
+   "model_up": 0.0,
+   "model_dn": 0.226
+  },
+  {
+   "rt_minus_da": [
+    -100,
+    -20
+   ],
+   "hours": 1031,
+   "up": 0.191,
+   "dn": 0.181,
+   "model_up": 0.0,
+   "model_dn": 0.226
+  },
+  {
+   "rt_minus_da": [
+    -20,
+    -5
+   ],
+   "hours": 6033,
+   "up": 0.151,
+   "dn": 0.224,
+   "model_up": 0.0,
+   "model_dn": 0.226
+  },
+  {
+   "rt_minus_da": [
+    -5,
+    0
+   ],
+   "hours": 7613,
+   "up": 0.151,
+   "dn": 0.216,
+   "model_up": 0.0,
+   "model_dn": 0.191
+  },
+  {
+   "rt_minus_da": [
+    0,
+    5
+   ],
+   "hours": 5684,
+   "up": 0.164,
+   "dn": 0.21,
+   "model_up": 0.165,
+   "model_dn": 0.0
+  },
+  {
+   "rt_minus_da": [
+    5,
+    20
+   ],
+   "hours": 3175,
+   "up": 0.212,
+   "dn": 0.162,
+   "model_up": 0.203,
+   "model_dn": 0.0
+  },
+  {
+   "rt_minus_da": [
+    20,
+    100
+   ],
+   "hours": 953,
+   "up": 0.246,
+   "dn": 0.132,
+   "model_up": 0.203,
+   "model_dn": 0.0
+  },
+  {
+   "rt_minus_da": [
+    100,
+    Infinity
+   ],
+   "hours": 137,
+   "up": 0.26,
+   "dn": 0.153,
+   "model_up": 0.203,
+   "model_dn": 0.0
+  }
+ ],
+ "point": "HB_HUBAVG"
+}

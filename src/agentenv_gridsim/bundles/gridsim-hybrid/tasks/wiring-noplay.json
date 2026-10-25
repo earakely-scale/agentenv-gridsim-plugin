@@ -13,7 +13,7 @@
         "service": "gridsim-hybrid",
         "uri": "urn:gridsim:live-load/v1",
         "args": {
-          "task_id": "hyb-v3-2022-01-16-LZ_CPS-pv150-b100x2h-poi150",
+          "task_id": "hyb-v3-2023-08-24-LZ_LCRA-pv150-b100x2h-poi107",
           "tier": "reserves"
         }
       }
@@ -52,7 +52,34 @@
           "at": "provoking_call",
           "timeout_seconds": 60
         },
-        "actions": []
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "VTEC-FWD-EH.W-2023-0012-central",
+              "name": "NWS FWD",
+              "text": "NWS FWD: Excessive Heat Warning for McLennan until 2023-08-27 18:52 CPT.",
+              "level": "Warning",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-44ac2d5e198c",
+              "name": "ERCOT",
+              "text": "ERCOT issued a Watch (projected reserve capacity shortage with no market solution available for Thursday, August 24, 2023 HE...).",
+              "level": "Watch",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
       },
       {
         "id": "watch-2",
@@ -86,7 +113,21 @@
           "at": "provoking_call",
           "timeout_seconds": 60
         },
-        "actions": []
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-3219c9934667",
+              "name": "ERCOT",
+              "text": "ERCOT asked the public to conserve electricity from 3:00 p.m. to 10 p.m.",
+              "level": "conservation",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
       },
       {
         "id": "watch-4",
@@ -103,7 +144,34 @@
           "at": "provoking_call",
           "timeout_seconds": 60
         },
-        "actions": []
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "VTEC-EWX-EH.W-2023-0026-central",
+              "name": "NWS EWX",
+              "text": "NWS EWX: Excessive Heat Warning for Travis, Williamson, Bastrop until 2023-08-25 21:00 CPT.",
+              "level": "Warning",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          },
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "VTEC-EWX-HT.Y-2023-0042-central",
+              "name": "NWS EWX",
+              "text": "NWS EWX: Heat Advisory for Hays until 2023-08-25 21:00 CPT.",
+              "level": "Advisory",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
       },
       {
         "id": "watch-5",
@@ -125,19 +193,104 @@
             "type": "tool",
             "tool": "grid_notice",
             "args": {
-              "event_id": "dep-rrs-20220116T1903",
+              "event_id": "dep-ecrs-20230824T1555",
               "name": "ERCOT",
-              "text": "ERCOT deployed RRS at 100% of awards from 19:03 to 19:10.",
+              "text": "ERCOT deployed ECRS at 100% of awards from 15:55 to 20:42.",
               "level": null,
               "derate_mw": null,
               "from": null,
               "until": null,
               "deploy": {
-                "product": "rrs",
+                "product": "ecrs",
                 "frac": 1.0,
-                "start_min": 1143,
-                "end_min": 1150
+                "start_min": 955,
+                "end_min": 1242
               }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-6",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 6
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-nspin-20230824T1609",
+              "name": "ERCOT",
+              "text": "ERCOT deployed Non-Spin at 100% of awards from 16:09 to 21:07.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "nspin",
+                "frac": 1.0,
+                "start_min": 969,
+                "end_min": 1267
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-7",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 7
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-8",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 8
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-36fe3d30cbaf",
+              "name": "ERCOT",
+              "text": "ERCOT cancelled its Watch (projected reserve capacity shortage with no market solution available for Thursday, August 24, 2023 HE...).",
+              "level": "Watch",
+              "derate_mw": null,
+              "from": null,
+              "until": null
             }
           }
         ]
@@ -148,7 +301,7 @@
     "id": "clock",
     "type": "sync_env_clock",
     "env_id": "gridsim-hybrid",
-    "virtual_time": "2022-01-15T20:00:00Z",
+    "virtual_time": "2023-08-23T19:00:00Z",
     "virtual_seconds_per_real_second": 0,
     "tolerate_missing_sync_time": false
   },

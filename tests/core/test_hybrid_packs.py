@@ -3,6 +3,7 @@ import json
 import pytest
 
 from gridsim_core import hybrid as H
+from gridsim_core import hybrid_inputs as HI
 from gridsim_core.task import data_root, load_pack
 
 FIX = data_root() / "fixtures-hybrid" / "tasks.jsonl.gz"
@@ -34,7 +35,9 @@ def test_fixtures_cover_the_cases(fixtures):
     for t in fixtures:
         assert t["hybrid_version"] == H.HYBRID_VERSION and len(t["prices"]) == len(t["rt"]) == len(t["pv_mw"]) == 24
         assert t["refs"]["events_sha"] == H.events_sha(t) and t["refs"]["energy"] and t["refs"]["reserves"]
-        assert t["flags"]["reg_drift"] == "seeded" and len(t["reg"]["up"]) == 24
+        assert t["flags"]["reg_drift"] == t["reg"]["source"] and len(t["reg"]["up"]) == 24
+        assert t["reg"]["source"] == ("ercot" if HI.reg_series(t["date"]) else "modelled")
+    assert any(str(t["site"]["flags"]["poi"]).startswith("oversized") and t["tags"]["clip_mwh"] > 0 for t in fixtures)
 
 
 def test_stored_refs_reproduce(fixtures):
@@ -61,6 +64,22 @@ def test_hero_day_has_its_deployments_and_notices(fixtures):
     got = [n.event_id for w in s.watches for n in w.notices]
     assert sum(e.startswith("dep-") for e in got) >= 4 and any("EEA2" in json.dumps(n) for n in hero["notices"])
     assert H.oneshot_grade(hero, hero["refs"]["reserves"]["oneshot"]["plan"])["reward"] == pytest.approx(1.0)
+
+
+def test_showcase_reserves_anchor_beats_energy_only():
+    t = next(t for t in load_pack("ercot-hybrid-v3-showcase") if t["tags"]["showcase"] == "aug10-2023")
+    r = t["refs"]
+    assert r["reserves"]["p_anchor"] > r["energy"]["p_anchor"]
+    assert H.reward_value(r["energy"]["p_anchor"], r["p_idle"], r["reserves"]["p_anchor"]) < 0.97
+
+
+def test_oversized_sites_clip_and_the_energy_tier_is_not_saturated():
+    ts = load_pack("ercot-hybrid-v3-eval")
+    big = [t for t in ts if str(t["site"]["flags"]["poi"]).startswith("oversized")]
+    assert 0.3 * len(ts) <= len(big) <= 0.5 * len(ts)
+    assert sum(t["tags"]["clip_mwh"] > 0 for t in big) > 0.5 * len(big)
+    v2 = [t["refs"]["energy"]["baselines"]["v2_energy"]["reward"] for t in big]
+    assert sum(v2) / len(v2) < 0.95
 
 
 @pytest.mark.parametrize("pack", PACKS)

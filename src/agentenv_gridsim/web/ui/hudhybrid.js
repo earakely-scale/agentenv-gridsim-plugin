@@ -311,7 +311,7 @@ function scoreHtml(d, lanes) {
     <div class="second"><div class="lbl">Profit</div><div class="r num">${money(ep.profit_usd)}</div><div class="cap">anchor ${money(pa ?? 0)} · hindsight ${money(ref.p_hind ?? 0)}</div></div></div>
     <div class="w0">${cells.map(([k, v, c]) => `<div><span>${k}</span><b class="num">${v}</b><em>${c}</em></div>`).join("")}</div>
     <div class="line">${self}${rel}</div>
-    <div class="line dim">v3 preview · weight-0 rows are reported, not scored. PV is a system-wide proxy; regulation drift is a seeded draw.</div>`;
+    <div class="line dim">v3 preview · weight-0 rows are reported, not scored. PV is a system-wide proxy; regulation drift is ERCOT's storage-fleet deployment from late 2023, modelled from RT vs DA before.</div>`;
 }
 
 function spark(lanes, t, lo, hi) {

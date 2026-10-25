@@ -10,10 +10,12 @@ Built by `scripts/build_hybrid_inputs.py` from `cache/raw/hybrid/` (fetched by `
 | `solar_cf.jsonl.gz` | Hourly PV availability capacity factor, system-wide | `cf` (availability proxy), `cf_actual`, `repaired_hours`, `installed_mw`, `source`, `scope: system` |
 | `deployments.jsonl` | RRS, ECRS and Non-Spin deployment events | `event_id, product, variant, date, start, end, end_basis, planned_end, mw_max, mw_steps, frac, source_notice_id, notice_ids, summary` |
 | `durations.json` | The era-keyed AS duration table (same as `gridsim_core.contract.AS_DURATION_H`) | |
-| `drift.json` | The seeded regulation-drift fallback spec (`gridsim_core.hybrid_inputs.reg_drift`) | |
+| `drift.json` | v4's seeded regulation-drift spec (`gridsim_core.hybrid_inputs.reg_drift`) | |
+| `reg_deploy.jsonl.gz` | ERCOT's storage fleet regulation deployment per hour (scripts/build_reg_drift.py) | `date, up, dn, n, sampling, carriers, regup_mw, regdn_mw, coherence, doc_id, sha256` |
+| `reg_model.json`, `reg_deploy.md` | Its means, method and checks, and the fitted imbalance fallback (v3) | |
 | `archetypes.json` | EIA-860 2025 co-located PV+BESS sites in ERCO, the fit, the archetype grid, the default | |
 
-Loader: `gridsim_core.hybrid_inputs` (`as_prices`, `solar_cf`, `pv_profile_mw`, `deployments`, `archetypes`, `reg_drift`).
+Loader: `gridsim_core.hybrid_inputs` (`as_prices`, `solar_cf`, `pv_profile_mw`, `deployments`, `archetypes`, `reg_drift`, `reg_hourly`).
 
 ## Sources
 
@@ -102,7 +104,7 @@ ERCOT MIS endpoints (`/misapp/servlets/IceDocListJsonWS`, `/misdownload/servlets
 
 ## 5. Regulation drift
 
-System-level regulation fractions were not derived tonight (they would need regulation-deployment telemetry, which the public 60-day SCED disclosure does not carry as a signal). The seeded fallback is implemented: `gridsim_core.hybrid_inputs.reg_drift(task_id)` draws hourly RegUp and RegDn fractions from Beta(m·k, (1−m)·k) with m = 0.12 and 0.18, k = 6, seeded by `stable_seed(task_id + '|reg-drift')`. The pack builder stores the draw in the task row so episodes replay exactly. Label on the card: "Regulation drift is a seeded draw, not ERCOT telemetry".
+v3's drift (V3-D8) is built by `scripts/build_reg_drift.py`: ERCOT's storage fleet regulation deployment from the 60-Day SCED Disclosure (NP3-965-ER, public API archive) on the days it covers, and an imbalance-driven fallback fitted to it before; `reg_deploy.md` has the method, coverage and checks, and `gridsim_core.hybrid_inputs.reg_hourly(task_id, date, da, rt)` loads it. `drift.json` keeps v4's seeded draw (`reg_drift(task_id)`: Beta(m·k, (1−m)·k) with m = 0.12 and 0.18, k = 6, seeded by `stable_seed(task_id + '|reg-drift')`).
 
 ## 6. EIA-860 hybrid archetypes
 
