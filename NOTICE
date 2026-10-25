@@ -27,6 +27,8 @@ Data
 - Weather in the viewer: ASOS observations at each point's representative airport, from the Iowa Environmental
   Mesonet (IEM), Iowa State University (https://mesonet.agron.iastate.edu/); NWS and FAA observations in the public
   domain, credited as the IEM asks. Fetched into cache/weather, not distributed in data/.
+- v3 preview: the regulation drift is derived from ERCOT's 60-Day SCED Disclosure (NP3-965-ER), reduced to the
+  storage fleet's hourly deployment share, obtained through ERCOT's Public API under ERCOT's terms.
 - v4 and v5 previews: ERCOT's posted load, wind and solar forecasts (NP3-565-CD, NP4-732-CD, NP4-742-CD, NP4-745-CD),
   the 60-Day DAM Disclosure (NP3-966-ER, aggregated and anonymised) and DAM System Lambda (NP4-523-CD), obtained
   through ERCOT's Public API under ERCOT's terms; NOAA HRRR model runs (NOAA Open Data Dissemination, public domain)

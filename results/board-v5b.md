@@ -62,8 +62,7 @@ portfolios of the 6 peak dates) and 18 base floors; floor-day column: 10 of them
 floors), so the two tiers pair on those 10 (`scripts/pilot_v5b_tasks.py`, seed 5324); two showcase floors, display
 only. Computed by `scripts/pilot_v5b.py` from the 42 replay-verified Episode JSON v5 (`results/pilot-v5b.json`); every
 baseline is played in process on the same floor at the same tier (in floor-day, price-taker, max-withhold and replay A
-re-plan the op day with the anchor's re-planner). Headline per the cross-version rule (`docs/REWARD-SCALES.md` on
-lane-reward): hindsight capture C = (P − P_idle)/(BR_rt − P_idle), unclipped, beside the anchor's C and Δ = C −
+re-plan the op day with the anchor's re-planner). Headline per the cross-version rule (`docs/REWARD-SCALES.md`): hindsight capture C = (P − P_idle)/(BR_rt − P_idle), unclipped, beside the anchor's C and Δ = C −
 C_anchor (paired 95% CI); the compliant score on clip(C) is the public default, "as built" is the verifier's (R as its
 profit half, the board above). Every run scored; 6 attempts lost to provider errors scored at their second attempt (see
 the prereg's Deviations). CIs: 95% percentile bootstrap over floors, 10,000 resamples, paired for differences.

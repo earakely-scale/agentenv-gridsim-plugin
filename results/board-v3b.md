@@ -43,7 +43,7 @@ Scored runs by what went wrong; a run can show several.
 ## Pilot under rules 3.1 (pre-registered in docs/prereg/v3-pilot-b.md, a677803)
 
 GPT-6.1 Sol, effort high, 52 turns, 16,384 output tokens a turn, episode cap E = $0.53 (4 x the smoke median
-$0.1317). Rules 3.1 (lane-x3 0c20373): ERCOT-measured regulation drift, C3-D18, oversized-PV sites, keep fields, packs
+$0.1317). Rules 3.1 (0c20373): ERCOT-measured regulation drift, C3-D18, oversized-PV sites, keep fields, packs
 rebuilt. Reserves column: 30 `ercot-hybrid-v3-eval` days, all 13 deployment days plus 17 drawn by AS stratum (10 per
 stratum); energy column: 10 days on sites with PV/POI >= 1.25 (5 at 1.25, 5 at 1.4); display: aug10-2023 and
 mar29-2024 at the reserves tier (`scripts/pilot_v3b_tasks.py`, seed 4325). Computed by `scripts/pilot_v3b.py` from the
