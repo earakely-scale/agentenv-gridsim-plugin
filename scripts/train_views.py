@@ -9,7 +9,7 @@ A run in several arms (arm 2, then the arm 2b continuation) is one arc: pass the
 GRPO frame carries its arm's label from that folder's summary.json.
 
 usage: python scripts/train_views.py [--episodes results/train/episodes] [--summary results/train/summary.json]
-       [--out results/runs/train] [--day TASK_ID --why TEXT]
+       [--out results/runs/train] [--day TASK_ID --why TEXT [--label TEXT]]
        python scripts/train_views.py --episodes results/train/arm2 results/train/arm2b \
            --summary results/train/arm2b/summary.json  (arm 2 then arm 2b)
 """
@@ -36,6 +36,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=ROOT / "results" / "runs" / "train")
     p.add_argument("--day", help="Override the rule with this task id (the manifest records the override).")
     p.add_argument("--why", help="Why --day overrides the rule; the views show it.")
+    p.add_argument("--label", default="chosen by hand", help="How --day was chosen, the views' label for it.")
     p.add_argument("--decoding", choices=("sampled", "greedy"), default="sampled",
                    help="One decoding for every frame and lane; the checkpoints were evaluated sampled.")
     args = p.parse_args(argv)
@@ -68,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     note = None if good else (f"no held-out day reaches {DOES_WELL} for the trained model; this is the day with the "
                               "largest gain")
     if args.day:
-        tid, note = args.day, f"day chosen by hand, not by the rule, which picks {tid}"
+        tid, note = args.day, f"day {args.label}, not by the rule, which picks {tid}"
     d = days[tid]
     frames = [e for e in (pick(d["base"]), pick(d["sft"])) if e]
     by_step: dict[int, list[dict]] = {}

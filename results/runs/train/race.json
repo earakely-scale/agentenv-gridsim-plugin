@@ -1,6 +1,6 @@
 {
  "schema": "gridsim.race/v1",
- "task_id": "dam-v1-2025-06-06-LZ_CPS-1h-l",
+ "task_id": "dam-v1-2025-01-14-LZ_HOUSTON-4h-x",
  "context": {
   "tasks": 200,
   "base": 0.0,
@@ -37,19 +37,19 @@
  },
  "lanes": [
   {
-   "episode_id": "b6756321c78407ab",
+   "episode_id": "7869470f73d9b9cb",
    "label": "Qwen3-1.7B base"
   },
   {
-   "episode_id": "8885e2ef03dc5edb",
+   "episode_id": "4e023a6916622552",
    "label": "Qwen3-1.7B SFT warm start"
   },
   {
-   "episode_id": "4ffaed877ff164c1",
+   "episode_id": "0f2c18b49963c9e7",
    "label": "Qwen3-1.7B arm 2c (exploratory continuation)"
   },
   {
-   "episode_id": "dam-v1-2025-06-06-LZ_CPS-1h-l-9d42cavi",
+   "episode_id": "dam-v1-2025-01-14-LZ_HOUSTON-4h-x-c8edwupn",
    "label": "GPT-6.1 Sol"
   }
  ]
