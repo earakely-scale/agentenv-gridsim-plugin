@@ -1,16 +1,20 @@
-"""Build data/market/days/<YYYY-MM>.jsonl.gz, data/market/manifest.json and data/market/stats.md (CONTRACT-v5 "Data
-layout") from what scripts/fetch_disclosure.py keeps under cache/disclosure/ (NP3-966-ER zips, NP4-523-CD λ), the cached
-HB_HUBAVG DAM and RT prices and EIA-930 ERCO hourly data, through core's `market_stack.build_day`.
+"""Build the v5 days store (CONTRACT-v5 "Data layout"), data/market/manifest.json and data/market/stats.md from what
+scripts/fetch_disclosure.py keeps under cache/disclosure/ (NP3-966-ER zips, NP4-523-CD λ), the cached HB_HUBAVG DAM and
+RT prices and EIA-930 ERCO hourly data, through core's `market_stack.build_day`.
 
 Every non-DST op day with a disclosure and every public series becomes a full row; a day whose disclosure is missing or
 fails to parse becomes a light row (public series only) so the tasks around it can still read it, and is never imputed.
-DST days and days missing a public series drop. Only derived, anonymised aggregates are written."""
+DST days and days missing a public series drop. Only derived, anonymised aggregates are written. With --keep, the
+store's rows of days this run does not build stay. Months from SHIP_FROM go to data/market/days (git); earlier months,
+which only train floors read, go to the overflow (cache/market/days, published in the Hub dataset), each listed in the
+manifest with the sha256 of its lines."""
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
 import gzip
+import hashlib
 import json
 import sys
 import time
@@ -27,10 +31,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from gridsim_core.contract import era  # noqa: E402
-from gridsim_core.market_stack import build_day  # noqa: E402
+from gridsim_core.market_stack import DayStore, build_day, overflow_root  # noqa: E402
 
 CPT = ZoneInfo("America/Chicago")
 LIGHT_BEFORE = 3
+MIN_WITHIN_NS = 0.7
+SHIP_FROM = "2024-05"
+"""The first month in git: the showcase day 2024-08-20 reads disclosures from 2024-05-22 and eval from 2024-10-03."""
+RTCB = "2025-12-05"
 ERCOT_TERMS = ("ERCOT public reports (NP3-966-ER 60-Day DAM Disclosure, NP4-523-CD DAM System Lambda, NP4-180-ER "
                "DAM and NP6-785-ER RT settlement point prices) retrieved through the ERCOT Public API; ERCOT does not "
                "endorse this work. Only derived, aggregated, anonymised curves are published: no raw disclosure file "
@@ -118,19 +126,40 @@ def fidelity_table(rows: list[dict]) -> list[str]:
         w = np.array([x["within_ns"] for x in f if x["within_ns"] is not None])
         mae = np.array([x["mae_ns_usd"] for x in f if x["mae_ns_usd"] is not None])
         simp = np.array([x["simplify_err_usd"] for x in f])
-        surv = int((w >= 0.5).sum())
-        return (f"| {label} | {len(rs)} | {surv} ({surv / max(1, len(rs)):.0%}) | {int((w >= 0.75).sum())} | "
+        surv = int((w >= MIN_WITHIN_NS).sum())
+        return (f"| {label} | {len(rs)} | {int((w >= 0.5).sum())} | {surv} ({surv / max(1, len(rs)):.0%}) | "
                 f"{int((w >= 0.9).sum())} | {np.median(w):.2f} | {np.median(mae):.2f} | "
                 f"{np.percentile(simp, 95):.2f} | {simp.max():.2f} |")
 
-    out = ["| Days | Full rows | raw within_ns ≥ 0.5 (V5-P2) | ≥ 0.75 | ≥ 0.9 (plan) | median within_ns | "
+    out = [f"| Days | Full rows | raw within_ns ≥ 0.5 | ≥ {MIN_WITHIN_NS} (V5-P2) | ≥ 0.9 (plan) | median within_ns | "
            "median MAE_ns $ | simplify err p95 $ | max $ |", "|---|---|---|---|---|---|---|---|---|"]
     groups = [("all", rows)]
     for y in sorted({r["date"][:4] for r in rows}):
         groups.append((y, [r for r in rows if r["date"][:4] == y]))
-    groups += [("pre-RTC+B", [r for r in rows if r["date"] < "2025-12-05"]),
-               ("RTC+B (2025-12-05+)", [r for r in rows if r["date"] >= "2025-12-05"])]
+    groups += [("pre-RTC+B", [r for r in rows if r["date"] < RTCB]),
+               (f"RTC+B ({RTCB}+)", [r for r in rows if r["date"] >= RTCB])]
     return out + [line(label, rs) for label, rs in groups if rs]
+
+
+def write_months(rows: dict[str, dict], ship: Path, overflow: Path) -> dict[str, dict]:
+    """One YYYY-MM.jsonl.gz per month, in git from SHIP_FROM and in the overflow before; a file whose lines did not
+    change is left as it is. The month's dir, file size and the sha256 of its lines, by month."""
+    by_month = defaultdict(list)
+    for d in sorted(rows):
+        by_month[d[:7]].append(rows[d])
+    out = {}
+    for m, rs in sorted(by_month.items()):
+        text = "".join(json.dumps(r, separators=(",", ":")) + "\n" for r in rs)
+        home, other = (ship, overflow) if m >= SHIP_FROM else (overflow, ship)
+        home.mkdir(parents=True, exist_ok=True)
+        f = home / f"{m}.jsonl.gz"
+        if not f.exists() or gzip.decompress(f.read_bytes()).decode() != text:
+            with f.open("wb") as fh, gzip.GzipFile(fileobj=fh, mode="wb", compresslevel=9, mtime=0) as gz:
+                gz.write(text.encode())
+        (other / f"{m}.jsonl.gz").unlink(missing_ok=True)
+        out[m] = {"dir": "git" if home == ship else "overflow", "bytes": f.stat().st_size,
+                  "sha256": hashlib.sha256(text.encode()).hexdigest()}
+    return out
 
 
 def main():
@@ -138,10 +167,12 @@ def main():
     ap.add_argument("--disclosure", type=Path, default=ROOT / "cache" / "disclosure")
     ap.add_argument("--parsed", type=Path, default=ROOT / "cache" / "parsed", help="dam-*.json.gz and rt-*.json.gz")
     ap.add_argument("--eia930", type=Path, default=ROOT / "cache" / "forecast" / "eia930" / "erco.parquet")
-    ap.add_argument("--first", default="2023-12-11")
+    ap.add_argument("--first", default="2022-01-01")
     ap.add_argument("--last", default=None, help="last op day (default: the latest disclosure)")
+    ap.add_argument("--keep", action="store_true", help="keep the store's rows of the days this run does not build")
     ap.add_argument("--workers", type=int, default=14)
     ap.add_argument("--out", type=Path, default=ROOT / "data" / "market")
+    ap.add_argument("--overflow", type=Path, default=overflow_root())
     args = ap.parse_args()
     raw = args.disclosure / "raw" / "np3-966-er"
     zips = {p.stem: p for p in raw.glob("20*.zip")}
@@ -152,14 +183,11 @@ def main():
     eia = load_eia930(args.eia930)
     log(f"inputs: {len(zips)} zips, λ {len(lam)} days, EIA-930 {len(eia)} days; op days {args.first}..{last}")
     rows: dict[str, dict] = {}
-    dropped: dict[str, str] = {}
     errors: dict[str, str] = {}
     pub = {}
-    for d in days((dt.date.fromisoformat(args.first) - dt.timedelta(days=LIGHT_BEFORE)).isoformat(), last):
-        p = public(d, lam, dam, rt, eia)
-        if p is None:
-            dropped[d] = "dst" if is_dst(d) else "public series missing"
-        else:
+    for d in days(max((dt.date.fromisoformat(args.first) - dt.timedelta(days=LIGHT_BEFORE)).isoformat(), min(lam)),
+                  last):
+        if p := public(d, lam, dam, rt, eia):
             pub[d] = p
     todo = [d for d in pub if d >= args.first and d in zips]
     t0, secs = time.time(), []
@@ -176,29 +204,35 @@ def main():
             if i % 50 == 0 or i == len(futs):
                 log(f"{i}/{len(futs)} days built ({time.time() - t0:.0f}s, median {np.median(secs):.1f}s/day)")
     for d, p in pub.items():
-        if d not in rows:
-            rows[d] = light_row(d, p)
-            if d >= args.first and d not in zips:
-                dropped[d] = "no disclosure (light row)"
-            elif d in errors:
-                dropped[d] = "parse error (light row)"
+        rows.setdefault(d, light_row(d, p))
     out = args.out
-    (out / "days").mkdir(parents=True, exist_ok=True)
-    by_month = defaultdict(list)
-    for d in sorted(rows):
-        by_month[d[:7]].append(rows[d])
-    for m, rs in by_month.items():
-        with gzip.open(out / "days" / f"{m}.jsonl.gz", "wt", compresslevel=9) as f:
-            f.writelines(json.dumps(r, separators=(",", ":")) + "\n" for r in rs)
+    if args.keep:
+        for d, r in DayStore(*[p for p in (args.overflow, out / "days") if p.exists()]).rows.items():
+            if d not in rows or (rows[d].get("parser") == "light" and r.get("parser") != "light"):
+                rows[d] = r
+                errors.pop(d, None)
+    months = write_months(rows, out / "days", args.overflow)
     full = [rows[d] for d in sorted(rows) if rows[d].get("parser") != "light"]
+    first, last = full[0]["date"], full[-1]["date"]
+    archived = {json.loads(line)["op_date"] for line in (raw / "index.jsonl").open()}
+    dropped = {d: "dst" if is_dst(d) else "public series missing" if d not in rows else
+               "parse error (light row)" if d in archived else "no disclosure (light row)"
+               for d in days(first, last) if rows.get(d, {}).get("parser", "light") == "light"}
     index = {}
     for line in (raw / "index.jsonl").open():
         r = json.loads(line)
         index[r["op_date"]] = r
+    overflow = {m: v for m, v in months.items() if v["dir"] == "overflow"}
     manifest = {
-        "schema": "gridsim.market-days/v5", "first": args.first, "last": last,
+        "schema": "gridsim.market-days/v5", "first": first, "last": last,
         "full_days": len(full), "light_days": len(rows) - len(full),
         "parsers": sorted({r["parser"] for r in full}),
+        "store": {"git": {"dir": "data/market/days", "from": SHIP_FROM,
+                          "months": sorted(m for m, v in months.items() if v["dir"] == "git"),
+                          "bytes": sum(v["bytes"] for v in months.values() if v["dir"] == "git")},
+                  "overflow": {"dir": "cache/market/days", "source": "the Hub dataset's raw/v5-market/days",
+                               "read_by": "train floors only", "bytes": sum(v["bytes"] for v in overflow.values()),
+                               "sha256": {m: v["sha256"] for m, v in overflow.items()}}},
         "sources": {
             "np3-966-er": {"endpoint": "GET https://api.ercot.com/api/public-reports/archive/np3-966-er (listing), "
                                        "POST .../archive/np3-966-er/download (bulk, 25 docIds)",
@@ -207,23 +241,32 @@ def main():
             "np4-523-cd": {"endpoint": "archive/np4-523-cd (bulk CSV documents)", "days": len(lam)},
             "hub": "HB_HUBAVG DAM (NP4-180-ER DAMLZHBSPP) and 15-min RT (NP6-785-ER RTMLZHBSPP), cached",
             "eia930": "EIA-930 ERCO hourly (BALANCE files): demand forecast, demand, wind and solar net generation"},
-        "fidelity": {"within_ns_ge_0.5": sum((r["fidelity"]["within_ns"] or 0.0) >= 0.5 for r in full),
+        "fidelity": {f"within_ns_ge_{MIN_WITHIN_NS}": sum((r["fidelity"]["within_ns"] or 0.0) >= MIN_WITHIN_NS
+                                                         for r in full),
                      "median_within_ns": float(np.median([r["fidelity"]["within_ns"] for r in full
                                                           if r["fidelity"]["within_ns"] is not None]))},
-        "dropped": dropped, "parse_errors": {d: e[:500] for d, e in errors.items()},
+        "dropped": dict(sorted(dropped.items())), "parse_errors": {d: e[:500] for d, e in errors.items()},
         "terms": ERCOT_TERMS}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
+    gap = sorted(d for d, v in dropped.items() if v == "public series missing")
     stats = ["# v5 market days: fidelity", "",
-             f"Op days {args.first}..{last}: {len(full)} full rows, {len(rows) - len(full)} light rows; dropped "
-             f"{sum(v == 'dst' for v in dropped.values())} DST days, "
-             f"{sum(v == 'public series missing' for v in dropped.values())} without a public series, "
-             f"{len(errors)} parse errors, {sum(v.startswith('no disclosure') for v in dropped.values())} without a "
-             "disclosure. Fidelity is the copper-plate re-clear of every real offer against NP4-523-CD λ in "
-             "non-scarcity hours (λ < $100), within $5 or 10%; the simplification error is the shipped (≤ 64-point) "
-             "replay against the full re-clear.", "", *fidelity_table(full), ""]
+             f"Op days {first}..{last}: {len(full)} full rows, {len(rows) - len(full)} light rows; dropped "
+             f"{sum(v == 'dst' for v in dropped.values())} DST days, {len(gap)} without a public series "
+             f"({', '.join(gap)}), {sum(v.startswith('parse error') for v in dropped.values())} parse errors, "
+             f"{sum(v.startswith('no disclosure') for v in dropped.values())} without a disclosure. Fidelity is the "
+             "copper-plate re-clear of every real offer against NP4-523-CD λ in non-scarcity hours (λ < $100), within "
+             "$5 or 10%; the simplification error is the shipped (≤ 64-point) replay against the full re-clear. A "
+             f"task needs raw within_ns ≥ {MIN_WITHIN_NS} on its op day (V5-P2).", "", *fidelity_table(full), "",
+             f"The store: {len(months)} month files, {manifest['store']['git']['bytes'] / 1e6:.1f} MB in git "
+             f"(data/market/days, {SHIP_FROM} on: every month an eval, rtcb or showcase floor reads) and "
+             f"{manifest['store']['overflow']['bytes'] / 1e6:.1f} MB in the overflow (cache/market/days, "
+             f"{min(overflow, default='-')}..{max(overflow, default='-')}: read by train floors only; the Hub "
+             "dataset's raw/v5-market/days, checked against the manifest's sha256 per month).", ""]
     (out / "stats.md").write_text("\n".join(stats) + "\n")
+    st = manifest["store"]
     log(f"done: {len(full)} full, {len(rows) - len(full)} light, {len(errors)} errors, "
-        f"survival {manifest['fidelity']['within_ns_ge_0.5']}/{len(full)}")
+        f"survival {manifest['fidelity'][f'within_ns_ge_{MIN_WITHIN_NS}']}/{len(full)}; git "
+        f"{st['git']['bytes'] / 1e6:.1f} MB, overflow {st['overflow']['bytes'] / 1e6:.1f} MB")
 
 
 if __name__ == "__main__":

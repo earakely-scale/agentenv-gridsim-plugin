@@ -21,7 +21,9 @@ that curve, so selling more in an hour lowers that hour's price and buying more 
 - Your offer, per hour: sell blocks [[mw, price], ...] (sold when the clearing price is at or above the price) and buy \
 blocks [[mw, price], ...] (bought when it is at or below). MW are whole multiples of grid_mw; sells add up to at most \
 p_mw, buys too; at most 10 blocks an hour; every buy price below every sell price. An hour you leave out offers \
-nothing. A block priced exactly at the clearing price may be partly awarded (rounded down to grid_mw).
+nothing. In an hour you list, leave a side out (or write null or "keep") to keep it as it stands in your last \
+accepted offer (nothing before your first); [] offers nothing on that side. A block priced exactly at the clearing \
+price may be partly awarded (rounded down to grid_mw).
 - Mitigation: in an hour where you offer MW above your reference price (get_private_costs) by more than \
 max($10, 50%), and pricing those MW at the reference would lower the clearing price by at least max($5, 10%), the \
 market prices them at the reference."""
@@ -52,7 +54,8 @@ do not carry over. advance ends the watch; the day goes on until advance returns
 for differences (CfDs) on the hub DAM price with the retailer (propose_contract, respond_contract). CfDs settle \
 strike minus price on their own row, outside your profit.
 - From 13:30 you may set your physical schedule (MW per hour) with commit_schedule; hours before the freeze line \
-(the next full hour plus 1 hour) cannot change. An hour's RT price is shown only after the hour ends."""
+(the next full hour plus 1 hour) cannot change, and null or "keep" for an hour keeps its MW as it stands. An hour's \
+RT price is shown only after the hour ends."""
 
 _INFO = """What you can see
 - get_disclosure: ERCOT publishes every DAM offer and bid 60 days later; you may read any disclosed day 61 to 90 days \
@@ -89,7 +92,11 @@ def watch_text(s: Session) -> str:
 
 
 def tool_schemas(tier: str = "floor-sprint") -> list[dict]:
-    blocks = {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}}
+    blocks = {"anyOf": [{"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2,
+                                                     "maxItems": 2}},
+                        {"type": "string", "enum": ["keep"]}],
+              "description": 'Blocks [[mw, price], ...]; leave out, null or "keep" to keep this side of your last '
+                             "accepted offer, [] for none."}
     offer = {"type": "object", "properties": {"hours": {"type": "array", "items": {
         "type": "object", "properties": {"he": {"type": "integer", "minimum": 1, "maximum": 24}, "sell": blocks,
                                          "buy": blocks}, "required": ["he"]}}}, "required": ["hours"]}
@@ -112,7 +119,10 @@ def tool_schemas(tier: str = "floor-sprint") -> list[dict]:
                                                                                         "counts.") + " A planning call.",
                {"type": "object", "properties": {"offer": offer}, "required": ["offer"]})]
     if tier == "floor-day":
-        plan = {"type": "object", "properties": {"plan": {"type": "array", "items": {"type": "number"}},
+        mw = {"anyOf": [{"type": "number"}, {"type": "string", "enum": ["keep"]}]}
+        plan = {"type": "object", "properties": {"plan": {"type": "array", "items": mw,
+                                                          "description": 'MW per hour from from_hour; null or "keep" '
+                                                                         "keeps an hour's MW as it stands."},
                                                  "from_hour": {"type": "integer", "minimum": 0, "maximum": 23}},
                 "required": ["plan"]}
         out += [_fn("get_award", "Your awards and the clearing prices, from 13:30. Free.",

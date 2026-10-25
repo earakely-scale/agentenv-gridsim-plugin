@@ -13,9 +13,18 @@ import re
 
 import numpy as np
 
-from gridsim_core.contract import DEGENERATE_EPS
+from gridsim_core.contract import AS_PRODUCTS, DEGENERATE_EPS
 from gridsim_core.grade import reward_value
-from gridsim_core.live import BARRIER_SECONDS, CLOCK_URI, NOTICE_TOOL, WatchDay, freeze_line, label, notices_sha
+from gridsim_core.live import (
+    BARRIER_SECONDS,
+    CLOCK_URI,
+    NOTICE_TOOL,
+    WatchDay,
+    freeze_line,
+    label,
+    notices_sha,
+    to_minutes,
+)
 from gridsim_core.live import schedule as live_schedule
 from gridsim_core.live import triggers as live_triggers
 from gridsim_core.market_auction import (
@@ -28,6 +37,7 @@ from gridsim_core.market_auction import (
     battery_of,
     clear_mitigated,
     dump,
+    kept,
     lift,
     offer_blocks,
     offer_json,
@@ -38,7 +48,9 @@ from gridsim_core.market_auction import (
 )
 from gridsim_core.market_refs import (
     ACTS,
+    MARKET_VERSION,
     anchor,
+    baseline_offers,
     battery_dp,
     eps_nash,
     forecast_book,
@@ -68,7 +80,6 @@ __all__ = ["Session", "OfferError", "parse_offer", "project", "grade_offer", "re
            "play", "schedule", "triggers", "finalize_task", "MARKET_VERSION", "MARKET_ENV", "EPISODE_SCHEMA", "TIERS",
            "TOOLS", "SEATS", "LOAD_URI", "END_URI", "CLOCK_URI", "PLANNING_CALLS", "MAX_TURNS"]
 
-MARKET_VERSION = "5.0"
 MARKET_ENV = "gridsim-market"
 EPISODE_SCHEMA = "gridsim.episode/v5"
 TIERS = ("floor-sprint", "floor-day")
@@ -301,8 +312,14 @@ class Session(WatchDay):
         if err := self._gate("data"):
             return err
         now = label(self.minute, self.date)
-        if issued_at is not None and str(issued_at) > now:
-            return {"error": "issued_at is after now", "calls_left": self.calls_left()}
+        if issued_at is not None:
+            try:
+                after = to_minutes(str(issued_at), self.date) > self.minute
+            except ValueError:
+                return {"error": f"issued_at {str(issued_at)[:40]!r} is not a time: write it as {now} (CPT) or ISO "
+                                 "8601", "calls_left": self.calls_left()}
+            if after:
+                return {"error": f"issued_at is after now ({now} CPT)", "calls_left": self.calls_left()}
         d, d2 = self.store.get(self.date), self.store.get(shift(self.date, -2))
         prev = self.store.get(shift(self.date, -1))
         if kind == "load":
@@ -331,7 +348,7 @@ class Session(WatchDay):
         if op > latest:
             return {"error": f"{op} is not disclosed yet: the 60-day rule allows {latest} or earlier",
                     "calls_left": self.calls_left()}
-        if op < oldest or op not in self.store:
+        if op < oldest or op not in self.store or self.store.get(op).get("parser") == "light":
             return {"error": f"{op} is outside the disclosure window ({oldest}..{latest}) or not in the store",
                     "calls_left": self.calls_left()}
         if side not in ("supply", "demand"):
@@ -354,7 +371,7 @@ class Session(WatchDay):
     # offers
 
     def _parse(self, offer) -> tuple[dict, list]:
-        return parse_offer(offer, self.b.p, self.b.grid, self.F.floor, self.F.cap)
+        return parse_offer(offer, self.b.p, self.b.grid, self.F.floor, self.F.cap, self.offer)
 
     def check_offer(self, offer) -> dict:
         if err := self._gate("planning"):
@@ -438,16 +455,21 @@ class Session(WatchDay):
         fh = fo if from_hour is None else from_hour
         try:
             fh = int(str(fh).split(":")[0])
+            plan = json.loads(plan) if isinstance(plan, str) else plan
+            if isinstance(plan, dict) and (asf := [k for k in AS_PRODUCTS if not kept(plan.get(k)) and plan[k]]):
+                return None, [{"he": None, "rule": "not_offered", "detail": f"no ancillary services in the v5 "
+                                                                            f"preview: leave {asf[0]} out"}], fh
             vals = plan.get("energy") if isinstance(plan, dict) else plan
             vals = json.loads(vals) if isinstance(vals, str) else vals
-            vals = [float(x) for x in vals]
+            vals = [None if kept(x) else float(x) for x in vals]
         except (TypeError, ValueError, AttributeError, json.JSONDecodeError):
-            return None, [{"he": None, "rule": "parse", "detail": "plan is a list of MW from from_hour"}], 0
+            return None, [{"he": None, "rule": "parse", "detail": 'plan is a list of MW from from_hour; null or "keep" '
+                                                                  "keeps an hour's MW as it stands"}], 0
         if not 0 <= fh < HOURS or len(vals) not in (HOURS - fh, HOURS):
             return None, [{"he": None, "rule": "parse", "detail": f"from_hour 0..23 and {HOURS - fh} values"}], fh
         vals = vals[-(HOURS - fh):] if len(vals) == HOURS else vals
         cur = self.executed + self.plan[self.settled:]
-        cand = cur[:fh] + vals
+        cand = cur[:fh] + [cur[fh + i] if v is None else v for i, v in enumerate(vals)]
         issues = []
         for h in range(self.settled, fo):
             if abs(cand[h] - cur[h]) > 0.005:
@@ -928,6 +950,30 @@ def anchor_policy(s: Session) -> list[tuple[str, dict]]:
     if all(abs(a - b) < 1e-6 for a, b in zip(new, cur, strict=True)):
         return []
     return [("commit_schedule", {"plan": new, "from_hour": fo})]
+
+
+def baseline_plays(task: dict, tier: str) -> dict[str, dict]:
+    """Each card baseline played on the floor at the tier in process, on both scorings (the stored baselines carry R
+    only): the anchor by its policy, idle by an offer with no blocks, the others by their offer at D-1 09:00 and, in
+    floor-day, the anchor's re-planner on their awards (so they differ from the anchor only in their DAM offer)."""
+    s = Session(task, "floor-sprint")
+    offers = {"idle": {"hours": []}, "anchor": None} | baseline_offers(s.F, s.fc)
+    out = {}
+    for name, offer in offers.items():
+        p = play(task, tier, anchor_policy if offer is None else _at_nine(offer, name != "idle"))
+        g = p.grade()
+        out[name] = {"reward": g["reward"], "compliant": g["compliant_reward"], "welfare_ratio": g.get("welfare_ratio"),
+                     "profit": g["profit_usd"], "submitted": g["submitted"],
+                     "awards": [round(x, 2) for x in p.cleared["awards"]] if p.cleared else [0.0] * HOURS}
+    return out
+
+
+def _at_nine(offer: dict, replan: bool):
+    def policy(s: Session) -> list:
+        if s.minute == -900:
+            return [("submit_offer", {"offer": offer})]
+        return anchor_policy(s) if replan else []
+    return policy
 
 
 def grade_offer(task: dict, offer, store: DayStore | None = None, rows: bool = False) -> dict:

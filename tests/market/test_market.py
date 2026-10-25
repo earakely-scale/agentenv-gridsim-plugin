@@ -154,6 +154,41 @@ def test_disclosure_follows_the_60_day_rule():
     assert len(ok["curve"]) <= 64
     late = json.loads(s.call("get_disclosure", {"op_date": "2024-06-21", "side": "supply"}))
     assert "not disclosed" in late["error"]
+    light = market.Session(task, "floor-day", store=DayStore(FIX / "days.jsonl.gz", [
+        {"date": "2024-06-19", "parser": "light"}]))
+    assert "not in the store" in json.loads(light.call("get_disclosure", {"op_date": "2024-06-19"}))["error"]
+
+
+def test_forecast_issued_at_is_a_time():
+    s = market.Session(TASKS[0], "floor-sprint", store=STORE)
+    assert json.loads(s.call("get_forecast", {"kind": "load", "issued_at": "2024-08-19T11:00:00Z"}))["kind"] == "load"
+    assert json.loads(s.call("get_forecast", {"kind": "load", "issued_at": "2024-08-19 08:59"}))["kind"] == "load"
+    assert "after now" in json.loads(s.call("get_forecast", {"kind": "wind", "issued_at": "2024-08-19T15:00:00Z"}))[
+        "error"]
+    assert "not a time" in json.loads(s.call("get_forecast", {"kind": "wind", "issued_at": "this morning"}))["error"]
+
+
+def test_a_side_left_out_null_or_keep_stays_as_the_last_accepted_offer():
+    task = TASKS[0]
+    b = battery_of(task["seats"]["A"])
+    g, s = b.grid, market.Session(task, "floor-day", store=STORE)
+    first = {"hours": [{"he": 18, "sell": [[2 * g, 100]], "buy": []}, {"he": 3, "sell": [], "buy": [[g, 10]]}]}
+    assert json.loads(s.call("submit_offer", {"offer": first}))["accepted"]
+    again = {"hours": [{"he": 18, "buy": [[g, 20]]}, {"he": 3, "sell": "keep", "buy": None}], "as_awards": "keep"}
+    assert json.loads(s.call("submit_offer", {"offer": again}))["replaces_previous"]
+    assert s.situation()["offer"]["hours"] == [{"he": 3, "sell": [], "buy": [[g, 10.0]]},
+                                               {"he": 18, "sell": [[2 * g, 100.0]], "buy": [[g, 20.0]]}]
+    bad = json.loads(s.call("check_offer", {"offer": {"hours": [{"he": 18, "sell": "same"}]}}))
+    assert not bad["valid"] and "leave sell out" in bad["issues"][0]["detail"]
+    assert parse_offer({"hours": [{"he": 5}]}, b.p, g, -250, 5000) == ({5: {"sell": [], "buy": []}}, [])
+    while s.cleared is None or s.minute < market.AWARDS:
+        s.call("advance", {})
+    fo, cur = s.first_open, list(s.plan)
+    kept, full = ({k: v for k, v in json.loads(s.call("check_schedule", {"plan": plan, "from_hour": fo})).items()
+                   if k != "calls_left"} for plan in ([None, "keep"] + cur[fo + 2:], cur[fo:]))
+    assert kept == full and "issues" in kept
+    refused = json.loads(s.call("check_schedule", {"plan": {"energy": cur, "regup": [g] * 24}, "from_hour": 0}))
+    assert refused["issues"][0]["rule"] == "not_offered" and "leave regup out" in refused["issues"][0]["detail"]
 
 
 def test_floor_day_contracts_and_audit():

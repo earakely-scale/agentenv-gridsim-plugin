@@ -3,11 +3,13 @@ store data/market/days/ (scripts/build_market_days.py): seats drawn from each da
 (`market_stack.sample_seats`) and every reference filled by `market.finalize_task` (CONTRACT-v5 V5-P2, P11, P12, P16).
 
 A task needs its op day D as a full row, D−61 and D−62 as full rows (the anchor's disclosure) and D−1..D−3 (any row).
-Filters: raw fidelity within_ns ≥ 0.5 (V5-P2); headroom BR_A − P_idle ≥ $25/MW-day and, per tier, P_anchor − P_idle ≥
+Filters: raw fidelity within_ns ≥ 0.7 (V5-P2); headroom BR_A − P_idle ≥ $25/MW-day and, per tier, P_anchor − P_idle ≥
 $10/MW-day (V5-P11: every task for floor-sprint; a task runs as floor-day only when its floor-day anchor also clears it,
 `tags.floor_day_ok`); train keeps tasks with ≥ 1 hour where A's full sale moves the hub price by ≥ $2 (V5-P12
 option b) and every row records its impact hours (≥ $5, the plan's measure, and ≥ $2). Eval keeps a stratum of peak
-days (≥ 2 impact hours). Appends the survival per filter to data/market/stats.md."""
+days (≥ 2 impact hours), reported as its own board column. Train floors may read the overflow store; an eval, rtcb or
+showcase floor reads only git's (every day of its disclosure window), checked here. Appends the survival per filter to
+data/market/stats.md."""
 
 from __future__ import annotations
 
@@ -28,14 +30,23 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
 from build_live_pack import day_info  # noqa: E402
+from build_market_days import MIN_WITHIN_NS  # noqa: E402
 
 from gridsim_core.contract import era  # noqa: E402
-from gridsim_core.market import finalize_task  # noqa: E402
+from gridsim_core.market import MARKET_VERSION, finalize_task  # noqa: E402
 from gridsim_core.market_auction import battery_of  # noqa: E402
 from gridsim_core.market_refs import price_grid, replay_profile  # noqa: E402
-from gridsim_core.market_stack import DayStore, Floor, sample_seats, shift  # noqa: E402
+from gridsim_core.market_stack import (  # noqa: E402
+    DISCLOSURE_LAG_DAYS,
+    DISCLOSURE_WINDOW_DAYS,
+    DayStore,
+    Floor,
+    overflow_root,
+    sample_seats,
+    shift,
+)
 
-SPLITS = {"train": ("2024-02-11", "2024-12-31"), "eval": ("2025-01-01", "2025-11-30"), "rtcb": ("2025-12-05", None)}
+SPLITS = {"train": ("2022-01-01", "2024-12-31"), "eval": ("2025-01-01", "2025-11-30"), "rtcb": ("2025-12-05", None)}
 SHOWCASE = {"fern-0123": ("2026-01-23", "2026-01-24", "2026-01-25", "2026-01-26", "2026-01-27"),
             "aug24-0820": ("2024-08-20",)}
 SHOWCASE_GUARD_DAYS = 3
@@ -43,7 +54,6 @@ DRAWS = {"train": 27, "eval": 6, "rtcb": 6}
 SIZES, SIZE_W = (400, 600, 800, 1000, 1200, 1500), (0.10, 0.15, 0.25, 0.20, 0.15, 0.15)
 DURS, DUR_W = (1.0, 2.0, 4.0), (0.25, 0.5, 0.25)
 ETAS, C_DEGS = (0.80, 0.85, 0.90, 0.95), (0.0, 2.0, 4.0, 8.0)
-MIN_WITHIN_NS = 0.5
 HEADROOM_BR, HEADROOM_ANCHOR = 25.0, 10.0
 IMPACT_USD, IMPACT_LOOSE_USD = 5.0, 2.0
 EVAL_TASKS, EVAL_PEAK, FLOOR_DAY, FLOOR_DAY_PEAK = 200, 50, 60, 20
@@ -132,7 +142,7 @@ def make_tasks(pack: str, d: str, rows: list[dict], cts: list[float], n: int, wi
             if tid in seen:
                 continue
             seen.add(tid)
-            task = {"task_id": tid, "market_version": "5.0", "contract_version": "1.0", "pack": pack,
+            task = {"task_id": tid, "market_version": MARKET_VERSION, "contract_version": "1.0", "pack": pack,
                     "split": pack.removeprefix("gridsim-market-"), "date": d, "era": era(d)["name"],
                     "point": "HB_HUBAVG", "region": "central", "seats": seats, "notices": notices,
                     "flags": dict(FLAGS)}
@@ -160,8 +170,10 @@ def main():
     ap.add_argument("--data", type=Path, default=ROOT / "data")
     ap.add_argument("--packs", default="train,eval,rtcb,showcase")
     ap.add_argument("--workers", type=int, default=10)
+    ap.add_argument("--overflow", type=Path, default=overflow_root())
     args = ap.parse_args()
-    store = DayStore(args.days)
+    store = DayStore(*[p for p in (args.overflow, args.days) if p.exists()])
+    shipped = DayStore(args.days)
     cts = json.loads((args.data / "market" / "ct_heat_rates.json").read_text())["heat_rates"]
     latest = max(d for d, r in store.rows.items() if r.get("parser") != "light")
     guard = guarded()
@@ -184,6 +196,9 @@ def main():
                 log(f"{name} {d}: {why} (showcase, kept for display)")
             jobs.append((d, tag))
         log(f"{name}: {len(plan)} dates, {len(jobs)} pass the day checks {dict(verdict)}")
+        if pack != "train" and (outside := [d for d, _ in jobs if not self_contained(d, store, shipped)]):
+            raise SystemExit(f"{name}: {len(outside)} floors read days outside git's store ({outside[0]}); move "
+                             "build_market_days.SHIP_FROM earlier")
         tasks, errors, t0 = [], [], time.time()
         with ProcessPoolExecutor(args.workers) as ex:
             futs = [ex.submit(make_tasks, name, d, [store.get(k) for k in needs(d) if k in store], cts,
@@ -222,7 +237,8 @@ def main():
                     "filters": {"within_ns_min": MIN_WITHIN_NS, "headroom_br_usd_per_mw": HEADROOM_BR,
                                 "headroom_anchor_usd_per_mw": HEADROOM_ANCHOR,
                                 "headroom_anchor_day_usd_per_mw": f"{HEADROOM_ANCHOR} (floor-day eligibility)",
-                                "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only"},
+                                "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only; peak "
+                                          "(eval stratum, board column): >= 2 hours of >= $5"},
                     "draws": {"sizes_mw": SIZES, "size_weights": SIZE_W, "durations_h": DURS, "etas": ETAS,
                               "c_deg": C_DEGS, "per_date": 1 if pack == "showcase" else DRAWS[pack]},
                     "showcase_guard": f"±{SHOWCASE_GUARD_DAYS} days around the showcase days",
@@ -242,6 +258,12 @@ def main():
     stats = args.data / "market" / "stats.md"
     text = stats.read_text().split("\n## Packs")[0].rstrip("\n") if stats.exists() else "# v5 market days"
     stats.write_text(text + "\n" + "\n".join(stats_lines) + "\n")
+
+
+def self_contained(d: str, store: DayStore, shipped: DayStore) -> bool:
+    """Every day a floor on d reads (its disclosure window, D−3..D) is in git's store wherever the full store has it."""
+    return all(k in shipped or k not in store for k in
+               (shift(d, -n) for n in range(DISCLOSURE_WINDOW_DAYS + 1) if n <= 3 or n >= DISCLOSURE_LAG_DAYS))
 
 
 def by_date(tasks: list[dict]) -> dict[str, list[dict]]:

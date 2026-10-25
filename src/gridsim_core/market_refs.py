@@ -53,6 +53,8 @@ TIE = 1e-7
 DELTA_GRID = np.arange(-15000.0, 15000.0 + 1, 100.0)
 MAX_SWEEPS, GAIN_USD = 50, 1.0
 
+MARKET_VERSION = "5.1"
+
 
 def lattice_move(b: Battery, s: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
     """(next SoC in sub-units, executed grid MW) of an award of k grid units from SoC s, delivered as far as SoC allows."""
@@ -595,7 +597,7 @@ def references(task: dict, store: DayStore | None = None, nash_ref: bool = False
     def row(r):
         return {"profit": round(r["profit"], 2), "reward": reward_value(r["profit"], idle, p_anchor)}
 
-    out = {"market_version": "5.0", "p_idle": round(idle, 6),
+    out = {"market_version": MARKET_VERSION, "p_idle": round(idle, 6),
            "forecast": {k: fc[k] for k in ("delta_mw", "forecast_lambda_usd", "forecast_hub_usd", "mae_prev_usd")},
            "floor-sprint": {"p_anchor": round(p_anchor, 6), "anchor": {"q_mw": anc["q_mw"],
                                                                      "hub_usd": [round(x, 2) for x in anc["hub"]]},
