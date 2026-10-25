@@ -545,7 +545,7 @@ function buildTimeline(d) {
   }));
   root.innerHTML = `<div class="rows"><span style="top:${((Y.pTop + Y.pBot) / 2 / H) * 100}%">price</span><span style="top:${(Y.eMid / H) * 100}%">battery</span>${d.offered.length ? `<span style="top:${((Y.aBase - 6) / H) * 100}%">reserves</span>` : ""}</div>
     <div class="hours">${[0, 3, 6, 9, 12, 15, 18, 21].map((h) => `<span style="left:${(h / 24) * 100}%">${hourLabel(h)}</span>`).join("")}</div>
-    <div class="legend"><span><i class="ol"></i>day-ahead</span><span><i class="dot"></i>real-time</span><span><i style="background:${SOLAR}"></i>PV</span><span><i style="background:${CHARGE}"></i>charge</span><span><i style="background:${DISCHARGE}"></i>discharge</span>${d.offered.length ? `<span>${d.offered.map((kk) => `<i class="hp ${PROD[kk].hatch}"></i>${PROD[kk].glyph}`).join(" ")}</span>` : ""}<span><i class="hz"></i>1 h lock</span><span><b class="xm">×</b>short<b class="xm ex">×</b>excused</span><span class="dim">log price scale</span></div>`;
+    <div class="legend"><span><i class="ol"></i>day-ahead</span><span><i class="dot"></i>real-time</span><span><i style="background:${SOLAR}"></i>PV</span><span><i style="background:${CHARGE}"></i>charge</span><span><i style="background:${DISCHARGE}"></i>discharge</span>${d.offered.length ? `<span>${d.offered.map((kk) => `<i class="hp ${PROD[kk].hatch}"></i>${PROD[kk].glyph}`).join(" ")}</span>` : ""}<span><i class="hz"></i>1 h lock</span><span><b class="xm">×</b>short${d.hours.some((x) => x.excusedMw > 0.05) ? `<b class="xm ex">×</b>excused` : ""}</span><span class="dim">log price scale</span></div>`;
   const plot = el("div", "plot");
   plot.append(svg);
   const ph = el("div", "ph");
