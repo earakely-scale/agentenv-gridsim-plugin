@@ -45,8 +45,10 @@ discharge on call. RegDn is a down reserve: charge on call. An award pays its ho
 products of duration_h x MW, and SoC <= e_mwh - eta x RegDn duration_h x RegDn MW. The durations for this day are \
 below.
 - Regulation drifts SoC every hour: RegUp drains about reg_drift_mean.regup x its MW, RegDn adds eta x \
-reg_drift_mean.regdn x its MW; the actual draw is learned after the hour. RRS, ECRS and Non-Spin deploy when ERCOT \
-calls them (a notice says when): the battery discharges the award for up to the product's duration.
+reg_drift_mean.regdn x its MW. The actual draw follows the grid and is learned after the hour: RegUp deploys more \
+when the system runs short (RT above DA), RegDn when it runs long. RRS, ECRS and Non-Spin deploy when ERCOT calls them \
+(a notice says when): the battery discharges the award for up to the product's duration, and the hours it has \
+delivered count toward that duration.
 - An award the battery cannot back is a failure to provide: its MW are charged at the hour's MCPC (the larger of DA \
 and RT where RT exists). A shortfall caused by drift or a deployment that arrived after the hour froze is excused.
 {fixed}"""
@@ -96,7 +98,7 @@ def system_prompt(tier: str = "reserves", era: str = "B") -> str:
                                                                   '{"from": 18, "to": 21, "mw": 100}]}'))
     else:
         parts.append(_TOOLS.format(as_fields=', "regup": ..., "regdn": ..., "rrs": ..., "ecrs": ..., "nspin": ...',
-                                   omit="; an omitted AS field keeps your book",
+                                   omit='; leave an AS field out (or send "keep" or null) to keep your book for it',
                                    example='{"energy": [{"from": 0, "to": 5, "mw": -50}, {"from": 18, "to": 21, '
                                            '"mw": 50}], "regdn": [{"from": 0, "to": 6, "mw": 25}], "ecrs": '
                                            '[{"from": 17, "to": 21, "mw": 25}]}'))
@@ -141,8 +143,9 @@ def tool_schemas(tier: str = "reserves") -> list[dict]:
     props = {"energy": field | {"description": "battery MW per hour (+ discharges, - charges): MW values from "
                                               "from_hour to 23, or blocks"}}
     if tier != "energy":
-        props |= {k: field | {"description": f"{NAMES[k]} award MW per hour as blocks; omitted keeps the book"}
-                  for k in PRODUCTS}
+        props |= {k: {"anyOf": field["anyOf"] + [{"type": "null"}],
+                      "description": f'{NAMES[k]} award MW per hour as blocks; left out, "keep" or null keeps the '
+                                     'book'} for k in PRODUCTS}
     plan = {"type": "object", "required": ["plan"], "properties": {
         "plan": {"type": "object", "required": ["energy"], "properties": props},
         "from_hour": {"type": "integer", "description": "first hour the plan covers; defaults to frozen_until_hour"}}}

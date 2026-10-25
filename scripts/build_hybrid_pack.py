@@ -40,7 +40,8 @@ TARGETS = {"train": 2400, "eval": 300, "rtcb": 200}
 PACKS = {"train": "ercot-hybrid-v3-train", "eval": "ercot-hybrid-v3-eval", "rtcb": "ercot-hybrid-v3-rtcb",
          "showcase": "ercot-hybrid-v3-showcase"}
 DRAWS = {"train": 3, "eval": 4, "rtcb": 2}
-DEFAULT_SHARE, POI_VARIANT_SHARE = 0.4, 0.25
+DEFAULT_SHARE, POI_VARIANT_SHARE, OVERSIZE_SHARE = 0.4, 0.2, 0.4
+OVERSIZE = (1.11, 1.25, 1.4)
 C_DEG = (0.0, 2.0, 4.0, 6.0, 8.0)
 FILTER = {"min_headroom_usd": 500.0, "low_spread_usd_per_mw": 22.0, "sponge_reward_max": 0.97,
           "baseline_reward_max": 0.97}
@@ -67,8 +68,8 @@ def split(d: str) -> str | None:
 
 
 def pick_site(d: str, p: str, salt: str, arch: dict) -> dict:
-    """The default archetype (FD-4322) or a weighted draw from lane D3's EIA-860 grid; POI default or its 1.2x
-    variant; degradation $0-8/MWh by draw."""
+    """The default archetype (FD-4322) or a weighted draw from lane D3's EIA-860 grid; POI at PV AC, its 1.2x
+    variant, or below PV AC by one of OVERSIZE (PV AC / POI) so the meter clips; degradation $0-8/MWh by draw."""
     h = stable_seed(f"site|{salt}|{d}|{p}")
     u = (h % 10007) / 10007
     if u < DEFAULT_SHARE:
@@ -76,8 +77,10 @@ def pick_site(d: str, p: str, salt: str, arch: dict) -> dict:
     else:
         w = np.array([x["weight"] for x in arch["archetypes"]])
         a = arch["archetypes"][int(np.searchsorted(np.cumsum(w / w.sum()), (h // 10007 % 9973) / 9973))]
-    variant = (h // 7 % 1000) / 1000 < POI_VARIANT_SHARE
-    poi = a["poi_variants_mw"][-1] if variant else a["poi_mw"]
+    v = (h // 7 % 1000) / 1000
+    poi = (a["poi_variants_mw"][-1] if v < POI_VARIANT_SHARE else
+           round(a["pv_mwac"] / OVERSIZE[h // 31 % len(OVERSIZE)]) if v < POI_VARIANT_SHARE + OVERSIZE_SHARE else
+           a["poi_mw"])
     c_deg = 4.0 if a is arch["default"] else C_DEG[h // 13 % len(C_DEG)]
     return H.site_from_archetype(a, poi, c_deg=c_deg)
 
@@ -187,8 +190,11 @@ def write_pack(out: Path, name: str, tasks: list, meta: dict):
         "dates": [min(t["date"] for t in tasks), max(t["date"] for t in tasks)] if tasks else None,
         "tiers": ["energy", "reserves"], "filters": FILTER,
         "flags": {"site": "archetype (no crosswalk tonight; V3-D11)", "pv_availability": "proxy, system-wide cf",
-                  "reg_drift": "seeded (hybrid_inputs.reg_drift)", "deploy_frac": "1.0 assumed (C3-D14)",
-                  "poi": "default PV AC or 1.2x (V3-D7)", "coupling": "ac only (C3-D15)",
+                  "reg_drift": "ERCOT storage fleet deployment from 2023-10-12, modelled before "
+                               "(hybrid_inputs.reg_hourly; V3-D8)",
+                  "deploy_frac": "1.0 assumed (C3-D14)",
+                  "poi": f"PV AC, its 1.2x variant, or PV AC / {', '.join(map(str, OVERSIZE))} (V3-D7, V3-D12)",
+                  "coupling": "ac only (C3-D15)",
                   "rt_as": "not modelled (T3 dropped, V3-D10)"},
         "licence": "ERCOT data with attribution and no endorsement; EIA public domain"} | meta, indent=1) + "\n")
 
@@ -268,6 +274,24 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
                          f"{x['energy_only_reward_mean'] if x['energy_only_reward_mean'] is not None else '-'} | "
                          f"{x['anchor_as_usd_mean']} | {x['anchor_governor_hours_mean']} | {x['anchor_soft_share']} | "
                          f"{x['anchor_repaired_mean']} |")
+    lines += ["", "## Energy tier by POI (PV AC / POI): the solar sponge and v2 energy-only against the energy anchor",
+              "", "| Pack | POI | Tasks | Clippable MWh/day | Sponge | v2 energy-only | Anchor - idle ($) |",
+              "|---|---|---|---|---|---|---|"]
+    for name, ts in packs.items():
+        for cls in ("at or above PV AC", "oversized"):
+            part = [t for t in ts if str(t["site"]["flags"].get("poi")).startswith("oversized") == (cls == "oversized")]
+            if not part:
+                continue
+            e = [t["refs"]["energy"] for t in part]
+            lines.append(f"| `{name}` | {cls} | {len(part)} | {mean(t['tags']['clip_mwh'] for t in part)} | "
+                         f"{mean(r['baselines']['sponge']['reward'] for r in e)} | "
+                         f"{mean(r['baselines']['v2_energy']['reward'] for r in e)} | "
+                         f"{mean(r['p_anchor'] - t['refs']['p_idle'] for r, t in zip(e, part, strict=True))} |")
+    lines += ["", "## Regulation drift source (V3-D8)", "", "| Pack | ercot | ercot+modelled | modelled |",
+              "|---|---|---|---|"]
+    for name, ts in packs.items():
+        c = collections.Counter(t["reg"]["source"] for t in ts)
+        lines.append(f"| `{name}` | {c['ercot']} | {c['ercot+modelled']} | {c['modelled']} |")
     ev = packs.get(PACKS["eval"], [])
     if ev:
         lines += ["", "## Eval strata (by AS value at DA: the reserves-tier oneshot optimum minus the energy-tier one, "
@@ -287,21 +311,21 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
               f"- MILP solve (watch 0, 24 open hours): median {timing['solve_ms_median']} ms, p95 "
               f"{timing['solve_ms_p95']} ms over {timing['solve_n']} solves",
               f"- build wall time {timing['wall_s']} s on {args.workers} workers", "",
-              "## Flags", "", "- Sites are archetypes at hubs and load zones (no crosswalk tonight, V3-D11): 40% the "
+              "## Flags", "", "- Sites are archetypes at hubs and load zones (no crosswalk, V3-D11): 40% the "
               "FD-4322 default (PV 150 MWac / 195 MWdc, BESS 100 MW / 200 MWh), 60% lane D3's EIA-860 grid by weight; "
-              "POI = PV AC, 25% at the 1.2x variant; AC coupling only (C3-D15).",
+              f"POI = PV AC, {POI_VARIANT_SHARE:.0%} at the 1.2x variant and {OVERSIZE_SHARE:.0%} below PV AC "
+              f"(PV AC / POI one of {', '.join(map(str, OVERSIZE))}; V3-D12); AC coupling only (C3-D15).",
               "- PV is the system-wide availability cf (lane D3) for every region, ILR x cf clipped at PV AC (proxy).",
-              "- **The sponge and its filter are inert in these packs**: AC coupling with POI >= PV AC leaves no PV "
-              "the meter cannot export (clippable MWh, every pack: "
-              + ", ".join(f"{n} {round(sum(t['tags']['clip_mwh'] for t in ts), 3)}" for n, ts in packs.items())
-              + "), so the sponge equals idle (0.2) and never comes within 3% of the anchor. Clipping is computed "
-              "exactly where it exists (continuous MW; tests on dc-coupled and POI < PV AC sites). Whether to add such "
-              "sites is Edgar's call (decision 2).",
+              "- Oversized sites clip at the meter (clippable MWh, every pack: "
+              + ", ".join(f"{n} {round(sum(t['tags']['clip_mwh'] for t in ts))}" for n, ts in packs.items())
+              + "), so the energy tier tests charging from clipped solar and the sponge is no longer idle.",
               "- Anchor soft solves: after watch 0 the reserves tier keeps the DA awards, and realized drift can leave "
               "an hour whose awards no move can back; the hard MILP is then infeasible, the soft one minimises the "
               "shortfall, and the repair walk turns the entries the Session refuses into the governor's move (C3-D17), "
               "so the anchor's commits are never refused. A hard solution is never repaired (tested).",
-              "- Regulation drift is a seeded draw, not ERCOT telemetry; deployments use frac 1.0 (stress case).",
+              "- Regulation drift is ERCOT's storage fleet deployment (60-Day SCED Disclosure) on days it covers "
+              "(from 2023-10-12) and the imbalance-driven fallback before (data/hybrid/reg_deploy.md); deployments use "
+              "frac 1.0 (stress case).",
               "- Era C days (rtcb pack) are played as T2 with DA AS only; RT AS (T3) is not modelled tonight.", ""]
     (out / "hybrid-stats.md").write_text("\n".join(lines))
 
@@ -336,6 +360,7 @@ def fixtures(packs: dict) -> list:
     take(lambda t: t["era"] == "C", 3)
     take(lambda t: t["tags"]["neg_hours"] >= 3, 2)
     take(lambda t: t["site"]["flags"].get("poi") == "1.2x", 2)
+    take(lambda t: str(t["site"]["flags"].get("poi")).startswith("oversized"), 3)
     take(lambda t: t["site"]["bess"]["p_mw"] <= 75, 2)
     take(lambda t: t["tags"]["short_ok"], 1)
     take(lambda t: True, 20)

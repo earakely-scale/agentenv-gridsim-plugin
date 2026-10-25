@@ -3,13 +3,13 @@
  "hybrid_version": "3.0",
  "tasks": 20,
  "eras": {
-  "A": 9,
+  "A": 8,
   "B": 8,
-  "C": 3
+  "C": 4
  },
  "dates": [
-  "2021-01-17",
-  "2026-09-28"
+  "2021-04-23",
+  "2026-08-19"
  ],
  "tiers": [
   "energy",
@@ -24,9 +24,9 @@
  "flags": {
   "site": "archetype (no crosswalk tonight; V3-D11)",
   "pv_availability": "proxy, system-wide cf",
-  "reg_drift": "seeded (hybrid_inputs.reg_drift)",
+  "reg_drift": "ERCOT storage fleet deployment from 2023-10-12, modelled before (hybrid_inputs.reg_hourly; V3-D8)",
   "deploy_frac": "1.0 assumed (C3-D14)",
-  "poi": "default PV AC or 1.2x (V3-D7)",
+  "poi": "PV AC, its 1.2x variant, or PV AC / 1.11, 1.25, 1.4 (V3-D7, V3-D12)",
   "coupling": "ac only (C3-D15)",
   "rt_as": "not modelled (T3 dropped, V3-D10)"
  },
