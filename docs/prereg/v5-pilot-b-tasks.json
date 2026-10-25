@@ -1,0 +1,2871 @@
+{
+ "pack": "gridsim-market-eval",
+ "seed": 5324,
+ "showcase_pack": "gridsim-market-showcase",
+ "smoke_pack": "gridsim-market-train",
+ "hindsight": "p_br_rt",
+ "columns": {
+  "sprint": [
+   {
+    "task_id": "mkt-v5-2025-01-01-A400x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-01-01",
+    "stratum": "base",
+    "p_mw": 400,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 13407.33,
+    "hindsight_minus_idle_usd": 76121.98,
+    "anchor_capture": 0.17612954263342998,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.159752
+     },
+     "anchor": {
+      "profit": 13407.329697,
+      "capture": 0.17612954263342998,
+      "reward": 1.0,
+      "compliant": 0.20079677131671497,
+      "compliant_r": 0.612732,
+      "welfare_ratio": 0.225464
+     },
+     "price_taker": {
+      "profit": 14022.965306,
+      "capture": 0.18421703064875683,
+      "reward": 1.0,
+      "compliant": 0.2150525153243784,
+      "compliant_r": 0.622944,
+      "welfare_ratio": 0.245888
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.159752
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.159752
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-01-02-A1200x4-e2",
+    "tier": "floor-sprint",
+    "date": "2025-01-02",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.875,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 41105.68,
+    "hindsight_minus_idle_usd": 86542.19,
+    "anchor_capture": 0.47497846701122826,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0273305,
+      "compliant_r": 0.127331,
+      "welfare_ratio": 0.054661
+     },
+     "anchor": {
+      "profit": 41105.676064,
+      "capture": 0.47497846701122826,
+      "reward": 1.0,
+      "compliant": 0.5289617335056142,
+      "compliant_r": 0.791473,
+      "welfare_ratio": 0.582945
+     },
+     "price_taker": {
+      "profit": 41750.557241,
+      "capture": 0.4824301063512297,
+      "reward": 1.0,
+      "compliant": 0.5406240531756148,
+      "compliant_r": 0.799409,
+      "welfare_ratio": 0.598818
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0273305,
+      "compliant_r": 0.127331,
+      "welfare_ratio": 0.054661
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0273305,
+      "compliant_r": 0.127331,
+      "welfare_ratio": 0.054661
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-02-06-A1000x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-02-06",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 1.0,
+    "eta": 0.8,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.7917,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 12484.46,
+    "hindsight_minus_idle_usd": 96705.78,
+    "anchor_capture": 0.12909736250575723,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.098159
+     },
+     "anchor": {
+      "profit": 12484.461206,
+      "capture": 0.12909736250575723,
+      "reward": 1.0,
+      "compliant": 0.15600118125287862,
+      "compliant_r": 0.591453,
+      "welfare_ratio": 0.182905
+     },
+     "price_taker": {
+      "profit": 14223.118204,
+      "capture": 0.14707619467483032,
+      "reward": 1.0,
+      "compliant": 0.18324209733741514,
+      "compliant_r": 0.609704,
+      "welfare_ratio": 0.219408
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.098159
+     },
+     "replay_A": {
+      "profit": -9659.013848,
+      "capture": -0.09988041867470442,
+      "reward": 0.0,
+      "compliant": 0.0499235,
+      "compliant_r": 0.049924,
+      "welfare_ratio": 0.099847
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-02-15-A800x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-02-15",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 21363.68,
+    "hindsight_minus_idle_usd": 86923.56,
+    "anchor_capture": 0.2457754442756339,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.028847
+     },
+     "anchor": {
+      "profit": 21363.67636,
+      "capture": 0.2457754442756339,
+      "reward": 1.0,
+      "compliant": 0.24124872213781695,
+      "compliant_r": 0.618361,
+      "welfare_ratio": 0.236722
+     },
+     "price_taker": {
+      "profit": 21363.67636,
+      "capture": 0.2457754442756339,
+      "reward": 1.0,
+      "compliant": 0.24124872213781695,
+      "compliant_r": 0.618361,
+      "welfare_ratio": 0.236722
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.028847
+     },
+     "replay_A": {
+      "profit": -24314.345055,
+      "capture": -0.2797210020159511,
+      "reward": 0.0,
+      "compliant": 0.0715795,
+      "compliant_r": 0.07158,
+      "welfare_ratio": 0.143159
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-02-18-A800x4-e2",
+    "tier": "floor-sprint",
+    "date": "2025-02-18",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.7083,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 16483.79,
+    "hindsight_minus_idle_usd": 57377.26,
+    "anchor_capture": 0.2872878136233112,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.03483,
+      "compliant_r": 0.13483,
+      "welfare_ratio": 0.06966
+     },
+     "anchor": {
+      "profit": 16483.788029,
+      "capture": 0.2872878136233112,
+      "reward": 1.0,
+      "compliant": 0.30545890681165555,
+      "compliant_r": 0.661815,
+      "welfare_ratio": 0.32363
+     },
+     "price_taker": {
+      "profit": 14624.829991,
+      "capture": 0.2548889506062102,
+      "reward": 0.90978,
+      "compliant": 0.28117797530310507,
+      "compliant_r": 0.608623,
+      "welfare_ratio": 0.307467
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.03483,
+      "compliant_r": 0.13483,
+      "welfare_ratio": 0.06966
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.03483,
+      "compliant_r": 0.13483,
+      "welfare_ratio": 0.06966
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-24-A1200x2-e3",
+    "tier": "floor-sprint",
+    "date": "2025-03-24",
+    "stratum": "peak",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 2.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 6,
+    "within_ns": 0.9091,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 262598.31,
+    "hindsight_minus_idle_usd": 662446.95,
+    "anchor_capture": 0.3964065571461739,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 262598.313096,
+      "capture": 0.3964065571461739,
+      "reward": 1.0,
+      "compliant": 0.35664777857308694,
+      "compliant_r": 0.658444,
+      "welfare_ratio": 0.316889
+     },
+     "price_taker": {
+      "profit": 91297.565351,
+      "capture": 0.13781868257237104,
+      "reward": 0.478136,
+      "compliant": 0.13026834128618553,
+      "compliant_r": 0.300427,
+      "welfare_ratio": 0.122718
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -22194.126954,
+      "capture": -0.03350325198579599,
+      "reward": 0.132386,
+      "compliant": 0.0387215,
+      "compliant_r": 0.104914,
+      "welfare_ratio": 0.077443
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-24-A1500x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-03-24",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 11,
+    "within_ns": 0.9091,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 301415.28,
+    "hindsight_minus_idle_usd": 819679.71,
+    "anchor_capture": 0.3677232360674963,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 301415.275674,
+      "capture": 0.3677232360674963,
+      "reward": 1.0,
+      "compliant": 0.34941711803374814,
+      "compliant_r": 0.665555,
+      "welfare_ratio": 0.331111
+     },
+     "price_taker": {
+      "profit": 100995.673178,
+      "capture": 0.12321358194863696,
+      "reward": 0.468057,
+      "compliant": 0.12596579097431848,
+      "compliant_r": 0.298388,
+      "welfare_ratio": 0.128718
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -4355.51798,
+      "capture": -0.00531368280115977,
+      "reward": 0.18844,
+      "compliant": 0.0,
+      "compliant_r": 0.09422,
+      "welfare_ratio": -0.004497
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-13-A800x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-04-13",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.8,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 41828.8,
+    "hindsight_minus_idle_usd": 110811.18,
+    "anchor_capture": 0.37747813116988693,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.039285
+     },
+     "anchor": {
+      "profit": 41828.796491,
+      "capture": 0.37747813116988693,
+      "reward": 1.0,
+      "compliant": 0.39321306558494346,
+      "compliant_r": 0.704474,
+      "welfare_ratio": 0.408948
+     },
+     "price_taker": {
+      "profit": 41336.887936,
+      "capture": 0.3730389711264505,
+      "reward": 0.990592,
+      "compliant": 0.38837898556322525,
+      "compliant_r": 0.697156,
+      "welfare_ratio": 0.403719
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.039285
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.039285
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-20-A1500x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-04-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 8.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.7143,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 29066.61,
+    "hindsight_minus_idle_usd": 504280.07,
+    "anchor_capture": 0.057639824215630645,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0287095,
+      "compliant_r": 0.12871,
+      "welfare_ratio": 0.057419
+     },
+     "anchor": {
+      "profit": 29066.614628,
+      "capture": 0.057639824215630645,
+      "reward": 1.0,
+      "compliant": 0.08858141210781532,
+      "compliant_r": 0.559762,
+      "welfare_ratio": 0.119523
+     },
+     "price_taker": {
+      "profit": 26782.676762,
+      "capture": 0.05311071827052868,
+      "reward": 0.937139,
+      "compliant": 0.08431035913526434,
+      "compliant_r": 0.526325,
+      "welfare_ratio": 0.11551
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0287095,
+      "compliant_r": 0.12871,
+      "welfare_ratio": 0.057419
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0287095,
+      "compliant_r": 0.12871,
+      "welfare_ratio": 0.057419
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-20-A400x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-04-20",
+    "stratum": "peak",
+    "p_mw": 400,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.7143,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 10117.39,
+    "hindsight_minus_idle_usd": 181027.83,
+    "anchor_capture": 0.05588860778323192,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.059084,
+      "compliant_r": 0.159084,
+      "welfare_ratio": 0.118168
+     },
+     "anchor": {
+      "profit": 10117.39324,
+      "capture": 0.05588860778323192,
+      "reward": 1.0,
+      "compliant": 0.10758330389161597,
+      "compliant_r": 0.579639,
+      "welfare_ratio": 0.159278
+     },
+     "price_taker": {
+      "profit": 10117.39324,
+      "capture": 0.05588860778323192,
+      "reward": 1.0,
+      "compliant": 0.10758330389161597,
+      "compliant_r": 0.579639,
+      "welfare_ratio": 0.159278
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.059084,
+      "compliant_r": 0.159084,
+      "welfare_ratio": 0.118168
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.059084,
+      "compliant_r": 0.159084,
+      "welfare_ratio": 0.118168
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-19-A600x1-e2",
+    "tier": "floor-sprint",
+    "date": "2025-05-19",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 1.0,
+    "eta": 0.95,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 9717.35,
+    "hindsight_minus_idle_usd": 77887.84,
+    "anchor_capture": 0.12476083871689449,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 9717.351982,
+      "capture": 0.12476083871689449,
+      "reward": 1.0,
+      "compliant": 0.16555291935844724,
+      "compliant_r": 0.603173,
+      "welfare_ratio": 0.206345
+     },
+     "price_taker": {
+      "profit": 9708.441391,
+      "capture": 0.12464643586221942,
+      "reward": 0.999266,
+      "compliant": 0.1654802179311097,
+      "compliant_r": 0.60279,
+      "welfare_ratio": 0.206314
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -289.022456,
+      "capture": -0.0037107520737511895,
+      "reward": 0.176206,
+      "compliant": 0.0261345,
+      "compliant_r": 0.114238,
+      "welfare_ratio": 0.052269
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-20-A1200x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-05-20",
+    "stratum": "peak",
+    "p_mw": 1200,
+    "hours": 1.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 548576.82,
+    "hindsight_minus_idle_usd": 1266006.55,
+    "anchor_capture": 0.43331278050470823,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 548576.817747,
+      "capture": 0.43331278050470823,
+      "reward": 1.0,
+      "compliant": 0.5619738902523541,
+      "compliant_r": 0.845317,
+      "welfare_ratio": 0.690635
+     },
+     "price_taker": {
+      "profit": 573981.914158,
+      "capture": 0.4533798934571874,
+      "reward": 1.0,
+      "compliant": 0.5889414467285937,
+      "compliant_r": 0.862251,
+      "welfare_ratio": 0.724503
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-20-A1500x2-e3",
+    "tier": "floor-sprint",
+    "date": "2025-05-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 0.0,
+    "impact_hours": 5,
+    "impact_hours_2usd": 10,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 1427708.01,
+    "hindsight_minus_idle_usd": 1707210.5,
+    "anchor_capture": 0.836281178452425,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 1427708.01055,
+      "capture": 0.836281178452425,
+      "reward": 1.0,
+      "compliant": 0.6992110892262124,
+      "compliant_r": 0.781071,
+      "welfare_ratio": 0.562141
+     },
+     "price_taker": {
+      "profit": 1423493.089749,
+      "capture": 0.8338122850172849,
+      "reward": 0.997638,
+      "compliant": 0.6976376425086425,
+      "compliant_r": 0.779551,
+      "welfare_ratio": 0.561463
+     },
+     "max_withhold": {
+      "profit": -759631.556098,
+      "capture": -0.4449548284586284,
+      "reward": 0.0,
+      "compliant": 0.0175925,
+      "compliant_r": 0.017593,
+      "welfare_ratio": 0.035185
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-06-04-A800x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-06-04",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 26447.53,
+    "hindsight_minus_idle_usd": 143103.81,
+    "anchor_capture": 0.18481356762741005,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 26447.52592,
+      "capture": 0.18481356762741005,
+      "reward": 1.0,
+      "compliant": 0.22423978381370502,
+      "compliant_r": 0.631833,
+      "welfare_ratio": 0.263666
+     },
+     "price_taker": {
+      "profit": 409.307757,
+      "capture": 0.002860215623100636,
+      "reward": 0.212381,
+      "compliant": 0.012937107811550318,
+      "compliant_r": 0.117697,
+      "welfare_ratio": 0.023014
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-06-05-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-06-05",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.8,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.7917,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 56441.13,
+    "hindsight_minus_idle_usd": 537787.49,
+    "anchor_capture": 0.10495061835853717,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 56441.130058,
+      "capture": 0.10495061835853717,
+      "reward": 1.0,
+      "compliant": 0.3975673091792686,
+      "compliant_r": 0.845092,
+      "welfare_ratio": 0.690184
+     },
+     "price_taker": {
+      "profit": 59230.149687,
+      "capture": 0.1101367181828471,
+      "reward": 1.0,
+      "compliant": 0.41642435909142356,
+      "compliant_r": 0.861356,
+      "welfare_ratio": 0.722712
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-06-28-A1500x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-06-28",
+    "stratum": "base",
+    "p_mw": 1500,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.7083,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 113718.09,
+    "hindsight_minus_idle_usd": 141287.55,
+    "anchor_capture": 0.8048698537396465,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 113718.087434,
+      "capture": 0.8048698537396465,
+      "reward": 1.0,
+      "compliant": 0.7740889268698232,
+      "compliant_r": 0.871654,
+      "welfare_ratio": 0.743308
+     },
+     "price_taker": {
+      "profit": 114726.425983,
+      "capture": 0.8120066366276343,
+      "reward": 1.0,
+      "compliant": 0.7854993183138171,
+      "compliant_r": 0.879496,
+      "welfare_ratio": 0.758992
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-17-A600x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-07-17",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 4.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.8333,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 79810.55,
+    "hindsight_minus_idle_usd": 85907.7,
+    "anchor_capture": 0.9290266416739659,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 79810.545074,
+      "capture": 0.9290266416739659,
+      "reward": 1.0,
+      "compliant": 0.716519820836983,
+      "compliant_r": 0.752007,
+      "welfare_ratio": 0.504013
+     },
+     "price_taker": {
+      "profit": 79810.545074,
+      "capture": 0.9290266416739659,
+      "reward": 1.0,
+      "compliant": 0.716519820836983,
+      "compliant_r": 0.752007,
+      "welfare_ratio": 0.504013
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-30-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-07-30",
+    "stratum": "peak",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 971120.17,
+    "hindsight_minus_idle_usd": 1344886.29,
+    "anchor_capture": 0.722083477918889,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0081035,
+      "compliant_r": 0.108104,
+      "welfare_ratio": 0.016207
+     },
+     "anchor": {
+      "profit": 971120.168638,
+      "capture": 0.722083477918889,
+      "reward": 1.0,
+      "compliant": 0.6625097389594445,
+      "compliant_r": 0.801468,
+      "welfare_ratio": 0.602936
+     },
+     "price_taker": {
+      "profit": 1008047.074881,
+      "capture": 0.7495407481413033,
+      "reward": 1.0,
+      "compliant": 0.6875928740706516,
+      "compliant_r": 0.812823,
+      "welfare_ratio": 0.625645
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0081035,
+      "compliant_r": 0.108104,
+      "welfare_ratio": 0.016207
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0081035,
+      "compliant_r": 0.108104,
+      "welfare_ratio": 0.016207
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-30-A1200x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-07-30",
+    "stratum": "peak",
+    "p_mw": 1200,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 8.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 1399924.34,
+    "hindsight_minus_idle_usd": 1421657.48,
+    "anchor_capture": 0.9847128218676161,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0065145,
+      "compliant_r": 0.106515,
+      "welfare_ratio": 0.013029
+     },
+     "anchor": {
+      "profit": 1399924.344931,
+      "capture": 0.9847128218676161,
+      "reward": 1.0,
+      "compliant": 0.8376279109338081,
+      "compliant_r": 0.845271,
+      "welfare_ratio": 0.690543
+     },
+     "price_taker": {
+      "profit": 1399206.667586,
+      "capture": 0.9842080045279189,
+      "reward": 0.99959,
+      "compliant": 0.8371975022639595,
+      "compliant_r": 0.844888,
+      "welfare_ratio": 0.690187
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0065145,
+      "compliant_r": 0.106515,
+      "welfare_ratio": 0.013029
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0065145,
+      "compliant_r": 0.106515,
+      "welfare_ratio": 0.013029
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-19-A1000x4-e2",
+    "tier": "floor-sprint",
+    "date": "2025-08-19",
+    "stratum": "peak",
+    "p_mw": 1000,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 11,
+    "within_ns": 0.7368,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 617600.02,
+    "hindsight_minus_idle_usd": 842679.97,
+    "anchor_capture": 0.7328998488576636,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 617600.020361,
+      "capture": 0.7328998488576636,
+      "reward": 1.0,
+      "compliant": 0.6122299244288318,
+      "compliant_r": 0.74578,
+      "welfare_ratio": 0.49156
+     },
+     "price_taker": {
+      "profit": 617190.894249,
+      "capture": 0.7324143429383579,
+      "reward": 0.99947,
+      "compliant": 0.612081171469179,
+      "compliant_r": 0.745609,
+      "welfare_ratio": 0.491748
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-19-A1500x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-08-19",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 14,
+    "within_ns": 0.7368,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 333500.85,
+    "hindsight_minus_idle_usd": 1321506.06,
+    "anchor_capture": 0.25236422399540337,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 333500.852258,
+      "capture": 0.25236422399540337,
+      "reward": 1.0,
+      "compliant": 0.3644056119977017,
+      "compliant_r": 0.738224,
+      "welfare_ratio": 0.476447
+     },
+     "price_taker": {
+      "profit": 332657.633167,
+      "capture": 0.2517261496693033,
+      "reward": 0.997977,
+      "compliant": 0.3664090748346517,
+      "compliant_r": 0.739534,
+      "welfare_ratio": 0.481092
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-28-A400x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-08-28",
+    "stratum": "base",
+    "p_mw": 400,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.7619,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 58426.5,
+    "hindsight_minus_idle_usd": 151994.11,
+    "anchor_capture": 0.38439974804923394,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 58426.496297,
+      "capture": 0.38439974804923394,
+      "reward": 1.0,
+      "compliant": 0.291572374024617,
+      "compliant_r": 0.599372,
+      "welfare_ratio": 0.198745
+     },
+     "price_taker": {
+      "profit": 57647.096598,
+      "capture": 0.3792719196338129,
+      "reward": 0.989328,
+      "compliant": 0.28774045981690644,
+      "compliant_r": 0.592769,
+      "welfare_ratio": 0.196209
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -11395.217158,
+      "capture": -0.07497144073529567,
+      "reward": 0.043972,
+      "compliant": 0.0666825,
+      "compliant_r": 0.088669,
+      "welfare_ratio": 0.133365
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-11-A600x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-09-11",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 1.0,
+    "eta": 0.8,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.875,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 14608.91,
+    "hindsight_minus_idle_usd": 42678.2,
+    "anchor_capture": 0.34230377642827137,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 14608.909661,
+      "capture": 0.34230377642827137,
+      "reward": 1.0,
+      "compliant": 0.27599938821413567,
+      "compliant_r": 0.604847,
+      "welfare_ratio": 0.209695
+     },
+     "price_taker": {
+      "profit": 13523.331359,
+      "capture": 0.3168674118393925,
+      "reward": 0.940553,
+      "compliant": 0.2563142059196962,
+      "compliant_r": 0.568157,
+      "welfare_ratio": 0.195761
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-13-A1000x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-09-13",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.8333,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 45776.1,
+    "hindsight_minus_idle_usd": 165313.18,
+    "anchor_capture": 0.27690533393224703,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 45776.100737,
+      "capture": 0.27690533393224703,
+      "reward": 1.0,
+      "compliant": 0.3451141669661235,
+      "compliant_r": 0.706662,
+      "welfare_ratio": 0.413323
+     },
+     "price_taker": {
+      "profit": 46192.620756,
+      "capture": 0.27942491539711034,
+      "reward": 1.0,
+      "compliant": 0.34922845769855515,
+      "compliant_r": 0.709516,
+      "welfare_ratio": 0.419032
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -2479.560123,
+      "capture": -0.014999167967782572,
+      "reward": 0.156666,
+      "compliant": 0.0613235,
+      "compliant_r": 0.139657,
+      "welfare_ratio": 0.122647
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-25-A800x4-e1",
+    "tier": "floor-sprint",
+    "date": "2025-09-25",
+    "stratum": "base",
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.7917,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 88186.09,
+    "hindsight_minus_idle_usd": 152419.14,
+    "anchor_capture": 0.5785762238706281,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 88186.091153,
+      "capture": 0.5785762238706281,
+      "reward": 1.0,
+      "compliant": 0.516689611935314,
+      "compliant_r": 0.727402,
+      "welfare_ratio": 0.454803
+     },
+     "price_taker": {
+      "profit": 87380.155865,
+      "capture": 0.5732885986961986,
+      "reward": 0.992689,
+      "compliant": 0.5127047993480993,
+      "compliant_r": 0.722405,
+      "welfare_ratio": 0.452121
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-14-A1000x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-10-14",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.8696,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 113550.79,
+    "hindsight_minus_idle_usd": 164832.98,
+    "anchor_capture": 0.6888839211613317,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 113550.789079,
+      "capture": 0.6888839211613317,
+      "reward": 1.0,
+      "compliant": 0.5421909605806658,
+      "compliant_r": 0.697749,
+      "welfare_ratio": 0.395498
+     },
+     "price_taker": {
+      "profit": 113525.216893,
+      "capture": 0.6887287811758923,
+      "reward": 0.99982,
+      "compliant": 0.5421303905879462,
+      "compliant_r": 0.697676,
+      "welfare_ratio": 0.395532
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -13732.364771,
+      "capture": -0.08331078424899946,
+      "reward": 0.103251,
+      "compliant": 0.07074,
+      "compliant_r": 0.122365,
+      "welfare_ratio": 0.14148
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-19-A1000x1-e1",
+    "tier": "floor-sprint",
+    "date": "2025-10-19",
+    "stratum": "base",
+    "p_mw": 1000,
+    "hours": 1.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.8333,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 13691.9,
+    "hindsight_minus_idle_usd": 98696.84,
+    "anchor_capture": 0.1387268616639882,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 13691.902886,
+      "capture": 0.1387268616639882,
+      "reward": 1.0,
+      "compliant": 0.1361889308319941,
+      "compliant_r": 0.566825,
+      "welfare_ratio": 0.133651
+     },
+     "price_taker": {
+      "profit": 14627.242626,
+      "capture": 0.14820375817721773,
+      "reward": 1.0,
+      "compliant": 0.14990837908860888,
+      "compliant_r": 0.575806,
+      "welfare_ratio": 0.151613
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-29-A1200x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-10-29",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": true,
+    "season": "fall",
+    "neg_hours": 1,
+    "anchor_minus_idle_usd": 69138.37,
+    "hindsight_minus_idle_usd": 170904.63,
+    "anchor_capture": 0.4045435767146938,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 69138.370591,
+      "capture": 0.4045435767146938,
+      "reward": 1.0,
+      "compliant": 0.4737597883573469,
+      "compliant_r": 0.771488,
+      "welfare_ratio": 0.542976
+     },
+     "price_taker": {
+      "profit": 69507.257986,
+      "capture": 0.40670201673725476,
+      "reward": 1.0,
+      "compliant": 0.47799950836862737,
+      "compliant_r": 0.774649,
+      "welfare_ratio": 0.549297
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-11-16-A1500x2-e2",
+    "tier": "floor-sprint",
+    "date": "2025-11-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.9048,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 228280.72,
+    "hindsight_minus_idle_usd": 403253.37,
+    "anchor_capture": 0.5660974955740101,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 228280.7201,
+      "capture": 0.5660974955740101,
+      "reward": 1.0,
+      "compliant": 0.511769247787005,
+      "compliant_r": 0.72872,
+      "welfare_ratio": 0.457441
+     },
+     "price_taker": {
+      "profit": 228211.217775,
+      "capture": 0.5659251415876471,
+      "reward": 0.999756,
+      "compliant": 0.5122535707938235,
+      "compliant_r": 0.729169,
+      "welfare_ratio": 0.458582
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "replay_A": {
+      "profit": -1740.789467,
+      "capture": -0.004316862839571514,
+      "reward": 0.193899,
+      "compliant": 0.0199305,
+      "compliant_r": 0.11688,
+      "welfare_ratio": 0.039861
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-11-16-A800x2-e1",
+    "tier": "floor-sprint",
+    "date": "2025-11-16",
+    "stratum": "peak",
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 3,
+    "within_ns": 0.9048,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 108681.42,
+    "hindsight_minus_idle_usd": 209019.95,
+    "anchor_capture": 0.5199571572840432,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0151185,
+      "compliant_r": 0.115119,
+      "welfare_ratio": 0.030237
+     },
+     "anchor": {
+      "profit": 108681.418688,
+      "capture": 0.5199571572840432,
+      "reward": 1.0,
+      "compliant": 0.4603560786420216,
+      "compliant_r": 0.700377,
+      "welfare_ratio": 0.400755
+     },
+     "price_taker": {
+      "profit": 108681.418688,
+      "capture": 0.5199571572840432,
+      "reward": 1.0,
+      "compliant": 0.4603560786420216,
+      "compliant_r": 0.700377,
+      "welfare_ratio": 0.400755
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0151185,
+      "compliant_r": 0.115119,
+      "welfare_ratio": 0.030237
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0151185,
+      "compliant_r": 0.115119,
+      "welfare_ratio": 0.030237
+     }
+    }
+   }
+  ],
+  "day": [
+   {
+    "task_id": "mkt-v5-2025-01-01-A400x4-e1",
+    "tier": "floor-day",
+    "date": "2025-01-01",
+    "stratum": "base",
+    "p_mw": 400,
+    "hours": 4.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 25791.53,
+    "hindsight_minus_idle_usd": 167507.27,
+    "anchor_capture": 0.15397260058669576,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.159752
+     },
+     "anchor": {
+      "profit": 25791.529697,
+      "capture": 0.15397260058669576,
+      "reward": 1.0,
+      "compliant": 0.2815428002933479,
+      "compliant_r": 0.704557,
+      "welfare_ratio": 0.409113
+     },
+     "price_taker": {
+      "profit": 26495.515306,
+      "capture": 0.15817531738041687,
+      "reward": 1.0,
+      "compliant": 0.28361265869020846,
+      "compliant_r": 0.704525,
+      "welfare_ratio": 0.40905
+     },
+     "max_withhold": {
+      "profit": 73919.8,
+      "capture": 0.4412930901951237,
+      "reward": 1.0,
+      "compliant": 0.44932354509756184,
+      "compliant_r": 0.728677,
+      "welfare_ratio": 0.457354
+     },
+     "replay_A": {
+      "profit": 73919.8,
+      "capture": 0.4412930901951237,
+      "reward": 1.0,
+      "compliant": 0.44932354509756184,
+      "compliant_r": 0.728677,
+      "welfare_ratio": 0.457354
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-03-24-A1500x2-e2",
+    "tier": "floor-day",
+    "date": "2025-03-24",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 11,
+    "within_ns": 0.9091,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 508399.9,
+    "hindsight_minus_idle_usd": 1067504.07,
+    "anchor_capture": 0.47625101638779466,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 508399.900674,
+      "capture": 0.47625101638779466,
+      "reward": 1.0,
+      "compliant": 0.5259400081938973,
+      "compliant_r": 0.787814,
+      "welfare_ratio": 0.575629
+     },
+     "price_taker": {
+      "profit": 429331.423178,
+      "capture": 0.4021824677476725,
+      "reward": 0.875581,
+      "compliant": 0.48890573387383623,
+      "compliant_r": 0.725605,
+      "welfare_ratio": 0.575629
+     },
+     "max_withhold": {
+      "profit": 438972.1875,
+      "capture": 0.41121359423101894,
+      "reward": 0.890751,
+      "compliant": 0.49628329711550945,
+      "compliant_r": 0.736052,
+      "welfare_ratio": 0.581353
+     },
+     "replay_A": {
+      "profit": 438302.73202,
+      "capture": 0.41058647205346993,
+      "reward": 0.889698,
+      "compliant": 0.495969736026735,
+      "compliant_r": 0.735526,
+      "welfare_ratio": 0.581353
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-04-20-A1500x2-e1",
+    "tier": "floor-day",
+    "date": "2025-04-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 8.0,
+    "impact_hours": 3,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.7143,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 495924.18,
+    "hindsight_minus_idle_usd": 1065753.87,
+    "anchor_capture": 0.4653271181573326,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0287095,
+      "compliant_r": 0.12871,
+      "welfare_ratio": 0.057419
+     },
+     "anchor": {
+      "profit": 495924.177128,
+      "capture": 0.4653271181573326,
+      "reward": 1.0,
+      "compliant": 0.6695395590786662,
+      "compliant_r": 0.936876,
+      "welfare_ratio": 0.873752
+     },
+     "price_taker": {
+      "profit": 501550.301762,
+      "capture": 0.47060612749600716,
+      "reward": 1.0,
+      "compliant": 0.6742675637480036,
+      "compliant_r": 0.938964,
+      "welfare_ratio": 0.877929
+     },
+     "max_withhold": {
+      "profit": 519477.75,
+      "capture": 0.4874275050558073,
+      "reward": 1.0,
+      "compliant": 0.6826782525279036,
+      "compliant_r": 0.938964,
+      "welfare_ratio": 0.877929
+     },
+     "replay_A": {
+      "profit": 519477.75,
+      "capture": 0.4874275050558073,
+      "reward": 1.0,
+      "compliant": 0.6826782525279036,
+      "compliant_r": 0.938964,
+      "welfare_ratio": 0.877929
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-05-20-A1500x2-e3",
+    "tier": "floor-day",
+    "date": "2025-05-20",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 0.0,
+    "impact_hours": 5,
+    "impact_hours_2usd": 10,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "spring",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 1447228.26,
+    "hindsight_minus_idle_usd": 2070392.11,
+    "anchor_capture": 0.6990116780612909,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 1447228.26055,
+      "capture": 0.6990116780612909,
+      "reward": 1.0,
+      "compliant": 0.6417278390306455,
+      "compliant_r": 0.792222,
+      "welfare_ratio": 0.584444
+     },
+     "price_taker": {
+      "profit": 1450198.902249,
+      "capture": 0.7004464988808814,
+      "reward": 1.0,
+      "compliant": 0.6431697494404407,
+      "compliant_r": 0.792946,
+      "welfare_ratio": 0.585893
+     },
+     "max_withhold": {
+      "profit": 468543.930744,
+      "capture": 0.22630685718528462,
+      "reward": 0.459002,
+      "compliant": 0.4053754285926423,
+      "compliant_r": 0.521723,
+      "welfare_ratio": 0.584444
+     },
+     "replay_A": {
+      "profit": 449014.5,
+      "capture": 0.21687413635743316,
+      "reward": 0.448207,
+      "compliant": 0.40065906817871655,
+      "compliant_r": 0.516325,
+      "welfare_ratio": 0.584444
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-06-28-A1500x4-e1",
+    "tier": "floor-day",
+    "date": "2025-06-28",
+    "stratum": "base",
+    "p_mw": 1500,
+    "hours": 4.0,
+    "eta": 0.8,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.7083,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 138460.4,
+    "hindsight_minus_idle_usd": 192562.94,
+    "anchor_capture": 0.7190397078270462,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 138460.399934,
+      "capture": 0.7190397078270462,
+      "reward": 1.0,
+      "compliant": 0.7807043539135231,
+      "compliant_r": 0.921185,
+      "welfare_ratio": 0.842369
+     },
+     "price_taker": {
+      "profit": 127307.675983,
+      "capture": 0.6611224161319097,
+      "reward": 0.935562,
+      "compliant": 0.7572607080659548,
+      "compliant_r": 0.894481,
+      "welfare_ratio": 0.853399
+     },
+     "max_withhold": {
+      "profit": 148162.6875,
+      "capture": 0.7694247278041375,
+      "reward": 1.0,
+      "compliant": 0.8058968639020687,
+      "compliant_r": 0.921185,
+      "welfare_ratio": 0.842369
+     },
+     "replay_A": {
+      "profit": 148162.6875,
+      "capture": 0.7694247278041375,
+      "reward": 1.0,
+      "compliant": 0.8058968639020687,
+      "compliant_r": 0.921185,
+      "welfare_ratio": 0.842369
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-07-30-A1200x2-e1",
+    "tier": "floor-day",
+    "date": "2025-07-30",
+    "stratum": "peak",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 986496.67,
+    "hindsight_minus_idle_usd": 1556048.39,
+    "anchor_capture": 0.6339755724550759,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0081035,
+      "compliant_r": 0.108104,
+      "welfare_ratio": 0.016207
+     },
+     "anchor": {
+      "profit": 986496.668638,
+      "capture": 0.6339755724550759,
+      "reward": 1.0,
+      "compliant": 0.6310217862275379,
+      "compliant_r": 0.814034,
+      "welfare_ratio": 0.628068
+     },
+     "price_taker": {
+      "profit": 1009531.174881,
+      "capture": 0.6487787793445505,
+      "reward": 1.0,
+      "compliant": 0.6383378896722753,
+      "compliant_r": 0.813948,
+      "welfare_ratio": 0.627897
+     },
+     "max_withhold": {
+      "profit": 459193.2,
+      "capture": 0.29510213373493416,
+      "reward": 0.572383,
+      "compliant": 0.463052066867467,
+      "compliant_r": 0.601692,
+      "welfare_ratio": 0.631002
+     },
+     "replay_A": {
+      "profit": 459193.2,
+      "capture": 0.29510213373493416,
+      "reward": 0.572383,
+      "compliant": 0.463052066867467,
+      "compliant_r": 0.601692,
+      "welfare_ratio": 0.631002
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-08-19-A1500x1-e1",
+    "tier": "floor-day",
+    "date": "2025-08-19",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.85,
+    "c_deg": 2.0,
+    "impact_hours": 6,
+    "impact_hours_2usd": 14,
+    "within_ns": 0.7368,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 294765.23,
+    "hindsight_minus_idle_usd": 1489191.8,
+    "anchor_capture": 0.19793637535596703,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 294765.227258,
+      "capture": 0.19793637535596703,
+      "reward": 1.0,
+      "compliant": 0.3387596876779835,
+      "compliant_r": 0.739791,
+      "welfare_ratio": 0.479583
+     },
+     "price_taker": {
+      "profit": 311485.133167,
+      "capture": 0.20916387869042102,
+      "reward": 1.0,
+      "compliant": 0.33467743934521055,
+      "compliant_r": 0.730096,
+      "welfare_ratio": 0.460191
+     },
+     "max_withhold": {
+      "profit": 98444.4375,
+      "capture": 0.06610594917850234,
+      "reward": 0.467181,
+      "compliant": 0.2736174745892512,
+      "compliant_r": 0.474155,
+      "welfare_ratio": 0.481129
+     },
+     "replay_A": {
+      "profit": 98444.4375,
+      "capture": 0.06610594917850234,
+      "reward": 0.467181,
+      "compliant": 0.2736174745892512,
+      "compliant_r": 0.474155,
+      "welfare_ratio": 0.481129
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-09-11-A600x1-e1",
+    "tier": "floor-day",
+    "date": "2025-09-11",
+    "stratum": "base",
+    "p_mw": 600,
+    "hours": 1.0,
+    "eta": 0.8,
+    "c_deg": 4.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.875,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 19510.08,
+    "hindsight_minus_idle_usd": 70339.41,
+    "anchor_capture": 0.27737061743328645,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 19510.084661,
+      "capture": 0.27737061743328645,
+      "reward": 1.0,
+      "compliant": 0.2503043087166432,
+      "compliant_r": 0.611619,
+      "welfare_ratio": 0.223238
+     },
+     "price_taker": {
+      "profit": 20756.856359,
+      "capture": 0.2950956986762133,
+      "reward": 1.0,
+      "compliant": 0.25916684933810663,
+      "compliant_r": 0.611619,
+      "welfare_ratio": 0.223238
+     },
+     "max_withhold": {
+      "profit": 26346.6,
+      "capture": 0.37456386459848706,
+      "reward": 1.0,
+      "compliant": 0.31101643229924353,
+      "compliant_r": 0.623734,
+      "welfare_ratio": 0.247469
+     },
+     "replay_A": {
+      "profit": 26346.6,
+      "capture": 0.37456386459848706,
+      "reward": 1.0,
+      "compliant": 0.31101643229924353,
+      "compliant_r": 0.623734,
+      "welfare_ratio": 0.247469
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-10-29-A1200x2-e1",
+    "tier": "floor-day",
+    "date": "2025-10-29",
+    "stratum": "base",
+    "p_mw": 1200,
+    "hours": 2.0,
+    "eta": 0.9,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 0,
+    "within_ns": 0.75,
+    "notice_day": true,
+    "season": "fall",
+    "neg_hours": 1,
+    "anchor_minus_idle_usd": 78575.24,
+    "hindsight_minus_idle_usd": 320714.7,
+    "anchor_capture": 0.2450004225451143,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 78575.237258,
+      "capture": 0.2450004225451143,
+      "reward": 1.0,
+      "compliant": 0.4395452112725572,
+      "compliant_r": 0.817045,
+      "welfare_ratio": 0.63409
+     },
+     "price_taker": {
+      "profit": 77279.874652,
+      "capture": 0.2409614352395198,
+      "reward": 0.986811,
+      "compliant": 0.4372722176197599,
+      "compliant_r": 0.810197,
+      "welfare_ratio": 0.633583
+     },
+     "max_withhold": {
+      "profit": 115122.9,
+      "capture": 0.3589573525818057,
+      "reward": 1.0,
+      "compliant": 0.48807867629090285,
+      "compliant_r": 0.8086,
+      "welfare_ratio": 0.6172
+     },
+     "replay_A": {
+      "profit": 115122.9,
+      "capture": 0.3589573525818057,
+      "reward": 1.0,
+      "compliant": 0.48807867629090285,
+      "compliant_r": 0.8086,
+      "welfare_ratio": 0.6172
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2025-11-16-A1500x2-e2",
+    "tier": "floor-day",
+    "date": "2025-11-16",
+    "stratum": "peak",
+    "p_mw": 1500,
+    "hours": 2.0,
+    "eta": 0.95,
+    "c_deg": 4.0,
+    "impact_hours": 4,
+    "impact_hours_2usd": 7,
+    "within_ns": 0.9048,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 258415.93,
+    "hindsight_minus_idle_usd": 438439.13,
+    "anchor_capture": 0.5893997790309085,
+    "in_v50_pilot": true,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": 0.0
+     },
+     "anchor": {
+      "profit": 258415.927336,
+      "capture": 0.5893997790309085,
+      "reward": 1.0,
+      "compliant": 0.5798098895154542,
+      "compliant_r": 0.78511,
+      "welfare_ratio": 0.57022
+     },
+     "price_taker": {
+      "profit": 258310.800011,
+      "capture": 0.5891600027030178,
+      "reward": 0.999675,
+      "compliant": 0.5796900013515089,
+      "compliant_r": 0.784947,
+      "welfare_ratio": 0.57022
+     },
+     "max_withhold": {
+      "profit": 159459.375,
+      "capture": 0.36369786242782276,
+      "reward": 0.693652,
+      "compliant": 0.46695893121391135,
+      "compliant_r": 0.631936,
+      "welfare_ratio": 0.57022
+     },
+     "replay_A": {
+      "profit": 167174.625006,
+      "capture": 0.38129494591870217,
+      "reward": 0.717537,
+      "compliant": 0.47575747295935106,
+      "compliant_r": 0.643879,
+      "welfare_ratio": 0.57022
+     }
+    }
+   }
+  ],
+  "showcase": [
+   {
+    "task_id": "mkt-v5-2024-08-20-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2024-08-20",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 1,
+    "impact_hours_2usd": 9,
+    "within_ns": 0.6667,
+    "notice_day": true,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 679869.1,
+    "hindsight_minus_idle_usd": 6981602.08,
+    "anchor_capture": 0.09738009857764254,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.079799
+     },
+     "anchor": {
+      "profit": 679869.098337,
+      "capture": 0.09738009857764254,
+      "reward": 1.0,
+      "compliant": 0.39326604928882125,
+      "compliant_r": 0.844576,
+      "welfare_ratio": 0.689152
+     },
+     "price_taker": {
+      "profit": 679869.098337,
+      "capture": 0.09738009857764254,
+      "reward": 1.0,
+      "compliant": 0.39326604928882125,
+      "compliant_r": 0.844576,
+      "welfare_ratio": 0.689152
+     },
+     "max_withhold": {
+      "profit": 3742697.4,
+      "capture": 0.536080022830553,
+      "reward": 1.0,
+      "compliant": 0.6128940114152766,
+      "compliant_r": 0.844854,
+      "welfare_ratio": 0.689708
+     },
+     "replay_A": {
+      "profit": 3742620.024648,
+      "capture": 0.536068940080324,
+      "reward": 1.0,
+      "compliant": 0.612888470040162,
+      "compliant_r": 0.844854,
+      "welfare_ratio": 0.689708
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2026-01-26-A800x2-e1",
+    "tier": "floor-day",
+    "date": "2026-01-26",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 2.0,
+    "eta": 0.85,
+    "c_deg": 4.0,
+    "impact_hours": 21,
+    "impact_hours_2usd": 21,
+    "within_ns": 0.0,
+    "notice_day": true,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 1376829.04,
+    "hindsight_minus_idle_usd": 9476593.32,
+    "anchor_capture": 0.1452873409506468,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.002213,
+      "compliant_r": 0.102213,
+      "welfare_ratio": 0.004426
+     },
+     "anchor": {
+      "profit": 1376829.044424,
+      "capture": 0.1452873409506468,
+      "reward": 1.0,
+      "compliant": 0.28692617047532337,
+      "compliant_r": 0.714282,
+      "welfare_ratio": 0.428565
+     },
+     "price_taker": {
+      "profit": 1306430.583628,
+      "capture": 0.13785867345013797,
+      "reward": 0.959095,
+      "compliant": 0.293980836725069,
+      "compliant_r": 0.704599,
+      "welfare_ratio": 0.450103
+     },
+     "max_withhold": {
+      "profit": 34677.7,
+      "capture": 0.003659300218635351,
+      "reward": 0.220149,
+      "compliant": 0.22727815010931768,
+      "compliant_r": 0.335523,
+      "welfare_ratio": 0.450897
+     },
+     "replay_A": {
+      "profit": 415731.099812,
+      "capture": 0.04386925616276646,
+      "reward": 0.441559,
+      "compliant": 0.24737512808138323,
+      "compliant_r": 0.44622,
+      "welfare_ratio": 0.450881
+     }
+    }
+   }
+  ],
+  "smoke-sprint": [
+   {
+    "task_id": "mkt-v5-2024-08-15-A1000x1-e1",
+    "tier": "floor-sprint",
+    "date": "2024-08-15",
+    "stratum": null,
+    "p_mw": 1000,
+    "hours": 1.0,
+    "eta": 0.9,
+    "c_deg": 4.0,
+    "impact_hours": 1,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.8636,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 116143.14,
+    "hindsight_minus_idle_usd": 258762.89,
+    "anchor_capture": 0.44884002228922004,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.00754
+     },
+     "anchor": {
+      "profit": 116143.142098,
+      "capture": 0.44884002228922004,
+      "reward": 1.0,
+      "compliant": 0.49040901114461,
+      "compliant_r": 0.765989,
+      "welfare_ratio": 0.531978
+     },
+     "price_taker": {
+      "profit": 90295.381796,
+      "capture": 0.34895027330785616,
+      "reward": 0.821959,
+      "compliant": 0.3834211366539281,
+      "compliant_r": 0.619926,
+      "welfare_ratio": 0.417892
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.00754
+     },
+     "replay_A": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.00754
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2024-10-04-A800x4-e1",
+    "tier": "floor-sprint",
+    "date": "2024-10-04",
+    "stratum": null,
+    "p_mw": 800,
+    "hours": 4.0,
+    "eta": 0.9,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.7391,
+    "notice_day": false,
+    "season": "fall",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 105257.92,
+    "hindsight_minus_idle_usd": 126372.51,
+    "anchor_capture": 0.8329178567641244,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.036036
+     },
+     "anchor": {
+      "profit": 105257.916714,
+      "capture": 0.8329178567641244,
+      "reward": 1.0,
+      "compliant": 0.7022709283820623,
+      "compliant_r": 0.785812,
+      "welfare_ratio": 0.571624
+     },
+     "price_taker": {
+      "profit": 105257.916714,
+      "capture": 0.8329178567641244,
+      "reward": 1.0,
+      "compliant": 0.7022709283820623,
+      "compliant_r": 0.785812,
+      "welfare_ratio": 0.571624
+     },
+     "max_withhold": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.036036
+     },
+     "replay_A": {
+      "profit": -9457.512772,
+      "capture": -0.074838373343236,
+      "reward": 0.128119,
+      "compliant": 0.0601765,
+      "compliant_r": 0.124236,
+      "welfare_ratio": 0.120353
+     }
+    }
+   }
+  ],
+  "smoke-day": [
+   {
+    "task_id": "mkt-v5-2024-12-22-A1500x1-e1",
+    "tier": "floor-day",
+    "date": "2024-12-22",
+    "stratum": null,
+    "p_mw": 1500,
+    "hours": 1.0,
+    "eta": 0.95,
+    "c_deg": 0.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 2,
+    "within_ns": 0.75,
+    "notice_day": false,
+    "season": "winter",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 43572.33,
+    "hindsight_minus_idle_usd": 172585.44,
+    "anchor_capture": 0.25246813998875745,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.08826
+     },
+     "anchor": {
+      "profit": 43572.326106,
+      "capture": 0.25246813998875745,
+      "reward": 1.0,
+      "compliant": 0.44615856999437875,
+      "compliant_r": 0.819924,
+      "welfare_ratio": 0.639849
+     },
+     "price_taker": {
+      "profit": 45823.297737,
+      "capture": 0.265510790488148,
+      "reward": 1.0,
+      "compliant": 0.460592895244074,
+      "compliant_r": 0.827838,
+      "welfare_ratio": 0.655675
+     },
+     "max_withhold": {
+      "profit": 38197.875,
+      "capture": 0.22132732664564111,
+      "reward": 0.901324,
+      "compliant": 0.4429391633228206,
+      "compliant_r": 0.782938,
+      "welfare_ratio": 0.664551
+     },
+     "replay_A": {
+      "profit": 40045.541601,
+      "capture": 0.23203313447740578,
+      "reward": 0.935247,
+      "compliant": 0.4482920672387029,
+      "compliant_r": 0.799899,
+      "welfare_ratio": 0.664551
+     }
+    }
+   },
+   {
+    "task_id": "mkt-v5-2024-09-11-A1000x4-e3",
+    "tier": "floor-day",
+    "date": "2024-09-11",
+    "stratum": null,
+    "p_mw": 1000,
+    "hours": 4.0,
+    "eta": 0.9,
+    "c_deg": 8.0,
+    "impact_hours": 0,
+    "impact_hours_2usd": 1,
+    "within_ns": 0.875,
+    "notice_day": false,
+    "season": "summer",
+    "neg_hours": 0,
+    "anchor_minus_idle_usd": 56371.71,
+    "hindsight_minus_idle_usd": 135071.62,
+    "anchor_capture": 0.417346778143147,
+    "in_v50_pilot": false,
+    "baselines": {
+     "idle": {
+      "profit": 0.0,
+      "capture": 0.0,
+      "reward": 0.2,
+      "compliant": 0.0,
+      "compliant_r": 0.1,
+      "welfare_ratio": -0.059821
+     },
+     "anchor": {
+      "profit": 56371.705277,
+      "capture": 0.417346778143147,
+      "reward": 1.0,
+      "compliant": 0.5349558890715735,
+      "compliant_r": 0.826283,
+      "welfare_ratio": 0.652565
+     },
+     "price_taker": {
+      "profit": 64551.819413,
+      "capture": 0.47790808745120017,
+      "reward": 1.0,
+      "compliant": 0.5652365437256001,
+      "compliant_r": 0.826283,
+      "welfare_ratio": 0.652565
+     },
+     "max_withhold": {
+      "profit": 8129.25,
+      "capture": 0.06018473770749005,
+      "reward": 0.315366,
+      "compliant": 0.357061868853745,
+      "compliant_r": 0.484653,
+      "welfare_ratio": 0.653939
+     },
+     "replay_A": {
+      "profit": 8129.25,
+      "capture": 0.06018473770749005,
+      "reward": 0.315366,
+      "compliant": 0.357061868853745,
+      "compliant_r": 0.484653,
+      "welfare_ratio": 0.653939
+     }
+    }
+   }
+  ]
+ }
+}
