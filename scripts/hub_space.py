@@ -293,7 +293,8 @@ def write_views(views: dict, entries: list[dict], out: Path, thumbs: bool) -> di
         training[kind] = {"url": f"runs/{kind}.json", "task_id": m["task_id"]} | (
             {"model": m["model"], "gain": m["gain"], "note": m["note"], "frames": len(m["frames"]),
              "overall": overall(m.get("context") or {}), "reading": (m.get("context") or {}).get("reading")}
-            if kind == "levelup" else {"lanes": [x["label"] for x in m["lanes"]]})
+            if kind == "levelup" else {"lanes": [x["label"] for x in m["lanes"]]} | (
+                {"verdict": m["verdict"]} if m.get("verdict") else {}))
         if thumbs:
             e = next(e for e in entries if e["id"] == refs[0])
             thumb = out / "thumbs" / f"{kind}.jpg"
@@ -1077,7 +1078,7 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
                                else ": valid plans, not yet the simple rules.") if lu.get("overall") else ""))
         if rc := training.get("race"):
             lines.append(f"- [The race]({APP}/index.html?race=runs/race.json): {', '.join(rc['lanes'])} on the same "
-                         f"day ({rc['task_id']}).")
+                         f"day ({rc['task_id']})." + (f" {rc['verdict']}" if rc.get("verdict") else ""))
         text = text.replace("\n## Links\n", "\n".join(lines) + "\n\n## Links\n")
     return text
 

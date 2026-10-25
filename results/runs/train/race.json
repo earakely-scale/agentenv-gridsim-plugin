@@ -45,12 +45,14 @@
    "label": "Qwen3-1.7B SFT warm start"
   },
   {
-   "episode_id": "0f2c18b49963c9e7",
-   "label": "Qwen3-1.7B arm 2c (exploratory continuation)"
+   "episode_id": "0b7fe7999ef7a95c",
+   "label": "Qwen3-4B, registered run"
   },
   {
    "episode_id": "dam-v1-2025-01-14-LZ_HOUSTON-4h-x-c8edwupn",
    "label": "GPT-6.1 Sol"
   }
- ]
+ ],
+ "verdict": "Qwen3-4B, registered run: 0.804 [0.773, 0.834] sampled over all 200 held-out days, 0.808 with greedy decoding. Its primary bar, beating the greedy rule's 0.764 [0.726, 0.800] with the 95% intervals apart, is not met: they overlap by 0.027; its secondary, the paired gap +0.040 [-0.002, +0.082] above 0, is not met: it missed both bars, narrowly. It is the first pre-registered training claim on GridSimEnv; the 1.7B arms were exploratory. It is +0.084 [+0.052, +0.118] above the 1.7B arm 2c on the same days.",
+ "context_model": "Qwen/Qwen3-1.7B"
 }

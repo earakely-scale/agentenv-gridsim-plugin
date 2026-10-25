@@ -39,6 +39,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--label", default="chosen by hand", help="How --day was chosen, the views' label for it.")
     p.add_argument("--decoding", choices=("sampled", "greedy"), default="sampled",
                    help="One decoding for every frame and lane; the checkpoints were evaluated sampled.")
+    p.add_argument("--race-trained", type=Path,
+                   help="A registered run's folder (its episodes and summary.json with the bars): its final model on "
+                        "the day takes the race's trained lane, and the race states the run's registered verdict.")
+    p.add_argument("--race-label", default="registered run", help="What the race calls --race-trained's model.")
     args = p.parse_args(argv)
     first: dict[tuple, dict] = {}
     arm: dict[str, str | None] = {}
@@ -77,7 +81,9 @@ def main(argv: list[str] | None = None) -> int:
         by_step.setdefault(e["checkpoint_step"] if e["checkpoint_step"] is not None else 10**9, []).append(e)
     frames += [pick(by_step[s]) for s in sorted(by_step)]
     final = final_of(d["grpo"])
-    lanes = [x for x in (pick(d["base"]), pick(d["sft"]), final) if x]
+    raced, verdict = registered(args.race_trained, tid, args.decoding, args.race_label) if args.race_trained \
+        else (final, None)
+    lanes = [x for x in (pick(d["base"]), pick(d["sft"]), raced) if x]
     if sol := sol_run(tid):
         lanes.append(sol)
     args.out.mkdir(parents=True, exist_ok=True)
@@ -98,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
                            "reward": e.get("reward"), "arm": arm.get(e["episode_id"])} for e in frames]}
     race = {"schema": "gridsim.race/v1", "task_id": tid, "context": levelup["context"],
             "lanes": [{"episode_id": e["episode_id"], "label": label(e, arm.get(e["episode_id"]))}
-                      for e in lanes[-4:]]}
+                      for e in lanes[-4:]]} | ({"verdict": verdict, "context_model": model} if verdict else {})
     (args.out / "levelup.json").write_text(json.dumps(levelup, indent=1))
     (args.out / "race.json").write_text(json.dumps(race, indent=1))
     print(f"day {tid}: {len(frames)} frames, rewards {[round(r(e), 3) for e in frames]}; race {race['lanes']}"
@@ -130,6 +136,40 @@ def context(summary: Path, eps: list[dict], arm: dict, decoding: str, trained: l
         acts = [e["final_schedule"][h] for e in trained if e.get("final_schedule") and e["final_schedule"][h]]
         out["opening"] = {"hour": h, "charge": all(a < 0 for a in acts), "share": [hits.count(h), len(trained)]}
     return out
+
+
+def registered(folder: Path, tid: str, decoding: str, name: str) -> tuple[dict, str]:
+    """The registered run's final model on the day (its final eval's episode, else its last checkpoint's) and its
+    verdict from summary.json's bars: the sampled mean against the greedy rule, the paired gap, and the bars met or
+    not."""
+    eps = [e for f in sorted(folder.rglob("*.json*")) for e in read(f)
+           if e["task_id"] == tid and e["trained"] == "grpo"]
+    eps = [e for e in eps if (e.get("seed") is not None) == (decoding == "sampled")] or eps
+    final = final_of(eps)
+    if final is None:
+        raise SystemExit(f"{folder} has no trained episode on {tid}")
+    s = json.loads((folder / "summary.json").read_text())
+    b, g = s["bars"]["sampled"], s["bars"].get("greedy") or {}
+    rule = next(x for x in s["rows"] if x["model"] == "rule:greedy")
+    gap, (lo, hi) = b["paired_minus_greedy"], b["ci95"]
+    over = round(b["greedy_rule_ci95"][1] - lo, 3)
+    met = [k for k in ("primary", "secondary") if b[f"{k}_met"]]
+    model = s["model"].split("/")[-1]
+    text = (f"{model}, {name}: {b['reward_mean']:.3f} [{lo:.3f}, {hi:.3f}] sampled over all {s['n_tasks']} held-out "
+            f"days" + (f", {g['reward_mean']:.3f} with greedy decoding" if g else "") + ". Its primary bar, beating "
+            f"the greedy rule's {rule['reward_mean']:.3f} [{rule['ci95'][0]:.3f}, {rule['ci95'][1]:.3f}] with the 95% "
+            "intervals apart, " + ("is met" if b["primary_met"] else f"is not met: they overlap by {over:.3f}")
+            + f"; its secondary, the paired gap {gap['mean']:+.3f} [{gap['ci95'][0]:+.3f}, {gap['ci95'][1]:+.3f}] "
+            "above 0, " + ("is met" if b["secondary_met"] else "is not met")
+            + ("" if met else ": it missed both bars" + (", narrowly" if over <= 0.03 and gap["ci95"][0] > -0.01
+                                                         else "")) + ". It is the first pre-registered training "
+            "claim on GridSimEnv; the 1.7B arms were exploratory.")
+    vs = next(((k, v) for k, v in s.get("paired", {}).items() if k.startswith(f"trained_{decoding}_minus_arm")), None)
+    if vs:
+        arm, _, size = vs[0].removeprefix(f"trained_{decoding}_minus_").partition("_")
+        text += (f" It is {vs[1]['mean']:+.3f} [{vs[1]['ci95'][0]:+.3f}, {vs[1]['ci95'][1]:+.3f}] above the "
+                 f"{size.upper()} {arm[:3]} {arm[3:]} on the same days.")
+    return final | {"model_label": f"{model}, {name}"}, text
 
 
 def mean(eps: list[dict]) -> float:
