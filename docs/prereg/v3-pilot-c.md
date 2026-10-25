@@ -208,3 +208,17 @@ energy column overall and by PV/POI class; each display day as one line.
 - **Display days:** C, the anchor's C, Δ, R and the baselines, printed and never pooled.
 
 ## Deviations
+
+Run as registered, with one consequence of the cap rule to note. Smoke: 3 of 3 scored at the first attempt (reserves
+deployment day R 0.859, $0.214; reserves quiet day R 0.980, $0.204; energy day R 1.0, $0.049): s $0.4666, m $0.2038,
+projection $8.01, so E = $0.82 and B = $14.5334, giving `--cap-usd` 8.72 (reserves), 2.18 (energy) and 3.63
+(display); the three ran at the same time.
+- The energy sweep ran two attempts at a time, not three: at E = $0.82 its $2.18 cap admits at most two attempts in
+  flight (the sweep's registered admission rule). It finished all 10 days.
+- All 30 reserves, 10 energy and 2 display runs scored at their first attempt: no infrastructure retry, no run at its
+  cap, so no amendment sweep and no amended set.
+- No code changed after this file was committed; nothing was rerun.
+
+Spend $6.31 of $15 (smoke $0.47, reserves $4.79, energy $0.71, display $0.35). All 45 Episode JSON (the smoke's 3
+included) replay byte for byte on a fresh Session, audits ok. Results: `results/board-v3c.md` (Pilot under rules 3.2
+and Reading), `results/pilot-v3c.json`, `results/eval-v3c.json`.
