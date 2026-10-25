@@ -18,11 +18,10 @@ const cum = (xs) => xs.reduce((acc, x) => (acc.push((acc.at(-1) ?? 0) + x), acc)
 const ease = (u) => u * u * (3 - 2 * u);
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
-/** Minutes from d1 00:00 of a "YYYY-MM-DD HH:MM" label. */
+/** Minutes from d1 00:00 of a CPT time, "YYYY-MM-DDTHH:MM-06:00" (rules 4.1) or "YYYY-MM-DD HH:MM" (4.0). */
 export function minuteOf(label, d1) {
-  const [d, hm] = label.split(" ");
-  const [h, m] = hm.split(":").map(Number);
-  return Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${d1}T00:00:00Z`)) / 60000) + h * 60 + m;
+  const [, d, h, m] = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/.exec(label);
+  return Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${d1}T00:00:00Z`)) / 60000) + Number(h) * 60 + Number(m);
 }
 
 /** The DAM gate (10:00 the day before) and the results (13:30, read at the 14:00 watch) of day k, in minutes. */

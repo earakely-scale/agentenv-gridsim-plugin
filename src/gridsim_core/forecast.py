@@ -57,14 +57,14 @@ from gridsim_core.live import (
     Notice,
     Watch,
     WatchDay,
+    _day0,
     _dump,
-    label,
     parse_notice,
     utc,
 )
 from gridsim_core.task import REGIONS, point_kind
 
-FORECAST_VERSION = "4.0"
+FORECAST_VERSION = "4.1"
 FORECAST_ENV = "gridsim-forecast"
 EPISODE_SCHEMA = "gridsim.episode/v4"
 TIERS = ("front-lite", "front", "blind", "freeze-6h")
@@ -90,7 +90,8 @@ SOLVER = 2
 TIE_EPS = 1e-4
 ANCHOR_MODE = {"front-lite": "p50", "front": "p50", "blind": "persist", "freeze-6h": "p50"}
 CASH_KEYS = ("energy_da", "energy_rt", "as_da", "deployment_energy", "degradation", "ftp", "excused", "end_penalty")
-_STAMP = re.compile(r"^\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::00)?\s*$")
+_STAMP = re.compile(r"^\s*(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::00(?:\.0+)?)?\s*(Z|[+-]\d{2}:?\d{2})?\s*$", re.I)
+KEEP = "keep"
 _INT = re.compile(r"^\s*-?\d+\s*$")
 
 
@@ -113,16 +114,40 @@ def freeze_line(minute: float, tier: str = "front") -> int:
     return int(ceil_to_interval(minute, 60)) + FREEZE_MIN.get(tier, 60)
 
 
+def stamp(minute: float, d1: str) -> str:
+    """The CPT time of a minute from d1 00:00 as ISO 8601 with its UTC offset, e.g. 2025-01-28T10:00-06:00."""
+    return (_day0(d1) + dt.timedelta(minutes=minute)).replace(tzinfo=live.TZ).isoformat(timespec="minutes")
+
+
 def to_minute(s: str, d1: str) -> int | None:
-    """Minutes from d1 00:00 of a "YYYY-MM-DD HH:MM" CPT stamp (24:00 is the next day's 00:00)."""
+    """Minutes from d1 00:00 of a time: "YYYY-MM-DD HH:MM" or ISO 8601, read as CPT without an offset (24:00 is the
+    next day's 00:00) and converted to CPT with one (Z or +-HH:MM)."""
     m = _STAMP.match(str(s))
     if not m:
         return None
-    hh, mm = int(m.group(2)), int(m.group(3))
-    if hh > 24 or mm > 59 or (hh == 24 and mm):
+    hh, mm, tz = int(m.group(2)), int(m.group(3)), m.group(4)
+    if hh > 24 or mm > 59 or (hh == 24 and (mm or tz)):
         return None
     day = dt.date.fromisoformat(m.group(1))
-    return int((day - dt.date.fromisoformat(d1)).days * 1440 + hh * 60 + mm)
+    if tz is None:
+        return int((day - dt.date.fromisoformat(d1)).days * 1440 + hh * 60 + mm)
+    off = dt.UTC if tz.upper() == "Z" else dt.timezone(
+        (-1 if tz[0] == "-" else 1) * dt.timedelta(hours=int(tz[1:3]), minutes=int(tz[-2:])))
+    t = dt.datetime.combine(day, dt.time(hh, mm), off).astimezone(live.TZ).replace(tzinfo=None)
+    return int((t - _day0(d1)).total_seconds() // 60)
+
+
+def kept(plan):
+    """The plan without its AS fields sent as "keep" or null: both mean unchanged, as a field left out."""
+    if isinstance(plan, str):
+        try:
+            plan = json.loads(plan)
+        except json.JSONDecodeError:
+            return plan
+    if not isinstance(plan, dict):
+        return plan
+    return {f: v for f, v in plan.items()
+            if not (f in PRODUCTS and (v is None or isinstance(v, str) and v.strip().lower() == KEEP))}
 
 
 # the window's arrays, site and events
@@ -201,7 +226,8 @@ def keep_hint(e: PlanError) -> PlanError:
     if e.field == "energy":
         return PlanError(e.field, f"{e}; energy is always sent: to keep an hour as booked, send its booked MW")
     if e.field in PRODUCTS:
-        return PlanError(e.field, f"{e}; to keep {NAMES[e.field]} as it is, leave {e.field} out of the plan")
+        return PlanError(e.field, f"{e}; to keep {NAMES[e.field]} as it is, leave {e.field} out of the plan (or send "
+                                  f"\"{KEEP}\")")
     return e
 
 
@@ -303,7 +329,7 @@ def schedule(task: dict, tier: str = "front", notices=None, deployments=None, vi
         m = next((t for t in times if t >= x.reveal), None)
         if m is not None:
             slots[m].append(x)
-    watches = [Watch(k, m, label(m, d1), utc(m, d1), freeze_line(m, tier), tuple(slots[m]))
+    watches = [Watch(k, m, stamp(m, d1), utc(m, d1), freeze_line(m, tier), tuple(slots[m]))
                for k, m in enumerate(times)]
     return watches, ["fixed" if m in fixed else "event" for m in times]
 
@@ -437,7 +463,10 @@ class Session(WatchDay):
         return "".join("S" if h < self.settled else "F" if h < fo else "O" for h in range(self.H))
 
     def clock(self, minute: float) -> str:
-        return label(minute, self.d1)
+        return stamp(minute, self.d1)
+
+    def _when(self) -> str:
+        return f'a time like "{self.clock(600)}" (CPT without an offset)'
 
     def entry(self, h: int, book: dict | None = None) -> tuple[float, dict]:
         book = self.book if book is None else book
@@ -798,10 +827,10 @@ class Session(WatchDay):
         if isinstance(hours, bool) or not isinstance(hours, int) or not 1 <= hours <= 72:
             return self._forecast_err("hours must be an integer 1..72")
         cutoff = self.minute
-        if issued_at is not None:
+        if issued_at is not None and str(issued_at).strip():
             m = to_minute(str(issued_at), self.d1)
             if m is None:
-                return self._forecast_err('issued_at must be "YYYY-MM-DD HH:MM"')
+                return self._forecast_err(f"issued_at must be {self._when()}, or blank for the latest")
             if m > self.minute:
                 return self._forecast_err(f"issued_at is after now ({self.clock(self.minute)}): forecasts are "
                                           "served as issued")
@@ -899,7 +928,7 @@ class Session(WatchDay):
             return self._forecast_err(f"kind must be one of {', '.join(DRIFT_KINDS)}")
         h = self._hour_arg(target_hour)
         if h is None or not 0 <= h < self.H:
-            return self._forecast_err(f"target_hour must be a window hour 0..{self.H - 1} or \"YYYY-MM-DD HH:MM\"")
+            return self._forecast_err(f"target_hour must be a window hour 0..{self.H - 1} or {self._when()}")
         sk = self._key(kind, zone)
         if isinstance(sk, str):
             return self._forecast_err(sk)
@@ -969,11 +998,12 @@ class Session(WatchDay):
                 plan = json.loads(plan)
             except json.JSONDecodeError:
                 raise PlanError("plan", "plan: not a JSON object") from None
+        plan = kept(plan)
         if isinstance(plan, dict) and set(plan) & set(PRODUCTS):
             raise PlanError("plan", "plan: AS are set by submit_dam at the DAM gate; this tool takes energy only")
         fh = self._hour_arg(self.first_open if from_hour is None else from_hour)
         if fh is None:
-            raise PlanError("from_hour", f"from_hour must be a window hour 0..{self.H - 1} or \"YYYY-MM-DD HH:MM\"")
+            raise PlanError("from_hour", f"from_hour must be a window hour 0..{self.H - 1} or {self._when()}")
         try:
             fh, fields = parse_plan(plan, fh, self.H, ("energy",))
         except PlanError as e:
@@ -1061,7 +1091,7 @@ class Session(WatchDay):
         if isinstance(pv_da_share, bool) or not isinstance(pv_da_share, (int, float)) or not 0 <= pv_da_share <= 1:
             return {"error": "pv_da_share must be a number in 0..1", "submits_left": self.submits_left}
         try:
-            _, fields = parse_plan(plan, 0, 24, FIELDS)
+            _, fields = parse_plan(kept(plan), 0, 24, FIELDS)
         except PlanError as e:
             e = keep_hint(e)
             self.refusals.append({"watch": self.watch, "call": self.calls, "refused": [e.row()]})
@@ -1196,7 +1226,7 @@ class Session(WatchDay):
                 peak, ph = max(vals)
                 pl = self.vint.previous(lr.v["kind"], "system", lr)
                 pp = Vintages.at(pl, "mw", ph) if pl is not None else None
-                parts.append(f"desk peak load {peak:,.0f} MW {self.clock(60 * ph)[5:]}"
+                parts.append(f"desk peak load {peak:,.0f} MW at {self.clock(60 * ph)}"
                              + (f" ({peak - pp:+,.0f})" if pp is not None else ""))
         if prev is not None:
             pairs = [(Vintages.at(r, "rt_p50", h), Vintages.at(prev, "rt_p50", h)) for h in range(fo, self.H)]

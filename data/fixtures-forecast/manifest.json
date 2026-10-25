@@ -1,6 +1,6 @@
 {
  "pack": "fixtures-forecast",
- "forecast_version": "4.0",
+ "forecast_version": "4.1",
  "tasks": 12,
  "dates": [
   "2021-06-14",
@@ -16,13 +16,13 @@
   "desk"
  ],
  "flags": {
-  "vintages": "synthetic, deterministic (fixtures)",
+  "vintages": "synthetic until the forecast store lands (V4-P12)",
   "site": "archetype",
   "pv_availability": "proxy, system-wide cf",
   "reg_drift": "seeded",
   "rt_as": "not modelled (V4-P6)"
  },
  "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
- "build_seconds": 46.0,
+ "build_seconds": 115.8,
  "build_command": "python scripts/build_forecast_pack.py --fixtures"
 }

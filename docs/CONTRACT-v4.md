@@ -105,6 +105,11 @@ Measured tonight (phase-1 probes, `$SP/gridsim/c4/out`):
 | V4-P18 | Pack filters | The plan's per-kW headrooms are miscalibrated on the real store: over 4,327 candidates the median P_hind - P_idle is $0.40/kW per window (train, `front-lite`, 48 h) and $0.81/kW (eval, `front`, 72 h), p90 $1.81 and $1.71, in line with ERCOT battery revenue of about $29-56/kW-yr; $3/kW kept 6.7%, 3.7% and 0% of train, eval and rtcb, $1/kW of P_roll headroom 5.6%, 9.8% and 2.1%. Instead: drop the lowest 15% of each split's candidates by hindsight headroom per kW (v1's low-spread rule); require P_roll - P_idle >= max($0.10/kW, 5% of P_hind - P_idle) so the reward's denominator is well defined; keep P_hind - P_roll >= 8% (forecasts cost something) and P_roll - P_blind >= 5% (forecasts are worth reading) |
 | V4-P19 | Front label | A front is a synoptic change, not the diurnal cycle: the plan's "drops >= 15 F within 12 h" marked all 4,327 candidates `front` (the West Texas points swing 25-30 F a day). `front` when, at any weather-zone point inside the window, the stitched HRRR near-analysis 2 m temperature is >= 15 F below the same hour 24 h earlier, or an NWS winter storm, hard freeze, excessive heat or high wind product (WS, HZ, EH, XH, HW; W or A) is in force; else `calm` |
 | V4-P20 | Reference reproducibility | HiGHS breaks MILP ties by platform (8 of 48 macOS-built fixture refs did not reproduce on Linux arm64/amd64). Each tier's refs store the anchor's own decisions, `anchor_calls` = [{watch, tool, args}] (its commits and DAM submits); `anchor_policy` replays them through the Session whenever the row's refs hold (same events, vintages and source), so P_anchor reproduces to the cent on every platform (the Session is plain float arithmetic). New builds also re-solve with `solver: 2`: a tie-break of $1e-4/MW x (1 + t/1000) on battery moves and (x (1 + i/100) per product) on free awards, so re-solves agree wherever the optimum is unique. Rows without `anchor_calls` (the current eval, rtcb and showcase packs) keep solver 1 and re-solve as before: their stored P_anchor and reward scale are unchanged |
+| V4-P21 | Train draw (Edgar) | Up to 3 settlement points per d1 per label (front/calm) in `train` (`eval` and `rtcb` keep one), with the builder's targets of 60% front and 40% calm of ~1,500: 1,883 windows pass V4-P18/P19 (1,361 front, 522 calm) and the draw takes 1,290, 900 front and 390 calm (70/30). Calm binds: only 390 calm windows fit at 3 a day (212 calm days). A strict 60/40 would be 975 (585/390); every window that fits at 3 a day, 1,331 (941/390) |
+| V4-P22 | Packs rebuilt with stored anchor calls (Edgar) | Every pack (`train`, `eval`, `rtcb`, `showcase`, fixtures) is rebuilt on store cb47cd9f with solver 2 and each tier's `anchor_calls` (V4-P20), so its references replay on any platform: the anchor's stored calls reproduce P_anchor to the cent with R = 1.0 and a clean audit on macOS arm64, Linux arm64 and Linux amd64 (Docker): `eval`, `rtcb`, `showcase` and fixtures at all four tiers, 384 of 384 on each; `train`'s 1,290 `front-lite` rows on macOS and Linux arm64 (pyarrow crashes under amd64 emulation, so the store-backed rows are not checked there); `test_anchor_reproduces_stored_reference` (fixtures and showcase) passes on linux/amd64. On the windows both builds share, solver 2 moved P_anchor by a median of 0 (−2.1% to +1.2% of P_hind − P_idle); 57 of the 60 `eval` windows are the 4.0 pack's |
+| V4-P23 | Forecast-tool friction (Edgar; the rules-4.0 pilot's misuse) | (a) A blank or null `issued_at` in `get_forecast` is the latest vintage at or before now, as one left out. (b) Every time the env shows is ISO 8601 CPT with its UTC offset (`2025-01-28T10:00-06:00`; watches, notices, alerts, forecasts, refusals, headlines, Episode JSON); a time the agent passes with an offset or `Z` is converted to CPT, one without is read as CPT, and a time after now is still refused. (c) `front-lite`'s card, its `submit_dam` description and schema are energy-only: no reserves, AS, MCPC or `pv_da_share`. A refused forecast call still uses one of the watch's 6 (V4-P14 unchanged) |
+| V4-P24 | Keep fields (Edgar) | As v3: an AS field of a `submit_dam` plan (or of a `check_schedule`/`commit_schedule` plan) sent as `"keep"` or null is unchanged, as one left out; the parse error, the card and the schema say to leave the field out or send `"keep"`. Energy is always sent |
+| V4-P25 | Rules version | `FORECAST_VERSION = "4.1"` for V4-P21..P24. The GPT-6.1 Sol pilot at v4-preview befeefe (`results/runs/v4-pilot-sol*`, `results/board-v4.md`, `results/pilot-v4.json`) is the rules-4.0 pilot and stays on record: its episodes replay only at befeefe (4.0 time labels, `issued_at: ""` refused, the 4.0 packs) and are not re-graded; a new pilot on 4.1 supersedes it |
 
 ## ERCOT vintages in the API era (V4-P17)
 
@@ -146,7 +151,8 @@ into the same store, beside the desk, HRRR and EIA kinds, with the same issued_a
 
 - Times are CPT. A window is d1..d(n) with n = 3 (`front`, `blind`, `freeze-6h`) or 2 (`front-lite`). Core counts
   **minutes from d1 00:00**: the clock opens at d1-1 10:00 (minute -840) and the window ends at 1440 n. Window hour h =
-  0..24n-1 covers [60h, 60h + 60); day index k = h // 24; agent-facing times are `"YYYY-MM-DD HH:MM"`.
+  0..24n-1 covers [60h, 60h + 60); day index k = h // 24; agent-facing times are ISO 8601 CPT with the UTC offset,
+  `"2026-01-24T10:00-06:00"` (V4-P23; rules 4.0 showed `"YYYY-MM-DD HH:MM"`).
 - The plant is handed over at d1 00:00 with SoC s0: nothing executes or settles before minute 0.
 - **Freeze**: `freeze_line(m) = ceil_to_hour(m) + 60` (`freeze-6h`: + 360). Hour h is *settled* when it has ended,
   *frozen* when it starts before the freeze line, *open* otherwise. `frozen_until_hour` = the first open hour.
@@ -239,7 +245,7 @@ references(task, tiers=TIERS) -> refs dict        # never shown to the agent
 slice_for(task, store=None) -> the window's vintages (inline rows return their own; train rows read the store)
 ```
 
-`FORECAST_VERSION = "4.0"`, `FORECAST_ENV = "gridsim-forecast"`, `EPISODE_SCHEMA = "gridsim.episode/v4"`,
+`FORECAST_VERSION = "4.1"` (V4-P25), `FORECAST_ENV = "gridsim-forecast"`, `EPISODE_SCHEMA = "gridsim.episode/v4"`,
 `TIERS = ("front-lite", "front", "blind", "freeze-6h")`, `TOOLS = ("get_situation", "get_forecast",
 "get_forecast_drift", "check_schedule", "commit_schedule", "submit_dam", "advance")`, `NOTICE_TOOL = "grid_notice"`,
 `FORECAST_LOAD_URI = "urn:gridsim:forecast-load/v1"`, `END_WINDOW_URI = "urn:gridsim:end-window/v1"`,
@@ -249,16 +255,17 @@ slice_for(task, store=None) -> the window's vintages (inline rows return their o
 
 Errors return `{"error": "...", "calls_left": n}` (or `forecast_calls_left`, `submits_left`) and change nothing; as v2
 L-D7, a budgeted tool with a missing or unexpected argument uses its call; a call with none left, or after the window,
-uses none. Hours are window hours (0..24n-1) or `"YYYY-MM-DD HH:MM"` strings; money is rounded to cents, MW and MWh
+uses none. Hours are window hours (0..24n-1) or times: ISO 8601 or `"YYYY-MM-DD HH:MM"`, read as CPT without an
+offset and converted to CPT with one (`Z`, `+-HH:MM`) (V4-P23); money is rounded to cents, MW and MWh
 to 2 decimals, prices to cents, weather to 1 decimal.
 
 - `get_situation()` (free; answers after the window too):
 
 ```
 {"task_id","tier","era","settlement_point","zone","site_id","region",
- "window":{"days":["2026-01-24","2026-01-25","2026-01-26"],"open":"2026-01-23 10:00","end":"2026-01-26 24:00",
+ "window":{"days":["2026-01-24","2026-01-25","2026-01-26"],"open":"2026-01-23T10:00-06:00","end":"2026-01-27T00:00-06:00",
            "tz":"CST","hour_0":"2026-01-24 00:00"},
- "watch":k,"time":"2026-01-24 10:00","phase":"dam_gate|rt","frozen_until_hour":11,"calls_left":3,
+ "watch":k,"time":"2026-01-24T10:00-06:00","phase":"dam_gate|rt","frozen_until_hour":11,"calls_left":3,
  "forecast_calls_left":6,"window_over":false,
  "dam_gate":{"operating_day":"2026-01-25","submits_left":3,"submitted":bool}|null,
  "site":{v3's site fields,"cycle_cap_mwh" (pooled),"cycle_used_mwh"},
@@ -280,7 +287,8 @@ to 2 decimals, prices to cents, weather to 1 decimal.
   `wind`, `solar`, `weather`, `price`, `alerts`; `zone` a weather zone (`COAST`, `EAST`, `FAR_WEST`, `NORTH`,
   `NORTH_C`, `SOUTHERN`, `SOUTH_C`, `WEST`), `system`, `site` or a point id, defaulting to `system` (load, wind),
   `site` (solar, weather) and the settlement point (price); `hours` 1..72 from the next hour; `issued_at` picks the
-  latest vintage issued at or before it and **any issued_at after now is refused** (`"issued_at is after now"`).
+  latest vintage issued at or before it and **any issued_at after now is refused** (`"issued_at is after now"`); a
+  blank or null `issued_at` is the latest vintage at or before now, as one left out (V4-P23).
 
 ```
 load:    {"kind","zone","issued_at","source":"desk load model on HRRR 12Z","from","mw":[n],"prev_vintage_delta_mw":[n],
@@ -314,10 +322,12 @@ alerts:  {"kind","alerts":[{"event_id","source":"NWS","phenomena","significance"
   `{"committed":[hours],"refused":[{"hour","field","rule","detail"}],"frozen_until_hour","book":{"energy":[24n]},
   "projected":{...},"calls_left"}`.
 - `submit_dam(operating_day, plan, pv_da_share=1.0)` (a DAM submit; only at the gate for that day): `plan` is v3's
-  plan for the day's 24 hours (`energy` battery moves plus AS blocks for the offered and qualified products;
-  `front-lite`: energy only). Evaluated per hour per C3-D2 and C3-D5 on the projection from the projected SoC at the
-  day's start, with the AS duration table of the day's era. Accepted hours set the day's DAM entry and the book's
-  entries for that day; refused hours keep the previous DAM entry (none: idle, no AS). Replaceable until `advance`.
+  plan for the day's 24 hours (`energy` battery moves plus AS blocks for the offered and qualified products; an AS
+  field sent as `"keep"` or null is unchanged, as one left out (V4-P24); `front-lite`: energy only, and its card, tool
+  description and schema name no AS and no `pv_da_share` (V4-P23)). Evaluated per hour per C3-D2 and C3-D5 on the
+  projection from the projected SoC at the day's start, with the AS duration table of the day's era. Accepted hours
+  set the day's DAM entry and the book's entries for that day; refused hours keep the previous DAM entry (none: idle,
+  no AS). Replaceable until `advance`.
 
 ```
 {"accepted":[hours],"refused":[{"hour","field","rule","detail"}],"operating_day","x_da_mw":[24],"pv_da_mw":[24],
@@ -338,7 +348,7 @@ alerts:  {"kind","alerts":[{"event_id","source":"NWS","phenomena","significance"
 
   From the last watch it runs to the window end: `{"done":true,"time","realized","soc_mwh","cash","profit_usd",
   "reward","capture_vs_hindsight"}` (no `watch` key, so no trigger matches). Headlines are generated by core, e.g.
-  `"HRRR 12Z: desk peak load 84,120 MW Mon 08:00 (+3,210); site RT P50 +14%"`.
+  `"HRRR 12Z run; desk peak load 84,120 MW at 2026-01-26T08:00-06:00 (+3,210); site RT P50 +14%"`.
 - `get_time()` comes from the gateway (UTC).
 - Harness only (hidden from `default`): `grid_notice(event_id, name, text, level?, derate_mw?, from?, until?, deploy?)`
   as v3; `urn:gridsim:forecast-load/v1 {task_id, tier}` -> `{"task_id","tier","watches","days"}` (one load per env;
@@ -378,7 +388,8 @@ then submits the gated day, so the DAM plan is checked from the SoC its own comm
   "ftp_mwh_charged","ftp_mwh_excused","governor_hours","refusals","commits","dam_submits","forecast_calls"}`.
 - **Reference-solver test** (V4-P20): the anchor's stored calls, replayed through the Session (core) and through the
   env (`scripts/forecast_e2e.py --policy anchor`), reproduce R = 1.0 and the stored P_anchor to the cent; rows without
-  stored calls fall back to re-solving, which reproduces only on the platform that built them.
+  stored calls fall back to re-solving, which reproduces only on the platform that built them. Every pack row stores
+  its calls from rules 4.1 on (V4-P22).
 
 ## Audit (`s.audit()`; weight 0, a failure leaves the run unscored)
 
@@ -403,8 +414,8 @@ in a finished window, get_time reads, byte-identical replay, no RT price before 
 - **Filters** (V4-P18, on the tier the pack is for): P_hind - P_idle per kW of battery P at or above the split's 15th
   percentile over its candidates; P_roll - P_idle >= max($0.10/kW, 5% of P_hind - P_idle); P_hind - P_roll >= 8% of
   (P_hind - P_idle); P_roll - P_blind >= 5% of it. Candidates: 20,000 train, 1,200 eval, 400 rtcb draws (before
-  V4-P9's drops), at most one window per d1 and label in the draw.
-- **Packs**: `ercot-front-v4-train` (~1,500, 2021-03..2024-12, ~60/40 front/calm, `front-lite` refs + P_hind),
+  V4-P9's drops), at most one window per d1 and label in the eval and rtcb draws and three in train's (V4-P21).
+- **Packs**: `ercot-front-v4-train` (1,290, 2021-03..2024-12, 900 front / 390 calm (V4-P21), `front-lite` refs + P_hind),
   `ercot-front-v4-eval` (60: 40 front, 20 calm, 2025-01..2025-11; all tiers), `ercot-front-v4-rtcb` (20, 2025-12-05..
   2026-09-28, Fern +-3 days out; all tiers; flagged `rt_as: not_modelled`), `ercot-front-v4-showcase` (display only,
   on v3's showcase site `pv150-b100x2h-poi150`: `fern-0124` hero, d1 2026-01-24 at HB_NORTH; `heather-0114`, d1
@@ -416,7 +427,7 @@ in a finished window, get_time reads, byte-identical replay, no RT price before 
 ## Task row (`data/ercot-front-v4-*/tasks.jsonl.gz`)
 
 ```
-{"task_id":"front-v4-2025-02-18-HB_NORTH-pv150-r67-2h-poi150","forecast_version":"4.0","contract_version":"1.0",
+{"task_id":"front-v4-2025-02-18-HB_NORTH-pv150-r67-2h-poi150","forecast_version":"4.1","contract_version":"1.0",
  "pack","split","d1","days":3,"dates":[d1,d2,d3],"open":"YYYY-MM-DDT10:00:00-06:00","era","settlement_point",
  "point_kind","region","zone","weather_point","site":{v3 site row},
  "prices":[72 DA SPP],"rt":[72 hourly RT SPP],"mcpc_da":{k:[72]},"pv_cf":[72],"pv_mw":[72],

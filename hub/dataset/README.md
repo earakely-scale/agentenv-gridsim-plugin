@@ -793,25 +793,26 @@ dearest DA P50 hours of each day and never re-plans.
 - **The front label (V4-P19).** "15 °F colder within 12 hours" marked every candidate a front: the West Texas points
   swing 25 to 30 °F a day. A window is now `front` when a zone point is 15 °F colder than the same hour a day earlier,
   or an NWS winter storm, freeze, excessive heat or high wind warning or watch is in force; else `calm`.
-- **`train` is 659 windows, not the planned ~1,500.** 1,885 candidates pass the filters, but the draw keeps one window
-  per first day and label.
-- **Stored anchor calls (V4-P20).** HiGHS breaks ties differently on different platforms, so re-solving the anchor
-  reproduces P_roll to the cent only where a pack was built. Every row stores P_roll, so grading is the same
-  everywhere; rebuilding the packs with the anchor's own decisions stored (`anchor_calls`) would let the anchor replay
-  everywhere too. Not done yet.
-- **Forecast-call friction.** In the pilot, 47 calls in 26 of 35 windows passed `issued_at: ""` and were refused, each
-  using a forecast call, and 22 asked for a vintage issued after now, reading the UTC clock as Central time. The
-  budget of 6 calls ran out at some watch in 9 of 20 windows.
+- **`train` (V4-P21).** The draw takes up to 3 settlement points per first day and label: 1,290 windows, 900 front
+  and 390 calm. Calm is short: 1,883 windows pass the filters, 522 of them calm, and 390 of those fit at 3 a day; a
+  strict 60/40 split would be 975 windows.
+- **Stored anchor calls (V4-P20, V4-P22).** HiGHS breaks ties differently on different platforms, so every row stores
+  the anchor's own decisions (`anchor_calls`) and the anchor replays them: P_roll reproduces to the cent on macOS and
+  Linux, arm64 and amd64.
+- **Rules 4.1 (V4-P23, V4-P24).** From the pilot's tool misuse: a blank or null `issued_at` is the latest forecast;
+  every time the env shows carries its UTC offset (`2025-01-28T10:00-06:00`) and a time passed with one is converted
+  (a time after now is still refused); `front-lite`'s card and DAM tool are energy-only; `"keep"` or null leaves a
+  reserve field as it is.
 
 | Config | Split | Windows | Dates | Front / calm | Forecasts | Anchor − idle | Anchor capture | P_blind R | Naive R | P_roll3 R |
 |---|---|---:|---|---|---|---:|---:|---:|---:|---:|
-| `v4_tasks` | `train` | 659 | 3 March 2021 to 28 December 2024 | 445 / 214 | desk, read from the store | $49,977 | 0.477 | 0.744 | 0.343 | 0.837 |
-| | `eval` | 60 | 1 January to 29 October 2025 | 40 / 20 | ERCOT, inline | $53,333 | 0.507 | 0.737 | 0.599 | 0.974 |
-| | `rtcb` | 20 | 11 December 2025 to 25 September 2026 | 10 / 10 | ERCOT, inline | $42,761 | 0.496 | 0.701 | 0.655 | 0.972 |
-| `v4_showcase` | `showcase` | 4 | Uri (13 February 2021), Heather (14 January 2024), a calm spring window with negative prices (28 March 2024), Fern (24 January 2026); display only | 3 / 1 | desk (Uri), ERCOT | – | 0.635 | 0.887 | 0.378 | 0.961 |
+| `v4_tasks` | `train` | 1,290 | 3 March 2021 to 28 December 2024 | 900 / 390 | desk, read from the store | $52,575 | 0.476 | 0.743 | 0.345 | 0.839 |
+| | `eval` | 60 | 1 January to 29 October 2025 | 40 / 20 | ERCOT, inline | $54,102 | 0.511 | 0.738 | 0.598 | 0.970 |
+| | `rtcb` | 20 | 11 December 2025 to 8 September 2026 | 10 / 10 | ERCOT, inline | $40,706 | 0.511 | 0.710 | 0.660 | 0.970 |
+| `v4_showcase` | `showcase` | 4 | Uri (13 February 2021), Heather (14 January 2024), a calm spring window with negative prices (28 March 2024), Fern (24 January 2026); display only | 3 / 1 | desk (Uri), ERCOT | – | 0.636 | 0.887 | 0.378 | 0.961 |
 
 Means per window at each split's headline tier (`front`; `front-lite` in `train`); anchor − idle is P_roll − P_idle
-over the window. The sites are v3's archetypes (50 in `train`, 23 in `eval`) at the 13 hubs and load zones; every
+over the window. The sites are v3's archetypes (50 in `train`, 22 in `eval`) at the 13 hubs and load zones; every
 showcase window is v3's showcase site, 150 MW-AC of solar with a 100 MW / 200 MWh battery. `v4_references` has, per
 window and tier, P_idle, P_roll, P_roll3, P_blind, P_naive, P_hind, the LP bound, the anchor's DAM days and commits,
 and the baselines' profit and R. `v4_episodes` has one row per recorded run: R, `r_hind`, paired vs anchor, the DAM
@@ -828,7 +829,9 @@ and no raw API response is published.
 
 **Pilot.** GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played 20 `eval` windows at `front` (14 front, 6
 calm) and 10 more at `front-lite`, as registered in [`docs/prereg/v4-pilot.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v4-pilot.md), plus 3
-smoke windows and Fern and Heather for display. Every window served ERCOT's own forecasts.
+smoke windows and Fern and Heather for display. Every window served ERCOT's own forecasts. This is the rules-4.0
+pilot, on the 4.0 packs: its episodes replay at the preview commit it ran on, not on rules 4.1, and a 4.1 pilot
+replaces it.
 
 <!-- board:v4 -->
 The v4 pilot's board lands with its eval card.
@@ -850,7 +853,7 @@ On the same 20 `front` windows: P_blind 0.720, the naive gate rule 0.643 and P_r
 - **Fern** (HB_NORTH, 24 to 26 January 2026): R 1.0, $1,151,139 against the anchor's $1,039,573, regulation on the
   first day, then RRS, ECRS and Non-Spin into the storm with a large DA discharge on the 26th. **Heather**: R 0.932.
 - 35 runs, all scored at the first attempt, $16.50 in all. Every episode replays byte for byte on
-  `gridsim_core.forecast` and passes its audit. The full reading is in
+  `gridsim_core.forecast` at rules 4.0 and passes its audit. The full reading is in
   [`results/board-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/results/board-v4.md).
 
 ## v5 preview: The Market Floor

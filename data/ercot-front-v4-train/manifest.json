@@ -1,7 +1,7 @@
 {
  "pack": "ercot-front-v4-train",
- "forecast_version": "4.0",
- "tasks": 659,
+ "forecast_version": "4.1",
+ "tasks": 1290,
  "dates": [
   "2021-03-03",
   "2024-12-28"
@@ -30,28 +30,30 @@
   "hind_minus_roll_share": 0.08,
   "roll_minus_blind_share": 0.05
  },
+ "solver": 2,
  "stats": {
   "candidates": 16666,
   "candidate_labels": {
-   "calm": 6444,
-   "front": 10222
+   "front": 10222,
+   "calm": 6444
   },
   "hind_floor_usd_per_kw": 0.1875,
-  "eligible": 1885,
+  "eligible": 1883,
   "eligible_labels": {
-   "calm": 528,
-   "front": 1357
+   "calm": 522,
+   "front": 1361
   },
   "eligible_d1": {
-   "calm": 214,
-   "front": 445
+   "front": 449,
+   "calm": 212
   },
-  "chosen": 659,
-  "front": 445,
+  "per_d1_per_label": 3,
+  "chosen": 1290,
+  "front": 900,
   "sources": {
-   "desk": 659
+   "desk": 1290
   },
-  "mean_ms": 1176.5
+  "mean_ms": 475.6
  },
  "store": "cache/forecast/store"
 }

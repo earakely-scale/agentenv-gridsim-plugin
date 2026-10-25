@@ -9,6 +9,7 @@ from gridsim_core import forecast_prompt as P
 from gridsim_core.task import load_pack
 
 FIX = load_pack("fixtures-forecast")
+SHOW = load_pack("ercot-front-v4-showcase")
 BY_ID = {t["task_id"]: t for t in FIX}
 T0 = FIX[0]
 
@@ -47,6 +48,11 @@ def test_clock_constants():
     assert [F.results_minute(k) for k in range(3)] == [-630, 810, 2250]
     assert F.freeze_line(600) == 660 and F.freeze_line(600, "freeze-6h") == 960 and F.freeze_line(601) == 720
     assert F.to_minute("2025-02-18 24:00", "2025-02-18") == 1440 and F.to_minute("2025-02-17 10:00", "2025-02-18") == -840
+    assert F.stamp(-840, "2025-02-18") == "2025-02-17T10:00-06:00" and F.stamp(0, "2025-07-15") == "2025-07-15T00:00-05:00"
+    for t in ("2025-02-17T10:00-06:00", "2025-02-17T16:00Z", "2025-02-17T16:00:00+00:00", "2025-02-17T11:00-0500",
+              "2025-02-17T10:00"):
+        assert F.to_minute(t, "2025-02-18") == -840, t
+    assert F.to_minute("2025-07-15T15:00Z", "2025-07-15") == 600 and F.to_minute("2025-02-17T24:00Z", "2025-02-18") is None
     assert F.MAX_TURNS == {"front-lite": 72, "front": 122, "blind": 122, "freeze-6h": 122}
 
 
@@ -68,7 +74,7 @@ def test_synthetic_slice_is_deterministic_and_hashed():
         assert (FI.parse_utc(r["issued_at"]) - FI.parse_utc(r["cycle"])).total_seconds() == 120 * 60
 
 
-@pytest.mark.parametrize("task", FIX, ids=[t["task_id"][9:30] for t in FIX])
+@pytest.mark.parametrize("task", FIX + SHOW, ids=[t["task_id"][9:30] for t in FIX + SHOW])
 def test_anchor_reproduces_stored_reference(task):
     """The reference-solver test: the anchor replayed through a fresh, graded Session scores 1.0 (or the degenerate
     rule) and settles at the stored P_anchor to the cent, with a clean audit."""
@@ -118,13 +124,15 @@ def test_forecasts_are_served_as_issued():
     assert F.to_minute(out["issued_at"], s.d1) <= s.minute
     latest = max(r.minute for r in s.vint.all("price", T0["settlement_point"], s.minute))
     assert F.to_minute(out["issued_at"], s.d1) == latest
-    late = json.loads(s.call("get_forecast", {"kind": "weather", "issued_at": "2025-02-17 11:00"}))
-    assert "after now" in late["error"]
-    old = json.loads(s.call("get_forecast", {"kind": "load", "issued_at": "2025-02-17 03:00"}))
+    assert out["issued_at"].endswith("-06:00") and s.watches[0].time == out["from"][:11] + "10:00-06:00"
+    late = json.loads(s.call("get_forecast", {"kind": "weather", "issued_at": "2025-02-17T17:00Z"}))
+    assert "after now (2025-02-17T10:00-06:00)" in late["error"]
+    old = json.loads(s.call("get_forecast", {"kind": "load", "issued_at": "2025-02-17T09:00Z"}))
     assert F.to_minute(old["issued_at"], s.d1) <= F.to_minute("2025-02-17 03:00", s.d1)
     assert out["da"]["known"][0] and out["da"]["p50"][0] == round(T0["history"]["dam"][-1][10], 2)
-    for _ in range(5):
-        s.call("get_forecast", {"kind": "wind"})
+    blank = [json.loads(s.call("get_forecast", {"kind": "price", "hours": 6, "issued_at": x})) for x in ("", " ", None)]
+    assert all({k: v for k, v in b.items() if k != "forecast_calls_left"} == {
+        k: v for k, v in out.items() if k != "forecast_calls_left"} for b in blank)
     assert "no forecast calls left" in json.loads(s.call("get_forecast", {"kind": "wind"}))["error"]
     assert s.audit()["ok"]
 
@@ -145,7 +153,7 @@ def test_da_prices_wait_for_dam_results():
     assert sit["phase"] == "dam_gate" and all(d["da_usd"] is None for d in sit["days"])
     out = json.loads(s.call("advance"))
     s.deliver_watch_notices()
-    assert out["time"].endswith("14:00") and out["dam_results"]["operating_day"] == T0["d1"]
+    assert out["time"] == "2025-02-17T14:00-06:00" and out["dam_results"]["operating_day"] == T0["d1"]
     sit = json.loads(s.call("get_situation"))
     assert sit["days"][0]["da_usd"] is not None and sit["days"][1]["da_usd"] is None
     assert s.audit()["ok"]
@@ -170,6 +178,18 @@ def test_dam_gate_rules():
                                                                                  "regup": [{"from": 0, "to": 2,
                                                                                             "mw": 10}]}}))
     assert {x["rule"] for x in r["refused"]} == {"not_offered"}
+    k = F.Session(T0, "front")
+    first = {"energy": [0] * 24, "regdn": [{"from": 1, "to": 5, "mw": 20}], "rrs": [5] * 24}
+    k.call("submit_dam", {"operating_day": T0["d1"], "plan": first})
+    kept = json.loads(k.call("submit_dam", {"operating_day": T0["d1"], "plan": {
+        "energy": [0] * 24, "regdn": "keep", "rrs": None, "regup": " KEEP "}}))
+    assert len(kept["accepted"]) == 24 and kept["awards"]["regdn"][1:6] == [20, 20, 20, 20, 0]
+    assert kept["awards"]["rrs"] == [5] * 24 and kept["awards"]["regup"] == [0] * 24
+    bad = json.loads(k.call("submit_dam", {"operating_day": T0["d1"], "plan": {"energy": [0] * 24, "rrs": "hold"}}))
+    assert 'leave rrs out of the plan (or send "keep")' in bad["refused"][0]["detail"]
+    k.call("advance")
+    assert json.loads(k.call("check_schedule", {"plan": {"energy": [0] * 24, "regdn": "keep"}, "from_hour": 48}))[
+        "feasible"]
 
 
 def test_blind_tier_withholds_forecasts():
@@ -206,7 +226,12 @@ def test_notices_never_arrive_before_their_hour():
 def test_prompt_and_schemas():
     text = P.system_prompt("front", "C", "ercot")
     assert "ERCOT's own forecasts" in text and "RTC+B" in text
-    assert "Reserves" not in P.system_prompt("front-lite", "B")
+    lite = P.system_prompt("front-lite", "B")
+    assert not any(w in lite.lower() for w in ("reserve", "award", "mcpc", "regup", "pv_da_share")) and " AS " not in lite
+    dam = next(x["function"] for x in P.tool_schemas("front-lite") if x["function"]["name"] == "submit_dam")
+    assert "AS" not in dam["description"] and set(dam["parameters"]["properties"]) == {"operating_day", "plan"}
+    assert set(dam["parameters"]["properties"]["plan"]["properties"]) == {"energy"}
+    assert "2025-01-28T10:00-06:00" in text and 'send "keep"' in text
     names = [x["function"]["name"] for x in P.tool_schemas("front")]
     assert names == ["get_situation", "get_forecast", "get_forecast_drift", "check_schedule", "commit_schedule",
                      "submit_dam", "advance"]
