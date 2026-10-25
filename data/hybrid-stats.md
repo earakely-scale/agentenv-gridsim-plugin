@@ -1,6 +1,6 @@
 # v3 hybrid packs: counts, filters and baselines
 
-Built by `scripts/build_hybrid_pack.py` (2026-10-24). References: `gridsim_core.hybrid.references` (rolling MILP anchor, HiGHS; hindsight + LP bound; oneshot optimum; baselines played through the Session). Rewards use the contract's R = clip(0.2 + 0.8 (P - P_idle) / (P_anchor - P_idle), 0, 1), so idle is 0.2 and the anchor 1.0 by construction.
+Built by `scripts/build_hybrid_pack.py` (2026-10-25; references rebuilt in place with --refs-only). References: `gridsim_core.hybrid.references` (rolling MILP anchor, HiGHS; hindsight + LP bound; oneshot optimum; baselines played through the Session). Rewards use the contract's R = clip(0.2 + 0.8 (P - P_idle) / (P_anchor - P_idle), 0, 1), so idle is 0.2 and the anchor 1.0 by construction.
 
 ## Packs
 
@@ -16,26 +16,28 @@ Built by `scripts/build_hybrid_pack.py` (2026-10-24). References: `gridsim_core.
 
 Thresholds: P_anchor - P_idle >= $500 in both tiers; v1's low-spread drop (energy-tier anchor - idle >= $22 per MW of battery); sponge reward < 0.97 (the sponge within 3% of the anchor); and, extending that rule (C3-D16), every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP below 0.97 against the reserves anchor. Uri and every showcase day +/-3 days are out of every split; DST days and days without 24 hourly inputs are dropped.
 
+The days are the rules-3.1 build's, kept as they were; under the rules-3.2 references (C3-D19, C3-D20) the table counts how many of them each filter would now drop.
+
 | Split | Candidates | Fail headroom | Fail low spread | Fail sponge | Fail baseline >= 0.97 | Eligible | Kept |
 |---|---|---|---|---|---|---|---|
-| train | 4239 | 49 | 439 | 24 | 436 | 3419 | 2400 |
-| eval | 1328 | 22 | 88 | 20 | 406 | 853 | 300 |
-| rtcb | 584 | 16 | 95 | 9 | 174 | 341 | 200 |
+| train | 2400 | 1 | 0 | 2 | 188 | 2212 | 2400 |
+| eval | 300 | 0 | 0 | 0 | 48 | 252 | 300 |
+| rtcb | 200 | 0 | 0 | 0 | 28 | 172 | 200 |
 
 ## Baselines and references (means over each pack)
 
 | Pack | Tier | Anchor - idle ($) | Anchor / hindsight capture | Sponge | v2 energy-only (blind) | AS-hog | Energy-only MILP | Anchor AS revenue ($) | Anchor governor hours | Anchor soft solves (share of watches) | Anchor entries repaired |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `ercot-hybrid-v3-train` | energy | 17318.1114 | 0.4751 | 0.2464 | 0.7593 | - | - | 0.0 | 0.0 | 0.0 | 0.0 |
-| `ercot-hybrid-v3-train` | reserves | 51569.7634 | 0.7016 | 0.2234 | 0.415 | 0.7122 | 0.5089 | 52346.8591 | 6.5904 | 0.2752 | 2.2425 |
+| `ercot-hybrid-v3-train` | reserves | 46701.1999 | 0.5828 | 0.2262 | 0.4399 | 0.6849 | 0.5429 | 52346.8591 | 6.5904 | 0.2752 | 2.2425 |
 | `ercot-hybrid-v3-eval` | energy | 10513.1164 | 0.4672 | 0.2648 | 0.9531 | - | - | 0.0 | 0.0 | 0.0 | 0.0 |
-| `ercot-hybrid-v3-eval` | reserves | 14104.1071 | 0.5239 | 0.2524 | 0.7638 | 0.47 | 0.8009 | 6175.6325 | 4.6333 | 0.0989 | 0.35 |
+| `ercot-hybrid-v3-eval` | reserves | 13253.5231 | 0.4495 | 0.2552 | 0.8041 | 0.3408 | 0.8417 | 6175.6325 | 4.6333 | 0.0989 | 0.35 |
 | `ercot-hybrid-v3-rtcb` | energy | 7017.9321 | 0.4058 | 0.2982 | 0.9313 | - | - | 0.0 | 0.0 | 0.0 | 0.0 |
-| `ercot-hybrid-v3-rtcb` | reserves | 9746.6419 | 0.4541 | 0.2783 | 0.7403 | 0.3944 | 0.7951 | 5376.0647 | 4.415 | 0.2238 | 0.405 |
+| `ercot-hybrid-v3-rtcb` | reserves | 9199.0378 | 0.3936 | 0.2833 | 0.7734 | 0.3071 | 0.8289 | 5376.0647 | 4.415 | 0.2238 | 0.405 |
 | `ercot-hybrid-v3-showcase` | energy | 220608.0074 | 0.4897 | 0.2 | 0.9311 | - | - | 0.0 | 0.0 | 0.0 | 0.0 |
-| `ercot-hybrid-v3-showcase` | reserves | 273508.7871 | 0.4777 | 0.4 | 0.7112 | 0.4129 | 0.7465 | 239003.3834 | 4.25 | 0.2667 | 1.0 |
+| `ercot-hybrid-v3-showcase` | reserves | 252595.4458 | 0.3756 | 0.4 | 0.771 | 0.3137 | 0.8083 | 239003.3834 | 4.25 | 0.2667 | 1.0 |
 | `fixtures-hybrid` | energy | 54039.6889 | 0.5024 | 0.2502 | 0.8627 | - | - | 0.0 | 0.0 | 0.0 | 0.0 |
-| `fixtures-hybrid` | reserves | 67599.2617 | 0.6234 | 0.2823 | 0.5674 | 0.591 | 0.651 | 73125.4064 | 5.65 | 0.3233 | 1.35 |
+| `fixtures-hybrid` | reserves | 61632.416 | 0.5197 | 0.283 | 0.5987 | 0.5498 | 0.6841 | 73125.4064 | 5.65 | 0.3233 | 1.35 |
 
 ## Energy tier by POI (PV AC / POI): the solar sponge and v2 energy-only against the energy anchor
 
@@ -65,15 +67,15 @@ Thresholds: P_anchor - P_idle >= $500 in both tiers; v1's low-spread drop (energ
 
 | Stratum | Tasks | AS value range ($) | Reserves-tier AS-hog | Energy-only MILP |
 |---|---|---|---|---|
-| low | 100 | 336..1899 | 0.44 | 0.8546 |
-| mid | 100 | 1938..3664 | 0.4582 | 0.8021 |
-| high | 100 | 3682..26618 | 0.5119 | 0.7461 |
+| low | 100 | 336..1899 | 0.3148 | 0.9045 |
+| mid | 100 | 1938..3664 | 0.3232 | 0.844 |
+| high | 100 | 3682..26618 | 0.3843 | 0.7767 |
 
 ## Timing
 
-- references: 510.5 ms per task-core (both tiers; about 15 MILP solves, 2 hindsight MILPs and 2 LPs per task)
-- MILP solve (watch 0, 24 open hours): median 8.7 ms, p95 13.4 ms over 60 solves
-- build wall time 321 s on 10 workers
+- references: 410.8 ms per task-core (both tiers; about 15 MILP solves, 2 hindsight MILPs and 2 LPs per task)
+- MILP solve (watch 0, 24 open hours): median 6.9 ms, p95 8.3 ms over 60 solves
+- build wall time 102 s on 12 workers
 
 ## Flags
 

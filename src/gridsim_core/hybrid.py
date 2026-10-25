@@ -37,7 +37,7 @@ from gridsim_core.live import (
 from gridsim_core.lp import highspy
 from gridsim_core.task import REGIONS, point_kind
 
-HYBRID_VERSION = "3.0"
+HYBRID_VERSION = "3.2"
 HYBRID_ENV = "gridsim-hybrid"
 EPISODE_SCHEMA = "gridsim.episode/v3"
 TIERS = ("energy", "reserves", "rtcb")
@@ -48,13 +48,13 @@ FIELDS = ("energy",) + PRODUCTS
 NAMES = {"energy": "energy", "regup": "RegUp", "regdn": "RegDn", "rrs": "RRS", "ecrs": "ECRS", "nspin": "Non-Spin"}
 TOOLS = ("get_situation", "check_schedule", "commit_schedule", "advance")
 PLANNING_TOOLS = ("check_schedule", "commit_schedule")
+FREE_REFUSALS = 3
 HOURS = 24
 TOL = 1e-4
 EQ_TOL = 0.005
 KEEP = "keep"
 REG_MEAN = {"up": 0.12, "dn": 0.18}
-CASH_KEYS = ("energy_da", "energy_rt", "as_da", "as_rt", "deployment_energy", "degradation", "ftp", "excused",
-             "end_penalty")
+CASH_KEYS = ("energy_da", "energy_rt", "as_da", "as_rt", "deployment_energy", "degradation", "ftp", "end_penalty")
 ARCHETYPES = {
     "arch-dc150": {"coupling": "dc", "pv_mwac": 150.0, "pv_mwdc": 195.0, "ilr": 1.3, "poi_mw": 150.0,
                    "poi_import_mw": 150.0, "inverter_mw": 150.0, "flags": {"poi": "default", "coupling": "assumed"}},
@@ -308,9 +308,10 @@ def govern(e: float, lo: float, hi: float, band_lo: float, band_hi: float) -> fl
 
 
 def step(st: Site, dur: dict, S: float, cyc: float, e: float, a: dict, s: float, price: float, U: float,
-         D: float) -> dict:
+         D: float, *, power: bool = False) -> dict:
     """One hour: the governor (C3-D6), the AS shortfall (C3-D8), deployments limited by SoC (C3-D9) and the
-    controller's PV curtailment (C3-D4). U and D are the requested up and down deployment MWh."""
+    controller's PV curtailment (C3-D4). U and D are the requested up and down deployment MWh. power: up awards the
+    move leaves no headroom for (the battery cannot charge to make room) are short too (C3-D19)."""
     S, s, price, U, D = float(S), float(s), float(price), float(U), float(D)
     up, rd = sum(a[k] for k in UP), a["regdn"]
     rup, rdn = r_up(dur, a), r_dn(st, dur, a)
@@ -319,6 +320,8 @@ def step(st: Site, dur: dict, S: float, cyc: float, e: float, a: dict, s: float,
     B = min(st.e, max(0.0, S - dis + st.eta * ch))
     cover, room = min(S, B), st.e - max(S, B)
     f = 1.0 if rup <= TOL or cover >= rup - TOL else max(0.0, cover / rup)
+    if power and b + up > min(st.p, st.meter) + TOL:
+        f = min(f, max(0.0, (min(st.p, st.meter) - b) / up))
     g = 1.0 if rdn <= TOL or room >= rdn - TOL else max(0.0, room / rdn)
     short = {k: (1 - f) * a[k] for k in UP if a[k] > 0 and f < 1}
     if rd > 0 and g < 1:
@@ -343,9 +346,9 @@ def x_da_of(st: Site, s: float, da: float, e: float, a: dict) -> float:
 
 
 class PlanError(ValueError):
-    def __init__(self, field: str, msg: str):
+    def __init__(self, field: str, msg: str, *, shape: tuple[int, int, int] | None = None):
         super().__init__(msg)
-        self.field = field
+        self.field, self.shape = field, shape
 
     def row(self) -> dict:
         return {"hour": None, "field": self.field, "rule": "parse", "detail": str(self)}
@@ -409,7 +412,8 @@ def _values(field: str, v, fh: int, hours: int = HOURS) -> list[float]:
     if len(vals) == hours and fh:
         vals = vals[fh:]
     if len(vals) != n:
-        raise PlanError(field, f"{field}: expected {n} values (hours {fh}..{hours - 1}) or {hours}, got {len(vals)}")
+        raise PlanError(field, f"{field}: expected {n} values (hours {fh}..{hours - 1}) or {hours}, got {len(vals)}",
+                        shape=(len(vals), n, fh))
     return vals
 
 
@@ -435,12 +439,17 @@ def parse_plan(plan, from_hour, hours: int = HOURS, fields: tuple = FIELDS, *,
 
 
 def keep_hint(e: PlanError) -> PlanError:
-    """A parse error that says how to keep the field as it is."""
+    """A parse error that names the shape a field needs (V3-D16) and says how to keep the field as it is."""
+    msg = str(e)
+    if e.shape:
+        got, need, fh = e.shape
+        msg = (f"{e.field} has {got} values; it needs {need} (one per hour{f' from {fh} to {HOURS - 1}' if fh else ''})"
+               f"{f' or {HOURS} (the whole day)' if fh else ''} or blocks")
     if e.field == "energy":
-        return PlanError(e.field, f"{e}; energy is always sent: to keep an hour as booked, send its booked MW")
+        return PlanError(e.field, f"{msg}; energy is always sent: to keep an hour as booked, send its booked MW")
     if e.field in PRODUCTS:
-        return PlanError(e.field, f'{e}; to keep {NAMES[e.field]} as it is, leave {e.field} out (or send "keep")')
-    return e
+        return PlanError(e.field, f'{msg}; to keep {NAMES[e.field]} as it is, leave {e.field} out (or send "keep")')
+    return PlanError(e.field, msg)
 
 
 # the hour rules (C3-D5, C3-D17), shared with v4
@@ -565,18 +574,15 @@ class Session(WatchDay):
         self.dur_real = deployed_durations(self.day.dur, self.dep_real)
         self._dep_cache: tuple[int, list[dict], list[dict]] | None = None
         self.done, self.end_reason = False, None
-        self.watch, self.calls, self.planning_calls = 0, 0, [0]
+        self.watch, self.calls, self.planning_calls, self.free_refusals = 0, 0, [0], [0]
         self.book = {f: [0] * HOURS for f in FIELDS}
         self.da: dict | None = None
         self.S, self.cyc = self.site.s0, 0.0
         self.soc_hist = [self.site.s0]
         self.rows: list[dict] = []
         self.cash = dict.fromkeys(CASH_KEYS, 0.0)
-        self.snap: list[dict | None] = [None] * HOURS
-        self.end_snap: float | None = None
-        self.end_short = self.end_short_charged = 0.0
+        self.end_short = 0.0
         self.governor: list[dict] = []
-        self.excused: list[dict] = []
         self.refusals: list[dict] = []
         self.commits: list[dict] = []
         self._init_watch_log()
@@ -625,11 +631,12 @@ class Session(WatchDay):
             return {k: float(self.da[k][h]) for k in PRODUCTS}
         return self.entry(h, book)[1]
 
-    def x_da(self, h: int, book: dict | None = None) -> float:
+    def x_da(self, h: int, b: float, book: dict | None = None) -> float:
+        """The hour's DA position: set at watch 0's end, before it the export of b, the projection's executed move
+        (C3-D3, C3-D19)."""
         if self.da is not None:
             return float(self.da["x_da"][h])
-        e, a = self.entry(h, book)
-        return x_da_of(self.site, self.day.pv[h], self.day.da[h], e, a)
+        return x_da_of(self.site, self.day.pv[h], self.day.da[h], b, self.entry(h, book)[1])
 
     def profit(self) -> float:
         c = self.cash
@@ -677,7 +684,9 @@ class Session(WatchDay):
             bad = f"unexpected argument {extra[0]!r}" if extra else f"missing argument {missing[0]!r}"
             if tool in PLANNING_TOOLS and not self.done and self.calls_left:
                 self.planning_calls[-1] += 1
-            return {"error": f"{tool}: {bad}", "calls_left": self.calls_left}
+                self._malformed()
+            takes = " (it takes plan and from_hour)" if tool in PLANNING_TOOLS else ""
+            return {"error": f"{tool}: {bad}{takes}", "calls_left": self.calls_left}
         return getattr(self, tool)(**args)
 
     def _log_rt(self, out: dict):
@@ -739,6 +748,12 @@ class Session(WatchDay):
         self.planning_calls[-1] += 1
         return None
 
+    def _malformed(self):
+        """A planning call refused as malformed uses no planning call, up to FREE_REFUSALS per watch (V3-D16)."""
+        if self.free_refusals[-1] < FREE_REFUSALS:
+            self.free_refusals[-1] += 1
+            self.planning_calls[-1] -= 1
+
     def _issue(self, h, field, rule, detail) -> dict:
         return {"hour": h, "field": field, "rule": rule, "detail": detail}
 
@@ -789,7 +804,7 @@ class Session(WatchDay):
 
     def _project(self, book: dict | None = None) -> dict:
         """The day as known now: settled hours as settled, the rest at DA prices with expected drift and delivered
-        deployments; per-hour shortfalls and governor flags feed the charged/excused snapshot (C3-D7)."""
+        deployments, and each open hour's DA position as the projection executes it."""
         book = self.book if book is None else book
         st, d, dep, du = self.site, self.day, self._dep_known(), self.dur_known()
         S, cyc = self.S, self.cyc
@@ -798,15 +813,15 @@ class Session(WatchDay):
         tot = dict(self.cash)
         clip_rec = sum(r["clip_rec"] for r in self.rows)
         curtailed = sum(r["curtailed"] for r in self.rows)
-        short, governed = {}, {}
+        xda = []
         for h in range(self.settled, HOURS):
             e, a = self.entry(h, book)
-            r = step(st, du[h], S, cyc, e, a, d.pv[h], d.da[h], *self._expected(h, a, dep))
-            c = self._hour_cash(h, r, self.x_da(h, book), a, self.a_da(h, book), d.da[h], None)
+            r = step(st, du[h], S, cyc, e, a, d.pv[h], d.da[h], *self._expected(h, a, dep), power=True)
+            xda.append(self.x_da(h, r["b"], book))
+            c = self._hour_cash(h, r, xda[-1], a, self.a_da(h, book), d.da[h], None)
             for k in ("energy_da", "energy_rt", "as_da", "as_rt", "degradation"):
                 tot[k] += c[k]
             tot["ftp"] += c["ftp_full"]
-            short[h], governed[h] = r["short"], r["governed"]
             clip_rec, curtailed = clip_rec + r["clip_rec"], curtailed + r["curtailed"]
             S, cyc = r["S"], cyc + r["dis"]
             soc.append(_r2(S))
@@ -819,9 +834,8 @@ class Session(WatchDay):
         summary = {"energy_usd": _r2(tot["energy_da"] + tot["energy_rt"]), "as_usd": _r2(tot["as_da"] + tot["as_rt"]),
                    "degradation_usd": _r2(tot["degradation"]), "ftp_usd": _r2(tot["ftp"]),
                    "end_penalty_usd": _r2(tot["end_penalty"]), "total_usd": _r2(total), "end_soc_mwh": _r2(S)}
-        return {"summary": summary, "soc": soc, "margin": margin, "short": short, "governed": governed,
-                "end_short": end_short, "total": total, "S": S, "cyc": cyc, "clip_rec": clip_rec,
-                "curtailed": curtailed}
+        return {"summary": summary, "soc": soc, "margin": margin, "xda": xda, "end_short": end_short, "total": total,
+                "S": S, "cyc": cyc, "clip_rec": clip_rec, "curtailed": curtailed}
 
     def _hour_cash(self, h: int, r: dict, x_da: float, a: dict, a_da: dict, price: float, mrt) -> dict:
         """Settlement of one hour at an energy price; mrt is the hour's RT MCPC (None: RT expected at DA)."""
@@ -842,15 +856,16 @@ class Session(WatchDay):
         try:
             fh, fields = parse_plan(plan, self.first_open if from_hour is None else from_hour, keep=True)
         except PlanError as e:
+            self._malformed()
             return {"feasible": False, "issues": [keep_hint(e).row()], "refused": [], "projected": None,
                     "clip_recovered_mwh": None, "curtailed_mwh": None, "reserve_margin_mwh_by_hour": None,
-                    "excused": self._excused_rows(), "calls_left": self.calls_left}
+                    "calls_left": self.calls_left}
         new, _, refused, issues = self._evaluate(fields, fh)
         proj = self._project(new)
         return {"feasible": not issues, "issues": issues, "refused": refused,
                 "projected": proj["summary"] | {"soc_mwh": proj["soc"]}, "clip_recovered_mwh": _r2(proj["clip_rec"]),
                 "curtailed_mwh": _r2(proj["curtailed"]), "reserve_margin_mwh_by_hour": proj["margin"],
-                "excused": self._excused_rows(), "calls_left": self.calls_left}
+                "calls_left": self.calls_left}
 
     def commit_schedule(self, plan=None, from_hour=None) -> dict:
         if err := self._planning():
@@ -858,6 +873,7 @@ class Session(WatchDay):
         try:
             fh, fields = parse_plan(plan, self.first_open if from_hour is None else from_hour, keep=True)
         except PlanError as e:
+            self._malformed()
             e = keep_hint(e)
             self.refusals.append({"watch": self.watch, "call": self.calls, "refused": [e.row()]})
             self.commits.append({"watch": self.watch, "from_hour": None, "committed": [], "refused": [],
@@ -878,9 +894,6 @@ class Session(WatchDay):
             return None
         return {"x_da_mw": [_r6(x) for x in self.da["x_da"]]} | {k: [_num(x) for x in self.da[k]] for k in self.day.offered}
 
-    def _excused_rows(self) -> list[dict]:
-        return [{k: (_r2(v) if isinstance(v, float) else v) for k, v in r.items()} for r in self.excused]
-
     def advance(self) -> dict:
         if self.done:
             return {"error": "the day is over", "calls_left": 0}
@@ -897,18 +910,14 @@ class Session(WatchDay):
                 "realized": realized, "soc_mwh": _r2(self.S), "cash": self.cash_out(), "calls_left": self.calls_left}
 
     def _close_watch(self):
-        """The charged/excused snapshot of every open hour (C3-D7); at watch 0 the book becomes the DA position."""
-        proj, fo = self._project(), self.first_open
-        for h in range(fo, HOURS):
-            self.snap[h] = {"short": proj["short"][h], "governed": proj["governed"][h]}
-        if fo < HOURS:
-            self.end_snap = proj["end_short"]
+        """At watch 0's end the book becomes the DA position: the projection's export and the AS book (C3-D3)."""
         if self.watch == 0 and self.da is None:
-            self.da = {"x_da": [self.x_da(h) for h in range(HOURS)]} | {k: list(self.book[k]) for k in PRODUCTS}
+            self.da = {"x_da": self._project()["xda"]} | {k: list(self.book[k]) for k in PRODUCTS}
 
     def _open(self):
         self.watch += 1
         self.planning_calls.append(0)
+        self.free_refusals.append(0)
         self.frozen.append(self._frozen_row())
 
     def _settle(self, upto: int) -> list[dict]:
@@ -918,23 +927,15 @@ class Session(WatchDay):
             a_da = self.a_da(h)
             U = d.reg_up[h] * a["regup"] + sum(self.dep_real[h][k] * a[k] for k in EVENT_PRODUCTS)
             D = d.reg_dn[h] * a["regdn"]
-            r = step(st, self.dur_real[h], self.S, self.cyc, e, a, d.pv[h], d.rt[h], U, D)
+            r = step(st, self.dur_real[h], self.S, self.cyc, e, a, d.pv[h], d.rt[h], U, D, power=True)
             mrt = {k: d.mrt[k][h] for k in d.mrt} if d.mrt else None
-            c = self._hour_cash(h, r, self.x_da(h), a, a_da, d.rt[h], mrt)
-            snap = self.snap[h] or {"short": {}, "governed": False}
-            charged = {k: min(v, snap["short"].get(k, 0.0)) for k, v in r["short"].items()}
-            excused = {k: v - charged[k] for k, v in r["short"].items() if v - charged[k] > TOL}
-            ftp = sum(v * c["ftp_price"][k] for k, v in charged.items())
-            exc = sum(v * c["ftp_price"][k] for k, v in excused.items())
+            xda = self.x_da(h, r["b"])
+            c = self._hour_cash(h, r, xda, a, a_da, d.rt[h], mrt)
             for k in ("energy_da", "energy_rt", "as_da", "as_rt", "degradation", "deployment_energy"):
                 self.cash[k] += c[k]
-            self.cash["ftp"] += ftp
-            self.cash["excused"] += exc
-            for k, v in excused.items():
-                self.excused.append({"hour": h, "product": k, "mw": v, "usd": v * c["ftp_price"][k]})
+            self.cash["ftp"] += c["ftp_full"]
             if r["governed"]:
-                self.governor.append({"hour": h, "committed": e, "executed": _r6(r["b"]),
-                                      "excused": not snap["governed"]})
+                self.governor.append({"hour": h, "committed": e, "executed": _r6(r["b"])})
             row = {"h": h, "rt_usd": _r2(d.rt[h])}
             if mrt is not None and self.tier == "rtcb":
                 row["mcpc_rt"] = {k: _r2(mrt[k]) for k in d.offered if k in mrt}
@@ -943,10 +944,8 @@ class Session(WatchDay):
                     "reg_up_frac": _r2(d.reg_up[h]) if a["regup"] else 0.0,
                     "reg_dn_frac": _r2(d.reg_dn[h]) if a["regdn"] else 0.0,
                     "deployed_up_mwh": _r2(r["up_mwh"]), "deployed_dn_mwh": _r2(r["dn_mwh"]),
-                    "governor": r["governed"], "ftp_mw": _r2(sum(charged.values())),
-                    "excused_mw": _r2(sum(excused.values()))}
-            self.rows.append(r | {"h": h, "e": e, "a": a, "a_da": a_da, "x_da": self.x_da(h), "cash": c, "ftp": ftp,
-                                  "excused_usd": exc, "charged": charged, "excused_mw": excused})
+                    "governor": r["governed"], "ftp_mw": _r2(sum(r["short"].values()))}
+            self.rows.append(r | {"h": h, "e": e, "a": a, "a_da": a_da, "x_da": xda, "cash": c, "ftp": c["ftp_full"]})
             self.S, self.cyc = r["S"], self.cyc + r["dis"]
             self.soc_hist.append(self.S)
             out.append(row)
@@ -954,9 +953,7 @@ class Session(WatchDay):
 
     def _finish(self, reason: str):
         self.end_short = max(0.0, self.site.s_end - self.S)
-        self.end_short_charged = min(self.end_short, self.end_snap or 0.0)
-        self.cash["end_penalty"] = self.end_short_charged * self.day.pen
-        self.cash["excused"] += (self.end_short - self.end_short_charged) * self.day.pen
+        self.cash["end_penalty"] = self.end_short * self.day.pen
         self.done, self.end_reason = True, reason
 
     def _done_result(self) -> dict:
@@ -1022,8 +1019,7 @@ class Session(WatchDay):
                 "clip_recovered_pct": _r6(100 * sum(x["clip_rec"] for x in self.rows) / clippable)
                 if clippable > TOL else None,
                 "curtailed_mwh": _r6(sum(x["curtailed"] for x in self.rows)),
-                "ftp_mwh_charged": _r6(sum(sum(x["charged"].values()) for x in self.rows)),
-                "ftp_mwh_excused": _r6(sum(sum(x["excused_mw"].values()) for x in self.rows)),
+                "ftp_mwh_charged": _r6(sum(sum(x["short"].values()) for x in self.rows)),
                 "end_short_mwh": _r6(self.end_short), "governor_hours": len(self.governor),
                 "refusals": sum(len(x["refused"]) for x in self.refusals),
                 "commits": sum(bool(x["committed"]) for x in self.commits)}
@@ -1038,11 +1034,10 @@ class Session(WatchDay):
     def data(self) -> dict:
         return {"task_id": self.task["task_id"], "tier": self.tier, "watches": len(self.watches), "watch": self.watch,
                 "time": label(self.minute, self.date), "done": self.done, "end_reason": self.end_reason,
-                "calls_used": self.calls, "planning_calls": self.planning_calls, "book": self._book_out(),
+                "calls_used": self.calls, "planning_calls": self.planning_calls,
+                "free_refusals": self.free_refusals, "book": self._book_out(),
                 "da": self._da_out(), "executed": [_r6(r["b"]) for r in self.rows], "status": self.status(), "notices": self.log,
                 "frozen": self.frozen, "refusals": self.refusals, "governor": self.governor,
-                "excused": {"rows": self._excused_rows(), "usd": _r6(self.cash["excused"]),
-                            "end_short_mwh": _r6(self.end_short - self.end_short_charged)},
                 "settled": self.settled, "audit": self.audit() if self.done else None,
                 "grade": self.grade() if self.done else None, "reward": self.grade()["reward"] if self.done else None}
 
@@ -1071,7 +1066,7 @@ class Session(WatchDay):
                   "soc_mwh": _r6(self.soc_hist[x["h"] + 1]), "energy_da_usd": _r6(x["cash"]["energy_da"]),
                   "energy_rt_usd": _r6(x["cash"]["energy_rt"]), "as_da_usd": _r6(x["cash"]["as_da"]),
                   "as_rt_usd": _r6(x["cash"]["as_rt"]), "deg_usd": _r6(x["cash"]["degradation"]),
-                  "ftp_usd": _r6(x["ftp"]), "excused_usd": _r6(x["excused_usd"]), "governor": x["governed"]}
+                  "ftp_usd": _r6(x["ftp"]), "governor": x["governed"]}
                  for x in self.rows]
         tr = r[self.tier]
         return {"schema": EPISODE_SCHEMA, "episode_id": eid, "env": HYBRID_ENV, "version": "v3", "task_id": t["task_id"],
@@ -1228,16 +1223,19 @@ class _Model:
 
 
 def _plant(m: _Model, st: Site, dur: dict | list[dict], S0: float, cyc_left: float, pv, price, mu, md, dep, aw, *,
-           integer: bool, soft: bool = False, free_curtail: bool = False, inherited=False) -> dict:
+           integer: bool, soft: bool = False, free_curtail: bool = False, inherited=False, ftp=None) -> dict:
     """One copy of the plant over len(pv) hours from SoC S0: continuous dispatch with a direction binary, the AS awards
     aw[t][k] (expressions in MW) and the Session's rules: the reservation band at both ends of each hour (C3-D5), or
     at its end only for inherited awards (C3-D17). Soft: the band may be missed at a penalty and drift is delivered
-    only as far as SoC allows, as the Session's step does (the fallback when the hard model is infeasible). dur is
-    the era's durations or one dict per hour (C3-D18)."""
+    only as far as SoC allows, as the Session's step does (the fallback when the hard model is infeasible). ftp (one
+    {product: price} per hour) relaxes the copy to what the Session settles (C3-D19): the band may be missed at the
+    failure-to-provide charge (`ftp_cost`, one per hour in out["ftp"]) and drift is delivered only as far as SoC
+    allows. dur is the era's durations or one dict per hour (C3-D18)."""
     S = _Lin(k=S0)
-    out = {"x": [], "xb": [], "dis": [], "U": [], "dl": [], "cl": [], "S": [S], "slack": []}
+    out = {"x": [], "xb": [], "dis": [], "U": [], "dl": [], "cl": [], "S": [S], "slack": [], "ftp": []}
     dsum = _Lin()
     inh = list(inherited) if isinstance(inherited, (list, tuple)) else [inherited] * len(pv)
+    loose = soft or ftp is not None
     for t in range(len(pv)):
         dis, ch, z = m.var(0, st.p), m.var(0, st.p), m.var(0, 1, integer)
         m.add(dis - z * st.p, hi=0.0)
@@ -1252,8 +1250,8 @@ def _plant(m: _Model, st: Site, dur: dict | list[dict], S0: float, cyc_left: flo
         rdn = rd * (st.eta * du.get("regdn", 0.0))
         B = S - dis + ch * st.eta
         m.add(B, 0.0, st.e)
-        su = m.var(0, math.inf) if soft else _Lin()
-        sd = m.var(0, math.inf) if soft else _Lin()
+        su = m.var(0, math.inf) if loose else _Lin()
+        sd = m.var(0, math.inf) if loose else _Lin()
         if soft:
             out["slack"] += [su, sd]
         m.add(B - rup + su, lo=0.0)
@@ -1264,15 +1262,26 @@ def _plant(m: _Model, st: Site, dur: dict | list[dict], S0: float, cyc_left: flo
         sh = m.var(0, math.inf) if soft else _Lin()
         if soft:
             out["slack"].append(sh)
-        m.add(b + up - sh, hi=min(st.p, st.meter))
+        over = _Lin()
+        if ftp is None:
+            m.add(b + up - sh, hi=min(st.p, st.meter))
+        else:
+            sp, over, y = m.var(0, math.inf), m.var(0, math.inf), m.var(0, 1, integer)
+            m.add(b + up - sp, hi=st.p)
+            m.add(b + up - over, hi=st.meter)
+            m.add(sp + z * (5 * st.p), hi=5 * st.p)
+            m.add(over - y * (5 * st.p), hi=0.0)
+            m.add(y + z, hi=1.0)
+            out["ftp"].append(ftp_cost(m, st, a, du, (su, sd, sp, over), ftp[t]))
         m.add(b - rd + sh, lo=-min(st.p, st.meter_imp))
         U = a["regup"] * mu[t] + sum((a[k] * dep[t][k] for k in EVENT_PRODUCTS), _Lin())
         D = rd * md[t]
-        if soft:
+        if loose:
             ud, dd = m.var(0, math.inf), m.var(0, math.inf)
             m.add(U - ud, lo=0.0)
             m.add(D - dd, lo=0.0)
-            out["slack"] += [U - ud, D - dd]
+            if soft:
+                out["slack"] += [U - ud, D - dd]
             U, D = ud, dd
         nxt = m.var(0.0, st.e)
         m.add(nxt - B + U - D * st.eta, 0.0, 0.0)
@@ -1281,7 +1290,9 @@ def _plant(m: _Model, st: Site, dur: dict | list[dict], S0: float, cyc_left: flo
             c = _Lin(k=s)
         else:
             c = m.var(0.0, s)
-            m.add(c - b - up, lo=s - st.meter)
+            m.add(c - b - up + over, lo=s - st.meter)
+            if ftp is not None:
+                m.add(c - y * s, lo=0.0)
         xb = b + (s - c)
         out["x"].append(xb + U - D)
         out["xb"].append(xb)
@@ -1294,6 +1305,31 @@ def _plant(m: _Model, st: Site, dur: dict | list[dict], S0: float, cyc_left: flo
         out["S"].append(S)
     m.add(dsum, hi=cyc_left)
     return out
+
+
+def ftp_cost(m: _Model, st: Site, a: dict, du: dict, slack: tuple, px: dict) -> _Lin:
+    """A lower bound on the hour's failure-to-provide charge (C3-D8, C3-D19) for its shortfalls: su (up reservation)
+    and sd (RegDn room) in MWh, sp and sm (up awards beyond power and meter headroom) in MW. The Session shorts every
+    up product by the same share w of its award; v_k = w x a_k is relaxed to its McCormick envelope (awards in
+    0..p_mw), so the Session's charge is one solution. RegDn's charge is exact."""
+    su, sd, sp, sm = slack
+    w = m.var(0, 1)
+    v = {k: m.var(0, math.inf) for k in UP}
+    cost = _Lin()
+    for k in UP:
+        m.add(v[k] - a[k], hi=0.0)
+        m.add(v[k] - w * st.p, hi=0.0)
+        m.add(v[k] - a[k] - w * st.p, lo=-st.p)
+        cost = cost + v[k] * px.get(k, 0.0)
+    m.add(sum((v[k] * du.get(k, 0.0) for k in UP), _Lin()) - su, lo=0.0)
+    m.add(sum(v.values(), _Lin()) - sp, lo=0.0)
+    m.add(sum(v.values(), _Lin()) - sm, lo=0.0)
+    if du.get("regdn", 0.0) > 0:
+        r = m.var(0, math.inf)
+        m.add(r - a["regdn"], hi=0.0)
+        m.add(r * (st.eta * du["regdn"]) - sd, lo=0.0)
+        cost = cost + r * px.get("regdn", 0.0)
+    return cost
 
 
 def _awards(m: _Model, n: int, h0: int, products, fixed: dict | None, p: float) -> list[dict]:
@@ -1362,8 +1398,20 @@ def solve_day(st: Site, day: Day, h0: int, S0: float, cyc: float, *, products=()
 
 
 def hindsight(task: dict, tier: str, notices=None, deployments=None, *, integer: bool = True) -> float | None:
-    """P_hind (C3-D13): a DA-position copy on expected drift and a physical copy on realized RT, drift and deployments,
-    sharing the AS book (separate RT awards in rtcb). integer=False gives the LP bound."""
+    """P_hind (C3-D13, C3-D20): a DA-position copy on expected drift, its reservation band at each hour's end as the
+    watch-0 rules accept it (C3-D17), and a physical copy on realized RT, drift and deployments that settles as the
+    Session does (shortfalls charged, drift delivered as far as SoC allows), sharing the AS book (separate RT awards
+    in rtcb). integer=False gives the LP bound."""
+    m, *_ = hindsight_model(task, tier, notices, deployments, integer=integer)
+    res = m.solve()
+    if res is None and integer:
+        return hindsight(task, tier, notices, deployments, integer=False)
+    return None if res is None else res[0]
+
+
+def hindsight_model(task: dict, tier: str, notices=None, deployments=None, *,
+                    integer: bool = True) -> tuple[_Model, list[_Lin], _Lin, list[_Lin]]:
+    """The hindsight MILP: (model, each hour's share of the objective, the end penalty, the physical SoC path)."""
     st, day = site_of(task), day_of(task, tier)
     events = events_of(task, notices, deployments)
     dep = deploy_hours([n.deploy for n in (live.parse_notice(x, task["date"]) for x in events) if n.deploy], day.dur)
@@ -1373,24 +1421,29 @@ def hindsight(task: dict, tier: str, notices=None, deployments=None, *, integer:
     a_da = _awards(m, HOURS, 0, prods, None, st.p)
     a_rt = _awards(m, HOURS, 0, prods, None, st.p) if tier == "rtcb" else a_da
     cp = _plant(m, st, day.dur, st.s0, st.cap, day.pv, day.da, [day.mean_up] * HOURS, [day.mean_dn] * HOURS, zero,
-                a_da, integer=integer, free_curtail=True)
+                a_da, integer=integer, free_curtail=True, inherited=True)
     ph = _plant(m, st, deployed_durations(day.dur, dep), st.s0, st.cap, day.pv, day.rt, day.reg_up, day.reg_dn, dep,
-                a_rt, integer=integer)
+                a_rt, integer=integer, ftp=ftp_prices(day))
     short = m.var(0, math.inf)
     m.add(short + ph["S"][-1], lo=st.s_end)
-    obj = _Lin()
+    hours = []
     for h in range(HOURS):
-        obj = obj + cp["xb"][h] * float(day.da[h] - day.rt[h]) + ph["x"][h] * float(day.rt[h])
-        obj = obj - (ph["dis"][h] + ph["U"][h]) * st.c_deg
+        e = cp["xb"][h] * float(day.da[h] - day.rt[h]) + ph["x"][h] * float(day.rt[h])
+        e = e - (ph["dis"][h] + ph["U"][h]) * st.c_deg - ph["ftp"][h]
         for k in prods:
-            obj = obj + a_da[h][k] * float(day.mda[k][h])
+            e = e + a_da[h][k] * float(day.mda[k][h])
             if tier == "rtcb":
-                obj = obj + (a_rt[h][k] - a_da[h][k]) * float(day.mrt[k][h])
-    m.obj = obj - short * day.pen
-    res = m.solve()
-    if res is None and integer:
-        return hindsight(task, tier, notices, deployments, integer=False)
-    return None if res is None else res[0]
+                e = e + (a_rt[h][k] - a_da[h][k]) * float(day.mrt[k][h])
+        hours.append(e)
+    penalty = short * day.pen
+    m.obj = sum(hours, _Lin()) - penalty
+    return m, hours, penalty, ph["S"]
+
+
+def ftp_prices(day: Day) -> list[dict]:
+    """Each hour's failure-to-provide price per product (C3-D8): the larger of the DA and RT MCPC where RT exists."""
+    return [{k: max(float(day.mda[k][h]), float(day.mrt[k][h]) if day.mrt and k in day.mrt else float(day.mda[k][h]))
+             for k in day.mda} for h in range(HOURS)]
 
 
 # policies: the anchor, the oneshot optimum and the baselines, each played through a Session

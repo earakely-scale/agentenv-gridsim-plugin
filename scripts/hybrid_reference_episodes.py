@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
             g = s.grade()
             print(f"{out.name}: profit {ep['profit_usd']:,.0f} reward {ep['reward']:.3f} AS share "
                   f"{g['as_share'] if g['as_share'] is None else round(g['as_share'], 3)} governor "
-                  f"{g['governor_hours']} ftp {g['ftp_mwh_charged']:.1f}/{g['ftp_mwh_excused']:.1f} MWh "
+                  f"{g['governor_hours']} ftp {g['ftp_mwh_charged']:.1f} MWh "
                   f"watches {len(ep['watches'])} {out.stat().st_size / 1e3:.0f} kB")
     return 1 if bad else 0
 

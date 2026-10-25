@@ -99,6 +99,8 @@ def test_keep_and_null_keep_an_as_field_and_the_parse_error_says_how(day):
     out = json.loads(s.call("commit_schedule", {"plan": {"energy": "keep"}, "from_hour": 0}))
     assert "send its booked MW" in out["refused"][0]["detail"]
     assert 'send "keep" or null' in HP.system_prompt("reserves", "B")
+    assert "it settles at that hour's RT price, as ERCOT settles it" in HP.system_prompt("reserves", "B")
+    assert "as ERCOT settles it" not in HP.system_prompt("energy", "B")
 
 
 def test_a_deployment_uses_up_its_duration():
@@ -172,6 +174,8 @@ def test_freeze_and_as_fixed():
 
 
 def test_calls_budget_and_errors():
+    """Three planning calls a watch; one refused as malformed uses none, up to three a watch, and names the shape
+    the field needs (V3-D16); a plan that parses uses a call even when its hours are refused."""
     s = H.Session(synth())
     for _ in range(3):
         s.call("check_schedule", {"plan": {"energy": [0] * 24}})
@@ -179,7 +183,23 @@ def test_calls_budget_and_errors():
     assert "no planning calls left" in out["error"] and not s.commits
     s2 = H.Session(synth())
     out = json.loads(s2.call("commit_schedule", {"energy": [0] * 24}))
-    assert out["error"].startswith("commit_schedule: unexpected argument") and out["calls_left"] == 2
+    assert out["error"] == "commit_schedule: unexpected argument 'energy' (it takes plan and from_hour)"
+    assert out["calls_left"] == 3
+    out = json.loads(s2.call("commit_schedule", {"plan": {"energy": [0] * 24, "regdn": [5] * 25}, "from_hour": 0}))
+    assert out["refused"][0]["detail"].startswith("regdn has 25 values; it needs 24 (one per hour) or blocks; ")
+    assert out["calls_left"] == 3 and not s2.book["regdn"][0]
+    out = json.loads(s2.call("check_schedule", {"plan": {"energy": [0] * 24, "ecrs2": 5}}))
+    assert (out["issues"][0]["rule"], out["calls_left"]) == ("parse", 3)
+    out = json.loads(s2.call("check_schedule", {"plan": {"energy": [0] * 12}, "from_hour": 13}))
+    assert out["issues"][0]["detail"].startswith("energy has 12 values; it needs 11 (one per hour from 13 to 23) or "
+                                                 "24 (the whole day) or blocks; ")
+    assert out["calls_left"] == 2 and s2.free_refusals == [3]
+    out = json.loads(s2.call("commit_schedule", {"plan": {"energy": [500] + [0] * 23}, "from_hour": 0}))
+    assert out["refused"][0]["rule"] == "power" and out["calls_left"] == 1
+    s2.call("advance")
+    out = json.loads(s2.call("check_schedule", {"plan": {"energy": "1 2"}}))
+    assert out["calls_left"] == 3 and s2.data()["free_refusals"] == [3, 1]
+    assert "does not use a planning call, up to 3 such refusals per watch" in HP.system_prompt("reserves", "B")
 
 
 @settings(max_examples=150, deadline=None)
@@ -310,7 +330,9 @@ def test_deployment_acts_at_its_real_time_and_is_revealed_once(day):
     assert s.audit()["ok"]
 
 
-def test_drift_after_freeze_is_excused_and_known_drift_is_charged():
+def test_every_shortfall_is_charged_as_it_happens():
+    """Drift that empties the battery after its hours froze is charged from the hour the reservation runs short, and
+    the end shortfall in full (C3-D19): nothing is excused, and hindsight still bounds the day."""
     t = synth(deploy=False, notices=False)
     t["reg"] = t["reg"] | {"up": [1.0] * 24, "dn": [0.0] * 24}
     s = H.Session(t)
@@ -318,14 +340,80 @@ def test_drift_after_freeze_is_excused_and_known_drift_is_charged():
                                                 "from_hour": 0}))
     assert out["committed"] == list(range(24)) and not out["refused"]
     run(s, lambda s: None)
-    g = s.grade()
-    excused = {r["hour"] for r in s.excused}
-    charged = {r["h"] for r in s.rows if sum(r["charged"].values()) > 1e-9}
-    assert min(excused) == 4 and not charged & {4, 5, 6} and min(charged) == 7
-    rows = {r["h"]: r for r in s.rows}
-    assert rows[10]["charged"]["regup"] < rows[10]["excused_mw"]["regup"]
-    assert any(g["hour"] == 6 and g["excused"] for g in s.governor)
-    assert g["ftp_mwh_excused"] > 0 and g["ftp_mwh_charged"] > 0 and s.cash["ftp"] > 0
+    short = [r["h"] for r in s.rows if sum(r["short"].values()) > 1e-9]
+    assert short == list(range(4, 24)) and s.cash["ftp"] == pytest.approx(sum(r["ftp"] for r in s.rows))
+    assert s.end_short == pytest.approx(s.site.s_end) and s.cash["end_penalty"] == pytest.approx(s.end_short * s.day.pen)
+    assert "excused" not in s.cash and s.grade()["ftp_mwh_charged"] == pytest.approx(20 * 25)
+    assert s.profit() <= H.hindsight(t, "reserves") + 0.01
+
+
+def test_up_awards_the_battery_has_no_headroom_for_are_short():
+    """A full battery cannot charge to make power headroom for up awards above p_mw: the MW beyond it are short, pro
+    rata (C3-D19)."""
+    st = H.site_of(synth())
+    a = dict.fromkeys(H.PRODUCTS, 0.0) | {"regup": 60.0, "rrs": 60.0}
+    dur = {"regup": 1.0, "regdn": 1.0, "rrs": 1.0}
+    full = H.step(st, dur, st.e, 0.0, -20.0, a, 0.0, 30.0, 0.0, 0.0, power=True)
+    assert full["b"] == pytest.approx(0.0) and full["short"] == pytest.approx({"regup": 10.0, "rrs": 10.0})
+    assert not H.step(st, dur, st.e, 0.0, -20.0, a, 0.0, 30.0, 0.0, 0.0)["short"]
+    room = H.step(st, dur, 150.0, 0.0, -20.0, a, 0.0, 30.0, 0.0, 0.0, power=True)
+    assert room["b"] == pytest.approx(-20.0) and not room["short"]
+
+
+def test_the_da_position_is_what_the_projection_executes():
+    """An entry a later watch-0 commit leaves unexecutable (kept after its refusal) sells at DA only what the
+    projection runs (C3-D19), so the book cannot hold a DA sale the battery cannot back."""
+    t = synth(deploy=False, notices=False)
+    s = H.Session(t, "energy")
+    e = [0] * 24
+    e[3], e[17], e[18] = -100, 100, 85
+    assert json.loads(s.call("commit_schedule", {"plan": {"energy": e}, "from_hour": 0}))["committed"] == list(range(24))
+    e[3] = 0
+    out = json.loads(s.call("commit_schedule", {"plan": {"energy": e}, "from_hour": 0}))
+    assert [(r["hour"], r["rule"]) for r in out["refused"]] == [(18, "soc_empty")] and out["book"]["energy"][18] == 85
+    s.call("advance")
+    assert s.da["x_da"][18] == pytest.approx(H.x_da_of(s.site, s.day.pv[18], s.day.da[18], 0.0, s.entry(18)[1]))
+    assert s.da["x_da"][17] == pytest.approx(H.x_da_of(s.site, s.day.pv[17], s.day.da[17], 100.0, s.entry(17)[1]))
+    run(s, lambda s: None)
+    assert s.profit() <= H.hindsight(t, "energy") + 0.01
+
+
+def random_policy(seed: int):
+    """Random books at random watches: energy anywhere in -p..p, AS at watch 0 up to p a product, a second watch-0
+    commit that changes energy only (C3-D17's inherited awards), refused hours kept."""
+    rng = np.random.default_rng(seed)
+
+    def policy(s: H.Session):
+        fo = s.first_open
+        if fo >= 24 or rng.random() < 0.3:
+            return
+        n = 24 - fo
+        plan = {"energy": [round(float(x), 1) for x in rng.uniform(-s.site.p, s.site.p, n) * (rng.random(n) < 0.6)]}
+        if s.watch == 0 and s.day.offered:
+            plan |= {k: [round(float(x), 1) for x in rng.uniform(0, s.site.p, n) * (rng.random(n) < 0.4)]
+                     for k in s.day.offered if rng.random() < 0.6}
+        s.call("commit_schedule", {"plan": plan, "from_hour": fo})
+        if s.watch == 0 and rng.random() < 0.5:
+            plan["energy"] = [round(float(x), 1) for x in rng.uniform(-s.site.p, s.site.p, n)]
+            s.call("commit_schedule", {"plan": {"energy": plan["energy"]}, "from_hour": fo})
+
+    return policy
+
+
+@pytest.mark.parametrize("seed,tier", [(1, "reserves"), (2, "reserves"), (3, "energy"), (4, "reserves"),
+                                       (5, "energy"), (6, "reserves")])
+def test_no_play_beats_hindsight(seed, tier):
+    """P_hind is the clairvoyant optimum of what the Session settles (C3-D20): no book, reference or random,
+    settles above it, and its LP relaxation bounds it."""
+    t = synth(seed=seed, neg=seed % 2 == 0, site=("arch-ac150", "arch-dc150", "arch-ac125")[seed % 3])
+    t["reg"] = t["reg"] | {"up": list(np.random.default_rng(seed).uniform(0, 1, 24)),
+                           "dn": list(np.random.default_rng(seed + 9).uniform(0, 1, 24))}
+    hind = H.hindsight(t, tier)
+    assert H.hindsight(t, tier, integer=False) >= hind - 1e-6
+    policies = [H.anchor_policy(), H.as_hog_policy, H.sponge_policy, H.anchor_policy(energy_only=True, pv_blind=True)]
+    for policy in policies + [random_policy(100 * seed + i) for i in range(25)]:
+        s = H.play(t, tier, policy)
+        assert s.profit() <= hind + 0.01, (s.profit(), hind)
 
 
 def test_episode_json_and_data(day):

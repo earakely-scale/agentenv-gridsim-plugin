@@ -1,6 +1,6 @@
 {
  "pack": "fixtures-hybrid",
- "hybrid_version": "3.0",
+ "hybrid_version": "3.2",
  "tasks": 20,
  "eras": {
   "A": 8,

@@ -50,6 +50,10 @@ The v3 plan's recommendations, taken as written:
 | V3-D12 | Oversized-PV sites | **Confirmed (Edgar 2026-10-24).** Sites with PV AC above the POI so the meter clips and the energy tier tests charging from clipped solar: 40% of pack sites take POI = PV AC / r, r in {1.11, 1.25, 1.4} by seeded draw (20% the 1.2x variant, 40% POI = PV AC), POI import = POI, flag `poi: "oversized r"`, site id `...-poi<MW>`. POI is not public: ERCOT's GIS report (RTID 15933) is not among the public API's products and MIS is off limits. Evidence from EIA-860 2025's 22 co-located ERCO PV+storage plants: one reports PV summer capability below its AC nameplate (plant 66420: 355.4 MWac against 320 MW, r = 1.11), two more at 326.6 against 320 (1.02); their DC/AC ratios run 1.18-1.43 (median 1.29). 1.11 is the observed ratio; 1.25 and 1.4 are labelled archetype ratios inside that DC/AC range (a plant whose inverters were sized to its PV DC and whose POI to its AC export clips in the same band). Measured (`data/hybrid-stats.md`; the energy anchor is 1.0 by construction): on eval, v2 energy-only scores 0.953 over the 300 days (0.989 before) and 0.961 / 0.910 / 0.840 on r = 1.11 / 1.25 / 1.4 sites (41% of the r = 1.4 days below 0.9; 0.98 where POI >= PV AC); the solar sponge 0.39 on oversized days (idle's 0.2 elsewhere), with 86 clippable MWh a day. In train (2021-2024, when midday was not yet the cheapest hour) v2 energy-only falls to 0.60-0.74 on oversized sites. r = 1.11 barely moves the tier; r >= 1.25 makes it a test. |
 | V3-D13 | Keeping a field | **Confirmed (Edgar 2026-10-24).** An AS field left out of the plan, sent as `"keep"` (any case, spaces trimmed) or as `null` keeps the book's values; `parse_plan(..., keep=True)` (hybrid only; v4 calls it without and is unchanged). A parse error names the fix: "to keep RegDn as it is, leave regdn out (or send "keep")", and for energy "send its booked MW". A malformed field (wrong length, bad block, not numbers) still refuses the whole call as `parse`. The rules card and the tool schema say so (the pilot's seven `"keep"` refusals and its 25-value RegDn list). |
 | V3-D14 | Scoring | **Adopted (Edgar 2026-10-25).** The cross-version scale ([CONTRACT.md](CONTRACT.md#scoring-across-versions-adopted)): C against the hindsight MILP (C3-D13) heads the board beside the anchor's C and Δ, R second; `grade()["stretch_reward"]` (S) is the path-B' training reward; the oneshot path B keeps R, which is S there (its anchor is the projection's optimum) |
+| V3-D15 | Deployed energy on the rules card | **Rules 3.2 (Edgar 2026-10-25).** The card states the settlement mechanic and no strategy: energy that regulation and reserve deployments move (RegUp, RRS, ECRS and Non-Spin discharging, RegDn charging) is part of the hour's actual export, so it settles at that hour's RT price, as ERCOT settles it (reserves and rtcb tiers) |
+| V3-D16 | Malformed planning calls | **Rules 3.2 (Edgar 2026-10-25).** A check_schedule or commit_schedule refused because its input is malformed (a parse refusal: a list of the wrong length, a value of the wrong type, an unknown field or product, a missing or unexpected argument) uses no planning call, up to `FREE_REFUSALS` = 3 per watch (`data()["free_refusals"]` counts them); the fourth uses one, and a plan that parses uses a call even when hours are refused. The error names the field and the shape it needs ("regdn has 25 values; it needs 24 (one per hour) or blocks", "... it needs 11 (one per hour from 13 to 23) or 24 (the whole day) or blocks", "unexpected argument 'energy' (it takes plan and from_hour)"); extra values are refused, never truncated. Supersedes L-D7's charge for argument errors in v3; v4 is unchanged |
+| V3-D17 | The agent's cost guard | **Rules 3.2 (Edgar 2026-10-25); agents/gridsim-llm, every version; no env change.** The guard estimates a request as it will be priced, with the price table the sweep reads: the last request's measured input at the cache-read rate while the provider caches, the bytes added since as fresh tokens without the last reply's reasoning (priced once, as its output), and the most output a reply of the episode used (the output limit only before the first reply and for a stream the harness cut). A failed request is booked at that estimate. On the 45 played v3b runs (per-turn usage from each transcript scaled to the recorded totals; the replay matches the recorded guard within $0.006) the guard's spend goes from 1.26x the priced cost to 1.03x; the capped run (2025-02-17 LZ_HOUSTON) books $0.205 against $0.193 priced (was $0.363) and its next request $0.03 (was $0.17), so it plays on |
+| V3-D18 | Board order | **Rules 3.2 (Edgar 2026-10-25).** Reserves is the headline tier of the v3 board and card; rtcb follows and the energy tier (no AS) is a secondary column (`sweep.hybrid_card` orders models and baselines so, and the board says it) |
 
 Core decisions where the v3 plan is silent or ambiguous (also provisional):
 
@@ -61,18 +65,20 @@ Core decisions where the v3 plan is silent or ambiguous (also provisional):
 | C3-D4 | **PV curtailment is the controller's**: per hour, pv = 0 when the hour's price is negative (RT when executed, DA when projected), else min(s, max(0, L - b - Up)): PV is curtailed to keep the meter limit after the battery's base move and to keep **headroom for the hour's up-awards** at the meter, so x + Up <= L always holds; the meter rule refuses only b + Up > L or b - RD < -L_imp. |
 | C3-D5 | **SoC rules are checked on the base path**: with S the SoC at the start of the hour and B = S - dis + eta*ch its end before deployments, reserve_up needs min(S, B) >= sum_up dur_k*a_k and reserve_dn needs max(S, B) <= E - eta*dur_RD*RD, physics needs 0 <= B <= E (inherited awards: C3-D17). Projections (check, commit, references) carry the expected regulation drift (`reg.mean_up`, `reg.mean_dn`) and every delivered deployment into the next hour's S. |
 | C3-D6 | **Governor**: before an hour executes, its base move is moved to the nearest value (MW, continuous) that keeps headroom, the cycle cap and 0 <= B <= E, and puts B inside the reservation band when reachable (else as close as possible). Clipped hours are listed; the energy moved is settled as executed (the energy stays in the battery, so no lost profit is paid back, unlike v2's derate excuse). |
-| C3-D7 | **Charged vs excused** (FTP and the end-SoC penalty): each hour's AS shortfall and the end shortfall are also computed on the projection at the last watch where the hour was open (the snapshot taken when that watch's advance is called). Charged = min(realized, projected); excused = the rest (drift or deployments that arrived after the hour froze). |
+| C3-D7 | **Superseded by C3-D19 (rules 3.2).** ~~Charged vs excused~~ (FTP and the end-SoC penalty): each hour's AS shortfall and the end shortfall are also computed on the projection at the last watch where the hour was open (the snapshot taken when that watch's advance is called). Charged = min(realized, projected); excused = the rest (drift or deployments that arrived after the hour froze). |
 | C3-D8 | **AS shortfall** in hour t: up products scale by f = min(1, min(S, B)/R_up); short_k = (1 - f)*a_k MW for each up product; RegDn likewise with room = E - max(S, B) against eta*dur_RD*RD. FTP = sum_k short_k * max(pi_DA, pi_RT) for 1 h (pi_RT only in era C). |
 | C3-D9 | **Deployments**: RegUp/RegDn move SoC every hour by delta_up*RU and eta*delta_dn*RD (delta from the task, capped at the product's duration in hours). An RRS/ECRS/Non-Spin deployment draws frac x award(hour) over the first dur_k hours of its window, split by minutes per hour. Delivered energy is limited by SoC (up first, then RegDn), passes the meter, settles at RT and pays degradation. Deployments act at their real times whether or not the agent has been told. |
 | C3-D10 | **Cycle cap** = 1.5*E MWh of base discharge (deployments are the grid's call and are not capped). Degradation applies to every MWh discharged. |
-| C3-D11 | **No end-target commit rule** (unlike v2 L-D3): the projected end shortfall and its penalty are shown, and the realized one is charged per C3-D7. Archetypes have s_end_min = s0, so the idle book pays none. |
+| C3-D11 | **No end-target commit rule** (unlike v2 L-D3): the projected end shortfall and its penalty are shown, and the realized one is charged in full (C3-D19). Archetypes have s_end_min = s0, so the idle book pays none. |
 | C3-D12 | **RT is expected at DA** for the anchor (the v3 plan); no decayed basis as in v2. |
 | C3-D14 | **Deployment size**: lane D3's events carry no fraction (`frac` null; only Non-Spin states system MW), so every deployment uses frac = 1.0 of the award for min(window, duration): the stress case the reservation covers, labelled. |
 | C3-D15 | **AC coupling only in packs** (EIA-860 2025 shows no DC-coupled ERCO sites); s = min(PV MWac, MWac x ILR x cf) with lane D3's system cf, which is already fleet-AC so ILR x cf is an approximate DC shape (flagged). The dc code path stays for later. |
 | C3-D16 | **Baseline filter**: The v3 plan's "sponge within 3% of the anchor" drop is extended to every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP: a day where any of them reaches reward 0.97 against the reserves anchor is dropped. Without it 13% of eval days had the T2 anchor below the energy-only MILP: the seeded regulation drift is independent of grid state, so RegDn drift buys energy at RT spikes while T2's awards are locked (the hero day, display-only, keeps it: T2 anchor $350k vs energy-only $482k). The filter stays with V3-D8's drift: ERCOT's measured storage fleet still absorbs about 15% of its RegDn award in hours where RT clears $100 above DA. |
 | C3-D17 | **Inherited awards.** An hour whose awards equal the book's (every hour after watch 0 in `reserves`, where the DA awards are fixed) starts from a SoC the entry cannot change, so its entry passes when the governor would leave it as it is: the reservation band is checked at the hour's end only (not its start), and when the band, headroom or SoC room cannot all be met the governor's closest move is the one accepted. A refused entry names the rule it breaks (`reserve_up`, `reserve_dn`, `headroom_up`, ...; the detail gives the move to make). New or changed awards keep the full C3-D5 rule at both ends. The rolling MILP mirrors this (end-of-hour band only for fixed awards); when it is infeasible the soft model (penalty scaled to the day's prices, then its LP relaxation) minimises the shortfall and a repair walk replaces the entries the Session refuses with the governor's move, so the anchor's commits are never refused (a hard solution is never repaired; tested on every fixture and samples of eval and train). |
-| C3-D13 | **Hindsight** (weight 0): one MILP with a DA-position copy of the plant (expected drift, DA curtailment free between its rule minimum and s) and a physical copy on realized RT, drift and deployments, sharing the AS book (separate RT AS in era C). An upper reference, not an achievable plan. |
+| C3-D13 | **Hindsight** (weight 0; amended by C3-D20): one MILP with a DA-position copy of the plant (expected drift, DA curtailment free between its rule minimum and s) and a physical copy on realized RT, drift and deployments, sharing the AS book (separate RT AS in era C). An upper reference, not an achievable plan. |
 | C3-D18 | **Accepted (Edgar 2026-10-25).** **A deployment uses up its product's duration** (found verifying V3-D8 on aug10-2023). In an hour where an RRS, ECRS or Non-Spin deployment is running, that product's reservation (C3-D5) and shortfall (C3-D8) use the duration it has left: dur_k minus the fraction-hours of its contiguous deployment run before the hour (`hybrid.deployed_durations`), never below 0; other hours keep the era's duration. The Session, its projections, the rolling MILP and hindsight all use it (realized deployments where the hour is played, delivered ones where it is projected). On aug10-2023 the reserves anchor's FTP falls from $126k to $10 (the shortfall was the full 2 h ECRS reservation demanded at 19:00 after two hours of ECRS delivery). Tested in `test_a_deployment_uses_up_its_duration`. |
+| C3-D19 | **Rules 3.2 (Edgar asked for the root cause, 2026-10-25). Settlement charges what happened.** Found because a stored reference beat hindsight: on eval 2025-06-28 LZ_AEN the reserves anchor settled $53,541.61 against P_hind $51,890.14 (P_lp the same), and 14 train days did the same (up to +$2,421). Root cause: the Session settled things the hindsight MILP rules out. (1) C3-D7's excuse: on LZ_AEN measured RegUp drift of 0.757 of the award at 19:00 (its mean 0.17) emptied the battery after the day's last watch; the anchor sold that energy at RT and $9,744 of charges were excused (the end shortfall, 96 MWh, $8,015, and $1,729 of FTP); without the excuse 14 of the 15 cases are gone. The excuse was no edge case: 296 of 300 eval reserves anchors carried one (mean $848, train $4,309), each a shortfall from drift above or below its mean that the projection had not shown, so it paid band-edge AS books (the anchor's; AS-hog's mean $2,465) for capacity the battery did not have. (2) Up awards beyond power headroom were never short: when the battery is too full to charge the room its book planned, the governor leaves b + up above p_mw or the meter (477 realized hours of the anchor and AS-hog over the 2,904 pack days), paid in full. (3) An entry kept after its refusal (a second watch-0 commit that empties the battery before a booked discharge) still set the DA position, a DA sale up to p_mw the battery could not back. Rules 3.2: every shortfall is charged as it happens (FTP on the realized shortfall, C3-D8; the end penalty on the realized end shortfall; nothing is excused, so `excused` leaves the cash, tool outputs, `data()`, `grade()` and Episode JSON); up awards beyond min(p_mw, meter) after the governor's move are short pro rata (`step(..., power=True)`, the Session's projections and settlement; v4's calls are unchanged); the DA position is the projection's executed export at watch 0's end (C3-D3 as written: `x_da_of` of the governed move, so a kept entry sells only what the battery runs). The anchor's play is unchanged; its profit falls by what was excused (eval reserves mean -$851, max -$12,661; scarcity days in train up to -$264,588, MCPC above $2,000 clawed back on drifted RegDn). The rules card says so (`test_every_shortfall_is_charged_as_it_happens`, `test_up_awards_the_battery_has_no_headroom_for_are_short`, `test_the_da_position_is_what_the_projection_executes`). |
+| C3-D20 | **Rules 3.2. Hindsight is the clairvoyant optimum of the same settlement** (C3-D13 amended; [CONTRACT.md](CONTRACT.md#scoring-across-versions-adopted)). The physical copy settles as the Session does: the reservation band (both ends) and the power and meter headroom may be missed at the failure-to-provide charge, a McCormick envelope of the Session's pro-rata (1 - f) x award (`ftp_cost`, at max(DA, RT) MCPC as C3-D8; a headroom shortfall only in a charging hour, where the Session's governor can leave one, and with no PV export past the meter); regulation and deployments are delivered as far as SoC allows. The DA-position copy keeps the band at each hour's end only, as the watch-0 rules accept a recommit with inherited awards (C3-D17). Before, the hard band made P_hind no bound: the FTP clawback lets a clairvoyant hold awards it does not back. Effect (eval reserves): P_hind +$2,009 mean (+8.3% of P_hind - P_idle, +$345 to +$39,419), P_lp +$2,634; the anchor's C 0.524 -> 0.450 (train 0.702 -> 0.583, rtcb 0.454 -> 0.394); energy tier, oneshot optima, idle, sponge and v2 energy-only unchanged. `hindsight_model` is the one model (`hindsight` and the viewer's race lane). Tested: every stored reference on every pack day and tier is at or below P_hind + $0.01 and P_lp >= P_hind (`test_no_reference_settles_above_hindsight`: 0 of 23,392 references above, was 15), and 150 random books (two watch-0 commits, refused hours kept, random AS) on synthetic days with random drift never settle above it (`test_no_play_beats_hindsight`). Not modelled: a watch-0 book whose own projection cannot reach an hour's reservation (the governor at its limit after an inherited recommit) sells its max-effort move at DA, outside the DA copy's end-of-hour band; no reference or tested book does it. |
 
 ## Site, units and physics
 
@@ -105,8 +111,8 @@ Site row (`task["site"]`), the archetype (lane D3 supplies real archetypes per h
   `reserve_up`, `reserve_dn`, `not_offered` (the product does not exist that day, or the tier is `energy`),
   `not_qualified`, `as_fixed` (reserves tier after watch 0: AS differ from the DA book). Tolerance 1e-4 MWh.
 - Settlement (price taker), per hour: energy_da = x_DA*DA, energy_rt = (x - x_DA)*RT, as_da = sum_k aDA_k*piDA_k,
-  as_rt = sum_k (aRT_k - aDA_k)*piRT_k (era C; else aRT = aDA), degradation = c_deg*MWh discharged, ftp (charged, C3-D8).
-  At 24:00 the end penalty = charged shortfall/eta * max(max_h DA_h, P_FLOOR). Profit P = energy_da + energy_rt + as_da +
+  as_rt = sum_k (aRT_k - aDA_k)*piRT_k (era C; else aRT = aDA), degradation = c_deg*MWh discharged, ftp (the realized shortfall, C3-D8, C3-D19).
+  At 24:00 the end penalty = shortfall/eta * max(max_h DA_h, P_FLOOR) (charged in full, C3-D19). Profit P = energy_da + energy_rt + as_da +
   as_rt - degradation - ftp - end_penalty. Money in tool outputs is rounded to cents, MW/MWh to 2 decimals, grades to 6.
 
 ## Tiers
@@ -157,8 +163,9 @@ oneshot_grade(task, plan, tier="reserves") -> {"submitted", "reward", "profit_us
 
 ## Tools (agent role `default`; outputs are the dicts below plus `"messages"`)
 
-Errors return `{"error": "...", "calls_left": n}` and change nothing; as v2 (L-D7), a planning tool with a missing or
-unexpected argument uses a call, one after the day or with no calls left uses none.
+Errors return `{"error": "...", "calls_left": n}` and change nothing. A planning tool with a missing or unexpected
+argument, or a plan that does not parse, uses no planning call up to three times a watch, then one (V3-D16); one after
+the day or with no calls left uses none.
 
 - `get_situation()` (free; answers after the day too):
 
@@ -191,7 +198,7 @@ unexpected argument uses a call, one after the day or with no calls left uses no
 ```
 {"feasible":bool,"issues":[{"hour","field","rule","detail"}],"refused":[hours],"projected":{...as above},
  "clip_recovered_mwh":x,"curtailed_mwh":x,"reserve_margin_mwh_by_hour":[24],
- "excused":[{"hour","product","mw","usd"}],"calls_left":n}
+ "calls_left":n}
 ```
 
   `detail` reads like `"ECRS 2h + RRS 1h need 150.0 MWh at 18:00, SoC 120.0"`. The projection is of the book as it
@@ -205,11 +212,10 @@ unexpected argument uses a call, one after the day or with no calls left uses no
   then and opens the watch (3 fresh calls).
   `{"watch":k,"time","frozen_until_hour","realized":[{"h","rt_usd","mcpc_rt"?,"pv_mw","export_mw","curtailed_mw",
   "clip_recovered_mw","b_mw","soc_mwh","reg_up_frac","reg_dn_frac","deployed_up_mwh","deployed_dn_mwh","governor",
-  "ftp_mw","excused_mw"}],"soc_mwh","cash":{"energy_da","energy_rt","as_da","as_rt","deployment_energy","degradation",
-  "ftp","excused","end_penalty","total"},"calls_left":3}`. From the last watch it runs to 24:00:
+  "ftp_mw"}],"soc_mwh","cash":{"energy_da","energy_rt","as_da","as_rt","deployment_energy","degradation","ftp",
+  "end_penalty","total"},"calls_left":3}`. From the last watch it runs to 24:00:
   `{"done":true,"time","realized","soc_mwh","cash","profit_usd","reward","capture_vs_hindsight"}` (no `watch` key, so
-  no trigger matches). `deployment_energy` (RT value of deployed MWh) is inside `energy_rt`; `excused` is FTP not
-  charged (information).
+  no trigger matches). `deployment_energy` (RT value of deployed MWh) is inside `energy_rt`.
 - `get_time()` comes from the gateway (UTC); hybrid tools take hours and show CPT.
 - Harness only (hidden from `default`): `grid_notice(event_id, name, text, level?, derate_mw?, from?, until?, deploy?)`
   with `deploy = {"product","frac" (0..1),"start_min","end_min"}` (minutes from D 00:00 CPT) → `{"applied": event_id,
@@ -218,7 +224,7 @@ unexpected argument uses a call, one after the day or with no calls left uses no
   `urn:gridsim:end-day/v1` → `s.end_day()` = `{"end_reason","watch","profit_usd","reward","audit"}`;
   `urn:agentenv:clock/v1 sync_time`; `data/get` → `s.data()`; `data/reset`.
 - `data()`: `{"task_id","tier","watches","watch","time","done","end_reason","calls_used","planning_calls","book",
-  "da","executed","status","notices","frozen","refusals","governor","excused","settled","audit","grade","reward"}`; never
+  "da","executed","status","notices","frozen","refusals","governor","free_refusals","settled","audit","grade","reward"}`; never
   a reference before the day ends.
 
 ## Deployments and notices
@@ -249,11 +255,11 @@ revealed at ceil(issued_at, 15 min), at the first watch at or after it. `notices
   `capture_vs_hindsight` beside the anchor's C and Δ, R second; training reads `stretch_reward` (S against P_hind).
 - **Weight-0 rows**: `p_hind` (C3-D13) and its LP bound `p_lp`, `capture_vs_hindsight` = (P - P_idle)/(P_hind - P_idle);
   `energy_only_reward` (the `energy`-tier anchor on this day, graded against this tier's anchor); `as_share` = AS
-  revenue / (energy + AS revenue); `clip_recovered_pct`; `curtailed_mwh`; `ftp_mwh` charged and excused; baselines
+  revenue / (energy + AS revenue); `clip_recovered_pct`; `curtailed_mwh`; `ftp_mwh_charged`; baselines
   (`sponge`, `as_hog`, `v2_energy`) as {profit, reward}.
 - `grade()` → `{"submitted","tier","reward","raw_ratio","profit_usd","cash","p_idle","p_anchor","p_hind","p_lp",
   "capture_vs_hindsight","stretch_reward","beats_anchor","energy_only_reward","as_share","clip_recovered_pct","curtailed_mwh",
-  "ftp_mwh_charged","ftp_mwh_excused","governor_hours","refusals","commits"}`.
+  "ftp_mwh_charged","end_short_mwh","governor_hours","refusals","commits"}`.
 - **Oneshot (path B, `hybrid-oneshot`)**: `oneshot_grade(task, plan, tier)` grades one watch-0 commit (C3-D2 refusals
   apply) by the Session's projection with RT = DA, expected drift and no deployments, against `refs[tier].oneshot.p_milp`
   (the day's MILP on the same model). Unparseable or nothing accepted → 0.
@@ -267,7 +273,7 @@ output showed an hour's RT price or RT MCPC before that hour ended.
 ## Task row (`data/ercot-hybrid-v3-*/tasks.jsonl.gz`)
 
 ```
-{"task_id":"hyb-v3-2023-09-06-HB_WEST-arch-dc150","hybrid_version":"3.0","contract_version":"1.0","pack","split",
+{"task_id":"hyb-v3-2023-09-06-HB_WEST-arch-dc150","hybrid_version":"3.2","contract_version":"1.0","pack","split",
  "date","era":"A|B|C","settlement_point","point_kind","region","site":{...},
  "prices":[24 DA SPP],"rt":[24 hourly RT SPP (mean of the four 15-min SPPs)],"pv_cf":[24],"pv_mw":[24],
  "mcpc_da":{"regup":[24],"regdn":[24],"rrs":[24],"ecrs":[24]|absent,"nspin":[24]},"mcpc_rt":{...}|null,
@@ -307,7 +313,7 @@ v2's shape with hours instead of intervals:
  "book":{...},"da":{...},"soc_path":[25],
  "hours":[{"h","da","rt","pv_mw","x_da_mw","export_mw","curtailed_mw","clip_recovered_mw","e_mw","b_mw","awards":{...},
            "reg_up_frac","reg_dn_frac","deployed_up_mwh","deployed_dn_mwh","soc_mwh","energy_da_usd","energy_rt_usd",
-           "as_da_usd","as_rt_usd","deg_usd","ftp_usd","excused_usd","governor"}],
+           "as_da_usd","as_rt_usd","deg_usd","ftp_usd","governor"}],
  "commits":[{"watch","from_hour","committed","refused","call"}],
  "cash":{...},"profit_usd","reward","raw_ratio","capture_vs_hindsight","beats_anchor",
  "references":{"p_idle","p_anchor","p_hind","p_lp","p_energy_only","anchor":{...},"baselines":{...}},

@@ -105,6 +105,7 @@ MARKET_RESEARCH = (("C (95% CI)", "c"), ("Anchor's C", "anchor_capture"), ("Δ v
                    ("eps-Nash", "eps_nash"), ("Mitigated h", "mitigated_hours"), ("Withholding", "withholding_index"),
                    ("CfDs", "contracts"))
 STRATA = ("low", "mid", "high")
+HYBRID_HEADLINE = ("reserves", "rtcb", "energy")
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,40}")
 INSTANCE = re.compile(r"(\d+(?:\.\d+)?)s, instance (\S+)")
 STOPS = ("model_endpoint", "unpriced_model")
@@ -390,8 +391,8 @@ def hybrid_fields(day: dict) -> dict:
             "capture": g["capture_vs_hindsight"], "energy_only_reward": g["energy_only_reward"],
             "as_share": g["as_share"], "clip_recovered_pct": g["clip_recovered_pct"],
             "curtailed_mwh": g["curtailed_mwh"], "ftp_mwh_charged": g["ftp_mwh_charged"],
-            "ftp_mwh_excused": g["ftp_mwh_excused"], "governor_hours": g["governor_hours"],
-            "refusals": g["refusals"], "commits": g["commits"], "watches": day["watches"],
+            "governor_hours": g["governor_hours"], "refusals": g["refusals"], "commits": g["commits"],
+            "watches": day["watches"],
             "watch_reached": day["frozen"][-1]["watch"] if day["frozen"] else None,
             "checks": sum(day["planning_calls"]), "planning_calls": day["planning_calls"], "book": day["book"],
             "da": day["da"], "schedule": day["executed"], "errors": hybrid_errors(day), "audit_ok": day["audit"]["ok"]}
@@ -1259,8 +1260,7 @@ def hybrid_model(board: Board, cell) -> dict:
             "valid": _r(_mean([float(r["valid"]) for r in runs])),
             "as_share": avg("as_share"), "energy_only_reward": avg("energy_only_reward"),
             "clip_recovered_pct": avg("clip_recovered_pct", 2), "ftp_mwh_charged": avg("ftp_mwh_charged", 3),
-            "ftp_mwh_excused": avg("ftp_mwh_excused", 3), "refusals": avg("refusals", 2),
-            "governor_hours": avg("governor_hours", 2),
+            "refusals": avg("refusals", 2), "governor_hours": avg("governor_hours", 2),
             "errors": {e: sum(e in (r["errors"] or []) for r in runs) for e in HYBRID_ERRORS},
             "planning_calls": _r(_mean([r["checks"] for r in runs]), 2), "commits": avg("commits", 2),
             "finished_by_agent": _r(_mean([float(r["end_reason"] == "done") for r in runs])),
@@ -1269,10 +1269,12 @@ def hybrid_model(board: Board, cell) -> dict:
 
 
 def hybrid_card(board: Board) -> dict:
-    models = [hybrid_model(board, cell) for cell in board.cells]
+    """The v3 eval card: reserves heads it (rtcb after), the energy tier is a secondary column (V3-D18)."""
+    models = sorted((hybrid_model(board, cell) for cell in board.cells),
+                    key=lambda m: HYBRID_HEADLINE.index(m["tier"]))
     rows = board.task_rows()
     split = sorted({r.get("split") for r in rows if r.get("split")})
-    tiers = sorted({s.tier for s in board.sweeps})
+    tiers = sorted({s.tier for s in board.sweeps}, key=HYBRID_HEADLINE.index)
     flags = sorted({f"{k}: {v}" for r in rows for k, v in (r.get("flags") or {}).items() if v})
     return {
         "env": HYBRID_ENV, "version": "v3", "hybrid_version": HYBRID_VERSION, "contract_version": CONTRACT_VERSION,
@@ -1293,7 +1295,7 @@ def hybrid_card(board: Board) -> dict:
                             "clock)"},
         "grading": {"scale": SCALE,
                     "hindsight": "P_hind: the hindsight MILP, a DA copy and a physical copy on realised RT, drift and "
-                                 "deployments sharing the AS book",
+                                 "deployments sharing the AS book, settled as the Session settles (C3-D20)",
                     "reference": "information-matched rolling MILP (HiGHS) played through the Session",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0",
                     "idle": "the solar-only plant", "anchor": "P_anchor: one MILP solve per watch on the day as known "
@@ -1303,7 +1305,8 @@ def hybrid_card(board: Board) -> dict:
                                "refs": "each reference's C and the paired gap"},
                     "weight_0": ["audit", "hindsight_capture", "energy_only", "as_share", "clip_recovered", "ftp"],
                     "audit": "weight 0; a failed audit makes the run unscored",
-                    "excused": "AS shortfall or end-SoC shortfall from drift or deployments after the hour froze",
+                    "excused": "none: every shortfall is charged as it happens (rules 3.2, C3-D19)",
+                    "tiers": "reserves is the headline tier; energy (no AS) is a secondary column",
                     "judge": False},
         "baselines": {t: hybrid_baselines(board.tier_rows(t), t) for t in tiers},
         "models": models,
@@ -1328,7 +1331,9 @@ def hybrid_board_md(c: dict) -> str:
              f"{h['max_tokens']} output tokens a turn, effort {h['effort']}. R: {c['grading']['reward']}; idle "
              "(0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP.", "",
              scale_text("the hindsight MILP on realised RT, drift and deployments (a DA copy and a physical copy "
-                        "sharing the AS book), idle the solar-only plant"), ""]
+                        "sharing the AS book, settled as the Session settles), idle the solar-only plant"), "",
+             "Tiers: reserves (the battery's energy and five AS products) is the headline; the energy tier (no AS) is "
+             "a secondary column.", ""]
     if c["tasks"]["flags"]:
         lines += ["Proxies and flags: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
     for tier, b in c["baselines"].items():

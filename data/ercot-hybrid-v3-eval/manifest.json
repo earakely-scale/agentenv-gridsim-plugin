@@ -1,6 +1,6 @@
 {
  "pack": "ercot-hybrid-v3-eval",
- "hybrid_version": "3.0",
+ "hybrid_version": "3.2",
  "tasks": 300,
  "eras": {
   "B": 300

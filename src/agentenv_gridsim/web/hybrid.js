@@ -99,7 +99,7 @@ export function loadHybrid(ep, weather = null) {
       e: x.e_mw, b: x.b_mw, batt, up: x.deployed_up_mwh, dn: x.deployed_dn_mwh, depEvt, regUp, regDn: x.reg_dn_frac * a.regdn, events,
       awards: a, rUp, rDn, governor: x.governor, socBefore: ep.soc_path[h], socAfter: ep.soc_path[h + 1],
       cash, cashParts: { energy_da: x.energy_da_usd, energy_rt: x.energy_rt_usd - (x.deployed_up_mwh - x.deployed_dn_mwh) * x.rt, as: x.as_da_usd + x.as_rt_usd, dep: (x.deployed_up_mwh - x.deployed_dn_mwh) * x.rt, deg: x.deg_usd, ftp: x.ftp_usd },
-      ftpUsd: x.ftp_usd, excusedUsd: x.excused_usd, ftpMw: r.ftp_mw ?? 0, excusedMw: r.excused_mw ?? 0,
+      ftpUsd: x.ftp_usd, excusedUsd: x.excused_usd ?? 0, ftpMw: r.ftp_mw ?? 0, excusedMw: r.excused_mw ?? 0,
       mode: batt > 0.5 ? "discharge" : batt < -0.5 ? "charge" : "idle", action: Math.sign(Math.round(batt)),
     };
   });

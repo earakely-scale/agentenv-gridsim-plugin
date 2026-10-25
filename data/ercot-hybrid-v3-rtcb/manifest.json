@@ -1,6 +1,6 @@
 {
  "pack": "ercot-hybrid-v3-rtcb",
- "hybrid_version": "3.0",
+ "hybrid_version": "3.2",
  "tasks": 200,
  "eras": {
   "C": 200
