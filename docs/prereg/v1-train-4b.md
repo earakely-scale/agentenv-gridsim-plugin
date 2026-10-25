@@ -97,4 +97,9 @@ These go to `results/train/4b/`, with the README labelled "registered run":
 The adapter goes to Scale-internal object storage under `gridsim/adapters/qwen3-4b-gridsim-v1-reg-seed0.tgz`, with the SFT adapter and the checkpoints. Any deviation from this file is listed in the README.
 
 ## Amendments
-(none yet)
+- **Smoke, 00:47–00:54 UTC on 2026-10-25, before the main run:**
+  - 5 GRPO steps on the merged SFT model with MICRO 4 (accumulation 16) and vLLM `gpu_memory_utilization` 0.4.
+  - It ran at 62 s per step after a 70 s vLLM start, with peak GPU memory 38.3 of 46 GB.
+  - 330 steps need about 6 h, ending near 07:00 UTC, well before the 14:15 stop.
+  - **No amendment:** the step count and every setting stand as registered.
+- Not part of the claim, but recorded before the main run: the base 4B and SFT-only evals had already run (00:23–00:46 UTC), as registered. The SFT-only 4B scored 0.666 sampled.
