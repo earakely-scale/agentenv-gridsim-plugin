@@ -94,14 +94,15 @@ async def test_a_notice_whose_payload_differs_from_the_schedule_fails_the_audit(
     assert not end["audit"]["ok"] and any("differs from the schedule" in p for p in end["audit"]["problems"])
 
 
-async def test_a_malformed_call_gets_the_sessions_answer_and_uses_a_planning_call(env, client):
+async def test_a_malformed_call_gets_the_sessions_answer_and_uses_no_planning_call_three_times(env, client):
     env.live_load(DAY["task_id"], "reserves")
     s = Session(DAY, "reserves")
     for name, args in [("check_schedule", {"plan": {"regup": [{"from": 0, "to": 4, "mw": 25}]}, "from_hour": 0}),
                        ("commit_schedule", {"plan": {"energy": "1 2"}, "from_hour": 0, "start": "00:00"}),
-                       ("commit_schedule", {"from_hour": 3}), ("get_situation", {"x": 1})]:
+                       ("commit_schedule", {"from_hour": 3}), ("get_situation", {"x": 1}),
+                       ("check_schedule", {"plan": {"energy": [0] * 25}})]:
         assert await text(client, name, args) == s.call(name, args)
-    assert env.session.planning_calls == [3] and env.session.calls == 4
+    assert (env.session.planning_calls, env.session.free_refusals, env.session.calls) == ([1], [3], 5)
 
 
 async def test_advance_needs_the_synced_clock_and_moves_nothing_without_it(env, client):

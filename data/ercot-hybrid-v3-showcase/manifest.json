@@ -1,6 +1,6 @@
 {
  "pack": "ercot-hybrid-v3-showcase",
- "hybrid_version": "3.0",
+ "hybrid_version": "3.2",
  "tasks": 4,
  "eras": {
   "B": 3,

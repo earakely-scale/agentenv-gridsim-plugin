@@ -44,7 +44,7 @@ async def test_a_finished_day_scores_its_reward_with_the_weight_0_rows(serve):
         g["capture_vs_hindsight"], g["energy_only_reward"], g["as_share"])
     assert by["as_share"]["score"] == g["as_share"] > 0 and by["as_share"]["result"] is True
     assert by["energy_only"]["result"] is (g["reward"] > g["energy_only_reward"])
-    assert by["ftp"]["value"] == {"charged": g["ftp_mwh_charged"], "excused": g["ftp_mwh_excused"]}
+    assert by["ftp"]["value"] == g["ftp_mwh_charged"]
     assert all(isinstance(r["score"], float) for r in rows)
 
 

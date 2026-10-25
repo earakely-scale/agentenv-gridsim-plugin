@@ -30,8 +30,8 @@ HYBRID_NOTICE_SCHEMA = {
     "parameters": {**NOTICE_SCHEMA["parameters"],
                    "properties": NOTICE_SCHEMA["parameters"]["properties"] | {"deploy": DEPLOY}}}
 EMPTY = {"task_id": None, "tier": None, "watches": None, "watch": None, "time": None, "done": False,
-         "end_reason": None, "calls_used": 0, "planning_calls": [], "book": None, "da": None, "executed": [],
-         "status": None, "notices": [], "frozen": [], "refusals": [], "governor": [], "excused": None, "settled": 0,
+         "end_reason": None, "calls_used": 0, "planning_calls": [], "free_refusals": [], "book": None, "da": None,
+         "executed": [], "status": None, "notices": [], "frozen": [], "refusals": [], "governor": [], "settled": 0,
          "audit": None, "grade": None, "reward": None}
 
 Plan = Annotated[Any, Field(description="energy and AS levels in MW: lists or {from, to, mw} blocks")]

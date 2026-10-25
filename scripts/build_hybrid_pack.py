@@ -143,6 +143,17 @@ def eligible(t: dict, f: dict = FILTER) -> bool:
             and x["best_baseline_reward"] < f["baseline_reward_max"])
 
 
+def filter_counts(pool: list) -> dict:
+    f = FILTER
+    return {"candidates": len(pool),
+            "fail_headroom": sum(min(c["_score"]["headroom_energy_usd"], c["_score"]["headroom_reserves_usd"])
+                                 < f["min_headroom_usd"] for c in pool),
+            "fail_spread": sum(c["_score"]["spread_usd_per_mw"] < f["low_spread_usd_per_mw"] for c in pool),
+            "fail_sponge": sum(c["_score"]["sponge_reward"] >= f["sponge_reward_max"] for c in pool),
+            "fail_baseline": sum(c["_score"]["best_baseline_reward"] >= f["baseline_reward_max"] for c in pool),
+            "eligible": sum(eligible(c) for c in pool)}
+
+
 def tags(t: dict, showcase: str | None = None) -> dict:
     s = H.Session(t, "reserves", reference=True)
     st = H.site_of(t)
@@ -232,7 +243,7 @@ def pack_stats(tasks: list) -> dict:
     return out
 
 
-def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, args):
+def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, args, note: str | None = None):
     lines = ["# v3 hybrid packs: counts, filters and baselines", "",
              f"Built by `scripts/build_hybrid_pack.py` ({dt.date.today().isoformat()}). References: "
              "`gridsim_core.hybrid.references` (rolling MILP anchor, HiGHS; hindsight + LP bound; oneshot optimum; "
@@ -253,6 +264,7 @@ def write_stats(out: Path, packs: dict, cands: dict, filt: dict, timing: dict, a
               f"(C3-D16), every reserves-tier baseline (sponge, AS-hog, v2 energy-only) and the energy-only MILP below "
               f"{FILTER['baseline_reward_max']} against the reserves anchor. Uri and every showcase day +/-3 days are "
               "out of every split; DST days and days without 24 hourly inputs are dropped.", "",
+              *([note, ""] if note else []),
               "| Split | Candidates | Fail headroom | Fail low spread | Fail sponge | Fail baseline >= 0.97 | Eligible "
               "| Kept |",
               "|---|---|---|---|---|---|---|---|"]
@@ -367,9 +379,10 @@ def fixtures(packs: dict) -> list:
     return [t | {"pack": "fixtures-hybrid", "split": "fixtures", "source_pack": t["pack"]} for t in picks[:20]]
 
 
-def build(args):
+def candidates(args) -> tuple[list, dict]:
+    """Every split's candidate site-days (DRAWS points a date) and the showcase days, before references."""
     t0 = time.time()
-    raw, out = Path(args.raw), Path(args.out)
+    raw = Path(args.raw)
     rt, _ = v2.load_rt(raw / "ercot-rt", Path(args.cache), args.workers)
     dam, _ = v1.load_dam(raw / "ercot", Path(args.cache), args.workers)
     arch = HI.archetypes()
@@ -391,6 +404,13 @@ def build(args):
             c["flags"]["display_only"] = True
             c["_split"] = "showcase"
             shows[name] = c
+    return cands, shows
+
+
+def build(args):
+    t0 = time.time()
+    out = Path(args.out)
+    cands, shows = candidates(args)
     if args.limit:
         cands = sorted(cands, key=lambda c: stable_seed("lim|" + c["task_id"]))[:args.limit]
     log(f"{len(cands)} candidates and {len(shows)} showcase days; references on {args.workers} workers")
@@ -410,14 +430,7 @@ def build(args):
     for sp in ("train", "eval", "rtcb"):
         pool = [c for c in cands if c["_split"] == sp]
         ok = [c for c in pool if eligible(c)]
-        f = FILTER
-        filt[sp] = {"candidates": len(pool),
-                    "fail_headroom": sum(min(c["_score"]["headroom_energy_usd"], c["_score"]["headroom_reserves_usd"])
-                                         < f["min_headroom_usd"] for c in pool),
-                    "fail_spread": sum(c["_score"]["spread_usd_per_mw"] < f["low_spread_usd_per_mw"] for c in pool),
-                    "fail_sponge": sum(c["_score"]["sponge_reward"] >= f["sponge_reward_max"] for c in pool),
-                    "fail_baseline": sum(c["_score"]["best_baseline_reward"] >= f["baseline_reward_max"] for c in pool),
-                    "eligible": len(ok)}
+        filt[sp] = filter_counts(pool)
         if sp == "eval":
             v = sorted(c["_score"]["as_value_usd"] for c in ok)
             q1, q2 = (v[len(v) // 3], v[2 * len(v) // 3]) if v else (0, 0)
@@ -447,6 +460,112 @@ def build(args):
     log(f"done at {time.time() - t0:.0f}s: {timing}")
 
 
+def refs_only(args):
+    """Every pack's references recomputed on the current rules, its days kept (rules 3.2, C3-D19 and C3-D20)."""
+    t0 = time.time()
+    out = Path(args.out)
+    names = [*PACKS.values(), "fixtures-hybrid"]
+    packs = {n: [json.loads(line) for line in gzip.open(out / n / "tasks.jsonl.gz", "rt")] for n in names}
+    rows = list({t["task_id"]: t for ts in packs.values() for t in ts}.values())
+    log(f"{len(rows)} days; references on {args.workers} workers")
+    with mp.Pool(args.workers) as pool:
+        done = {t["task_id"]: t for t in pool.map(_refs, [dict(t) for t in rows], chunksize=8)}
+    if errors := [t for t in done.values() if "_error" in t]:
+        raise SystemExit(f"references failed on {len(errors)} days: {errors[0]['task_id']}: {errors[0]['_error']}")
+    ms = [t["_ms"] for t in done.values()]
+    filt = {}
+    for name, ts in packs.items():
+        packs[name] = [t | {"hybrid_version": H.HYBRID_VERSION, "refs": done[t["task_id"]]["refs"]} for t in ts]
+        write_pack(out, name, packs[name], {"split": ts[0]["split"]})
+        sp = ts[0]["split"]
+        if sp in TARGETS:
+            filt[sp] = filter_counts([t | {"_score": score(t)} for t in packs[name]]) | {"kept": len(ts)}
+        log(f"{name}: {len(ts)}")
+    st = solve_times(packs[PACKS["eval"]])
+    timing = {"refs_ms_per_task": round(float(np.mean(ms)), 1), "solve_ms_median": round(float(np.median(st)), 1),
+              "solve_ms_p95": round(float(np.percentile(st, 95)), 1), "solve_n": len(st),
+              "wall_s": round(time.time() - t0)}
+    write_stats(out, packs, [], filt, timing, args, note=(
+        "References rebuilt in place with --refs-only: the days are the last build's, kept as they were; the table "
+        "counts how many of them each filter would now drop."))
+    log(f"done at {time.time() - t0:.0f}s: {timing}")
+
+
+def refill(args):
+    """The split packs' days that fail a filter on the current references (C3-D16) dropped and replaced by the build's
+    own draw: the round-robin order over the candidates that pass, the survivors kept as they are. Eval refills each
+    AS stratum on the cutoffs it was built with, train and rtcb their sizes while candidates last; rtcb's
+    replacements take the adapt roles of the days they replace. Showcase and fixtures are left as they are."""
+    t0 = time.time()
+    out = Path(args.out)
+    cands, _ = candidates(args)
+    log(f"{len(cands)} candidates; references on {args.workers} workers")
+    with mp.Pool(args.workers) as pool:
+        cands = pool.map(_refs, cands, chunksize=8)
+    if errors := [c for c in cands if "_error" in c]:
+        raise SystemExit(f"references failed on {len(errors)} days: {errors[0]['task_id']}: {errors[0]['_error']}")
+    ms = [c["_ms"] for c in cands]
+    by_id = {c["task_id"]: c | {"_score": score(c)} for c in cands}
+    meta = json.loads((out / PACKS["eval"] / "manifest.json").read_text())
+    q1, q2 = args.eval_cutoffs or meta["as_strata_usd"]
+    bands = (("low", -np.inf, q1), ("mid", q1, q2), ("high", q2, np.inf))
+    packs, filt, moved = {}, {}, []
+    for sp in ("train", "eval", "rtcb"):
+        name = PACKS[sp]
+        have = [json.loads(line) for line in gzip.open(out / name / "tasks.jsonl.gz", "rt")]
+        if diff := [t["task_id"] for t in have if not close(by_id[t["task_id"]]["refs"], t["refs"])]:
+            raise SystemExit(f"{name}: stored references differ from the candidates' on {len(diff)} days: {diff[0]}")
+        ids = {t["task_id"] for t in have}
+        keep = [t for t in have if eligible(by_id[t["task_id"]])]
+        dropped = [t for t in have if t not in keep]
+        ok = [c for c in by_id.values() if c["_split"] == sp and eligible(c)]
+        if sp == "eval":
+            new = []
+            for s, lo, hi in bands:
+                part = [c | {"_stratum": s} for c in ok if lo <= c["_score"]["as_value_usd"] < hi]
+                need = TARGETS[sp] // 3 - sum(t["tags"]["as_stratum"] == s for t in keep)
+                new += [c for c in select(part, len(part), f"eval|{s}") if c["task_id"] not in ids][:need]
+            if any(t["tags"]["as_stratum"] != s for t in keep for s, lo, hi in bands
+                   if lo <= by_id[t["task_id"]]["_score"]["as_value_usd"] < hi):
+                raise SystemExit("eval: a kept day's stratum does not match the cutoffs")
+        else:
+            new = [c for c in select(ok, len(ok), sp) if c["task_id"] not in ids][:TARGETS[sp] - len(keep)]
+            if sp == "rtcb":
+                adapt = {c["task_id"] for c in select(new, sum(t["tags"].get("rtcb_role") == "adapt" for t in dropped),
+                                                      "rtcb|adapt")}
+                new = [c | {"_role": "adapt" if c["task_id"] in adapt else "eval"} for c in new]
+        rows = keep + [finalize(c, sp) for c in new]
+        if sp == "eval":
+            rows = [t for s, *_ in bands for t in rows if t["tags"]["as_stratum"] == s]
+        packs[name] = rows
+        write_pack(out, name, rows, {"split": sp} | ({"as_strata_usd": [q1, q2]} if sp == "eval" else {}))
+        filt[sp] = filter_counts([c for c in by_id.values() if c["_split"] == sp]) | {"kept": len(rows)}
+        moved.append(f"{sp} {len(dropped)} dropped, {len(new)} drawn ({len(rows)} of {TARGETS[sp]})")
+        log(f"{name}: {moved[-1]}")
+    for name in (PACKS["showcase"], "fixtures-hybrid"):
+        packs[name] = [json.loads(line) for line in gzip.open(out / name / "tasks.jsonl.gz", "rt")]
+    st = solve_times(packs[PACKS["eval"]])
+    timing = {"refs_ms_per_task": round(float(np.mean(ms)), 1), "solve_ms_median": round(float(np.median(st)), 1),
+              "solve_ms_p95": round(float(np.percentile(st, 95)), 1), "solve_n": len(st),
+              "wall_s": round(time.time() - t0)}
+    write_stats(out, packs, [], filt, timing, args, note=(
+        "Refilled with --refill after the rules-3.2 references (C3-D19, C3-D20): the days that failed a filter were "
+        "dropped and the build's draw continued over the candidates that pass, the surviving days unchanged ("
+        + "; ".join(moved) + f"; eval strata cutoffs ${q1:,.2f} and ${q2:,.2f}, as built)."))
+    log(f"done at {time.time() - t0:.0f}s: {timing}")
+
+
+def close(a, b, tol: float = 1e-4) -> bool:
+    """Two reference blocks equal but for solver noise in the last stored digits."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(close(a[k], b[k], tol) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(close(x, y, tol) for x, y in zip(a, b, strict=True))
+    if isinstance(a, float | int) and isinstance(b, float | int) and not isinstance(a, bool):
+        return abs(a - b) <= tol
+    return a == b
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--raw", default=str(ROOT / "cache" / "raw"))
@@ -454,7 +573,14 @@ def main():
     ap.add_argument("--out", default=str(ROOT / "data"))
     ap.add_argument("--workers", type=int, default=max(1, mp.cpu_count() - 2))
     ap.add_argument("--limit", type=int, default=0, help="build from this many candidates (a smoke run)")
-    build(ap.parse_args())
+    ap.add_argument("--refs-only", action="store_true",
+                    help="recompute the references of the packs in --out in place, keeping their days")
+    ap.add_argument("--refill", action="store_true",
+                    help="drop the split packs' days that fail a filter now and draw their replacements")
+    ap.add_argument("--eval-cutoffs", type=float, nargs=2, metavar=("Q1", "Q2"),
+                    help="the eval AS strata cutoffs the pack was built with (default: its manifest's)")
+    args = ap.parse_args()
+    (refs_only if args.refs_only else refill if args.refill else build)(args)
 
 
 if __name__ == "__main__":

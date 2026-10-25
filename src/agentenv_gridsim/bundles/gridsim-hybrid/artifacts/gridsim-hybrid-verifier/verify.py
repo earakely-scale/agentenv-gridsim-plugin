@@ -32,6 +32,5 @@ async def verify(mcp_url: str) -> list[dict]:
             row("as_share", "AS revenue / (energy gain + AS revenue)", share, share or 0.0, bool(share)),
             row("clip_recovered", "PV above the meter limit the battery caught, as a fraction of the clippable MWh",
                 clip, (clip or 0.0) / 100, bool(clip)),
-            row("ftp", "failure-to-provide MW-h charged (excused in value)",
-                {"charged": g["ftp_mwh_charged"], "excused": g["ftp_mwh_excused"]},
+            row("ftp", "failure-to-provide MW-h charged", g["ftp_mwh_charged"],
                 1.0 if not g["ftp_mwh_charged"] else 0.0, not g["ftp_mwh_charged"])]

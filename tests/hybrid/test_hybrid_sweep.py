@@ -115,8 +115,11 @@ def test_each_tier_s_baselines_are_over_the_days_played_at_it(fake):
     result = CliRunner().invoke(gridsim, ["sweep", "run", "--name", "hy-e", *HYBRID, "--models", SOL, "--tasks",
                                           other["task_id"], "--tier", "energy", "--cap-usd", "10"])
     assert result.exit_code == 0, result.output
-    assert CliRunner().invoke(gridsim, ["sweep", "report", "hy", "hy-e"]).exit_code == 0
-    b = json.loads(Path("results/eval-v3.json").read_text())["baselines"]
+    assert CliRunner().invoke(gridsim, ["sweep", "report", "hy-e", "hy"]).exit_code == 0
+    card = json.loads(Path("results/eval-v3.json").read_text())
+    b = card["baselines"]
+    assert list(b) == ["reserves", "energy"] and [m["tier"] for m in card["models"]] == ["reserves", "energy"]
+    assert "energy tier (no AS) is a secondary column" in Path("results/board-v3.md").read_text()
     assert (b["reserves"]["n"], b["energy"]["n"]) == (1, 1)
     assert (b["reserves"]["as_hog"], b["energy"]["v2_energy"]) == (
         round(DAY["refs"]["reserves"]["baselines"]["as_hog"]["reward"], 4),

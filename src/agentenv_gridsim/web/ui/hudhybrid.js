@@ -300,7 +300,7 @@ function scoreHtml(d, lanes) {
     ["AS share", d.offered.length ? pct(w0.asShare) : "—", "of revenue over idle"],
     ["Clip saved", w0.clipPct == null ? "n/a" : `${Math.round(w0.clipPct)}%`, w0.clipPct == null ? "meter ≥ PV AC" : "of PV over the meter"],
     ["Curtailed", `${Math.round(w0.curtailed)} MWh`, "PV held back"],
-    ["Short (FTP)", `${w0.ftpMwh.toFixed(1)} MWh`, `charged · ${w0.excusedMwh.toFixed(1)} excused`],
+    ["Short (FTP)", `${w0.ftpMwh.toFixed(1)} MWh`, w0.excusedMwh > 0.05 ? `charged · ${w0.excusedMwh.toFixed(1)} excused` : "charged"],
     ["Governor", `${w0.governor} h`, "moves clipped"],
   ];
   return `<div class="pair"><div><div class="lbl">Hindsight capture C</div><div class="r num">${f3(c)}</div>

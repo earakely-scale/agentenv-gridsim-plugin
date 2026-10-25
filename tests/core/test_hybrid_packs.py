@@ -104,3 +104,21 @@ def test_anchor_commits_are_never_refused_and_settle_to_p_anchor(pack, n):
             assert all(c["committed"] for c in s.commits)
             assert s.profit() == pytest.approx(t["refs"][tier]["p_anchor"], abs=1e-6)
             assert all(x["repaired"] == 0 for x in s.anchor_log if not x["soft"]), (t["task_id"], s.anchor_log)
+
+
+@pytest.mark.parametrize("pack", [*PACKS, "fixtures-hybrid"])
+def test_no_reference_settles_above_hindsight(pack):
+    """P_hind bounds every stored reference on every day and tier to the cent (C3-D20): the anchor, the energy-only
+    anchor and each baseline; its LP relaxation bounds it."""
+    above = []
+    for t in load_pack(pack):
+        for tier in H.TIERS:
+            if not (r := t["refs"].get(tier)):
+                continue
+            got = {"anchor": r["p_anchor"], **{k: b["profit"] for k, b in r["baselines"].items()}}
+            if r.get("p_energy_only") is not None:
+                got["energy_only"] = r["p_energy_only"]
+            above += [(t["task_id"], tier, k, round(v - r["p_hind"], 2)) for k, v in got.items()
+                      if v > r["p_hind"] + 0.01]
+            assert r["p_lp"] >= r["p_hind"] - 1e-5, (t["task_id"], tier)
+    assert not above, above[:5]

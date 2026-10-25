@@ -1,10 +1,10 @@
 {
  "pack": "ercot-hybrid-v3-train",
- "hybrid_version": "3.0",
+ "hybrid_version": "3.2",
  "tasks": 2400,
  "eras": {
-  "A": 1488,
-  "B": 912
+  "A": 1489,
+  "B": 911
  },
  "dates": [
   "2021-01-01",

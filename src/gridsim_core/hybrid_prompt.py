@@ -50,15 +50,21 @@ when the system runs short (RT above DA), RegDn when it runs long. RRS, ECRS and
 (a notice says when): the battery discharges the award for up to the product's duration, and the hours it has \
 delivered count toward that duration.
 - An award the battery cannot back is a failure to provide: its MW are charged at the hour's MCPC (the larger of DA \
-and RT where RT exists). A shortfall caused by drift or a deployment that arrived after the hour froze is excused.
+and RT where RT exists), whatever left the battery short (the book, drift or a deployment). Up awards also need power \
+headroom: when the battery cannot charge enough to make room for them, the MW beyond it are short too.
 {fixed}"""
 
 _SETTLE = f"""Settlement
-- Your DA position x_da[h] is the meter export your watch-0 book implies (PV after curtailment at DA prices, plus \
-energy). It settles at the hour's DA price; the hour's actual export minus x_da settles at the RT price.
-- Profit = DA energy + RT deviations + AS awards x MCPC - c_deg per MWh discharged - failures to provide - the end \
+- Your DA position x_da[h] is the meter export your watch-0 book projects (PV after curtailment at DA prices, plus \
+the energy the battery can run as booked on that projection). It settles at the hour's DA price; the hour's actual \
+export minus x_da settles at the RT price.
+{{deployed}}- Profit = DA energy + RT deviations + AS awards x MCPC - c_deg per MWh discharged - failures to provide - the end \
 shortfall: each MWh of SoC short of s_end_min_mwh at 24:00 is bought back at max(the day's highest DA price, \
 ${P_FLOOR:.0f}/MWh) / eta. Prices can be negative or spike to the cap. Make profit as large as you can."""
+
+_DEPLOYED = """- Energy that regulation and reserve deployments move (RegUp, RRS, ECRS and Non-Spin discharging, RegDn \
+charging) is part of the hour's actual export, so it settles at that hour's RT price, as ERCOT settles it.
+"""
 
 _TOOLS = """Tools
 - get_situation(): the full state as JSON: time, frozen_until_hour, site, AS rules, the day's hourly inputs, SoC, your \
@@ -68,6 +74,9 @@ the reserve margin per hour. Commits nothing.
 - commit_schedule(plan, from_hour): replaces your book from from_hour, hour by hour: an hour that breaks a rule is \
 refused (named by its rule) and keeps its old entry; if its energy alone passes, the energy is kept and only its AS \
 are refused. Hours before frozen_until_hour must keep their committed values.
+- A planning call refused because its input is malformed (a list of the wrong length, a value of the wrong type, an \
+unknown field) does not use a planning call, up to 3 such refusals per watch; its error names the field and the shape \
+it needs. A plan that parses uses a call even when hours are refused.
 - advance(): ends this watch.
 - get_time(), if offered, reads the same virtual clock in UTC.
 plan: {{"energy": ...{as_fields}}}. Each field is a list of MW values from from_hour to hour 23 (or all 24), or \
@@ -92,7 +101,7 @@ def system_prompt(tier: str = "reserves", era: str = "B") -> str:
         parts += [_RESERVES.format(fixed=fixed), duration_table(era)]
     else:
         parts.append("Reserves are off in this tier: plans carry energy only.")
-    parts.append(_SETTLE)
+    parts.append(_SETTLE.format(deployed="" if tier == "energy" else _DEPLOYED))
     if tier == "energy":
         parts.append(_TOOLS.format(as_fields="", omit="", example='{"energy": [{"from": 0, "to": 5, "mw": -50}, '
                                                                   '{"from": 18, "to": 21, "mw": 100}]}'))

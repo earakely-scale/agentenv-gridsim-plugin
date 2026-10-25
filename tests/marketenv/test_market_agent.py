@@ -99,14 +99,15 @@ async def test_floor_day_nudges(play):
 
 
 async def test_the_cost_guard_stops_a_sprint_before_the_tier_cap(play, monkeypatch):
-    """A sprint whose turns each read 20,000 fresh input tokens and write 12,000: the guard books each turn's usage and
-    stops before the request whose worst case (its input plus 16,384 output tokens) would pass the $1 sprint cap."""
+    """A sprint whose turns each read 20,000 fresh input tokens and write 20,000: the guard books each turn's usage and
+    stops before the request whose estimate (its input plus the most output a reply used) would pass the $1 sprint
+    cap."""
     cap = market_tasks.EPISODE_CAP_USD["floor-sprint"]
     monkeypatch.setenv("GRIDSIM_MAX_COST_USD", format(cap, "g"))
-    turns = [turn([("get_situation", {})], t, content=PAD, usage={"input": 20000, "output": 12000, "cached": 0})
+    turns = [turn([("get_situation", {})], t, content=PAD, usage={"input": 20000, "output": 20000, "cached": 0})
              for t in range(MAX_TURNS["floor-sprint"])]
     result, fake, data = await play(turns, "floor-sprint", model_params=market_tasks.MODEL_PARAMS["floor-sprint"])
-    s, per_turn = summary(result), (20000 * 2.00 + 12000 * 10.00) / 1e6
+    s, per_turn = summary(result), (20000 * 2.00 + 20000 * 10.00) / 1e6
     n = len(fake.requests)
-    assert (s["end_reason"], data["done"]) == ("cost_cap", False) and 2 <= n < len(turns)
-    assert s["cost_usd"] == pytest.approx(n * per_turn) and s["cost_usd"] <= cap
+    assert (s["end_reason"], data["done"]) == ("cost_cap", False) and n == 4
+    assert s["cost_usd"] == pytest.approx(n * per_turn) and s["cost_usd"] <= cap < s["cost_usd"] + per_turn

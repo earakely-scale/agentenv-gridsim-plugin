@@ -39,8 +39,9 @@ sweep report` (every `results/eval-v*.json` card and board), the dataset card an
 2. **R = 1 is a tie class, not a top score.** Sol sits at R = 1 on 20% to 70% of v2 to v5 tasks. Ordinary stored
    references reach it on about half of each eval pack: the v5 price-taker on 53% of 289 floors, v4's three-scenario
    re-planner on 53% of 60 windows, v3's one-shot MILP on 60% of 300 days, v2's blind re-planner on 55% of 276. No v2
-   to v5 run reaches C = 1 or exceeds P_hind. One stored reference now does (none did at rules 3.0): on the v3 eval
-   pack the reserves anchor settles $1,651 above P_hind on 2025-06-28 LZ_AEN (below).
+   to v5 run reaches C = 1 or exceeds P_hind. One stored reference did at rules 3.1 (none at 3.0): on the v3 eval
+   pack the reserves anchor settled $1,651 above P_hind on 2025-06-28 LZ_AEN (below); rules 3.2 fixed the cause
+   (CONTRACT-v3 C3-D19, C3-D20), and no stored v3 reference exceeds P_hind now.
 3. **R = 1 is a different share of the attainable in every version.** The anchor's own capture on the eval packs is
    1.00 (v1 foresight), 0.90 (v1 blind), 0.52 (v2), 0.52 and 0.47 (v3 reserves, energy), 0.51 and 0.43 (v4 front,
    front-lite), 0.40 and 0.34 (v5 floor-sprint, floor-day, against BR_rt). C is one scale across versions; R is not.
@@ -56,7 +57,7 @@ sweep report` (every `results/eval-v*.json` card and board), the dataset card an
 |---|---|---|---|---|
 | v1 | P_opt, the exact DP on D's prices | an achievable plan (the foresight tier plays it) | never | P_lp = P_opt on every day |
 | v2 | two exact DPs: the DA position on DA − RT, the physical schedule on RT | an achievable clairvoyant plan | never | P_lp above it on 2 of 40 pilot days (max $801) |
-| v3 | the hindsight MILP: a DA copy and a physical copy on realised RT, drift and deployments, sharing the AS book | the exact optimum of a clairvoyant model, not a playable plan | by no run; by one stored reference at rules 3.1: the reserves anchor on 2025-06-28 LZ_AEN, $53,542 against P_hind's $51,890 (P_lp equals P_hind there), 1 of 300 eval days | P_lp above it on 8 of 40 pilot days (max $2,863) |
+| v3 | the hindsight MILP: a DA copy and a physical copy on realised RT, drift and deployments, sharing the AS book | the exact optimum of a clairvoyant model, not a playable plan | by no run; at rules 3.1 by one stored reference, the reserves anchor on 2025-06-28 LZ_AEN, $53,542 against P_hind's $51,890 (P_lp equals P_hind there), 1 of 300 eval days; at rules 3.2 the Session charges every shortfall and P_hind is the clairvoyant optimum of that settlement (CONTRACT-v3 C3-D19, C3-D20), and no stored reference exceeds it | P_lp above it on 8 of 40 pilot days (max $2,863) |
 | v4 | v3's hindsight over the window | as v3 | never | P_lp above it on 4 of 30 (max $345) |
 | v5 | BR_A (`p_br`): the DA-clear best response, awards delivered as awarded | **not a bound**: the floor-day anchor exceeds it on 102 of 284 eval floors, Sol on 11 of 40 runs; Sol's floor-sprint C against it reaches −2.8 | yes | – |
 | v5 | BR_rt (`p_br_rt`): the same with deviations settled at realised RT | the clairvoyant bound of the same settlement | never | – |

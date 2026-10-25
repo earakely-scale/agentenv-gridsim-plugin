@@ -1,6 +1,6 @@
 {
  "pack": "ercot-hybrid-v3-eval",
- "hybrid_version": "3.0",
+ "hybrid_version": "3.2",
  "tasks": 300,
  "eras": {
   "B": 300
@@ -29,5 +29,9 @@
   "rt_as": "not modelled (T3 dropped, V3-D10)"
  },
  "licence": "ERCOT data with attribution and no endorsement; EIA public domain",
- "split": "eval"
+ "split": "eval",
+ "as_strata_usd": [
+  1926.8057320000007,
+  3682.0136009999987
+ ]
 }

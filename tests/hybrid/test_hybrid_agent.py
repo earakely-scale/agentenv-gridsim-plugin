@@ -105,11 +105,29 @@ async def test_the_cost_guard_prices_the_cache_and_lets_the_smoke_day_finish_und
 
 
 async def test_without_a_cache_the_guard_stops_before_the_cap(play, monkeypatch):
+    """The next request is estimated as it will be priced: the last input fresh, the notes added since (under 10k
+    tokens) and the most output a reply used."""
     monkeypatch.setenv("GRIDSIM_MAX_COST_USD", "0.5")
     turns = smoke_turns(cached=False)
     result, fake, data = await play(turns, max_turns=MAX_TURNS, model_params=hybrid_tasks.MODEL_PARAMS)
     s = summary(result)
     n = len(fake.requests)
-    nxt = (9400 + 1844 * (n - 1)) * 2.00 / 1e6 + hybrid_tasks.MODEL_PARAMS["max_tokens"] * 10.00 / 1e6
+    nxt = (9400 + 1844 * (n - 1)) * 2.00 / 1e6 + 1272 * 10.00 / 1e6
     assert (s["end_reason"], data["done"]) == ("cost_cap", False) and 5 < n < len(turns)
-    assert s["cost_usd"] <= 0.5 < s["cost_usd"] + nxt
+    assert s["cost_usd"] <= 0.5 < s["cost_usd"] + nxt + 10_000 * 2.00 / 1e6
+
+
+async def test_a_failed_request_is_booked_at_the_episodes_pace(play, monkeypatch):
+    """P3b's capped run in small: a reply that fails mid-stream after ten turns is sent again and booked at what it
+    would be priced at (the cached prefix at the cache rate, the most output a reply used), not at 16,384 tokens of
+    output; the day finishes under its cap."""
+    monkeypatch.setenv("GRIDSIM_MAX_COST_USD", "0.5")
+    turns = smoke_turns(cached=True)
+    result, fake, data = await play(turns[:10] + [{"stream_error": "upstream failed"}] + turns[10:],
+                                    max_turns=MAX_TURNS, model_params=hybrid_tasks.MODEL_PARAMS)
+    s = summary(result)
+    priced = sum(gridsim_llm.cost(dict(t["usage"], cache_write=0), gridsim_llm.PRICES[SOL]) for t in turns)
+    booked = s["cost_usd"] - s["priced_cost_usd"]
+    assert (s["end_reason"], s["failed_requests"], data["done"]) == ("done", 1, True)
+    assert s["priced_cost_usd"] == pytest.approx(priced, abs=1e-6)
+    assert 1272 * 10.00 / 1e6 < booked < 0.03 < old_bound(fake.requests[10][2]) / 5

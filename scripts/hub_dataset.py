@@ -522,7 +522,7 @@ LIVE_EPISODES = pa.schema([
 ])
 HYBRID_EPISODES = pa.schema([
     *EPISODE_HEAD, ("p_anchor", F64), ("raw_ratio", F64), ("energy_only_reward", F64), ("as_share", F64),
-    ("ftp_mwh_charged", F64), ("ftp_mwh_excused", F64), ("governor_hours", I64), ("refusals", I64), ("book", STR),
+    ("ftp_mwh_charged", F64), ("governor_hours", I64), ("refusals", I64), ("book", STR),
     ("da", STR), ("soc_path", pa.list_(F64)), ("cash", STR), ("deployments", I64), *EPISODE_TAIL,
 ])
 
@@ -740,7 +740,7 @@ def preview_episode_row(pv: Preview, e: dict, task: dict, g: dict, file: str) ->
         return row | {k: g[k] for k in ("p_naive", "p_roll", "naive_reward", "stretch_reward", "feasible")} | {
             k: e.get(k) for k in ("da_position", "schedule", "executed")} | {"pnl": json.dumps(e.get("pnl"))}
     return row | {k: g[k] for k in ("p_anchor", "raw_ratio", "energy_only_reward", "as_share", "ftp_mwh_charged",
-                                    "ftp_mwh_excused", "governor_hours", "refusals")} | {
+                                    "governor_hours", "refusals")} | {
         "book": json.dumps(e.get("book")), "da": json.dumps(e.get("da")), "cash": json.dumps(e.get("cash")),
         "deployments": sum(bool(n.get("deploy")) for n in e["notices"])}
 
