@@ -81,14 +81,14 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
   checked; with a horizontal residual instead, 3 / 4 / 6 on 2024-08-20, 3 / 3 / 4 on 2026-07-21, 0–3 elsewhere. Real
   DAM bids (including virtual traders) make the residual curve flat: a QSE-sized battery is a price taker in most
   hours and price-making is concentrated on peak days.
-- **Packs, rules 5.1** (within_ns ≥ 0.7, train from 2022; V5-P1, P2, P11, P12, P16): train 3,777 floors on 229 dates
-  2022-07-15..2024-12-29 (2022 23 dates, 2023 93, 2024 113; 1,189 floors on 68 dates have ≥ 2 impact hours), eval 147
-  floors on 147 dates (144 clear the floor-day anchor filter; 60 run as floor-day; 6 in the peak stratum, all six in the
-  floor-day subset), rtcb 65 (62), showcase 6 (display only); no baseline is refused. The 0.7 bar drops eval from 200
-  and rtcb from 153 floors (rules 5.0) because 2025 keeps 175 of 361 days and RTC+B 87 of 261. On eval the
-  information-matched price-taker scores R = 1.0 on 77 of 147 floors (mean 0.941; 0.900 on the peak stratum); the
-  anchor beats it by more than $0.5/MW-day on 53 and trails it on 36 (V5-P18). The anchor captures a median 0.74 of the
-  feasible hindsight BR in floor-sprint (p10 0.33).
+- **Packs, rules 5.1** (within_ns ≥ 0.7, train from 2022, two eval draws a day; V5-P1, P2, P11, P12, P16, P24): train
+  3,777 floors on 229 dates 2022-07-15..2024-12-29 (2022 23 dates, 2023 93, 2024 113; 1,189 floors on 68 dates have
+  ≥ 2 impact hours), eval 289 floors on 147 dates (two seat-A portfolios a date, one on 5 dates; 284 clear the
+  floor-day anchor filter; 60 run as floor-day, one a date, 6 of them peak; 12 floors on the 6 peak dates), rtcb 65
+  (62), showcase 6 (display only); no baseline is refused. The 0.7 bar keeps 147 eval dates (was 200) and 65 rtcb dates
+  (was 153): 2025 keeps 175 of 361 days and RTC+B 87 of 261. On eval the information-matched price-taker scores R = 1.0
+  on 152 of 289 floors (mean 0.937; 0.906 on the peak stratum); the anchor beats it by more than $0.5/MW-day on 106 and
+  trails it on 72 (V5-P18). The anchor captures a median 0.73 of the feasible hindsight BR in floor-sprint (p10 0.33).
 - References on the ten fixture tasks: the disclosure anchor earns $150–870/MW-day on 2024-08-20 and $150–270 on
   2026-07-21; hindsight BR_A (with RT deviations) is 2–5× the anchor; path B grades an offer in 6–9 ms; the anchor's
   welfare_ratio is 0.47–0.71.
@@ -118,7 +118,8 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
 | V5-P20 | ε-Nash | Per seat, regret in $ and as a share in [0, 1]: (BR_i − π_i)/(BR_i − min(π_i, π_i_idle)), 0 when that range is under $1; `eps_nash` is the largest share, `eps_a` seat A's own and `eps_mean` the mean. The replayed real seats often earn less than idle in hindsight (a share of 1), so `eps_nash` mostly reads 1 on the replay profile, a true statement that real offers are far from a hindsight Nash profile; `eps_a` is the agent-attributable row the board shows. Batteries' BR as V5-P19; the renewable seat sells and the retailer buys no more than its actual output or load in each hour |
 | V5-P21 | Keep fields | **Confirmed (as v3).** Wherever v5 has optional fields, leaving one out, `null` or `"keep"` means unchanged: an offer hour's `sell` / `buy` keep that side of the last accepted offer (nothing before the first; `[]` offers none), `as_awards` null / `"keep"` is no AS, a schedule hour null / `"keep"` keeps its MW, and AS fields in a plan are refused with "leave … out". Errors and the rules card say so |
 | V5-P22 | Episode caps | **Confirmed.** The floor-sprint default cap stays $1 (≥ $0.25, above gridsim-llm's per-turn reserve: 16,384 output tokens ≈ $0.167 for GPT-6.1 Sol); `sweep run` refuses an `--episode-cap-usd` below what the agent books before a model's first turn (its opening plus max_tokens of output at the model's price, read from the agent's own price table), naming the reserve. A cap just above the reserve still stops a sprint after about two turns (the rules-5.0 pilot), so a derived cap needs room for the turns' real spend |
-| V5-P23 | Rules version | `MARKET_VERSION` 5.1 (P1, P2, P12, P16, P18, P21, P22; `get_forecast` reads `issued_at` as a time, CPT or ISO 8601, where 5.0 compared strings and refused 197 of 276 pilot calls; `get_disclosure` refuses a light day). The v5-preview pilot (4162fda) stays on record as the rules-5.0 pilot; a rules-5.1 pilot supersedes it |
+| V5-P23 | Rules version | `MARKET_VERSION` 5.1 (P1, P2, P12, P16, P18, P21, P22, P24; `get_forecast` reads `issued_at` as a time, CPT or ISO 8601, where 5.0 compared strings and refused 197 of 276 pilot calls; `get_disclosure` refuses a light day). The v5-preview pilot (4162fda) stays on record as the rules-5.0 pilot; a rules-5.1 pilot supersedes it |
+| V5-P24 | Eval draws | **Confirmed.** The 0.7 bar leaves 147 eval dates, so eval draws two seat-A portfolios (size, duration, ESR group, η, c_deg, as train draws) on every surviving 2025 date: 289 floors. A date's stratum is the day's (peak when its first draw has ≥ 2 impact hours: 6 dates, 12 floors), the board's peak column counts both; floor-day stays 60 floors, one a date (6 peak). Train and rtcb are unchanged |
 | V5-P17 | Viewer | Per the standing direction that sim viewers look like real life, the Market Floor is a real-life 3D scene, not the plan's 8-bit hall; the merit-order staircase, gavel and seat board become overlays (viewer lane proposes) |
 
 ## As built in phase 2 (refinements of the text below)

@@ -85,7 +85,7 @@ MARKET_HEADLINE = "compliant_reward"
 """The public board's score (V5-P18): compliant, 0.5 R + 0.5 clip(welfare ratio); R against the disclosure anchor,
 regret and the price-making gain are the research board's. The one name to change ("market_reward" puts R first)."""
 MARKET_PEAK_HOURS = 2
-"""A peak floor: at least this many hours where seat A's full sale moves the hub price by $5 or more (V5-P12)."""
+"""A peak day: at least this many hours where seat A's full sale moves the hub price by $5 or more (V5-P12)."""
 MARKET_PUBLIC = (("Score (95% CI)", "headline"), ("Peak floors", "peak"), ("Welfare ratio", "welfare_ratio"),
                  ("Beats anchor", "beats_anchor"), ("Finished", "finished_by_agent"))
 MARKET_RESEARCH = (("R (95% CI)", "r"), ("R peak", "r_peak"), ("Regret (norm)", "regret_norm"),
@@ -1375,7 +1375,9 @@ def market_baselines(rows: list[dict], tier: str) -> dict:
 
 
 def market_peak(task: dict) -> bool:
-    return ((task.get("tags") or {}).get("impact_hours") or 0) >= MARKET_PEAK_HOURS
+    """A floor on a peak day: the pack's stratum where it has one (eval draws two floors a day), else its own impact."""
+    tags = task.get("tags") or {}
+    return tags["stratum"] == "peak" if "stratum" in tags else (tags.get("impact_hours") or 0) >= MARKET_PEAK_HOURS
 
 
 def market_model(board: Board, cell) -> dict:

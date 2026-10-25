@@ -27,7 +27,7 @@ The store: 56 month files, 22.1 MB in git (data/market/days, 2024-05 on: every m
 
 - dates 334; day checks dropped {'missing day row': 12, 'fidelity': 159}; passed 163
 - drawn tasks 978: {'headroom': 202, 'kept': 776} (headroom = V5-P11, impact = V5-P12 b)
-- shipped 147 tasks on 147 dates (144 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 140, 1: 1, 3: 2, 4: 1, 5: 1, 6: 2}; ≥ $2: {0: 101, 1: 23, 2: 11, 3: 1, 4: 2, 7: 4, 8: 1, 9: 1, 10: 1, 11: 1, 14: 1}
+- shipped 289 tasks on 147 dates (284 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 276, 1: 3, 3: 3, 4: 3, 5: 1, 6: 3}; ≥ $2: {0: 194, 1: 44, 2: 23, 3: 5, 4: 5, 5: 3, 6: 1, 7: 5, 8: 2, 9: 3, 10: 1, 11: 2, 14: 1}
 
 ### gridsim-market-rtcb
 
@@ -40,4 +40,3 @@ The store: 56 month files, 22.1 MB in git (data/market/days, 2024-05 on: every m
 - dates 6; day checks dropped {}; passed 6
 - drawn tasks 6: {'kept': 4, 'headroom': 2} (headroom = V5-P11, impact = V5-P12 b)
 - shipped 6 tasks on 6 dates (4 also clear the floor-day anchor filter); impact hours ≥ $5: {0: 1, 1: 1, 4: 1, 5: 1, 21: 2}; ≥ $2: {1: 1, 9: 1, 16: 1, 20: 1, 21: 1, 24: 1}
-
