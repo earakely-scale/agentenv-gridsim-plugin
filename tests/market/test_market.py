@@ -280,3 +280,18 @@ def test_packs_have_legal_baselines_and_per_tier_headroom(pack):
         assert r["headroom_usd_per_mw"]["anchor"] >= 10 and r["headroom_usd_per_mw"]["br"] >= 25
         if t["tags"].get("floor_day"):
             assert t["tags"]["floor_day_ok"] and r["headroom_usd_per_mw"]["anchor_day"] >= 10
+
+
+@pytest.mark.parametrize("pack", ["gridsim-market-train", "gridsim-market-eval", "gridsim-market-rtcb",
+                                  "gridsim-market-showcase", "fixtures-market"])
+def test_no_reference_settles_above_br_rt(pack):
+    """BR_rt is v5's hindsight; BR_A is not a bound (docs/REWARD-SCALES.md)."""
+    above = []
+    for line in gzip.open(FIX.parent / pack / "tasks.jsonl.gz"):
+        t = json.loads(line)
+        for tier in ("floor-sprint", "floor-day"):
+            r = t["refs"][tier]
+            got = {"anchor": r["p_anchor"], **{k: b["profit"] for k, b in (r.get("baselines") or {}).items()}}
+            above += [(t["task_id"], tier, k, round(v - r["p_br_rt"], 2)) for k, v in got.items()
+                      if v > r["p_br_rt"] + 0.01]
+    assert not above, above[:5]

@@ -105,6 +105,21 @@ def test_references_order_and_bounds():
         assert t["refs"]["blind"]["p_roll"] == t["refs"]["front"]["p_roll"]
 
 
+@pytest.mark.parametrize("pack", ["ercot-front-v4-train", "ercot-front-v4-eval", "ercot-front-v4-rtcb",
+                                  "ercot-front-v4-showcase", "fixtures-forecast"])
+def test_no_reference_settles_above_hindsight(pack):
+    above = []
+    for t in load_pack(pack):
+        for tier in F.TIERS:
+            if not (r := t["refs"].get(tier)):
+                continue
+            got = {k: v for k, v in r.items() if k.startswith("p_") and k not in ("p_idle", "p_hind", "p_lp")}
+            got |= {k: b["profit"] for k, b in r["baselines"].items()}
+            above += [(t["task_id"], tier, k, round(v - r["p_hind"], 2)) for k, v in got.items()
+                      if v > r["p_hind"] + 0.01]
+    assert not above, above[:5]
+
+
 def test_no_action_scores_zero_and_zero_commit_scores_floor():
     s = run(T0, "front", lambda s: None)
     assert s.grade()["reward"] == 0.0 and s.grade()["dam_missed"] == 3
