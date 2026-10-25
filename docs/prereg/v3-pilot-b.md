@@ -198,3 +198,23 @@ AS stratum; the energy column overall and by PV/POI class; each display day as o
 - **Display days:** C, the anchor's C, Δ, R and the baselines, printed and never pooled.
 
 ## Deviations
+
+Run as registered, with one infrastructure event and one amendment. Smoke: 3 of 3 scored at the first attempt
+(reserves deployment day R 0.413, $0.132; reserves quiet day R 1.0, $0.161; energy day R 1.0, $0.052): s $0.345, m
+$0.1317, projection $5.22, so E = $0.53 and B = $19.66, giving `--cap-usd` 11.79 (reserves), 2.94 (energy) and 4.91
+(display); the three ran at the same time.
+- Five first attempts in `v3b-pilot-sol` ended `provider_error` within a few minutes of each other (the upstream model
+  gateway refused authentication); the sweep retried each as registered and all five scored at their second attempt.
+  The failed attempts cost $0.24.
+- 2025-02-17 LZ_HOUSTON stopped at its cap at turn 20 (the guard's estimate, $0.363 spent plus a $0.17 turn, passed
+  $0.53; its priced cost was $0.193). Per the amendment rule it ran once more at $1.06 in `v3b-pilot-sol-amend`
+  (`--cap-usd` 11.38, $20 less the spend so far) and scored R 1.0 for $0.13. The primary reserves numbers are the 29
+  first-sweep days; the 30-day set is reported as amended.
+- The amendment rule adds `--amend v3b-pilot-sol=v3b-pilot-sol-amend` to `sweep report` and `--amend
+  v3b-pilot-sol-amend` to `scripts/pilot_v3b.py`. No code changed after this file was committed; nothing was rerun.
+- H4's registered count includes one keep call refused as `parse` for its 18-value energy list, not for its kept
+  fields; it is reported as registered.
+
+Spend $8.75 of $20 (smoke $0.35, reserves $7.46, energy $0.46, display $0.35, amendment $0.13). All 45 Episode JSON
+(the smoke's 3 included) replay byte for byte on a fresh Session, audits ok. Results: `results/board-v3b.md` (Pilot
+under rules 3.1 and Reading), `results/pilot-v3b.json`, `results/eval-v3b.json`.
