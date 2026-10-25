@@ -60,11 +60,26 @@
     "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual clock)"
   },
   "grading": {
+    "scale": {
+      "headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the anchor's C and delta = C - C_anchor with its paired 95% CI",
+      "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+      "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+      "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a board",
+      "decision": "docs/REWARD-SCALES.md"
+    },
+    "hindsight": "P_hind: the hindsight MILP, a DA copy and a physical copy on realised RT, drift and deployments sharing the AS book",
     "reference": "information-matched rolling MILP (HiGHS) played through the Session",
     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0",
     "idle": "the solar-only plant",
     "anchor": "P_anchor: one MILP solve per watch on the day as known then, the same freeze, call budget and governor",
-    "hindsight_capture": "(P-P_idle)/(P_hind-P_idle), a weight-0 row",
+    "fields": {
+      "capture": "C",
+      "anchor_capture": "the anchor's C",
+      "delta": "C - C_anchor, paired",
+      "mean": "R",
+      "r_one": "share of runs at R = 1",
+      "refs": "each reference's C and the paired gap"
+    },
     "weight_0": [
       "audit",
       "hindsight_capture",
@@ -83,22 +98,34 @@
       "n": 10,
       "idle": 0.2,
       "anchor": 1.0,
+      "capture": {
+        "sponge": 0.098373,
+        "as_hog": null,
+        "v2_energy": 0.340818,
+        "energy_only": null
+      },
       "sponge": 0.3924,
       "as_hog": null,
       "v2_energy": 0.8663,
       "energy_only": null,
-      "anchor_capture": 0.426
+      "anchor_capture": 0.426019
     },
     "reserves": {
       "tier": "reserves",
       "n": 30,
       "idle": 0.2,
       "anchor": 1.0,
+      "capture": {
+        "sponge": 0.037474,
+        "as_hog": 0.135913,
+        "v2_energy": 0.370558,
+        "energy_only": 0.402888
+      },
       "sponge": 0.2555,
       "as_hog": 0.3985,
       "v2_energy": 0.7652,
       "energy_only": 0.8126,
-      "anchor_capture": 0.5051
+      "anchor_capture": 0.505135
     }
   },
   "models": [
@@ -116,13 +143,95 @@
         0.7593,
         0.9202
       ],
-      "by_as_stratum": {
-        "low": 0.9423,
-        "mid": 0.8621,
-        "high": 0.73
+      "capture": {
+        "mean": 0.45117,
+        "ci95": [
+          0.366597,
+          0.536225
+        ]
       },
-      "hindsight_capture": 0.4512,
+      "anchor_capture": 0.505135,
+      "delta": {
+        "mean": -0.053964,
+        "ci95": [
+          -0.090777,
+          -0.019035
+        ]
+      },
+      "r": {
+        "mean": 0.8448,
+        "ci95": [
+          0.7593,
+          0.9202
+        ]
+      },
+      "r_one": 0.3,
       "beats_anchor": 0.3,
+      "below_idle": 1,
+      "no_headroom": 0,
+      "refs": {
+        "sponge": {
+          "n": 30,
+          "capture": 0.037474,
+          "delta": {
+            "mean": 0.413697,
+            "ci95": [
+              0.328538,
+              0.497272
+            ]
+          }
+        },
+        "v2_energy": {
+          "n": 30,
+          "capture": 0.370558,
+          "delta": {
+            "mean": 0.080613,
+            "ci95": [
+              0.040095,
+              0.124305
+            ]
+          }
+        },
+        "as_hog": {
+          "n": 30,
+          "capture": 0.135913,
+          "delta": {
+            "mean": 0.315258,
+            "ci95": [
+              0.240926,
+              0.391002
+            ]
+          }
+        },
+        "energy_only": {
+          "n": 30,
+          "capture": 0.402888,
+          "delta": {
+            "mean": 0.048282,
+            "ci95": [
+              0.008705,
+              0.091144
+            ]
+          }
+        }
+      },
+      "by_as_stratum": {
+        "low": {
+          "capture": 0.575869,
+          "delta": -0.013522,
+          "r": 0.9423
+        },
+        "mid": {
+          "capture": 0.387433,
+          "delta": -0.080212,
+          "r": 0.8621
+        },
+        "high": {
+          "capture": 0.390209,
+          "delta": -0.068159,
+          "r": 0.73
+        }
+      },
       "beats_sponge": 0.9667,
       "valid": 1.0,
       "as_share": 0.4474,
@@ -163,13 +272,73 @@
         0.9688,
         1.0
       ],
-      "by_as_stratum": {
-        "low": 1.0,
-        "mid": 0.9998,
-        "high": 0.9741
+      "capture": {
+        "mean": 0.427113,
+        "ci95": [
+          0.274088,
+          0.592573
+        ]
       },
-      "hindsight_capture": 0.4271,
+      "anchor_capture": 0.426019,
+      "delta": {
+        "mean": 0.001094,
+        "ci95": [
+          -0.0089,
+          0.009963
+        ]
+      },
+      "r": {
+        "mean": 0.9896,
+        "ci95": [
+          0.9688,
+          1.0
+        ]
+      },
+      "r_one": 0.4,
       "beats_anchor": 0.3,
+      "below_idle": 0,
+      "no_headroom": 0,
+      "refs": {
+        "sponge": {
+          "n": 10,
+          "capture": 0.098373,
+          "delta": {
+            "mean": 0.32874,
+            "ci95": [
+              0.179013,
+              0.510677
+            ]
+          }
+        },
+        "v2_energy": {
+          "n": 10,
+          "capture": 0.340818,
+          "delta": {
+            "mean": 0.086295,
+            "ci95": [
+              0.011062,
+              0.21144
+            ]
+          }
+        }
+      },
+      "by_as_stratum": {
+        "low": {
+          "capture": 0.514213,
+          "delta": 0.012047,
+          "r": 1.0
+        },
+        "mid": {
+          "capture": 0.401789,
+          "delta": -7.7e-05,
+          "r": 0.9998
+        },
+        "high": {
+          "capture": 0.352676,
+          "delta": -0.009273,
+          "r": 0.9741
+        }
+      },
       "beats_sponge": 1.0,
       "valid": 1.0,
       "as_share": 0.0,
@@ -177,8 +346,8 @@
       "clip_recovered_pct": 58.82,
       "ftp_mwh_charged": 0.0,
       "ftp_mwh_excused": 0.0,
-      "refusals": 0,
-      "governor_hours": 0,
+      "refusals": 0.0,
+      "governor_hours": 0.0,
       "errors": {
         "no_commit": 0,
         "refused": 0,

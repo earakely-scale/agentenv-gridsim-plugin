@@ -1,4 +1,6 @@
-# GridSim v3 hybrid board
+# GridSim v3 hybrid board: the earlier pilot (rules 3.0)
+
+**Earlier pilot, kept on record.** This is the rules-3.0 pilot (`docs/prereg/v3-pilot.md`), re-reported on the cross-version scale. It ran on the 3.0 packs, since rebuilt at rules 3.1, so its Episode JSON (`results/runs/v3-pilot-sol*`) replay at the preview commit it ran on, not on today's packs. The current v3 pilot, under rules 3.1, is [`board-v3b.md`](board-v3b.md) (`eval-v3b.json`, `pilot-v3b.json`).
 
 Tasks: 40 hybrid site-days (ercot-hybrid-v3-eval; AS strata low 14, mid 13, high 13). Harness: gridsim-llm on gridsim-hybrid, 52 turns, 3 planning calls a watch, 16384 output tokens a turn, effort high. R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0; idle (0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP.
 

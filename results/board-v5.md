@@ -1,4 +1,6 @@
-# GridSim v5 market board
+# GridSim v5 market board: the earlier pilot (rules 5.0)
+
+**Earlier pilot, kept on record.** This is the rules-5.0 pilot (`docs/prereg/v5-pilot.md`), re-reported on the cross-version scale. It ran on the 5.0 packs, since rebuilt at rules 5.1, so its Episode JSON (`results/runs/v5-pilot-sol*`) replay at the preview commit it ran on, not on today's packs. The current v5 pilot, under rules 5.1, is [`board-v5b.md`](board-v5b.md) (`eval-v5b.json`, `pilot-v5b.json`).
 
 Tasks: 30 market floors on 30 operating days (gridsim-market-eval), 12 of them peak floors. Harness: gridsim-llm on gridsim-market as seat A, the other seats scripted on their real offers; turns floor-sprint 6, floor-day 36, 3 planning and 6 data calls a watch, effort high. Means over floors with a 95% bootstrap CI.
 

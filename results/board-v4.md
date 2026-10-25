@@ -1,4 +1,6 @@
-# GridSim v4 forecast board
+# GridSim v4 forecast board: the earlier pilot (rules 4.0)
+
+**Earlier pilot, kept on record.** This is the rules-4.0 pilot (`docs/prereg/v4-pilot.md`), re-reported on the cross-version scale. It ran on the 4.0 packs, since rebuilt at rules 4.1, so its Episode JSON (`results/runs/v4-pilot-sol*`) replay at the preview commit it ran on, not on today's packs. The current v4 pilot, under rules 4.1, is [`board-v4b.md`](board-v4b.md) (`eval-v4b.json`, `pilot-v4b.json`).
 
 Tasks: 30 forecast windows (ercot-front-v4-eval; front 21, calm 9; sources ercot 30). Harness: gridsim-llm on gridsim-forecast, turns front 122, front-lite 72, 3 planning and 6 forecast calls a watch, 3 DAM submits a gate, 16384 output tokens a turn, effort high. R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or commit_schedule scores 0; idle (0.2) is no DAM and the battery idle, the anchor (1.0) the rolling MILP on the desk's P50 guide (blind: on persistence).
 

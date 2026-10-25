@@ -1,16 +1,29 @@
 # GridSim v3 hybrid board
 
-Tasks: 40 hybrid site-days (ercot-hybrid-v3-eval; AS strata low 14, mid 12, high 14). Harness: gridsim-llm on gridsim-hybrid, 52 turns, 3 planning calls a watch, 16384 output tokens a turn, effort high. Reward: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0; idle (0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP. Mean R over days with a 95% bootstrap CI.
+Tasks: 40 hybrid site-days (ercot-hybrid-v3-eval; AS strata low 14, mid 12, high 14). Harness: gridsim-llm on gridsim-hybrid, 52 turns, 3 planning calls a watch, 16384 output tokens a turn, effort high. R: clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted commit scores 0; idle (0.2) is the solar-only plant, the anchor (1.0) the information-matched rolling MILP.
+
+Headline: hindsight capture C = (P − P_idle)/(P_hind − P_idle), unclipped, with P_hind the hindsight MILP on realised RT, drift and deployments (a DA copy and a physical copy sharing the AS book), idle the solar-only plant: idle 0, hindsight 1. It is printed beside the anchor's own C on the same tasks and Δ = C − C_anchor, the paired gap with its 95% CI. Second: R on the anchor scale (the anchor 1.0), a level that is never differenced, with its R = 1 share (a tie with the anchor or better) and the beats-anchor share. Every comparison with a reference is (P − P_ref)/(P_hind − P_idle). CIs bootstrap over tasks; the rule and its evidence: docs/REWARD-SCALES.md.
 
 Proxies and flags: deploy_frac: 1.0 assumed (stress case); poi: 1.2x; poi: default; poi: oversized 1.25; poi: oversized 1.40; pv_availability: proxy; pv_scope: system; pv_shape: ILR x fleet-AC cf (approximate); reg_drift: ercot; site: archetype.
 
-Baselines (energy, 10 days): idle 0.200, sponge 0.392, AS-hog –, v2 energy-only 0.866, energy-only MILP –, anchor 1.000; anchor hindsight capture 0.426.
-Baselines (reserves, 30 days): idle 0.200, sponge 0.256, AS-hog 0.399, v2 energy-only 0.765, energy-only MILP 0.813, anchor 1.000; anchor hindsight capture 0.505.
+Baselines (energy, 10 days): C idle 0, sponge 0.098, AS-hog –, v2 energy-only 0.341, energy-only MILP –, anchor 0.426, hindsight 1; R idle 0.200, sponge 0.392, AS-hog –, v2 energy-only 0.866, energy-only MILP –, anchor 1.000.
+Baselines (reserves, 30 days): C idle 0, sponge 0.037, AS-hog 0.136, v2 energy-only 0.371, energy-only MILP 0.403, anchor 0.505, hindsight 1; R idle 0.200, sponge 0.256, AS-hog 0.399, v2 energy-only 0.765, energy-only MILP 0.813, anchor 1.000.
 
-| Model | Tier | Days | Runs/planned | Mean R (95% CI) | R low/mid/high AS | Hindsight capture | Beats anchor | Beats sponge | AS share | Clip recovered % | FTP MWh | Refusals | Planning calls | Finished | $/episode | Spend |
-|---|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| openai/gpt-6.1-sol | reserves | 30 | 30/30 | 0.845 (0.759 to 0.920) | 0.942/0.862/0.730 | 0.451 | 0.300 | 0.967 | 0.447 | 70.4 | 11.273 | 1.07 | 5.77 | 1.000 | $0.1639 | $7.59 |
-| openai/gpt-6.1-sol | energy | 10 | 10/10 | 0.990 (0.969 to 1.000) | 1.000/1.000/0.974 | 0.427 | 0.300 | 1.000 | 0.000 | 58.8 | 0.000 | 0.00 | 2.20 | 1.000 | $0.0461 | $0.46 |
+| Model | Tier | Days | Runs/planned | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | C low/mid/high AS | Beats sponge | AS share | Clip recovered % | FTP MWh | Refusals | Planning calls | Finished | $/episode | Spend |
+|---|---|---:|---:|---|---:|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| openai/gpt-6.1-sol | reserves | 30 | 30/30 | 0.451 (0.367 to 0.536) | 0.505 | -0.054 (-0.091 to -0.019) | 0.845 (0.759 to 0.920) | 0.300 | 0.300 | 0.576/0.387/0.390 | 0.967 | 0.447 | 70.4 | 11.273 | 1.07 | 5.77 | 1.000 | $0.1639 | $7.59 |
+| openai/gpt-6.1-sol | energy | 10 | 10/10 | 0.427 (0.274 to 0.593) | 0.426 | +0.001 (-0.009 to +0.010) | 0.990 (0.969 to 1.000) | 0.400 | 0.300 | 0.514/0.402/0.353 | 1.000 | 0.000 | 58.8 | 0.000 | 0.00 | 2.20 | 1.000 | $0.0461 | $0.46 |
+
+## Against the references
+
+| Model | Tier | Reference | Its C | Model − it (95% CI) | Tasks |
+|---|---|---|---:|---|---:|
+| openai/gpt-6.1-sol | reserves | sponge | 0.037 | +0.414 (+0.329 to +0.497) | 30 |
+| openai/gpt-6.1-sol | reserves | v2_energy | 0.371 | +0.081 (+0.040 to +0.124) | 30 |
+| openai/gpt-6.1-sol | reserves | as_hog | 0.136 | +0.315 (+0.241 to +0.391) | 30 |
+| openai/gpt-6.1-sol | reserves | energy_only | 0.403 | +0.048 (+0.009 to +0.091) | 30 |
+| openai/gpt-6.1-sol | energy | sponge | 0.098 | +0.329 (+0.179 to +0.511) | 10 |
+| openai/gpt-6.1-sol | energy | v2_energy | 0.341 | +0.086 (+0.011 to +0.211) | 10 |
 
 ## Errors
 

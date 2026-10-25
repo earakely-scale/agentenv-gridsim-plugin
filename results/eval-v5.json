@@ -1,4 +1,5 @@
 {
+  "earlier_pilot": "rules 5.0, kept on record; the current v5 pilot (rules 5.1) is results/eval-v5b.json",
   "env": "gridsim-market",
   "version": "v5",
   "market_version": "5.0",

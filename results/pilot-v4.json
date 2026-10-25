@@ -1,4 +1,5 @@
 {
+ "earlier_pilot": "rules 4.0, kept on record; the current v4 pilot (rules 4.1) is results/pilot-v4b.json",
  "main": {
   "n": 20,
   "reward": 0.9087992500000001,
