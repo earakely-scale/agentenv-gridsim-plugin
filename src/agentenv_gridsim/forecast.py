@@ -28,7 +28,7 @@ EMPTY = {"task_id": None, "tier": None, "source": None, "watches": None, "watch"
          "governor": [], "excused": None, "settled": 0, "audit": None, "grade": None, "reward": None}
 
 Plan = Annotated[Any, Field(description="battery MW (and, in submit_dam, AS award MW): lists or {from, to, mw} blocks")]
-Hour = Annotated[Any, Field(description='a window hour, or "YYYY-MM-DD HH:MM"')]
+Hour = Annotated[Any, Field(description="a window hour, or a time (ISO 8601; CPT without an offset)")]
 
 
 def schemas(tier: str) -> dict[str, dict]:

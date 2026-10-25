@@ -122,12 +122,12 @@ async def test_a_malformed_call_gets_the_sessions_answer_and_uses_its_budget(env
     s = Session(WINDOW, "front")
     for name, args in [("check_schedule", {"plan": {"regup": [{"from": 0, "to": 4, "mw": 25}]}, "from_hour": 0}),
                        ("commit_schedule", {"plan": {"energy": "keep"}, "from_hour": 0}),
-                       ("submit_dam", {"operating_day": WINDOW["d1"], "plan": {"energy": [0] * 24, "regup": "keep"}}),
+                       ("submit_dam", {"operating_day": WINDOW["d1"], "plan": {"energy": [0] * 24, "regup": "hold"}}),
                        ("get_forecast", {"kind": "price", "when": "now"}), ("get_situation", {"x": 1})]:
         assert await text(client, name, args) == s.call(name, args)
     assert (env.session.planning_calls, env.session.forecast_calls, env.session.dam_submits) == ([2], [1], [1])
     refused = json.loads(s.transcript[2]["output"])["refused"][0]["detail"]
-    assert "to keep RegUp as it is, leave regup out of the plan" in refused
+    assert 'to keep RegUp as it is, leave regup out of the plan (or send "keep")' in refused
 
 
 async def test_advance_needs_the_synced_clock_and_moves_nothing_without_it(env, client):
