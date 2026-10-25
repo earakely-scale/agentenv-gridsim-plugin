@@ -1,5 +1,9 @@
 # GridSimEnv v5 pilot: pre-registration (GPT-6.1 Sol, The Market Floor)
 
+**The rules-5.0 pilot (v5-preview 4162fda), on record.** Its packs, references and rules are 5.0; rules 5.1
+(docs/CONTRACT-v5.md V5-P23: train from 2022, fidelity bar 0.7, keep fields, the compliant public board, the
+episode-cap check) rebuilt the packs, and a rules-5.1 pilot with its own pre-registration supersedes this one.
+
 Committed on `v5-preview` before the first model episode of the pilot, the smoke included. Nothing below changes after a
 run starts, and nothing is rerun to improve a score. Anything done differently is logged under "Deviations", appended
 after the run, with this text left as it is. The pilot gives Edgar v5 numbers and the viewer v5 replays; it is not the

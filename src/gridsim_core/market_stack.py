@@ -34,7 +34,7 @@ from gridsim_core.task import data_root
 FIXTURE_PACK = "fixtures-market"
 DISCLOSURE_LAG_DAYS = 60
 DISCLOSURE_WINDOW_DAYS = 90
-API_START = "2023-12-11"
+API_START = "2022-01-01"
 DISCLOSURE_POINTS, DISCLOSURE_POINTS_DAY, SEAT_POINTS = 64, 16, 16
 
 
@@ -286,8 +286,15 @@ def task_store(task: dict) -> DayStore:
 
 @cache
 def packaged_store(fixtures: bool) -> DayStore:
-    srcs = [data_root() / "market" / "days"] + ([data_root() / FIXTURE_PACK / "days.jsonl.gz"] if fixtures else [])
+    srcs = [overflow_root(), data_root() / "market" / "days"] + ([data_root() / FIXTURE_PACK / "days.jsonl.gz"]
+                                                                if fixtures else [])
     return DayStore(*[p for p in srcs if p.exists()])
+
+
+def overflow_root() -> Path:
+    """The days only train floors read (data/market/manifest.json lists its months and their sha256), kept out of git
+    by the size rule: a checkout's cache/market/days, filled from the Hub dataset's raw/v5-market/days."""
+    return Path(__file__).resolve().parents[2] / "cache" / "market" / "days"
 
 
 # NP3-966-ER 60-Day DAM Disclosure → days rows (CONTRACT-v5 "Background")
@@ -295,7 +302,8 @@ def packaged_store(fixtures: bool) -> DayStore:
 FILES = {"gen": "60d_DAM_Gen_Resource_Data", "esr": "60d_DAM_ESR_Data", "offers": "60d_DAM_EnergyOnlyOffers-",
          "bids": "60d_DAM_EnergyBids-", "offer_awards": "60d_DAM_EnergyOnlyOfferAwards",
          "bid_awards": "60d_DAM_EnergyBidAwards"}
-UP_AS = ("RegUp Awarded", "RRSPFR Awarded", "RRSFFR Awarded", "RRSUFR Awarded", "ECRSSD Awarded", "NonSpin Awarded")
+UP_AS = ("RegUp Awarded", "RRS Awarded", "RRSPFR Awarded", "RRSFFR Awarded", "RRSUFR Awarded", "ECRSSD Awarded",
+         "NonSpin Awarded")
 DOWN_AS = ("RegDown Awarded",)
 ESR_TYPES, CT_TYPES, RENEW_TYPES = {"PWRSTR", "ESR"}, {"SCGT90", "SCLE90"}, {"WIND", "PVGR"}
 LSL_AT_FLOOR = False

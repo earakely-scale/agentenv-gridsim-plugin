@@ -16,9 +16,10 @@ are exact strings produced by core, so path A and path B are byte-identical by c
 
 ## Data: what is real and what is modelled (read first)
 
-The ERCOT public API (key in SSM, used only on the data box) serves NP3-966-ER, NP3-965-ER and NP4-523-CD for operating
-days from 2023-12-11; the disclosure lags 60 days (through about 2026-08-25 today). **Every v5 task is an API-era day
-re-cleared from ERCOT's real offers and bids.** No request goes to ercot.com's `/misapp` or `/misdownload` (robots.txt
+The ERCOT public API (key in SSM, used only on the data box) serves NP3-966-ER, NP3-965-ER and NP4-523-CD; its
+NP3-966-ER archive holds every operating day from 2022-01-01, and the disclosure lags 60 days (through about 2026-08-25
+today). **Every v5 task is a day from that archive re-cleared from ERCOT's real offers and bids** (train from 2022,
+V5-P1). No request goes to ercot.com's `/misapp` or `/misdownload` (robots.txt
 disallows them) and gridstatus.io's hosted API is not used.
 
 | Item | Source | Real or modelled |
@@ -80,21 +81,24 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
   checked; with a horizontal residual instead, 3 / 4 / 6 on 2024-08-20, 3 / 3 / 4 on 2026-07-21, 0–3 elsewhere. Real
   DAM bids (including virtual traders) make the residual curve flat: a QSE-sized battery is a price taker in most
   hours and price-making is concentrated on peak days.
-- **Packs** (rebuilt with the per-tier filters, V5-P11): train 2,351 floors on 151 dates, eval 200 (194 also clear the
-  floor-day anchor filter; 60 run as floor-day, 12 in the peak stratum), rtcb 153 (147), showcase 6 (display only); no
-  baseline is refused. On eval the information-matched price-taker scores R = 1.0 on 105 of 200 floors (mean 0.949;
-  0.909 on the peak stratum); the anchor beats it by more than $0.5/MW-day on 71 and trails it on 59 (V5-P18). The
-  anchor captures a median 0.73 of the feasible hindsight BR in floor-sprint (p10 0.34) and 0.95 in floor-day (V5-P19).
+- **Packs, rules 5.1** (within_ns ≥ 0.7, train from 2022, two eval draws a day; V5-P1, P2, P11, P12, P16, P24): train
+  3,777 floors on 229 dates 2022-07-15..2024-12-29 (2022 23 dates, 2023 93, 2024 113; 1,189 floors on 68 dates have
+  ≥ 2 impact hours), eval 289 floors on 147 dates (two seat-A portfolios a date, one on 5 dates; 284 clear the
+  floor-day anchor filter; 60 run as floor-day, one a date, 6 of them peak; 12 floors on the 6 peak dates), rtcb 65
+  (62), showcase 6 (display only); no baseline is refused. The 0.7 bar keeps 147 eval dates (was 200) and 65 rtcb dates
+  (was 153): 2025 keeps 175 of 361 days and RTC+B 87 of 261. On eval the information-matched price-taker scores R = 1.0
+  on 152 of 289 floors (mean 0.937; 0.906 on the peak stratum); the anchor beats it by more than $0.5/MW-day on 106 and
+  trails it on 72 (V5-P18). The anchor captures a median 0.73 of the feasible hindsight BR in floor-sprint (p10 0.33).
 - References on the ten fixture tasks: the disclosure anchor earns $150–870/MW-day on 2024-08-20 and $150–270 on
   2026-07-21; hindsight BR_A (with RT deviations) is 2–5× the anchor; path B grades an offer in 6–9 ms; the anchor's
   welfare_ratio is 0.47–0.71.
 
-## Decisions (all provisional until Edgar confirms)## Decisions (all provisional until Edgar confirms)
+## Decisions (provisional unless marked confirmed; Edgar's v5 decisions of 2026-10-24 are marked **Confirmed**)
 
 | # | Decision | Taken (provisional), recommendation |
 |---|---|---|
-| V5-P1 | Which days | Only API-era days (2023-12-11 onward) with the real stack. The modelled EIA stack is not used for any pack: a pre-API train extension (2022-04..2023-12, ~600 dates) would train on a market that misses the fidelity bar on 80% of days and has a different provenance from eval. Revisit only if the train pack underfits |
-| V5-P2 | Fidelity and its filter | **Revised on the sample.** The raw re-clear misses the plan's 90% bar on every sample day (42–81%), so the background is calibrated with a per-hour **hub offset** o_h = real HB_HUBAVG DAM − re-clear of every real offer (AS, congestion, losses), added to every background and replay-seat price: the replay clears at the real hub price exactly, and a seat's impact follows the real curve's slope at the re-clear point. Raw fidelity is published per task (`fidelity`). Filter: raw within_ns ≥ 0.5 (survival measured on the full pull). The horizontal residual ε (MW) stays in core as an option; it puts peaks on steeper ground (more impact) at the cost of 9–21% of cleared MW of shift |
+| V5-P1 | Which days | **Confirmed, revised: train goes back to 2022-01-01.** Every pack day is a real NP3-966-ER disclosure re-cleared on the real stack; the API archive reaches op day 2022-01-01, so train days 2022-01-01..2023-12-10 are built from the same zips (Scale-internal object storage), NP4-523-CD λ (archive from 2022-01-01), EIA-930 ERCO actuals and its day-ahead demand forecast (forecast flag `eia930` on every v5 day; no ERCOT vintages before December 2023), the same filters. Era table: HCAP $5,000 from 2022-01-01, no ECRS before 2023-06-10; the 2022-01-01..2022-10-14 files carry one `RRS Awarded` column (split into PFR/FFR/UFR from 10-15), which the AS truncation now reads. The modelled EIA stack stays unused |
+| V5-P2 | Fidelity and its filter | **Revised on the sample.** The raw re-clear misses the plan's 90% bar on every sample day (42–81%), so the background is calibrated with a per-hour **hub offset** o_h = real HB_HUBAVG DAM − re-clear of every real offer (AS, congestion, losses), added to every background and replay-seat price: the replay clears at the real hub price exactly, and a seat's impact follows the real curve's slope at the re-clear point. Raw fidelity is published per task (`fidelity`). **Filter (confirmed): raw within_ns ≥ 0.7**; survival per year in `data/market/stats.md` (812 of 1,686 days 2022-01..2026-08; API-era 534 of 982: 2025 175, post-RTC+B 87). The horizontal residual ε (MW) stays in core as an option; it puts peaks on steeper ground (more impact) at the cost of 9–21% of cleared MW of shift |
 | V5-P3 | Hub price | Superseded by V5-P2's hub offset: one node, no congestion; the offset carries the real hub's AS, congestion and loss component per hour and never changes a best response |
 | V5-P4 | Price formation | The aggregated background (supply minus demand) is a continuous, strictly increasing curve (ERCOT energy offer and bid curves are linear between price/MW points; block bids and offers are linearised over 1 MW) and **always sets the price**. A seat block priced exactly at λ' is awarded pro rata and rounded down to the seat's MW grid. Consequence: every seat's best response is a quantity choice per hour, an exact DP on the grid |
 | V5-P5 | Mitigation | RSI_i < 1 mitigates (the plan), and since it almost never binds, **conduct and impact** (NYISO/ISO-NE/MISO practice) is the operative screen: a supply seat's hour is mitigated when a block is priced above ref + max($10, 50% of ref) and re-pricing those blocks at ref lowers λ' by ≥ max($5, 10%). Physical withholding (offering fewer MW) is measured (conduct row) and priced by the welfare half of the compliant score, not mitigated |
@@ -104,14 +108,18 @@ the plan's 90% fidelity bar on most days, which is why no pack uses it.
 | V5-P9 | Private costs | G: per-unit heat rate drawn from EIA-923's ERCOT CT distribution (until a resource↔plant crosswalk exists), fuel = the day's gas price implied by real CC offers (median CC mid-curve price ÷ 7.2 MMBtu/MWh after VOM), VOM $5, start cost from its three-part offer; R: −PTC $27.50 on 60% of output; L: a fixed tariff (EIA Electric Power Monthly Texas average, energy share 50%) and RT for its unhedged load; A, B: v1 archetype η and c_deg, E = P × the drawn duration (the disclosure has no MWh before RTC+B). No Henry Hub |
 | V5-P10 | Disclosure shipped | Only derived aggregates: per hour ≤ 64 breakpoints per side for the background and ≤ 16 per seat portfolio; the raw zips never ship; ERCOT attribution and no-endorsement as v1 |
 | V5-P11 | Headroom filter | Per tier: every scored task needs BR_A − P_idle ≥ $25/MW-day and its floor-sprint anchor P_anchor − P_idle ≥ $10/MW-day; a task also runs as floor-day only when its floor-day anchor clears the same $10/MW-day (`tags.floor_day_ok`), so idle never scores 1.0 on a scored floor. Showcase floors stay display-only (unfiltered). The plan's $2/kW-day is ~20× a battery's daily DAM value |
-| V5-P12 | Pivotal-hour filter | **Open (needs Edgar).** On the real stack the plan's "≥ 2 hours with ≥ $5 impact" keeps almost only peak days. Options: (a) keep it and accept a peak-day pack; (b) relax to ≥ 1 hour or ≥ $2; (c) switch V5-P2 to the horizontal residual. Recommendation: (b) for train, (a) as the eval tag `impact_hours` |
+| V5-P12 | Pivotal-hour filter | **Confirmed: (b) for train, impact tagged everywhere, peak days their own column.** Train keeps tasks with ≥ 1 hour where A's full sale moves the hub price ≥ $2; every task carries `tags.impact_hours` (≥ $5) and `tags.impact_hours_2usd`; the peak floors (≥ 2 hours of ≥ $5, eval's `peak` stratum) are reported as their own board column (`sweep report`: `peak` in eval-v5.json, "Peak floors" on board-v5.md) |
 | V5-P13 | Tiers | `floor-sprint` (training, path B) and `floor-day` (eval) build tonight; `compliant` is a scoring of either; `floor-week` deferred |
 | V5-P14 | Bidders | Scripted in-process only (`bidders: "scripted"`): B, G, R, L submit their **real** offers of the day (replay) by default, or a cost-based script (`script: "cost"`) for the ε-Nash reference. The A2A route is specified below and not built: four extra LLM agents per episode, and the preview spends nothing |
 | V5-P15 | Welfare | W counts the DAM clear at bid value for the background and private cost for the seats; welfare_ratio = (W − W_0)/(W\* − W_0) over W_0 = the clear with A and B idle; W\* from a HiGHS LP. Compliant = 0.5·R + 0.5·clip(welfare_ratio, 0, 1) |
-| V5-P16 | Splits | train 2024-02-11..2024-12-31 (the anchor needs D−62 ≥ 2023-12-11), ~325 dates × 9 seat draws ≈ 3,000; eval 2025-01-01..2025-11-30 (200 sprint + 60 floor-day); rtcb 2025-12-05..the latest posted day; showcase `fern-0123` (op days 2026-01-23..27) and, replacing the pre-API `aug23-0810`, `aug24-0820` (2024-08-20, an ERCOT summer peak day [to confirm the record]); each showcase day ±3 days out of every split |
-| V5-P18 | Price-making vs price-taking | **Finding:** on the real stack the disclosure best-responder mostly coincides with the information-matched price-taker (its forecast DP ignoring its own impact): the price-taker baseline scores 1.0 on about half the eval floors (see Feasibility). The reward measures forecasting and scheduling under weak impact, not market power, on most days. **Decision (recommended, built):** keep R against the disclosure anchor (it is impact-aware where impact exists and never rewards withholding), and add weight-0 rows `price_making_gain_usd_per_mw_day` = (P − P_price_taker)/MW and `impact_usd` = Σ award·(price − the price without A's offer); the board shows R on the eval `peak` stratum (≥ 2 impact hours) as its own column. Rejected: the price-taker as anchor (identical on most days, and impact handling would score above 1, off the main scale); scoring only peak hours (SoC links the hours) |
+| V5-P16 | Splits | **Confirmed, revised:** train 2022-01-01..2024-12-31 (the first floor is 2022-03-04: the anchor needs D−61 and D−62), 27 seat draws a date; eval and rtcb keep their periods, re-filtered at within_ns ≥ 0.7; eval 2025-01-01..2025-11-30 (200 sprint + 60 floor-day); rtcb 2025-12-05..the latest posted day; showcase `fern-0123` (op days 2026-01-23..27) and, replacing the pre-API `aug23-0810`, `aug24-0820` (2024-08-20, an ERCOT summer peak day [to confirm the record]); each showcase day ±3 days out of every split |
+| V5-P18 | Price-making vs price-taking | **Finding:** on the real stack the disclosure best-responder mostly coincides with the information-matched price-taker (its forecast DP ignoring its own impact): the price-taker baseline scores 1.0 on about half the eval floors (see Feasibility). The reward measures forecasting and scheduling under weak impact, not market power, on most days. **Decision (recommended, built):** keep R against the disclosure anchor (it is impact-aware where impact exists and never rewards withholding), and add weight-0 rows `price_making_gain_usd_per_mw_day` = (P − P_price_taker)/MW and `impact_usd` = Σ award·(price − the price without A's offer); the board shows R on the eval `peak` stratum (≥ 2 impact hours) as its own column. Rejected: the price-taker as anchor (identical on most days, and impact handling would score above 1, off the main scale); scoring only peak hours (SoC links the hours). **Confirmed:** keep the anchor R, the `price_making_gain` row and the peak column; **the public board defaults to the compliant score**, R, regret, hindsight capture and the price-making gain go to the research board (`sweep report` writes both to board-v5.md; eval-v5.json's `mean`/`ci95` and `scoring` are the compliant score, `reward` and `reward_peak` R; one constant, `sweep.MARKET_HEADLINE`, switches the headline, the columns are `MARKET_PUBLIC` / `MARKET_RESEARCH`). The cross-version headline is settled separately |
 | V5-P19 | Hindsight BR | `p_br` (regret, capture) is the exact best SoC-feasible award schedule delivered as awarded, the hindsight of the DA clear. The RT-inclusive optimum (deviations settled at the realised RT price: the sprint projection DP, or for floor-day the ±P financial position on every hour's DA–RT spread plus the physical LP) is `p_br_rt`, the bound every offer and withhold-then-deviate is tested against. Before, floor-day BR was mostly hindsight DA–RT speculation, so capture read 0.16–0.35 |
 | V5-P20 | ε-Nash | Per seat, regret in $ and as a share in [0, 1]: (BR_i − π_i)/(BR_i − min(π_i, π_i_idle)), 0 when that range is under $1; `eps_nash` is the largest share, `eps_a` seat A's own and `eps_mean` the mean. The replayed real seats often earn less than idle in hindsight (a share of 1), so `eps_nash` mostly reads 1 on the replay profile, a true statement that real offers are far from a hindsight Nash profile; `eps_a` is the agent-attributable row the board shows. Batteries' BR as V5-P19; the renewable seat sells and the retailer buys no more than its actual output or load in each hour |
+| V5-P21 | Keep fields | **Confirmed (as v3).** Wherever v5 has optional fields, leaving one out, `null` or `"keep"` means unchanged: an offer hour's `sell` / `buy` keep that side of the last accepted offer (nothing before the first; `[]` offers none), `as_awards` null / `"keep"` is no AS, a schedule hour null / `"keep"` keeps its MW, and AS fields in a plan are refused with "leave … out". Errors and the rules card say so |
+| V5-P22 | Episode caps | **Confirmed.** The floor-sprint default cap stays $1 (≥ $0.25, above gridsim-llm's per-turn reserve: 16,384 output tokens ≈ $0.167 for GPT-6.1 Sol); `sweep run` refuses an `--episode-cap-usd` below what the agent books before a model's first turn (its opening plus max_tokens of output at the model's price, read from the agent's own price table), naming the reserve. A cap just above the reserve still stops a sprint after about two turns (the rules-5.0 pilot), so a derived cap needs room for the turns' real spend |
+| V5-P23 | Rules version | `MARKET_VERSION` 5.1 (P1, P2, P12, P16, P18, P21, P22, P24; `get_forecast` reads `issued_at` as a time, CPT or ISO 8601, where 5.0 compared strings and refused 197 of 276 pilot calls; `get_disclosure` refuses a light day). The v5-preview pilot (4162fda) stays on record as the rules-5.0 pilot; a rules-5.1 pilot supersedes it |
+| V5-P24 | Eval draws | **Confirmed.** The 0.7 bar leaves 147 eval dates, so eval draws two seat-A portfolios (size, duration, ESR group, η, c_deg, as train draws) on every surviving 2025 date: 289 floors. A date's stratum is the day's (peak when its first draw has ≥ 2 impact hours: 6 dates, 12 floors), the board's peak column counts both; floor-day stays 60 floors, one a date (6 peak). Train and rtcb are unchanged |
 | V5-P17 | Viewer | Per the standing direction that sim viewers look like real life, the Market Floor is a real-life 3D scene, not the plan's 8-bit hall; the merit-order staircase, gavel and seat board become overlays (viewer lane proposes) |
 
 ## As built in phase 2 (refinements of the text below)
@@ -236,8 +244,12 @@ One monotone ESR curve per hour, written as blocks (λ-space prices, as ERCOT of
 - `he` 1..24; an omitted hour offers nothing. MW are positive multiples of `grid_mw`; Σ sell ≤ p_mw, Σ buy ≤ p_mw; ≤ 10
   blocks per hour; prices in [floor, cap], rounded to cents; within an hour max(buy price) < min(sell price) (rules
   `grid`, `power`, `blocks`, `price_range`, `crossed`, `parse`). Injection at λ: Σ sell priced ≤ λ − Σ buy priced ≥ λ.
+- Keep fields (V5-P21): in a listed hour, a side left out, `null` or `"keep"` stays as in the last accepted offer
+  (nothing before the first, so floor-sprint is unchanged); `[]` offers none on that side. The rules run on the merged
+  hour.
 - **Idle** = a valid offer with no blocks (`{"hours": []}`), P_idle = 0 for every pack task (s_end_min ≤ s0); **no valid
-  `submit_offer` → reward 0**. A refused submit counts as not submitted. `as_awards` is reserved and refused.
+  `submit_offer` → reward 0**. A refused submit counts as not submitted. `as_awards` is reserved: left out, `null` or
+  `"keep"` passes, anything else is refused (`not_offered`).
 
 ### Physical delivery and settlement (seat A)
 
@@ -315,9 +327,10 @@ per watch; the rest are free. Money is rounded to cents, MW to 2 decimals.
 
 - `get_forecast(kind, issued_at?)` (data call): kind `load`, `wind`, `solar` (v4's vintages: `{"kind","issued_at",
   "source","from","mw":[n],"p80_mw":[n]|null}`), `dam_prices` (D-1's λ and hub SPP), `rt_prices` (settled hours only).
-  Refuses issued_at > now.
+  `issued_at` is a time (CPT `2025-08-19 09:00`, or ISO 8601 with an offset); refuses one after now or not a time.
 - `get_disclosure(op_date, side="supply"|"demand", hour?)` (data call): refused unless op_date ≤ date(now) − 60 days and
-  op_date ≥ max(D − 90, 2023-12-11). With `hour`: `{"op_date","hour","side","curve":[[mw, price], ...] (≤ 64 points,
+  op_date ≥ max(D − 90, 2022-01-01), and for a day without a disclosure (a light row). With `hour`:
+  `{"op_date","hour","side","curve":[[mw, price], ...] (≤ 64 points,
   cumulative MW ascending), "cleared_mw","lambda_usd"}`; without: 24 hours at ≤ 16 points. Aggregated and anonymised.
 - `get_private_costs()`: the caller's seat only (server-side filter on agent_name): `{"seat","eta","c_deg",
   "reference_usd":[24],"cycle_cap_mwh","s_end_min_mwh","contracts":[...]}`.
@@ -363,7 +376,7 @@ reward_fn(prompts, completions, task=None, **kw) -> list[float]  # TRL entry; pa
 references(task, tiers=("floor-sprint", "floor-day"), nash=False) -> refs dict
 ```
 
-`MARKET_VERSION = "5.0"`, `MARKET_ENV = "gridsim-market"`, `EPISODE_SCHEMA = "gridsim.episode/v5"`, `TIERS =
+`MARKET_VERSION = "5.1"`, `MARKET_ENV = "gridsim-market"`, `EPISODE_SCHEMA = "gridsim.episode/v5"`, `TIERS =
 ("floor-sprint", "floor-day")` (+ the `compliant` scoring flag), `SEATS = ("A", "B", "G", "R", "L")`, `PLANNING_CALLS =
 3`, `MAX_TURNS = {"floor-sprint": 6, "floor-day": 36}`.
 
@@ -393,10 +406,12 @@ used only the disclosure forecast; `clear_market` ran exactly once (the 10:00 cr
 
 ```
 cache/disclosure/raw/np3-966-er/<op_date>.zip   on the data box only (never shipped); NP3-965-ER likewise
-cache/disclosure/np4-523.jsonl                  λ for every API-era op day
-data/market/days/<YYYY-MM>.jsonl.gz             one row per op day (below)
+cache/disclosure/np4-523.jsonl                  λ for every archive op day (2022-01-01 on)
+data/market/days/<YYYY-MM>.jsonl.gz             one row per op day (below), the months from 2024-05 (git)
+cache/market/days/<YYYY-MM>.jsonl.gz            the overflow: 2022-01..2024-04, read by train floors only (V5-P1)
 data/market/manifest.json                       endpoints, docIds, postDatetime, sha256 of each zip, parser version,
-                                                fidelity summary, ERCOT terms and attribution
+                                                fidelity summary, the store's split and each overflow month's sha256,
+                                                ERCOT terms and attribution
 data/market/stats.md                            fidelity and survival per filter, impact, RSI, headroom, simplification error
 data/gridsim-market-{train,eval,rtcb,showcase}/tasks.jsonl.gz + manifest.json
 data/fixtures-market/                           20 CI tasks + the days rows they read (D, D−1, D−61, D−62)
@@ -422,7 +437,7 @@ only the public series):
 Task row:
 
 ```
-{"task_id":"mkt-v5-2024-08-20-A800x2-e1","market_version":"5.0","contract_version":"1.0","pack","split","date","era",
+{"task_id":"mkt-v5-2024-08-20-A800x2-e1","market_version":"5.1","contract_version":"1.0","pack","split","date","era",
  "point":"HB_HUBAVG","region":"central",
  "seats":{"A":{"name":"bess-A","kind":"battery","pool_id":"e1","p_mw":800,"e_mwh":1600,"grid_mw":40,"eta":0.86,
                "c_deg":4.0,"s0_mwh":800,"s_end_min_mwh":800,"cycle_cap_mwh":2400,"reference_usd":[24]},
@@ -433,7 +448,7 @@ Task row:
  "public":{"dam_prev_day":{"lambda_usd":[24],"hub_usd":[24]},"rt_last_day_usd":[24],"forecast_slice":{v4 slice}|null,
            "disclosure_days":["2024-05-22", ... "2024-06-20"]},
  "notices":[v2 notices],"notices_sha":"…",
- "refs":{"market_version":"5.0","p_idle":0.0,
+ "refs":{"market_version":"5.1","p_idle":0.0,
          "floor-sprint":{"p_anchor","anchor":{"forecast_lambda_usd":[24],"delta_mw","q_mw":[24],"hub_usd":[24]},
                          "p_br","br":{"q_mw":[24]},
                          "baselines":{"max_withhold":{"profit","reward"},"price_taker":{...},"replay_A":{...}}},
@@ -447,8 +462,12 @@ Task row:
 Task ids `mkt-v5-{date}-A{P}x{E/P}-{pool_id}`; the tier is the load config. Packs: `gridsim-market-train`,
 `gridsim-market-eval`, `gridsim-market-rtcb`, `gridsim-market-showcase` (display only), `data/fixtures-market/` (V5-P16;
 counts in the manifests). Filters: V5-P2, V5-P11, V5-P12; a day with a missing file or a parse error drops (never
-imputed); DST days drop. If `data/market/` exceeds ~30 MB gzipped, train days move to the Hub dataset (`v5_days`) and git
-keeps eval, rtcb, showcase and fixtures self-contained, as v4's store does.
+imputed); DST days drop. `data/market/` stays under ~30 MB gzipped: with train back to 2022 the store is 41.6 MB, so the
+months only train floors read (2022-01..2024-04, 19.5 MB) are the overflow, `cache/market/days/` in a checkout
+(`market_stack.overflow_root()`, read under git's months by the packaged store) and `raw/v5-market/days/` in the Hub
+dataset beside git's months, checked against the manifest's sha256 per month; git keeps 2024-05 on (22.1 MB), every day
+an eval, rtcb or showcase floor or the env image reads (`build_market_pack.py` refuses a non-train floor whose
+disclosure window leaves git's months), as v4's store does.
 
 ## Episode JSON `gridsim.episode/v5` (path A, B, B' and references write the same shape)
 

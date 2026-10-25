@@ -293,8 +293,15 @@ def _num(x) -> float:
     return v
 
 
-def parse_offer(offer, p_mw: float, grid_mw: float, floor: float, cap: float) -> tuple[dict, list[dict]]:
-    """({he: {"sell": [(mw, price)], "buy": [(mw, price)]}}, issues). Any issue refuses the whole offer."""
+def kept(v) -> bool:
+    """A field left as it stands: null or "keep" (leaving the field out is the same)."""
+    return v is None or isinstance(v, str) and v.strip().lower() == "keep"
+
+
+def parse_offer(offer, p_mw: float, grid_mw: float, floor: float, cap: float,
+                current: dict | None = None) -> tuple[dict, list[dict]]:
+    """({he: {"sell": [(mw, price)], "buy": [(mw, price)]}}, issues). Any issue refuses the whole offer. In a listed
+    hour a side left out, null or "keep" stays as in ``current`` (the last accepted offer; none before it)."""
     if isinstance(offer, str):
         try:
             offer = json.loads(offer)
@@ -307,12 +314,14 @@ def parse_offer(offer, p_mw: float, grid_mw: float, floor: float, cap: float) ->
     extra = sorted(set(offer) - {"hours", "as_awards"})
     if extra:
         return {}, [{"he": None, "rule": "parse", "detail": f"unexpected key {extra[0]!r}"}]
-    if offer.get("as_awards"):
-        return {}, [{"he": None, "rule": "not_offered", "detail": "no ancillary services in the v5 preview"}]
+    if not kept(offer.get("as_awards")) and offer["as_awards"]:
+        return {}, [{"he": None, "rule": "not_offered", "detail": "no ancillary services in the v5 preview: leave "
+                                                                 "as_awards out"}]
     out, issues = {}, []
     for row in offer["hours"]:
         if not isinstance(row, dict) or sorted(set(row) - {"he", "sell", "buy"}):
-            issues.append({"he": None, "rule": "parse", "detail": f"bad hour row {str(row)[:60]}"})
+            issues.append({"he": None, "rule": "parse", "detail": f"bad hour row {str(row)[:60]}: an hour is "
+                                                                  '{"he", "sell", "buy"}'})
             continue
         try:
             he = int(row.get("he"))
@@ -324,8 +333,17 @@ def parse_offer(offer, p_mw: float, grid_mw: float, floor: float, cap: float) ->
             continue
         sides = {}
         for side in ("sell", "buy"):
+            v = row.get(side)
+            if kept(v):
+                sides[side] = list(((current or {}).get(he) or {}).get(side) or [])
+                continue
+            if not isinstance(v, list):
+                issues.append({"he": he, "rule": "parse", "detail": f"{side} is a list of [mw, price] blocks ([] for "
+                                                                    f"none); to keep the hour's {side} blocks as they "
+                                                                    f'are, leave {side} out (or write null or "keep")'})
+                continue
             blocks = []
-            for b in row.get(side) or []:
+            for b in v:
                 try:
                     mw, price = _num(b[0]), _num(b[1])
                     if len(b) != 2:
@@ -341,6 +359,8 @@ def parse_offer(offer, p_mw: float, grid_mw: float, floor: float, cap: float) ->
                     issues.append({"he": he, "rule": "price_range", "detail": f"{price} outside [{floor:g}, {cap:g}]"})
                 blocks.append((round(k) * grid_mw, round(price, 2)))
             sides[side] = blocks
+        if len(sides) < 2:
+            continue
         if len(sides["sell"]) + len(sides["buy"]) > MAX_BLOCKS:
             issues.append({"he": he, "rule": "blocks", "detail": f"more than {MAX_BLOCKS} blocks"})
         for side in ("sell", "buy"):

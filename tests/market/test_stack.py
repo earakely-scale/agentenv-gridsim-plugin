@@ -78,6 +78,8 @@ def test_resource_curve_truncates_as_and_prices_lsl():
     s, d = resource_curves({k: str(v) for k, v in r.items()}, -250.0)
     assert d == [] and s[0] == [0.0, 15.0] and s[1] == [100.0, 15.0] and s[-1][0] == 350.0
     assert abs(s[-1][1] - (15 + 10 * 250 / 300)) < 1e-9
+    rrs_2022 = {k: v for k, v in r.items() if k != "RegUp Awarded"} | {"RRS Awarded": 50}
+    assert resource_curves({k: str(v) for k, v in rrs_2022.items()}, -250.0)[0] == s
 
 
 def test_esr_curve_splits_at_zero():

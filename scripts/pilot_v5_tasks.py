@@ -2,8 +2,9 @@
 takes DAY_PEAK peak floors (>= 2 impact hours) and the rest base floors, all from the pack's floor-day subset; the
 floor-sprint column takes every peak floor, the floor-day column's base floors (so every floor-day floor is also played
 at floor-sprint) and base floors drawn until it holds SPRINT floors. Each draw takes the candidate whose month has been
-drawn least, ties broken by a seeded shuffle. The smoke floors come from gridsim-market-train, the showcase floors are
-the showcase pack's six. The baselines are scripts/pilot_v5.py's."""
+drawn least, ties broken by a seeded shuffle. The smoke floors come from gridsim-market-train's months in git (the env
+image holds no overflow days), the showcase floors are the showcase pack's six. The baselines are core's
+baseline_plays."""
 
 import argparse
 import json
@@ -11,9 +12,10 @@ import random
 from collections import Counter
 from pathlib import Path
 
-from pilot_v5 import baselines
+from build_market_days import SHIP_FROM
 
 from agentenv_gridsim import market_tasks
+from gridsim_core.market import baseline_plays
 
 SEED = 5324
 PACK = "gridsim-market-eval"
@@ -50,7 +52,7 @@ def picks() -> dict[str, list[dict]]:
     taken = {r["task_id"] for r in day} | {r["task_id"] for r in peaks}
     sprint = peaks + [r for r in day if not peak(r)]
     sprint += draw([r for r in rows if r["task_id"] not in taken], SPRINT - len(sprint), months, rng)
-    train = market_tasks.pack_rows(SMOKE_PACK)
+    train = [r for r in market_tasks.pack_rows(SMOKE_PACK) if r["date"][:7] >= SHIP_FROM]
     smoke = draw(train, 2 * SMOKE, Counter(), rng)
     return {"sprint": sorted(sprint, key=lambda r: r["date"]), "day": sorted(day, key=lambda r: r["date"]),
             "showcase": market_tasks.pack_rows(SHOWCASE_PACK), "smoke-sprint": smoke[:SMOKE],
@@ -70,7 +72,7 @@ def row(r: dict, tier: str) -> dict:
             "anchor_minus_idle_usd": round(t["p_anchor"] - refs["p_idle"], 2),
             "anchor_capture": round((t["p_anchor"] - refs["p_idle"]) / hind, 6) if hind > 1e-6 else None,
             "baselines": {k: {x: v[x] for x in ("reward", "compliant", "welfare_ratio", "profit")}
-                          for k, v in baselines(r, tier).items()}}
+                          for k, v in baseline_plays(r, tier).items()}}
 
 
 def column(name: str) -> list[dict]:

@@ -19,8 +19,8 @@ import numpy as np
 
 from agentenv_gridsim import market_tasks
 from agentenv_gridsim.sweep import slug
-from gridsim_core.market import HOURS, Session, anchor_policy, play
-from gridsim_core.market_refs import baseline_offers, price_grid, replay_profile, self_schedule_offer, settle_profile
+from gridsim_core.market import HOURS, Session, baseline_plays
+from gridsim_core.market_refs import price_grid, replay_profile, settle_profile
 
 RUNS = Path("results/runs")
 EPS = 1e-6
@@ -55,38 +55,6 @@ def capture(p: float, p_idle: float, p_br: float) -> float | None:
     return (p - p_idle) / (p_br - p_idle) if p_br - p_idle > EPS else None
 
 
-def offers(task: dict) -> dict[str, dict]:
-    """Each baseline's DAM offer on the floor: the core's legal card baselines, idle (no blocks) and the anchor's
-    self-schedule."""
-    s = Session(task, "floor-sprint")
-    q = task["refs"]["floor-sprint"]["anchor"]["q_mw"]
-    return ({"idle": {"hours": []}, "anchor": self_schedule_offer(q, s.F.floor, s.F.cap)}
-            | baseline_offers(s.F, s.fc))
-
-
-def submit_at_nine(offer: dict, replan: bool = True):
-    """Submit the offer at D-1 09:00; on the op day, with ``replan``, the anchor's re-planner."""
-    def policy(s: Session) -> list:
-        if s.minute == -900:
-            return [("submit_offer", {"offer": offer})]
-        return anchor_policy(s) if replan else []
-    return policy
-
-
-def baselines(task: dict, tier: str) -> dict:
-    """Each baseline played on the floor at the tier in process: the anchor by its policy, idle by submitting no
-    blocks, the others by submitting their offer at D-1 09:00 and, in floor-day, re-planning the op day on their
-    awards with the anchor's re-planner (so a floor-day baseline differs from the anchor only in its DAM offer)."""
-    out = {}
-    for name, offer in offers(task).items():
-        s = play(task, tier, anchor_policy if name == "anchor" else submit_at_nine(offer, name != "idle"))
-        g = s.grade()
-        out[name] = {"reward": g["reward"], "compliant": g["compliant_reward"], "welfare_ratio": g.get("welfare_ratio"),
-                     "profit": g["profit_usd"], "submitted": g["submitted"],
-                     "awards": [round(x, 2) for x in s.cleared["awards"]] if s.cleared else [0.0] * HOURS}
-    return out
-
-
 def impact(e: dict, task: dict, base: dict) -> dict:
     """What A's DAM position did to the price: impact_usd = Σ award × (price − the price without A's offer), as the
     grade's row (negative when its sales lowered its own price); the hours where A's full sale moves the price by
@@ -118,7 +86,7 @@ def floor(e: dict, row: dict, task: dict) -> dict:
     """One scored floor's pilot fields from its Episode JSON, its results row and its pack row."""
     r, tier = e["references"], e["tier"]
     p, p_idle, p_anchor, p_br = e["profit_usd"], r["p_idle"], r["p_anchor"], r["p_br"]
-    base = baselines(task, tier)
+    base = baseline_plays(task, tier)
     imp = impact(e, task, base)
     rows = e["rows"]
     contract = rows.get("contract") or {}

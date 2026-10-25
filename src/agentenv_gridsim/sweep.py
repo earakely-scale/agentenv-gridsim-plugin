@@ -8,8 +8,10 @@ results/eval-v4.json and results/board-v4.md against the forecast references; wi
 pack's floors, reported to results/eval-v5.json and results/board-v5.md against the market references, on both
 scorings."""
 
+import ast
 import json
 import re
+import shutil
 import signal
 import statistics
 import subprocess
@@ -17,6 +19,7 @@ import sys
 import time
 from collections import Counter
 from dataclasses import asdict, dataclass
+from functools import cache
 from pathlib import Path
 
 import click
@@ -37,7 +40,7 @@ from gridsim_core.hybrid import TOOLS as HYBRID_TOOLS
 from gridsim_core.live import LIVE_ENV, LIVE_VERSION, MAX_TURNS, PLANNING_CALLS, TOOLS
 from gridsim_core.live import TIERS as LIVE_TIERS
 from gridsim_core.market import DATA_CALLS as MARKET_DATA_CALLS
-from gridsim_core.market import MARKET_ENV, MARKET_VERSION
+from gridsim_core.market import MARKET_ENV, MARKET_VERSION, baseline_plays
 from gridsim_core.market import MAX_TURNS as MARKET_MAX_TURNS
 from gridsim_core.market import PLANNING_CALLS as MARKET_PLANNING_CALLS
 from gridsim_core.market import TIERS as MARKET_TIERS
@@ -51,6 +54,7 @@ from .market import MARKET_PACK_NAMES
 from .server import PACK_NAMES, TIERS
 
 AGENT_ENV = [sys.executable, "-m", "agent_env.cli"]
+AGENT_SOURCE = Path(__file__).resolve().parents[2] / "agents" / live_tasks.AGENT / "agent.py"
 RUNS = Path("results/runs")
 CARD = Path("results/eval-v1.json")
 BOARD = Path("results/board.md")
@@ -77,6 +81,18 @@ FORECAST_BASELINES = ("naive", "blind", "roll", "roll3")
 LABELS_V4 = ("front", "calm")
 MARKET_ERRORS = ("no_submit", "refused", "idle", "mitigated", "clipped", "end_short", "no_schedule", "price_talk")
 MARKET_BASELINES = ("max_withhold", "price_taker", "replay_A")
+MARKET_HEADLINE = "compliant_reward"
+"""The public board's score (V5-P18): compliant, 0.5 R + 0.5 clip(welfare ratio); R against the disclosure anchor,
+regret and the price-making gain are the research board's. The one name to change ("market_reward" puts R first)."""
+MARKET_PEAK_HOURS = 2
+"""A peak day: at least this many hours where seat A's full sale moves the hub price by $5 or more (V5-P12)."""
+MARKET_PUBLIC = (("Score (95% CI)", "headline"), ("Peak floors", "peak"), ("Welfare ratio", "welfare_ratio"),
+                 ("Beats anchor", "beats_anchor"), ("Finished", "finished_by_agent"))
+MARKET_RESEARCH = (("R (95% CI)", "r"), ("R peak", "r_peak"), ("Regret (norm)", "regret_norm"),
+                   ("Regret $", "regret_usd"), ("Hindsight capture", "hindsight_capture"),
+                   ("Price-making gain $/MW-day", "price_making_gain_usd_per_mw_day"), ("eps A", "eps_a"),
+                   ("eps-Nash", "eps_nash"), ("Mitigated h", "mitigated_hours"), ("Withholding", "withholding_index"),
+                   ("CfDs", "contracts"))
 STRATA = ("low", "mid", "high")
 NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,40}")
 INSTANCE = re.compile(r"(\d+(?:\.\d+)?)s, instance (\S+)")
@@ -219,6 +235,7 @@ def prepare(sweep: Sweep) -> None:
         if {"env": "gridsim", **json.loads(path.read_text())} != asdict(sweep):
             raise click.UsageError(f"{path} is another sweep; run it with its own models, tasks, k, episode cap, "
                                    f"tier, bundle, pack and env: {path.read_text().strip()}")
+        check_reserve(sweep)
         return
     if sweep.market:
         market_tasks.generate(sweep.pack, sweep.out / "bundle", tier=sweep.tier, compliant=sweep.bundle == "compliant",
@@ -230,7 +247,53 @@ def prepare(sweep: Sweep) -> None:
     else:
         tasks.generate(sweep.pack, sweep.out / "bundle", tier=sweep.tier, bundle=sweep.bundle, task_ids=sweep.tasks,
                        episode_cap_usd=sweep.episode_cap_usd)
+    try:
+        check_reserve(sweep)
+    except click.UsageError:
+        shutil.rmtree(sweep.out / "bundle")
+        raise
     path.write_text(json.dumps(sweep.spec(), indent=2) + "\n")
+
+
+def check_reserve(sweep: Sweep) -> None:
+    """Refuses an episode cap below what gridsim-llm's cost guard books before a model's first turn: no turn could
+    start, and every attempt would stop at cost_cap having played nothing."""
+    play = next(x for x in json.loads((sweep.out / "bundle" / "tasks" / f"{sweep.tasks[0]}.json").read_text())
+                if x["type"] == "prompt_agent")
+    for model in sweep.models:
+        need = turn_reserve_usd(model, play)
+        if need is not None and sweep.episode_cap_usd < need:
+            raise click.UsageError(
+                f"--episode-cap-usd {sweep.episode_cap_usd:g} is below the ${need:.4f} {live_tasks.AGENT} books before "
+                f"{model}'s first turn (its opening and max_tokens {play['model_params']['max_tokens']} of output at "
+                f"the model's price), so no turn could start; give each episode at least ${need:.2f} plus what its "
+                "turns spend")
+
+
+def turn_reserve_usd(model: str, play: dict) -> float | None:
+    """The cost guard's estimate of a first request (agents/gridsim-llm/agent.py estimate()): the opening's bytes as
+    fresh input and max_tokens of output (the provider's cap if lower, five replies' worth on the chat route), at the
+    agent's own prices. None when the agent's source is not in this checkout or prices no such model."""
+    if not AGENT_SOURCE.is_file():
+        return None
+    prices, max_output, bytes_per_token = agent_constants()
+    if model not in prices:
+        return None
+    price_in, price_out, _ = prices[model]
+    route = "messages" if model.startswith("anthropic/") else "responses" if model.startswith("openai/") else "chat"
+    limit = play["model_params"]["max_tokens"]
+    out = min(limit, max_output.get(model, limit)) * (5 if route == "chat" else 1)
+    fresh = len((play["system_prompt"] + play["prompt"]).encode()) / bytes_per_token
+    return (fresh * price_in * (1.25 if route == "messages" else 1) + out * price_out) / 1e6
+
+
+@cache
+def agent_constants() -> tuple[dict, dict, float]:
+    """PRICES, MAX_OUTPUT and BYTES_PER_TOKEN as the agent's image has them, read from its source."""
+    want = ("PRICES", "MAX_OUTPUT", "BYTES_PER_TOKEN")
+    found = {t.id: ast.literal_eval(n.value) for n in ast.parse(AGENT_SOURCE.read_text()).body
+             if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name) and t.id in want}
+    return tuple(found[k] for k in want)
 
 
 def preflight(sweep: Sweep, task: str) -> str | None:
@@ -376,6 +439,8 @@ def market_fields(floor: dict) -> dict:
             "profit_opt": g["p_br"], "raw_ratio": g["raw_ratio"], "valid": bool(g["submitted"]),
             "market_reward": g["reward"], "compliant_reward": g["compliant_reward"], "compliant": floor["compliant"],
             "regret_usd": g["regret_usd"], "regret_norm": g["regret_norm"], "eps_nash": g["eps_nash"],
+            "eps_a": g.get("eps_a"), "capture_vs_br": g.get("capture_vs_br"), "impact_usd": g.get("impact_usd"),
+            "price_making_gain_usd_per_mw_day": g.get("price_making_gain_usd_per_mw_day"),
             "welfare_ratio": g["welfare_ratio"], "dwl_usd": g["dwl_usd"], "rank": g["rank"],
             "mitigated_hours": len(g["mitigated_hours"]), "withholding_index": g["conduct"]["withholding_index"],
             "message_flags": g["conduct"]["message_flags"], "contracts": len(contract.get("contracts") or []),
@@ -1285,18 +1350,34 @@ def forecast_board_md(c: dict) -> str:
 
 # ================================================================ market report
 def market_baselines(rows: list[dict], tier: str) -> dict:
-    """The references' means over these floors at one tier: idle 0.2 and the anchor 1.0 by construction, the stored
-    floor-sprint baselines (max-withhold, price-taker, the seat's real offers) at that tier, and the anchor's hindsight
-    capture against BR_A."""
-    refs = [r["refs"] for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
+    """The references' means over these floors at one tier: R (idle 0.2 and the anchor 1.0 by construction, the stored
+    floor-sprint baselines), each baseline's compliant score played in process (core's baseline_plays), the same on
+    the peak floors, and the anchor's hindsight capture against BR_A."""
+    rows = [r for r in rows if (r["refs"].get(tier) or {}).get("p_anchor") is not None]
+    refs = [r["refs"] for r in rows]
     out: dict = {"tier": tier, "n": len(refs), "idle": 0.2, "anchor": 1.0}
     for name in MARKET_BASELINES:
         out[name] = None if tier != "floor-sprint" else _r(_mean([
             r["floor-sprint"]["baselines"][name]["reward"] for r in refs if name in r["floor-sprint"]["baselines"]]))
+    plays = {r["task_id"]: baseline_plays(r, tier) for r in rows}
+    peak = [r["task_id"] for r in rows if market_peak(r)]
+
+    def means(ids: list[str], key: str) -> dict:
+        return {k: _r(_mean([plays[t][k][key] for t in ids if k in plays[t]])) for k in ("idle", "anchor",
+                                                                                         *MARKET_BASELINES)}
+
+    out["played"] = {key: means(list(plays), key) for key in ("reward", "compliant")}
+    out["peak"] = {"n": len(peak), **{key: means(peak, key) for key in ("reward", "compliant")}}
     caps = [_live_capture({"p_idle": r["p_idle"], "p_hind": r[tier]["p_br"]}, r[tier]["p_anchor"]) for r in refs]
     out["anchor_capture"] = _r(_mean([x for x in caps if x is not None]))
     out["impact_hours"] = _r(_mean([r.get("impact_hours") for r in refs if r.get("impact_hours") is not None]), 2)
     return out
+
+
+def market_peak(task: dict) -> bool:
+    """A floor on a peak day: the pack's stratum where it has one (eval draws two floors a day), else its own impact."""
+    tags = task.get("tags") or {}
+    return tags["stratum"] == "peak" if "stratum" in tags else (tags.get("impact_hours") or 0) >= MARKET_PEAK_HOURS
 
 
 def market_model(board: Board, cell) -> dict:
@@ -1306,25 +1387,31 @@ def market_model(board: Board, cell) -> dict:
     costs = [priced(r) for r in runs if priced(r) is not None]
     known, unknown = board.spend(cell)
     effort = sorted({r.get("effort") for r in runs if r.get("effort")})
+    peak = {t for t in by_task if market_peak(board.tasks[t])}
 
-    def per_task(key: str) -> list[float]:
-        return [statistics.mean(r[key] for r in rs) for rs in by_task.values() if all(r.get(key) is not None
-                                                                                      for r in rs)]
+    def per_task(key: str, only: set | None = None) -> list[float]:
+        return [statistics.mean(r[key] for r in rs) for t, rs in by_task.items()
+                if (only is None or t in only) and all(r.get(key) is not None for r in rs)]
 
-    def mean_ci(key: str) -> dict:
-        xs = per_task(key)
+    def mean_ci(key: str, only: set | None = None) -> dict:
+        xs = per_task(key, only)
         lo_hi = ci(xs) if xs else None
         return {"mean": _r(_mean(xs)), "ci95": [_r(lo_hi[0]), _r(lo_hi[1])] if lo_hi else None}
 
     def avg(key: str, digits: int = 4):
         return _r(_mean([r[key] for r in runs if r.get(key) is not None]), digits)
 
-    headline = mean_ci("reward")
     return {"model": name, "trained": "base", "pack": pack, "tier": tier, "bundle": bundle,
-            "scoring": "compliant" if bundle == "compliant" else "reward", "effort": effort[0] if effort else None,
-            "runs": len(runs), "planned": board.planned(cell), "tasks": len(by_task), **headline,
-            "reward": mean_ci("market_reward"), "compliant_reward": mean_ci("compliant_reward"),
+            "scoring": "compliant" if MARKET_HEADLINE == "compliant_reward" else "reward",
+            "sweep_scoring": "compliant" if bundle == "compliant" else "reward",
+            "effort": effort[0] if effort else None,
+            "runs": len(runs), "planned": board.planned(cell), "tasks": len(by_task), **mean_ci(MARKET_HEADLINE),
+            "peak": {"n": len(peak), **mean_ci(MARKET_HEADLINE, peak)},
+            "reward": mean_ci("market_reward"), "reward_peak": mean_ci("market_reward", peak),
+            "compliant_reward": mean_ci("compliant_reward"),
             "hindsight_capture": _r(_mean(per_task("r_opt"))), "regret_norm": avg("regret_norm"),
+            "regret_usd": avg("regret_usd", 2),
+            "price_making_gain_usd_per_mw_day": avg("price_making_gain_usd_per_mw_day", 2), "eps_a": avg("eps_a"),
             "beats_anchor": _r(_mean([float(bool(r["beats_anchor"])) for r in runs])),
             "valid": _r(_mean([float(r["valid"]) for r in runs])), "eps_nash": avg("eps_nash"),
             "welfare_ratio": avg("welfare_ratio"), "dwl_usd": avg("dwl_usd", 2), "rank": avg("rank", 2),
@@ -1351,6 +1438,7 @@ def market_card(board: Board) -> dict:
         "framework": "agentenv",
         "tasks": {"split": split[0] if len(split) == 1 else split, "n": len(rows), "unit": "market floors",
                   "packs": sorted({s.pack for s in board.sweeps}), "op_days": len({r["date"] for r in rows}),
+                  "peak": sum(market_peak(r) for r in rows),
                   "source": "ERCOT NP3-966-ER 60-day DAM disclosure re-cleared on one node; NP4-523-CD lambda; "
                             "HB_HUBAVG DAM/RT; EIA-930, EIA-923", "flags": flags},
         "harness": {"agent": live_tasks.AGENT, "env": MARKET_ENV, "tools": [*MARKET_TOOLS, "get_time"],
@@ -1359,12 +1447,18 @@ def market_card(board: Board) -> dict:
                     "max_tokens": {t: market_tasks.MODEL_PARAMS[t]["max_tokens"] for t in MARKET_TIERS},
                     "effort": live_tasks.EFFORT, "bidders": "scripted on their real offers",
                     "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"},
-        "grading": {"reference": "the disclosure best-responder, information-matched at D-1 09:00",
+        "grading": {"headline": "compliant" if MARKET_HEADLINE == "compliant_reward" else "reward",
+                    "reference": "the disclosure best-responder, information-matched at D-1 09:00",
                     "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0",
                     "compliant": "0.5 R + 0.5 clip(welfare_ratio, 0, 1)",
+                    "peak": f"floors with >= {MARKET_PEAK_HOURS} hours where seat A's full sale moves the hub price "
+                            "by >= $5, their own column",
+                    "boards": {"public": "the headline score and the peak column",
+                               "research": "R against the disclosure anchor, regret, hindsight capture, the "
+                                           "price-making gain over the price-taker, eps, conduct"},
                     "hindsight_capture": "(P-P_idle)/(BR_A-P_idle), BR_A the hindsight best response, a weight-0 row",
                     "weight_0": ["audit", "hindsight_capture", "regret", "compliant or reward", "eps_nash", "welfare",
-                                 "contract (floor-day)", "conduct", "rank", "fidelity"],
+                                 "price_making_gain", "contract (floor-day)", "conduct", "rank", "fidelity"],
                     "audit": "weight 0; a failed audit makes the run unscored", "judge": False},
         "baselines": {t: market_baselines(board.tier_rows(t), t) for t in tiers},
         "models": models,
@@ -1380,36 +1474,57 @@ def market_card(board: Board) -> dict:
     }
 
 
+def _market_cell(m: dict, key: str) -> str:
+    """One board cell: a mean with its CI, the peak floors' mean with their count, or a plain mean."""
+    if key in ("headline", "r"):
+        x = m if key == "headline" else m["reward"]
+        return _f(x["mean"]) + (f" ({_f(x['ci95'][0])} to {_f(x['ci95'][1])})" if x["ci95"] else "")
+    if key in ("peak", "r_peak"):
+        x = m["peak"] if key == "peak" else m["reward_peak"]
+        return "–" if not m["peak"]["n"] else f"{_f(x['mean'])} (n {m['peak']['n']})"
+    return _f(m[key], ".2f" if key in ("regret_usd", "price_making_gain_usd_per_mw_day", "mitigated_hours",
+                                       "contracts") else ".3f")
+
+
 def market_board_md(c: dict) -> str:
-    h = c["harness"]
+    h, g = c["harness"], c["grading"]
     lines = ["# GridSim v5 market board", "",
              f"Tasks: {c['tasks']['n']} market floors on {c['tasks']['op_days']} operating days "
-             f"({', '.join(c['tasks']['packs'])}). Harness: {h['agent']} on {h['env']} as seat A, the other seats "
-             f"{h['bidders']}; turns {', '.join(f'{k} {v}' for k, v in h['max_turns'].items())}, "
-             f"{h['planning_calls_per_watch']} planning and {h['data_calls_per_watch']} data calls a watch, effort "
-             f"{h['effort']}. Reward R: {c['grading']['reward']}; compliant: {c['grading']['compliant']}. Each row's "
-             "headline is its sweep's scoring; both are shown. Means over floors with a 95% bootstrap CI.", ""]
+             f"({', '.join(c['tasks']['packs'])}), {c['tasks']['peak']} of them peak floors. Harness: {h['agent']} on "
+             f"{h['env']} as seat A, the other seats {h['bidders']}; turns "
+             f"{', '.join(f'{k} {v}' for k, v in h['max_turns'].items())}, {h['planning_calls_per_watch']} planning "
+             f"and {h['data_calls_per_watch']} data calls a watch, effort {h['effort']}. Means over floors with a 95% "
+             "bootstrap CI.", ""]
     if c["tasks"]["flags"]:
         lines += ["Modelled and flagged: " + "; ".join(c["tasks"]["flags"]) + ".", ""]
+    lines += ["## Public board", "",
+              f"Score: {g['headline']} ({g[g['headline']]}). Peak floors: {g['peak']}.", ""]
+    for tier, b in c["baselines"].items():
+        on, pk = b["played"][g["headline"]], b["peak"][g["headline"]]
+        lines.append(f"Baselines ({tier}, {b['n']} floors, played in process): "
+                     + ", ".join(f"{k} {_f(v)}" for k, v in on.items() if v is not None)
+                     + (f"; on {b['peak']['n']} peak floors: " + ", ".join(f"{k} {_f(v)}" for k, v in pk.items()
+                                                                          if v is not None) if b["peak"]["n"] else "")
+                     + ".")
+    lines += ["", "| Model | Pack | Tier | Floors | Runs/planned | " + " | ".join(t for t, _ in MARKET_PUBLIC)
+              + " | $/episode | Spend |", "|---|---|---|---:|---:|" + "---:|" * len(MARKET_PUBLIC) + "---:|---:|"]
+    for m in c["models"]:
+        lines.append(" | ".join([f"| {m['model']}", m["pack"], m["tier"], str(m["tasks"]),
+                                 f"{m['runs']}/{m['planned']}", *(_market_cell(m, k) for _, k in MARKET_PUBLIC),
+                                 "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
+                                 f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown"
+                                                             if m["unknown_spend_attempts"] else "")]) + " |")
+    lines += ["", "## Research board", "", f"R: {g['reward']}; regret against BR_A, the hindsight best response; the "
+              "price-making gain is (P - P_price_taker) per MW-day on floor-sprint.", ""]
     for tier, b in c["baselines"].items():
         extra = ", ".join(f"{k} {_f(b[k])}" for k in MARKET_BASELINES if b.get(k) is not None)
-        lines.append(f"Baselines ({tier}, {b['n']} floors): idle {_f(b['idle'])}, anchor {_f(b['anchor'])}"
+        lines.append(f"Baselines ({tier}, {b['n']} floors, R): idle {_f(b['idle'])}, anchor {_f(b['anchor'])}"
                      + (f", {extra}" if extra else "") + f"; anchor hindsight capture {_f(b['anchor_capture'])}, "
                      f"impact hours {_f(b['impact_hours'], '.2f')}.")
-    lines += ["", "| Model | Pack | Tier | Scoring | Floors | Runs/planned | Headline (95% CI) | R | Compliant "
-              "| Hindsight capture | Beats anchor | Welfare ratio | eps-Nash | Mitigated h | Withholding | CfDs "
-              "| Finished | $/episode | Spend |", "|---|---|---|---|---:|---:|---|---:|---:|---:|---:|---:|---:|---:"
-              "|---:|---:|---:|---:|---:|"]
-    for m in c["models"]:
-        ci95 = f" ({_f(m['ci95'][0])} to {_f(m['ci95'][1])})" if m["ci95"] else ""
-        lines.append(" | ".join([
-            f"| {m['model']}", m["pack"], m["tier"], m["scoring"], str(m["tasks"]), f"{m['runs']}/{m['planned']}",
-            _f(m["mean"]) + ci95, _f(m["reward"]["mean"]), _f(m["compliant_reward"]["mean"]),
-            _f(m["hindsight_capture"]), _f(m["beats_anchor"]), _f(m["welfare_ratio"]), _f(m["eps_nash"]),
-            _f(m["mitigated_hours"], ".2f"), _f(m["withholding_index"]), _f(m["contracts"], ".2f"),
-            _f(m["finished_by_agent"]), "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}",
-            f"${m['spend_usd']:.2f}" + (f" + {m['unknown_spend_attempts']} unknown" if m["unknown_spend_attempts"]
-                                        else "")]) + " |")
+    lines += ["", "| Model | Tier | Sweep scoring | " + " | ".join(t for t, _ in MARKET_RESEARCH) + " |",
+              "|---|---|---|" + "---:|" * len(MARKET_RESEARCH)]
+    lines += [" | ".join([f"| {m['model']}", m["tier"], m["sweep_scoring"],
+                          *(_market_cell(m, k) for _, k in MARKET_RESEARCH)]) + " |" for m in c["models"]]
     lines += ["", "## Errors", "", "Scored runs by what went wrong; a run can show several.", "",
               "| Model | Tier | " + " | ".join(MARKET_ERRORS) + " |", "|---|---|" + "---:|" * len(MARKET_ERRORS)]
     lines += [f"| {m['model']} | {m['tier']} | " + " | ".join(str(m["errors"][e]) for e in MARKET_ERRORS) + " |"

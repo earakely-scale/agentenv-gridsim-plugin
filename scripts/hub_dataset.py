@@ -22,6 +22,7 @@ written. Nothing is pushed: upload the folder with `hf upload <repo> <out> --rep
 
 import argparse
 import gzip
+import hashlib
 import io
 import json
 import re
@@ -47,6 +48,7 @@ from gridsim_core import forecast, forecast_prompt, hybrid, hybrid_prompt, live,
 from gridsim_core import forecast_inputs as FI
 from gridsim_core.episode import SCHEMA
 from gridsim_core.grade import grade, reward_value
+from gridsim_core.market_stack import overflow_root
 from gridsim_core.prompt import messages, situation, tool_schemas
 from gridsim_core.task import data_root
 
@@ -800,7 +802,7 @@ DAY_KEYS = frozenset((
     "full_lambda_usd", "hub_dam_usd", "hub_rt_usd", "id", "implied_gas_usd_mmbtu", "lambda_usd", "load", "load_mw",
     "lsl", "mae_ns_usd", "mae_usd", "max_err_usd", "mw", "ns_hours", "parser", "pool", "renew", "replay", "sell",
     "simplify_err_usd", "size_mw", "solar_mw", "start_usd", "supply", "units", "wind_mw", "within_ns"))
-ANON = re.compile(r"\d{4}-\d{2}-\d{2}|[ecrlu]\d{1,2}|966-(?:rtcb-)?v1|light|ecrs|rtc\+b")
+ANON = re.compile(r"\d{4}-\d{2}-\d{2}|[ecrlu]\d{1,2}|966-(?:rtcb-)?v1|light|hcap-5000|ecrs|rtc\+b")
 SEAT_NAMES = {"A": "bess-A", "B": "bess-B", "G": "gas-G", "R": "renew-R", "L": "retail-L"}
 NAMED = re.compile(r"qse|resource", re.I)
 
@@ -962,19 +964,27 @@ def anonymous(x: dict, where: str) -> None:
 
 
 def market_days(files: dict[str, bytes]) -> None:
-    """v5's market days under raw/v5-market/ (derived, aggregated curves by seat pool id) with their manifest, stats
-    and heat rates, every day checked by anonymous_day."""
+    """v5's market days under raw/v5-market/days/ (derived, aggregated curves by seat pool id): git's months and the
+    overflow's (cache/market/days, the train-only months), each overflow month checked against the manifest's sha256 of
+    its lines; with the manifest, stats and heat rates, every day checked by anonymous_day."""
     root, n = data_root() / "market", 0
-    for f in sorted((root / "days").glob("*.jsonl.gz")):
-        with gzip.open(f, "rt") as fh:
-            for line in fh:
-                if line.strip():
-                    anonymous_day(json.loads(line), f.name)
-                    n += 1
+    want = json.loads((root / "manifest.json").read_text())["store"]["overflow"]["sha256"]
+    over = {f.name.split(".")[0]: f for f in overflow_root().glob("*.jsonl.gz")} if overflow_root().is_dir() else {}
+    if missing := sorted(set(want) - set(over)):
+        raise SystemExit(f"the overflow days {missing[0]}..{missing[-1]} are not in {overflow_root()}: run "
+                         "scripts/build_market_days.py or fetch raw/v5-market/days from the dataset")
+    for f in sorted([*(over[m] for m in want), *(root / "days").glob("*.jsonl.gz")], key=lambda f: f.name):
+        text = gzip.decompress(f.read_bytes()).decode()
+        if f.name.split(".")[0] in want and hashlib.sha256(text.encode()).hexdigest() != want[f.name.split(".")[0]]:
+            raise SystemExit(f"{f} is not the overflow month the manifest lists")
+        for line in text.splitlines():
+            if line.strip():
+                anonymous_day(json.loads(line), f.name)
+                n += 1
         files[f"{MARKET_DIR}/days/{f.name}"] = f.read_bytes()
     files |= {f"{MARKET_DIR}/{name}": unticket((root / name).read_bytes()) for name in MARKET_FILES}
-    print(f"v5 market days: {n} days in {len(list((root / 'days').glob('*.jsonl.gz')))} files, every key and string "
-          f"anonymised (seat pool ids, no resource or QSE name)")
+    print(f"v5 market days: {n} days in {len(want) + len(list((root / 'days').glob('*.jsonl.gz')))} files "
+          f"({len(want)} from the overflow), every key and string anonymised (seat pool ids, no resource or QSE name)")
 
 
 def forecast_task_row(task: dict, raw: str, pack: str, sl: dict) -> dict:

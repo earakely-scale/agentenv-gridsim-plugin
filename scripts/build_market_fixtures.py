@@ -20,7 +20,7 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT / "scripts")]
 
 from probe_market_stack import load_fleet  # noqa: E402
 
-from gridsim_core.market import finalize_task  # noqa: E402
+from gridsim_core.market import MARKET_VERSION, finalize_task  # noqa: E402
 from gridsim_core.market_stack import DayStore, build_day, sample_seats, shift  # noqa: E402
 
 OP_DAYS = ("2024-08-20", "2026-07-21")
@@ -88,7 +88,7 @@ def main() -> None:
         for pool_id, size, dur, eta, c_deg in DRAWS:
             seats = sample_seats(day, rng, cts, size, dur, eta, c_deg, pool_id)
             p = int(seats["A"]["p_mw"])
-            task = {"task_id": f"mkt-v5-{op}-A{p}x{int(dur)}-{pool_id}", "market_version": "5.0",
+            task = {"task_id": f"mkt-v5-{op}-A{p}x{int(dur)}-{pool_id}", "market_version": MARKET_VERSION,
                     "contract_version": "1.0", "pack": "fixtures-market", "split": "fixtures", "date": op,
                     "era": "rtc+b" if op >= "2025-12-05" else "ecrs", "point": "HB_HUBAVG", "region": "central",
                     "seats": seats, "notices": [],
