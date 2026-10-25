@@ -1,9 +1,9 @@
 """The cross-version reward-scale study behind docs/REWARD-SCALES.md: Sol's pilot and board runs and every stored
 reference on the same tasks, scored on R (anchor scale), hindsight capture C, the paired gap, R against hindsight, the
 anchor-to-hindsight gap, the stretch and the knee; then the stored references on the full eval packs. Reads only
-committed Episode JSON, results/pilot-v5.json and the packs' rows as the pilots played them (PACKS_AT: rules 3.1, 4.1
-and 5.1 rebuilt the v3 to v5 packs after). CIs are 95% percentile bootstrap over tasks (10,000 resamples, seed 0),
-paired for differences."""
+committed Episode JSON, results/pilot-v5b.json and the packs' rows as the pilots played them (PACKS_AT: the v3 to v5
+packs at rules 3.1, 4.1 and 5.1, the re-pilots'). CIs are 95% percentile bootstrap over tasks (10,000 resamples,
+seed 0), paired for differences."""
 
 import gzip
 import json
@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 RUNS = Path("results/runs")
-PACKS_AT = "7b9fd7c"
+PACKS_AT = "b5edf82"
 EPS = 1e-9
 BOOT = 10_000
 COLUMNS = [("v1 A foresight", "foresight", ["v1-board-sol-full", "v1-board-sol-full-amend"], "ercot-dam-v1-eval"),
@@ -95,26 +95,27 @@ def columns() -> dict[str, list[dict]]:
         refs = {"idle": r["p_idle"], "naive": r["p_naive"], "anchor": r["roll"]["foresight"]["p_roll"]}
         cols["v2 foresight"].append({"p": e["profit_usd"], "p_idle": r["p_idle"], "p_anchor": refs["anchor"],
                                      "p_hind": r["p_hind"], "anchor": "anchor", "refs": refs})
-    for name, sweep in [("v3 reserves", "v3-pilot-sol"), ("v3 energy", "v3-pilot-sol-energy")]:
+    for name, sweeps in [("v3 reserves", ["v3b-pilot-sol", "v3b-pilot-sol-amend"]),
+                        ("v3 energy", ["v3b-pilot-sol-energy"])]:
         cols[name] = []
-        for e in episodes(sweep):
+        for e in (e for s in sweeps for e in episodes(s)):
             r = e["references"]
             refs = {"idle": r["p_idle"], "anchor": r["p_anchor"]} | {k: v["profit"] for k, v in r["baselines"].items()}
             if r.get("p_energy_only") is not None:
                 refs["energy_only_milp"] = r["p_energy_only"]
             cols[name].append({"p": e["profit_usd"], "p_idle": r["p_idle"], "p_anchor": r["p_anchor"],
                                "p_hind": r["p_hind"], "anchor": "anchor", "refs": refs})
-    for name, sweep in [("v4 front", "v4-pilot-sol"), ("v4 front-lite", "v4-pilot-sol-lite")]:
+    for name, sweeps in [("v4 front", ["v4b-pilot-sol"]), ("v4 front-lite", ["v4b-pilot-sol-lite"])]:
         cols[name] = []
-        for e in episodes(sweep):
+        for e in (e for s in sweeps for e in episodes(s)):
             r = e["references"]
             refs = {"idle": r["p_idle"], "naive": r["p_naive"], "blind_roll": r["p_blind"], "roll3": r["p_roll3"],
                     "anchor": r["p_anchor"]}
             cols[name].append({"p": e["profit_usd"], "p_idle": r["p_idle"], "p_anchor": r["p_anchor"],
                                "p_hind": r["p_hind"], "anchor": "anchor", "refs": refs})
     mkt = pack("gridsim-market-eval")
-    pilot = json.loads(Path("results/pilot-v5.json").read_text())["columns"]
-    for name, tier, floors in [("v5 floor-sprint", "floor-sprint", pilot["floor-sprint"]["amended"]["floors"]),
+    pilot = json.loads(Path("results/pilot-v5b.json").read_text())["columns"]
+    for name, tier, floors in [("v5 floor-sprint", "floor-sprint", pilot["floor-sprint"]["primary"]["floors"]),
                                ("v5 floor-day", "floor-day", pilot["floor-day"]["primary"]["floors"])]:
         cols[name] = []
         for f in floors:
@@ -283,8 +284,9 @@ def pack_table() -> list[str]:
     mean R, its share at R = 1, its C and how often it beats the anchor; and whether anything exceeds the hindsight."""
     sets = {}
     v1 = pack("ercot-dam-v1-eval")
-    sets["v1 foresight (eval 500)"] = [v1_refs(t, "foresight") for t in v1.values()]
-    sets["v1 blind (eval 300)"] = [v1_refs(t, "blind") for t in v1.values() if t["refs"].get("blind")]
+    sets[f"v1 foresight (eval {len(v1)})"] = [v1_refs(t, "foresight") for t in v1.values()]
+    blind = [v1_refs(t, "blind") for t in v1.values() if t["refs"].get("blind")]
+    sets[f"v1 blind (eval {len(blind)})"] = blind
     for label, s in sets.items():
         for r in s:
             r["refs"] = {k: r["refs"][k] for k in OTHERS["v1 C blind" if "blind" in label else "v1 A foresight"]}
@@ -294,7 +296,7 @@ def pack_table() -> list[str]:
         rows.append({"p_idle": r["p_idle"], "p_anchor": r["roll"]["foresight"]["p_roll"], "p_hind": r["p_hind"],
                      "refs": {"naive": r["p_naive"], **({"blind_roll": r["roll"]["blind"]["p_roll"]}
                                                         if r["roll"].get("blind") else {})}})
-    sets["v2 foresight (eval 300)"] = rows
+    sets[f"v2 foresight (eval {len(rows)})"] = rows
     hyb = pack("ercot-hybrid-v3-eval")
     for tier in ("reserves", "energy"):
         rows = []
@@ -305,17 +307,17 @@ def pack_table() -> list[str]:
             if x.get("p_energy_only") is not None:
                 refs["energy_only_milp"] = x["p_energy_only"]
             rows.append({"p_idle": t["refs"]["p_idle"], "p_anchor": x["p_anchor"], "p_hind": x["p_hind"], "refs": refs})
-        sets[f"v3 {tier} (eval 300)"] = rows
+        sets[f"v3 {tier} (eval {len(rows)})"] = rows
     fc = pack("ercot-front-v4-eval")
     for tier in ("front", "front-lite"):
-        sets[f"v4 {tier} (eval 60)"] = [
+        sets[f"v4 {tier} (eval {len(fc)})"] = [
             {"p_idle": x["p_idle"], "p_anchor": x["p_anchor"], "p_hind": x["p_hind"],
              "refs": {"naive": x["p_naive"], "blind_roll": x["p_blind"], "roll3": x["p_roll3"]}}
             for x in (t["refs"][tier] for t in fc.values())]
     mkt = pack("gridsim-market-eval")
     for hk in ("p_br_rt", "p_br"):
         tag = "BR_rt" if hk == "p_br_rt" else "BR_A"
-        sets[f"v5 floor-sprint vs {tag} (eval 200)"] = [
+        sets[f"v5 floor-sprint vs {tag} (eval {len(mkt)})"] = [
             {"p_idle": t["refs"]["p_idle"], "p_anchor": s["p_anchor"], "p_hind": s[hk],
              "refs": {k: v["profit"] for k, v in s["baselines"].items()}}
             for t, s in ((t, t["refs"]["floor-sprint"]) for t in mkt.values())]
