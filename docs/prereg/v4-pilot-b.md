@@ -234,3 +234,26 @@ Done on the box at e304940 before this commit, zero spend:
 - In process, all 35 pilot windows: the anchor's stored calls reproduce P_anchor to the cent with R 1.0 on 35 of 35;
   P_idle, P_blind and P_naive on 35 of 35; P_roll3 on 34 (2025-02-24 LZ_WEST re-solves $0.84 off on Linux x86_64, a
   re-solve tie-break; its stored value is the one reported).
+
+## Deviations
+
+None in the registered rules; one infrastructure event used the retry and resume rules as written. The smoke spent
+s = $1.60 (3 scored at the first attempt: $0.687, $0.416, $0.495; m = $0.4954), so the projection was $15.47 and the
+pilot went on with E = $1.99, `--cap-usd` 18.78 (main) and 5.63 (front-lite). Around 03:45 to 03:52 UTC the provider
+answered six attempts with "Gateway cannot authenticate upstream services" (`provider_error`): four main windows
+(2025-01-01 LZ_NORTH, 2025-05-03 LZ_HOUSTON, 2025-06-15 HB_HOUSTON, 2025-02-24 LZ_WEST) and two front-lite ones
+(2025-02-19 LZ_HOUSTON, 2025-05-05 LZ_NORTH), after 13 to 41 turns. The sweeps retried each once and all six scored at
+the second attempt; the failed attempts' $7.01 counts in the spend. The main sweep finished inside its cap (20 of 20,
+$17.04). The front-lite sweep stopped at its cap with 6 scored and 4 not final ($3.78); after both had stopped it was
+resumed once, as registered, with `--cap-usd` 7.37 (its $3.78 plus 30 − $22.42 − 2E), and the 4 scored. The display
+sweep ran with `--cap-usd` 6.69 (30 − $23.31). Total spend $24.92 of $30 (smoke $1.60, main $17.04, front-lite $4.67,
+display $1.61); nothing unscored, no amendment.
+
+Every episode replays byte for byte into Episode JSON v4 on the box (`agent-env gridsim episodes`, 35 written, 0 that
+didn't replay) and again through a fresh Session on the laptop, every audit ok. The box ran at 11852c0 with the env
+image built at e304940 (11852c0 adds only this file, the task list and `scripts/pilot_v4b.py`). As in the 4.0 pilot,
+the 10-vCPU quota bound the sweep processes, not the Docker containers they started. `scripts/pilot_v4b.py` is
+unchanged since this file's commit; `agent-env gridsim sweep report v4b-pilot-sol v4b-pilot-sol-lite --card
+results/eval-v4b.json --board results/board-v4b.md` wrote the card and board, and the Pilot and Reading sections were
+added below the generated board. Results: `results/board-v4b.md`, `results/pilot-v4b.json`, the Episode JSON under
+`results/runs/v4b-pilot-sol*/`.
