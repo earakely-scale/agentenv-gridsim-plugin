@@ -105,3 +105,13 @@ def test_the_card_boards_lead_with_hindsight_capture_and_put_r_second(version, b
     text = board(c)
     assert "| C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor |" in text
     assert all(f"**{hub.mci(m['capture'])}**" in text and hub.mci(m["delta"], "+.3f") in text for m in c["models"])
+
+
+def test_the_registered_4b_run_is_the_only_pre_registered_arm_and_reports_its_sampled_final():
+    _, arms = hub.training(ROOT / "results/train")
+    four = next(a for a in arms if a["arm"] == "4b")
+    assert [a["arm"] for a in arms if a["pre_registered"]] == ["4b"] and four["model"] == "Qwen/Qwen3-4B"
+    assert four["final"]["checkpoint_step"] == four["registered_bars"]["sampled"]["checkpoint_step"]
+    assert four["final"]["reward_mean"] == four["registered_bars"]["sampled"]["reward_mean"]
+    assert four["base"]["reward_mean"] < 0.1 and not four["registered_bars"]["sampled"]["primary_met"]
+    assert "| Qwen3-4B, registered run | **yes** |" in hub.training_markdown(arms)

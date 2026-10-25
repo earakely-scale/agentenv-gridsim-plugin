@@ -445,13 +445,16 @@ SHINGLE = 7
 ORG = re.compile(r"(?:the )?Electric Reliability Council of Texas,? Inc\.?(?: \(ERCOT\))?", re.I)
 LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]|ocp-apim|"
                   r"b2clogin|ercot-api", re.I)
-TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", True, "Qwen/Qwen3-1.7B"),
-              ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", False, "Qwen/Qwen3-1.7B"),
-              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", False, "Qwen/Qwen3-1.7B"),
-              ("arm2c", "arm2c", "arm 2c: arm 2b, then 150 more GRPO steps from its step 180", False,
-               "Qwen/Qwen3-1.7B"),
-              ("4b", "4b", "Qwen3-4B: SoC-aware SFT-1500 warm start, then GRPO 330 steps as one schedule", True,
-               "Qwen/Qwen3-4B"))
+TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", "bars", "Qwen/Qwen3-1.7B"),
+              ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", "", "Qwen/Qwen3-1.7B"),
+              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", "", "Qwen/Qwen3-1.7B"),
+              ("arm2c", "arm2c", "arm 2c: arm 2b, then 150 more GRPO steps from its step 180", "", "Qwen/Qwen3-1.7B"),
+              ("4b", "4b",
+               "Qwen3-4B, registered run: SoC-aware SFT-1500 warm start, then GRPO 330 steps as one schedule",
+               "registered", "Qwen/Qwen3-4B"))
+REGISTRATION = {"registered": "the registered run: plan, schedule and bars committed before any step",
+                "bars": "bars set in the training plan, but the learning rate changed in the run: exploratory",
+                "": "none: exploratory"}
 TRAIN_FILES = ("summary.json", "eval_checkpoints.json", "curves.png")
 
 LIVE_TASKS = pa.schema([
@@ -1352,7 +1355,7 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
     """training/<arm>/ (each arm's summary, checkpoint evals and curves, as results/train has them) and
     training/arms.json: per arm, its final policy on the 200 eval_2025 tasks against the two rules it was held to."""
     files, arms = {}, []
-    for name, sub, recipe, prereg, model in TRAIN_ARMS:
+    for name, sub, recipe, reg, model in TRAIN_ARMS:
         d = train_dir / sub
         if not (d / "summary.json").is_file():
             continue
@@ -1365,8 +1368,10 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
         if not rules:
             ev = json.loads((d / "eval_trained.json").read_text())["baselines"]
             rules = {k: {"model": f"rule:{k}", **v} for k, v in ev.items()}
-        final = policies[-1]
-        base = (next((r for r in policies if r["model"] == "base"), None)
+        bar = (s.get("bars") or {}).get("sampled")
+        final = next((r for r in policies if bar and r.get("checkpoint_step") == bar["checkpoint_step"]
+                      and abs(r["reward_mean"] - bar["reward_mean"]) < 1e-9), policies[-1])
+        base = (next((r for r in policies if r["model"] == "base" or r["model"].endswith(" base (zero-shot)")), None)
                 or next((a["base"] for a in reversed(arms) if a["model"] == model), None))
         if base is None:
             raise SystemExit(f"{d / 'summary.json'} has no base row and no earlier {model} arm to take it from")
@@ -1374,13 +1379,15 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
                  "rule_reward": rules[rule]["reward_mean"], "rule_ci95": rules[rule]["ci95"],
                  "met": final["ci95"][0] > rules[rule]["ci95"][1] and final["valid_rate"] >= 0.98}
                 for rule in ("greedy", "threshold")]
-        arms.append({"arm": name, "label": s.get("label") or recipe, "recipe": recipe, "pre_registered": prereg,
+        arms.append({"arm": name, "label": s.get("label") or recipe, "recipe": recipe,
+                     "pre_registered": reg == "registered", "registration": REGISTRATION[reg],
                      "model": model, "tasks": s["n_tasks"], "split": "eval_2025", "tier": "foresight",
                      "harness": "oneshot (path B)", "base": {k: base[k] for k in ("reward_mean", "ci95", "valid_rate")},
                      "final": {k: final.get(k) for k in ("model", "checkpoint_step", "reward_mean", "ci95",
                                                          "valid_rate", "feasible_rate")},
                      "rules": {k: {"reward_mean": v["reward_mean"], "ci95": v.get("ci95")} for k, v in rules.items()},
-                     "bars": bars, "paired": s.get("paired")})
+                     "bars": bars, "paired": s.get("paired")}
+                    | ({"registered_bars": s["bars"]} if s.get("bars") else {}))
     if arms:
         files["training/arms.json"] = (json.dumps(arms, indent=1) + "\n").encode()
     return files, arms
@@ -1392,7 +1399,9 @@ def training_markdown(arms: list[dict]) -> str:
              "|---|---|---|---|---:|---|---|"]
     for a in arms:
         f, met = a["final"], {b["rule"]: "met" if b["met"] else "not met" for b in a["bars"]}
-        lines.append(f"| {a['recipe'].split(': ', 1)[0]} | {'yes' if a['pre_registered'] else 'no (exploratory)'} | "
+        reg = ("**yes**" if a["pre_registered"] else "bars only, recipe changed" if a["registration"].startswith("bars")
+               else "no (exploratory)")
+        lines.append(f"| {a['recipe'].split(': ', 1)[0]} | {reg} | "
                      f"{a['recipe'].split(': ', 1)[1]} | **{f['reward_mean']:.3f}** ({f['ci95'][0]:.3f} to "
                      f"{f['ci95'][1]:.3f}) | {100 * f['valid_rate']:.1f}% | {met['threshold']} | {met['greedy']} |")
     bases = {a["model"]: a["base"] for a in arms}

@@ -306,7 +306,7 @@ own, so they never mix into a split.
 | | `rtcb` | 452 | 250 battery-days after ERCOT's real-time co-optimization went live (5 December 2025 to 17 October 2026), and 202 of them at the blind tier |
 | `v1_showcase` | `showcase` | 1,461 | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind: for display, never for scoring a claim |
 | `v1_references` | each split above | 20,000 / 500 / 500 / 250 / 761 | per battery-day: P_opt and its schedule, P_idle, the LP bound, the clock, threshold, greedy and random-feasible schedules with their profits and rewards, and for blind battery-days the persistence and ridge schedules and the anchor |
-| `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,336 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, 37 reference episodes the Space also replays, and the 16 Qwen3-1.7B checkpoint episodes of its LEVEL UP view on one `eval_2025` day |
+| `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,337 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, 37 reference episodes the Space also replays, the 16 Qwen3-1.7B checkpoint episodes of its LEVEL UP view on one `eval_2025` day, and the registered Qwen3-4B's final episode on that day, from its race |
 
 `raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line (`<pack>.jsonl`), with each
 pack's manifest (sources and their SHA-256, filters, counts, the battery table) and `stats.md`, the pack statistics.
@@ -522,9 +522,15 @@ same schedule identically.
 Qwen3-1.7B (bf16, LoRA, thinking off) trained on one GPU and was graded on 200 `eval_2025` battery-days at the
 foresight tier with the `oneshot` prompt, sampled at temperature 0.7. The base model writes no valid schedule
 (R 0.000). Each arm was held to the same two bars on those 200 days: beat the threshold rule, and beat the greedy
-rule, each with the 95% intervals apart and at least 98% of schedules valid. Arm 1 was registered before it ran; arm 2
-was designed after arm 1's result, arm 2b, a continuation of arm 2, after arm 2's, and arm 2c, a continuation of arm 2b,
-after arm 2b's.
+rule, each with the 95% intervals apart and at least 98% of schedules valid. Arm 1's bars were set in the training
+plan before it ran, but its learning rate changed in the run (2e-5, not the planned 5e-6); arm 2 was designed after
+arm 1's result, arm 2b, a continuation of arm 2, after arm 2's, and arm 2c, a continuation of arm 2b, after arm 2b's.
+All four 1.7B arms are exploratory. The Qwen3-4B run is the first pre-registered training claim on GridSimEnv: its
+plan, one fixed schedule (the 1.7B arms' recipe, SoC-aware SFT-1500 then 330 GRPO steps) and its bars were committed
+before any 4B step or eval
+([`docs/prereg/v1-train-4b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v1-train-4b.md)),
+and nothing changed after. Its primary bar is the greedy rule's, with the intervals apart; its secondary, the paired
+gap to the greedy rule above 0.
 
 <!-- training -->
 The training summary lands with the training lane.
@@ -543,15 +549,18 @@ The training summary lands with the training lane.
   sampled and 0.719 (0.681 to 0.757) greedy, +0.051 (0.017 to 0.086) over arm 2b on the same days, paired. That is
   above the threshold rule, paired +0.083 (0.031 to 0.135) sampled, with the intervals apart and every schedule valid,
   and level with the greedy rule's 0.764, paired −0.044 (−0.091 to 0.002).
-- Only arm 2c clears a bar, the threshold rule's, and it was not registered: it continued arm 2b after arm 2b's result.
-  No arm beats the greedy rule. All four arms took about $18 of GPU time in all, and no API spend. `training/` holds
-  each arm's summary, checkpoint evaluations and training curves, and `training/arms.json` the bars and results. The
-  LoRA adapters are not published.
-
-A registered run on Qwen3-4B is under way: the arms' recipe as one schedule, SoC-aware SFT-1500 then 330 GRPO steps,
-held to the greedy rule's bar on the same 200 days
-([`docs/prereg/v1-train-4b.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v1-train-4b.md)).
-Its results will join the table above.
+- Of the 1.7B arms only arm 2c clears a bar, the threshold rule's, and it was not registered: it continued arm 2b
+  after arm 2b's result. No 1.7B arm beats the greedy rule.
+- **Qwen3-4B, the registered run:** 0.804 (0.773 to 0.834) sampled and 0.808 (0.778 to 0.836) with greedy decoding,
+  every schedule valid. The primary bar is not met: its interval overlaps the greedy rule's 0.764 (0.726 to 0.800) by
+  0.027. The secondary is not met either: the paired gap to the greedy rule is +0.040 (−0.002 to +0.082), its lower end
+  0.002 below 0. The first pre-registered training claim on GridSimEnv missed both bars, narrowly. With greedy
+  decoding the paired gap clears 0, +0.044 (+0.003 to +0.085), but the registered bars are on sampled decoding, so that
+  is reported, not claimed. On the same days the 4B is +0.084 (+0.052 to +0.118) above the 1.7B arm 2c, paired; SFT
+  alone reached 0.666 and the base model 0.06, half its sampled completions running past 512 tokens.
+- The four 1.7B arms took about $18 of GPU time and the 4B run about $19, with no API spend. `training/` holds each
+  arm's summary, checkpoint evaluations and training curves (the 4B's under `training/4b/`), and `training/arms.json`
+  the bars and results, the 4B's registered verdicts included. The LoRA adapters are not published.
 
 ## Simplifications
 
