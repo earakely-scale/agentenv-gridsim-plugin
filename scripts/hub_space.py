@@ -1010,11 +1010,13 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
     tids = {e["id"] for e in trained}
     counts = Counter(e.get("model_label") or e["model"] for e in entries if real(e) and e["id"] not in tids)
     refs = sum(not real(e) for e in entries)
-    stages = Counter(e["trained"] for e in trained)
-    models = ", ".join(f"{n:,} runs of {m}" for m, n in counts.most_common()) + (
-        f", {len(trained):,} episodes from the training run of {trained[0]['model'].split('/')[-1]} ("
-        + ", ".join(f"{stages[k]:,} {k if k == 'base' else k.upper()}" for k in ("base", "sft", "grpo") if stages[k])
-        + ")" if trained else "") + (
+    stages: dict[str, Counter] = {}
+    for e in trained:
+        stages.setdefault(e["model"].split("/")[-1], Counter())[e["trained"]] += 1
+    models = ", ".join([f"{n:,} runs of {m}" for m, n in counts.most_common()] + [
+        f"{c.total():,} training episodes of {m} ("
+        + ", ".join(f"{c[k]:,} {k if k == 'base' else k.upper()}" for k in ("base", "sft", "grpo") if c[k]) + ")"
+        for m, c in sorted(stages.items(), key=lambda x: -x[1].total())]) + (
         f" and {refs} reference episodes (the DP optimum and the baselines)" if refs else "")
     caption = (f"{hero['date']} at {hero['point']} ({hero['archetype']}, {hero['battery']}): {hero['blurb']} "
                f"{hero['model_label'] or hero['model']} captured "
@@ -1072,7 +1074,7 @@ def readme(entries: list[dict], hero: dict | None, training: dict | None = None)
                             + (f"; the final model is {lu['reading']}." if lu.get("reading")
                                else ": valid plans, not yet the simple rules.") if lu.get("overall") else ""))
         if rc := training.get("race"):
-            lines.append(f"- [The race]({APP}/index.html?race=runs/race.json): {', '.join(rc['lanes'])} on the same "
+            lines.append(f"- [The race]({APP}/index.html?race=runs/race.json): {' · '.join(rc['lanes'])} on the same "
                          f"day ({rc['task_id']})." + (f" {rc['verdict']}" if rc.get("verdict") else ""))
         text = text.replace("\n## Links\n", "\n".join(lines) + "\n\n## Links\n")
     return text
