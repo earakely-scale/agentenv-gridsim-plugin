@@ -1,0 +1,1341 @@
+{
+ "label": "confirmatory, pre-registered (docs/prereg/v1-confirm-sft10k.md)",
+ "model": "Qwen/Qwen3-4B",
+ "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+ "post_hoc_observation": {
+  "pack": "ercot-dam-v1-eval (200 eval-2025 tasks)",
+  "sft10k_sampled": 0.8405,
+  "sft10k_ci95": [
+   0.8015,
+   0.877
+  ],
+  "greedy_rule_ci95": [
+   0.7259,
+   0.7998
+  ]
+ },
+ "overlap": {
+  "eval_iid": {
+   "tasks": 500,
+   "dates": 254,
+   "ids_in_sft10k": 0,
+   "dates_in_sft10k": 0,
+   "ids_in_train_pack": 0,
+   "dates_in_train_pack": 0
+  },
+  "rtcb": {
+   "tasks": 250,
+   "dates": 167,
+   "ids_in_sft10k": 0,
+   "dates_in_sft10k": 0,
+   "ids_in_train_pack": 0,
+   "dates_in_train_pack": 0
+  }
+ },
+ "verdicts": {
+  "eval_iid": "CONFIRMED",
+  "rtcb": "NOT CONFIRMED, BUT AHEAD PAIRED"
+ },
+ "bars": {
+  "eval_iid": {
+   "sampled": {
+    "bars": "PRIMARY / SECONDARY",
+    "role": "registered test",
+    "model": "run 2: 4B SFT-10k (step 0)",
+    "reward_mean": 0.8795,
+    "ci95": [
+     0.8575,
+     0.9001
+    ],
+    "valid_rate": 1.0,
+    "greedy_rule_mean": 0.7514,
+    "greedy_rule_ci95": [
+     0.7241,
+     0.777
+    ],
+    "cis_apart": true,
+    "valid_ge_98": true,
+    "primary_met": true,
+    "paired_minus_greedy": {
+     "mean": 0.1282,
+     "ci95": [
+      0.0955,
+      0.1607
+     ],
+     "win_rate": 0.554,
+     "tie_rate": 0.234
+    },
+    "secondary_met": true,
+    "verdict": "CONFIRMED"
+   },
+   "greedy": {
+    "bars": "PRIMARY / SECONDARY",
+    "role": "reported (secondary decoding)",
+    "model": "run 2: 4B SFT-10k (step 0)",
+    "reward_mean": 0.8992,
+    "ci95": [
+     0.8792,
+     0.9178
+    ],
+    "valid_rate": 1.0,
+    "greedy_rule_mean": 0.7514,
+    "greedy_rule_ci95": [
+     0.7241,
+     0.777
+    ],
+    "cis_apart": true,
+    "valid_ge_98": true,
+    "primary_met": true,
+    "paired_minus_greedy": {
+     "mean": 0.1478,
+     "ci95": [
+      0.1142,
+      0.1814
+     ],
+     "win_rate": 0.572,
+     "tie_rate": 0.236
+    },
+    "secondary_met": true,
+    "verdict": "CONFIRMED"
+   }
+  },
+  "rtcb": {
+   "sampled": {
+    "bars": "RTCB-PRIMARY / RTCB-SECONDARY",
+    "role": "registered test",
+    "model": "run 2: 4B SFT-10k (step 0)",
+    "reward_mean": 0.7857,
+    "ci95": [
+     0.7467,
+     0.8248
+    ],
+    "valid_rate": 0.996,
+    "greedy_rule_mean": 0.724,
+    "greedy_rule_ci95": [
+     0.687,
+     0.7591
+    ],
+    "cis_apart": false,
+    "valid_ge_98": true,
+    "primary_met": false,
+    "paired_minus_greedy": {
+     "mean": 0.0617,
+     "ci95": [
+      0.0094,
+      0.1129
+     ],
+     "win_rate": 0.592,
+     "tie_rate": 0.116
+    },
+    "secondary_met": true,
+    "verdict": "NOT CONFIRMED, BUT AHEAD PAIRED"
+   },
+   "greedy": {
+    "bars": "RTCB-PRIMARY / RTCB-SECONDARY",
+    "role": "reported (secondary decoding)",
+    "model": "run 2: 4B SFT-10k (step 0)",
+    "reward_mean": 0.8086,
+    "ci95": [
+     0.7716,
+     0.8428
+    ],
+    "valid_rate": 1.0,
+    "greedy_rule_mean": 0.724,
+    "greedy_rule_ci95": [
+     0.687,
+     0.7591
+    ],
+    "cis_apart": true,
+    "valid_ge_98": true,
+    "primary_met": true,
+    "paired_minus_greedy": {
+     "mean": 0.0846,
+     "ci95": [
+      0.033,
+      0.1338
+     ],
+     "win_rate": 0.604,
+     "tie_rate": 0.112
+    },
+    "secondary_met": true,
+    "verdict": "CONFIRMED"
+   }
+  }
+ },
+ "comparison": {
+  "eval_iid": {
+   "sampled": {
+    "role": "registered (eval-iid, sampled)",
+    "final_minus_sft": {
+     "mean": 0.0041,
+     "ci95": [
+      -0.0219,
+      0.0308
+     ],
+     "win_rate": 0.272,
+     "tie_rate": 0.47
+    },
+    "reading": "no difference shown"
+   },
+   "greedy": {
+    "role": "reported",
+    "final_minus_sft": {
+     "mean": -0.0153,
+     "ci95": [
+      -0.0402,
+      0.0096
+     ],
+     "win_rate": 0.234,
+     "tie_rate": 0.482
+    },
+    "reading": "no difference shown"
+   }
+  },
+  "rtcb": {
+   "sampled": {
+    "role": "reported",
+    "final_minus_sft": {
+     "mean": -0.0146,
+     "ci95": [
+      -0.0581,
+      0.0288
+     ],
+     "win_rate": 0.284,
+     "tie_rate": 0.328
+    },
+    "reading": "no difference shown"
+   },
+   "greedy": {
+    "role": "reported",
+    "final_minus_sft": {
+     "mean": -0.0385,
+     "ci95": [
+      -0.0838,
+      0.008
+     ],
+     "win_rate": 0.236,
+     "tie_rate": 0.352
+    },
+    "reading": "no difference shown"
+   }
+  }
+ },
+ "packs": {
+  "eval_iid": {
+   "pack": "ercot-dam-v1-eval-iid",
+   "n_tasks": 500,
+   "rows": [
+    {
+     "model": "run 2: 4B SFT-10k (step 0)",
+     "decoding": "sampled",
+     "checkpoint_step": 0,
+     "reward_mean": 0.8795,
+     "ci95": [
+      0.8575,
+      0.9001
+     ],
+     "valid_rate": 1.0,
+     "feasible_rate": 0.87,
+     "rate_ok": 0.838,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.046,
+     "rate_sell_before_charge": 0.04,
+     "rate_end_short": 0.032,
+     "rate_rate": 0.028,
+     "rate_cycle_cap": 0.016,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.0,
+     "completion_len_mean": 366.8,
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.9031,
+       "ci95": [
+        0.8703,
+        0.9326
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.873,
+       "ci95": [
+        0.8362,
+        0.9079
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.8556,
+       "ci95": [
+        0.8112,
+        0.8964
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 214,
+       "reward_mean": 0.8847,
+       "ci95": [
+        0.852,
+        0.9154
+       ]
+      },
+      "C1": {
+       "n": 141,
+       "reward_mean": 0.86,
+       "ci95": [
+        0.8161,
+        0.9003
+       ]
+      },
+      "C2": {
+       "n": 145,
+       "reward_mean": 0.8909,
+       "ci95": [
+        0.8545,
+        0.9237
+       ]
+      }
+     }
+    },
+    {
+     "model": "run 2: 4B SFT-10k (step 0)",
+     "decoding": "greedy",
+     "checkpoint_step": 0,
+     "reward_mean": 0.8992,
+     "ci95": [
+      0.8792,
+      0.9178
+     ],
+     "valid_rate": 1.0,
+     "feasible_rate": 0.88,
+     "rate_ok": 0.856,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.038,
+     "rate_sell_before_charge": 0.048,
+     "rate_end_short": 0.024,
+     "rate_rate": 0.02,
+     "rate_cycle_cap": 0.014,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.0,
+     "completion_len_mean": 367.2,
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.9234,
+       "ci95": [
+        0.8939,
+        0.9499
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.871,
+       "ci95": [
+        0.8345,
+        0.9054
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.8996,
+       "ci95": [
+        0.8614,
+        0.9335
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 214,
+       "reward_mean": 0.8925,
+       "ci95": [
+        0.8582,
+        0.9237
+       ]
+      },
+      "C1": {
+       "n": 141,
+       "reward_mean": 0.9185,
+       "ci95": [
+        0.8873,
+        0.9456
+       ]
+      },
+      "C2": {
+       "n": 145,
+       "reward_mean": 0.8901,
+       "ci95": [
+        0.8535,
+        0.9231
+       ]
+      }
+     }
+    },
+    {
+     "model": "run 2: 4B SFT-10k + GRPO 310 (final)",
+     "decoding": "sampled",
+     "checkpoint_step": 310,
+     "reward_mean": 0.8837,
+     "ci95": [
+      0.8637,
+      0.9029
+     ],
+     "valid_rate": 0.994,
+     "feasible_rate": 0.87,
+     "rate_ok": 0.846,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.048,
+     "rate_sell_before_charge": 0.058,
+     "rate_end_short": 0.024,
+     "rate_rate": 0.0,
+     "rate_cycle_cap": 0.018,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.006,
+     "completion_len_mean": 371.3,
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.9145,
+       "ci95": [
+        0.8853,
+        0.9396
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.8543,
+       "ci95": [
+        0.8135,
+        0.8918
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.8767,
+       "ci95": [
+        0.8398,
+        0.9103
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 214,
+       "reward_mean": 0.9041,
+       "ci95": [
+        0.8774,
+        0.9286
+       ]
+      },
+      "C1": {
+       "n": 141,
+       "reward_mean": 0.8899,
+       "ci95": [
+        0.85,
+        0.9255
+       ]
+      },
+      "C2": {
+       "n": 145,
+       "reward_mean": 0.8474,
+       "ci95": [
+        0.8045,
+        0.8867
+       ]
+      }
+     }
+    },
+    {
+     "model": "run 2: 4B SFT-10k + GRPO 310 (final)",
+     "decoding": "greedy",
+     "checkpoint_step": 310,
+     "reward_mean": 0.8839,
+     "ci95": [
+      0.8637,
+      0.9033
+     ],
+     "valid_rate": 0.992,
+     "feasible_rate": 0.874,
+     "rate_ok": 0.858,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.046,
+     "rate_sell_before_charge": 0.048,
+     "rate_end_short": 0.016,
+     "rate_rate": 0.0,
+     "rate_cycle_cap": 0.024,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.008,
+     "completion_len_mean": 370.8,
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.8996,
+       "ci95": [
+        0.8679,
+        0.9277
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.8553,
+       "ci95": [
+        0.8142,
+        0.892
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.8962,
+       "ci95": [
+        0.8638,
+        0.9249
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 214,
+       "reward_mean": 0.9086,
+       "ci95": [
+        0.8821,
+        0.9329
+       ]
+      },
+      "C1": {
+       "n": 141,
+       "reward_mean": 0.89,
+       "ci95": [
+        0.8492,
+        0.9262
+       ]
+      },
+      "C2": {
+       "n": 145,
+       "reward_mean": 0.8414,
+       "ci95": [
+        0.7988,
+        0.8806
+       ]
+      }
+     }
+    },
+    {
+     "model": "rule:greedy",
+     "reward_mean": 0.7514,
+     "ci95": [
+      0.7241,
+      0.777
+     ],
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.7695,
+       "ci95": [
+        0.7282,
+        0.81
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.7457,
+       "ci95": [
+        0.6975,
+        0.7915
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.7337,
+       "ci95": [
+        0.6822,
+        0.7841
+       ]
+      }
+     }
+    },
+    {
+     "model": "rule:threshold",
+     "reward_mean": 0.6073,
+     "ci95": [
+      0.5828,
+      0.6317
+     ],
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.5453,
+       "ci95": [
+        0.5012,
+        0.5881
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.642,
+       "ci95": [
+        0.5988,
+        0.6833
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.6497,
+       "ci95": [
+        0.6108,
+        0.6883
+       ]
+      }
+     }
+    },
+    {
+     "model": "rule:clock",
+     "reward_mean": 0.5547,
+     "ci95": [
+      0.5314,
+      0.5779
+     ],
+     "by_start": {
+      "empty": {
+       "n": 191,
+       "reward_mean": 0.5484,
+       "ci95": [
+        0.5115,
+        0.5852
+       ]
+      },
+      "half": {
+       "n": 167,
+       "reward_mean": 0.5242,
+       "ci95": [
+        0.4845,
+        0.5634
+       ]
+      },
+      "full": {
+       "n": 142,
+       "reward_mean": 0.5989,
+       "ci95": [
+        0.5559,
+        0.6429
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "rtcb": {
+   "pack": "ercot-dam-v1-rtcb",
+   "n_tasks": 250,
+   "rows": [
+    {
+     "model": "run 2: 4B SFT-10k (step 0)",
+     "decoding": "sampled",
+     "checkpoint_step": 0,
+     "reward_mean": 0.7857,
+     "ci95": [
+      0.7467,
+      0.8248
+     ],
+     "valid_rate": 0.996,
+     "feasible_rate": 0.784,
+     "rate_ok": 0.752,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.132,
+     "rate_sell_before_charge": 0.04,
+     "rate_end_short": 0.032,
+     "rate_rate": 0.02,
+     "rate_cycle_cap": 0.02,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.004,
+     "completion_len_mean": 376.1,
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.7012,
+       "ci95": [
+        0.6158,
+        0.781
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.8079,
+       "ci95": [
+        0.7453,
+        0.8645
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.8568,
+       "ci95": [
+        0.8002,
+        0.9072
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 88,
+       "reward_mean": 0.7559,
+       "ci95": [
+        0.6762,
+        0.8296
+       ]
+      },
+      "C1": {
+       "n": 69,
+       "reward_mean": 0.8009,
+       "ci95": [
+        0.7302,
+        0.864
+       ]
+      },
+      "C2": {
+       "n": 93,
+       "reward_mean": 0.8027,
+       "ci95": [
+        0.7427,
+        0.8595
+       ]
+      }
+     }
+    },
+    {
+     "model": "run 2: 4B SFT-10k (step 0)",
+     "decoding": "greedy",
+     "checkpoint_step": 0,
+     "reward_mean": 0.8086,
+     "ci95": [
+      0.7716,
+      0.8428
+     ],
+     "valid_rate": 1.0,
+     "feasible_rate": 0.764,
+     "rate_ok": 0.74,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.148,
+     "rate_sell_before_charge": 0.036,
+     "rate_end_short": 0.024,
+     "rate_rate": 0.02,
+     "rate_cycle_cap": 0.032,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.0,
+     "completion_len_mean": 374.8,
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.7553,
+       "ci95": [
+        0.6778,
+        0.8244
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.8279,
+       "ci95": [
+        0.7725,
+        0.8785
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.8471,
+       "ci95": [
+        0.7908,
+        0.8992
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 88,
+       "reward_mean": 0.8002,
+       "ci95": [
+        0.7295,
+        0.8652
+       ]
+      },
+      "C1": {
+       "n": 69,
+       "reward_mean": 0.7914,
+       "ci95": [
+        0.715,
+        0.8603
+       ]
+      },
+      "C2": {
+       "n": 93,
+       "reward_mean": 0.8293,
+       "ci95": [
+        0.7807,
+        0.8752
+       ]
+      }
+     }
+    },
+    {
+     "model": "run 2: 4B SFT-10k + GRPO 310 (final)",
+     "decoding": "sampled",
+     "checkpoint_step": 310,
+     "reward_mean": 0.7711,
+     "ci95": [
+      0.7328,
+      0.8077
+     ],
+     "valid_rate": 0.992,
+     "feasible_rate": 0.788,
+     "rate_ok": 0.76,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.12,
+     "rate_sell_before_charge": 0.056,
+     "rate_end_short": 0.028,
+     "rate_rate": 0.016,
+     "rate_cycle_cap": 0.012,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.008,
+     "completion_len_mean": 380.6,
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.7677,
+       "ci95": [
+        0.7004,
+        0.833
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.7195,
+       "ci95": [
+        0.6505,
+        0.784
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.8378,
+       "ci95": [
+        0.7801,
+        0.8897
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 88,
+       "reward_mean": 0.8062,
+       "ci95": [
+        0.7403,
+        0.8667
+       ]
+      },
+      "C1": {
+       "n": 69,
+       "reward_mean": 0.747,
+       "ci95": [
+        0.6672,
+        0.8192
+       ]
+      },
+      "C2": {
+       "n": 93,
+       "reward_mean": 0.7558,
+       "ci95": [
+        0.6964,
+        0.8127
+       ]
+      }
+     }
+    },
+    {
+     "model": "run 2: 4B SFT-10k + GRPO 310 (final)",
+     "decoding": "greedy",
+     "checkpoint_step": 310,
+     "reward_mean": 0.7701,
+     "ci95": [
+      0.7322,
+      0.8064
+     ],
+     "valid_rate": 0.996,
+     "feasible_rate": 0.784,
+     "rate_ok": 0.76,
+     "rate_all_idle": 0.0,
+     "rate_overfill": 0.116,
+     "rate_sell_before_charge": 0.06,
+     "rate_end_short": 0.024,
+     "rate_rate": 0.016,
+     "rate_cycle_cap": 0.02,
+     "rate_malformed": 0.0,
+     "rate_truncated": 0.004,
+     "completion_len_mean": 380.1,
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.7822,
+       "ci95": [
+        0.7177,
+        0.8428
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.6965,
+       "ci95": [
+        0.6243,
+        0.766
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.8456,
+       "ci95": [
+        0.7913,
+        0.8943
+       ]
+      }
+     },
+     "by_curriculum": {
+      "C0": {
+       "n": 88,
+       "reward_mean": 0.8135,
+       "ci95": [
+        0.7472,
+        0.8732
+       ]
+      },
+      "C1": {
+       "n": 69,
+       "reward_mean": 0.7221,
+       "ci95": [
+        0.6414,
+        0.7975
+       ]
+      },
+      "C2": {
+       "n": 93,
+       "reward_mean": 0.7647,
+       "ci95": [
+        0.7068,
+        0.8195
+       ]
+      }
+     }
+    },
+    {
+     "model": "rule:greedy",
+     "reward_mean": 0.724,
+     "ci95": [
+      0.687,
+      0.7591
+     ],
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.7593,
+       "ci95": [
+        0.698,
+        0.8163
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.734,
+       "ci95": [
+        0.6751,
+        0.7899
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.6708,
+       "ci95": [
+        0.5958,
+        0.739
+       ]
+      }
+     }
+    },
+    {
+     "model": "rule:threshold",
+     "reward_mean": 0.6638,
+     "ci95": [
+      0.6325,
+      0.6939
+     ],
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.6544,
+       "ci95": [
+        0.593,
+        0.714
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.6771,
+       "ci95": [
+        0.6264,
+        0.7247
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.6587,
+       "ci95": [
+        0.6075,
+        0.7082
+       ]
+      }
+     }
+    },
+    {
+     "model": "rule:clock",
+     "reward_mean": 0.4352,
+     "ci95": [
+      0.3987,
+      0.4708
+     ],
+     "by_start": {
+      "empty": {
+       "n": 86,
+       "reward_mean": 0.4013,
+       "ci95": [
+        0.3415,
+        0.4604
+       ]
+      },
+      "half": {
+       "n": 90,
+       "reward_mean": 0.4149,
+       "ci95": [
+        0.3545,
+        0.4762
+       ]
+      },
+      "full": {
+       "n": 74,
+       "reward_mean": 0.4992,
+       "ci95": [
+        0.4328,
+        0.5633
+       ]
+      }
+     }
+    }
+   ]
+  }
+ },
+ "paired": {
+  "eval_iid_sampled": {
+   "sft_minus_greedy": {
+    "mean": 0.1282,
+    "ci95": [
+     0.0955,
+     0.1607
+    ],
+    "win_rate": 0.554,
+    "tie_rate": 0.234
+   },
+   "sft_minus_threshold": {
+    "mean": 0.2723,
+    "ci95": [
+     0.2392,
+     0.304
+    ],
+    "win_rate": 0.804,
+    "tie_rate": 0.02
+   },
+   "final_minus_greedy": {
+    "mean": 0.1323,
+    "ci95": [
+     0.1021,
+     0.1635
+    ],
+    "win_rate": 0.544,
+    "tie_rate": 0.252
+   },
+   "final_minus_threshold": {
+    "mean": 0.2764,
+    "ci95": [
+     0.2456,
+     0.3065
+    ],
+    "win_rate": 0.83,
+    "tie_rate": 0.01
+   },
+   "final_minus_sft": {
+    "mean": 0.0041,
+    "ci95": [
+     -0.0219,
+     0.0308
+    ],
+    "win_rate": 0.272,
+    "tie_rate": 0.47
+   }
+  },
+  "eval_iid_greedy": {
+   "sft_minus_greedy": {
+    "mean": 0.1478,
+    "ci95": [
+     0.1142,
+     0.1814
+    ],
+    "win_rate": 0.572,
+    "tie_rate": 0.236
+   },
+   "sft_minus_threshold": {
+    "mean": 0.2919,
+    "ci95": [
+     0.2594,
+     0.3241
+    ],
+    "win_rate": 0.826,
+    "tie_rate": 0.012
+   },
+   "final_minus_greedy": {
+    "mean": 0.1325,
+    "ci95": [
+     0.1023,
+     0.1634
+    ],
+    "win_rate": 0.532,
+    "tie_rate": 0.264
+   },
+   "final_minus_threshold": {
+    "mean": 0.2766,
+    "ci95": [
+     0.246,
+     0.3064
+    ],
+    "win_rate": 0.816,
+    "tie_rate": 0.016
+   },
+   "final_minus_sft": {
+    "mean": -0.0153,
+    "ci95": [
+     -0.0402,
+     0.0096
+    ],
+    "win_rate": 0.234,
+    "tie_rate": 0.482
+   }
+  },
+  "rtcb_sampled": {
+   "sft_minus_greedy": {
+    "mean": 0.0617,
+    "ci95": [
+     0.0094,
+     0.1129
+    ],
+    "win_rate": 0.592,
+    "tie_rate": 0.116
+   },
+   "sft_minus_threshold": {
+    "mean": 0.1219,
+    "ci95": [
+     0.0687,
+     0.1738
+    ],
+    "win_rate": 0.74,
+    "tie_rate": 0.016
+   },
+   "final_minus_greedy": {
+    "mean": 0.0471,
+    "ci95": [
+     0.0006,
+     0.0931
+    ],
+    "win_rate": 0.532,
+    "tie_rate": 0.168
+   },
+   "final_minus_threshold": {
+    "mean": 0.1073,
+    "ci95": [
+     0.0573,
+     0.1559
+    ],
+    "win_rate": 0.68,
+    "tie_rate": 0.016
+   },
+   "final_minus_sft": {
+    "mean": -0.0146,
+    "ci95": [
+     -0.0581,
+     0.0288
+    ],
+    "win_rate": 0.284,
+    "tie_rate": 0.328
+   }
+  },
+  "rtcb_greedy": {
+   "sft_minus_greedy": {
+    "mean": 0.0846,
+    "ci95": [
+     0.033,
+     0.1338
+    ],
+    "win_rate": 0.604,
+    "tie_rate": 0.112
+   },
+   "sft_minus_threshold": {
+    "mean": 0.1448,
+    "ci95": [
+     0.0952,
+     0.1927
+    ],
+    "win_rate": 0.72,
+    "tie_rate": 0.016
+   },
+   "final_minus_greedy": {
+    "mean": 0.0461,
+    "ci95": [
+     0.0025,
+     0.0902
+    ],
+    "win_rate": 0.536,
+    "tie_rate": 0.168
+   },
+   "final_minus_threshold": {
+    "mean": 0.1063,
+    "ci95": [
+     0.0564,
+     0.1548
+    ],
+    "win_rate": 0.68,
+    "tie_rate": 0.016
+   },
+   "final_minus_sft": {
+    "mean": -0.0385,
+    "ci95": [
+     -0.0838,
+     0.008
+    ],
+    "win_rate": 0.236,
+    "tie_rate": 0.352
+   }
+  }
+ },
+ "pipeline_check": {
+  "pack": "ercot-dam-v1-eval (run 2's 200 tasks)",
+  "gate": {
+   "sft": {
+    "reward_mean": 0.8458,
+    "valid_rate": 0.995,
+    "run2_ci95": [
+     0.802,
+     0.877
+    ],
+    "pass": true
+   },
+   "trained": {
+    "reward_mean": 0.8395,
+    "valid_rate": 0.995,
+    "run2_ci95": [
+     0.789,
+     0.86
+    ],
+    "pass": true
+   },
+   "pass": true
+  },
+  "runs": {
+   "sft_sampled": {
+    "this_box": 0.8458,
+    "this_box_ci95": [
+     0.8084,
+     0.881
+    ],
+    "this_box_valid": 0.995,
+    "run2": 0.8405,
+    "run2_ci95": [
+     0.802,
+     0.877
+    ],
+    "same_schedule_share": 0.955,
+    "this_box_minus_run2": {
+     "mean": 0.0053,
+     "ci95": [
+      0.0003,
+      0.0126
+     ],
+     "win_rate": 0.03,
+     "tie_rate": 0.965
+    }
+   },
+   "sft_greedy": {
+    "this_box": 0.8701,
+    "this_box_ci95": [
+     0.8363,
+     0.9012
+    ],
+    "this_box_valid": 1.0,
+    "run2": 0.8696,
+    "run2_ci95": [
+     0.8354,
+     0.9015
+    ],
+    "same_schedule_share": 0.945,
+    "this_box_minus_run2": {
+     "mean": 0.0005,
+     "ci95": [
+      -0.0142,
+      0.0156
+     ],
+     "win_rate": 0.02,
+     "tie_rate": 0.945
+    }
+   },
+   "trained_sampled": {
+    "this_box": 0.8395,
+    "this_box_ci95": [
+     0.8052,
+     0.871
+    ],
+    "this_box_valid": 0.995,
+    "run2": 0.8254,
+    "run2_ci95": [
+     0.7888,
+     0.8602
+    ],
+    "same_schedule_share": 0.93,
+    "this_box_minus_run2": {
+     "mean": 0.014,
+     "ci95": [
+      -0.0019,
+      0.0325
+     ],
+     "win_rate": 0.04,
+     "tie_rate": 0.935
+    }
+   },
+   "trained_greedy": {
+    "this_box": 0.8203,
+    "this_box_ci95": [
+     0.7824,
+     0.8562
+    ],
+    "this_box_valid": 0.99,
+    "run2": 0.8238,
+    "run2_ci95": [
+     0.7869,
+     0.8582
+    ],
+    "same_schedule_share": 0.91,
+    "this_box_minus_run2": {
+     "mean": -0.0035,
+     "ci95": [
+      -0.0234,
+      0.0156
+     ],
+     "win_rate": 0.05,
+     "tie_rate": 0.915
+    }
+   }
+  }
+ }
+}
