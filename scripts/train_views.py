@@ -18,11 +18,13 @@ import argparse
 import json
 import re
 import sys
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOL = ("v1-board-sol-oneshot", "v1-board-sol-oneshot-amend", "v1-board-sol-full", "v1-board-sol-full-amend")
 DOES_WELL = 0.85
+PACKS = {"eval_iid": "eval_iid", "rtcb": "post-RTC+B"}
 RULE = (f"the largest base-to-trained gain in reward among held-out days where the trained model scores at least "
         f"{DOES_WELL}")
 
@@ -48,6 +50,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="Also race --race-trained's warm start (its SFT eval on the day, the summary row naming LABEL) "
                         "in place of the arms' SFT lane; the race's context is then that run's own.")
     p.add_argument("--race-earlier", type=Path, help="The registered run before --race-trained, for its verdict.")
+    p.add_argument("--race-confirm", type=Path,
+                   help="A pre-registered confirmatory eval of --race-warm-start on fresh packs (its summary.json "
+                        "bars per pack); the verdict ends with its result.")
     args = p.parse_args(argv)
     first: dict[tuple, dict] = {}
     arm: dict[str, str | None] = {}
@@ -88,6 +93,8 @@ def main(argv: list[str] | None = None) -> int:
     final = final_of(d["grpo"])
     raced, verdict, own = registered(args.race_trained, tid, args.decoding, args.race_label, args.race_warm_start,
                                      args.race_earlier) if args.race_trained else ([final], None, None)
+    if args.race_confirm:
+        verdict += confirmed(json.loads((args.race_confirm / "summary.json").read_text()), args.race_warm_start)
     lanes = [x for x in (pick(d["base"]), *([] if len(raced) > 1 else [pick(d["sft"])]), *raced) if x]
     if sol := sol_run(tid):
         lanes.append(sol)
@@ -163,19 +170,19 @@ def registered(folder: Path, tid: str, decoding: str, name: str, warm: str | Non
     model = s["model"].split("/")[-1]
     n = int(m[1]) if (m := re.search(r"run (\d+)", s.get("label") or "")) else 1
     cmp = s.get("comparisons", {})
-    text = (f"{model}, {name}: {b['reward_mean']:.3f} {ci(b['ci95'], '.3f')} sampled over all {s['n_tasks']} held-out "
-            f"days" + (f", {g['reward_mean']:.3f} with greedy decoding" if g else "") + ". Its primary bar, beating "
-            f"the greedy rule's {rule['reward_mean']:.3f} {ci(rule['ci95'], '.3f')} with the 95% intervals apart, "
-            + ("is met" if b["primary_met"] else f"is not met: they overlap by {over:.3f}")
-            + f"; its secondary, the paired gap {gap['mean']:+.3f} {ci(gap['ci95'])} above 0, "
+    text = (f"{model}, {name}: {f3(b['reward_mean'])} {ci(b['ci95'], '.3f')} sampled over all {s['n_tasks']} held-out "
+            f"days" + (f", {f3(g['reward_mean'])} with greedy decoding" if g else "") + ". Its primary bar, beating "
+            f"the greedy rule's {f3(rule['reward_mean'])} {ci(rule['ci95'], '.3f')} with the 95% intervals apart, "
+            + ("is met" if b["primary_met"] else f"is not met: they overlap by {f3(over)}")
+            + f"; its secondary, the paired gap {f3(gap['mean'], '+.3f')} {ci(gap['ci95'])} above 0, "
             + ("is met" if b["secondary_met"] else "is not met"))
     if earlier:
         e = json.loads((earlier / "summary.json").read_text())["bars"]["sampled"]
         held = e["primary_met"] or e["secondary_met"]
         text += (": the first registered training claim on GridSimEnv that holds" if met and not held else "") + "."
-        text += f" Run {n - 1} scored {e['reward_mean']:.3f} and " + ("met a bar" if held else "missed both bars")
+        text += f" Run {n - 1} scored {f3(e['reward_mean'])} and " + ("met a bar" if held else "missed both bars")
         if d := cmp.get(decoding, {}).get(f"run{n}_final_minus_run{n - 1}_final"):
-            text += f"; run {n} is {d['mean']:+.3f} {ci(d['ci95'])} above it" + (
+            text += f"; run {n} is {f3(d['mean'], '+.3f')} {ci(d['ci95'])} above it" + (
                 "" if d["ci95"][0] > 0 else ", not significant")
         text += "."
     else:
@@ -190,16 +197,16 @@ def registered(folder: Path, tid: str, decoding: str, name: str, warm: str | Non
         on = [(cmp[k][key], w) for k, w in (("sampled", "sampled"), ("greedy", "with greedy decoding"))
               if key in cmp.get(k, {})]
         helped = bool(on) and on[0][0]["ci95"][0] > 0
-        text += (f" {'' if helped else 'The warm start did the work: '}{warm} alone scores {sft['reward_mean']:.3f} "
+        text += (f" {'' if helped else 'The warm start did the work: '}{warm} alone scores {f3(sft['reward_mean'])} "
                  f"{ci(sft['ci95'], '.3f')}")
         if on:
             text += f", and GRPO on top {'added' if helped else 'did not help'}: " + ", ".join(
-                f"{d['mean']:+.3f} {ci(d['ci95'])} {w}" for d, w in on)
+                f"{f3(d['mean'], '+.3f')} {ci(d['ci95'])} {w}" for d, w in on)
         text += "."
     vs = next(((k, v) for k, v in s.get("paired", {}).items() if k.startswith(f"trained_{decoding}_minus_arm")), None)
     if vs:
         arm, _, size = vs[0].removeprefix(f"trained_{decoding}_minus_").partition("_")
-        text += (f" It is {vs[1]['mean']:+.3f} {ci(vs[1]['ci95'])} above the "
+        text += (f" It is {f3(vs[1]['mean'], '+.3f')} {ci(vs[1]['ci95'])} above the "
                  f"{size.upper()} {arm[:3]} {arm[3:]} on the same days.")
     lanes = [final | {"model_label": f"{model}, {name}"}]
     if not warm:
@@ -211,8 +218,33 @@ def registered(folder: Path, tid: str, decoding: str, name: str, warm: str | Non
     return [start | {"model_label": f"{model} {warm}"}, *lanes], text, (own, s["model"])
 
 
+def confirmed(s: dict, warm: str) -> str:
+    """One sentence on the confirmatory eval: the first pack's sampled result against the greedy rule with both bars,
+    then what holds on the others."""
+    (first, b), *rest = ((k, v["sampled"]) for k, v in s["bars"].items())
+    return (f" A pre-registered confirmatory test then put {warm} on {s['packs'][first]['n_tasks']} fresh "
+            f"{PACKS.get(first, first)} days: {f3(b['reward_mean'])} {ci(b['ci95'], '.3f')} against the greedy rule's "
+            f"{f3(b['greedy_rule_mean'])} {ci(b['greedy_rule_ci95'], '.3f')}, paired "
+            f"{f3(b['paired_minus_greedy']['mean'], '+.3f')} {ci(b['paired_minus_greedy']['ci95'])}: {held(b)}"
+            + (", the first pre-registered claim that a trained small model beats the greedy rule outright"
+               if b["primary_met"] else "")
+            + "".join(f"; on {s['packs'][k]['n_tasks']} {PACKS.get(k, k)} days {held(x)}: "
+                      f"{f3(x['paired_minus_greedy']['mean'], '+.3f')} {ci(x['paired_minus_greedy']['ci95'])}"
+                      for k, x in rest) + ".")
+
+
+def held(b: dict) -> str:
+    return "both bars hold" if b["primary_met"] else "only the paired test holds" if b["secondary_met"] else (
+        "neither bar holds")
+
+
 def ci(x: list[float], fmt: str = "+.3f") -> str:
-    return f"[{x[0]:{fmt}}, {x[1]:{fmt}}]"
+    return f"[{f3(x[0], fmt)}, {f3(x[1], fmt)}]"
+
+
+def f3(x: float, fmt: str = ".3f") -> str:
+    """Half-up, as the results READMEs print the stored four-decimal values (0.8795 is 0.880)."""
+    return format(Decimal(str(x)).quantize(Decimal("0.001"), ROUND_HALF_UP), fmt)
 
 
 def mean(eps: list[dict]) -> float:
