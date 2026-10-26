@@ -99,7 +99,7 @@ These go to `results/train/diag-reasoning-size/`, with the README labelled "diag
 
 ## Amendments
 
-### Amendment 1 (2026-10-26 ~16:40 UTC): a 16,384-token budget probe, before any amended generation
+### Amendment 1 (2026-10-26 16:31 UTC): a 16,384-token budget probe, before any amended generation
 - **What happened:** `q4b-on4096` finished with R 0.000. All 200 completions hit 4,096 tokens inside `<think>`; none closed it, so none reached a `submit_schedule` call. Reading the episodes shows coherent, non-repeating reasoning (3% duplicate lines), not loops. At this budget, thinking mode never gets to an answer.
 - **So the registered pairs at 4,096 measure the budget,** not whether reasoning helps given room. They stay registered and are reported as written, and the README will say that a "reasoning helps: not met" verdict is a statement about a 4,096-token budget.
 - **Added rows (budget probe; reported only, no verdict):**
