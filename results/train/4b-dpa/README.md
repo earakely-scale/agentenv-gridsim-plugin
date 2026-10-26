@@ -151,9 +151,9 @@ None in the recipe, the eval or the bars. Four small ones in setup and labels:
 | amendments pushed | 15:52 | |
 | training, 300 steps | 15:53–20:26 | 4 h 33 min, 54.3 s/step |
 | checkpoint evals (in parallel on GPU 2), final eval-iid | to 20:38 | |
-| pack, adapter upload, report | 20:33–20:50 | |
+| pack, adapter upload, report | 20:33–20:42 | |
 
-- **Box:** g5.12xlarge at about $5.7/h, from 15:18 to about 20:50. That is about 5.5 h, or **about $32**, and from 15:42 GPU 3 was used by another lane. The box is left idle for the main session to terminate.
+- **Box:** g5.12xlarge at about $5.7/h, from 15:18 to about 20:42. That is about 5.4 h, or **about $31**, and from 15:42 GPU 3 was used by another lane. The box is left idle for the main session to terminate.
 - **API spend:** none.
 
 ## Files
