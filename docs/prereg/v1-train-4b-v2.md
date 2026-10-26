@@ -134,3 +134,12 @@ These go to `results/train/4b-v2/`, with the README labelled "registered run 2":
 The adapters go to Scale-internal object storage under `gridsim/adapters/qwen3-4b-gridsim-v1-reg2-seed0.tgz` (SFT and final LoRA) and `…-checkpoints.tgz`. Any deviation from this file is listed in the README.
 
 ## Amendments
+- **Done before this amendment, as registered:**
+  - **Code check, 23:09–23:14 UTC on 2026-10-25:** 2 steps on the base model ran clean (128 rollouts per step, 8 groups kept), then were discarded.
+  - **SFT-10k, 23:14–01:16 UTC:** 1,250 steps at 5.8 s per step, about 2.0 h, which is longer than the 1.7 h estimate.
+  - **SFT-only eval, 01:16–01:20 UTC:** 0.841 [0.802, 0.877] sampled. This is recorded here before the main run; it is not the claim.
+- **Smoke, 01:20–01:29 UTC on 2026-10-26, before the main run:**
+  - 5 GRPO steps on the merged SFT-10k model with run 1's engineering settings (per-device 4 × accumulation 16, vLLM `gpu_memory_utilization` 0.4).
+  - It ran at 92 s per step after a 60 s vLLM start (128 rollouts generated and 64 trained per step), with peak GPU memory 38.4 of 46 GB.
+  - The zero-spread share among all 16 groups was 6–19%, with no top-ups; entropy was 0.017–0.029.
+- **Amendment: 310 steps.** 330 steps at 92 s plus 5% (96.3 s) need about 8.8 h. From a main-run start at about 01:35 UTC, that would end near 10:25, past the 10:00 stop. The largest multiple of 5 that fits is **310**. The lr (1e-5), the 5 warmup steps and the cosine schedule stay as registered, over 310 steps. The engineering settings are unchanged.
