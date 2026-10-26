@@ -98,4 +98,15 @@ These go to `results/train/diag-reasoning-size/`, with the README labelled "diag
 - `eval_*.json` with per-task rewards, `episodes/*.jsonl.gz`, `scripts/`, the box's `pip_freeze.txt` and `gpu.csv`.
 
 ## Amendments
-None yet.
+
+### Amendment 1 (2026-10-26 ~16:40 UTC): a 16,384-token budget probe, before any amended generation
+- **What happened:** `q4b-on4096` finished with R 0.000. All 200 completions hit 4,096 tokens inside `<think>`; none closed it, so none reached a `submit_schedule` call. Reading the episodes shows coherent, non-repeating reasoning (3% duplicate lines), not loops. At this budget, thinking mode never gets to an answer.
+- **So the registered pairs at 4,096 measure the budget,** not whether reasoning helps given room. They stay registered and are reported as written, and the README will say that a "reasoning helps: not met" verdict is a statement about a 4,096-token budget.
+- **Added rows (budget probe; reported only, no verdict):**
+  - `q4b-on16384-n50` and `q8b-on16384-n50`: thinking on, `max_tokens` 16,384, `max_model_len` 17,664, the same T 0.7 sampling and engine settings.
+  - Both run on the first 50 of the 200 tasks (the same permutation's first 50, `evaluate.py`'s checkpoint subset), paired against the same 50 tasks of the thinking-off rows.
+  - **Why 50:** on one A10G the 4B row took 1,443 s for 819k generated tokens. At 16k per completion, all 200 tasks would take over 3 h for 4B and far longer for 8B, whose bf16 weights leave about 4 GB for the KV cache.
+- **Order:** the registered primaries first, then `q4b-on16384-n50`, then `q8b-on16384-n50`, then the `-t06` rows.
+  - Rows already written are skipped, which is how the running unit is replaced by `scripts/run_unit2.sh` between two rows.
+  - The 01:30 UTC stop applies to every engine call, and any call still running at 02:15 UTC is killed so the results can be packed before the box powers off. A killed row is reported as not completed.
+- **Nothing registered changes:** the rows, pairs, verdict rules and prior above are as committed in a6d8d0b.
