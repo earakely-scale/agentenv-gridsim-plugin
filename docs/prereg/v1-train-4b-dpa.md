@@ -152,3 +152,22 @@ These go to `results/train/4b-dpa/`, with the README labelled "registered run 3"
 The adapters go to Scale-internal object storage under `gridsim/adapters/qwen3-4b-gridsim-v1-reg3-dpa-seed0.tgz` (final) and `…-checkpoints.tgz`. Any deviation from this file is listed in the README.
 
 ## Amendments
+- **Smoke 1 (2 training GPUs, 15:38–15:44 UTC, discarded):** 6 steps on GPUs 0–2 as registered.
+  - 27.7 s per step, with rollouts taking 16–18 s per batch, hidden behind training.
+  - Peak memory: 15.4 and 16.8 GB on the training GPUs, 19.8 GB on the rollout GPU.
+  - Train R 0.75–0.89 at T 1.0; 5–13% of executed hours had A_t < 0; entropy 0.011–0.021; KL about 5e-5; clip fraction below 0.1%.
+- **Amendment 1, the GPU split (engineering only).** At 15:42 the main session reserved GPU 3 for another lane on the same box. The split becomes:
+  - **GPU 0:** rollouts;
+  - **GPU 1:** training, world size 1;
+  - **GPU 2:** evaluation.
+  - The update is unchanged: the same 32 rollouts per step, summed over tokens and divided by 32 × 512. With two ranks it was the mean of two halves normalised by 16 × 512, which is the same gradient.
+  - `train_unit.sh` and `eval_unit.sh` take `TRAIN_GPUS` (default 1) and `EVAL_GPU` (default 2); nothing else in the code changed.
+  - A step-0 eval had started on GPU 3 at 15:38. It was stopped at 15:42, before it wrote any result, and rerun on GPU 2 (also an A10G).
+- **Smoke 2 (1 training GPU, 15:45–15:52 UTC, discarded):** 6 steps, the exact recipe on the new split.
+  - **54.5 s per step** (the mean of steps 3–6: 54.6, 54.0, 54.7, 54.8), after a 114 s first step (engine start).
+  - Rollouts took 16–18 s per batch, and the trainer waited at most 0.6 s for them. Peak memory on the training GPU was 19.2 GB.
+- **Step 0 on this box** (eval-2025, 200 tasks), recorded before the main run: SFT-10k **0.844 sampled** (valid 99.5%) and **0.859 greedy** (valid 100%). Run 2 on an L40S had 0.841 and 0.870.
+- **Amendment 2, STEPS = 300.**
+  - The main run starts at about 15:56 UTC, leaving about 18,200 s to the 21:00 stop.
+  - At 54.5 s plus 5% (57.2 s), 318 steps fit. The largest multiple of 25 is **300** (about 4 h 46 min, ending near 20:45).
+  - That gives checkpoints at 25, 50, …, 300: 12 after step 0. The 21:00 stop stays as registered.
