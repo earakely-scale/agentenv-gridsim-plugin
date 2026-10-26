@@ -537,7 +537,9 @@ designed after run 1's result, changed two things at once: a warm start on 10,00
 states the DP's rule (SFT-10k), then GRPO with adaptive day sampling and dynamic sampling, which trains only on groups
 whose rollouts do not all score the same. Its smoke test set 310 GRPO steps rather than 330 by its registered rule,
 committed before the main run. Both runs have the same bars: the primary is the greedy rule's, with the intervals
-apart; the secondary, the paired gap to the greedy rule above 0.
+apart; the secondary, the paired gap to the greedy rule above 0. After run 2, a confirmatory evaluation with no
+training re-tested its SFT-10k warm start on fresh battery-days under the same bars, its plan committed before any
+generation ([`docs/prereg/v1-confirm-sft10k.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/PREVIEW_REF/docs/prereg/v1-confirm-sft10k.md)).
 
 <!-- training -->
 The training summary lands with the training lane.
@@ -574,14 +576,24 @@ The training summary lands with the training lane.
   sampled, +0.174 (+0.121 to +0.228) over run 1's SFT-1500, paired. GRPO on top of it moved the score by −0.015
   (−0.061 to +0.030) sampled and −0.046 (−0.090 to −0.003) with greedy decoding; in run 1 it added +0.138 (+0.092 to
   +0.185). SFT-10k's own interval clears the greedy rule's, by 0.002, but run 2's registration names its final model
-  as the claim, so that is post hoc, not claimed. Dynamic sampling cut the share of GRPO groups trained on whose
+  as the claim, so that was post hoc, not claimed, until the confirmatory evaluation below. Dynamic sampling cut the share of GRPO groups trained on whose
   rollouts all scored the same from run 1's 23.8% to 0.7%, but the policy's entropy was below 0.02 from step 3 (run
   1's from step 43), so GRPO had little left to explore. No arm separates run 2's two changes.
-- A pre-registered confirmatory evaluation of SFT-10k on `eval_iid` is under way; its result will be added here.
-- The four 1.7B arms took about $18 of GPU time and the 4B runs about $19 and $48, with no API spend. `training/`
-  holds each arm's summary, checkpoint evaluations and training curves (the 4B runs' under `training/4b/` and
-  `training/4b-v2/`, SFT-10k's with run 2's), and `training/arms.json` the bars and results, the 4B runs' registered
-  verdicts included. The LoRA adapters are not published.
+- **Confirmed on fresh days: SFT-10k beats the greedy rule outright.** On the 500 `eval_iid` battery-days, which
+  share no task or date with its training, SFT-10k scores 0.880 (0.858 to 0.900) sampled, every schedule valid,
+  against the greedy rule's 0.751 (0.724 to 0.777): the intervals are apart, and the paired gap is +0.128 (+0.096 to
+  +0.161). Both bars are met. This is the first pre-registered claim on GridSimEnv that a trained small model beats
+  the greedy rule outright, and it is the warm start on 10,000 DP-optimal schedules that does it, not GRPO: run 2's
+  final model minus SFT-10k there is +0.004 (−0.022 to +0.031). `eval_iid`'s days sit between training days of the
+  same years, so this tests unseen days of the training era, not a later market. On the 250 `rtcb` battery-days after
+  RTC+B went live only the paired test holds: 0.786 (0.747 to 0.825) against 0.724 (0.687 to 0.759), the intervals
+  overlapping by 0.012, paired +0.062 (+0.009 to +0.113). A check first re-ran run 2's 200 `eval_2025` tasks with the
+  same code and reproduced SFT-10k's score, 0.846 against 0.841.
+- The four 1.7B arms took about $18 of GPU time, the 4B runs about $19 and $48 and the confirmatory evaluation about
+  $1, with no API spend. `training/` holds each arm's summary, checkpoint evaluations and training curves (the 4B
+  runs' under `training/4b/` and `training/4b-v2/`, SFT-10k's with run 2's, the confirmatory evaluation's summary
+  under `training/confirm-sft10k/`), and `training/arms.json` the bars and results, every registered verdict
+  included. The LoRA adapters are not published.
 
 ## Simplifications
 

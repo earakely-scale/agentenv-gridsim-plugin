@@ -111,7 +111,7 @@ def test_the_card_boards_lead_with_hindsight_capture_and_put_r_second(version, b
 def test_the_registered_4b_runs_are_the_pre_registered_arms_and_report_their_sampled_finals():
     _, arms = hub.training(ROOT / "results/train")
     by = {a["arm"]: a for a in arms}
-    assert [a["arm"] for a in arms if a["pre_registered"]] == ["4b", "4b-v2"]
+    assert [a["arm"] for a in arms if a["pre_registered"]] == ["4b", "4b-v2", "4b-v2-sft-confirm"]
     for four in (by["4b"], by["4b-v2"]):
         assert four["model"] == "Qwen/Qwen3-4B" and four["base"]["reward_mean"] < 0.1
         assert four["final"]["checkpoint_step"] == four["registered_bars"]["sampled"]["checkpoint_step"]
@@ -124,3 +124,8 @@ def test_the_registered_4b_runs_are_the_pre_registered_arms_and_report_their_sam
     md = hub.training_markdown(arms)
     assert "| Qwen3-4B, registered run 1 | **yes** |" in md and "| Qwen3-4B, registered run 2 | **yes** |" in md
     assert "| Qwen3-4B SFT-10k (run 2's warm start) | no: its run's warm start, post hoc |" in md
+    confirm = by["4b-v2-sft-confirm"]
+    assert confirm["split"] == "eval_iid" and confirm["registered_bars"]["eval_iid"]["sampled"]["primary_met"]
+    assert confirm["bars"][0]["met"] and confirm["final"]["reward_mean"] == confirm["registered_bars"]["eval_iid"][
+        "sampled"]["reward_mean"]
+    assert "| `eval_iid` | 500 | **0.880** (0.858 to 0.900) |" in md and "| `rtcb` | 250 |" in md

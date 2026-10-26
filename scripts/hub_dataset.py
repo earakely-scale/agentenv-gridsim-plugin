@@ -31,6 +31,7 @@ import tomllib
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -466,6 +467,7 @@ TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", "b
                "run2_sft_sampled_minus_greedy"))
 REGISTRATION = {"registered": "the registered run: plan, schedule and bars committed before any step",
                 "bars": "bars set in the training plan, but the learning rate changed in the run: exploratory",
+                "confirm": "the confirmatory eval: plan, packs and bars committed before any generation",
                 "warm": "the registered run's warm start, evaluated as its plan says; the bars are on the run's final "
                         "model, so a bar this clears is post hoc, not a claim",
                 "": "none: exploratory"}
@@ -1403,13 +1405,40 @@ def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
                      "rules": {k: {"reward_mean": v["reward_mean"], "ci95": v.get("ci95")} for k, v in rules.items()},
                      "bars": bars, "paired_minus_greedy": (s.get("paired") or {}).get(gap), "paired": s.get("paired")}
                     | ({"registered_bars": s["bars"]} if bar else {}))
+    if (c := train_dir / "confirm-sft10k" / "summary.json").is_file():
+        files["training/confirm-sft10k/summary.json"] = c.read_bytes()
+        arms.append(confirmation(json.loads(c.read_text())))
     if arms:
         files["training/arms.json"] = (json.dumps(arms, indent=1) + "\n").encode()
     return files, arms
 
 
+def confirmation(s: dict) -> dict:
+    """The pre-registered confirmatory eval of run 2's SFT-10k as an arms.json row: its registered pack (eval_iid)
+    against the rules, every pack's bars and verdict as registered."""
+    pack = next(iter(s["bars"]))
+    rows, model = s["packs"][pack]["rows"], s["bars"][pack]["sampled"]["model"]
+    final = next(r for r in rows if r.get("decoding") == "sampled" and r["model"] == model)
+    rules = {r["model"].removeprefix("rule:"): r for r in rows if r["model"].startswith("rule:")}
+    return {"arm": "4b-v2-sft-confirm", "label": s["label"],
+            "recipe": "Qwen3-4B SFT-10k, confirmatory: run 2's warm start re-tested on fresh packs, no training",
+            "pre_registered": True, "registration": REGISTRATION["confirm"], "model": s["model"],
+            "tasks": s["packs"][pack]["n_tasks"], "split": pack, "tier": "foresight", "harness": "oneshot (path B)",
+            "base": None, "final": {k: final.get(k) for k in ("model", "checkpoint_step", "reward_mean", "ci95",
+                                                                 "valid_rate", "feasible_rate")},
+            "rules": {k: {"reward_mean": v["reward_mean"], "ci95": v.get("ci95")} for k, v in rules.items()},
+            "bars": [{"bar": f"beats the {rule} rule: 95% CIs apart, valid >= 98%", "rule": rule,
+                      "rule_reward": rules[rule]["reward_mean"], "rule_ci95": rules[rule]["ci95"],
+                      "met": final["ci95"][0] > rules[rule]["ci95"][1] and final["valid_rate"] >= 0.98}
+                     for rule in ("greedy", "threshold")],
+            "paired_minus_greedy": s["paired"][f"{pack}_sampled"]["sft_minus_greedy"], "paired": s["paired"],
+            "registered_bars": s["bars"], "verdicts": s["verdicts"], "overlap": s["overlap"]}
+
+
 def training_markdown(arms: list[dict]) -> str:
     r = {k: v["reward_mean"] for k, v in arms[0]["rules"].items()}
+    confirm = [a for a in arms if a["split"] != "eval_2025"]
+    arms = [a for a in arms if a["split"] == "eval_2025"]
     lines = ["| Arm | Pre-registered | Recipe | Mean R, sampled (95% CI) | Valid | Beats threshold | Beats greedy "
              "| Paired gap to greedy (95% CI) |", "|---|---|---|---|---:|---|---|---|"]
     for a in arms:
@@ -1427,11 +1456,33 @@ def training_markdown(arms: list[dict]) -> str:
         f"base {m.split('/')[-1]} {b['reward_mean']:.3f} ("
         + ("no valid schedule" if not b["valid_rate"] else f"{100 * b['valid_rate']:.1f}% valid") + ")"
         for m, b in bases.items()) + f", the threshold rule {r['threshold']:.3f}, the greedy rule {r['greedy']:.3f}, "
-        "idle 0.200, the DP optimum 1.000."])
+        "idle 0.200, the DP optimum 1.000."] + [x for c in confirm for x in confirm_markdown(c)])
+
+
+def confirm_markdown(c: dict) -> list[str]:
+    """The confirmatory eval's table: each pack's sampled result against the greedy rule, its two bars and verdict."""
+    lines = ["", "The confirmatory evaluation of SFT-10k, pre-registered, sampled, on battery-days that share no date "
+             "with its training:", "",
+             "| Pack | Days | SFT-10k mean R (95% CI) | Valid | Greedy rule (95% CI) | Intervals apart | "
+             "Paired gap to greedy (95% CI) | Verdict |", "|---|---:|---|---:|---|---|---|---|"]
+    for pack, bars in c["registered_bars"].items():
+        b, g = bars["sampled"], bars["sampled"]["paired_minus_greedy"]
+        lines.append(f"| `{pack}` | {c['overlap'][pack]['tasks']} | **{h3(b['reward_mean'])}** ({h3(b['ci95'][0])} to "
+                     f"{h3(b['ci95'][1])}) | {100 * b['valid_rate']:.1f}% | {h3(b['greedy_rule_mean'])} "
+                     f"({h3(b['greedy_rule_ci95'][0])} to {h3(b['greedy_rule_ci95'][1])}) | "
+                     f"{'met' if b['primary_met'] else 'not met'} | {sg(g['mean'])} ({sg(g['ci95'][0])} to "
+                     f"{sg(g['ci95'][1])}), {'met' if b['secondary_met'] else 'not met'} | "
+                     f"{c['verdicts'][pack].lower()} |")
+    return lines
 
 
 def sg(x: float) -> str:
-    return f"{x:+.3f}".replace("-", "−")
+    return h3(x, "+.3f").replace("-", "−")
+
+
+def h3(x: float, fmt: str = ".3f") -> str:
+    """Half-up, as the results READMEs print the stored four-decimal values (0.8795 is 0.880)."""
+    return format(Decimal(str(x)).quantize(Decimal("0.001"), ROUND_HALF_UP), fmt)
 
 
 def board_v3_markdown(c: dict) -> str:
