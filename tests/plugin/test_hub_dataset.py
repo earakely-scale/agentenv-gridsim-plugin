@@ -108,11 +108,19 @@ def test_the_card_boards_lead_with_hindsight_capture_and_put_r_second(version, b
     assert all(f"**{hub.mci(m['capture'])}**" in text and hub.mci(m["delta"], "+.3f") in text for m in c["models"])
 
 
-def test_the_registered_4b_run_is_the_only_pre_registered_arm_and_reports_its_sampled_final():
+def test_the_registered_4b_runs_are_the_pre_registered_arms_and_report_their_sampled_finals():
     _, arms = hub.training(ROOT / "results/train")
-    four = next(a for a in arms if a["arm"] == "4b")
-    assert [a["arm"] for a in arms if a["pre_registered"]] == ["4b"] and four["model"] == "Qwen/Qwen3-4B"
-    assert four["final"]["checkpoint_step"] == four["registered_bars"]["sampled"]["checkpoint_step"]
-    assert four["final"]["reward_mean"] == four["registered_bars"]["sampled"]["reward_mean"]
-    assert four["base"]["reward_mean"] < 0.1 and not four["registered_bars"]["sampled"]["primary_met"]
-    assert "| Qwen3-4B, registered run | **yes** |" in hub.training_markdown(arms)
+    by = {a["arm"]: a for a in arms}
+    assert [a["arm"] for a in arms if a["pre_registered"]] == ["4b", "4b-v2"]
+    for four in (by["4b"], by["4b-v2"]):
+        assert four["model"] == "Qwen/Qwen3-4B" and four["base"]["reward_mean"] < 0.1
+        assert four["final"]["checkpoint_step"] == four["registered_bars"]["sampled"]["checkpoint_step"]
+        assert four["final"]["reward_mean"] == four["registered_bars"]["sampled"]["reward_mean"]
+        assert not four["registered_bars"]["sampled"]["primary_met"]
+    assert by["4b-v2"]["registered_bars"]["sampled"]["secondary_met"]
+    warm = by["4b-v2-sft"]
+    assert warm["final"]["checkpoint_step"] == 0 and "registered_bars" not in warm
+    assert "post hoc" in warm["registration"]
+    md = hub.training_markdown(arms)
+    assert "| Qwen3-4B, registered run 1 | **yes** |" in md and "| Qwen3-4B, registered run 2 | **yes** |" in md
+    assert "| Qwen3-4B SFT-10k (run 2's warm start) | no: its run's warm start, post hoc |" in md
