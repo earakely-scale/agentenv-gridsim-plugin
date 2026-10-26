@@ -1,0 +1,52 @@
+{
+ "pack": "ercot-dam-v1-fresh-2026-10-blind",
+ "source_pack": "ercot-dam-v1-fresh-2026-10",
+ "tier": "blind",
+ "count": 331,
+ "by_date": {
+  "2026-10-18": 41,
+  "2026-10-19": 29,
+  "2026-10-20": 46,
+  "2026-10-21": 45,
+  "2026-10-22": 53,
+  "2026-10-23": 28,
+  "2026-10-24": 19,
+  "2026-10-25": 10,
+  "2026-10-26": 34,
+  "2026-10-27": 26
+ },
+ "rule": "tasks of the source pack with tags.blind_eval (build_pack's blind_ok)",
+ "references": "refs.blind: p_persist, p_ridge (data/ridge-v1.json), p_anchor = max; refs.blind.rules: greedy_d1 / threshold_d1 (the rule on D-1 prices, settled on D), persistence_dp, ridge_dp, hindsight_dp (C = 1), idle; c = R against P_opt, reward = R against P_anchor",
+ "means": {
+  "greedy_d1": {
+   "c": 0.7546,
+   "r_anchor": 0.7999
+  },
+  "threshold_d1": {
+   "c": 0.7421,
+   "r_anchor": 0.7898
+  },
+  "persistence_dp": {
+   "c": 0.871,
+   "r_anchor": 0.9405
+  },
+  "ridge_dp": {
+   "c": 0.8851,
+   "r_anchor": 0.9619
+  },
+  "hindsight_dp": {
+   "c": 1.0,
+   "r_anchor": 1.0
+  },
+  "idle": {
+   "c": 0.2,
+   "r_anchor": 0.2
+  },
+  "anchor": {
+   "c": 0.9192,
+   "r_anchor": 1.0
+  }
+ },
+ "tasks_sha256": "68f06466b5867098482fb304c662f40dd62e3e9ddc8eceeafdaeb37aecb2b915",
+ "build_command": "python scripts/build_fresh_blind_pack.py ercot-dam-v1-fresh-2026-10"
+}
