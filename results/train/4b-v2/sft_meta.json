@@ -1,0 +1,1 @@
+{"completion_tokens_max": 448, "completion_tokens_p50": 365, "completion_tokens_p99": 446, "n": 10000, "trimmed": 1155, "pool": 20000, "left_out": 788, "max_tokens": 448}
