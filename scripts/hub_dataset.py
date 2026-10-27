@@ -285,13 +285,14 @@ def fig(name: str, alt: str) -> str:
     return f"![{alt}](assets/figures/{name}.png)"
 
 
+NB = "\u00a0"
 LINKS = {"results/train/4b-blind": "run 4", "results/cost-matched": "cost-matched contest",
          "results/economics": "economics", "results/train/4b-dpa": "run 3", "results/train/4b-v2": "run 2"}
 
 
 def glance_block(r: dict) -> str:
     s = r["scores"]
-    rows = [f"| **{g['value']}** | **{g['label'][0].upper()}{g['label'][1:]}.** {g['text']} | "
+    rows = [f"| **{g['value'].replace(' ', NB)}** | **{g['label'][0].upper()}{g['label'][1:]}.** {g['text']} | "
             + " · ".join(ev(f"{x}/README.md", LINKS[x]) for x in g["src"]) + " |" for g in r["glance"]]
     alt = ("Before and after training. Blind capture on the 331 newest battery-days: untrained Qwen3-4B "
            f"{h(s[0]['untrained']['mean'])}, trained {h(s[0]['trained']['mean'])}, GPT-6 Luna "
@@ -335,10 +336,11 @@ def run_row(x: dict) -> str:
 
 
 def pack_row(x: dict) -> str:
-    t, b, g = x["trained"], x["baseline"], x["gaps"]
-    return (f"| {x['label']} ({x['n_tasks']} battery-days) | {level(x['untrained'])} | **{h(t['mean'])}** "
-            f"{ci(t['ci'])}, {t['run']} | {level(x['luna'])} | {level(x['sol'])} | {h(b['mean'])}, {b['label']} | "
-            f"{gap(g['trained_minus_luna'])} | {gap(g['trained_minus_sol'])} |")
+    u, t, b, g = x["untrained"], x["trained"], x["baseline"], x["gaps"]
+    before = "not run" if u is None else h(u["mean"], 2 if u["mean"] < 0.1 else 3)
+    return (f"| {x['label']}, {x['n_tasks']} | {before} → **{h(t['mean'])}** ({t['run']}) | {h(x['luna']['mean'])} | "
+            f"{h(x['sol']['mean'])} | {h(b['mean'])} {b['label']} | {gap(g['trained_minus_luna'])} | "
+            f"{gap(g['trained_minus_sol'])} |")
 
 
 def training_block(r: dict) -> str:
@@ -384,19 +386,19 @@ def training_block(r: dict) -> str:
         "and the adapters are not published. Held-out is reward R on 200 foresight days of 2025 for runs 1 to 3 (500 "
         "unseen days of 2014 to 2024 for the confirmation) and blind capture on 300 days of 2025 for run 4.", "",
         fig("planning", alt_p), "",
-        "**On the blind tier the 4B forecasts like its teacher and loses its score in planning.** Its written "
-        f"forecasts miss by {h(pl['mae']['final'], 2)} $/MWh over all hours, against its teacher's "
+        f"Run 4's written forecasts miss by {h(pl['mae']['final'], 2)} $/MWh over all hours, against its teacher's "
         f"{h(pl['mae']['teacher'], 2)} and yesterday's prices' {h(pl['mae']['persistence'], 2)}. Planned by the exact "
         f"DP they would capture {h(e['dp_own']['mean'])}, level with GPT-6.1 Sol "
         f"({gap(e['gaps']['dp_own_minus_sol'])}, reported, not registered); its own schedules capture "
         f"{h(e['final']['mean'])}, "
         f"{gap(e['gaps']['final_minus_sol'])} behind Sol, the registered primary, not met.", "",
-        "**Before and after, pack by pack.** The cost-matched contest's comparisons under one harness, day-block 95% "
-        "CIs. Capture is `r_opt`, the hindsight optimum's share on the reward's scale (idle 0.2, hindsight 1.0; the "
-        "cross-version C of [Grading](#grading) is (r_opt − 0.2)/0.8 wherever r_opt is above 0). At the foresight "
-        "tier it equals R.", "",
-        "| Pack | Untrained 4B | Trained 4B | GPT-6 Luna, high | GPT-6.1 Sol, high | Simple rule | Trained − Luna | "
-        "Trained − Sol |", "|---|---|---|---|---|---|---|---|", *map(pack_row, r["scores"])])
+        "**Before and after, pack by pack.** The cost-matched contest's comparisons under one harness, with day-block "
+        "95% CIs on the paired gaps. Capture is `r_opt`, the hindsight optimum's share on the reward's scale (idle "
+        "0.2, hindsight 1.0; the cross-version C of [Grading](#grading) is (r_opt − 0.2)/0.8 wherever r_opt is above "
+        "0). At the foresight tier it equals R.", "",
+        "| Pack, battery-days | 4B, untrained → trained | GPT-6 Luna, high | GPT-6.1 Sol, high | Simple rule | "
+        "Trained − Luna [95% CI] | Trained − Sol [95% CI] |", "|---|---|---|---|---|---|---|",
+        *map(pack_row, r["scores"])])
 
 
 NAME = {"qwen": "Qwen3-4B", "luna": "GPT-6 Luna", "sol": "GPT-6.1 Sol", "beam": "Beam-1.0"}
@@ -410,8 +412,8 @@ def point_row(x: dict) -> str:
     name = f"{NAME[x['family']]}, {x['effort'] or ('trained (run 4)' if x['key'] == 'final' else 'untrained')}"
     name = f"**{name}**" if x["key"] == "final" else name
     vs = gap(x["final_minus"]) if "final_minus" in x else "–"
-    return (f"| {name} | {h(x['mean'])} {ci(x['ci'])} | {usd(x['usd'])} | {x['tokens']:,.0f} | "
-            f"{'open' if x['open'] else 'API'} | {'yes' if x['frontier'] else '–'} | {vs} |")
+    return (f"| {name} | {h(x['mean'])} | {ci(x['ci'])} | {usd(x['usd'])} | {'open' if x['open'] else 'API'} | "
+            f"{'yes' if x['frontier'] else '–'} | {vs} |")
 
 
 def frontier_block(r: dict) -> str:
@@ -434,8 +436,8 @@ def frontier_block(r: dict) -> str:
         "prompt. Cost per battery-day: API models at their recorded token usage × list price (Beam-1.0 at Baseten's "
         "price on the Hugging Face router); the 4Bs at their logged batched-generation time on one L40S, "
         f"${f['l40s_usd_per_h']:.2f} an hour, engine start and idle time not charged.", "",
-        "| Model, effort | Capture [95% CI] | $ per battery-day | Output tokens | Weights | Frontier | "
-        "Trained 4B − this [95% CI] |", "|---|---|---:|---:|---|---|---|",
+        "| Model, effort | Capture | 95% CI | $ per battery-day | Weights | Frontier | Trained 4B − this [95% CI] |",
+        "|---|---|---|---:|---|---|---|",
         *map(point_row, sorted(f["points"], key=lambda x: x["usd"])), "",
         "- **The trained 4B is the cheapest model on the frontier above its untrained base.** It is level with GPT-6 "
         f"Luna at high effort, {gap(p['luna-high']['final_minus'])}, at a quarter of the cost (Luna costs "

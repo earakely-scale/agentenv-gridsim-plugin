@@ -103,6 +103,7 @@ body.export section.fig { width: 800px; margin: 0; border: none; border-radius: 
 body.export section.fig h2 { font-size: 20px; }
 body.export section.fig .kicker { display: none; }
 body.export .fig .src { display: block; }
+body.export .fig .note.drop { display: none; }
 .fig .src { display: none; font-size: 11.5px; color: var(--text-muted); margin-top: 8px; }
 @media (max-width: 980px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }

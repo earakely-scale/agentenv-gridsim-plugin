@@ -343,6 +343,7 @@ const FIGS = {
       return [`The trained 4B is registered run 4's model on the blind rows and run 3's on foresight; the simple rule is persistence-DP (the exact DP on yesterday's prices) on blind and the greedy rule on foresight. CIs resample whole days, except the untrained foresight row and the greedy rule, which resample tasks as their runs registered them.`, f ? `Not drawn: foresight on the newest days, where the untrained 4B was not run. There GPT-6 Luna is ahead of the trained 4B, ${num(f.luna.mean)} against ${num(f.trained.mean)}, paired ${sg(f.gaps.trained_minus_luna.mean)} ${ci(f.gaps.trained_minus_luna.ci, 3, true)}.` : ""];
     },
     src: "results/train/4b-blind, results/train/4b-dpa, results/cost-matched and results/economics",
+    keep: [1],
   },
   frontier: {
     kicker: "Score against cost",
@@ -359,7 +360,7 @@ const FIGS = {
   },
   training: {
     kicker: "Training",
-    title: () => "GRPO stalled on a strong warm start; exact DP advantages kept improving it",
+    title: () => "GRPO stalled on SFT-10k; exact DP advantages lifted held-out reward",
     sub: () => "Foresight tier: held-out reward R on the same 200 battery-days of 2025, sampled at temperature 0.7. Run 3's band is the 95% CI at each checkpoint; runs 1 and 2 were scored on all 200 days at their start and end only. Labels: the registered paired change, end minus start.",
     draw: training,
     legend: () => legend([[`<i class="key" style="border-top-color:var(--c-qwen);border-top-width:3px"></i>`, "run 3: exact per-hour DP advantages (PPO-clipped loop, PEFT, vLLM)"], [`<i class="key dash" style="border-top-color:var(--c-base)"></i>`, "run 2: GRPO in TRL"], [`<i class="key dash" style="border-top-color:var(--c-rule)"></i>`, "run 1: GRPO in TRL"]]),
@@ -367,7 +368,7 @@ const FIGS = {
       const T = R.training.curve, c = T.run3;
       return [`GRPO lifted run 1's weaker warm start (SFT on 1,500 schedules); from SFT-10k it found almost no reward spread to learn from. Run 3's registered primary needed a paired gain over step 0 above 0 and a held-out slope above 0, ${sg(T.run3_slope.per_100, 4)} per 100 steps ${ci(T.run3_slope.ci, 4, true)}: both held. The gain is fewer broken schedules (feasible ${(100 * c[0].feasible).toFixed(1)}% → ${(100 * c[c.length - 1].feasible).toFixed(1)}%), not more exact optima.`];
     },
-    src: "results/train/4b, results/train/4b-v2 and results/train/4b-dpa; CIs over tasks",
+    src: "results/train/4b, results/train/4b-v2 and results/train/4b-dpa",
   },
   planning: {
     kicker: "Blind: forecasting against planning",
@@ -408,8 +409,8 @@ const FIGS = {
 };
 
 function figure(id, R, W) {
-  const f = FIGS[id];
-  return `<section class="panel fig" id="fig-${id}" data-figure="${id}"><div class="panel-head"><span class="kicker">${f.kicker}</span><h2>${esc(f.title(R))}</h2><p class="sub">${esc(f.sub(R))}</p></div><div class="chart">${f.draw(R, W)}</div>${f.legend(R)}${f.notes(R).filter(Boolean).map((n) => `<p class="note">${esc(n)}</p>`).join("")}<p class="src">Sources: ${esc(f.src)} in the GridSimEnv-AgentEnv dataset.</p></section>`;
+  const f = FIGS[id], notes = f.notes(R).filter(Boolean);
+  return `<section class="panel fig" id="fig-${id}" data-figure="${id}"><div class="panel-head"><span class="kicker">${f.kicker}</span><h2>${esc(f.title(R))}</h2><p class="sub">${esc(f.sub(R))}</p></div><div class="chart">${f.draw(R, W)}</div>${f.legend(R)}${notes.map((n, i) => `<p class="note${EXPORT && !(f.keep || []).includes(i) ? " drop" : ""}">${esc(n)}</p>`).join("")}<p class="src">Sources: ${esc(f.src)} in the GridSimEnv-AgentEnv dataset.</p></section>`;
 }
 
 function kpis(R) {

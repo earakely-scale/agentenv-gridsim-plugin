@@ -53,11 +53,11 @@ day-ahead prices, commits 24 hourly charge and discharge actions, and is graded 
 programming over every state of charge). At the blind tier it sees only the days before and is graded against the
 better of two forecasters a desk could build from the same inputs.
 
-**The featured day,** {hero_caption}
-
 **[What training bought, in dollars]({app}/results.html):** Qwen3-4B, trained on this environment's exact grader,
 went from below idle to bidding as well as GPT-6 Luna at a quarter of its cost, with GPT-6.1 Sol still ahead: the
 before and after, the score-against-cost frontier, the training runs and what the decisions earn per MW of battery.
+
+**The featured day,** {hero_caption}
 
 **[The live board]({app}/board.html):** on each pass, GPT-6.1 Sol, GPT-6 Luna, the trained 4B and three rules seal a
 schedule for 45 batteries before ERCOT's day-ahead market closes; the first seal is for 2026-10-29, and passes run on

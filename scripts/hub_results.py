@@ -583,24 +583,28 @@ def dataset_files(card: str, figs: dict[str, bytes]) -> dict[str, bytes]:
 
 
 def space_readme(live: str) -> str:
-    """The Space card as published, with the results page linked and the live board's passes on demand."""
-    head = re.search(r"\*\*\[The live board\]\((\S+?)/board\.html\):\*\*.*?\n\n", live, re.S)
-    if not head:
-        raise SystemExit("the Space card has no live board paragraph to update")
-    app = head[1]
-    new = (f"**[What training bought, in dollars]({app}/results.html):** Qwen3-4B, trained on this environment's exact "
-           "grader,\nwent from below idle to bidding as well as GPT-6 Luna at a quarter of its cost, with GPT-6.1 Sol "
-           "still ahead: the\nbefore and after, the score-against-cost frontier, the training runs and what the "
-           "decisions earn per MW of battery.\n\n"
-           f"**[The live board]({app}/board.html):** on each pass, GPT-6.1 Sol, GPT-6 Luna, the trained 4B and three "
-           "rules seal a\nschedule for 45 batteries before ERCOT's day-ahead market closes; the first seal is for "
-           "2026-10-29, and passes run on\ndemand. The schedules are settled at the prices ERCOT then posts, and the "
-           "P&L adds up day by day.\n\n")
-    text = live[:head.start()] + new + live[head.end():]
-    old = "This Space holds **replays only**: every page plays back a recorded episode"
-    if old not in text:
+    """The Space card as published, with the results page linked above the featured day and the live board's passes
+    on demand."""
+    live_par = re.search(r"\*\*\[The live board\]\((\S+?)/board\.html\):\*\*.*?\n\n", live, re.S)
+    if not live_par or "**The featured day,**" not in live:
+        raise SystemExit("the Space card changed shape; update space_readme")
+    app = live_par[1]
+    results = (f"**[What training bought, in dollars]({app}/results.html):** Qwen3-4B, trained on this environment's "
+               "exact grader,\nwent from below idle to bidding as well as GPT-6 Luna at a quarter of its cost, with "
+               "GPT-6.1 Sol still ahead: the\nbefore and after, the score-against-cost frontier, the training runs and "
+               "what the decisions earn per MW of battery.\n\n")
+    board = (f"**[The live board]({app}/board.html):** on each pass, GPT-6.1 Sol, GPT-6 Luna, the trained 4B and three "
+             "rules seal a\nschedule for 45 batteries before ERCOT's day-ahead market closes; the first seal is for "
+             "2026-10-29, and passes run on\ndemand. The schedules are settled at the prices ERCOT then posts, and the "
+             "P&L adds up day by day.\n\n")
+    text = live[:live_par.start()] + board + live[live_par.end():]
+    text = re.sub(r"\*\*\[What training bought, in dollars\]\(.*?\n\n", "", text, flags=re.S)
+    text = text.replace("**The featured day,**", results + "**The featured day,**", 1)
+    new = "The viewer holds **replays only**: every replay plays back a recorded episode"
+    text = text.replace("This Space holds **replays only**: every page plays back a recorded episode", new)
+    if new not in text:
         raise SystemExit("the Space card's replays paragraph changed; update space_readme")
-    return text.replace(old, "The viewer holds **replays only**: every replay plays back a recorded episode")
+    return text
 
 
 def space_files(space: Path, live_readme: str) -> dict[str, bytes]:
