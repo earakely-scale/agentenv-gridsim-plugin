@@ -1,0 +1,122 @@
+{
+ "schema": "gridsim.live.board/v1",
+ "updated_utc": "2026-10-27T19:03:20Z",
+ "prereg": "docs/prereg/v1-live-board.md",
+ "battery_mw": 100,
+ "archetypes": [
+  "1h-c",
+  "2h-b",
+  "4h-f"
+ ],
+ "points": [
+  "HB_HOUSTON",
+  "HB_NORTH",
+  "HB_PAN",
+  "HB_SOUTH",
+  "HB_WEST",
+  "LZ_AEN",
+  "LZ_CPS",
+  "LZ_HOUSTON",
+  "LZ_LCRA",
+  "LZ_NORTH",
+  "LZ_RAYBN",
+  "LZ_SOUTH",
+  "LZ_WEST",
+  "HB_HUBAVG",
+  "HB_BUSAVG"
+ ],
+ "graded_days": [],
+ "invalid_seal_days": [],
+ "api_spend_usd": 0.5915,
+ "agents": {
+  "gpt-6.1-sol": {
+   "label": "GPT-6.1 Sol",
+   "kind": "llm",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "gpt-6-luna": {
+   "label": "GPT-6 Luna",
+   "kind": "llm",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "qwen3-4b-gridsim-run4": {
+   "label": "Qwen3-4B trained (run 4)",
+   "kind": "trained",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "persistence_dp": {
+   "label": "Persistence + DP",
+   "kind": "rule",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "ridge_dp": {
+   "label": "Ridge + DP",
+   "kind": "rule",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "greedy_d1": {
+   "label": "Greedy on D-1",
+   "kind": "rule",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "blind_anchor": {
+   "label": "Blind anchor",
+   "kind": "reference",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  },
+  "hindsight_dp": {
+   "label": "Hindsight optimum",
+   "kind": "reference",
+   "days": {},
+   "cum_usd_per_mw": {},
+   "total_usd_per_mw": null,
+   "c_mean": null,
+   "vs_persistence_dp": null
+  }
+ },
+ "timeline": [
+  {
+   "delivery_day": "2026-10-29",
+   "dam_close_utc": "2026-10-28T15:00:00Z",
+   "sealed_utc": "2026-10-27T18:55:38Z",
+   "seal_commit": {
+    "oid": "b0617414cec2a6c0bc84ba7cf93b4b57857e779a",
+    "url": "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/commit/b0617414cec2a6c0bc84ba7cf93b4b57857e779a",
+    "created_utc": "2026-10-27T18:58:27Z"
+   },
+   "missing_agents": [],
+   "graded_utc": null,
+   "seal_valid": null,
+   "grade_commit": null,
+   "not_sealed": null
+  }
+ ]
+}
