@@ -369,6 +369,35 @@ time, the hypotheses against what was measured, and the unscored runs.
 
 <!-- TODO: add the trained rows after training -->
 
+## Economics
+
+What the blind-tier decisions are worth in dollars: every recorded schedule settled again at ERCOT's day-ahead prices,
+its profit put per MW of battery power. A descriptive re-analysis computed after the results, not pre-registered;
+day-block 95% CIs (10,000 resamples of days).
+
+<!-- economics:v1 -->
+| Blind eval-2025 (300 battery-days, 191 days) | $ per MW-day (95% CI) | $k per MW-year | Per 100 MW-year |
+|---|---|---:|---:|
+| hindsight optimum (DP on the day's own prices) | 101.4 (89.8 to 114.7) | 37.0 | $3.70M |
+| blind anchor: max(persistence-DP, ridge-DP) per task, an oracle pick | 89.2 (78.9 to 100.9) | 32.6 | $3.26M |
+| GPT-6.1 Sol, effort high | 87.9 (77.5 to 99.6) | 32.1 | $3.21M |
+| persistence-DP: exact DP on yesterday's prices | 83.6 (73.4 to 95.4) | 30.5 | $3.05M |
+| GPT-6 Luna, effort high | 78.6 (68.1 to 90.6) | 28.7 | $2.87M |
+| trained Qwen3-4B, run 4 final, sampled | 74.3 (63.6 to 86.0) | 27.1 | $2.71M |
+| ridge-DP: exact DP on ridge-v1 | 72.0 (63.0 to 81.9) | 26.3 | $2.63M |
+| idle (the battery does nothing) | −21.4 (−27.6 to −15.5) | −7.8 | −$0.78M |
+
+- **GPT-6.1 Sol − persistence-DP** (the exact optimum on yesterday's prices): +$1.6k per MW-year (+0.8 to +2.4) on eval-2025 and +$1.4k per MW-year (+0.3 to +2.7) on the fresh days of 2026-10-18 to 2026-10-27; about $156k a year for a 100 MW battery.
+- **Trained Qwen3-4B (run 4) − persistence-DP:** −$3.4k per MW-year (−5.6 to −1.5) on eval-2025, −$2.1k per MW-year (−4.4 to +0.2) on the fresh days.
+- **Inference:** Sol costs $5.77 per battery-year whatever the battery's size; its extra $5.59 over the trained 4B buys $497k a year per 100 MW on eval-2025.
+<!-- /economics:v1 -->
+
+These are day-ahead energy arbitrage margins only: a price-taker with perfect execution at hub and load-zone prices,
+with no real-time market and no ancillary services, where real ERCOT batteries earn much of their revenue. So they are
+the value of the day-ahead decisions, not a battery's total revenue. The plugin's
+[`results/economics/`](https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/main/results/economics) has both
+packs, every model, the cost of inference against the value, the by-day analysis and the caveats.
+
 ## Training
 
 The point of GridSimEnv is to show training on an AgentEnv simulation end to end. Path B trains on the `train`

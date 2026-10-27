@@ -59,6 +59,8 @@ BASELINES = ("clock", "threshold", "greedy", "random")
 PACK_FILES = ("stats.md", "ridge-v1.json")
 TOLERANCE = 1e-6
 BOARD = re.compile(r"(<!-- board:v1 -->\n).*?(\n<!-- /board:v1 -->)", re.S)
+ECONOMICS = re.compile(r"(<!-- economics:v1 -->\n).*?(\n<!-- /economics:v1 -->)", re.S)
+ECONOMICS_ROWS = ("optimum", "anchor", "sol", "persistence-dp", "luna-high", "4b-sampled", "ridge-dp", "idle")
 NAMES = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "Qwen/Qwen3-1.7B": "Qwen3-1.7B", "Qwen/Qwen3-4B": "Qwen3-4B"}
 MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles")
 
@@ -292,13 +294,50 @@ def board_markdown(eval_card: dict) -> str:
     return "\n".join(lines)
 
 
-def card_text(files: dict[str, bytes], bundles: dict[str, str], plugin: str, board: str | None) -> str:
+def economics_markdown(econ: dict) -> str:
+    """The card's economics block from results/economics/summary.json: blind eval-2025 in dollars per MW of battery
+    power, the paired gaps against persistence-DP on both packs, and what Sol's inference costs."""
+    def ci(x, sign=""):
+        return f"({x['ci'][0]:{sign}.1f} to {x['ci'][1]:{sign}.1f})".replace("-", "−")
+
+    ev, fr = econ["packs"]["eval2025"], econ["packs"]["fresh"]
+    lines = [f"| Blind eval-2025 ({ev['n_tasks']} battery-days, {ev['n_days']} days) | $ per MW-day (95% CI) | "
+             "$k per MW-year | Per 100 MW-year |", "|---|---|---:|---:|"]
+    for k in ECONOMICS_ROWS:
+        r = ev["rows"][k]
+        d, y, h = r["usd_per_mw_day"], r["k_usd_per_mw_yr"], r["k_usd_per_100mw_yr"]
+        lines.append(f"| {r['label']} | {d['mean']:.1f} {ci(d)} | {y['mean']:.1f} | "
+                     f"{'−' if h['mean'] < 0 else ''}${abs(h['mean']) / 1000:.2f}M |".replace("| -", "| −"))
+
+    def gap(p, key):
+        g = p["gaps"][key]["k_usd_per_mw_yr"]
+        return f"{'−' if g['mean'] < 0 else '+'}${abs(g['mean']):.1f}k per MW-year {ci(g, '+')}"
+
+    sp, fb = "sol - persistence-dp", "4b-sampled - persistence-dp"
+    sol = ev["rows"]["sol"]["usd_inference_per_battery_day"] * 365
+    inf = econ["inference"]["packs"]["eval2025"]["sol_over_4b"]
+    per100 = ev["gaps"][sp]["k_usd_per_100mw_yr"]["mean"]
+    lines += ["", f"- **GPT-6.1 Sol − persistence-DP** (the exact optimum on yesterday's prices): {gap(ev, sp)} on "
+              f"eval-2025 and {gap(fr, sp)} on the fresh days of {fr['dates'][0]} to {fr['dates'][1]}; about "
+              f"${per100:,.0f}k a year for a 100 MW battery.",
+              f"- **Trained Qwen3-4B (run 4) − persistence-DP:** {gap(ev, fb)} on eval-2025, {gap(fr, fb)} on the "
+              "fresh days.",
+              f"- **Inference:** Sol costs ${sol:.2f} per battery-year whatever the battery's size; its extra "
+              f"${inf['extra_inference_usd_per_battery_yr']:.2f} over the trained 4B buys "
+              f"${inf['decision_gap_k_usd_per_100mw_yr']:,.0f}k a year per 100 MW on eval-2025."]
+    return "\n".join(lines)
+
+
+def card_text(files: dict[str, bytes], bundles: dict[str, str], plugin: str, board: str | None,
+              economics: str | None = None) -> str:
     """The card with v1_episodes on the splits that have episodes, the board when there is one, and each bundle's
     configs and needs as agentenv-hf writes them. A config whose tables are all empty is left off: `datasets` can't
     load a parquet file with no rows."""
     text = CARD.read_text()
     if board:
         text = BOARD.sub(lambda m: f"{m[1]}{board}{m[2]}", text)
+    if economics:
+        text = ECONOMICS.sub(lambda m: f"{m[1]}{economics}{m[2]}", text)
     for name, split in bundles.items():
         text = card(text, name=name, split=split, repo=None, description=None, license=None,
                     needs={"plugins": [plugin], "setup": SETUP})
@@ -348,7 +387,9 @@ def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: st
         bundles[path.name] = bundle_split(path.name)
         files |= dataset.build(runs.locate(str(path)), name=path.name, split=bundles[path.name],
                                which="latest").files
-    return files | {"README.md": card_text(files, bundles, plugin, board).encode()}
+    econ = results_dir / "economics" / "summary.json"
+    economics = economics_markdown(json.loads(econ.read_text())) if econ.is_file() else None
+    return files | {"README.md": card_text(files, bundles, plugin, board, economics).encode()}
 
 
 def write(files: dict[str, bytes], out: Path) -> None:
