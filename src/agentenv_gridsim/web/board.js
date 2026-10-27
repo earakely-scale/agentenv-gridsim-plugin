@@ -28,7 +28,8 @@ const when = (iso) => (iso ? `${fmt(iso, { weekday: "short", month: "short", day
 const dayName = (d) => new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(new Date(`${d}T12:00:00Z`));
 const lead = (a, b) => {
   const m = Math.round((new Date(b) - new Date(a)) / 60000);
-  return m > 0 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} m before the DAM closed` : "after the DAM closed";
+  const closed = new Date(b) < new Date() ? "closed" : "closes";
+  return m > 0 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} m before the DAM ${closed}` : "after the DAM closed";
 };
 const keyStyle = (n) => {
   const s = STYLE[n];
@@ -204,7 +205,7 @@ function timeline(b) {
     else if (sc) chip = `<span class="chip sealed">Sealed</span>`;
     else if (t.sealed_utc) chip = `<span class="chip">Publishing</span>`;
     const seal = sc
-      ? `<span class="k">Sealed</span>${when(sc.created_utc)} · <a href="${esc(sc.url)}" target="_blank" rel="noopener">${esc(sc.oid.slice(0, 7))}</a><small>${lead(sc.created_utc, t.dam_close_utc)}${t.missing_agents && t.missing_agents.length ? ` · missing: ${t.missing_agents.map((m) => esc(b.agents[m] ? short(b.agents[m].label) : m)).join(", ")}` : ""}</small>`
+      ? `<span class="k">Sealed</span>${when(sc.created_utc)} · <a href="${esc(sc.url)}" target="_blank" rel="noopener">${esc(sc.oid.slice(0, 7))}</a><small><a href="${DATASET}/blob/main/live/sealed/${t.delivery_day}.json" target="_blank" rel="noopener">sealed file</a> · ${lead(sc.created_utc, t.dam_close_utc)}${t.missing_agents && t.missing_agents.length ? ` · missing: ${t.missing_agents.map((m) => esc(b.agents[m] ? short(b.agents[m].label) : m)).join(", ")}` : ""}</small>`
       : `<span class="k">Sealed</span>–`;
     const gc = t.grade_commit;
     const graded = t.graded_utc
