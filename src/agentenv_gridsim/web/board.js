@@ -56,7 +56,7 @@ async function main() {
     [`${DATASET}/tree/main/live`, "Sealed and graded files"],
     [`${DATASET}/commits/main`, "Commit history"],
     [`${REPO}/blob/main/docs/prereg/v1-live-board.md`, "Pre-registration"],
-    [`${REPO}/blob/main/scripts/live/live.py`, "The daily job"],
+    [`${REPO}/blob/main/scripts/live/live.py`, "The job"],
   ].map(([h, t]) => `<a href="${h}" target="_blank" rel="noopener">${t}</a>`).join("");
 }
 

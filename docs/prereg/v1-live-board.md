@@ -126,3 +126,10 @@ anchor 0.92. Over six days one volatile day can reorder them.
   `board.json` (cumulative, with the sealed-vs-graded timeline and each commit), mirrored into this repo's `live/`.
 - A "Live board" page on the Space; the default view is unchanged.
 - Code: `scripts/live/live.py` (the daily job) and `scripts/live/live_4b.py` (the 4B's engine).
+
+## Amendments
+**1 (2026-10-27, after the first seal, before any grade).** The daily timer and the catch-up passes are switched off;
+passes now run on demand. A pass does the same steps as before (grade every sealed day whose prices are out, then seal
+the next day whose DAM is still open), so a day is on the board only if a pass sealed it before its DAM closed. Days
+no pass sealed in time are skipped, never backfilled. Grading, the seal rule, agents, tasks and metrics are unchanged.
+The box is stopped between passes. The 2026-10-29 seal (published 2026-10-27 18:58 UTC) stands.
