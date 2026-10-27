@@ -432,17 +432,17 @@ function frontierTable(R) {
 }
 
 function runsTable(R) {
-  return table("runs", [["Run", "l"], ["What changed", "l"], ["Held-out"], ["What it taught", "l"], ["GPU"]], R.training.runs.map((r) => `<tr>${td("", `<b>${esc(r.label)}</b><span class="sub">${esc(r.model)}</span><span class="tag${r.registered ? " reg" : ""}">${r.registered ? "pre-registered" : "exploratory"}</span>`, "l")}${td("What changed", esc(r.change), "l what full")}${td("Held-out", esc(r.result))}${td("What it taught", `${esc(r.lesson)} ${link(dt(r.src), "Evidence")}`, "l why full")}${td("GPU", r.usd == null ? "–" : `$${r.usd % 1 ? r.usd.toFixed(2) : r.usd}`)}</tr>`));
+  return table("runs wrapcells", [["Run", "l"], ["What changed", "l"], ["Held-out"], ["What it taught", "l"], ["GPU"]], R.training.runs.map((r) => `<tr>${td("", `<b>${esc(r.label)}</b><span class="sub">${esc(r.model)}</span><span class="tag${r.registered ? " reg" : ""}">${r.registered ? "pre-registered" : "exploratory"}</span>`, "l")}${td("What changed", esc(r.change), "l what full")}${td("Held-out", esc(r.result))}${td("What it taught", `${esc(r.lesson)} ${link(dt(r.src), "Evidence")}`, "l why full")}${td("GPU", r.usd == null ? "–" : `$${r.usd % 1 ? r.usd.toFixed(2) : r.usd}`)}</tr>`));
 }
 
 const ORDER = ["optimum", "sol", "persistence-dp", "luna-high", "luna-medium", "4b-sampled", "sft", "ridge-dp", "greedy-d1", "luna-low", "threshold-d1", "idle", "base"];
 
 function economicsTable(R) {
   const P = R.dollars.packs, get = (p, key) => P[p].ladder.find((r) => r.key === key);
-  const cell = (r) => (r ? `${num(r.yr.mean, 1)}<span class="sub">${ci(r.yr.ci, 1)}</span>` : `<span class="na">–</span>`);
-  return table("usd", [["Policy", "l"], ["2025, $k per MW-yr"], ["2025, per 100 MW-yr"], ["Newest days, $k per MW-yr"], ["Inference per battery-day"]], ORDER.filter((key) => get("eval2025", key) || get("fresh", key)).map((key) => {
+  const na = `<span class="na">–</span>`, cell = (r) => (r ? `${num(r.yr.mean, 1)}<span class="sub">${ci(r.yr.ci, 1)}</span>` : na);
+  return table("usd", [["Policy", "l"], ["2025<br>$k per MW‑yr"], ["2025<br>per 100 MW‑yr"], ["2025<br>inference per battery‑day"], ["Newest days<br>$k per MW‑yr"]], ORDER.filter((key) => get("eval2025", key) || get("fresh", key)).map((key) => {
     const a = get("eval2025", key), b = get("fresh", key), r = a || b;
-    return `<tr class="${key === "4b-sampled" ? "me" : ""}">${td("", esc(r.label), "l")}${td("2025, $k per MW-yr", cell(a))}${td("2025, per 100 MW-yr", a ? `${a.per_100mw_yr < 0 ? "−" : ""}$${num(Math.abs(a.per_100mw_yr) / 1000, 2)}M` : "–")}${td("Newest days, $k per MW-yr", cell(b))}${td("Inference per battery-day", r.inference != null ? usd(r.inference) : "–")}</tr>`;
+    return `<tr class="${key === "4b-sampled" ? "me" : ""}">${td("", esc(r.label), "l")}${td("2025, $k/MW-yr", cell(a))}${td("2025, per 100 MW-yr", a ? `${a.per_100mw_yr < 0 ? "−" : ""}$${num(Math.abs(a.per_100mw_yr) / 1000, 2)}M` : na)}${td("2025, inference per battery-day", a?.inference != null ? usd(a.inference) : na)}${td("Newest days, $k/MW-yr", cell(b))}</tr>`;
   }));
 }
 

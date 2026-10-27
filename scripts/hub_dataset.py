@@ -480,8 +480,8 @@ def worth_block(r: dict) -> str:
         if a or b:
             x = a or b
             name = f"**{x['label']}**" if key == "4b-sampled" else x["label"]
-            rows.append(f"| {name} | {yr(a)} | {per100(a)} | {yr(b)} | "
-                        f"{'–' if x['inference'] is None else usd(x['inference'])} |")
+            rows.append(f"| {name} | {yr(a)} | {per100(a)} | "
+                        f"{'–' if a is None or a['inference'] is None else usd(a['inference'])} | {yr(b)} |")
     g, gf = e["gaps"], fr["gaps"]
     up, vb, sp = g["4b-sampled - base"], g["4b-sampled - persistence-dp"], g["sol - persistence-dp"]
     inf, pay, q = e["inference"], r["dollars"]["payback"], e["quartiles"]
@@ -501,8 +501,8 @@ def worth_block(r: dict) -> str:
         f"and the newest days ({fr['n_tasks']} on {fr['n_days']}), day-block 95% CIs. A reply with no valid schedule "
         "settles as idle. A descriptive re-analysis computed after the results, not pre-registered "
         f"({ev('results/economics/README.md', 'results/economics')}).", "",
-        "| Policy | 2025: $k per MW-year [95% CI] | Per 100 MW-year | Newest days: $k per MW-year [95% CI] | "
-        "Inference per battery-day |", "|---|---|---:|---|---:|", *rows, "",
+        "| Policy | 2025: $k per MW-year [95% CI] | 2025: per 100 MW-year | 2025: inference per battery-day | "
+        "Newest days: $k per MW-year [95% CI] |", "|---|---|---:|---:|---|", *rows, "",
         f"- **Training bought {kd(up['yr']['mean'], True)} per MW-year {ci(up['yr']['ci'], 1, True)}** on 2025's "
         f"days ({kk(gf['4b-sampled - base']['yr'], True)} on the newest): from {kd(lad['base']['yr']['mean'])}, "
         f"worse than idle, to {kd(lad['4b-sampled']['yr']['mean'])}, about ${up['per_100mw_yr'] / 1000:.1f}M a year "

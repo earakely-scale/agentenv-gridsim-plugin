@@ -75,7 +75,8 @@ section.panel h2 { font-size: 19px; letter-spacing: -0.01em; }
 .caveats { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text-secondary); }
 .caveats li { margin: 5px 0; }
 .caveats b { color: var(--text-primary); font-weight: 600; }
-table.grid.wrapcells td, table.grid.wrapcells th { white-space: normal; }
+table.grid.wrapcells td, table.grid th { white-space: normal; }
+table.grid th { vertical-align: bottom; }
 table.grid td.l, table.grid th.l { text-align: left; }
 table.grid .sub { display: block; color: var(--text-muted); font-size: 11.5px; }
 table.grid tr.me td { background: rgba(27, 175, 122, 0.07); }
@@ -131,4 +132,6 @@ body.export .fig .note.drop { display: none; }
   table.stack tr.me { background: rgba(27, 175, 122, 0.07); }
   table.stack .tag { margin-left: 8px; }
   table.stack td:first-child .sub { display: inline; margin-left: 6px; }
+  table.stack.usd tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  table.stack.usd td:nth-child(3), table.stack.usd td:nth-child(4) { order: 1; }
 }
