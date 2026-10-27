@@ -117,3 +117,13 @@ about 5 hours in one stream.
 - **One cap across both streams.** `luna_eval.py`'s guard now re-reads the lane's spend from every Luna log before each
   request (it read it once at start), so the $10 total holds with two runs side by side. Contest 1's high run started
   under the first version, which was exact while it ran alone.
+
+**2 (2026-10-27, added after the verdicts, before any effort-medium request).** One descriptive run to complete the
+score-against-cost frontier on pack 3b, prompted by the published chart (the 4B sits between Luna-low and Luna-high in
+cost, and Luna-medium was the untested point most likely to land between them).
+- **Run:** Luna at effort `medium` on contest 3b (blind, fresh, 331 tasks), same harness, concurrency 8, under the
+  same $10 lane cap. Nothing else changes.
+- **Reported:** C with its day-block CI, cost per task, the error mix, and 4B − Luna-medium (paired, day-block CI).
+- **No verdict.** The headline and the secondary rows above stand as published; this row is labelled descriptive.
+- **Prior:** C 0.76–0.83 at $0.0008–$0.0014 per task, so off the frontier unless it reaches the 4B's 0.841 for less
+  than Luna-high's $0.0020.
