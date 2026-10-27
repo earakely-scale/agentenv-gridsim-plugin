@@ -232,3 +232,19 @@ deviation from this file is listed in the README.
     would score 0.909 (a) and 0.905 (b). Overfill 15.5% (a) vs 5.9% (b). **The main SFT starts from run 3 (b).**
   - **N.** Pilot (b) trained at 3,996.8 tokens/s (steps 11–125); rows average 2,778.6 tokens. 150 min fits 12,946
     rows; **N = 12,500** (1,563 steps, about 145 min). The overrun stop is 180 min after the start.
+- **Amendment 2 (06:58 UTC, before the main RL): the SFT result, the smoke and STEPS.**
+  - **SFT:** N = 12,500 rows, 1,563 steps in 8,675 s (5.55 s/step, 4,015 tokens/s, peak 33.2 GB allocated), final
+    10-step loss about 0.085. A first launch at 03:56 died at start (an environment-variable clash in the unit script,
+    no step trained) and was relaunched unchanged at 04:02.
+  - **RL step 0 (the SFT model), C sampled / greedy:** eval-2025 0.822 / 0.809, fresh 0.818 / 0.827; 100% valid, 89%
+    feasible; the DP on its own written forecasts would score 0.906 (eval-2025) and 0.912 (fresh); 43% of its schedules
+    are exactly that DP plan.
+  - **Engineering (no recipe change):** the first smoke at 06:36 hung before step 1: vLLM profiled its memory while
+    the trainer loaded and found no room for its KV cache. The unit now starts the trainer only after the rollout
+    engine is ready. vLLM keeps 40% of the GPU; the trainer uses gradient checkpointing; peak 31.0 GB in all.
+  - **Smoke (4 steps, discarded):** 74.3, 59.1, 61.0, 37.6 s/step (step 4 had no next batch generating beside it);
+    rollouts 38–43 s per batch of 32. Train c_F 0.91–0.94, realized C 0.70–0.83, valid 100%, 56–72% exact DP plans on
+    their own forecasts, 2.7–4.5% of executed hours with A_t < 0, entropy 0.08, KL ≤ 1.1e-4.
+  - **STEPS:** the registered s/step (mean of steps 2–4) is 52.6 s; + 5% = 55.2 s. The main RL starts at about 06:59,
+    leaving about 13,860 s to the 10:50 stop: 251 steps fit, so **STEPS = 250**. The steady state is nearer 60 s/step,
+    so the registered 10:50 wall-clock stop may end the run near step 230; that checkpoint is then the claim.
