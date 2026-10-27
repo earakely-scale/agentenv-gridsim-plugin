@@ -1,0 +1,56 @@
+{
+ "rows": 18028,
+ "skipped": {
+  "holdout_date": 960,
+  "no_lags": 1012,
+  "no_teacher": 0
+ },
+ "cells": {
+  "C0-empty": 2371,
+  "C0-full": 2469,
+  "C0-half": 2773,
+  "C1-empty": 2052,
+  "C1-full": 1434,
+  "C1-half": 1537,
+  "C2-empty": 2492,
+  "C2-full": 1125,
+  "C2-half": 1775
+ },
+ "holdout_dates": 100,
+ "holdout_tasks": 187,
+ "first_20000_cells": {
+  "C0-empty": 2371,
+  "C0-full": 2469,
+  "C0-half": 2773,
+  "C1-empty": 2052,
+  "C1-full": 1434,
+  "C1-half": 1537,
+  "C2-empty": 2492,
+  "C2-full": 1125,
+  "C2-half": 1775
+ },
+ "first_1000_cells": {
+  "C0-empty": 111,
+  "C0-full": 111,
+  "C0-half": 111,
+  "C1-empty": 111,
+  "C1-full": 111,
+  "C1-half": 111,
+  "C2-empty": 112,
+  "C2-full": 111,
+  "C2-half": 111
+ },
+ "years": {
+  "2014": 1200,
+  "2015": 801,
+  "2016": 938,
+  "2017": 1203,
+  "2018": 1535,
+  "2019": 1608,
+  "2020": 1608,
+  "2021": 1947,
+  "2022": 2918,
+  "2023": 2379,
+  "2024": 1891
+ }
+}
