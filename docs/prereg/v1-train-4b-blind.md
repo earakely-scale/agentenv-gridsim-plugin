@@ -218,3 +218,17 @@ adapters go to Scale-internal object storage under `gridsim/adapters/qwen3-4b-gr
 deviation from this file is listed in the README.
 
 ## Amendments
+- **Amendment 1 (03:58 UTC, before the main SFT): step-0 order, the pilot's start choice and N.**
+  - **Step-0 order (engineering).** Step 0 was planned to run on the GPU alongside pilot (a). The pilot SFT took
+    38 GB, so the vLLM engine could not start (it failed at load and wrote nothing). Step 0 then ran alone right after
+    pilot (a) and before pilot (b), on the same untrained checkpoints and harness. No training touches those models.
+  - **Step 0 (C, sampled / greedy):** untrained Qwen3-4B 0.164 / 0.169 on eval-2025 and 0.171 / 0.173 on fresh
+    (68% all-idle and 28% sell-before-charge on eval-2025; 95% wrote a forecast line). Run 3 zero-shot 0.366 / 0.363
+    and 0.330 / 0.361 (overfill 54%). This is below the prior's 0.68–0.76: with the forecast paragraph, run 3 writes a
+    forecast on every task and then breaks its plan.
+  - **Pilot** (first 1,000 rows, 125 steps, 696–699 s each, 4,000 tokens/s, peak 32.7 GB allocated without gradient
+    checkpointing). Holdout 2024 (187 tasks), sampled: **(a) base 0.520 [0.476, 0.564], (b) run 3 0.819 [0.788,
+    0.847]** (task bootstrap from the eval script). Both wrote a forecast on every task; the DP on those forecasts
+    would score 0.909 (a) and 0.905 (b). Overfill 15.5% (a) vs 5.9% (b). **The main SFT starts from run 3 (b).**
+  - **N.** Pilot (b) trained at 3,996.8 tokens/s (steps 11–125); rows average 2,778.6 tokens. 150 min fits 12,946
+    rows; **N = 12,500** (1,563 steps, about 145 min). The overrun stop is 180 min after the start.
