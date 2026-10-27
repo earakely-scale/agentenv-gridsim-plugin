@@ -55,11 +55,15 @@ better of two forecasters a desk could build from the same inputs.
 
 **The featured day,** {hero_caption}
 
-**[The live board]({app}/board.html):** every day from 2026-10-29, GPT-6.1 Sol, GPT-6 Luna, the trained 4B and
-three rules seal a schedule for 45 batteries before ERCOT's day-ahead market closes. The schedules are settled at
-the prices ERCOT then posts, and the P&L adds up day by day.
+**[What training bought, in dollars]({app}/results.html):** Qwen3-4B, trained on this environment's exact grader,
+went from below idle to bidding as well as GPT-6 Luna at a quarter of its cost, with GPT-6.1 Sol still ahead: the
+before and after, the score-against-cost frontier, the training runs and what the decisions earn per MW of battery.
 
-This Space holds **replays only**: every page plays back a recorded episode (`runs/*.json`, schema
+**[The live board]({app}/board.html):** on each pass, GPT-6.1 Sol, GPT-6 Luna, the trained 4B and three rules seal a
+schedule for 45 batteries before ERCOT's day-ahead market closes; the first seal is for 2026-10-29, and passes run on
+demand. The schedules are settled at the prices ERCOT then posts, and the P&L adds up day by day.
+
+The viewer holds **replays only**: every replay plays back a recorded episode (`runs/*.json`, schema
 `gridsim.episode/v1`). Nothing here calls a model. Each episode was re-verified through `gridsim_core` when the Space
 was built: the schedule is settled again under the contract physics and its profit and reward must match.
 

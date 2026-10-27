@@ -17,6 +17,17 @@
   </script>
 </head>
 <body>
+  <nav class="site-nav" aria-label="GridSimEnv pages"><a class="go" href="./results.html"><b>What training bought, in dollars</b><span>Qwen3-4B before and after, against GPT-6 Luna and GPT-6.1 Sol →</span></a><a href="./board.html"><b>Live board</b><span>Sealed before the market closes →</span></a></nav>
+  <style>
+    .site-nav { display: none; }
+    body.list-page .site-nav { display: flex; flex-wrap: wrap; gap: 10px; max-width: 1240px; margin: 0 auto; padding: 20px 24px 0; box-sizing: border-box; }
+    .site-nav a { display: flex; flex-direction: column; gap: 1px; padding: 9px 14px; border-radius: 12px; background: rgba(252, 251, 248, 0.94); border: 1px solid rgba(28, 35, 41, 0.1); color: var(--ink); text-decoration: none; font: 13px/1.35 var(--sans); }
+    .site-nav a.go { border-color: #1baf7a; box-shadow: inset 3px 0 0 #1baf7a; }
+    .site-nav a b { font-weight: 650; font-size: 14px; }
+    .site-nav a span { color: var(--ink2); }
+    .site-nav a:hover { background: #fff; }
+    body.list-page .list { padding-top: 18px; }
+  </style>
   <main id="app" aria-live="polite"><div class="boot">Loading the Battery Desk…</div></main>
   <script type="module" src="./app.js"></script>
 </body>
