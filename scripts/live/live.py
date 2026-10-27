@@ -536,7 +536,8 @@ def board() -> dict:
     names = list(AGENT_META) + ["blind_anchor", "hindsight_dp"]
     out = {"schema": "gridsim.live.board/v1", "updated_utc": utc(), "prereg": "docs/prereg/v1-live-board.md",
            "battery_mw": 100, "archetypes": list(ARCHETYPES), "points": POINTS, "graded_days": ok,
-           "invalid_seal_days": [d for d in days if d not in ok], "agents": {}, "timeline": timeline()}
+           "invalid_seal_days": [d for d in days if d not in ok], "api_spend_usd": round(spent(), 4), "agents": {},
+           "timeline": timeline()}
     for n in names:
         daily = {}
         for d in ok:

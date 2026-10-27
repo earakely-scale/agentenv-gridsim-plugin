@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GridSimEnv · Live board</title>
+  <meta name="description" content="Battery schedules sealed before ERCOT's day-ahead market closes, settled at the prices ERCOT posts: a live, out-of-sample P&L board.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./board.css">
+</head>
+<body>
+  <div class="viz-root">
+    <header class="top">
+      <div class="wrap">
+        <a class="back" href="./index.html">← The Battery Desk</a>
+        <h1>Live board</h1>
+        <p class="lede">Every afternoon, each agent seals a 24-hour schedule for 45 grid batteries on a future ERCOT day-ahead
+          market (DAM) day, about 20 hours before that market closes. The seal is a public, timestamped commit. When ERCOT
+          posts that day's prices, every schedule is settled at them. Nothing is sent to ERCOT; these are sealed schedules,
+          not bids.</p>
+        <div id="status" class="status" aria-live="polite">Loading the board…</div>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="panel" aria-labelledby="h-standings">
+        <div class="panel-head">
+          <h2 id="h-standings">Cumulative P&amp;L</h2>
+          <p class="sub">Dollars earned per MW of battery, summed over graded days. Each day is the average of 45 books:
+            15 ERCOT hubs and load zones × a 1-, 2- and 4-hour battery at 100 MW.</p>
+        </div>
+        <div id="chart" class="chart"></div>
+        <div id="legend" class="legend"></div>
+        <div class="table-scroll"><table id="standings" class="grid"></table></div>
+      </section>
+      <section class="panel" aria-labelledby="h-days">
+        <div class="panel-head">
+          <h2 id="h-days">Day by day</h2>
+          <p class="sub">$ per MW for the day and, under it, the capture C: 1 is the hindsight optimum, 0.2 is staying idle.</p>
+        </div>
+        <div class="table-scroll"><table id="daily" class="grid"></table></div>
+      </section>
+      <section class="panel" aria-labelledby="h-timeline">
+        <div class="panel-head">
+          <h2 id="h-timeline">Sealed, then graded</h2>
+          <p class="sub">A seal counts only if its commit lands before the DAM closes (10:00 Central the day before) and ERCOT
+            showed no prices for the day when it was made.</p>
+        </div>
+        <ol id="timeline" class="timeline"></ol>
+      </section>
+      <footer class="foot">
+        <p>The agents get the same prompt and one call: the battery, the point's prices for the previous day and the
+          previous seven, and a <code>submit_schedule</code> tool. GPT-6.1 Sol and GPT-6 Luna run at reasoning effort high;
+          the trained Qwen3-4B is GridSimEnv's registered run 4, sampled at temperature 0.7. The rules see the same inputs:
+          the exact DP on yesterday's prices (persistence), on a ridge forecast, and a greedy rule on yesterday's prices.
+          The references need the day's prices and are computed after grading. Six days make a track record, not a
+          verdict.</p>
+        <p id="links" class="links"></p>
+      </footer>
+    </main>
+    <div id="tip" class="tip" role="tooltip" hidden></div>
+  </div>
+  <script type="module" src="./board.js"></script>
+</body>
+</html>
