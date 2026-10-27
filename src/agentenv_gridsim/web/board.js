@@ -160,6 +160,10 @@ function who(b, n) {
 }
 
 function standings(b) {
+  if (!b.graded_days.length) {
+    $("standings").innerHTML = "";
+    return;
+  }
   const rows = ORDER.filter((n) => b.agents[n] && !REFS.has(n)).sort((a, c) => (b.agents[c].total_usd_per_mw ?? -1e9) - (b.agents[a].total_usd_per_mw ?? -1e9));
   const gap = (g) => (g ? `${usd(g.usd_per_mw_per_day.mean, true)} <span class="ci">[${usd(g.usd_per_mw_per_day.ci[0], true)}, ${usd(g.usd_per_mw_per_day.ci[1], true)}]</span>` : `<span class="na">–</span>`);
   const row = (n, ref) => {

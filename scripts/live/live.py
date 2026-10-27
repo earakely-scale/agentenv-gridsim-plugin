@@ -452,11 +452,12 @@ def publish_seal(d: str) -> dict | None:
     rec = day_dir(d) / "seal_commit.json"
     if rec.exists():
         return load(rec)
-    if dt.datetime.now(UTC) > deadline(d):
+    path = f"live/sealed/{d}.json"
+    c = published(path, day_dir(d) / "sealed.json")
+    if not c and dt.datetime.now(UTC) > deadline(d):
         log(f"{d}: sealed file was not published before the deadline")
         return None
-    path = f"live/sealed/{d}.json"
-    c = published(path, day_dir(d) / "sealed.json") or commit({path: day_dir(d) / "sealed.json"}, f"live: seal {d}")
+    c = c or commit({path: day_dir(d) / "sealed.json"}, f"live: seal {d}")
     if c:
         dump(rec, c)
         log(f"{d}: seal published {c['url']} at {c['created_utc']}")
