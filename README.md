@@ -334,6 +334,23 @@ days, the hypotheses against what was measured, and the unscored runs. `results/
 scored run replays: `agent-env gridsim episodes` played each recorded tool call again on a fresh env and every output
 and reward matched. The board spent $25.88 on the model. More models play once v1 is final.
 
+### What the decisions are worth
+
+[`results/economics/`](results/economics/) puts dollars on every blind-tier result. Each recorded schedule is settled
+again at ERCOT's prices, and its profit is put per MW of battery power.
+
+| blind eval-2025, $k per MW-year | GPT-6.1 Sol | persistence-DP | trained Qwen3-4B (run 4) | hindsight optimum |
+|---|---:|---:|---:|---:|
+| day-ahead arbitrage profit | 32.1 | 30.5 | 27.1 | 37.0 |
+
+- **Sol over persistence-DP** (the exact optimum on yesterday's prices): +$1.6k per MW-year [+0.8, +2.4], about $156k
+  a year for a 100 MW battery. Its CI is above 0 on the fresh October 2026 days too (+$1.4k).
+- **The trained 4B is below persistence-DP:** −$3.4k per MW-year [−5.6, −1.5].
+- **Inference cost does not decide it.** Sol costs $5.77 per battery-year to run, whatever the battery's size.
+
+It is day-ahead energy arbitrage only, with no real-time market or ancillary services, and a descriptive re-analysis
+computed after the results.
+
 ## Training
 
 GridSimEnv trains on **path B**: one prompt and one completion per battery-day, graded by the same code as the env.

@@ -1,0 +1,2394 @@
+{
+ "what": "profit per MW of battery discharge power per battery-day ($/MW-day): each task's settled profit divided by its p_dis_mw, the task-weighted mean over the pack; x 365 for $/MW-yr",
+ "metric_source": "gridsim_core.grade(task, actions, 'blind')['profit'] on every recorded schedule",
+ "invalid": "a reply with no valid schedule settles as idle (the battery does nothing; an end-of-day obligation shortfall is charged as for any schedule); usd_per_mw_day_invalid_as_0 counts it $0",
+ "bootstrap": "day-block, 10,000 resamples, seed 0, task-weighted (report_blind.boot / paired)",
+ "status": "descriptive re-analysis computed after the results; not pre-registered",
+ "packs": {
+  "eval2025": {
+   "pack": "ercot-dam-v1-eval",
+   "n_tasks": 300,
+   "n_days": 191,
+   "dates": [
+    "2025-01-06",
+    "2025-11-30"
+   ],
+   "mw": {
+    "mean": 114.0,
+    "min": 7.5,
+    "max": 225.0
+   },
+   "battery_hours": {
+    "1h": 102,
+    "2h": 105,
+    "4h": 93
+   },
+   "c_deg_usd_per_mwh": {
+    "0.0": 122,
+    "4.0": 86,
+    "8.0": 92
+   },
+   "rows": {
+    "optimum": {
+     "label": "hindsight optimum (DP on the day's own prices)",
+     "kind": "reference",
+     "usd_per_mw_day": {
+      "mean": 101.4392,
+      "ci": [
+       89.8025,
+       114.6692
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 37.025,
+      "ci": [
+       32.778,
+       41.854
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 3702.531,
+      "ci": [
+       3277.791,
+       4185.426
+      ]
+     }
+    },
+    "anchor": {
+     "label": "blind anchor: max(persistence-DP, ridge-DP) per task, an oracle pick",
+     "kind": "reference",
+     "usd_per_mw_day": {
+      "mean": 89.248,
+      "ci": [
+       78.9179,
+       100.9375
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 32.576,
+      "ci": [
+       28.805,
+       36.842
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 3257.552,
+      "ci": [
+       2880.503,
+       3684.219
+      ]
+     }
+    },
+    "persistence-dp": {
+     "label": "persistence-DP: exact DP on yesterday's prices",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 83.5993,
+      "ci": [
+       73.3627,
+       95.441
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 30.514,
+      "ci": [
+       26.777,
+       34.836
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 3051.374,
+      "ci": [
+       2677.739,
+       3483.597
+      ]
+     }
+    },
+    "ridge-dp": {
+     "label": "ridge-DP: exact DP on ridge-v1",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 71.9882,
+      "ci": [
+       62.9766,
+       81.8923
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 26.276,
+      "ci": [
+       22.986,
+       29.891
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2627.569,
+      "ci": [
+       2298.646,
+       2989.069
+      ]
+     }
+    },
+    "greedy-d1": {
+     "label": "greedy rule on yesterday's prices",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 59.7387,
+      "ci": [
+       50.5008,
+       69.6791
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 21.805,
+      "ci": [
+       18.433,
+       25.433
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2180.463,
+      "ci": [
+       1843.279,
+       2543.287
+      ]
+     }
+    },
+    "threshold-d1": {
+     "label": "threshold rule on yesterday's prices",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 44.407,
+      "ci": [
+       36.6346,
+       52.792
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 16.209,
+      "ci": [
+       13.372,
+       19.269
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1620.855,
+      "ci": [
+       1337.163,
+       1926.908
+      ]
+     }
+    },
+    "greedy-fs": {
+     "label": "greedy rule on the day's own prices (sees the day)",
+     "kind": "foresight baseline",
+     "usd_per_mw_day": {
+      "mean": 67.8825,
+      "ci": [
+       58.3344,
+       78.2408
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 24.777,
+      "ci": [
+       21.292,
+       28.558
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2477.711,
+      "ci": [
+       2129.206,
+       2855.789
+      ]
+     }
+    },
+    "threshold-fs": {
+     "label": "threshold rule on the day's own prices (sees the day)",
+     "kind": "foresight baseline",
+     "usd_per_mw_day": {
+      "mean": 53.8515,
+      "ci": [
+       46.0329,
+       62.4845
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 19.656,
+      "ci": [
+       16.802,
+       22.807
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1965.58,
+      "ci": [
+       1680.201,
+       2280.684
+      ]
+     }
+    },
+    "idle": {
+     "label": "idle (the battery does nothing)",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": -21.3859,
+      "ci": [
+       -27.56,
+       -15.4841
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -7.806,
+      "ci": [
+       -10.059,
+       -5.652
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -780.585,
+      "ci": [
+       -1005.94,
+       -565.17
+      ]
+     }
+    },
+    "sol": {
+     "label": "GPT-6.1 Sol, effort high",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 87.8664,
+      "ci": [
+       77.4884,
+       99.6309
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 32.071,
+      "ci": [
+       28.283,
+       36.365
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 3207.124,
+      "ci": [
+       2828.327,
+       3636.528
+      ]
+     },
+     "valid": 0.99,
+     "usd_per_mw_day_invalid_as_0": 87.8664,
+     "usd_inference_per_battery_day": 0.015804
+    },
+    "luna-high": {
+     "label": "GPT-6 Luna, effort high",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 78.5976,
+      "ci": [
+       68.1239,
+       90.6464
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 28.688,
+      "ci": [
+       24.865,
+       33.086
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2868.812,
+      "ci": [
+       2486.522,
+       3308.594
+      ]
+     },
+     "valid": 0.99,
+     "usd_per_mw_day_invalid_as_0": 78.5976,
+     "usd_inference_per_battery_day": 0.00202
+    },
+    "luna-low": {
+     "label": "GPT-6 Luna, effort low",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 55.4755,
+      "ci": [
+       45.4875,
+       66.8573
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 20.249,
+      "ci": [
+       16.603,
+       24.403
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2024.856,
+      "ci": [
+       1660.294,
+       2440.291
+      ]
+     },
+     "valid": 0.9967,
+     "usd_per_mw_day_invalid_as_0": 55.8877,
+     "usd_inference_per_battery_day": 0.000526
+    },
+    "4b-sampled": {
+     "label": "trained Qwen3-4B, run 4 final, sampled",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": 74.2529,
+      "ci": [
+       63.6157,
+       85.9775
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 27.102,
+      "ci": [
+       23.22,
+       31.382
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2710.231,
+      "ci": [
+       2321.973,
+       3138.179
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 74.2529,
+     "usd_inference_per_battery_day": 0.000479
+    },
+    "4b-greedy": {
+     "label": "trained Qwen3-4B, run 4 final, greedy",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": 75.6922,
+      "ci": [
+       64.4663,
+       87.8782
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 27.628,
+      "ci": [
+       23.53,
+       32.076
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2762.765,
+      "ci": [
+       2353.02,
+       3207.554
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 75.6922,
+     "usd_inference_per_battery_day": 0.000475
+    },
+    "sft": {
+     "label": "Qwen3-4B SFT start of run 4 (RL step 0), sampled",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": 73.0577,
+      "ci": [
+       62.6757,
+       84.7714
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 26.666,
+      "ci": [
+       22.877,
+       30.942
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2666.606,
+      "ci": [
+       2287.663,
+       3094.156
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 73.0577,
+     "usd_inference_per_battery_day": 0.000466
+    },
+    "base": {
+     "label": "untrained Qwen3-4B, sampled",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": -38.6126,
+      "ci": [
+       -48.9405,
+       -29.1672
+      ],
+      "n": 300,
+      "days": 191
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -14.094,
+      "ci": [
+       -17.863,
+       -10.646
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -1409.36,
+      "ci": [
+       -1786.328,
+       -1064.603
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": -38.6126,
+     "usd_inference_per_battery_day": 0.000366
+    }
+   },
+   "gaps": {
+    "sol - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": 4.2671,
+      "ci": [
+       2.1032,
+       6.6452
+      ],
+      "n": 300,
+      "days": 191,
+      "ahead": 0.4533,
+      "level": 0.37,
+      "days_ahead": 101
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 1.557,
+      "ci": [
+       0.768,
+       2.425
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 155.749,
+      "ci": [
+       76.767,
+       242.55
+      ]
+     },
+     "ahead": 0.4533,
+     "level": 0.37,
+     "days_ahead": 101,
+     "label": "GPT-6.1 Sol \u2212 persistence-DP"
+    },
+    "sol - ridge-dp": {
+     "usd_per_mw_day": {
+      "mean": 15.8782,
+      "ci": [
+       9.3361,
+       24.5567
+      ],
+      "n": 300,
+      "days": 191,
+      "ahead": 0.71,
+      "level": 0.0767,
+      "days_ahead": 146
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 5.796,
+      "ci": [
+       3.408,
+       8.963
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 579.554,
+      "ci": [
+       340.768,
+       896.32
+      ]
+     },
+     "ahead": 0.71,
+     "level": 0.0767,
+     "days_ahead": 146,
+     "label": "GPT-6.1 Sol \u2212 ridge-DP"
+    },
+    "4b-sampled - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": -9.3464,
+      "ci": [
+       -15.2092,
+       -4.0112
+      ],
+      "n": 300,
+      "days": 191,
+      "ahead": 0.3933,
+      "level": 0.0967,
+      "days_ahead": 72
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -3.411,
+      "ci": [
+       -5.551,
+       -1.464
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -341.144,
+      "ci": [
+       -555.136,
+       -146.409
+      ]
+     },
+     "ahead": 0.3933,
+     "level": 0.0967,
+     "days_ahead": 72,
+     "label": "trained Qwen3-4B (run 4) \u2212 persistence-DP"
+    },
+    "sol - 4b-sampled": {
+     "usd_per_mw_day": {
+      "mean": 13.6136,
+      "ci": [
+       8.5528,
+       19.1405
+      ],
+      "n": 300,
+      "days": 191,
+      "ahead": 0.5533,
+      "level": 0.1867,
+      "days_ahead": 118
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 4.969,
+      "ci": [
+       3.122,
+       6.986
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 496.896,
+      "ci": [
+       312.177,
+       698.628
+      ]
+     },
+     "ahead": 0.5533,
+     "level": 0.1867,
+     "days_ahead": 118,
+     "label": "GPT-6.1 Sol \u2212 trained Qwen3-4B (run 4)"
+    },
+    "luna-high - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": -5.0017,
+      "ci": [
+       -7.8335,
+       -2.056
+      ],
+      "n": 300,
+      "days": 191,
+      "ahead": 0.3133,
+      "level": 0.1267,
+      "days_ahead": 57
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -1.826,
+      "ci": [
+       -2.859,
+       -0.75
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -182.562,
+      "ci": [
+       -285.923,
+       -75.044
+      ]
+     },
+     "ahead": 0.3133,
+     "level": 0.1267,
+     "days_ahead": 57,
+     "label": "GPT-6 Luna, high \u2212 persistence-DP"
+    },
+    "4b-sampled - base": {
+     "usd_per_mw_day": {
+      "mean": 112.8654,
+      "ci": [
+       100.1431,
+       126.4341
+      ],
+      "n": 300,
+      "days": 191,
+      "ahead": 0.9767,
+      "level": 0.0033,
+      "days_ahead": 186
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 41.196,
+      "ci": [
+       36.552,
+       46.148
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 4119.587,
+      "ci": [
+       3655.223,
+       4614.845
+      ]
+     },
+     "ahead": 0.9767,
+     "level": 0.0033,
+     "days_ahead": 186,
+     "label": "trained Qwen3-4B (run 4) \u2212 untrained Qwen3-4B"
+    }
+   },
+   "gaps_invalid_as_0": {
+    "sol - persistence-dp": {
+     "mean": 4.2671,
+     "ci": [
+      2.1032,
+      6.6452
+     ]
+    },
+    "sol - ridge-dp": {
+     "mean": 15.8782,
+     "ci": [
+      9.3361,
+      24.5567
+     ]
+    },
+    "sol - 4b-sampled": {
+     "mean": 13.6136,
+     "ci": [
+      8.5528,
+      19.1405
+     ]
+    },
+    "luna-high - persistence-dp": {
+     "mean": -5.0017,
+     "ci": [
+      -7.8335,
+      -2.056
+     ]
+    }
+   },
+   "beam": null,
+   "share_of_persistence_to_optimum_gap_closed": {
+    "sol": 0.2392,
+    "luna-high": -0.2804,
+    "4b-sampled": -0.5239
+   },
+   "concentration": {
+    "unit": "day means of $/MW-day over each day's battery-days",
+    "top_days": 19,
+    "n_days": 191,
+    "optimum_share_in_top_days": 0.3033,
+    "top_days_by_optimum": [
+     {
+      "date": "2025-02-20",
+      "optimum": 920.65
+     },
+     {
+      "date": "2025-08-20",
+      "optimum": 430.38
+     },
+     {
+      "date": "2025-05-15",
+      "optimum": 390.98
+     },
+     {
+      "date": "2025-03-28",
+      "optimum": 388.29
+     },
+     {
+      "date": "2025-07-31",
+      "optimum": 332.22
+     }
+    ],
+    "shape_change": "1 - Pearson r of day D's 24 hourly prices with D-1's, mean over the day's battery-days",
+    "vs_persistence": {
+     "sol": {
+      "days_ahead": 101,
+      "days_level": 52,
+      "days_behind": 38,
+      "net_gain_share_from_top_days": 0.852,
+      "best_days": [
+       {
+        "date": "2025-01-27",
+        "gap": 94.14,
+        "shape_change": 0.533,
+        "optimum": 272.74
+       },
+       {
+        "date": "2025-11-10",
+        "gap": 62.65,
+        "shape_change": 0.705,
+        "optimum": 125.81
+       },
+       {
+        "date": "2025-11-20",
+        "gap": 43.8,
+        "shape_change": 0.295,
+        "optimum": 272.82
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2025-09-04",
+        "gap": -51.83,
+        "shape_change": 0.095,
+        "optimum": 93.08
+       },
+       {
+        "date": "2025-07-03",
+        "gap": -30.95,
+        "shape_change": 0.141,
+        "optimum": 47.51
+       },
+       {
+        "date": "2025-01-26",
+        "gap": -28.69,
+        "shape_change": 0.235,
+        "optimum": 95.04
+       }
+      ]
+     },
+     "luna-high": {
+      "days_ahead": 57,
+      "days_level": 19,
+      "days_behind": 115,
+      "net_gain_share_from_top_days": null,
+      "best_days": [
+       {
+        "date": "2025-01-27",
+        "gap": 87.85,
+        "shape_change": 0.533,
+        "optimum": 272.74
+       },
+       {
+        "date": "2025-05-01",
+        "gap": 72.41,
+        "shape_change": 0.395,
+        "optimum": 143.42
+       },
+       {
+        "date": "2025-04-22",
+        "gap": 43.55,
+        "shape_change": 0.294,
+        "optimum": 326.31
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2025-03-24",
+        "gap": -88.07,
+        "shape_change": 0.155,
+        "optimum": 203.79
+       },
+       {
+        "date": "2025-05-10",
+        "gap": -84.93,
+        "shape_change": 0.036,
+        "optimum": 98.0
+       },
+       {
+        "date": "2025-01-07",
+        "gap": -66.2,
+        "shape_change": 0.233,
+        "optimum": 110.71
+       }
+      ]
+     },
+     "4b-sampled": {
+      "days_ahead": 72,
+      "days_level": 11,
+      "days_behind": 108,
+      "net_gain_share_from_top_days": null,
+      "best_days": [
+       {
+        "date": "2025-05-01",
+        "gap": 84.04,
+        "shape_change": 0.395,
+        "optimum": 143.42
+       },
+       {
+        "date": "2025-01-27",
+        "gap": 73.05,
+        "shape_change": 0.533,
+        "optimum": 272.74
+       },
+       {
+        "date": "2025-11-18",
+        "gap": 53.88,
+        "shape_change": 0.17,
+        "optimum": 197.86
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2025-08-20",
+        "gap": -242.58,
+        "shape_change": 0.061,
+        "optimum": 430.38
+       },
+       {
+        "date": "2025-04-20",
+        "gap": -170.19,
+        "shape_change": 0.061,
+        "optimum": 329.95
+       },
+       {
+        "date": "2025-05-10",
+        "gap": -124.64,
+        "shape_change": 0.036,
+        "optimum": 98.0
+       }
+      ]
+     }
+    },
+    "by_shape_change_quartile": [
+     {
+      "quartile": 1,
+      "n_days": 48,
+      "n_tasks": 75,
+      "shape_change": [
+       0.007,
+       0.045
+      ],
+      "optimum": {
+       "mean": 92.0081,
+       "ci": [
+        77.0833,
+        109.1546
+       ],
+       "n": 75,
+       "days": 48
+      },
+      "persistence_shortfall": {
+       "mean": 3.6847,
+       "ci": [
+        2.4137,
+        5.1918
+       ],
+       "n": 75,
+       "days": 48
+      },
+      "sol - persistence-dp": {
+       "mean": 0.1541,
+       "ci": [
+        -1.9522,
+        1.9732
+       ],
+       "n": 75,
+       "days": 48,
+       "ahead": 0.28,
+       "level": 0.5733,
+       "days_ahead": 17
+      },
+      "luna-high - persistence-dp": {
+       "mean": -9.5233,
+       "ci": [
+        -15.1062,
+        -5.3457
+       ],
+       "n": 75,
+       "days": 48,
+       "ahead": 0.12,
+       "level": 0.2133,
+       "days_ahead": 5
+      },
+      "4b-sampled - persistence-dp": {
+       "mean": -13.0239,
+       "ci": [
+        -22.7618,
+        -5.6045
+       ],
+       "n": 75,
+       "days": 48,
+       "ahead": 0.2,
+       "level": 0.1733,
+       "days_ahead": 7
+      }
+     },
+     {
+      "quartile": 2,
+      "n_days": 47,
+      "n_tasks": 76,
+      "shape_change": [
+       0.046,
+       0.107
+      ],
+      "optimum": {
+       "mean": 109.1303,
+       "ci": [
+        86.0023,
+        137.553
+       ],
+       "n": 76,
+       "days": 47
+      },
+      "persistence_shortfall": {
+       "mean": 10.4562,
+       "ci": [
+        6.8715,
+        14.7837
+       ],
+       "n": 76,
+       "days": 47
+      },
+      "sol - persistence-dp": {
+       "mean": 0.9033,
+       "ci": [
+        -2.9222,
+        4.1986
+       ],
+       "n": 76,
+       "days": 47,
+       "ahead": 0.3947,
+       "level": 0.3947,
+       "days_ahead": 20
+      },
+      "luna-high - persistence-dp": {
+       "mean": -10.4108,
+       "ci": [
+        -15.5042,
+        -5.7427
+       ],
+       "n": 76,
+       "days": 47,
+       "ahead": 0.2895,
+       "level": 0.1053,
+       "days_ahead": 13
+      },
+      "4b-sampled - persistence-dp": {
+       "mean": -22.6113,
+       "ci": [
+        -39.8583,
+        -9.0979
+       ],
+       "n": 76,
+       "days": 47,
+       "ahead": 0.3289,
+       "level": 0.1053,
+       "days_ahead": 14
+      }
+     },
+     {
+      "quartile": 3,
+      "n_days": 48,
+      "n_tasks": 77,
+      "shape_change": [
+       0.107,
+       0.248
+      ],
+      "optimum": {
+       "mean": 72.7759,
+       "ci": [
+        61.1789,
+        86.5013
+       ],
+       "n": 77,
+       "days": 48
+      },
+      "persistence_shortfall": {
+       "mean": 16.6674,
+       "ci": [
+        12.2136,
+        21.3379
+       ],
+       "n": 77,
+       "days": 48
+      },
+      "sol - persistence-dp": {
+       "mean": 3.7462,
+       "ci": [
+        0.3569,
+        7.2364
+       ],
+       "n": 77,
+       "days": 48,
+       "ahead": 0.4805,
+       "level": 0.3247,
+       "days_ahead": 28
+      },
+      "luna-high - persistence-dp": {
+       "mean": -3.0936,
+       "ci": [
+        -8.2195,
+        2.0039
+       ],
+       "n": 77,
+       "days": 48,
+       "ahead": 0.3896,
+       "level": 0.0909,
+       "days_ahead": 15
+      },
+      "4b-sampled - persistence-dp": {
+       "mean": -1.3857,
+       "ci": [
+        -6.4226,
+        3.947
+       ],
+       "n": 77,
+       "days": 48,
+       "ahead": 0.5065,
+       "level": 0.0519,
+       "days_ahead": 24
+      }
+     },
+     {
+      "quartile": 4,
+      "n_days": 48,
+      "n_tasks": 72,
+      "shape_change": [
+       0.256,
+       0.895
+      ],
+      "optimum": {
+       "mean": 133.7985,
+       "ci": [
+        102.7168,
+        171.3077
+       ],
+       "n": 72,
+       "days": 48
+      },
+      "persistence_shortfall": {
+       "mean": 41.6324,
+       "ci": [
+        29.3506,
+        54.5
+       ],
+       "n": 72,
+       "days": 48
+      },
+      "sol - persistence-dp": {
+       "mean": 12.6593,
+       "ci": [
+        6.489,
+        20.1074
+       ],
+       "n": 72,
+       "days": 48,
+       "ahead": 0.6667,
+       "level": 0.1806,
+       "days_ahead": 36
+      },
+      "luna-high - persistence-dp": {
+       "mean": 3.3772,
+       "ci": [
+        -3.4474,
+        11.5015
+       ],
+       "n": 72,
+       "days": 48,
+       "ahead": 0.4583,
+       "level": 0.0972,
+       "days_ahead": 24
+      },
+      "4b-sampled - persistence-dp": {
+       "mean": -0.0276,
+       "ci": [
+        -11.3449,
+        10.6277
+       ],
+       "n": 72,
+       "days": 48,
+       "ahead": 0.5417,
+       "level": 0.0556,
+       "days_ahead": 27
+      }
+     }
+    ]
+   }
+  },
+  "fresh": {
+   "pack": "ercot-dam-v1-fresh-2026-10-blind",
+   "n_tasks": 331,
+   "n_days": 10,
+   "dates": [
+    "2026-10-18",
+    "2026-10-27"
+   ],
+   "mw": {
+    "mean": 111.2,
+    "min": 7.5,
+    "max": 225.0
+   },
+   "battery_hours": {
+    "1h": 108,
+    "2h": 151,
+    "4h": 72
+   },
+   "c_deg_usd_per_mwh": {
+    "0.0": 130,
+    "4.0": 121,
+    "8.0": 80
+   },
+   "rows": {
+    "optimum": {
+     "label": "hindsight optimum (DP on the day's own prices)",
+     "kind": "reference",
+     "usd_per_mw_day": {
+      "mean": 74.9322,
+      "ci": [
+       58.0974,
+       94.2952
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 27.35,
+      "ci": [
+       21.206,
+       34.418
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2735.025,
+      "ci": [
+       2120.555,
+       3441.775
+      ]
+     }
+    },
+    "anchor": {
+     "label": "blind anchor: max(persistence-DP, ridge-DP) per task, an oracle pick",
+     "kind": "reference",
+     "usd_per_mw_day": {
+      "mean": 67.6363,
+      "ci": [
+       49.2532,
+       88.7059
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 24.687,
+      "ci": [
+       17.977,
+       32.378
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2468.725,
+      "ci": [
+       1797.742,
+       3237.765
+      ]
+     }
+    },
+    "persistence-dp": {
+     "label": "persistence-DP: exact DP on yesterday's prices",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 63.3714,
+      "ci": [
+       43.8683,
+       84.9219
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 23.131,
+      "ci": [
+       16.012,
+       30.996
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2313.056,
+      "ci": [
+       1601.193,
+       3099.649
+      ]
+     }
+    },
+    "ridge-dp": {
+     "label": "ridge-DP: exact DP on ridge-v1",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 64.6257,
+      "ci": [
+       46.3453,
+       86.0077
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 23.588,
+      "ci": [
+       16.916,
+       31.393
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2358.838,
+      "ci": [
+       1691.603,
+       3139.281
+      ]
+     }
+    },
+    "greedy-d1": {
+     "label": "greedy rule on yesterday's prices",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 51.102,
+      "ci": [
+       32.7024,
+       71.5028
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 18.652,
+      "ci": [
+       11.936,
+       26.099
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1865.223,
+      "ci": [
+       1193.638,
+       2609.852
+      ]
+     }
+    },
+    "threshold-d1": {
+     "label": "threshold rule on yesterday's prices",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": 51.4217,
+      "ci": [
+       33.5968,
+       71.9458
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 18.769,
+      "ci": [
+       12.263,
+       26.26
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1876.892,
+      "ci": [
+       1226.283,
+       2626.022
+      ]
+     }
+    },
+    "greedy-fs": {
+     "label": "greedy rule on the day's own prices (sees the day)",
+     "kind": "foresight baseline",
+     "usd_per_mw_day": {
+      "mean": 48.7764,
+      "ci": [
+       27.9389,
+       71.7759
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 17.803,
+      "ci": [
+       10.198,
+       26.198
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1780.339,
+      "ci": [
+       1019.77,
+       2619.82
+      ]
+     }
+    },
+    "threshold-fs": {
+     "label": "threshold rule on the day's own prices (sees the day)",
+     "kind": "foresight baseline",
+     "usd_per_mw_day": {
+      "mean": 52.3956,
+      "ci": [
+       37.5673,
+       66.7541
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 19.124,
+      "ci": [
+       13.712,
+       24.365
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1912.439,
+      "ci": [
+       1371.206,
+       2436.525
+      ]
+     }
+    },
+    "idle": {
+     "label": "idle (the battery does nothing)",
+     "kind": "baseline",
+     "usd_per_mw_day": {
+      "mean": -12.614,
+      "ci": [
+       -16.3111,
+       -9.6341
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -4.604,
+      "ci": [
+       -5.954,
+       -3.516
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -460.411,
+      "ci": [
+       -595.355,
+       -351.645
+      ]
+     }
+    },
+    "sol": {
+     "label": "GPT-6.1 Sol, effort high",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 67.1762,
+      "ci": [
+       49.5844,
+       87.1008
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 24.519,
+      "ci": [
+       18.098,
+       31.792
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2451.931,
+      "ci": [
+       1809.831,
+       3179.179
+      ]
+     },
+     "valid": 0.9909,
+     "usd_per_mw_day_invalid_as_0": 67.2876,
+     "usd_inference_per_battery_day": 0.015847
+    },
+    "luna-high": {
+     "label": "GPT-6 Luna, effort high",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 58.5055,
+      "ci": [
+       43.6508,
+       74.8941
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 21.355,
+      "ci": [
+       15.933,
+       27.336
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2135.451,
+      "ci": [
+       1593.254,
+       2733.635
+      ]
+     },
+     "valid": 0.9879,
+     "usd_per_mw_day_invalid_as_0": 59.0781,
+     "usd_inference_per_battery_day": 0.002013
+    },
+    "luna-medium": {
+     "label": "GPT-6 Luna, effort medium",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 55.1828,
+      "ci": [
+       40.3807,
+       72.7409
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 20.142,
+      "ci": [
+       14.739,
+       26.55
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2014.172,
+      "ci": [
+       1473.896,
+       2655.043
+      ]
+     },
+     "valid": 0.9789,
+     "usd_per_mw_day_invalid_as_0": 55.1828,
+     "usd_inference_per_battery_day": 0.001186
+    },
+    "luna-low": {
+     "label": "GPT-6 Luna, effort low",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 41.973,
+      "ci": [
+       31.1791,
+       52.4555
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 15.32,
+      "ci": [
+       11.38,
+       19.146
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1532.014,
+      "ci": [
+       1138.037,
+       1914.626
+      ]
+     },
+     "valid": 0.9819,
+     "usd_per_mw_day_invalid_as_0": 42.0676,
+     "usd_inference_per_battery_day": 0.000524
+    },
+    "beam-high": {
+     "label": "Beam-1.0, effort high",
+     "kind": "llm",
+     "usd_per_mw_day": {
+      "mean": 59.9289,
+      "ci": [
+       44.8776,
+       78.5093
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 21.874,
+      "ci": [
+       16.38,
+       28.656
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2187.405,
+      "ci": [
+       1638.032,
+       2865.589
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 59.9289,
+     "usd_inference_per_battery_day": 0.020318
+    },
+    "4b-sampled": {
+     "label": "trained Qwen3-4B, run 4 final, sampled",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": 57.7051,
+      "ci": [
+       42.8263,
+       73.7256
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 21.062,
+      "ci": [
+       15.632,
+       26.91
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2106.236,
+      "ci": [
+       1563.16,
+       2690.984
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 57.7051,
+     "usd_inference_per_battery_day": 0.000474
+    },
+    "4b-greedy": {
+     "label": "trained Qwen3-4B, run 4 final, greedy",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": 58.3995,
+      "ci": [
+       42.2042,
+       75.9062
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 21.316,
+      "ci": [
+       15.405,
+       27.706
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 2131.582,
+      "ci": [
+       1540.453,
+       2770.576
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 58.3995,
+     "usd_inference_per_battery_day": 0.000476
+    },
+    "sft": {
+     "label": "Qwen3-4B SFT start of run 4 (RL step 0), sampled",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": 54.343,
+      "ci": [
+       40.9274,
+       68.2687
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 19.835,
+      "ci": [
+       14.939,
+       24.918
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 1983.52,
+      "ci": [
+       1493.85,
+       2491.808
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": 54.343,
+     "usd_inference_per_battery_day": 0.000444
+    },
+    "base": {
+     "label": "untrained Qwen3-4B, sampled",
+     "kind": "trained",
+     "usd_per_mw_day": {
+      "mean": -27.8154,
+      "ci": [
+       -41.4162,
+       -14.1969
+      ],
+      "n": 331,
+      "days": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -10.153,
+      "ci": [
+       -15.117,
+       -5.182
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -1015.262,
+      "ci": [
+       -1511.691,
+       -518.187
+      ]
+     },
+     "valid": 1.0,
+     "usd_per_mw_day_invalid_as_0": -27.8154,
+     "usd_inference_per_battery_day": 0.000327
+    }
+   },
+   "gaps": {
+    "sol - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": 3.8047,
+      "ci": [
+       0.9461,
+       7.3316
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.4683,
+      "level": 0.3051,
+      "days_ahead": 9
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 1.389,
+      "ci": [
+       0.345,
+       2.676
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 138.872,
+      "ci": [
+       34.533,
+       267.603
+      ]
+     },
+     "ahead": 0.4683,
+     "level": 0.3051,
+     "days_ahead": 9,
+     "label": "GPT-6.1 Sol \u2212 persistence-DP"
+    },
+    "sol - ridge-dp": {
+     "usd_per_mw_day": {
+      "mean": 2.5505,
+      "ci": [
+       0.0092,
+       4.6862
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.5619,
+      "level": 0.0997,
+      "days_ahead": 8
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 0.931,
+      "ci": [
+       0.003,
+       1.71
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 93.093,
+      "ci": [
+       0.336,
+       171.046
+      ]
+     },
+     "ahead": 0.5619,
+     "level": 0.0997,
+     "days_ahead": 8,
+     "label": "GPT-6.1 Sol \u2212 ridge-DP"
+    },
+    "4b-sampled - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": -5.6664,
+      "ci": [
+       -11.9953,
+       0.6558
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.4048,
+      "level": 0.0423,
+      "days_ahead": 4
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -2.068,
+      "ci": [
+       -4.378,
+       0.239
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -206.824,
+      "ci": [
+       -437.828,
+       23.937
+      ]
+     },
+     "ahead": 0.4048,
+     "level": 0.0423,
+     "days_ahead": 4,
+     "label": "trained Qwen3-4B (run 4) \u2212 persistence-DP"
+    },
+    "sol - 4b-sampled": {
+     "usd_per_mw_day": {
+      "mean": 9.4711,
+      "ci": [
+       5.3241,
+       14.0938
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.6495,
+      "level": 0.0937,
+      "days_ahead": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 3.457,
+      "ci": [
+       1.943,
+       5.144
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 345.695,
+      "ci": [
+       194.33,
+       514.424
+      ]
+     },
+     "ahead": 0.6495,
+     "level": 0.0937,
+     "days_ahead": 10,
+     "label": "GPT-6.1 Sol \u2212 trained Qwen3-4B (run 4)"
+    },
+    "luna-high - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": -4.866,
+      "ci": [
+       -10.97,
+       2.2091
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.3686,
+      "level": 0.0846,
+      "days_ahead": 4
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -1.776,
+      "ci": [
+       -4.004,
+       0.806
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -177.609,
+      "ci": [
+       -400.405,
+       80.632
+      ]
+     },
+     "ahead": 0.3686,
+     "level": 0.0846,
+     "days_ahead": 4,
+     "label": "GPT-6 Luna, high \u2212 persistence-DP"
+    },
+    "beam-high (best effort) - persistence-dp": {
+     "usd_per_mw_day": {
+      "mean": -3.4426,
+      "ci": [
+       -8.6474,
+       2.4362
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.3656,
+      "level": 0.0997,
+      "days_ahead": 4
+     },
+     "k_usd_per_mw_yr": {
+      "mean": -1.257,
+      "ci": [
+       -3.156,
+       0.889
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": -125.655,
+      "ci": [
+       -315.63,
+       88.921
+      ]
+     },
+     "ahead": 0.3656,
+     "level": 0.0997,
+     "days_ahead": 4,
+     "label": "Beam-1.0, high (best effort) \u2212 persistence-DP"
+    },
+    "4b-sampled - base": {
+     "usd_per_mw_day": {
+      "mean": 85.5204,
+      "ci": [
+       60.3751,
+       112.0817
+      ],
+      "n": 331,
+      "days": 10,
+      "ahead": 0.9758,
+      "level": 0.0,
+      "days_ahead": 10
+     },
+     "k_usd_per_mw_yr": {
+      "mean": 31.215,
+      "ci": [
+       22.037,
+       40.91
+      ]
+     },
+     "k_usd_per_100mw_yr": {
+      "mean": 3121.495,
+      "ci": [
+       2203.691,
+       4090.982
+      ]
+     },
+     "ahead": 0.9758,
+     "level": 0.0,
+     "days_ahead": 10,
+     "label": "trained Qwen3-4B (run 4) \u2212 untrained Qwen3-4B"
+    }
+   },
+   "gaps_invalid_as_0": {
+    "sol - persistence-dp": {
+     "mean": 3.9162,
+     "ci": [
+      0.9461,
+      7.5942
+     ]
+    },
+    "sol - ridge-dp": {
+     "mean": 2.6619,
+     "ci": [
+      0.0731,
+      4.8144
+     ]
+    },
+    "sol - 4b-sampled": {
+     "mean": 9.5826,
+     "ci": [
+      5.3624,
+      14.2009
+     ]
+    },
+    "luna-high - persistence-dp": {
+     "mean": -4.2933,
+     "ci": [
+      -9.8139,
+      2.3161
+     ]
+    }
+   },
+   "beam": {
+    "high": "included",
+    "low": "incomplete (112 of 331)",
+    "medium": "not run",
+    "max": "not run",
+    "best": "high"
+   },
+   "share_of_persistence_to_optimum_gap_closed": {
+    "sol": 0.3291,
+    "luna-high": -0.4209,
+    "4b-sampled": -0.4901,
+    "beam-best": -0.2978
+   },
+   "concentration": {
+    "unit": "day means of $/MW-day over each day's battery-days",
+    "top_days": 1,
+    "n_days": 10,
+    "optimum_share_in_top_days": 0.2039,
+    "top_days_by_optimum": [
+     {
+      "date": "2026-10-21",
+      "optimum": 138.24
+     }
+    ],
+    "shape_change": "1 - Pearson r of day D's 24 hourly prices with D-1's, mean over the day's battery-days",
+    "vs_persistence": {
+     "sol": {
+      "days_ahead": 9,
+      "days_level": 0,
+      "days_behind": 1,
+      "net_gain_share_from_top_days": 0.318,
+      "best_days": [
+       {
+        "date": "2026-10-19",
+        "gap": 12.17,
+        "shape_change": 0.404,
+        "optimum": 54.17
+       },
+       {
+        "date": "2026-10-18",
+        "gap": 11.65,
+        "shape_change": 0.336,
+        "optimum": 77.16
+       },
+       {
+        "date": "2026-10-26",
+        "gap": 7.94,
+        "shape_change": 0.094,
+        "optimum": 67.45
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2026-10-21",
+        "gap": -0.09,
+        "shape_change": 0.076,
+        "optimum": 138.24
+       },
+       {
+        "date": "2026-10-22",
+        "gap": 0.09,
+        "shape_change": 0.14,
+        "optimum": 67.82
+       },
+       {
+        "date": "2026-10-20",
+        "gap": 0.46,
+        "shape_change": 0.02,
+        "optimum": 84.29
+       }
+      ]
+     },
+     "luna-high": {
+      "days_ahead": 4,
+      "days_level": 0,
+      "days_behind": 6,
+      "net_gain_share_from_top_days": null,
+      "best_days": [
+       {
+        "date": "2026-10-18",
+        "gap": 11.68,
+        "shape_change": 0.336,
+        "optimum": 77.16
+       },
+       {
+        "date": "2026-10-26",
+        "gap": 3.65,
+        "shape_change": 0.094,
+        "optimum": 67.45
+       },
+       {
+        "date": "2026-10-24",
+        "gap": 1.87,
+        "shape_change": 0.193,
+        "optimum": 40.59
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2026-10-21",
+        "gap": -19.93,
+        "shape_change": 0.076,
+        "optimum": 138.24
+       },
+       {
+        "date": "2026-10-20",
+        "gap": -14.44,
+        "shape_change": 0.02,
+        "optimum": 84.29
+       },
+       {
+        "date": "2026-10-22",
+        "gap": -7.88,
+        "shape_change": 0.14,
+        "optimum": 67.82
+       }
+      ]
+     },
+     "4b-sampled": {
+      "days_ahead": 4,
+      "days_level": 0,
+      "days_behind": 6,
+      "net_gain_share_from_top_days": null,
+      "best_days": [
+       {
+        "date": "2026-10-19",
+        "gap": 9.09,
+        "shape_change": 0.404,
+        "optimum": 54.17
+       },
+       {
+        "date": "2026-10-26",
+        "gap": 5.86,
+        "shape_change": 0.094,
+        "optimum": 67.45
+       },
+       {
+        "date": "2026-10-27",
+        "gap": 0.77,
+        "shape_change": 0.706,
+        "optimum": 58.76
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2026-10-21",
+        "gap": -23.61,
+        "shape_change": 0.076,
+        "optimum": 138.24
+       },
+       {
+        "date": "2026-10-25",
+        "gap": -15.22,
+        "shape_change": 0.067,
+        "optimum": 40.4
+       },
+       {
+        "date": "2026-10-22",
+        "gap": -10.06,
+        "shape_change": 0.14,
+        "optimum": 67.82
+       }
+      ]
+     },
+     "beam-best": {
+      "days_ahead": 4,
+      "days_level": 0,
+      "days_behind": 6,
+      "net_gain_share_from_top_days": null,
+      "best_days": [
+       {
+        "date": "2026-10-19",
+        "gap": 8.72,
+        "shape_change": 0.404,
+        "optimum": 54.17
+       },
+       {
+        "date": "2026-10-26",
+        "gap": 7.25,
+        "shape_change": 0.094,
+        "optimum": 67.45
+       },
+       {
+        "date": "2026-10-18",
+        "gap": 3.86,
+        "shape_change": 0.336,
+        "optimum": 77.16
+       }
+      ],
+      "worst_days": [
+       {
+        "date": "2026-10-20",
+        "gap": -16.53,
+        "shape_change": 0.02,
+        "optimum": 84.29
+       },
+       {
+        "date": "2026-10-21",
+        "gap": -9.71,
+        "shape_change": 0.076,
+        "optimum": 138.24
+       },
+       {
+        "date": "2026-10-25",
+        "gap": -9.04,
+        "shape_change": 0.067,
+        "optimum": 40.4
+       }
+      ]
+     }
+    },
+    "by_day": [
+     {
+      "date": "2026-10-18",
+      "n_tasks": 41,
+      "shape_change": 0.336,
+      "optimum": 77.16,
+      "persistence-dp": 44.33,
+      "sol - persistence-dp": 11.65,
+      "luna-high - persistence-dp": 11.68,
+      "4b-sampled - persistence-dp": 0.23,
+      "beam-best - persistence-dp": 3.86
+     },
+     {
+      "date": "2026-10-19",
+      "n_tasks": 29,
+      "shape_change": 0.404,
+      "optimum": 54.17,
+      "persistence-dp": 33.84,
+      "sol - persistence-dp": 12.17,
+      "luna-high - persistence-dp": -5.63,
+      "4b-sampled - persistence-dp": 9.09,
+      "beam-best - persistence-dp": 8.72
+     },
+     {
+      "date": "2026-10-20",
+      "n_tasks": 46,
+      "shape_change": 0.02,
+      "optimum": 84.29,
+      "persistence-dp": 82.34,
+      "sol - persistence-dp": 0.46,
+      "luna-high - persistence-dp": -14.44,
+      "4b-sampled - persistence-dp": -8.53,
+      "beam-best - persistence-dp": -16.53
+     },
+     {
+      "date": "2026-10-21",
+      "n_tasks": 45,
+      "shape_change": 0.076,
+      "optimum": 138.24,
+      "persistence-dp": 131.42,
+      "sol - persistence-dp": -0.09,
+      "luna-high - persistence-dp": -19.93,
+      "4b-sampled - persistence-dp": -23.61,
+      "beam-best - persistence-dp": -9.71
+     },
+     {
+      "date": "2026-10-22",
+      "n_tasks": 53,
+      "shape_change": 0.14,
+      "optimum": 67.82,
+      "persistence-dp": 63.91,
+      "sol - persistence-dp": 0.09,
+      "luna-high - persistence-dp": -7.88,
+      "4b-sampled - persistence-dp": -10.06,
+      "beam-best - persistence-dp": -8.4
+     },
+     {
+      "date": "2026-10-23",
+      "n_tasks": 28,
+      "shape_change": 0.116,
+      "optimum": 49.27,
+      "persistence-dp": 42.66,
+      "sol - persistence-dp": 1.69,
+      "luna-high - persistence-dp": -3.44,
+      "4b-sampled - persistence-dp": -3.96,
+      "beam-best - persistence-dp": -2.9
+     },
+     {
+      "date": "2026-10-24",
+      "n_tasks": 19,
+      "shape_change": 0.193,
+      "optimum": 40.59,
+      "persistence-dp": 30.89,
+      "sol - persistence-dp": 0.69,
+      "luna-high - persistence-dp": 1.87,
+      "4b-sampled - persistence-dp": -6.12,
+      "beam-best - persistence-dp": -0.01
+     },
+     {
+      "date": "2026-10-25",
+      "n_tasks": 10,
+      "shape_change": 0.067,
+      "optimum": 40.4,
+      "persistence-dp": 33.16,
+      "sol - persistence-dp": 1.24,
+      "luna-high - persistence-dp": -3.32,
+      "4b-sampled - persistence-dp": -15.22,
+      "beam-best - persistence-dp": -9.04
+     },
+     {
+      "date": "2026-10-26",
+      "n_tasks": 34,
+      "shape_change": 0.094,
+      "optimum": 67.45,
+      "persistence-dp": 50.56,
+      "sol - persistence-dp": 7.94,
+      "luna-high - persistence-dp": 3.65,
+      "4b-sampled - persistence-dp": 5.86,
+      "beam-best - persistence-dp": 7.25
+     },
+     {
+      "date": "2026-10-27",
+      "n_tasks": 26,
+      "shape_change": 0.706,
+      "optimum": 58.76,
+      "persistence-dp": 48.32,
+      "sol - persistence-dp": 2.46,
+      "luna-high - persistence-dp": 0.85,
+      "4b-sampled - persistence-dp": 0.77,
+      "beam-best - persistence-dp": 0.68
+     }
+    ]
+   }
+  }
+ },
+ "inference": {
+  "note": "one model call per battery-day whatever the battery's size, so the cost does not scale with MW; the value does",
+  "prices": "Sol and Luna at the cost-matched contest's token prices, Beam at Baseten's on the HF router, the 4Bs as busy L40S time (g6e.8xlarge on demand, wall time of the batched eval only)",
+  "packs": {
+   "eval2025": {
+    "models": {
+     "sol": {
+      "usd_per_battery_day": 0.015804,
+      "usd_per_battery_yr": 5.77,
+      "earned_per_battery_day_100mw": 8787.0,
+      "over_persistence_per_day_100mw": 427.0
+     },
+     "luna-high": {
+      "usd_per_battery_day": 0.00202,
+      "usd_per_battery_yr": 0.74,
+      "earned_per_battery_day_100mw": 7860.0,
+      "over_persistence_per_day_100mw": -500.0
+     },
+     "luna-low": {
+      "usd_per_battery_day": 0.000526,
+      "usd_per_battery_yr": 0.19,
+      "earned_per_battery_day_100mw": 5548.0,
+      "over_persistence_per_day_100mw": -2812.0
+     },
+     "4b-sampled": {
+      "usd_per_battery_day": 0.000479,
+      "usd_per_battery_yr": 0.17,
+      "earned_per_battery_day_100mw": 7425.0,
+      "over_persistence_per_day_100mw": -935.0
+     },
+     "4b-greedy": {
+      "usd_per_battery_day": 0.000475,
+      "usd_per_battery_yr": 0.17,
+      "earned_per_battery_day_100mw": 7569.0,
+      "over_persistence_per_day_100mw": -791.0
+     },
+     "sft": {
+      "usd_per_battery_day": 0.000466,
+      "usd_per_battery_yr": 0.17,
+      "earned_per_battery_day_100mw": 7306.0,
+      "over_persistence_per_day_100mw": -1054.0
+     },
+     "base": {
+      "usd_per_battery_day": 0.000366,
+      "usd_per_battery_yr": 0.13,
+      "earned_per_battery_day_100mw": -3861.0,
+      "over_persistence_per_day_100mw": -12221.0
+     }
+    },
+    "sol_over_4b": {
+     "extra_inference_usd_per_battery_yr": 5.59,
+     "decision_gap_k_usd_per_100mw_yr": 496.9,
+     "ratio": 88833,
+     "break_even_mw": 0.00113
+    },
+    "sol_over_persistence": {
+     "inference_usd_per_battery_yr": 5.77,
+     "decision_gap_k_usd_per_100mw_yr": 155.7,
+     "ratio": 27000,
+     "break_even_mw": 0.0037
+    }
+   },
+   "fresh": {
+    "models": {
+     "sol": {
+      "usd_per_battery_day": 0.015847,
+      "usd_per_battery_yr": 5.78,
+      "earned_per_battery_day_100mw": 6718.0,
+      "over_persistence_per_day_100mw": 380.0
+     },
+     "luna-high": {
+      "usd_per_battery_day": 0.002013,
+      "usd_per_battery_yr": 0.73,
+      "earned_per_battery_day_100mw": 5851.0,
+      "over_persistence_per_day_100mw": -487.0
+     },
+     "luna-medium": {
+      "usd_per_battery_day": 0.001186,
+      "usd_per_battery_yr": 0.43,
+      "earned_per_battery_day_100mw": 5518.0,
+      "over_persistence_per_day_100mw": -819.0
+     },
+     "luna-low": {
+      "usd_per_battery_day": 0.000524,
+      "usd_per_battery_yr": 0.19,
+      "earned_per_battery_day_100mw": 4197.0,
+      "over_persistence_per_day_100mw": -2140.0
+     },
+     "beam-high": {
+      "usd_per_battery_day": 0.020318,
+      "usd_per_battery_yr": 7.42,
+      "earned_per_battery_day_100mw": 5993.0,
+      "over_persistence_per_day_100mw": -344.0
+     },
+     "4b-sampled": {
+      "usd_per_battery_day": 0.000474,
+      "usd_per_battery_yr": 0.17,
+      "earned_per_battery_day_100mw": 5771.0,
+      "over_persistence_per_day_100mw": -567.0
+     },
+     "4b-greedy": {
+      "usd_per_battery_day": 0.000476,
+      "usd_per_battery_yr": 0.17,
+      "earned_per_battery_day_100mw": 5840.0,
+      "over_persistence_per_day_100mw": -497.0
+     },
+     "sft": {
+      "usd_per_battery_day": 0.000444,
+      "usd_per_battery_yr": 0.16,
+      "earned_per_battery_day_100mw": 5434.0,
+      "over_persistence_per_day_100mw": -903.0
+     },
+     "base": {
+      "usd_per_battery_day": 0.000327,
+      "usd_per_battery_yr": 0.12,
+      "earned_per_battery_day_100mw": -2782.0,
+      "over_persistence_per_day_100mw": -9119.0
+     }
+    },
+    "sol_over_4b": {
+     "extra_inference_usd_per_battery_yr": 5.61,
+     "decision_gap_k_usd_per_100mw_yr": 345.7,
+     "ratio": 61609,
+     "break_even_mw": 0.00162
+    },
+    "sol_over_persistence": {
+     "inference_usd_per_battery_yr": 5.78,
+     "decision_gap_k_usd_per_100mw_yr": 138.9,
+     "ratio": 24009,
+     "break_even_mw": 0.00417
+    }
+   }
+  }
+ }
+}
