@@ -105,4 +105,25 @@ uncertainty because their training window is one year.
   outcome.
 
 ## Amendments
-None yet.
+
+### Amendment 1 (2026-10-27 00:48 UTC): an extended search, reported separately; the registered analysis is unchanged
+- **Disclosure.** A pipeline smoke test (2 L2 LightGBM configs capped at 100 rounds, 2 MLP configs with one seed, an
+  ensemble grid of step 0.5) scored blind eval-2025 and fresh at about 00:34 UTC, before the full tuning run. Its C
+  (eval-2025 / fresh): LightGBM 0.898 / 0.903, ensemble 0.897 / 0.894, against Sol's 0.9165 / 0.926. No registered
+  setting changed because of it.
+- **The registered analysis ran as written.** Tuning finished at 00:47 UTC (holdout best: the ensemble, point plan,
+  C 0.905); the final scoring started at 00:48 UTC. Its verdict is this pre-registration's verdict. This amendment is
+  written before its eval-2025 or fresh numbers are read.
+- **Why extend.** On the 2024 holdout, LightGBM's best checkpoint is the grid's lowest (25 rounds), and every L2
+  objective loses to Huber (heavy tails in 2014–2023). The ceiling question asks whether *any* information-matched
+  forecaster beats Sol, so a stronger search is worth reporting.
+- **Extended search, all choices on the same 2024 holdout:**
+  - **LightGBM, Huber only:** round checkpoints add 5, 10 and 15; a recency weight 0.5^((Y_last − year) / h) with
+    h ∈ {1, 2, 4, ∞} years (Y_last = the fit's last year).
+  - **m7-DP:** the DP on the D-7..D-1 hourly mean, a rule on the blind inputs only. Reported, and added as an ensemble
+    member.
+  - **Ensemble** over persistence, m7, ridge, the extended LightGBM and the registered MLP, 0.1 simplex, by holdout C.
+  - Point plans only: the registered holdout put every scenario variant 0.05–0.16 C below its point plan.
+- **Reporting.** The extended best (highest holdout C) is scored once on eval-2025 and fresh and judged by the same
+  decision rule, as "extended search (Amendment 1)". If it disagrees with the registered verdict, the README reports
+  both; a positive extended result is an existence proof of headroom found after registration, and says so.
