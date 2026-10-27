@@ -5,8 +5,9 @@ sol_blind.py), imported unchanged; only the model, the reasoning effort and the 
 usage: luna_eval.py CONTEST OUT_DIR --base-url-file FILE --effort E [--cap USD] [--later N] [--concurrency N]
 CONTEST: foresight-eval2025 | foresight-fresh | blind-eval2025 | blind-fresh. The endpoint is read from the
 `LITELLM_BASE_URL=` line of FILE and the key from SSM inside this process; neither is printed or written.
-Spend is summed over every luna-*.jsonl in OUT_DIR, so --cap is the lane's total. A request starts only if spend plus
-in-flight worst cases plus its own worst case stays under the cap; from 25 finished tasks on, no request starts once
+Spend is summed over every luna-*.jsonl in OUT_DIR, re-read before each request, so --cap is the lane's total even
+with two runs side by side. A request starts only if spend plus this run's in-flight worst cases plus its own worst
+case stays under the cap; from 25 finished tasks on, no request starts once
 spend + this run's mean cost x (its unstarted tasks + --later tasks of planned runs) exceeds the cap. An infra failure
 (no response) is retried at most twice and recorded; a response is never retried. Resumable."""
 
@@ -48,6 +49,17 @@ def load(name: str, path: Path):
 
 def cost(u: dict) -> float:
     return ((u["input"] - u["cached"]) * PRICE[0] + u["cached"] * PRICE[2] + u["output"] * PRICE[1]) / 1e6
+
+
+def rows(p: Path) -> list[dict]:
+    """A run's records; a line another run is still writing is skipped."""
+    out = []
+    for x in p.read_text().splitlines() if p.exists() else []:
+        try:
+            out.append(json.loads(x))
+        except json.JSONDecodeError:
+            pass
+    return out
 
 
 def tasks_of(contest: str) -> list[dict]:
@@ -103,12 +115,12 @@ async def main():
     out.mkdir(parents=True, exist_ok=True)
     tag = f"{a.contest}-{a.effort}" + ("-smoke" if a.pack else "")
     log, eps = out / f"luna-{tag}.jsonl", out / f"luna-{tag}-episodes.jsonl"
-    rows = lambda p: [json.loads(x) for x in p.read_text().splitlines()] if p.exists() else []  # noqa: E731
     done = {r["task_id"] for r in rows(log)}
-    spent = sum(r.get("usd", 0.0) for p in out.glob("luna-*.jsonl") if not p.name.endswith("-episodes.jsonl")
-                for r in rows(p))
+    lane = lambda: sum(r.get("usd", 0.0) for p in out.glob("luna-*.jsonl")  # noqa: E731
+                       if not p.name.endswith("-episodes.jsonl") for r in rows(p))
+    spent = lane()
     todo = [t for t in tasks if t["task_id"] not in done][: a.limit or None]
-    st = {"spent": spent, "inflight": 0.0, "run_usd": 0.0, "run_n": 0, "started": 0, "skipped": [], "stop": None}
+    st = {"inflight": 0.0, "run_usd": 0.0, "run_n": 0, "started": 0, "skipped": [], "stop": None}
     sem, lock = asyncio.Semaphore(a.concurrency), asyncio.Lock()
     print(f"{a.contest} effort {a.effort}: {len(tasks)} tasks, {len(done)} done, {len(todo)} to run, "
           f"lane spend ${spent:.4f}", flush=True)
@@ -117,11 +129,12 @@ async def main():
         async with sem:
             w = h.worst(t)
             async with lock:
+                now = lane()
                 if st["run_n"] >= 25:
-                    proj = st["spent"] + st["run_usd"] / st["run_n"] * (len(todo) - st["started"] + a.later)
+                    proj = now + st["run_usd"] / st["run_n"] * (len(todo) - st["started"] + a.later)
                     if proj > a.cap:
                         st["stop"] = st["stop"] or f"projection ${proj:.2f} > cap ${a.cap:g}"
-                if st["stop"] or st["spent"] + st["inflight"] + w > a.cap:
+                if st["stop"] or now + st["inflight"] + w > a.cap:
                     st["skipped"].append(t["task_id"])
                     return
                 st["inflight"] += w
@@ -145,7 +158,6 @@ async def main():
                 rec |= h.score(t, resp)
             async with lock:
                 st["inflight"] -= w
-                st["spent"] += rec["usd"]
                 st["run_usd"] += rec["usd"]
                 st["run_n"] += 1
                 g, args = rec.pop("grade", None), rec.pop("args", None)
@@ -163,10 +175,10 @@ async def main():
                 score = rec.get("c") if tier == "blind" else rec["reward"]
                 print(f"{t['task_id']} {'C' if tier == 'blind' else 'R'} {score:.4f} {rec['kind']} "
                       f"${rec['usd']:.5f} out {(rec['usage'] or {}).get('output')} {wall}s try {rec['attempts']} "
-                      f"lane ${st['spent']:.4f}", flush=True)
+                      f"lane ${lane():.4f}", flush=True)
 
     await asyncio.gather(*(one(t) for t in todo))
-    print(json.dumps({"contest": a.contest, "effort": a.effort, "lane_spent_usd": round(st["spent"], 5),
+    print(json.dumps({"contest": a.contest, "effort": a.effort, "lane_spent_usd": round(lane(), 5),
                       "run_usd": round(st["run_usd"], 5), "run_n": st["run_n"], "stopped": st["stop"],
                       "skipped": len(st["skipped"])}), flush=True)
 

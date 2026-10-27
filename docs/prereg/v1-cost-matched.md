@@ -108,4 +108,12 @@ the error mix, cost per task, and a chart of score against cost per task on a lo
 `summary.json`, Luna's per-task records and episodes, and `scripts/`.
 
 ## Amendments
-None yet.
+**1 (2026-10-27, engineering only; pushed before any effort-low request on a scored pack).** Measured on the smoke
+and on contest 1's first tasks, Luna-high writes 2–6k output tokens per task (about 30 s each), so the plan would take
+about 5 hours in one stream.
+- **Two streams.** Each pack's secondary run starts once that pack's high run has finished and its trigger is
+  computed, alongside the remaining high runs; each stream keeps concurrency 8. Nothing about a request, a task set,
+  the trigger or a metric changes.
+- **One cap across both streams.** `luna_eval.py`'s guard now re-reads the lane's spend from every Luna log before each
+  request (it read it once at start), so the $10 total holds with two runs side by side. Contest 1's high run started
+  under the first version, which was exact while it ran alone.
