@@ -611,7 +611,9 @@ def publish_grade(d: str):
     if rec.exists() or not (day_dir(d) / "graded.json").exists():
         return
     b = dump(STATE / "board.json", board())
-    c = commit({f"live/graded/{d}.json": day_dir(d) / "graded.json", "live/board.json": b}, f"live: grade {d}")
+    path = f"live/graded/{d}.json"
+    c = published(path, day_dir(d) / "graded.json") or commit({path: day_dir(d) / "graded.json", "live/board.json": b},
+                                                              f"live: grade {d}")
     if c:
         dump(rec, c)
         dump(STATE / "board.json", board())
