@@ -1,0 +1,32 @@
+[     17s] store series loaded: {'ercot': {'load': 25144, 'wind': 25139, 'solar': 25139}, 'desk': {'load': 8463, 'wind': 8463, 'solar': 8463}}
+[     35s] ercot base: rounds 25 inner C 0.8925
+[     54s] ercot informed: rounds 100 inner C 0.9291
+[     72s] ercot stack: rounds 50 inner C 0.9007
+[     97s] ercot stack_informed: rounds 800 inner C 0.9338
+[     97s] ercot eval2025 informed - base: {'mean': 0.046, 'ci': [0.0312, 0.0617]}
+[     97s] ercot eval2025 informed - sol: {'mean': 0.022, 'ci': [0.0098, 0.0348]}
+[     97s] ercot eval2025 base - sol: {'mean': -0.024, 'ci': [-0.0385, -0.0104]}
+[     97s] ercot eval2025 informed - ens_point: {'mean': 0.0267, 'ci': [0.0148, 0.0397]}
+[     97s] ercot eval2025 stack_informed - stack: {'mean': 0.0075, 'ci': [-0.0112, 0.027]}
+[     97s] ercot eval2025 stack - pre2024_lgb: {'mean': 0.0059, 'ci': [-0.0012, 0.0142]}
+[     97s] ercot eval2025 stack_informed - pre2024_lgb: {'mean': 0.0134, 'ci': [-0.0055, 0.0329]}
+[     97s] ercot eval2025 stack_informed - sol: {'mean': -0.0024, 'ci': [-0.0216, 0.0164]}
+[     98s] ercot fresh informed - base: {'mean': 0.0366, 'ci': [0.0147, 0.0551]}
+[     98s] ercot fresh informed - sol: {'mean': 0.0068, 'ci': [-0.0027, 0.0144]}
+[     98s] ercot fresh base - sol: {'mean': -0.0297, 'ci': [-0.0459, -0.0109]}
+[     98s] ercot fresh informed - ens_point: {'mean': 0.0091, 'ci': [-0.0175, 0.0316]}
+[     98s] ercot fresh stack_informed - stack: {'mean': 0.0261, 'ci': [-0.0064, 0.0512]}
+[     98s] ercot fresh stack - pre2024_lgb: {'mean': 0.0153, 'ci': [-0.0054, 0.0482]}
+[     98s] ercot fresh stack_informed - pre2024_lgb: {'mean': 0.0413, 'ci': [0.0245, 0.0633]}
+[     98s] ercot fresh stack_informed - sol: {'mean': 0.0042, 'ci': [-0.0034, 0.0121]}
+[    126s] desk base: rounds 50 inner C 0.8928
+[    158s] desk informed: rounds 800 inner C 0.918
+[    158s] desk eval2025 informed - base: {'mean': 0.0028, 'ci': [-0.0127, 0.0177]}
+[    158s] desk eval2025 informed - sol: {'mean': -0.0109, 'ci': [-0.0272, 0.0046]}
+[    158s] desk eval2025 base - sol: {'mean': -0.0136, 'ci': [-0.0247, -0.0033]}
+[    158s] desk eval2025 informed - ens_point: {'mean': -0.0062, 'ci': [-0.0224, 0.0097]}
+[    158s] desk fresh informed - base: {'mean': 0.0834, 'ci': [0.0834, 0.0834]}
+[    158s] desk fresh informed - sol: {'mean': 0.0336, 'ci': [0.0336, 0.0336]}
+[    158s] desk fresh base - sol: {'mean': -0.0498, 'ci': [-0.0498, -0.0498]}
+[    158s] desk fresh informed - ens_point: {'mean': -0.0309, 'ci': [-0.0309, -0.0309]}
+[    158s] done

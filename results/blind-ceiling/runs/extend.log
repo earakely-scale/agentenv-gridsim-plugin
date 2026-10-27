@@ -1,0 +1,52 @@
+[      3s] dam point-days 67960; training targets 33363 (2014-01-08..2024-12-31)
+[    367s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 100, 'half_life': 1} rounds 1200 holdout C 0.8864
+[    836s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 100, 'half_life': 2} rounds 1200 holdout C 0.8846
+[   1493s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 100, 'half_life': 4} rounds 2000 holdout C 0.883
+[   1931s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 100, 'half_life': None} rounds 1200 holdout C 0.8873
+[   2185s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 400, 'half_life': 1} rounds 100 holdout C 0.8825
+[   2200s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 400, 'half_life': 2} rounds 800 holdout C 0.8839
+[   2216s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 400, 'half_life': 4} rounds 400 holdout C 0.8819
+[   2232s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 400, 'half_life': None} rounds 400 holdout C 0.8833
+[   2261s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 100, 'half_life': 1} rounds 100 holdout C 0.8891
+[   2294s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 100, 'half_life': 2} rounds 800 holdout C 0.885
+[   2327s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 100, 'half_life': 4} rounds 1200 holdout C 0.8863
+[   2360s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 100, 'half_life': None} rounds 400 holdout C 0.8875
+[   2403s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 400, 'half_life': 1} rounds 200 holdout C 0.8846
+[   2445s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 400, 'half_life': 2} rounds 400 holdout C 0.8849
+[   2487s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 400, 'half_life': 4} rounds 200 holdout C 0.8864
+[   2529s] ext lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 400, 'half_life': None} rounds 200 holdout C 0.8866
+[   2543s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 100, 'half_life': 1} rounds 10 holdout C 0.8978
+[   2556s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 100, 'half_life': 2} rounds 25 holdout C 0.8978
+[   2570s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 100, 'half_life': 4} rounds 5 holdout C 0.8967
+[   2583s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 100, 'half_life': None} rounds 10 holdout C 0.8969
+[   2599s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 400, 'half_life': 1} rounds 25 holdout C 0.8975
+[   2615s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 400, 'half_life': 2} rounds 5 holdout C 0.8965
+[   2631s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 400, 'half_life': 4} rounds 10 holdout C 0.8969
+[   2647s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 400, 'half_life': None} rounds 5 holdout C 0.897
+[   2681s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 100, 'half_life': 1} rounds 10 holdout C 0.8982
+[   2716s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 100, 'half_life': 2} rounds 10 holdout C 0.8982
+[   2749s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 100, 'half_life': 4} rounds 10 holdout C 0.8974
+[   2783s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 100, 'half_life': None} rounds 15 holdout C 0.898
+[   2827s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 400, 'half_life': 1} rounds 10 holdout C 0.8979
+[   2870s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 400, 'half_life': 2} rounds 10 holdout C 0.898
+[   2912s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 400, 'half_life': 4} rounds 10 holdout C 0.8976
+[   2954s] ext lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 400, 'half_life': None} rounds 15 holdout C 0.8972
+[   3100s] ext holdout {'persist': {'c': 0.8532, 'x': 0.8153}, 'm7': {'c': 0.8975, 'x': 0.8719}, 'ridge': {'c': 0.8124, 'x': 0.7636}, 'lgb': {'c': 0.8982, 'x': 0.8728}, 'mlp': {'c': 0.8734, 'x': 0.8415}, 'ens': {'c': 0.9051, 'x': 0.8813}}; ensemble {'persist': 0.0, 'm7': 0.3, 'ridge': 0.1, 'lgb': 0.2, 'mlp': 0.4}; best ens
+[   3274s] eval2025 persist: C {'mean': 0.882, 'ci': [0.8601, 0.9015]} vs Sol {'mean': -0.0345, 'ci': [-0.0511, -0.0197]}
+[   3274s] eval2025 m7: C {'mean': 0.8883, 'ci': [0.8661, 0.9089]} vs Sol {'mean': -0.0282, 'ci': [-0.0454, -0.012]}
+[   3274s] eval2025 ridge: C {'mean': 0.7988, 'ci': [0.7711, 0.8249]} vs Sol {'mean': -0.1177, 'ci': [-0.1447, -0.0909]}
+[   3274s] eval2025 lgb: C {'mean': 0.8916, 'ci': [0.8708, 0.911]} vs Sol {'mean': -0.0249, 'ci': [-0.0406, -0.0103]}
+[   3274s] eval2025 mlp: C {'mean': 0.8815, 'ci': [0.863, 0.8988]} vs Sol {'mean': -0.035, 'ci': [-0.0513, -0.0191]}
+[   3274s] eval2025 ens: C {'mean': 0.9109, 'ci': [0.893, 0.927]} vs Sol {'mean': -0.0057, 'ci': [-0.0176, 0.0055]}
+[   3274s] eval2025 sol: C {'mean': 0.9165, 'ci': [0.9016, 0.9296]} vs Sol None
+[   3274s] eval2025 anchor: C {'mean': 0.9204, 'ci': [0.906, 0.9335]} vs Sol {'mean': 0.0039, 'ci': [-0.0087, 0.0169]}
+[   3275s] fresh persist: C {'mean': 0.871, 'ci': [0.7868, 0.9355]} vs Sol {'mean': -0.0554, 'ci': [-0.1048, -0.0163]}
+[   3275s] fresh m7: C {'mean': 0.9026, 'ci': [0.8523, 0.9381]} vs Sol {'mean': -0.0238, 'ci': [-0.0448, -0.0029]}
+[   3275s] fresh ridge: C {'mean': 0.8851, 'ci': [0.8317, 0.9287]} vs Sol {'mean': -0.0413, 'ci': [-0.0693, -0.0135]}
+[   3275s] fresh lgb: C {'mean': 0.904, 'ci': [0.8561, 0.9376]} vs Sol {'mean': -0.0224, 'ci': [-0.0393, -0.0062]}
+[   3275s] fresh mlp: C {'mean': 0.905, 'ci': [0.8688, 0.9341]} vs Sol {'mean': -0.0214, 'ci': [-0.0595, 0.0214]}
+[   3275s] fresh ens: C {'mean': 0.921, 'ci': [0.895, 0.9442]} vs Sol {'mean': -0.0054, 'ci': [-0.0288, 0.0199]}
+[   3275s] fresh sol: C {'mean': 0.9264, 'ci': [0.8897, 0.9524]} vs Sol None
+[   3275s] fresh anchor: C {'mean': 0.9192, 'ci': [0.8623, 0.96]} vs Sol {'mean': -0.0072, 'ci': [-0.0316, 0.0124]}
+[   3275s] verdict {'best_method': 'ens', 'eval2025_gap_sol_c': {'mean': -0.0057, 'ci': [-0.0176, 0.0055]}, 'fresh_gap_sol_c': {'mean': -0.0054, 'ci': [-0.0288, 0.0199]}, 'criterion_1_eval2025_ci_above_0': False, 'criterion_2_fresh_no_worse': True, 'headroom': False}
+[   3275s] done
