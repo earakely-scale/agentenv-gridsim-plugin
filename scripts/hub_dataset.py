@@ -763,20 +763,30 @@ def results_blocks(r: dict) -> dict[str, str]:
 
 def desk_blocks(d: dict) -> dict[str, str]:
     """The card's blocks, from results/overview/desk.json (scripts/hub_desk.py writes it): the badges and the lead GIF,
-    the results across versions, the newest version's results open and the earlier ones folded, the quick start from
-    main, the version ladder, the configs and files, and the line to the archived v1."""
-    vs = d["versions"]
-    results = [desk_results(v, d["charts"]) for v in reversed(vs)]
+    the results across the ladder's versions, the newest one's results open and the earlier ones folded, then the
+    price-impact check, the quick start from main, the versions, the configs and files, and the line to the archived
+    v1."""
+    vs = ladder(d)
+    results = [desk_results(v, d) for v in reversed(vs)]
     results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
                    "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
     return {"badges": "\n".join(BADGES), "gif": gif_block(d["gif"]), "across": across(d),
-            "results": "\n\n".join(results), "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]),
-            "ladder": ladder_block(d), "inside": inside(d), "archive": ARCHIVE}
+            "results": "\n\n".join(results + [price_check(v) for v in checks(d)]),
+            "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]), "ladder": ladder_block(d),
+            "inside": inside(d), "archive": ARCHIVE}
+
+
+def ladder(d: dict) -> list[dict]:
+    return [v for v in d["versions"] if v["role"] == "ladder"]
+
+
+def checks(d: dict) -> list[dict]:
+    return [v for v in d["versions"] if v["role"] == "check"]
 
 
 def inside(d: dict) -> str:
     n = {k: sum(v["rows"][k] for v in d["versions"]) for k in ("leaderboard", "runs", "tasks")}
-    splits = ", ".join(f"`{v['version']}`" for v in d["versions"])
+    tick = lambda vs: and_join([f"`{v['version']}`" for v in vs])  # noqa: E731
     return "\n".join([
         "| Config | Rows | What it holds |", "|---|---:|---|",
         f"| **`desk_leaderboard`**, the default | {n['leaderboard']:,} | Each model and reference of each version: C, "
@@ -786,9 +796,10 @@ def inside(d: dict) -> str:
         "Episode JSON's path. |",
         f"| **`desk_tasks`** | {n['tasks']:,} | Every task of each version's pilot, eval and tune packs: its dates, "
         "anonymous site card, tags and the references it was graded against. |", "",
-        f"One split per version: {splits}. Each version's folder, `results/desk-v<N>/`, holds its README, "
-        "`summary.json`, `grades.jsonl.gz`, figures, raw runs (`runs/<model>/results.jsonl.gz` and the per-call logs) "
-        "and every Episode JSON (`episodes/<model>/*.json.gz`); `assets/` holds the desk GIFs and this card's charts."])
+        f"One split per version, {tick(ladder(d))}, and one for the price-impact check, {tick(checks(d))}. Each "
+        "one's folder, `results/desk-v<N>/`, holds its README, `summary.json`, `grades.jsonl.gz`, figures, raw runs "
+        "(`runs/<model>/results.jsonl.gz` and the per-call logs) and every Episode JSON "
+        "(`episodes/<model>/*.json.gz`); `assets/` holds the desk GIFs and this card's charts."])
 
 
 QUICKSTART = """In process, with no Docker and no model key, play the anchor policy on v2's two pilot battery-days:
@@ -819,16 +830,23 @@ ARCHIVE = ("GridSimEnv v1 (one-shot day-ahead schedule, training results) is arc
 
 
 def ladder_block(d: dict) -> str:
-    done = {v["version"]: v for v in d["versions"]}
+    done, lad, chk = {v["version"]: v for v in d["versions"]}, [x["version"] for x in d["ladder"]], checks(d)
     rows = [f"| **{x['version']}, {x['name']}**<br><small>" + (
         f"{done[x['version']]['n_tasks']} {unit(done[x['version']])}s, results above" if x["version"] in done
         else "next")
-        + f"</small> | {md(x['adds'])} | {md(x['does'])} |" for x in d["ladder"]]
-    return "\n".join(["**The version ladder.** Each version adds one kind of realism to the same desk, tools and "
-                      "grading.", "", "| Version | What it adds | What the agent does |", "|---|---|---|", *rows])
+        + f"</small> | {md(x['adds'])} | {md(x['does'])} |" for x in d["ladder"]] + [
+        f"| **{v['version']}, {v['name']}**<br><small>a price-impact check on {v['check_of']}'s {v['n_tasks']} "
+        f"{unit(v)}s, results above</small> | {md(v['adds'])} | {md(v['does'])} |" for v in chk]
+    return "\n".join([
+        f"**{NUM[len(lad)]} versions ({lad[0]}–{lad[-1]}) plus a price-impact check "
+        f"({and_join([v['version'] for v in chk])}).** Each version adds one kind of realism to the same desk, tools "
+        "and grading. The check re-runs " + and_join([f"{v['check_of']}'s {unit(v)}s" for v in chk]) + " with the "
+        "desk's day-ahead offers re-clearing the market, to measure how far one battery moves the price.", "",
+        "| Version | What it adds | What the agent does |", "|---|---|---|", *rows])
 
 
-def desk_results(v: dict, charts: dict) -> str:
+def desk_results(v: dict, d: dict) -> str:
+    charts = d["charts"]
     sites = ", ".join(f"{s['region']} {s['size']}" for s in v["sites"])
     a, b = (f"{date.fromisoformat(x):%-d %B %Y}" for x in v["dates"])
     rows = [desk_row(m) for m in v["models"]] + [
@@ -855,9 +873,8 @@ def desk_results(v: dict, charts: dict) -> str:
         *([f"<small>{' '.join(x for x in (v.get('defects'), v.get('deviations')) if x)}</small>", ""]
           if v.get("defects") or v.get("deviations") else []),
         f"**How much of the hindsight optimum each desk captured, {by(v)}, {v['version']}**", "",
-        *chart(f"desk-{v['version']}-days", days_alt(v, charts["days_scale"]), charts["width"],
-               charts["phone"]["media"]), "",
-        f"<small>{days_caption(v, charts['days_scale'])}</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
+        *chart(f"desk-{v['version']}-days", days_alt(v, d), charts["width"], charts["phone"]["media"]), "",
+        f"<small>{days_caption(v, d)}</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
         f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the viewer lists every "
         f"{unit(v)} with a replay of each model's run.", "",
         f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
@@ -879,8 +896,8 @@ def by(v: dict) -> str:
     return "front by front" if v["days_per_task"] > 1 else "day by day"
 
 
-def days_alt(v: dict, scale: list[float]) -> str:
-    ds = v["days"]
+def days_alt(v: dict, desk: dict) -> str:
+    ds, scale, n = v["days"], desk["charts"]["days_scale"], NUM[len(ladder(desk))].lower()
     each = [f"{m['name']} " + ", ".join(f"{pc(d['C'][m['key']])}%" for d in ds) for m in v["models"]]
     each += ["the real operator's bids, replayed, " + ", ".join(f"{pc(d['C']['operator_replay'])}%" for d in ds)
              if all(d["C"].get("operator_replay") is not None for d in ds) else ""]
@@ -888,19 +905,19 @@ def days_alt(v: dict, scale: list[float]) -> str:
     unit_ = "fronts" if v["days_per_task"] > 1 else "days"
     return (f"Line chart of hindsight capture C {by(v)}, each point the mean of the {ds[0]['n']} sites' {span(v)}s, "
             f"as a percentage of the hindsight optimum's profit over idle, on a scale of {pc(scale[0], 0)}% to "
-            f"{pc(scale[1], 0)}% shared by every version, over {len(ds)} {unit_} "
+            f"{pc(scale[1], 0)}% shared by all {n} versions, over {len(ds)} {unit_} "
             f"({', '.join(short(v, d['block']) for d in ds)} {years}): " + "; ".join(x for x in each if x) + "."
             + (f" Shaded: {named[0]['named']}, {short(v, named[0]['block'])}." if named else ""))
 
 
-def days_caption(v: dict, scale: list[float]) -> str:
-    ds, multi = v["days"], v["days_per_task"] > 1
+def days_caption(v: dict, desk: dict) -> str:
+    ds, multi, scale, n = v["days"], v["days_per_task"] > 1, desk["charts"]["days_scale"], len(ladder(desk))
     named = [d for d in ds if d.get("named")]
     region = {s["name"].split()[-1]: s["region"] for s in v["sites"]}
     moved = [t for t in v["tasks"] if t["date"] != t["block"]]
     return (f"Each point is the mean C of the {ds[0]['n']} {span(v)}s {'of that front' if multi else 'that day'}, one "
-            "per site; grey dashed, the real operator's own bids, replayed. All four versions share one scale, "
-            f"{pc(scale[0], 0)}% to {pc(scale[1], 0)}%."
+            f"per site; grey dashed, the real operator's own bids, replayed. All {NUM[n].lower()} versions share one "
+            f"scale, {pc(scale[0], 0)}% to {pc(scale[1], 0)}%."
             + (f" Shaded: {named[0]['named']}, {long_(v, named[0]['block'])}." if named else "")
             + "".join(f" The {region.get(t['site'], t['site'])} window of the {long_(v, t['block'])} front ran "
                       f"{long_(v, t['date'])}." for t in moved))
@@ -979,7 +996,7 @@ def desk_bullets(v: dict) -> list[str]:
                    + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
                       "No model is ahead with a CI above zero.")
                    + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
-    out += sensitivity(v) + reserves(v) + dam_days(v) + impact(v) + versus(v)
+    out += sensitivity(v) + reserves(v) + dam_days(v)
     a, spread = refs["anchor"], "anchor" in (v.get("sensitivity") or {}).get("bought_back", [])
     out.append("**The anchor,** the desk's own optimiser on the same information, "
                + ("" if spread else "free to take DAM/RT spread positions, ")
@@ -1066,45 +1083,39 @@ def reserves(v: dict) -> list[str]:
     return ["**Reserves.** " + "; ".join(one(m) for m in ms) + "."]
 
 
-def impact(v: dict) -> list[str]:
-    """v5: what the desk's own DAM offers did to the price they cleared at, from the report's re-clear."""
-    pi = v.get("price_impact")
-    if not pi:
-        return []
-    ms = {m["key"]: m["name"] for m in v["models"]}
-    name = lambda k: ms.get(k, SHORTS.get(k, k))  # noqa: E731
-    keys = [k for k in [*ms, "anchor"] if k in pi]
-    cents = lambda x: f"{'−' if x < 0 else '+' if x > 0 else ''}{abs(x) * 100:.1f}¢"  # noqa: E731
-    big = max(pi[k]["max_abs_usd_per_mwh"] for k in keys)
-    return ["**One battery moves the DAM price by cents.** Re-clearing the DAM against the day's real offers with "
-            "each desk's own moves the node's price on its sales, MWh-weighted over its awarded hours, by: "
-            + "; ".join(
-                f"{name(k)} {cents(pi[k]['sales_mwh_weighted_usd_per_mwh'])}/MWh" for k in keys)
-            + f". The largest single move is ${big:.2f}/MWh; on revenue it is worth " + and_join(
-                [f"{name(k)} {usd0(pi[k]['revenue_effect_usd_per_episode'], True)}" for k in keys])
-            + f" a {unit(v)}. A single 100–150 MW battery is a price taker here, so {v['version']} matches "
-            f"{(v.get('versus') or {}).get('label', 'v3')} by construction of the market, as pre-registered. A next "
-            "step is a portfolio desk: a QSE bidding its whole fleet of batteries into the DAM at once."]
-
-
-def versus(v: dict) -> list[str]:
-    """v5: each model's paired gap to the version it repeats, on the same tasks."""
-    vs = v.get("versus")
-    if not vs:
-        return []
-    ms = {m["key"]: m["name"] for m in v["models"]}
-    gaps = "; ".join(f"{ms.get(k, k)} {usd0(b['P']['mean'], True)} {usd0_ci(b['P']['ci'], True)}"
-                     for k, b in vs["models"].items())
-    noise = all(b[x]["ci"][0] <= 0 <= b[x]["ci"][1] for b in vs["models"].values() for x in ("P", "R", "C"))
-    return [f"**{v['version']} against {vs['label']},** paired on the same {v['n_tasks']} {unit(v)}s, P a {unit(v)}: "
-            f"{gaps}." + (" Every P, R and C gap has a CI that includes zero: two runs of the same model differ "
-                          "this much, while the price moved by cents." if noise else "")]
+def price_check(v: dict) -> str:
+    """v5: the battery-days of the version it checks, re-run with each desk's DAM curves re-cleared against the day's
+    real offers; how far that moved the price, and each model's gap to its own run there, paired by task."""
+    pi, vs, u, of = v["price_impact"], v["versus"]["models"], unit(v), v["check_of"]
+    names = {m["key"]: m["name"] for m in v["models"]}
+    top = max((k for k in names if k in pi), key=lambda k: abs(pi[k]["revenue_effect_usd_per_episode"]))
+    mw, move = sorted({int(x["size"].split()[0]) for x in v["sites"]}), pi[top]["sales_mwh_weighted_usd_per_mwh"] * 100
+    effect = usd0(pi[top]["revenue_effect_usd_per_episode"], True)
+    noise = all(b[x]["ci"][0] <= 0 <= b[x]["ci"][1] for b in vs.values() for x in ("P", "R", "C"))
+    rows = [f"| **{m['name']}** | {h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small> | "
+            f"{stacked(vs[m['key']]['C'])} | {stacked_usd(vs[m['key']]['P'], True)} |" for m in v["models"]]
+    return "\n".join([
+        f"### {v['version']} · {v['name']}: a price-impact check", "",
+        f"{v['version']} re-runs {of}'s {v['n_tasks']} {u}s with each desk's day-ahead curves re-cleared against the "
+        f"day's real offer stack, as ERCOT disclosed it 60 days later. One {mw[0]}–{mw[-1]} MW battery moves the price "
+        f"by cents: {names[top]}'s offers moved it by {'−' if move < 0 else '+'}{abs(move):.1f}¢/MWh on its sales, at "
+        f"most ${pi[top]['max_abs_usd_per_mwh']:.2f}/MWh, about {effect} in revenue a {u}. "
+        + (f"Paired by {u}, every {v['version']} − {of} difference in C, P and R has a 95% CI that includes zero: "
+           f"{v['version']} reproduces {of}. " if noise else "")
+        + "The next step that would make price impact matter is a fleet desk: a QSE trading a portfolio of batteries.",
+        "", f"| Desk | C in {v['version']} | {v['version']} − {of} in C | {v['version']} − {of} in P, $ a {u} |",
+        "|---|---:|---:|---:|", *rows, "",
+        f"<small>{v['version']} − {of}: each model's {v['version']} run minus its {of} run on the same {u}, averaged. "
+        f"Brackets: {v['block']}-block bootstrap 95% CIs over {v['n_days']} {v['block']}s.</small>", "",
+        f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) and in the `desk_leaderboard` and "
+        f"`desk_runs` configs, split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the "
+        "plugin."])
 
 
 def across(d: dict) -> str:
-    """The models' C version by version, as the card's lead chart and a table, and what the paired gaps between them
-    say."""
-    vs = d["versions"]
+    """The models' C over the ladder's versions, as the card's lead chart and a table, and what the paired gaps between
+    them say."""
+    vs = ladder(d)
     if len(vs) < 2:
         return ""
     keys = list(dict.fromkeys(m["key"] for v in vs for m in v["models"]))
@@ -1121,7 +1132,7 @@ def across(d: dict) -> str:
 
 
 def across_alt(d: dict, keys: list[str], names: dict[str, str]) -> str:
-    vs = d["versions"]
+    vs = ladder(d)
     each = [f"{names[k]} " + ", ".join(f"{pc(m['C']['mean'])}%" for v in vs if (m := next(
         (x for x in v["models"] if x["key"] == k), None))) for k in keys]
     ops = [next((r for r in v["references"] if r["key"] == "operator_replay"), None) for v in vs]
@@ -1130,22 +1141,25 @@ def across_alt(d: dict, keys: list[str], names: dict[str, str]) -> str:
     gaps = [f" In {v['version']}, {names['sol']} − {names['luna']}, paired by {span(v)}: {pc(g['mean'], 1, True)} "
             f"points [{pc(g['ci'][0])}, {pc(g['ci'][1])}]." for v, g in clear_gaps(d)]
     names_ = "; ".join(f"{v['version']} {v['name']}, {count(v)}" for v in vs)
-    return ("Line chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, version "
-            f"by version ({names_}), with 95% CIs shaded: " + "; ".join(each + op) + "." + "".join(gaps))
+    return ("Line chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, across "
+            f"the {NUM[len(vs)].lower()} versions ({names_}): " + "; ".join(each + op) + "." + "".join(gaps)
+            + " Each value's 95% CI is in the table below.")
 
 
 def across_caption(d: dict, names: dict[str, str]) -> str:
-    multi = [f"in {v['version']}, over its {v['n_days']} {v['block']}s" for v in d["versions"] if v["block"] != "day"]
+    multi = [f"in {v['version']}, over its {v['n_days']} {v['block']}s" for v in ladder(d) if v["block"] != "day"]
     clear = clear_gaps(d)
-    return ("C × 100: the share of the hindsight optimum's profit over idle that each desk captured, as in the table "
-            "below, with its 95% CI shaded (a block bootstrap over operating days"
+    return ("C × 100: the share of the hindsight optimum's profit over idle that each desk captured; the table below "
+            "gives each value with its 95% CI (a block bootstrap over operating days"
             + (f"; {'; '.join(multi)}" if multi else "") + "). Grey dashed: the real operator's own bids, replayed "
             "through the same clearing and settlement."
             + (f" The callout in {and_join([v['version'] for v, _ in clear])} is {names['sol']}'s lead over "
                f"{names['luna']} in points, paired by {and_join(list(dict.fromkeys(span(v) for v, _ in clear)))}, with "
                f"its 95% CI; {and_join([v['version'] for v, _ in clear])} "
                f"{'is the only version' if len(clear) == 1 else 'are the only versions'} where that CI excludes zero."
-               if clear else ""))
+               if clear else "")
+            + "".join(f" {v['version']} is not on the chart: it re-runs {v['check_of']}'s {unit(v)}s as a price-impact "
+                      "check, in its own section below." for v in checks(d)))
 
 
 def count(v: dict) -> str:
@@ -1160,7 +1174,7 @@ def span(v: dict) -> str:
 
 def clear_gaps(d: dict) -> list[tuple[dict, dict]]:
     """The versions where GPT-6.1 Sol and GPT-6 Luna's paired C gap has a CI that excludes zero, Sol minus Luna."""
-    return [(v, g) for v in d["versions"] if (g := paired_c(v, "sol", "luna")) and (g["ci"][0] > 0 or g["ci"][1] < 0)]
+    return [(v, g) for v in ladder(d) if (g := paired_c(v, "sol", "luna")) and (g["ci"][0] > 0 or g["ci"][1] < 0)]
 
 
 def paired_c(v: dict, a: str, b: str) -> dict | None:
@@ -1173,21 +1187,20 @@ def paired_c(v: dict, a: str, b: str) -> dict | None:
 
 
 def across_text(d: dict) -> str:
-    """Where the paired C gap between GPT-6.1 Sol and GPT-6 Luna excludes zero, and whether the untrained model is
-    last in every version."""
-    vs, out = d["versions"], []
-    keys = {m["key"] for v in vs for m in v["models"]}
-    pair = lambda v, a, b: next((x["C"] for x in v["paired"] if {x["a"], x["b"]} == {a, b} and "C" in x), None)  # noqa: E731
-    if {"sol", "luna"} <= keys:
-        clear = [v for v in vs if (g := pair(v, "sol", "luna")) and (g["ci"][0] > 0 or g["ci"][1] < 0)]
-        rest = [v["version"] for v in vs if v not in clear]
-        out.append("Paired by task, GPT-6.1 Sol and GPT-6 Luna differ in C with a CI that excludes zero only in "
-                   + and_join([f"{v['version']}" + (f", on {v['days_per_task']}-day weather fronts"
-                                                     if v["days_per_task"] > 1 else "") for v in clear])
-                   + f" (Sol ahead); in {and_join(rest)} they are close." if clear else
-                   "Paired by task, GPT-6.1 Sol and GPT-6 Luna never differ in C with a CI that excludes zero.")
-    if "qwen" in keys and all(min(v["models"], key=lambda m: m["C"]["mean"])["key"] == "qwen" for v in vs):
-        out.append("The untrained Qwen3-4B has the lowest C in every version.")
+    """The card's one-liner, also desk.json's `across`: where GPT-6.1 Sol and GPT-6 Luna's paired C gap is within noise
+    and where it is not, by how long the ladder's tasks run, and whether the untrained model is last in every
+    version."""
+    vs, clear = ladder(d), clear_gaps(d)
+    close = [v for v in vs if all(v is not c for c, _ in clear)]
+    on = lambda xs: "single days" if all(v["days_per_task"] == 1 for v in xs) else (  # noqa: E731
+        f"{xs[0]['days_per_task']}-day weather fronts")
+    out = [f"Paired by task, GPT-6.1 Sol and GPT-6 Luna are within noise on {on(close)} "
+           f"({', '.join(v['version'] for v in close)}) and {'Sol' if clear[0][1]['mean'] > 0 else 'Luna'} is clearly "
+           f"ahead on {on([v for v, _ in clear])} (" + "; ".join(
+               f"{v['version']}: {pc(g['mean'], 1, True)} pts of hindsight capture, 95% CI [{pc(g['ci'][0])}, "
+               f"{pc(g['ci'][1])}]" for v, g in clear) + ")."]
+    if all(min(v["models"], key=lambda m: m["C"]["mean"])["key"] == "qwen" for v in vs):
+        out.append("The untrained Qwen3-4B has the lowest capture throughout.")
     return " ".join(out)
 
 

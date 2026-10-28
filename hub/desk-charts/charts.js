@@ -1,7 +1,8 @@
-/** The dataset card's desk charts from desk.json (scripts/hub_desk.py): hindsight capture across versions, and each
- * version's capture day by day (front by front in v4), each at the card's width and in a phone layout. Bare SVG on a
- * transparent page in the theme on <html>; hub_desk.py captures every [data-figure] at 2x and takes chartsSvg(), each
- * chart as a standalone SVG with its styles and font inlined, in light and dark. */
+/** The dataset card's desk charts from desk.json (scripts/hub_desk.py): hindsight capture across the ladder's versions
+ * (a check such as v5 is not a step on it), and each one's capture day by day (front by front in v4), each at the card's
+ * width and in a phone layout. Bare SVG on a transparent page in the theme on <html>; hub_desk.py captures every
+ * [data-figure] at 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font inlined, in light
+ * and dark. */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
@@ -145,9 +146,11 @@ function ticks(lo, hi, step, cls) {
   return out.map((k) => ({ ...k, w: measure(k.label, cls) }));
 }
 
+const ladder = (D) => D.versions.filter((v) => v.role === "ladder");
+
 function across(D, W, narrow) {
   W = narrow ? W : D.charts.lead;
-  const V = D.versions, n = V.length, keys = ORDER.filter((k) => V.some((v) => model(v, k)));
+  const V = ladder(D), n = V.length, keys = ORDER.filter((k) => V.some((v) => model(v, k)));
   const names = Object.fromEntries(V.flatMap((v) => v.models.map((m) => [m.key, m.name])));
   let [s, y] = header("Hindsight capture C", "% of the hindsight optimum's profit over idle", W);
   if (narrow) {
@@ -155,14 +158,15 @@ function across(D, W, narrow) {
     s += k;
     y = ky;
   }
+  const y0head = y;
   const last = V[n - 1], split = (t) => { const i = t.indexOf(" ("); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 1)]; };
   const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: model(last, k).C.mean, val: pct(model(last, k).C.mean), bold: k === "sol", name: split(names[k]) })),
     ...(ref(last, OP.key) ? [{ key: OP.key, c: ref(last, OP.key).C.mean, val: pct(ref(last, OP.key).C.mean), op: true, name: split(OP.label) }] : [])];
   const vw = Math.max(0, ...ends.map((e) => (e.val ? measure(e.val, "t-end-v") : 0))) + 7;
   const ew = ends.length ? vw + Math.max(...ends.map((e) => Math.max(measure(e.name[0], e.bold ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) : 0;
-  const vals = V.flatMap((v) => [...v.models.flatMap((m) => [m.C.mean, ...m.C.ci]), ref(v, OP.key)?.C.mean ?? 0]);
-  const lo = Math.min(-0.04, Math.floor((Math.min(...vals) - 0.015) * 50) / 50), hi = Math.ceil((Math.max(...vals) + 0.03) * 20) / 20;
-  const tk = ticks(0, hi, 0.2, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14;
+  const vals = V.flatMap((v) => [...v.models.map((m) => m.C.mean), ref(v, OP.key)?.C.mean ?? 0]);
+  const lo = Math.min(-0.05, Math.floor((Math.min(...vals) - 0.02) * 50) / 50), hi = Math.ceil((Math.max(...vals) + 0.12) * 10) / 10;
+  const tk = ticks(0, hi, hi > 0.5 ? 0.2 : 0.1, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14;
   const R = W - (ends.length ? ew + 30 : 10), pad = narrow ? 30 : 40, xs = V.map((_, i) => L + pad + ((R - L - 2 * pad) * i) / (n - 1));
   const top = y + (narrow ? 22 : 24), PH = narrow ? 260 : 272, bottom = top + PH, yv = lin(lo, hi, bottom, top);
   const tickBoxes = [];
@@ -170,12 +174,8 @@ function across(D, W, narrow) {
     s += L_(L, yv(k.t), R + 6, yv(k.t), k.t ? "grid" : "zero") + T(L - 8, yv(k.t) + 4.5, k.label, "t-tick", "end");
     tickBoxes.push([L - 8 - k.w, yv(k.t) - 6, L - 6, yv(k.t) + 6]);
   }
-  let bands = "", lines = "", marks = "", labels = "";
+  let lines = "", marks = "", labels = "";
   const series = keys.map((k) => ({ key: k, m: V.map((v) => model(v, k)) })).map((sr) => ({ ...sr, pts: sr.m.map((m, i) => [xs[i], yv(m.C.mean)]) }));
-  for (const sr of series) {
-    const up = sr.m.map((m, i) => [xs[i], yv(m.C.ci[1])]), dn = sr.m.map((m, i) => [xs[i], yv(m.C.ci[0])]).reverse();
-    bands += `<path class="band" d="${path([...up, ...dn])}Z" fill="${COL[sr.key]}"/>`;
-  }
   const opPts = V.map((v, i) => (ref(v, OP.key) ? [xs[i], yv(ref(v, OP.key).C.mean)] : null)).filter(Boolean);
   lines += `<path class="op" d="${path(opPts)}"/>` + opPts.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>`).join("");
   for (const sr of [...series].reverse()) {
@@ -196,11 +196,13 @@ function across(D, W, narrow) {
     const g = pair(V[gi], "sol", "luna"), sp = placed.find((p) => p.key === "sol" && p.i === gi);
     const t1 = `Sol − Luna ${pts(g.mean, true)} pts`, t2 = `95% CI [${pts(g.ci[0])}, ${pts(g.ci[1])}]`, cw = Math.max(measure(t1, "t-call b"), measure(t2, "t-call"));
     const base = sp ? sp.b[1] : series[0].pts[gi][1] - 12;
-    const cands = [[xs[gi], base - 24, "middle"], [xs[gi] + 10, base - 24, "start"], [xs[gi] - 10, base - 24, "end"]].map(([x, y, a]) => {
+    const grid = tk.map((k) => yv(k.t));
+    const cands = [0, 8, 16, 24, 32].flatMap((up) => [[xs[gi], base - 24 - up, "middle"], [xs[gi] + 10, base - 24 - up, "start"], [xs[gi] - 10, base - 24 - up, "end"]].map(([x, y, a]) => {
       const x0 = a === "start" ? x : a === "end" ? x - cw : x - cw / 2, b = [x0, y - 12, x0 + cw, y + 20];
-      const over = dots.filter(([px, py]) => px > b[0] - 3 && px < b[2] + 3 && py > b[1] - 3 && py < b[3] + 3).length + (x0 < 0 || x0 + cw > W - 2 ? 500 : 0);
+      const over = dots.filter(([px, py]) => px > b[0] - 3 && px < b[2] + 3 && py > b[1] - 3 && py < b[3] + 3).length + (x0 < 0 || x0 + cw > W - 2 ? 500 : 0)
+        + (grid.some((g) => g > b[1] - 3 && g < b[3] + 2) ? 20 : 0) + (b[1] < y0head + 8 ? 500 : 0) + up / 8 + (a === "middle" ? 0 : 1);
       return { x, y, a, over };
-    });
+    }));
     const c = cands.reduce((m, k) => (k.over < m.over ? k : m));
     labels += T(c.x, c.y, t1, "t-call b", c.a) + T(c.x, c.y + 16, t2, "t-call", c.a);
   }
@@ -235,8 +237,8 @@ function across(D, W, narrow) {
   }
   const multi = V.filter((v) => v.block !== "day").map((v) => `${v.version} by ${v.block}`);
   maxY += 10;
-  for (const line of wrap(`Shaded: 95% day-block bootstrap CIs${multi.length ? `; ${multi.join(", ")}` : ""}.`, "t-foot", W)) xl += T(0, (maxY += 17), line, "t-foot");
-  s += bands + lines + marks + labels + xl;
+  for (const line of wrap(`95% CIs (day-block bootstrap${multi.length ? `; ${multi.join(", ")}` : ""}) are in the table below.`, "t-foot", W)) xl += T(0, (maxY += 17), line, "t-foot");
+  s += lines + marks + labels + xl;
   return svg(W, maxY + 6, s, "Hindsight capture by model and version");
 }
 
@@ -328,7 +330,7 @@ async function main() {
   await document.fonts.load('600 13px "IBM Plex Sans"');
   await document.fonts.ready;
   const scale = D.charts.days_scale, sizes = [["", D.charts.width, false], ["-phone", D.charts.phone.width, true]];
-  const figs = sizes.flatMap(([sfx, W, narrow]) => [[`desk-across${sfx}`, across(D, W, narrow)], ...D.versions.map((v) => [`desk-${v.version}-days${sfx}`, daily(v, D, W, narrow, scale)])]);
+  const figs = sizes.flatMap(([sfx, W, narrow]) => [[`desk-across${sfx}`, across(D, W, narrow)], ...ladder(D).map((v) => [`desk-${v.version}-days${sfx}`, daily(v, D, W, narrow, scale)])]);
   document.getElementById("figs").innerHTML = figs.map(([id, body]) => `<section class="fig" data-figure="${id}">${body}</section>`).join("");
   const font = await woff2();
   window.chartsSvg = () => Object.fromEntries([...document.querySelectorAll("[data-figure]")].map((e) => [e.dataset.figure, standalone(e.querySelector("svg"), font)]));

@@ -21,19 +21,13 @@
    "adds": "three operating days across a weather front, on ERCOT's forecasts as each was issued",
    "does": "bids three day-ahead markets as the forecasts move",
    "status": "results"
-  },
-  {
-   "version": "v5",
-   "name": "The Market Floor",
-   "adds": "price impact: its DAM offers re-clear the day-ahead market against the day's real offers, disclosed 60 days later",
-   "does": "offers into a market its own bids move",
-   "status": "results"
   }
  ],
  "versions": [
   {
    "version": "v2",
    "name": "The Live Grid",
+   "role": "ladder",
    "adds": "energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS alerts and the battery's outages at their real minutes",
    "does": "bids the DAM, offers real-time curves and files its COP, waking at milestones, notices and its own reminders",
    "ref": "desk-v2-results",
@@ -1961,6 +1955,7 @@
   {
    "version": "v3",
    "name": "Sun, Storage and Reserves",
+   "role": "ladder",
    "adds": "ERCOT's five ancillary services in the DAM and real time, with state-of-charge duration rules, deployments and capacity-short charges; a co-located solar option (modelled)",
    "does": "co-optimises energy and reserves and keeps the charge to back them",
    "ref": "desk-v3-results",
@@ -3673,6 +3668,7 @@
   {
    "version": "v4",
    "name": "Weather Front",
+   "role": "ladder",
    "adds": "three operating days across a weather front, on ERCOT's forecasts as each was issued",
    "does": "bids three day-ahead markets as the forecasts move",
    "ref": "desk-v4-results",
@@ -5486,6 +5482,9 @@
   {
    "version": "v5",
    "name": "The Market Floor",
+   "role": "check",
+   "check_of": "v3",
+   "label": "v5 · price-impact check",
    "adds": "price impact: its DAM offers re-clear the day-ahead market against the day's real offers, disclosed 60 days later",
    "does": "offers into a market its own bids move",
    "ref": "desk-v5-results",
@@ -7316,5 +7315,5 @@
   "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
  },
  "story_version": "v2",
- "across": "Paired by task, GPT-6.1 Sol and GPT-6 Luna differ in C with a CI that excludes zero only in v4, on 3-day weather fronts (Sol ahead); in v2, v3 and v5 they are close. The untrained Qwen3-4B has the lowest C in every version."
+ "across": "Paired by task, GPT-6.1 Sol and GPT-6 Luna are within noise on single days (v2, v3) and Sol is clearly ahead on 3-day weather fronts (v4: +23.1 pts of hindsight capture, 95% CI [9.0, 48.0]). The untrained Qwen3-4B has the lowest capture throughout."
 }

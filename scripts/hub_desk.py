@@ -48,6 +48,7 @@ LADDER = (
     ("v5", "The Market Floor", "price impact: its DAM offers re-clear the day-ahead market against the day's real "
      "offers, disclosed 60 days later", "offers into a market its own bids move"),
 )
+CHECKS = {"v5": {"check_of": "v3", "label": "v5 · price-impact check"}}
 WHY = {"v2": "when the node's day-ahead price ran far above real time"}
 NAMED = {"v2": {"2026-01-25": "winter storm Fern"}, "v4": {"2026-01-23": "winter storm Fern"}}
 IDLE = {v: "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the co-located solar "
@@ -180,8 +181,8 @@ def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple
         versions.append(v)
         files |= fs
     ladder = [{"version": k, "name": n, "adds": a, "does": d, "status": "results" if any(
-        v["version"] == k for v in versions) else "next"} for k, n, a, d in LADDER]
-    c = [x for v in versions for d in v["days"] for x in d["C"].values()]
+        v["version"] == k for v in versions) else "next"} for k, n, a, d in LADDER if k not in CHECKS]
+    c = [x for v in versions if v["role"] == "ladder" for d in v["days"] for x in d["C"].values()]
     scale = [round(math.floor((min(c) - 0.02) / 0.2) * 0.2, 6), round(math.ceil((max(c) + 0.04) / 0.2) * 0.2, 6)]
     return {"schema": "gridsim.desk.hub/v1", "ladder": ladder, "versions": versions,
             "charts": CARD_CHARTS | {"days_scale": scale}}, files
@@ -204,7 +205,8 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     sites = sorted({(e["site"]["card"]["name"], e["site"]["card"]["region"], e["site"]["card"]["size"])
                     for e in episodes.values()})
     dates = sorted({e["dates"][0] for e in episodes.values()})
-    v = {"version": key, "name": name, "adds": adds, "does": does, "ref": tag, "folder": rel, "pack": s["pack"],
+    v = {"version": key, "name": name, "role": "check" if key in CHECKS else "ladder", **CHECKS.get(key, {}),
+         "adds": adds, "does": does, "ref": tag, "folder": rel, "pack": s["pack"],
          "n_tasks": s["n_tasks"], "n_days": s["n_days"], "dates": [dates[0], dates[-1]],
          "days_per_task": max(len(e["dates"]) for e in episodes.values()),
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],

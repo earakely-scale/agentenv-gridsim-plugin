@@ -54,6 +54,9 @@ and on data as ERCOT posted it, graded in dollars against the hindsight optimum 
 - **Against the real operator.** ERCOT discloses every resource's bids, awards and metered output 60 days later. Each
   task replays the real operator's own bids through the same clearing and settlement, and settles its actual awards and
   output the same way.
+- **Three versions (v2–v4) plus a price-impact check (v5).** Each version adds one kind of realism to the same desk:
+  v2 trades energy alone, v3 adds ERCOT's reserves and a solar option, v4 three-day weather fronts. v5 re-runs v3's
+  battery-days with the desk's own day-ahead offers re-clearing the market.
 
 ## Results
 
@@ -82,11 +85,11 @@ and on data as ERCOT posted it, graded in dollars against the hindsight optimum 
 **How time works.** The clock is AgentEnv's virtual clock, frozen while the agent works; there is no `advance` tool.
 After each turn a post-turn hook takes the earlier of the desk's next wake-up and the gateway's next time trigger,
 moves the clock there, and the environment runs the market forward to that minute: the DAM clears at the node's real
-day-ahead price (in v5, at a price re-cleared against the day's real offers with the desk's own), every 5-minute
-dispatch run clears the curve in force at the node's real price within the battery's limits and state of charge, and
-each 15-minute interval settles. A 5-minute price becomes visible one minute after its interval, a 15-minute price
-two minutes after, each forecast vintage as issued and each notice at its minute. The runs here play the same desk in
-process; the environment's tests check that both paths give byte-identical tool outputs and wake-ups.
+day-ahead price (in the v5 price-impact check, at a price re-cleared against the day's real offers with the desk's
+own), every 5-minute dispatch run clears the curve in force at the node's real price within the battery's limits and
+state of charge, and each 15-minute interval settles. A 5-minute price becomes visible one minute after its interval,
+a 15-minute price two minutes after, each forecast vintage as issued and each notice at its minute. The runs here play
+the same desk in process; the environment's tests check that both paths give byte-identical tool outputs and wake-ups.
 
 **How a task is graded.** P sums the statement's lines: DAM energy, RT imbalance at the node's 15-minute price,
 set-point deviation charges, from v3 ancillary-service capacity and imbalance, and the modelled lines. C = (P −
@@ -98,15 +101,16 @@ R = 0.
 
 ## Methods
 
-- **Pre-registered, then frozen.** Each version's pre-registration was committed before its first scored episode
+- **Pre-registered, then frozen.** The three versions (v2–v4) plus a price-impact check (v5) each had a
+  pre-registration committed before the first scored episode
   ([v2](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v2-desk.md),
   [v3](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v3-desk.md),
   [v4](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v4-desk.md),
   [v5](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v5-desk.md)): the pack, the
   models and their settings, the references, what is reported and the prior. The code is frozen at a tag before any
   scored run (`desk-v2-freeze`, `desk-v3-freeze`, `desk-v4-freeze` and `desk-v5-freeze`). Nothing is rerun to improve
-  a score, and anything done differently is logged as a deviation in the pre-registration; v4's and v5's are also
-  stated beside their results.
+  a score, and anything done differently is logged as a deviation in the pre-registration; v4's are also stated
+  beside its results.
 - **Reviewed and piloted.** A review of the environment before v2's runs found two information-timing leaks, fixed
   before any scored episode. Each version is then piloted on one or two tasks before its eval; the pilots are
   mechanics checks, not results.
@@ -132,14 +136,14 @@ R = 0.
 - **Modelled lines.** The co-located solar profile, degradation, warranty overage, the end-of-day energy charge and
   the capacity-short charge are modelled and marked as such; so is the desk's own price forecast, built only from
   data public at the time.
-- **One battery is a price taker.** Through v4 the desk clears at the real prices; v5's re-clear shows that a
-  100–150 MW battery moves the day-ahead price by cents.
+- **One battery is a price taker.** In v2 to v4 the desk clears at the real prices; the v5 price-impact check
+  re-clears the DAM with the desk's own offers and shows that a 100–150 MW battery moves the day-ahead price by cents.
 - **One run per model per task, and small packs.** 16 to 32 tasks per version over four to eight blocks, so the CIs
-  are wide; v5 repeats v3's battery-days, and the gaps between the two runs are the scale of that noise.
+  are wide; the v5 check repeats v3's battery-days, and the gaps between the two runs are the scale of that noise.
 
 ## Next steps
 
-- **A portfolio desk:** a QSE bidding its whole fleet of batteries into the DAM at once, where price impact can
+- **A fleet desk:** a QSE trading a portfolio of batteries, bidding them into the DAM at once, where price impact can
   matter.
 - **More runs per task,** to separate skill from run-to-run noise, and more model families on the same packs.
 
@@ -183,7 +187,7 @@ the Iowa Environmental Mesonet.
   author = {Arakelyan, Edgar},
   year = {2026},
   url = {https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv},
-  note = {Desk versions v2 to v5. Code:
+  note = {Desk versions v2 to v4 and a price-impact check (v5). Code:
           \url{https://github.com/earakely-scale/agentenv-gridsim-plugin}}
 }
 ```

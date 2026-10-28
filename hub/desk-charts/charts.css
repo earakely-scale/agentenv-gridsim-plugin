@@ -1,6 +1,6 @@
-:root { --halo: #ffffff; --band: 0.075; --fern: rgba(20, 32, 43, 0.055); }
-:root[data-theme="dark"] { --halo: #0b0f19; --band: 0.13; --fern: rgba(214, 228, 240, 0.075); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --band: 0.13; --fern: rgba(214, 228, 240, 0.075); } }
+:root { --halo: #ffffff; --fern: rgba(20, 32, 43, 0.055); }
+:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); } }
 
 html, body { background: transparent; }
 body { margin: 0; padding: 12px; }
@@ -13,7 +13,6 @@ svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-l
 .grid { stroke: var(--line); stroke-width: 1; }
 .zero { stroke: var(--ink-3); stroke-width: 1.25; }
 .lead { stroke: var(--ink-3); stroke-width: 1; fill: none; }
-.band { fill-opacity: var(--band); stroke: none; }
 .ln, .ln-s { fill: none; stroke-linejoin: round; stroke-linecap: round; stroke-width: 2.6; }
 .ln-s { stroke-width: 2.1; }
 .ln.ln-b { stroke-width: 3.4; }
