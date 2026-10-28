@@ -1,0 +1,115 @@
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 100 700; font-display: swap; src: url(./fonts/plex-sans.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(./fonts/plex-mono-500.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+2212; }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url(./fonts/plex-mono-600.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+2212; }
+
+:root {
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+  --page: #e6eaed;
+  --panel: #fbfcfd;
+  --panel-2: #f1f4f6;
+  --panel-3: #e3e8ec;
+  --glass: rgba(251, 252, 253, 0.93);
+  --line: rgba(20, 32, 43, 0.1);
+  --line-2: rgba(20, 32, 43, 0.2);
+  --ink: #14202b;
+  --ink-2: #44515d;
+  --ink-3: #5f6c78;
+  --chg: #0a7fae;
+  --dis: #b85f00;
+  --soc: #0e8055;
+  --pv: #8c6d00;
+  --dam: #14202b;
+  --sced: #6d55b8;
+  --fcst: #71808c;
+  --agent: #2a66d1;
+  --event: #b9324f;
+  --ok: #0e8055;
+  --bad: #c0392b;
+  --c-sol: #2a78d6;
+  --c-luna: #eb6834;
+  --c-qwen: #1baf7a;
+  --c-anchor: #4b4a46;
+  --c-op: #8a6d3b;
+  --c-hind: #a9a7a1;
+  --focus: #2a66d1;
+  --shadow: 0 1px 2px rgba(15, 25, 35, 0.08), 0 6px 18px rgba(15, 25, 35, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #070c11;
+    --panel: #0e151c;
+    --panel-2: #131c25;
+    --panel-3: #1b2631;
+    --glass: rgba(14, 21, 28, 0.9);
+    --line: rgba(214, 228, 240, 0.1);
+    --line-2: rgba(214, 228, 240, 0.2);
+    --ink: #e6edf2;
+    --ink-2: #a7b4bf;
+    --ink-3: #83919d;
+    --chg: #36cff4;
+    --dis: #ffa83a;
+    --soc: #47d496;
+    --pv: #f0cd55;
+    --dam: #e6edf2;
+    --sced: #ab95ff;
+    --fcst: #8f9caa;
+    --agent: #77a6ff;
+    --event: #ff7a8f;
+    --ok: #47d496;
+    --bad: #ff7b6b;
+    --c-sol: #3987e5;
+    --c-luna: #d95926;
+    --c-qwen: #199e70;
+    --c-anchor: #d6d5ce;
+    --c-op: #c9a86a;
+    --c-hind: #7d7c76;
+    --focus: #77a6ff;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #070c11;
+  --panel: #0e151c;
+  --panel-2: #131c25;
+  --panel-3: #1b2631;
+  --glass: rgba(14, 21, 28, 0.9);
+  --line: rgba(214, 228, 240, 0.1);
+  --line-2: rgba(214, 228, 240, 0.2);
+  --ink: #e6edf2;
+  --ink-2: #a7b4bf;
+  --ink-3: #83919d;
+  --chg: #36cff4;
+  --dis: #ffa83a;
+  --soc: #47d496;
+  --pv: #f0cd55;
+  --dam: #e6edf2;
+  --sced: #ab95ff;
+  --fcst: #8f9caa;
+  --agent: #77a6ff;
+  --event: #ff7a8f;
+  --ok: #47d496;
+  --bad: #ff7b6b;
+  --c-sol: #3987e5;
+  --c-luna: #d95926;
+  --c-qwen: #199e70;
+  --c-anchor: #d6d5ce;
+  --c-op: #c9a86a;
+  --c-hind: #7d7c76;
+  --focus: #77a6ff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 400 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod { font-size: 0.86em; font-weight: 500; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; } }

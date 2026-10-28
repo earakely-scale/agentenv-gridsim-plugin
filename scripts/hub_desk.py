@@ -30,7 +30,9 @@ REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
 GIF = "assets/gridsim-desk-hero.gif"
-PAGE = ("desk.html", "desk.js", "desk.css", "board.css", "results.css")
+PAGE = {"desk.html": "desk/results.html", "results.js": "desk/results.js", "results.css": "desk/results.css",
+        "base.css": "desk/base.css",
+        **{f"fonts/{f}": f"desk/fonts/{f}" for f in ("plex-sans.woff2", "plex-mono-500.woff2", "plex-mono-600.woff2")}}
 LADDER = (
     ("v2", "The Live Grid", "energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS "
      "alerts and the battery's outages at their real minutes",
@@ -137,8 +139,9 @@ def main():
     space = BUILD / "space"
     shutil.rmtree(space, ignore_errors=True)
     space.mkdir(parents=True)
-    for n in PAGE:
-        (space / n).write_bytes((WEB / n).read_bytes())
+    for n, src in PAGE.items():
+        (space / n).parent.mkdir(parents=True, exist_ok=True)
+        (space / n).write_bytes((WEB / src).read_bytes())
     (space / "desk.json").write_text(json.dumps(desk, ensure_ascii=False, separators=(",", ":")))
     figs = figures(space, [v["version"] for v in desk["versions"]], hr)
     card = hd.card_only(args.results)
