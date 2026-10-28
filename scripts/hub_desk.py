@@ -41,18 +41,21 @@ LADDER = (
     ("v5", "The Market Floor", "price impact: its DAM offers re-clear the day-ahead market against the day's real "
      "offers, disclosed 60 days later", "offers into a market its own bids move"),
 )
+WHY = {"v2": ("when the node's day-ahead price ran far above real time",
+              "day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, "
+              "and which ERCOT's DAM credit screening, not modelled here, would limit")}
 MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B, untrained", "open")}
 REFS = (("anchor", "Anchor", "Anchor: the desk's optimiser at every wake, same information"),
         ("operator_replay", "The operator's bids, replayed", "The real operator's disclosed bids, replayed"),
         ("operator_actual", "The operator, as settled", "The real operator's awards and metered output, settled"),
         ("hind_phys", "Hindsight, DAM tied to dispatch", "Hindsight optimum, DAM position tied to dispatch"),
         ("hind", "Hindsight optimum", "Hindsight optimum"), ("idle", "Idle", "Idle"))
-LINES = ("dam_energy", "rt_energy_imbalance", "deviation", "load_allocated", "degradation", "warranty_overage",
-         "end_soc_shortfall")
+LINES = ("dam_energy", "rt_energy_imbalance", "deviation", "load_allocated", "dam_as_capacity", "rt_as_imbalance",
+         "capacity_short", "failure_to_provide", "pv_energy", "degradation", "warranty_overage", "end_soc_shortfall")
 F64, I64, STR, BOOL = pa.float64(), pa.int64(), pa.string(), pa.bool_()
 LEADERBOARD = pa.schema([
     ("version", STR), ("pack", STR), ("type", STR), ("key", STR), ("name", STR), ("model_id", STR), ("effort", STR),
-    ("weights", STR), ("battery_days", I64), ("operating_days", I64), ("valid", F64),
+    ("weights", STR), ("tasks", I64), ("days_per_task", I64), ("operating_days", I64), ("valid", F64),
     *((f"{m}{s}", F64) for m in ("capture", "reward", "p_usd", "p_minus_anchor_usd", "p_minus_operator_replay_usd",
                                   "p_minus_operator_actual_usd") for s in ("", "_ci_low", "_ci_high")),
     ("capture_phys", F64), ("beats_anchor", F64), ("usd_per_episode", F64), ("turns", F64), ("calls", F64),
@@ -166,7 +169,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "days_per_task": max(len(e["dates"]) for e in episodes.values()),
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],
          "budget": s["method"]["budget"], "core": s["method"]["core_versions"], "ci": s["ci"], "models": models,
-         "references": refs, "paired": paired, "hero": s.get("hero"), "sensitivity": s.get("sensitivity"),
+         "references": refs, "paired": paired, "hero": s.get("hero"), "sensitivity": sensitivity(key, s, grades),
          "figures": {k: f"{rel}/figures/{f}" for k, f in (("bars", "p-bars.png"), ("bars_dark", "p-bars-dark.png"),
                                                          ("hero", "hero.png"), ("hero_dark", "hero-dark.png"))
                      if (folder / "figures" / f).is_file()},
@@ -176,7 +179,8 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
         g = next(g for g in grades if g["model"] == hero["model"] and g["task_id"] == hero["task_id"])
         v["story"] = story(episodes[g["episode"]], hero)
     rows = [run_row(key, s, g, episodes[g["episode"]]) for g in grades]
-    board = [board_row(key, s, m) for m in models] + [ref_row(key, s, r) for r in refs]
+    board = [board_row(key, s, m, v["days_per_task"]) for m in models] + [
+        ref_row(key, s, r, v["days_per_task"]) for r in refs]
     files = {f"desk_leaderboard/{key}.parquet": parquet(board, LEADERBOARD),
              f"desk_runs/{key}.parquet": parquet(rows, RUNS)}
     v["rows"] = {"leaderboard": len(board), "runs": len(rows)}
@@ -284,6 +288,21 @@ def check(s: dict, grades: list[dict]) -> None:
             raise Mismatch(f"{s['layer']} {k}: grades give {got}, summary.json {want}")
 
 
+def sensitivity(key: str, s: dict, grades: list[dict]) -> dict | None:
+    """The report's post-hoc check, with which models and references made more than half their total P on the days it
+    leaves out, and, where the day's statements were read, what paid."""
+    sv = s.get("sensitivity")
+    if not sv or not sv.get("without"):
+        return sv
+    days, first = set(sv["without"]["days"]), next(iter(s["models"]))
+    p = {k: [(g["date"], g["p"]) for g in grades if g["model"] == k] for k in s["models"]} | {
+        k: [(g["date"], g[f"p_{k}"]) for g in grades if g["model"] == first and g[f"p_{k}"] is not None]
+        for k in ("anchor", "operator_replay", "operator_actual")}
+    carried = [k for k, xs in p.items() if xs and (t := sum(x for _, x in xs)) > 0
+               and sum(x for d, x in xs if d in days) > t / 2]
+    return sv | {"carried": carried} | (dict(zip(("why_short", "why"), WHY[key], strict=True)) if key in WHY else {})
+
+
 def model_row(k: str, m: dict) -> dict:
     name, weights = MODELS.get(k, (k, None))
     pol = m["policy"]
@@ -299,8 +318,8 @@ def model_row(k: str, m: dict) -> dict:
             "cycles": m["cycles"], "tokens": m["tokens"]}
 
 
-def board_row(key: str, s: dict, m: dict) -> dict:
-    return common(key, s) | {
+def board_row(key: str, s: dict, m: dict, dpt: int) -> dict:
+    return common(key, s, dpt) | {
         "type": "model", "key": m["key"], "name": m["name"], "model_id": m["model_id"], "effort": m["effort"],
         "weights": m["weights"], "valid": m["valid"], **band("capture", m["C"]), **band("reward", m["R"]),
         **band("p_usd", m["P"]), **band("p_minus_anchor_usd", m["P_minus_anchor"]),
@@ -311,14 +330,14 @@ def board_row(key: str, s: dict, m: dict) -> dict:
         "reminders": m["reminders"], "cycles": m["cycles"]}
 
 
-def ref_row(key: str, s: dict, r: dict) -> dict:
-    return common(key, s) | {"type": "reference", "key": r["key"], "name": r["name"], **band("capture", r["C"]),
+def ref_row(key: str, s: dict, r: dict, dpt: int) -> dict:
+    return common(key, s, dpt) | {"type": "reference", "key": r["key"], "name": r["name"], **band("capture", r["C"]),
                              **band("p_usd", r["P"]), "capture_phys": r["C_phys"]["mean"]}
 
 
-def common(key: str, s: dict) -> dict:
-    return {"version": key, "pack": s["pack"], "battery_days": s["n_tasks"], "operating_days": s["n_days"],
-            "source": f"results/desk-{key}"}
+def common(key: str, s: dict, dpt: int) -> dict:
+    return {"version": key, "pack": s["pack"], "tasks": s["n_tasks"], "days_per_task": dpt,
+            "operating_days": s["n_days"], "source": f"results/desk-{key}"}
 
 
 def band(name: str, b: dict) -> dict:

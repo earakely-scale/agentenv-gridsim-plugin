@@ -8,6 +8,7 @@ const REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin";
 const ARTICLE = "https://huggingface.co/spaces/earakely-scale/GridSimEnv";
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
 const REFC = { anchor: "var(--c-anchor)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)" };
+const INLINE = { anchor: "the anchor", operator_replay: "the operator's bids", operator_actual: "the operator as settled" };
 const SHORT = { anchor: "Anchor", operator_replay: "Operator's bids, replayed", operator_actual: "Operator, as settled", hind_phys: "Hindsight, DAM tied to dispatch", hind: "Hindsight optimum", idle: "Idle" };
 const LINE = { dam_energy: "DAM energy", rt_energy_imbalance: "RT imbalance", deviation: "Set-point deviation", load_allocated: "Load-allocated charges", dam_as_capacity: "DAM ancillary capacity", rt_as_imbalance: "RT ancillary imbalance", as_only_buyback: "Ancillary buy-back", capacity_short: "Capacity short", failure_to_provide: "Failure to provide", pv_energy: "Solar energy", degradation: "Degradation", warranty_overage: "Warranty overage", end_soc_shortfall: "End-of-day energy" };
 const MODELLED = new Set(["degradation", "warranty_overage", "end_soc_shortfall", "capacity_short", "pv_energy"]);
@@ -27,6 +28,7 @@ const whole = (a) => { const f = Math.floor(a), d = a - f; return d > 0.5 || (d 
 const usd = (x, s = false) => { const w = whole(Math.abs(x)); return `${!w ? "" : x < 0 ? "−\u2060" : s ? "+\u2060" : ""}$${w.toLocaleString("en-US")}`; };
 const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
 const pct = (x) => `${whole(100 * x)}%`;
+const unit = (V) => (V.days_per_task > 1 ? `${V.days_per_task}-day window` : "battery-day");
 const link = (href, t) => `<a href="${href}" target="_blank" rel="noopener">${t}</a>`;
 const day = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const day_ = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -59,7 +61,7 @@ function render(D) {
   const V = D.versions.find((v) => v.version === want) || D.versions.at(-1);
   $("tabs").innerHTML = D.ladder.map((x) => {
     const v = D.versions.find((y) => y.version === x.version);
-    return v ? `<a href="?v=${x.version}" data-v="${x.version}" class="${v === V ? "on" : ""}"><b>${x.version} · ${esc(x.name)}</b><small>${v.n_tasks} real battery-days</small></a>`
+    return v ? `<a href="?v=${x.version}" data-v="${x.version}" class="${v === V ? "on" : ""}"><b>${x.version} · ${esc(x.name)}</b><small>${v.n_tasks} real ${unit(v)}s</small></a>`
       : `<span><b>${x.version} · ${esc(x.name)}</b><small>next</small></span>`;
   }).join("");
   if (!V) {
@@ -74,15 +76,15 @@ function render(D) {
   }
   const W = Math.max(280, Math.min(1080, $("main").clientWidth) - (innerWidth < 720 ? 26 : 42));
   const regions = V.sites.map((s) => s.region).join(", ");
-  $("lede").innerHTML = `One real ERCOT battery, traded the way a desk trades it: <b>day-ahead bids before the 10:00 close, real-time offers and the COP through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, with the clock moving on its own between turns. ${esc(V.version)}, <i>${esc(V.name)}</i>, adds ${esc(V.adds)}. ${V.n_tasks} battery-days: ${V.sites.length} real batteries (${esc(regions)}) on ${V.n_days} days from ${day(V.dates[0])} to ${day(V.dates[1])}.`;
+  $("lede").innerHTML = `One real ERCOT battery, traded the way a desk trades it: <b>day-ahead bids before the 10:00 close, real-time offers and the COP through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, with the clock moving on its own between turns. ${esc(V.version)}, <i>${esc(V.name)}</i>, adds ${esc(V.adds)}. ${V.n_tasks} ${unit(V)}s: ${V.sites.length} real batteries (${esc(regions)}) on ${V.n_days} days from ${day(V.dates[0])} to ${day(V.dates[1])}.`;
   $("kpis").innerHTML = kpis(V);
   $("main").innerHTML = [
-    block("The board", `Each model played each battery-day once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a battery-day; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days.`, board(V), `${V.version} · ${esc(V.name)}`),
+    block("The board", `Each model played each ${unit(V)} once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a ${unit(V)}; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days.`, board(V), `${V.version} · ${esc(V.name)}`),
     sensitivity(V),
     capFig(V, W),
     usdFig(V, W),
-    block("Where the money came from", "Each line of the settled statement, mean $ a battery-day. DAM energy settles at the node's day-ahead price, RT imbalance at its 15-minute real-time price; modelled lines are marked.", linesTable(V)),
-    block("How each desk traded", "Means per battery-day: turns are wake-ups the model acted on, calls its tool calls, submissions the DAM curves, RT curves and COP updates it filed (rejections carry ERCOT-style codes).", behaviour(V)),
+    block("Where the money came from", `Each line of the settled statement, mean $ a ${unit(V)}. DAM energy settles at the node's day-ahead price, RT imbalance at its 15-minute real-time price; modelled lines are marked.`, linesTable(V)),
+    block("How each desk traded", `Means per ${unit(V)}: turns are wake-ups the model acted on, calls its tool calls, submissions the DAM curves, RT curves and COP updates it filed (rejections carry ERCOT-style codes).`, behaviour(V)),
     episode(V, D),
     how(),
     sources(V),
@@ -95,26 +97,26 @@ function kpis(V) {
   const tile = (v, cls, l, t) => `<div class="kpi"><div class="v ${cls}">${v}</div><div class="l">${l}</div><div class="t">${t}</div></div>`;
   const sign = (b) => (b.ci[0] > 0 ? "pos" : b.ci[1] < 0 ? "neg" : "");
   return [
-    tile(num(m.C.mean), "", `of the hindsight optimum captured: ${esc(m.name)}`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a battery-day. The anchor captures ${num(a.C.mean)}, the hindsight optimum 1 by definition.`),
+    tile(num(m.C.mean), "", `of the hindsight optimum captured: ${esc(m.name)}`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a ${unit(V)}. The anchor captures ${num(a.C.mean)}, the hindsight optimum 1 by definition.`),
     o.mean == null ? tile("–", "", "against the real operator", "No operator disclosure for these days.") :
-      tile(usd(o.mean, true), sign(o), "a battery-day against the real operator's bids", `${usdci(o.ci, true)}${o.ci[0] <= 0 && o.ci[1] >= 0 ? ", a CI that includes zero" : ""}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a battery-day.`),
-    tile(usd(g.mean, true), sign(g), "a battery-day against the anchor", `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of battery-days. The anchor is the desk's own optimiser on the same information; its DAM/RT spread positions pay off on scarcity days.`),
-    tile(String(V.n_tasks), "", "real battery-days", `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${V.n_days} operating days, every one old enough for ERCOT to have disclosed the operators' bids.`),
+      tile(usd(o.mean, true), sign(o), `a ${unit(V)} against the real operator's bids`, `${usdci(o.ci, true)}${o.ci[0] <= 0 && o.ci[1] >= 0 ? ", a CI that includes zero" : ""}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a ${unit(V)}.`),
+    tile(usd(g.mean, true), sign(g), `a ${unit(V)} against the anchor`, `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of ${unit(V)}s. The anchor is the desk's own optimiser on the same information; its DAM/RT spread positions pay off on scarcity days.`),
+    tile(String(V.n_tasks), "", `real ${unit(V)}s`, `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${V.n_days} operating days, every one old enough for ERCOT to have disclosed the operators' bids.`),
   ].join("");
 }
 
 function board(V) {
-  const head = ["Desk", "C", "P a battery-day", "P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"];
+  const pa = `P a ${unit(V)}`, head = ["Desk", "C", pa, "P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"];
   const cell = (l, v, sub = "") => `<td data-l="${l}">${v}${sub ? `<span class="sub">${sub}</span>` : ""}</td>`;
   const na = (l) => `<td class="na" data-l="${l}">–</td>`;
   const who = (r) => `<span class="who"><i style="background:${r.color}"></i><span>${r.kind === "model" ? `<b>${esc(r.name)}</b>` : esc(r.name)}${r.effort ? `<span class="sub">${esc(r.effort)} effort</span>` : r.weights === "open" ? `<span class="sub">open weights</span>` : ""}</span></span>`;
   const op = (r) => (r.P_minus_operator_replay.mean == null ? cell("P − operator's bids", "–") : cell("P − operator's bids", usd(r.P_minus_operator_replay.mean, true), usdci(r.P_minus_operator_replay.ci, true)));
   const body = rows(V).map((r) => r.kind === "model"
-    ? `<tr><td>${who(r)}</td>${cell("C", `<b>${num(r.C.mean)}</b>`, ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}${op(r)}${cell("P − anchor", usd(r.P_minus_anchor.mean, true), usdci(r.P_minus_anchor.ci, true))}${cell("R", num(r.R.mean, 2), ci(r.R.ci, 2))}${cell("Beats anchor", pct(r.beats_anchor))}${cell("$ a run", r.weights === "open" || r.usd_per_episode == null ? "–" : `$${r.usd_per_episode.toFixed(2)}`)}</tr>`
-    : `<tr class="ref"><td>${who(r)}</td>${cell("C", num(r.C.mean), ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}${["P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"].map(na).join("")}</tr>`).join("");
+    ? `<tr><td>${who(r)}</td>${cell("C", `<b>${num(r.C.mean)}</b>`, ci(r.C.ci))}${cell(pa, usd(r.P.mean), usdci(r.P.ci))}${op(r)}${cell("P − anchor", usd(r.P_minus_anchor.mean, true), usdci(r.P_minus_anchor.ci, true))}${cell("R", num(r.R.mean, 2), ci(r.R.ci, 2))}${cell("Beats anchor", pct(r.beats_anchor))}${cell("$ a run", r.weights === "open" || r.usd_per_episode == null ? "–" : `$${r.usd_per_episode.toFixed(2)}`)}</tr>`
+    : `<tr class="ref"><td>${who(r)}</td>${cell("C", num(r.C.mean), ci(r.C.ci))}${cell(pa, usd(r.P.mean), usdci(r.P.ci))}${["P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"].map(na).join("")}</tr>`).join("");
   const hind = V.references.find((r) => r.key === "hind");
   return `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr>${head.map((h, i) => `<th class="${i ? "" : "l"}">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
-    <p class="note">The hindsight optimum earns ${usd(hind.P.mean)} a battery-day ${usdci(hind.P.ci)}: the best the rules allow with every price known in advance, DAM/RT spread positions included. The operator rows use the real operator's own disclosed bids and awards on each battery-day, settled by the same code.</p>`;
+    <p class="note">The hindsight optimum earns ${usd(hind.P.mean)} a ${unit(V)} ${usdci(hind.P.ci)}: the best the rules allow with every price known in advance, DAM/RT spread positions included. The operator rows use the real operator's own disclosed bids and awards on each ${unit(V)}, settled by the same code.</p>`;
 }
 
 function frame(R, W) {
@@ -128,14 +130,17 @@ function sensitivity(V) {
   const sv = V.sensitivity, w = sv && sv.without;
   if (!w) return "";
   const ms = Object.fromEntries(V.models.map((m) => [m.key, m])), name = (k) => (ms[k] ? ms[k].name : SHORT[k] || k);
-  const day = w.days.map(day_).join(" and "), all = Object.fromEntries([...V.models.map((m) => [m.key, m.P]), ...V.references.map((r) => [r.key, r.P])]);
+  const said = (k) => (ms[k] ? ms[k].name : INLINE[k] || k), and = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+  const one = w.days.length === 1, day = and(w.days.map(day_)), all = Object.fromEntries([...V.models.map((m) => [m.key, m.P]), ...V.references.map((r) => [r.key, r.P])]);
   const keys = [...Object.keys(w.means.models), ...Object.keys(w.means.references)];
-  const wo = { ...w.means.models, ...w.means.references }, med = { ...sv.median_P, ...sv.median_P_references }, per = sv.per_day_mean_P[w.days[0]];
-  const on = { ...per.models, ...per.references };
-  const rows = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}<span class="sub">${usdci(all[k].ci)}</span></td><td data-l="On ${day}">${on[k] == null ? "–" : usd(on[k])}</td><td data-l="Without it">${usd(wo[k].P.mean)}<span class="sub">${usdci(wo[k].P.ci)}</span></td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
+  const wo = { ...w.means.models, ...w.means.references }, med = { ...sv.median_P, ...sv.median_P_references };
+  const per = w.days.map((d) => ({ ...sv.per_day_mean_P[d].models, ...sv.per_day_mean_P[d].references }));
+  const rows = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}<span class="sub">${usdci(all[k].ci)}</span></td>${per.map((on, i) => `<td data-l="On ${day_(w.days[i])}">${on[k] == null ? "–" : usd(on[k])}</td>`).join("")}<td data-l="Without ${one ? "it" : "them"}">${usd(wo[k].P.mean)}<span class="sub">${usdci(wo[k].P.ci)}</span></td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
   const loss = Object.entries(sv.losses).map(([k, x]) => `${esc(name(k))} on ${x.tasks_p_below_0} (worst ${usd(x.worst_p)})`).join("; ");
-  return block("One day carries the means", `On ${day} the models and the anchor made most of their totals, from day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, and which ERCOT's DAM credit screening, not modelled here, would limit. Mean P a battery-day with and without that day, and the median over every battery-day. P below zero: ${loss}. A post-hoc check, not pre-registered.`,
-    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>All ${V.n_tasks}</th><th>On ${day}</th><th>Without it (${w.n_tasks})</th><th>Median, all</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Sensitivity");
+  const who = (sv.carried || []).map(said);
+  const lead = who.length ? `On ${day}${sv.why_short ? `, ${esc(sv.why_short)}` : ""}, ${esc(and(who))} made more than half of ${who.length > 1 ? "their" : "its"} total P${sv.why ? `, from ${esc(sv.why)}` : ""}. ` : "";
+  return block(who.length ? `${one ? "One day carries" : "A few days carry"} the means` : `Without ${day}`, `${lead}Mean P a ${unit(V)} with and without ${one ? "that day" : "those days"}, and the median over every ${unit(V)}. P below zero: ${loss}. A post-hoc check, not pre-registered.`,
+    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>All ${V.n_tasks}</th>${w.days.map((d) => `<th>On ${day_(d)}</th>`).join("")}<th>Without ${one ? "it" : "them"} (${w.n_tasks})</th><th>Median, all</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Sensitivity");
 }
 
 function capFig(V, W) {
@@ -145,7 +150,7 @@ function capFig(V, W) {
   s += line(x(0), F.top - 10, x(0), F.H - 26, "var(--text-muted)", 1) + txt(x(0) + 4, F.top - 14, "idle", "t-ann");
   s += line(x(1), F.top - 10, x(1), F.H - 26, "var(--text-muted)", 1, "4 3") + txt(x(1) - 4, F.top - 14, "hindsight optimum", "t-ann", "end");
   R.forEach((r, i) => {
-    const y = F.y(i), t = tip(tipRows(esc(r.name), [["C", `${num(r.C.mean)} ${ci(r.C.ci)}`], ["P a battery-day", `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ...(r.kind === "model" ? [["P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`]] : [])]));
+    const y = F.y(i), t = tip(tipRows(esc(r.name), [["C", `${num(r.C.mean)} ${ci(r.C.ci)}`], [`P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ...(r.kind === "model" ? [["P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`]] : [])]));
     s += F.label(r, i) + line(x(r.C.ci[0]), y, x(r.C.ci[1]), y, r.color, 2);
     s += `<circle cx="${x(r.C.mean)}" cy="${y}" r="${r.kind === "model" ? 6 : 5}" fill="${r.kind === "model" ? r.color : "var(--surface-1)"}" stroke="${r.color}" stroke-width="2" ${t}/>`;
     s += txt(Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8, y + 4, num(r.C.mean), `t-val${r.kind === "model" ? " b" : ""}`);
@@ -162,13 +167,13 @@ function usdFig(V, W) {
   s += txt(x(hind.P.mean) - 4, F.top - 14, `hindsight optimum ${usd(hind.P.mean)}`, "t-ann", "end");
   R.forEach((r, i) => {
     const y = F.y(i), x0 = x(Math.min(0, r.P.mean)), w = Math.abs(x(r.P.mean) - x(0));
-    const t = tip(tipRows(esc(r.name), [["P a battery-day", `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ["C", num(r.C.mean)]]));
+    const t = tip(tipRows(esc(r.name), [[`P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ["C", num(r.C.mean)]]));
     s += F.label(r, i);
     s += `<rect x="${x0}" y="${y - 8}" width="${Math.max(1, w)}" height="16" rx="3" fill="${r.color}" fill-opacity="${r.kind === "model" ? 0.9 : 0.35}" ${t}/>`;
     s += line(x(r.P.ci[0]), y, x(r.P.ci[1]), y, "var(--text-primary)", 1.2);
     s += txt(Math.max(x(r.P.ci[1]), x(r.P.mean)) + 8, y + 4, usd(r.P.mean), `t-val${r.kind === "model" ? " b" : ""}`);
   });
-  return block("Dollars: the settled statement a battery-day", "Mean P with 95% CIs, models in colour and references in grey and bronze. The dashed line is the hindsight optimum.", `<div class="chart fig">${svg(W, F.H, s, "Mean settled P per battery-day")}</div>`, "Dollars", "dollars");
+  return block(`Dollars: the settled statement a ${unit(V)}`, "Mean P with 95% CIs, models in colour and references in grey and bronze. The dashed line is the hindsight optimum.", `<div class="chart fig">${svg(W, F.H, s, `Mean settled P per ${unit(V)}`)}</div>`, "Dollars", "dollars");
 }
 
 function linesTable(V) {
@@ -195,11 +200,11 @@ function episode(V, D) {
   const res = (rel) => `${DATASET}/resolve/main/${rel}`;
   const h = V.hero;
   if (D.gif && D.gif.version === V.version) {
-    return block("One battery-day, as it happened", `${esc(D.gif.alt)}.`, `<div class="desk-ep"><a href="${res(D.gif.path)}"><img src="${res(D.gif.path)}" alt="${esc(D.gif.alt)}" loading="lazy"></a></div>`, "A run");
+    return block(`One ${unit(V)}, as it happened`, `${esc(D.gif.alt)}.`, `<div class="desk-ep"><a href="${res(D.gif.path)}"><img src="${res(D.gif.path)}" alt="${esc(D.gif.alt)}" loading="lazy"></a></div>`, "A run");
   }
   if (!h || !V.figures.hero) return "";
-  return block(`One battery-day: ${esc(h.label)}`, "The node's day-ahead and 5-minute real-time prices, the battery's state of charge (dashed: the real operator's, as disclosed) and its dispatch against the DAM award, with every wake-up and what the desk did at it.",
-    `<div class="desk-ep"><picture><source srcset="${res(V.figures.hero_dark)}" media="(prefers-color-scheme: dark)"><img src="${res(V.figures.hero)}" alt="The desk's timeline for one battery-day" loading="lazy"></picture></div>`, "A run");
+  return block(`One ${unit(V)}: ${esc(h.label)}`, "The node's day-ahead and 5-minute real-time prices, the battery's state of charge (dashed: the real operator's, as disclosed) and its dispatch against the DAM award, with every wake-up and what the desk did at it.",
+    `<div class="desk-ep"><picture><source srcset="${res(V.figures.hero_dark)}" media="(prefers-color-scheme: dark)"><img src="${res(V.figures.hero)}" alt="The desk's timeline for one ${unit(V)}" loading="lazy"></picture></div>`, "A run");
 }
 
 function how() {

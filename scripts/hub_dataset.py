@@ -782,7 +782,8 @@ def desk_blocks(d: dict) -> dict[str, str]:
 def ladder_block(d: dict) -> str:
     done = {v["version"]: v for v in d["versions"]}
     rows = [f"| **{x['version']}, {x['name']}**<br><small>" + (
-        f"{done[x['version']]['n_tasks']} battery-days, results above" if x["version"] in done else "next")
+        f"{done[x['version']]['n_tasks']} {unit(done[x['version']])}s, results above" if x["version"] in done
+        else "next")
         + f"</small> | {md(x['adds'])} | {md(x['does'])} |" for x in d["ladder"]]
     return "\n".join(["**The version ladder.** Each version adds one kind of realism to the same desk, tools and "
                       "grading.", "", "| Version | What it adds | What the agent does |", "|---|---|---|", *rows])
@@ -886,17 +887,19 @@ def desk_bullets(v: dict) -> list[str]:
 
 
 def sensitivity(v: dict) -> list[str]:
-    """The report's post-hoc check when one day carries the means: what that day earned, the means without it, the
-    medians over every battery-day and each model's losing days."""
+    """The report's post-hoc check of the days it leaves out: what each earned, which desks made more than half their
+    total P there and, where the day's statements were read (scripts/hub_desk.py), what paid; the means without them,
+    the medians over every task and each model's losing tasks."""
     sv = v.get("sensitivity") or {}
     w = sv.get("without")
     if not w:
         return []
     ms, u = {m["key"]: m for m in v["models"]}, unit(v)
-    days = [f"{date.fromisoformat(d):%-d %B %Y}" for d in w["days"]]
-    day = sv["per_day_mean_P"][w["days"][0]]
     name = lambda k: ms[k]["name"] if k in ms else SHORTS.get(k, k)  # noqa: E731
-    on = "; ".join(f"{name(k)} {usd0(x)}" for k, x in {**day["models"], **day["references"]}.items())
+    days = {d: f"{date.fromisoformat(d):%-d %B %Y}" for d in w["days"]}
+    on = {label: ", ".join(f"{name(k)} {usd0(x)}" for k, x in {
+        **sv["per_day_mean_P"][d]["models"], **sv["per_day_mean_P"][d]["references"]}.items() if x is not None)
+        for d, label in days.items()}
     wo = "; ".join(f"{name(k)} {usd0(b['P']['mean'])} {usd0_ci(b['P']['ci'])}" for k, b in w["means"]["models"].items())
     wr = " and ".join(f"{name(k)} {usd0(b['P']['mean'])}" for k, b in w["means"]["references"].items()
                       if k in ("operator_replay", "anchor"))
@@ -904,11 +907,22 @@ def sensitivity(v: dict) -> list[str]:
                     if k in ms or k == "operator_replay")
     loss = "; ".join(f"{name(k)} on {x['tasks_p_below_0']} (worst {usd0(x['worst_p'])})"
                      for k, x in sv["losses"].items())
-    return [f"**One day carries the means.** On {' and '.join(days)}, mean P a {u} was {on}: day-ahead sales "
-            "bought back in real time, positions the DAM allows because it ignores state of charge, and which ERCOT's "
-            "DAM credit screening, not modelled here, would limit. Without "
-            f"{'it' if len(days) == 1 else 'them'} ({w['n_tasks']} {u}s): {wo}, against {wr}. Over every {u}, the "
+    who, one = [name(k) for k in sv.get("carried", [])], len(days) == 1
+    head = (("One day carries" if one else "A few days carry") + " the means" if who
+            else f"Without {and_join(list(days.values()))}")
+    when = (f"Mean P a {u} on {next(iter(on))}" + (f", {sv['why_short']}" if sv.get("why_short") else "")
+            + f": {next(iter(on.values()))}." if one else f"Mean P a {u}: " + "; ".join(
+                f"on {d}, {x}" for d, x in on.items()) + ".")
+    return [f"**{head}.** {when}"
+            + (f" {and_join(who)} made more than half of {'its' if len(who) == 1 else 'their'} total P "
+               f"{'that day' if one else 'on those days'}" + (f", from {sv['why']}" if sv.get("why") else "") + "."
+               if who else "")
+            + f" Without {'it' if one else 'them'} ({w['n_tasks']} {u}s): {wo}, against {wr}. Over every {u}, the "
             f"medians are {med}. P below zero: {loss}. A post-hoc check, not pre-registered."]
+
+
+def and_join(xs: list[str]) -> str:
+    return xs[0] if len(xs) == 1 else f"{', '.join(xs[:-1])} and {xs[-1]}"
 
 
 SHORTS = {"anchor": "the anchor", "operator_replay": "the operator's bids",
