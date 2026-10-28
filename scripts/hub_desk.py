@@ -91,7 +91,10 @@ def main():
     desk, files = build(args.desk, refs)
     if args.gif:
         v = desk["versions"][-1]
-        desk["gif"] = gif_info(v, args.desk / f"desk-{v['version']}", args.gif_model, args.gif_task, args.lead)
+        desk["gif"], ep = gif_info(v, args.desk / f"desk-{v['version']}", args.gif_model, args.gif_task, args.lead)
+        card = ep["site"]["card"]
+        v["story"] = story(ep, {"model": args.gif_model, "label": f"{card['name']} ({card['region']}, {card['size']}), "
+                                                                   f"{date_label(ep['dates'])}"})
         files[GIF] = args.gif.read_bytes()
     out = args.results / "overview" / "desk.json"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -187,8 +190,9 @@ SUBMIT = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "u
 READS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position", "check_submission")
 
 
-def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> dict:
-    """The desk hero GIF's link, alt text and caption, every number from the episode's grade in grades.jsonl.gz."""
+def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> tuple[dict, dict]:
+    """The desk hero GIF's link, alt text and caption, every number from the episode's grade in grades.jsonl.gz, and
+    the episode it films."""
     with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
         g = next(x for x in map(json.loads, f) if x["model"] == model and x["task_id"] == task)
     ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
@@ -218,7 +222,7 @@ def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> dict:
            "they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, "
            "then the settled grade")
     return {"version": v["version"], "model": model, "task_id": task, "lead": lead, "path": GIF,
-            "link": f"{APP}/desk.html?v={v['version']}", "alt": alt, "caption": caption}
+            "link": f"{APP}/desk.html?v={v['version']}", "alt": alt, "caption": caption}, ep
 
 
 def usd(x: float) -> str:
@@ -248,7 +252,7 @@ def story(ep: dict, hero: dict) -> dict:
     posted = [e["t_min"] for e in ep["events"] if e.get("kind") == "dam_results" and "t_min" in e]
     return {"model": hero["model"], "task_id": ep["task_id"], "label": hero["label"], "dates": ep["dates"],
             "start": min(w["t"] for w in ep["wakes"]), "end": 1440 * len(ep["dates"]), "dam_results": posted,
-            "wakes": wakes, "grade": {k: ep["grade"].get(k) for k in ("p", "capture", "p_anchor", "p_hind")}}
+            "wakes": wakes}
 
 
 def did(turn: dict, subs: list[dict]) -> str:
