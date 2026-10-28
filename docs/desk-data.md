@@ -258,3 +258,94 @@ vs 13.7. The per-month and per-node detail is in the report.
 - **ERCOT forecast horizon** is 72 h in the store. This is enough for one-day tasks; v4's 3-day windows need the raw postings (168 h), re-pulled from the API.
 - **Post-RTC+B PRC** has no public history; the series uses the proxy (§6).
 - **2026-06-24 DAM delay.** The Advisory at 13:27 postponed the DAM posting for 2026-06-25, not the task's own DAM (posted 06-23 13:56). It is an inbox event only.
+
+## 10. v3 "Sun, Storage and Reserves" data (lane DATA2, `scripts/desk_data_v3.py`)
+
+`desk_data_build.build_task` calls `desk_data_v3.extend` for every layer above v2; the v2 fields (`dam_mcpc`,
+`rt_mcpc`, `rt_mcpc_15`, `asdc`, `posted.asdc`, DAM and SCED `as_award_mw`) come from DATA's builder unchanged.
+
+| Series key | Source | Notes |
+|---|---|---|
+| `as_plan` | NP4-33-CD DAM AS Plan | per operating day the latest posting at or before D-1 06:00 (ERCOT posts daily at 05:00 for seven days); products regup/regdn/rrs/ecrs/nspin, MW per hour; `posted_at` records the posting **[data]** |
+| `reg_deploy` | `gridsim_core.hybrid_inputs.reg_hourly` over `data/hybrid/reg_deploy.jsonl.gz` | ERCOT storage-fleet regulation deployment measured from the 60-day SCED disclosure (2023-10-12..2026-08-25; `source: measured`), the fitted fallback elsewhere (`modelled`); RT input is the node's hourly mean RT SPP **[data]**/**[modelled]** |
+| `deployments` | `data/hybrid/deployments.jsonl` (ERCOT operations notices) | RRS/ECRS/Non-Spin events overlapping an operating day; `frac` null = the whole award; `mw_max`, `notice_ids` kept **[data]** |
+| `pv`, `forecasts` kind `pv`, `site.pv` | NP4-745-CD regional actual and STPPF, NP4-738-CD 5-min system shape, EIA-860M system AC capacity | the PV option (below) **[modelled]** |
+| `operator.dam[d].as_offers` | NP3-966-ER 60-Day DAM ESR AS Offers (pre-RTC+B: DAM Generation Resource AS Offers) | {product: [24 x [[MW, $/MW/h], ...] or null]} |
+| `operator.sced[d].as_offer_updates` | NP3-965-ER 60-Day SCED Resource AS Offers | [{t, product, blocks}] at every SCED run where a product's offer in force changed |
+| `operator.cop[d].as_capability` | NP3-991-EX COP All Updates (REGUP, REGDN, RRSPFR, RRSFFR, ECRS, NSPIN) | per hour, the update in force at T-60 (the COP block's rule) |
+| `operator.dam[d].as_awards` (pre only) | NP3-966-ER DAM Generation Resource Data | post-RTC+B uses DATA's `as_award_mw` |
+
+**Operator AS offers.** ERCOT's AS offers are linked: one block's MW carries a price per product it may clear in. In
+the DAM disclosure each row is one offer and `quantityMW{i}` is block i's own MW (checked against the awards: the
+award never exceeds the sum of a product's blocks, while the cumulative reading is exceeded in 24 of 95 awarded
+product-hours on two CROSSETT days). In the SCED disclosure `quantityMW{i}` is cumulative per product over the blocks that
+price it (each product's curve then ends at HSL − LSL, e.g. CLO 180 MW at $6 + the proxy block to 200 MW). The SCED
+rows are the offer SCED used each run: the QSE's RT offer, its DAM offer carried into RT and the proxy extension ERCOT
+adds (`quantityMW6`), so `as_offer_updates` already contains the proxy blocks at their posted prices. The desk takes
+one offer per product, so each block is offered to every product it prices, merged to at most five blocks per product
+(equal prices summed, then the closest adjacent prices at their MW-weighted price) and capped at HSL − LSL
+**[simplified]**: the replay can clear the same MW in two products where ERCOT's linked offer clears it once; the
+co-clear's headroom row (energy + up AS ≤ HSL) bounds the overlap. No 20% RRS-PFR cap is applied to the operator's
+data: CROSSETT (HSL 100, LSL −96) was awarded 85 MW of DAM RRS-PFR in HE11 on 2026-04-20. Off-line Non-Spin (`OFFNS`) and RRS-UFR rows are dropped (ESRs
+offer neither on the desk).
+
+**PV option (modelled).** One third of the eval battery-days carry a co-located plant (`site.pv`): AC nameplate
+0.6 × HSL rounded to 5 MW, DC/AC 1.3, behind the POI = HSL. Hourly output = mw_ac × 1.3 × gen_region(h) / cap_region,
+clipped at mw_ac, where gen_region is ERCOT's actual solar generation in the site's NP4-745-CD region and cap_region =
+the region's share of system solar output in the D-1 06:00 posting × the EIA-860M system AC capacity
+(`data/hybrid/solar_cf`). Within the hour the profile follows the 5-minute system solar actual (NP4-738-CD). The
+`forecasts` kind `pv` vintages apply the same scaling to every hourly STPPF posting from D-1 00:00 to the last
+operating day 23:00 (horizon to the last day + 24 h). Region assignment by county (NP4-160-SG is MIS-only and the CDR
+maps only Far West/West): S01 Crane → FarWest, S02 Harris → SouthEast, S03 Collin → CenterEast, S04 Webb → SouthEast
+(our assignment, **[modelled]**). Core curtails PV when the node LMP < 0.
+
+**Errata respected.** Every v3/v5 post-RTC+B day is after 2026-02-02 (M-B040326-01 null AS prices written as $0), so
+neither the SoC gap of 2025-12-05 (M-B020626-01) nor the missing RRS capability of 12/5–12/20/2025 (M-A021826-01)
+touches a task.
+
+**Not built.** `desk_forecast` markets `as_dam`/`as_rt` are absent: core's labelled fallback (the latest posted DAM MCPC
+day ±50% and the history RT/DA ratio) prices AS views.
+
+**Packs and days** (all post-RTC+B days after 2026-02-02 and ≥ 60 days old; no overlap with desk-v2-tune, the
+v2 pilot or desk-v4-*; 2026-04-24 is also a v2-eval day, chosen for its scarcity):
+
+| Pack | Battery-days | Days (CPT) | PV option |
+|---|---|---|---|
+| `desk-v3-pilot` | 2 | 2026-04-20 S01 (quiet, $244 node max), 2026-08-14 S03 (quiet) | 04-20 S01 |
+| `desk-v3-eval` | 24 | 2026-04-11 (negative/outage days; S04 node to −$80), 04-24 (scarcity, node max $1,043–1,351, no notices), 05-26 (quiet), 06-06 (9 notices, Non-Spin deployed), 07-21 (7 notices, Non-Spin deployed), 08-22 (summer, RT MCPC to $188) × S01–S04 | 8: 04-11 S01, 04-24 S01, 05-26 S02/S04, 06-06 S03, 07-21 S02/S04, 08-22 S03 |
+| `desk-v3-pre` | 2 | 2025-06-24 S04, 2025-10-21 S01 (scarcity, $609; Non-Spin deployed) | 06-24 S04 |
+
+Day kinds in desk-v3-eval: notice 8, quiet 6, scarcity 4, outage 3, negative 3; `operator_ok` 24/24.
+
+**Hub SCED LMP.** v3+ series carry `rt_lmp_hub` {date: [288]}: the 5-minute SCED LMP at the site's hub (NP6-788-CD),
+D-1 and every operating day, mapped to the 5-minute grid like `rt_lmp` **[data]**.
+
+## 11. v5 "The Market Floor" data (lane DATA2, `scripts/desk_data_v5.py`)
+
+`market` {date: days row} per operating day, in the previews' `data/market/days` shape (`gridsim_core.market_stack`):
+the day's NP3-966-ER 60-Day DAM Disclosure (archive document posted D+60, fetched through `desk_data_api`) parsed by
+`market_stack.build_day` with **every curve of the site's own resource removed** before aggregation (`carved` records
+the resource and the number of removed supply/demand hour-curves). The public series in the row (NP4-523-CD λ,
+HB_HUBAVG DAM and RT, EIA-930 actuals and day-ahead forecast) are the packaged store's. `background` holds every other
+resource's offers and bids (≤ 64 points per hour and side), `pool` the anonymised candidate seats, and
+`replay.lambda_usd` the copper-plate re-clear of what ships. Core lifts the book by `hub_dam_usd − replay.lambda_usd`,
+so the re-clear without the battery posts the real price exactly; the replay check below measures what happens when
+the operator's real curve goes back in.
+
+The v5 packs use the v3 battery-days (same sites, days and PV assignment), so v5 − v3 isolates the price impact.
+`scripts/desk_data_v5.py PACK` writes `data/desk/PACK/replay_check.json`. Packs: `desk-v5-pilot` (2) and
+`desk-v5-eval` (24), `operator_ok` 26/26.
+
+**Replay check** (desk-v5-eval, 24 battery-days, absolute $/MWh at the node):
+
+| Check | n hours | mean | p90 | p99 | max |
+|---|---|---|---|---|---|
+| re-clear without the battery vs the real DAM SPP | 576 | 0.000 | 0.000 | 0.000 | 0.000 |
+| re-clear with the operator's real EB/OC put back vs the real DAM SPP | 293 | 0.008 | 0.000 | 0.226 | 0.466 |
+| the operator's re-cleared award vs its real award (MW) | 293 | 0.054 | 0.000 | 0.971 | 5.637 |
+| copper-plate replay λ (no offset) vs NP4-523-CD λ | 576 | 12.92 | 27.12 | 132.3 | 150.9 |
+
+The first row is exact by construction (core lifts the book by the hub offset). The second is the operator's own price
+impact: a 100–150 MW battery moves the ERCOT DAM price by cents, rarely by more than $0.25. The last row is the part of
+the price the copper-plate auction does not model (congestion, losses, AS co-optimisation); 04-24's scarcity hours
+dominate its tail. The offset absorbs it.

@@ -24,6 +24,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import desk_data_api as A  # noqa: E402
+import desk_data_v3 as V3  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DESK = ROOT / "data" / "desk"
@@ -64,6 +65,7 @@ PACKS = {
     "desk-v2-pre": {"split": "train", "layer": "v2",
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
+PACKS.update(V3.PACKS)
 
 
 # ---------------------------------------------------------------- time
@@ -830,14 +832,15 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
     site.pop("qse", None)
     site.pop("qse_pre", None)
     site.pop("county", None)
+    extra = V3.extend(ser, site, days, era, spec, d0, sid, info) if spec["layer"] != "v2" else {}
     s = json.dumps(ser, separators=(",", ":"), allow_nan=False)
     task = {"task_id": tid, "schema": "gridsim.desk.task/v1", "desk_version": "2.0", "pack": pack,
             "split": spec["split"], "layer": spec["layer"], "era": era, "dates": [str(d) for d in days], "site": site,
             "series": f"series/{tid}.json.gz", "series_sha": hashlib.sha256(s.encode()).hexdigest(),
-            "operator_ok": bool(ok),
+            "operator_ok": bool(ok and extra.get("operator_ok", True)),
             "tags": {"season": season, "day_kind": kind, "notices": n_not, "max_rt_lmp": max(lmps),
                      "min_rt_lmp": min(lmps), "dam_spread": round(max(dams) - min(dams), 2),
-                     "neg_lmp_intervals": sum(v < 0 for v in lmps)}}
+                     "neg_lmp_intervals": sum(v < 0 for v in lmps), **extra.get("tags", {})}}
     info["unit_events"] = len(ser["unit_events"])
     info["notices"] = len(ser["notices"])
     info["nws"] = len(ser["nws"])
@@ -907,6 +910,8 @@ SOURCES = {"dam_spp": "NP4-190-CD", "rt_spp": "NP6-905-CD", "rt_lmp": "NP6-788-C
            "outage_capacity": "NP3-233-CD", "unit_events": "NP1-346-ER", "notices": "data/notices/notices.jsonl.gz",
            "nws": "data/notices/nws_vtec.jsonl.gz", "operator.dam": "NP3-966-ER", "operator.sced": "NP3-965-ER",
            "operator.cop": "NP3-991-EX", "desk_forecast": "data/desk/forecast (desk-qr-v1)"}
+
+SOURCES.update(V3.SOURCES)
 
 if __name__ == "__main__":
     main()
