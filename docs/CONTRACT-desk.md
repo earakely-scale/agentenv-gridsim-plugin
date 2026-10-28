@@ -680,6 +680,15 @@ Budgets v3: 48 turns, 14 calls per turn. `optimize` output in v3 is about 4–5k
 - The agent has no view of the stack (the day's offers are disclosed 60 days later); the prompt states that its DAM
   offers move the price.
 
+## 10.4 Known defects in the frozen versions
+
+The frozen tags stay as they are; fixes land on the `desk` head only and never change a frozen run.
+
+| # | Defect | Versions (tag) | Effect | Fixed on head |
+|---|---|---|---|---|
+| K1 | `submit_dam_offers` / `submit_rt_offers` / `check_submission` with `as_offers: []` answer `as_rejected: [{code: ASO-02, "as_offers is a list of objects"}]` | v3 (`desk-v3-freeze`), v4 (`desk-v4-freeze`, v3 rules), v5 (`desk-v5-freeze`); v2 answers its layer error as specified | a spurious rejection note only: the energy curves in the same call are accepted and applied, no AS offer changes, no settlement effect | yes: an empty list means no AS offers, no note |
+| K2 | References recomputed on another machine or process layout can differ by cents to a few dollars on LPs with tied optima (HiGHS) | refs of every version (seen: desk-v5-eval 05-26 S01 anchor −$1,851.60 stored vs −$1,849.90 recomputed; 08-22 S01 $0.01) | none on grades: grading reads the stored refs (same series sha, core version and anchor setting); floored flags identical | not a code defect; stored refs are authoritative |
+
 ## 11. Episode JSON (`gridsim.desk.episode/v1`)
 
 ```json

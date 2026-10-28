@@ -882,6 +882,8 @@ class Session:
     def _offers(self, tool: str, day, curves, as_offers, apply: bool) -> dict:
         if as_offers is not None and self.layer == "v2":
             return {"error": "layer: AS offers arrive with the v3 desk; this desk is energy only"}
+        if as_offers == []:
+            as_offers = None
         if curves is None and as_offers is None:
             return {"error": "args: give curves, as_offers or both"}
         out = self._submit(tool, day, curves, apply) if curves is not None else {}
