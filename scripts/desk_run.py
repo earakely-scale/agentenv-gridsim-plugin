@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import openai
@@ -287,6 +288,22 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
     return s, agent.usage, status
 
 
+def _refs_row(args) -> str:
+    task, series = args
+    return json.dumps({"task_id": task["task_id"], "refs": refs.build_refs(task, series)})
+
+
+def refs_only(a, out: Path) -> None:
+    """Compute every task's refs block in parallel and write <out>/refs.jsonl (the data lane merges it)."""
+    items = tasks_from(a)
+    with ProcessPoolExecutor(max_workers=a.workers) as ex, open(out / "refs.jsonl", "w") as f:
+        for line in ex.map(_refs_row, items, chunksize=1):
+            f.write(line + "\n")
+            r = json.loads(line)
+            print(r["task_id"], {k: r["refs"][k] for k in ("p_idle", "p_anchor", "p_hind", "p_operator_replay")},
+                  flush=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group(required=True)
@@ -312,10 +329,15 @@ def main() -> None:
     ap.add_argument("--timeout", type=float, default=600.0)
     ap.add_argument("--tag")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--refs-only", action="store_true", help="only compute refs for the tasks (parallel)")
+    ap.add_argument("--workers", type=int, default=os.cpu_count())
     a = ap.parse_args()
     out = Path(a.out)
     for d in ("episodes", "calls", "ckpt"):
         (out / d).mkdir(parents=True, exist_ok=True)
+    if a.refs_only:
+        refs_only(a, out)
+        return
     preset = MODELS[a.preset]
     tag = a.tag or (a.policy if a.policy != "model" else (a.model or preset["model"]).split("/")[-1])
     finished = done_ids(out, tag)
