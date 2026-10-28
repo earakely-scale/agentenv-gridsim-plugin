@@ -105,7 +105,8 @@ R = 0.
   [v5](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v5-desk.md)): the pack, the
   models and their settings, the references, what is reported and the prior. The code is frozen at a tag before any
   scored run (`desk-v2-freeze`, `desk-v3-freeze`, `desk-v4-freeze` and `desk-v5-freeze`). Nothing is rerun to improve
-  a score, and anything done differently is logged as a deviation and stated beside the version's results.
+  a score, and anything done differently is logged as a deviation in the pre-registration; v4's and v5's are also
+  stated beside their results.
 - **Reviewed and piloted.** A review of the environment before v2's runs found two information-timing leaks, fixed
   before any scored episode. Each version is then piloted on one or two tasks before its eval; the pilots are
   mechanics checks, not results.
