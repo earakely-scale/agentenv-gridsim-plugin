@@ -401,5 +401,30 @@
   "operator.sced": "NP3-965-ER",
   "operator.cop": "NP3-991-EX",
   "desk_forecast": "data/desk/forecast (desk-qr-v1)"
+ },
+ "refs_report": {
+  "pack": "desk-v2-eval",
+  "tasks": 32,
+  "floored": 13,
+  "floored_tasks": [
+   "desk-v2-2026-02-24-S01",
+   "desk-v2-2026-02-24-S03",
+   "desk-v2-2026-02-24-S04",
+   "desk-v2-2026-03-23-S02",
+   "desk-v2-2026-04-24-S04",
+   "desk-v2-2026-05-03-S02",
+   "desk-v2-2026-06-24-S02",
+   "desk-v2-2026-06-24-S03",
+   "desk-v2-2026-06-24-S04",
+   "desk-v2-2026-07-22-S04",
+   "desk-v2-2026-08-23-S01",
+   "desk-v2-2026-08-23-S02",
+   "desk-v2-2026-08-23-S04"
+  ],
+  "anchor_setting": {
+   "risk": 1.25,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
  }
 }

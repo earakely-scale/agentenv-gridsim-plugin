@@ -63,5 +63,16 @@
   "operator.sced": "NP3-965-ER",
   "operator.cop": "NP3-991-EX",
   "desk_forecast": "data/desk/forecast (desk-qr-v1)"
+ },
+ "refs_report": {
+  "pack": "desk-v2-pilot",
+  "tasks": 2,
+  "floored": 0,
+  "floored_tasks": [],
+  "anchor_setting": {
+   "risk": 1.25,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
  }
 }

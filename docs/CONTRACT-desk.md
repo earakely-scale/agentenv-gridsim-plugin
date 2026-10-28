@@ -503,6 +503,35 @@ cycles, SPD MWh, cop_late, cost and tokens.
 
 ---
 
+### 9.3 The anchor's setting (pre-registered procedure, chosen 2026-10-28 on `desk-v2-tune`)
+
+Procedure (pre-registered before any scored run): grid risk {0.5, 0.75, 1.0, 1.25, 1.5, 2.0} × DAM basis {physical,
+spread}; pick the highest total anchor P on `desk-v2-tune` (12 post-RTC+B battery-days, 3 per site, Jan–Aug 2026,
+disjoint from pilot and eval); if the best comes with a large single-day loss, take the runner-up when its total is
+within 5%. No eval or model result was looked at.
+
+| risk | DAM basis | total anchor P ($, 12 days) | worst single day ($) |
+|---|---|---|---|
+| 0.5 | physical | 4,766 | -5,433 |
+| 0.5 | spread | -5,753 | -48,783 |
+| 0.75 | physical | 6,692 | -5,200 |
+| 0.75 | spread | 401 | -32,291 |
+| 1.0 | physical | 3,361 | -4,911 |
+| 1.0 | spread | 1,992 | -22,329 |
+| 1.25 | physical | 5,797 | -4,719 |
+| 1.25 | spread | 20,813 | -6,421 |
+| 1.5 | physical | -3,233 | -4,189 |
+| 1.5 | spread | 15,843 | -4,962 |
+| 2.0 | physical | -2,458 | -2,679 |
+| 2.0 | spread | 11,240 | -3,376 |
+
+**Chosen: risk 1.25, DAM basis "spread"** (`policies.RISK`, `policies.DAM_POSITION`; recorded in every refs block as
+`anchor_setting`). Runner-up 1.5/spread totals $15,843, 24% below, so the 5% rule does not apply; the chosen
+setting's worst day is −$6,421. On the tune days the anchor makes $20,813 against the physical hindsight's $67,847 and
+the operators' own −$2,766. Refs at this setting: tune 9 of 12 floored, pilot 0 of 2, eval 13 of 32 (8 eval days
+with P_anchor < 0); the eval anchor's total ($3.79M) exceeds the physical hindsight ($2.03M) because the spread basis
+wins large DAM/RT spreads on the scarcity days, so R on those days rewards matching a spread position.
+
 ### 10.1 v3 "Sun, Storage and Reserves" as built (`gridsim_core.desk.ancillary`; desk-research.md sections cited)
 
 **Series fields (DATA, in addition to 1.4):** `as_plan` {date: {product: [24]}} (AS Plan MW, optional; proxy floor),

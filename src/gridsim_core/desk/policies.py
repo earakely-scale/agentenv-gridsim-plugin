@@ -25,8 +25,8 @@ def idle(s: Session, wake: dict) -> None:
         s.call("submit_dam_offers", {"day": f"D{j}", "curves": [curve]})
 
 
-RISK = 0.5
-DAM_POSITION = "physical"
+RISK = 1.25
+DAM_POSITION = "spread"
 
 
 def _submit_groups(s: Session, tool: str, groups: list[dict], as_groups: list[dict] | None = None) -> None:
