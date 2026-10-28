@@ -152,8 +152,16 @@ def grade(session: Session, refs: dict | None = None) -> dict:
     out = {"valid": valid, "reward": reward, "p": p, "p_idle": p_idle, "p_anchor": p_anchor, "p_hind": p_hind,
            "p_hind_phys": r.get("p_hind_phys"), "capture": round((p - p_idle) / den, 6) if den > 1e-9 else None,
            "anchor_capture": round((p_anchor - p_idle) / den, 6) if den > 1e-9 else None,
+           "capture_phys": _cap(p, p_idle, r.get("p_hind_phys")),
+           "anchor_capture_phys": _cap(p_anchor, p_idle, r.get("p_hind_phys")),
            "beats_anchor": p > p_anchor + 1e-9, "stretch": stretch_value(p, p_idle, p_anchor, p_hind) if valid else 0.0,
            "p_operator_replay": r.get("p_operator_replay"), "p_operator_actual": r.get("p_operator_actual")}
     if r.get("p_operator_replay") is not None:
         out["vs_operator_replay"] = round(p - r["p_operator_replay"], 2)
     return out
+
+
+def _cap(p: float, p_idle: float, p_hind: float | None) -> float | None:
+    if p_hind is None or p_hind - p_idle <= 1e-9:
+        return None
+    return round((p - p_idle) / (p_hind - p_idle), 6)

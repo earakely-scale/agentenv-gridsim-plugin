@@ -543,7 +543,13 @@ desk: self-schedules the cheapest desk-P50 hours to charge and the dearest to di
 every path gives the agent; `desk.tools.tool_specs(layer, rtcb)` the era's schemas (pre-RTC+B curves take
 `offer`/`bid`). `scripts/desk_run.py` is the in-process runner (path B'): `--policy model --preset sol|luna|qwen` or
 `--policy anchor|idle|scripted`, `--pack`/`--fixture`, per-episode `--max-usd`, `--lane-cap-usd`, resumable from
-`<out>/ckpt`, writing `<out>/episodes/*.json` and `<out>/results.jsonl`.
+`<out>/ckpt`, writing `<out>/episodes/*.json` and `<out>/results.jsonl`. `--parallel N` plays N episodes in threads
+of one process: one `Budget` holds the lane cap (`--lane-cap-usd`, seeded from `results.jsonl`) and every model call
+reserves its worst case (input estimate + 16k output tokens, or `--max-tokens`) before it is sent and settles to the
+real cost after, so concurrent episodes never overrun it together; only the main thread writes `results.jsonl`;
+SIGTERM/SIGINT stop new calls, keep every checkpoint and write no row for interrupted episodes (rerun to resume).
+`--tasks-file` takes ids one per line or a jsonl with `task_id`. Each results row carries `capture` (C vs `p_hind`)
+and `capture_phys` (C vs `p_hind_phys`) side by side.
 
 ---
 

@@ -13,10 +13,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import subprocess
 import sys
+import threading
 import time
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import openai
@@ -43,8 +45,40 @@ COMPACT_CHARS = 120_000
 ELIDED = "[elided: an earlier tool result; call the tool again if you need it]"
 
 
+WORST_OUT = 16_000
+CHARS_PER_TOKEN = 3
+
+
 class SpendCap(Exception):
     pass
+
+
+class Stopped(Exception):
+    pass
+
+
+class Budget:
+    """The lane cap shared by every episode in the process: each call reserves its worst case before it is sent and
+    settles to the real cost after, so concurrent episodes can never overrun the cap together."""
+
+    def __init__(self, cap: float | None, spent: float):
+        self.cap, self.spent, self.inflight = cap, spent, 0.0
+        self.lock = threading.Lock()
+        self.stop = threading.Event()
+
+    def reserve(self, worst: float) -> None:
+        with self.lock:
+            if self.stop.is_set():
+                raise Stopped("stop requested")
+            if self.cap is not None and self.spent + self.inflight + worst > self.cap:
+                raise SpendCap(f"lane cap ${self.cap} reached (spent ${self.spent:.2f}, "
+                               f"in flight ${self.inflight:.2f})")
+            self.inflight += worst
+
+    def settle(self, worst: float, actual: float) -> None:
+        with self.lock:
+            self.inflight -= worst
+            self.spent += actual
 
 
 def gateway_url(path: str | None) -> str:
@@ -90,8 +124,13 @@ def tasks_from(a) -> list[tuple[dict, dict]]:
             out.append(fixtures.make(date, seed=int(seed or 0), outage=True, layer=a.layer))
         return out
     rows = load_tasks(a.pack)
-    if a.tasks:
-        want = set(a.tasks)
+    want = set(a.tasks or [])
+    if a.tasks_file:
+        for line in Path(a.tasks_file).read_text().splitlines():
+            line = line.strip()
+            if line:
+                want.add(json.loads(line)["task_id"] if line.startswith("{") else line)
+    if want:
         rows = [t for t in rows if t["task_id"] in want]
     if a.limit:
         rows = rows[:a.limit]
@@ -117,7 +156,8 @@ class ModelAgent:
     """One model behind either route: `responses` (the gateway's GPT models: tools with reasoning effort) or `chat`
     (chat completions, e.g. vLLM). The transcript is a list of plain dicts so a checkpoint can restore it."""
 
-    def __init__(self, a, preset: dict, lane_spent: float, system: str, tools: list[dict]):
+    def __init__(self, a, preset: dict, lane_spent: float, system: str, tools: list[dict],
+                 budget: Budget | None = None):
         base = a.base_url or gateway_url(a.gateway_env)
         key = "EMPTY" if a.base_url and not a.ssm_param and not os.environ.get("DESK_API_KEY") else api_key(a)
         self.client = openai.OpenAI(base_url=base, api_key=key, timeout=a.timeout, max_retries=4)
@@ -127,7 +167,8 @@ class ModelAgent:
         self.effort = a.effort if a.effort is not None else preset.get("effort")
         self.sampling = preset.get("sampling", {})
         self.thinking = preset.get("thinking")
-        self.max_usd, self.lane_cap, self.lane_spent = a.max_usd, a.lane_cap_usd, lane_spent
+        self.max_usd = a.max_usd
+        self.budget = budget or Budget(getattr(a, "lane_cap_usd", None), lane_spent)
         self.max_tokens = a.max_tokens
         self.system = system
         if self.route == "responses":
@@ -183,9 +224,22 @@ class ModelAgent:
         """One model call: (text, [(call_id, name, arguments json)])."""
         if self.usage["cost_usd"] >= self.max_usd:
             raise SpendCap(f"run cap ${self.max_usd} reached")
-        if self.lane_cap is not None and self.lane_spent + self.usage["cost_usd"] >= self.lane_cap:
-            raise SpendCap(f"lane cap ${self.lane_cap} reached")
         self.compact()
+        worst = self.worst()
+        self.budget.reserve(worst)
+        try:
+            return self._step(log, worst)
+        except BaseException:
+            self.budget.settle(worst, 0.0)
+            raise
+
+    def worst(self) -> float:
+        pin, pout, _ = self.price
+        n_in = (sum(len(json.dumps(m)) for m in self.items) + len(self.system) + len(json.dumps(self.tools))) \
+            // CHARS_PER_TOKEN
+        return (n_in * pin + (self.max_tokens or WORST_OUT) * pout) / 1e6
+
+    def _step(self, log, worst: float) -> tuple[str, list[tuple[str, str, str]]]:
         t0 = time.time()
         if self.route == "responses":
             kw = {"model": self.model, "instructions": self.system, "input": self.items, "tools": self.tools,
@@ -233,18 +287,19 @@ class ModelAgent:
             cached = (getattr(getattr(u, "prompt_tokens_details", None), "cached_tokens", 0) or 0) if u else 0
             finish = r.choices[0].finish_reason
         c = self._charge(inp, outp, cached, dt)
+        self.budget.settle(worst, c)
         log({"t": time.time(), "model": self.model, "route": self.route, "latency_s": round(dt, 2), "finish": finish,
              "input_tokens": inp, "output_tokens": outp, "cached_tokens": cached, "cost_usd": round(c, 6),
              "tool_calls": [n for _, n, _ in calls], "content": text[:2000], "reasoning": reasoning[:2000]})
         return text, calls
 
 
-def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -> tuple[Session, dict, str]:
+def run_model(task, series, a, preset, out: Path, tag: str, budget: Budget) -> tuple[Session, dict, str]:
     tid = task["task_id"]
     ck = out / "ckpt" / f"{tid}.{tag}.json"
     calls_log = out / "calls" / f"{tid}.{tag}.jsonl"
     s = Session(task, series, layer=a.layer, budgets=budgets(a))
-    agent = ModelAgent(a, preset, lane_spent, system_prompt(s), tool_specs(s.layer, s.rtcb))
+    agent = ModelAgent(a, preset, 0.0, system_prompt(s), tool_specs(s.layer, s.rtcb), budget)
     wake = s.start()
     if ck.exists():
         state = json.loads(ck.read_text())
@@ -265,6 +320,8 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
             agent.user(text(wake))
             reply = None
             for _ in range(s.budget["calls_per_turn"] + 3):
+                if budget.stop.is_set():
+                    raise Stopped("stop requested")
                 reply, calls = agent.step(log)
                 if not calls:
                     break
@@ -310,6 +367,8 @@ def main() -> None:
     src.add_argument("--pack", help="a pack name under data/desk or a pack directory")
     src.add_argument("--fixture", nargs="+", help="synthetic fixture days DATE[:SEED]")
     ap.add_argument("--tasks", nargs="*")
+    ap.add_argument("--tasks-file", help="task ids, one per line (or a jsonl with task_id)")
+    ap.add_argument("--parallel", type=int, default=1, help="episodes run concurrently in this process")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--layer", default="v2")
     ap.add_argument("--policy", default="model", choices=["model", "anchor", "idle", "scripted"])
@@ -341,33 +400,64 @@ def main() -> None:
     preset = MODELS[a.preset]
     tag = a.tag or (a.policy if a.policy != "model" else (a.model or preset["model"]).split("/")[-1])
     finished = done_ids(out, tag)
+    todo = []
     for task, series in tasks_from(a):
-        tid = task["task_id"]
-        if tid in finished:
-            print(f"skip {tid} ({tag} done)", flush=True)
-            continue
-        r = refs.refs_for(task, series)
-        t0 = time.time()
-        if a.policy == "model":
-            s, usage, status = run_model(task, series, a, preset, out, tag, ledger(out))
-            pol = {"kind": "model", "model": a.model or preset["model"], "effort": a.effort or preset.get("effort")}
+        if task["task_id"] in finished:
+            print(f"skip {task['task_id']} ({tag} done)", flush=True)
         else:
-            s = policies.run(task, series, a.policy, layer=a.layer, budgets=budgets(a))
-            usage, status = {"cost_usd": 0.0}, "ok"
-            pol = {"kind": a.policy}
-        g = refs.grade(s, r)
-        usage = dict(usage, turns=len(s.turns), calls=sum(len(t["calls"]) for t in s.turns),
-                     wall_s=round(time.time() - t0, 1))
-        ep = s.episode(policy=pol, usage=usage, grade=g)
-        (out / "episodes" / f"{tid}.{tag}.json").write_text(json.dumps(ep))
-        row = {"task_id": tid, "tag": tag, "policy": pol, "layer": s.layer, "era": s.era, "status": status,
-               "grade": g, "usage": usage, "compliance": ep["compliance"],
-               "rejected": sum(1 for x in s.submissions if x["codes"]), "submissions": len(s.submissions)}
-        with open(out / "results.jsonl", "a") as f:
-            f.write(json.dumps(row) + "\n")
-        print(f"{tid} {tag}: R={g['reward']:.3f} C={g['capture']} P={g['p']:,.0f} anchor={g['p_anchor']:,.0f} "
-              f"hind={g['p_hind']:,.0f} turns={usage['turns']} ${usage.get('cost_usd', 0):.3f} {status}", flush=True)
+            todo.append((task, series))
+    budget = Budget(a.lane_cap_usd, ledger(out))
+    signal.signal(signal.SIGTERM, lambda *_: budget.stop.set())
+    signal.signal(signal.SIGINT, lambda *_: budget.stop.set())
+    print(f"{tag}: {len(todo)} episodes to run, {len(finished)} done, lane spend ${budget.spent:.2f}, "
+          f"parallel {a.parallel}", flush=True)
+    with ThreadPoolExecutor(max_workers=a.parallel) as ex:
+        futs = {ex.submit(episode, task, series, a, preset, out, tag, budget): task["task_id"] for task, series in todo}
+        for f in as_completed(futs):
+            try:
+                row = f.result()
+            except Exception as e:  # noqa: BLE001
+                print(f"{futs[f]}: FAILED {type(e).__name__}: {e}", flush=True)
+                continue
+            if row is None:
+                print(f"{futs[f]}: stopped; checkpoint kept", flush=True)
+                continue
+            with open(out / "results.jsonl", "a") as fh:
+                fh.write(json.dumps(row) + "\n")
+            g, usage = row["grade"], row["usage"]
+            print(f"{row['task_id']} {tag}: R={g['reward']:.3f} C={g['capture']} C_phys={g['capture_phys']} "
+                  f"P={g['p']:,.0f} anchor={g['p_anchor']:,.0f} hind={g['p_hind']:,.0f} turns={usage['turns']} "
+                  f"${usage.get('cost_usd', 0):.3f} {row['status']}", flush=True)
+    if budget.stop.is_set():
+        print("stopped on signal; rerun the same command to resume", flush=True)
 
+
+def episode(task, series, a, preset, out: Path, tag: str, budget: Budget) -> dict | None:
+    """One episode, played and graded; None when a stop signal interrupted it (its checkpoint stays)."""
+    tid = task["task_id"]
+    if budget.stop.is_set():
+        return None
+    r = refs.refs_for(task, series)
+    t0 = time.time()
+    if a.policy == "model":
+        try:
+            s, usage, status = run_model(task, series, a, preset, out, tag, budget)
+        except Stopped:
+            return None
+        pol = {"kind": "model", "model": a.model or preset["model"], "effort": a.effort or preset.get("effort")}
+    else:
+        s = policies.run(task, series, a.policy, layer=a.layer, budgets=budgets(a))
+        usage, status = {"cost_usd": 0.0}, "ok"
+        pol = {"kind": a.policy}
+    g = refs.grade(s, r)
+    usage = dict(usage, turns=len(s.turns), calls=sum(len(t["calls"]) for t in s.turns),
+                 wall_s=round(time.time() - t0, 1))
+    ep = s.episode(policy=pol, usage=usage, grade=g)
+    (out / "episodes" / f"{tid}.{tag}.json").write_text(json.dumps(ep))
+    return {"task_id": tid, "tag": tag, "policy": pol, "layer": s.layer, "era": s.era, "status": status,
+            "grade": g, "capture": g["capture"], "capture_phys": g["capture_phys"], "usage": usage,
+            "compliance": ep["compliance"], "rejected": sum(1 for x in s.submissions if x["codes"]),
+            "submissions": len(s.submissions)}
 
 if __name__ == "__main__":
     sys.exit(main())
