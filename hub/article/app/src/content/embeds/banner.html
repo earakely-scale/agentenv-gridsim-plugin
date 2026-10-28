@@ -48,7 +48,8 @@
       const S = B.sites.map((s, i) => ({ ...s, i, color: `var(--s${i + 1})`, short: s.name.replace("Battery ", "") }));
       const dayLabel = new Date(`${B.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
       let layout = null, t0 = performance.now(), paused = reduce, pausedAt = 19.6, visible = true;
-      let dots = null, particles = [], lastQ = -1, lastSpawn = 0, rings = [], lastH = 0;
+      let dots = null, particles = [], lastQ = -1, lastN = -1, lastSpawn = 0, rings = [], lastH = 0;
+      const posted = (h) => Math.max(0, Math.min(96, Math.floor((h * 60 - 2) / 15)));
 
       const priceColor = (p) => (p < 0 ? "var(--c-neg)" : p > 60 ? "var(--c-discharge)" : "var(--muted-color)");
       const priceOpacity = (p) => (p < 0 ? 0.7 : p > 60 ? 0.3 + 0.6 * Math.min(1, Math.log(p / 60) / Math.log(10)) : 0.16 + 0.14 * Math.max(0, p / 60));
@@ -59,11 +60,11 @@
       const showTip = (ev) => {
         if (ev) lastEv = ev;
         if (!hover || !lastEv) return;
-        const s = hover, q = Math.max(0, Math.min(95, lastQ));
+        const s = hover, q = Math.max(0, Math.min(95, lastQ)), n = Math.max(0, lastN);
         tip.show((el) => {
           K.t.title(el, `${s.name}, ${s.region}`, s.color);
           K.t.row(el, "size", s.size);
-          K.t.row(el, `real-time price at ${hhmm(q / 4)}`, `${usd(s.rt[q])}/MWh`);
+          K.t.row(el, n ? `real-time price, the ${hhmm((n - 1) / 4)} interval` : "real-time price", n ? `${usd(s.rt[n - 1])}/MWh` : "not posted yet");
           const mw = s.mw[q];
           K.t.row(el, "the battery", Math.abs(mw) < 1 ? "idle" : mw < 0 ? `charging ${Math.round(-mw)} MW` : `discharging ${Math.round(mw)} MW`);
           K.t.row(el, "state of charge", `${Math.round(s.soc[q + 1])} of ${Math.round(s.e_max)} MWh`);
@@ -119,14 +120,14 @@
         const ys = d3.scaleLog().domain([15, 650]).range([lp.y + lp.h, lp.y]).clamp(true);
         const lpG = svg.append("g");
         lpG.append("text").attr("class", "panel-t").attr("x", lp.x - 34).attr("y", lp.y - (narrow ? 26 : 30)).text("Real-time price at each node");
-        lpG.append("text").attr("class", "panel-s").attr("x", lp.x - 34).attr("y", lp.y - (narrow ? 13 : 16)).text(`$/MWh every 15 minutes, ${dayLabel}`);
+        lpG.append("text").attr("class", "panel-s").attr("x", lp.x - 34).attr("y", lp.y - (narrow ? 13 : 16)).text(`$/MWh every 15 minutes, as posted, ${dayLabel}`);
         [25, 50, 100, 250, 500].forEach((v) => {
           lpG.append("line").attr("class", "gl").attr("x1", lp.x).attr("x2", lp.x + lp.w).attr("y1", ys(v)).attr("y2", ys(v));
           lpG.append("text").attr("class", "ax").attr("x", lp.x - 4).attr("y", ys(v) + 3).attr("text-anchor", "end").text(`$${v}`);
         });
         [0, 6, 12, 18, 24].forEach((hr) => lpG.append("text").attr("class", "ax").attr("x", xs(hr)).attr("y", lp.y + lp.h + 12).attr("text-anchor", hr === 24 ? "end" : hr === 0 ? "start" : "middle").text(`${String(hr).padStart(2, "0")}:00`));
         const line = d3.line().x((d, i) => xs((i + 0.5) / 4)).y((d) => ys(d)).curve(d3.curveMonotoneX);
-        S.forEach((s) => lpG.append("path").attr("class", "pl").attr("d", line(s.rt)).style("stroke", s.color).style("stroke-opacity", 0.9));
+        const pls = S.map((s) => ({ s, el: lpG.append("path").attr("class", "pl").style("stroke", s.color).style("stroke-opacity", 0.9) }));
         S.forEach((s, i) => {
           const y = narrow ? lp.y + lp.h + 30 : lp.y + lp.h + 32 + i * 14, x = narrow ? lp.x - 34 + i * ((W - 8) / 4) : lp.x - 34;
           lpG.append("line").attr("x1", x).attr("x2", x + 12).attr("y1", y - 3.5).attr("y2", y - 3.5).style("stroke", s.color).style("stroke-width", 2);
@@ -154,8 +155,9 @@
         const fr = svg.append("g").style("display", narrow ? "none" : null);
         [[mapBox.x + 2, mapBox.y + 2, 1, 1], [mapBox.x + mapBox.w - 2, mapBox.y + 2, -1, 1], [mapBox.x + 2, mapBox.y + mapBox.h - 2, 1, -1], [mapBox.x + mapBox.w - 2, mapBox.y + mapBox.h - 2, -1, -1]]
           .forEach(([x, y, sx, sy]) => fr.append("path").attr("class", "corner").attr("d", `M${x},${y + 8 * sy}V${y}H${x + 8 * sx}`));
-        layout = { cur, xs, clock, clockS, status, socs, pg, rg, bw, bh, narrow, end: null };
+        layout = { cur, xs, clock, clockS, status, socs, pg, rg, bw, bh, narrow, end: null, pls, line };
         lastQ = -1;
+        lastN = -1;
       }
 
       function frame(now) {
@@ -169,7 +171,7 @@
         L.cur.attr("x1", L.xs(hNow)).attr("x2", L.xs(hNow));
         L.clock.text(end ? "24:00" : hhmm(hNow));
         L.clockS.text(`${dayLabel} · ${end ? "the day settles" : "the operating day"}`);
-        const q = Math.min(95, Math.floor(hNow * 4));
+        const q = Math.min(95, Math.floor(hNow * 4)), n = end ? 96 : posted(hNow);
         if (!paused && !end) {
           S.forEach((s) => s.wakes.forEach((t) => {
             const th = t / 60;
@@ -186,16 +188,18 @@
           r.el.attr("r", 8 + 26 * k).style("opacity", 1 - k);
           return true;
         });
-        if (q !== lastQ || end !== L.end) {
+        if (q !== lastQ || n !== lastN || end !== L.end) {
           lastQ = q;
+          lastN = n;
           L.end = end;
-          dots.style("fill", (c) => priceColor(c.s.rt[q])).style("fill-opacity", (c) => priceOpacity(c.s.rt[q]));
+          L.pls.forEach((o) => o.el.attr("d", n > 1 ? L.line(o.s.rt.slice(0, n)) : null));
+          dots.style("fill", (c) => (n ? priceColor(c.s.rt[n - 1]) : "var(--muted-color)")).style("fill-opacity", (c) => (n ? priceOpacity(c.s.rt[n - 1]) : 0.16));
           S.forEach((s) => {
             const mw = s.mw[q], soc = end ? s.soc[96] : s.soc[q + 1];
             s.fill.attr("width", Math.max(0, (L.bw - 3) * (soc / s.e_max)));
             s.glow.style("stroke", mw < -1 ? "var(--c-charge)" : mw > 1 ? "var(--c-discharge)" : "transparent").style("opacity", Math.abs(mw) > 1 && !end ? 0.9 : 0);
-            const pr = s.rt[q];
-            s.px.text(end ? "" : `${usd(pr)}/MWh`).style("fill", pr > 60 ? "var(--c-discharge)" : "var(--muted-color)");
+            const pr = n ? s.rt[n - 1] : null;
+            s.px.text(end || pr == null ? "" : `${usd(pr)}/MWh`).style("fill", pr > 60 ? "var(--c-discharge)" : "var(--muted-color)");
             s.settle.text(end ? `settled ${usd(s.p)}` : "");
           });
           if (end) L.status.text("every 15-minute interval settled").style("fill", "var(--muted-color)");
@@ -226,13 +230,13 @@
       const setBtn = () => { btn.textContent = paused ? "▶ Play the day" : "❚❚ Pause"; btn.setAttribute("aria-label", paused ? "Play the animation" : "Pause the animation"); };
       btn.addEventListener("click", () => {
         if (paused) { t0 = performance.now() - (pausedAt / 24) * DAY; lastH = pausedAt; paused = false; }
-        else { const e = (performance.now() - t0) % (DAY + HOLD); pausedAt = e < DAY ? (e / DAY) * 24 : 23.99; paused = true; lastQ = -1; }
+        else { const e = (performance.now() - t0) % (DAY + HOLD); pausedAt = e < DAY ? (e / DAY) * 24 : 23.99; paused = true; lastQ = -1; lastN = -1; }
         setBtn();
       });
       setBtn();
       build();
       if (window.IntersectionObserver) new IntersectionObserver((es) => es.forEach((e) => (visible = e.isIntersecting)), { threshold: 0 }).observe(root);
-      K.watch(root, () => { build(); lastQ = -1; });
+      K.watch(root, () => { build(); lastQ = -1; lastN = -1; });
       requestAnimationFrame(loop);
     }).catch((e) => { root.textContent = "The banner's data did not load: " + e.message; }));
   })();
