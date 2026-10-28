@@ -569,6 +569,27 @@ deployments are inside its telemetry). PV is not in the operator rows.
 
 Budgets v3: 48 turns, 14 calls per turn. `optimize` output in v3 is about 4–5k characters.
 
+### 10.2 v4 "Weather Front" as built
+
+- **Window.** Three consecutive operating days (`dates` has 3), D-1 06:00 → D2 24:00 (−1080 → 4320). The battery
+  enters D0 at soc0; the end-SoC target and its price apply after D2 (7). All v3 rules (AS, PV) hold.
+- **DAM per day.** Each day's DAM closes at 10:00 the day before and posts its results then (`posted.dam[date]`).
+  Curves and AS offers for any of the three days may be submitted from the start (up to 14 days ahead, MSVR); a new
+  submission overwrites only its hours. Wakes: `start` (D-1 06:00, for D0), `dam_morning` (D0 06:00 for D1, D1 06:00
+  for D2, merged with that minute's checkpoint), `dam_results` and `adjustment_open` per day, checkpoints on every
+  operating day, events and reminders. `day` is an argument of every tool that reads or writes a day.
+- **As-issued vintages central.** Every desk-forecast vintage issued by now is applied oldest first, so each day's
+  DAM vintage (DATA: one per operating day, issued at its D-1 06:00) prices its own hours; ERCOT load/wind/solar/PV
+  vintages are read with `get_forecasts(vintage=...)` as issued. DATA keeps vintages issued from D-1 00:00 to D2 23:00
+  with horizons to D2 24:00.
+- **Statements per day** (7): `statement.days[date]`; the shadow statement in `get_position(day=...)`.
+- **Budgets.** 100 turns, 14 calls per turn, 12 pending reminders. Runner compaction for v4: tool results older than
+  the last 3 turns are elided once the transcript passes 80k characters (v2/v3: 4 turns, 120k). Estimate for Sol
+  (GPT-6.1, $2/$10/$0.10 per 1M): ~400 calls × ~18k input tokens (~90% cached) + ~500 output tokens each ≈ $4 per
+  window, under the $6 target; the v2 fixture smoke measured 19k input tokens per call at 90% cache.
+- **References.** The hindsight LP spans all three days with every DAM open at D-1 06:00; the anchor re-optimises at
+  every non-reminder wake over the rest of the window.
+
 ## 11. Episode JSON (`gridsim.desk.episode/v1`)
 
 ```json

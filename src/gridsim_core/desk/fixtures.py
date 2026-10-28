@@ -89,10 +89,11 @@ def make(date: str = "2026-02-14", seed: int = 0, days: int = 1, layer: str = "v
     if desk_forecast:
         fcs = []
         truth = sum((dam[d] for d in dates), [])
-        dam_p50 = [round(x + rng.normal(0, 8), 2) for x in truth]
-        fcs.append({"market": "dam", "issued_at": _iso(-1110, d0), "start": _iso(0, d0), "step_min": 60,
-                    "p10": [round(x - 15, 2) for x in dam_p50], "p50": dam_p50, "p90": [round(x + 20, 2) for x in dam_p50],
-                    "model": "fixture-qr"})
+        for j in range(days):
+            dam_p50 = [round(x + rng.normal(0, 8 + 4 * j), 2) for x in truth[24 * j:]]
+            fcs.append({"market": "dam", "issued_at": _iso(j * clock.DAY - 1110, d0), "start": _iso(j * clock.DAY, d0),
+                        "step_min": 60, "p10": [round(x - 15, 2) for x in dam_p50], "p50": dam_p50,
+                        "p90": [round(x + 20, 2) for x in dam_p50], "model": "fixture-qr"})
         rt_truth = sum((rt_spp[d] for d in dates), [])
         for t in range(-1080, end, 60):
             s0 = max(t, 0) // 60 * 60

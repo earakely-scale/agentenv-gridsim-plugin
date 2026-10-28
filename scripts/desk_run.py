@@ -42,6 +42,7 @@ MODELS = {
 }
 KEEP_TURNS = 4
 COMPACT_CHARS = 120_000
+COMPACTION = {"v4": (3, 80_000)}
 ELIDED = "[elided: an earlier tool result; call the tool again if you need it]"
 
 
@@ -178,6 +179,7 @@ class ModelAgent:
             self.tools = tools
             self.items = [{"role": "system", "content": system}]
         self.turn_starts: list[int] = []
+        self.compaction = COMPACTION.get(getattr(a, "layer", "v2"), (KEEP_TURNS, COMPACT_CHARS))
         self.usage = {"api_calls": 0, "input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
                       "latency_s": 0.0}
 
@@ -202,10 +204,11 @@ class ModelAgent:
 
     def compact(self) -> None:
         """Elide tool results older than the last KEEP_TURNS turns, all at once, so the cached prefix changes rarely."""
-        if sum(len(json.dumps(m)) for m in self.items) < COMPACT_CHARS or len(self.turn_starts) <= KEEP_TURNS:
+        keep, limit = self.compaction
+        if sum(len(json.dumps(m)) for m in self.items) < limit or len(self.turn_starts) <= keep:
             return
         key = "output" if self.route == "responses" else "content"
-        for m in self.items[:self.turn_starts[-KEEP_TURNS]]:
+        for m in self.items[:self.turn_starts[-keep]]:
             if (m.get("type") == "function_call_output" or m.get("role") == "tool") and m[key] != ELIDED:
                 m[key] = ELIDED
 

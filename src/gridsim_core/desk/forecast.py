@@ -94,6 +94,16 @@ class NaiveForecaster:
         return None
 
 
+def issued(fc: DeskForecaster, market: str, now: int) -> list[Vintage]:
+    """Every vintage of `market` issued by `now`, oldest first, so later issues overwrite the hours they cover (a
+    multi-day episode has one DAM vintage per operating day)."""
+    ser = getattr(fc, "ser", None)
+    if ser is None or isinstance(fc, NaiveForecaster):
+        v = fc.vintage(market, now)
+        return [v] if v else []
+    return [v for v in ser.desk_forecast if v.kind == market and v.issued_at <= now]
+
+
 def forecaster_for(ser: Series) -> DeskForecaster:
     return SeriesForecaster(ser) if ser.desk_forecast else NaiveForecaster(ser)
 
@@ -121,7 +131,9 @@ def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
     base = [[p50[h % 24] - spread[h % 24] for h in range(H)], [p50[h % 24] for h in range(H)],
             [p50[h % 24] + spread[h % 24] for h in range(H)]]
     vd = fc.vintage("dam", now)
-    dam, _ = _fill(vd, H, 60, base)
+    dam = base
+    for v in issued(fc, "dam", now):
+        dam, _ = _fill(v, H, 60, dam)
     posted = [False] * H
     for j in range(ser.days):
         if ser.dam_posted[j] <= now:
@@ -133,7 +145,9 @@ def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
     rbase = [[dam[1][i // 4] - basis[(i // 4) % 24] for i in range(NI)], [dam[1][i // 4] for i in range(NI)],
              [dam[1][i // 4] + basis[(i // 4) % 24] for i in range(NI)]]
     vr = fc.vintage("rt", now)
-    rt, _ = _fill(vr, NI, 15, rbase)
+    rt = rbase
+    for v in issued(fc, "rt", now):
+        rt, _ = _fill(v, NI, 15, rt)
     rposted = [False] * NI
     for i in range(NI):
         if 15 * i + 15 + 2 <= now:

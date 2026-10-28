@@ -26,6 +26,7 @@ class FakeAgent(desk_run.ModelAgent):
         self.usage = {"api_calls": 0, "input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
                       "latency_s": 0.0}
         self.n = 0
+        self.compaction = (desk_run.KEEP_TURNS, desk_run.COMPACT_CHARS)
 
     def worst(self) -> float:
         return self.COST

@@ -30,7 +30,7 @@ EPISODE_SCHEMA = "gridsim.desk.episode/v1"
 LAYERS = ("v2", "v3", "v4", "v5")
 BUDGETS = {"v2": {"max_turns": 40, "calls_per_turn": 12, "max_reminders": 8},
            "v3": {"max_turns": 48, "calls_per_turn": 14, "max_reminders": 8},
-           "v4": {"max_turns": 90, "calls_per_turn": 14, "max_reminders": 12},
+           "v4": {"max_turns": 100, "calls_per_turn": 14, "max_reminders": 12},
            "v5": {"max_turns": 48, "calls_per_turn": 14, "max_reminders": 8}}
 TOOLS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position",
          "submit_dam_offers", "submit_rt_offers", "update_cop", "check_submission", "optimize", "set_reminder")
@@ -1046,8 +1046,11 @@ class Session:
             return {"error": "args: risk is a number in [0, 1]"}
         if constraints is not None and not isinstance(constraints, dict):
             return {"error": "args: constraints is an object"}
-        out = propose(self.engine, self.now, fcm.views(self.ser, self.fc, self.now), price_view, risk, constraints,
-                      self.fc)
+        try:
+            out = propose(self.engine, self.now, fcm.views(self.ser, self.fc, self.now), price_view, risk, constraints,
+                          self.fc)
+        except RuntimeError as e:
+            return {"error": f"optimize: {e}"}
         out.pop("_plans", None)
         return out
 

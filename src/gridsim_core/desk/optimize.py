@@ -155,9 +155,10 @@ def solve(p: Problem) -> Plan:
         lsl = np.maximum(lsl, -p.poi - pvk)
     hi[C:C + n] = np.maximum(-lsl, 0.0)
     hi[D:D + n] = np.maximum(hsl, 0.0)
-    lo[S:S + n] = np.asarray(p.min_soc, dtype=float)[hs]
-    hi[S:S + n] = np.asarray(p.max_soc, dtype=float)[hs]
-    lo[S:S + n] = np.minimum(lo[S:S + n], hi[S:S + n])
+    cop_lo = np.asarray(p.min_soc, dtype=float)[hs]
+    cop_hi = np.asarray(p.max_soc, dtype=float)[hs]
+    lo[S:S + n] = min(s.e_min, p.soc)
+    hi[S:S + n] = max(s.e_max, p.soc)
     rt_all = np.asarray(p.rt, dtype=float)
     for H, j in qi.items():
         rt_mean = float(np.mean(rt_all[PER_H * H:PER_H * (H + 1)]))
@@ -256,6 +257,11 @@ def solve(p: Problem) -> Plan:
         return [(ncol + len(cost_extra) - 1, 1.0)]
 
     cost_extra: list[float] = []
+    for i in range(n):
+        if cop_lo[i] > lo[S + i] + 1e-9:
+            add([(S + i, 1.0)] + slack(), float(cop_lo[i]), np.inf)
+        if cop_hi[i] < hi[S + i] - 1e-9:
+            add([(S + i, 1.0)] + [(c_, -v) for c_, v in slack()], -np.inf, float(cop_hi[i]))
     if prods:
         for i in range(n):
             up_e, up_c, soc_e, soc_c = [], 0.0, [], 0.0
@@ -277,12 +283,12 @@ def solve(p: Problem) -> Plan:
                     np.inf)
                 if p.soc_rule:
                     d_ = _dur(p, "regdn", p.k0 + i)
-                    relax = [(c_, -v) for c_, v in slack()] if fixed else []
+                    relax = [(c_, -v) for c_, v in slack()]
                     add([(S + i, 1.0 / eta)] + [(c_, v * d_) for c_, v in terms] + relax, -np.inf,
-                        float(hi[S + i]) / eta - fixed * d_)
+                        float(cop_hi[i]) / eta - fixed * d_)
             if p.soc_rule and (soc_e or soc_c):
-                relax = slack() if soc_c else []
-                add([(S + i, eta)] + [(c_, -v) for c_, v in soc_e] + relax, float(lo[S + i]) * eta + soc_c, np.inf)
+                relax = slack()
+                add([(S + i, eta)] + [(c_, -v) for c_, v in soc_e] + relax, float(cop_lo[i]) * eta + soc_c, np.inf)
     if prods:
         for H, j in qi.items():
             up = [(Ri[(pr, H)], 1.0) for pr in prods if pr != "regdn" and (pr, H) in Ri]
@@ -291,7 +297,7 @@ def solve(p: Problem) -> Plan:
             if p.rtcb and up and k_start >= 1:
                 add([(S + k_start - 1, eta)] + [(Ri[(pr, H)], -DURATION_POST[pr] * DEPLOY_FACTOR)
                                                 for pr in prods if pr != "regdn" and (pr, H) in Ri],
-                    float(lo[S + k_start - 1]) * eta, np.inf)
+                    float(cop_lo[k_start - 1]) * eta, np.inf)
             if ("regdn", H) in Ri:
                 add([(j, 1.0), (Ri[("regdn", H)], -1.0)], min(p.lsl[H], 0.0), np.inf)
     if prods and p.rtcb and p.as_fixed:
@@ -299,7 +305,7 @@ def solve(p: Problem) -> Plan:
             need = sum(mw * DURATION_POST[pr] * DEPLOY_FACTOR for pr, mw in p.as_fixed[H].items() if pr != "regdn")
             k_start = PER_H * H - p.k0
             if need > 0 and not p.dam_open[H] and 1 <= k_start <= n:
-                add([(S + k_start - 1, eta)] + slack(), float(lo[S + k_start - 1]) * eta + need, np.inf)
+                add([(S + k_start - 1, eta)] + slack(), float(cop_lo[k_start - 1]) * eta + need, np.inf)
     for H, j in qi.items():
         e = [(j, 1.0), (j + 1, -1.0), (j + 2, 1.0)]
         for k in range(max(PER_H * H, p.k0), PER_H * (H + 1)):
