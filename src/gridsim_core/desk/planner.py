@@ -12,6 +12,7 @@ from gridsim_core.desk.optimize import Plan, Problem, end_penalty, hour_curves, 
 
 WEIGHTS = {"p10": 0.25, "p50": 0.5, "p90": 0.25}
 END_PEN_HARD = 10.0
+RT_HOURS = 12
 
 
 class ViewError(ValueError):
@@ -157,7 +158,7 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
             nets = [p.q.get(H, p.hourly_net(H)) for _, _, p in plans]
             dam_curves[H] = hour_curves(e.site, lams, risk, dis_cap=max(max(nets), 0.0),
                                         ch_cap=min(min(nets), 0.0))
-        if 60 * (H + 1) > now and H < first_h + 24:
+        if 60 * (H + 1) > now and H < first_h + RT_HOURS and now >= e.adj_open(H):
             rt_curves[H] = hour_curves(e.site, lams, risk)
         if 60 * H - 60 > now and k0 < PER_H * H:
             cop.append({"hour": H, "hbsoc_mwh": round(base.soc_at(PER_H * H), 1)})
