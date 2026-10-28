@@ -90,7 +90,8 @@ PACKS = {
                                   " daily mean 88.9-89.4F; hub RT max $154 08-18"},
                           {"dates": "2026-08-26..28", "split": "post_cutoff", "kind": "heat-wave break, storm line",
                            "why": "08-26 scarcity (hub RT max $795, mean $120, 17 ERCOT notices), then 15"
-                                  " severe-thunderstorm warnings 08-27..28 and -2.2F 08-28 as the August heat breaks"}]},
+                                  " severe-thunderstorm warnings 08-27..28 and -2.2F 08-28 as the August heat"
+                                  " breaks"}]},
     "desk-v2-pre": {"split": "train", "layer": "v2",
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
