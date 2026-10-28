@@ -24,7 +24,7 @@ dependencies = [
 lp = ["highspy>=1.7"]
 build = ["openpyxl>=3.1", "highspy>=1.7"]
 dev = ["pytest>=8", "hypothesis>=6.100", "highspy>=1.7", "openpyxl>=3.1", "ruff>=0.6", "hatchling>=1.27",
-       "anthropic==1.11.0", "openai==2.54.0"]
+       "anthropic==1.11.0", "openai==2.54.0", "matplotlib>=3.8"]
 
 [project.urls]
 Source = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
