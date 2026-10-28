@@ -64,14 +64,15 @@ The grade is the day's settled profit P. The headline is the hindsight capture C
 that the best plan with every price known in advance would have made. Every
 battery-day also carries three references, settled by the same clearing, physics and settlement code:
 
-- **The anchor:** the desk's own optimiser, re-planning at every wake on the same forecasts the agent can read. The
-  reward R puts idle at 0.2 and the anchor at 1.0, with a floor when the anchor barely beats idle.
 - **The hindsight optimum:** the best the rules allow with every real price known in advance, including DAM/RT
   spread positions, and its variant with the DAM position tied to dispatch.
 - **The real operator.** ERCOT discloses every resource's day-ahead bids and offers, its real-time offer curves, base
   points, metered output and state of charge 60 days after the operating day [@ercot_np3966; @ercot_np3965]. The desk
   replays the operator's own curves through the same clearing and settlement, and settles its actual awards and
   metered output the same way. Every evaluation day is old enough for those disclosures to exist.
+- **The anchor:** the desk's own optimiser, re-planning at every wake on the same forecasts the agent can read. It
+  can take DAM/RT spread positions too, which pay off on scarcity days. The env's reward R, second to C and used for
+  training, puts idle at 0.2 and the anchor at 1.0, with a floor when the anchor barely beats idle.
 
 ### The version ladder
 
