@@ -67,7 +67,7 @@ adjustment period opening), shift checkpoints (00:00, 06:00, 12:00, 18:00), ERCO
 any reminder you set (set_reminder). Ending your turn (replying without a tool call) means waiting until the next
 wake-up; your submitted curves and COP stay in force meanwhile. You have {turns} turns and {calls} tool calls per turn.
 
-Tools: get_prices, get_forecasts (the desk price forecasts are modelled P10/P50/P90), get_grid_conditions,
+Tools: get_prices, get_forecasts (the desk price forecast is a modelled P10/P50/P90), get_grid_conditions,
 get_asset_status, get_position, submit_dam_offers, submit_rt_offers, update_cop, check_submission, optimize (a
 co-optimiser that only sees the price view you give it; "desk" = the desk forecast) and set_reminder. Hours are HE01..HE24
 (hour ending). Only data already published is visible. Keep each turn short and end it when you are done."""
