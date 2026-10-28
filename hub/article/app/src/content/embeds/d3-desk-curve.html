@@ -29,7 +29,7 @@
       const he = (h) => `HE${String(h + 1).padStart(2, "0")}`;
       const span = (h) => `${String(h).padStart(2, "0")}:00–${String(h + 1).padStart(2, "0")}:00`;
       const submitted = (() => { const t = C.submitted, m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}${t < 0 ? " the day before" : ""}`; })();
-      d3.select(root).select(".gs-note").text(`${C.model}'s accepted day-ahead curves for ${C.site}, submitted at ${submitted} for the operating day ${new Date(`${C.date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}. The DAM clears each hour at the node's real day-ahead price; the award is where the curve meets that price, within the battery's limits. Pick an hour on the strip: its bar is the award, charging below the line, discharging above.`);
+      d3.select(root).select(".gs-note").text(`The accepted day-ahead curves of ${C.model} for ${C.site}, submitted at ${submitted} for the operating day ${new Date(`${C.date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}. The DAM clears each hour at the node's real day-ahead price; the award is where the curve meets that price, within the battery's limits. Pick an hour on the strip: its bar is the award, charging below the line, discharging above.`);
       function lead() {
         const c = C.curves[hr], p = C.spp[hr], a = C.award[hr];
         const buy = c.filter((q) => q[0] < 0), sell = c.filter((q) => q[0] > 0);

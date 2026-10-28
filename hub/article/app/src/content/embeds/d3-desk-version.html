@@ -10,7 +10,9 @@
   .gs-ver td small { display: block; color: var(--muted-color); font-size: 11px; }
   .gs-ver tr.ref td { color: var(--muted-color); }
   .gs-ver .wrap { overflow-x: auto; }
-  .gs-ver .k { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .gs-ver .who { display: inline-flex; align-items: flex-start; gap: 7px; }
+  .gs-ver .who > i { flex: none; width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; }
+  .gs-ver .set { font-weight: 400; fill: var(--muted-color); }
   .gs-ver table.narrow { table-layout: fixed; }
   .gs-ver table.narrow th { white-space: normal; vertical-align: bottom; }
   .gs-ver table.narrow th, .gs-ver table.narrow td { padding-left: 3px; padding-right: 3px; }
@@ -37,7 +39,7 @@
       root.innerHTML = '<div class="plot"></div><div class="wrap"></div><div class="gs-note"></div>';
       const tip = K.tip(root);
       const svg = d3.select(root).select(".plot").append("svg").attr("class", "gs-svg");
-      const rows = [...V.models.map((m) => ({ ...m, ref: false, color: COL[m.key] || "var(--c-base)" })),
+      const rows = [...V.models.map((m) => ({ ...m, ...D.models[m.key], ref: false, color: COL[m.key] || "var(--c-base)" })),
         ...V.references.filter((r) => r.key !== "hind" && (r.key !== "idle" || Math.abs(r.P.mean) >= 0.5)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
       const dots = rows.filter((r) => r.key !== "idle");
       const hind = V.references.find((r) => r.key === "hind");
@@ -46,7 +48,7 @@
       function render() {
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;
-        const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + dots.length * rh + 30;
+        const lw = narrow ? 0 : 196, rh = narrow ? 42 : 34, t0 = 26, H = t0 + dots.length * rh + 30;
         svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
         const lo = Math.min(0, ...dots.map((r) => r.C.ci[0])), hi = Math.max(1, ...dots.map((r) => r.C.ci[1]));
         const x = d3.scaleLinear().domain([lo - 0.02, hi + 0.02]).range([lw + 8, W - 50]);
@@ -60,12 +62,14 @@
         });
         dots.forEach((r, i) => {
           const y = t0 + i * rh + (narrow ? 26 : rh / 2);
-          svg.append("text").attr("class", `lab halo${r.ref ? "" : " b"}`).attr("x", narrow ? 8 : lw).attr("y", narrow ? y - 12 : y + 4).attr("text-anchor", narrow ? "start" : "end").text(r.name);
+          const lab = svg.append("text").attr("class", `lab halo${r.ref ? "" : " b"}`).attr("x", narrow ? 8 : lw).attr("y", narrow ? y - 12 : y + (r.setting ? -1 : 4)).attr("text-anchor", narrow ? "start" : "end").text(r.name);
+          if (r.setting && narrow) lab.append("tspan").attr("class", "set").text(` · ${r.setting}`);
+          if (r.setting && !narrow) svg.append("text").attr("class", "sub halo").attr("x", lw).attr("y", y + 12).attr("text-anchor", "end").text(r.setting);
           svg.append("line").attr("x1", x(r.C.ci[0])).attr("x2", x(r.C.ci[1])).attr("y1", y).attr("y2", y).style("stroke", r.color).style("stroke-width", 2);
           const c = svg.append("circle").attr("cx", x(r.C.mean)).attr("cy", y).attr("r", r.ref ? 5 : 6).style("fill", r.ref ? "var(--page-bg)" : r.color).style("stroke", r.color).style("stroke-width", 2).style("cursor", "pointer");
           svg.append("text").attr("class", `val halo${r.ref ? "" : " b"}`).attr("x", Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8).attr("y", y + 4).text(f.c(r.C.mean));
           c.on("mousemove", (ev) => tip.show((el) => {
-            K.t.title(el, r.ref ? r.name : `${r.name}${r.effort ? `, ${r.effort} effort` : ""}`, r.color);
+            K.t.title(el, r.ref ? r.name : r.label, r.color);
             K.t.row(el, "C", `${f.c(r.C.mean)} ${f.cci(r.C.ci)}`);
             K.t.row(el, `P a ${unit}`, `${f.usd0(r.P.mean)} ${f.usdci(r.P.ci)}`);
             if (!r.ref) K.t.row(el, "P − anchor", `${f.usd0(r.P_minus_anchor.mean, true)} ${f.usdci(r.P_minus_anchor.ci, true)}`);
@@ -74,7 +78,7 @@
         const ci = narrow ? (c, s) => `[${f.usdk(c[0], s).replace("$", "")}, ${f.usdk(c[1], s).replace("$", "")}]` : f.usdci;
         const cell = (v, s) => (v == null || v.mean == null ? "<td>–</td>" : `<td>${f.usd0(v.mean, s)}<small>${ci(v.ci, s)}</small></td>`);
         const vals = (r) => r.ref ? `${cell(r.P)}<td>–</td><td>–</td>` : `${cell(r.P)}${cell(r.P_minus_operator_replay, true)}${cell(r.P_minus_anchor, true)}`;
-        const name = (r) => `<i class="k" style="background:${r.color}"></i>${r.ref ? r.name : `<b>${r.name}</b>`}`;
+        const name = (r) => `<span class="who"><i style="background:${r.color}"></i><span>${r.ref ? r.name : `<b>${r.name}</b><small>${r.setting}</small>`}</span></span>`;
         const cols = `<th>P a ${unit}</th><th>P − the operator's bids</th><th>P − anchor</th>`;
         d3.select(root).select(".wrap").html(narrow
           ? `<table class="narrow"><tr>${cols}</tr>${rows.map((r) => `<tr class="nm${r.ref ? " ref" : ""}"><td colspan="3">${name(r)}</td></tr><tr class="v${r.ref ? " ref" : ""}">${vals(r)}</tr>`).join("")}</table>`

@@ -17,6 +17,14 @@ import F from "../assets/data/facts.json";
   before's real-time prices were visible before they posted, and a unit event before it started. The v2 pilot ran
   before that fix and is not scored. The desk's tests check that nothing is visible before it posts and that the
   AgentEnv gateway gives the same tool outputs and wake-ups as the in-process session.
+- **Models and settings.** One sampled run per model per task, with the same system prompt, the same eleven tools and
+  the same turn budget.
+  - **{F.models.sol.label}** and **{F.models.luna.label}** (<code>{F.models.sol.id}</code>,
+    <code>{F.models.luna.id}</code>): reasoning effort {F.models.sol.effort}, through the {F.models.sol.api}.
+  - **{F.models.qwen.label}** (<code>{F.models.qwen.checkpoint}</code>): thinking {F.models.qwen.thinking},
+    temperature {F.models.qwen.temperature}, top_p {F.models.qwen.top_p}; served by {F.models.qwen.server} in
+    {F.models.qwen.dtype} with a {F.models.qwen.context}-token context and the {F.models.qwen.parser} tool parser;
+    prompts compacted to about {F.models.qwen.prompt} tokens, with up to {F.models.qwen.out} output tokens a call.
 - **References,** all settled by the same clearing, physics and settlement code
   ([the desk contract](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/CONTRACT-desk.md), §9):
   idle; the anchor, the desk's own optimiser re-planning at every wake on the same forecasts the agent can read, its
@@ -26,8 +34,8 @@ import F from "../assets/data/facts.json";
 - **Reward.** The env's reward is R = clip(0.2 + 0.8·(P − P<sub>idle</sub>) / den, 0, 1) with den = max(P<sub>anchor</sub>
   − P<sub>idle</sub>, 0.1·(P<sub>hind,phys</sub> − P<sub>idle</sub>)): the floor keeps a day where the anchor barely
   beats idle from turning R into a step. No valid submission scores R = 0. R is for training; C is the headline.
-- **Statistics.** One run per model per task. Means carry 95% CIs from a day-block bootstrap with {F.resamples}
-  resamples of operating days (weather fronts in v4); paired gaps resample over the tasks both sides played.
+- **Statistics.** Means carry 95% CIs from a day-block bootstrap with {F.resamples} resamples of operating days
+  (weather fronts in v4); paired gaps resample over the tasks both sides played.
 - **Deviations, as logged.** In v2 a first launch was stopped after five minutes, when the environment refused its own
   displayed time format; its outputs were set aside unread and the runs restarted on a fixed freeze. v2's Qwen3-4B
   runs moved mid-run onto identical hosts, every task keeping exactly one run, and R is graded against the frozen

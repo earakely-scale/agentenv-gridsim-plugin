@@ -17,7 +17,6 @@
     if (!root) return;
     const MARKET = new Set(["start", "dam_results", "adjustment_open", "checkpoint", "end"]);
     const OWN = new Set(["reminder"]);
-    const NAME = { sol: "GPT-6.1 Sol", luna: "GPT-6 Luna", qwen: "Qwen3-4B (untrained)" };
     const kind = (w) => (w.reasons.some((r) => !MARKET.has(r) && !OWN.has(r)) ? "event" : w.reasons.some((r) => OWN.has(r)) ? "own" : "market");
     const COLOR = { market: "var(--text-color)", event: "var(--c-event)", own: "var(--c-own)" };
     const hhmm = (t) => { const m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
@@ -35,7 +34,7 @@
         s.append("span").text(l);
       });
       legend.append("span").text("filled: the desk submitted something; size: its tool calls");
-      d3.select(root).append("div").attr("class", "gs-note").text(`One real episode: ${NAME[S.model] || S.model} on ${S.label}. Times are Central.`);
+      d3.select(root).append("div").attr("class", "gs-note").text(`One real episode: ${D.models[S.model].label} on ${S.label}. Times are Central.`);
       function render() {
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;

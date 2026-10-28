@@ -25,7 +25,7 @@
           const p = wrap.append("div").attr("class", "panel");
           p.append("h4").text(`${V.version} · ${V.name}`);
           p.append("div").attr("class", "u").text(`P − the operator's bids, $ a ${unit}, ${V.n_tasks} ${unit}s`);
-          const W = p.node().clientWidth || 340, rh = 30, top = 6, ml = 92, H = top + V.models.length * rh + 24;
+          const W = p.node().clientWidth || 340, rh = 32, top = 6, ml = 136, H = top + V.models.length * rh + 24;
           const svg = p.append("svg").attr("class", "gs-svg").attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
           const ext = V.models.flatMap((m) => m.P_minus_operator_replay.ci);
           const lo = Math.min(0, ...ext), hi = Math.max(0, ...ext), pad = (hi - lo) * 0.06;
@@ -38,11 +38,12 @@
           const tip = K.tip(p.node());
           V.models.forEach((m, i) => {
             const g = m.P_minus_operator_replay, y = top + i * rh + rh / 2, c = COL[m.key] || "var(--c-base)";
-            svg.append("text").attr("class", "lab b").attr("x", ml - 8).attr("y", y + 4).attr("text-anchor", "end").text(m.name.replace(" (untrained)", ""));
+            svg.append("text").attr("class", "lab b").attr("x", ml - 8).attr("y", y - 1).attr("text-anchor", "end").text(D.models[m.key].name);
+            svg.append("text").attr("class", "sub").attr("x", ml - 8).attr("y", y + 12).attr("text-anchor", "end").text(D.models[m.key].setting);
             svg.append("line").attr("x1", x(g.ci[0])).attr("x2", x(g.ci[1])).attr("y1", y).attr("y2", y).style("stroke", c).style("stroke-width", 2);
             const dot = svg.append("circle").attr("cx", x(g.mean)).attr("cy", y).attr("r", 5.5).style("fill", g.ci[0] > 0 || g.ci[1] < 0 ? c : "var(--page-bg)").style("stroke", c).style("stroke-width", 2);
             dot.on("mousemove", (ev) => tip.show((el) => {
-              K.t.title(el, m.name, c);
+              K.t.title(el, D.models[m.key].label, c);
               K.t.row(el, "P − the operator's bids", `${f.usd0(g.mean, true)} ${f.usdci(g.ci, true)}`);
               K.t.row(el, `its P a ${unit}`, f.usd0(m.P.mean));
             }, ev)).on("mouseleave", () => tip.hide());

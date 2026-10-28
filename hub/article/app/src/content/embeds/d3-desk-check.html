@@ -22,7 +22,9 @@
   .gs-check th:first-child, .gs-check td:first-child { text-align: left; }
   .gs-check td small { display: block; color: var(--muted-color); font-size: 11px; }
   .gs-check tr.ref td { color: var(--muted-color); }
-  .gs-check .k { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .gs-check .who { display: inline-flex; align-items: flex-start; gap: 7px; }
+  .gs-check .who > i { flex: none; width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; }
+  .gs-check .set { fill: var(--muted-color); font-weight: 400; }
   .gs-check .wrap { overflow-x: auto; }
   @media (max-width: 640px) {
     .gs-check .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -37,6 +39,8 @@
     .gs-check table.stack td:first-child { display: block; padding-bottom: 4px; }
     .gs-check table.stack td:first-child::before { content: none; }
     .gs-check table.stack td small { display: inline; margin-left: 6px; }
+    .gs-check table.stack td:first-child small { margin-left: 0; }
+    .gs-check table.stack td:first-child small::before { content: " · "; }
   }
 </style>
 <script>
@@ -56,6 +60,7 @@
       const pi = X.price_impact, vs = X.versus.models;
       const unit = X.days_per_task > 1 ? `${X.days_per_task}-day window` : "battery-day";
       const nm = (k) => (X.models.find((m) => m.key === k) || {}).name || (X.references.find((r) => r.key === k) || {}).short || k;
+      const M = D.models, lab = (k) => (M[k] ? M[k].label : nm(k));
       const keys = [...["sol", "luna", "qwen"].filter((k) => pi[k]), ...(pi.anchor ? ["anchor"] : [])];
       const lead = pi.sol ? "sol" : keys[0];
       const top = keys.reduce((a, k) => (pi[k].max_abs_usd_per_mwh > pi[a].max_abs_usd_per_mwh ? k : a), keys[0]);
@@ -77,7 +82,7 @@
       const rows = Object.keys(vs).map((k) => {
         const a = B.models.find((m) => m.key === k), b = X.models.find((m) => m.key === k), d = vs[k];
         const cell = (l, v, c) => `<td data-l="${l}"><span>${v}<small>${c}</small></span></td>`;
-        return `<tr><td><i class="k" style="background:${COL[k]}"></i><b>${esc(b.name)}</b></td>${cell(`C, ${B.version}`, f.c(a.C.mean), f.cci(a.C.ci))}${cell(`C, ${X.version}`, f.c(b.C.mean), f.cci(b.C.ci))}${cell(`${X.version} − ${B.version}, C`, f.c(d.C.mean, 3, true), f.cci(d.C.ci, 3, true))}${cell(`${X.version} − ${B.version}, P a ${unit}`, f.usd0(d.P.mean, true), f.usdci(d.P.ci, true))}${cell(`${X.version} − ${B.version}, R`, f.c(d.R.mean, 2, true), f.cci(d.R.ci, 2, true))}</tr>`;
+        return `<tr><td><span class="who"><i style="background:${COL[k]}"></i><span><b>${esc(M[k].name)}</b><small>${esc(M[k].setting)}</small></span></span></td>${cell(`C, ${B.version}`, f.c(a.C.mean), f.cci(a.C.ci))}${cell(`C, ${X.version}`, f.c(b.C.mean), f.cci(b.C.ci))}${cell(`${X.version} − ${B.version}, C`, f.c(d.C.mean, 3, true), f.cci(d.C.ci, 3, true))}${cell(`${X.version} − ${B.version}, P a ${unit}`, f.usd0(d.P.mean, true), f.usdci(d.P.ci, true))}${cell(`${X.version} − ${B.version}, R`, f.c(d.R.mean, 2, true), f.cci(d.R.ci, 2, true))}</tr>`;
       }).join("");
       const refs = ["anchor", "operator_replay"].map((k) => [B.references.find((r) => r.key === k), X.references.find((r) => r.key === k)]).filter(([a, b]) => a && b)
         .map(([a, b]) => `<tr class="ref"><td>${esc(b.short)}</td><td data-l="C, ${B.version}">${f.c(a.C.mean)}</td><td data-l="C, ${X.version}">${f.c(b.C.mean)}</td><td data-l="${X.version} − ${B.version}, C">–</td><td data-l="${X.version} − ${B.version}, P a ${unit}">${f.usd0(b.P.mean - a.P.mean, true)}</td><td data-l="${X.version} − ${B.version}, R">–</td></tr>`).join("");
@@ -100,12 +105,15 @@
         svg.append("text").attr("class", "ann").attr("x", x(0) + 6).attr("y", t0 - 12).text("price higher");
         keys.forEach((k, i) => {
           const r = pi[k], y = t0 + i * rh + (narrow ? 20 : 8), model = k !== "anchor";
-          svg.append("text").attr("class", `lab${model ? " b" : ""}`).attr("x", narrow ? lw + 10 : lw).attr("y", narrow ? y - 6 : y + 14).attr("text-anchor", narrow ? "start" : "end").text(nm(k));
+          const two = model && !narrow;
+          const lt = svg.append("text").attr("class", `lab halo${model ? " b" : ""}`).attr("x", narrow ? lw + 10 : lw).attr("y", narrow ? y - 6 : y + (two ? 9 : 14)).attr("text-anchor", narrow ? "start" : "end").text(model ? M[k].name : nm(k));
+          if (model && narrow) lt.append("tspan").attr("class", "set").text(` · ${M[k].setting}`);
+          if (two) svg.append("text").attr("class", "sub").attr("x", lw).attr("y", y + 23).attr("text-anchor", "end").text(M[k].setting);
           [[r.sales_mwh_weighted_usd_per_mwh, "on its sales", r.sales_mwh_per_episode, 0], [r.purchases_mwh_weighted_usd_per_mwh, "on its purchases", r.purchases_mwh_per_episode, 1]].forEach(([v, l, mwh, j]) => {
             const yy = y + j * 14, x0 = x(Math.min(0, v)), w = Math.max(1, Math.abs(x(v) - x(0)));
             svg.append("rect").attr("x", x0).attr("y", yy).attr("width", w).attr("height", 10).attr("rx", 2).style("fill", COL[k]).style("fill-opacity", j ? 0.45 : 0.9)
               .on("mousemove", (ev) => tip.show((el) => {
-                K.t.title(el, nm(k), COL[k]);
+                K.t.title(el, lab(k), COL[k]);
                 K.t.row(el, "On its sales", `${ct(r.sales_mwh_weighted_usd_per_mwh)}/MWh, ${f.int(r.sales_mwh_per_episode)} MWh a ${unit}`);
                 K.t.row(el, "On its purchases", `${ct(r.purchases_mwh_weighted_usd_per_mwh)}/MWh, ${f.int(r.purchases_mwh_per_episode)} MWh a ${unit}`);
                 K.t.row(el, "Largest move", `$${r.max_abs_usd_per_mwh.toFixed(2)}/MWh`);

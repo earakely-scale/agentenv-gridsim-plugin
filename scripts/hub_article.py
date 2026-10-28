@@ -122,7 +122,7 @@ def unit(v: dict) -> str:
 
 def facts(d: dict) -> dict:
     """Every number the prose states, formatted from desk.json; the chapters read them as {F.v2.m.sol.C} and so on."""
-    out = {"across": d["across"], "resamples": f"{d['versions'][0]['ci']['resamples']:,}"}
+    out = {"across": d["across"], "resamples": f"{d['versions'][0]['ci']['resamples']:,}", "models": models(d)}
     for v in d["versions"]:
         f = {"name": v["name"], "n": str(v["n_tasks"]), "blocks": str(v["n_days"]), "block": v["block"],
              "unit": unit(v), "from": day(v["dates"][0]), "to": day(v["dates"][1]), "ref": v["ref"], "m": {}, "r": {},
@@ -167,6 +167,22 @@ def facts(d: dict) -> dict:
     return out
 
 
+def models(d: dict) -> dict:
+    """Each model's label and the settings the methods state, from desk.json's `models`."""
+    out = {}
+    for k, s in d["models"].items():
+        f = {"name": s["name"], "setting": s["setting"], "label": s["label"], "id": s["model_id"]}
+        if s["reasoning_effort"]:
+            f |= {"effort": s["reasoning_effort"], "api": s["api"]}
+        if s["thinking"] is not None:
+            f |= {"thinking": "on" if s["thinking"] else "off", "checkpoint": s["checkpoint"],
+                  "temperature": str(s["temperature"]), "top_p": str(s["top_p"]), "server": s["server"],
+                  "dtype": s["dtype"], "parser": s["tool_parser"], "context": f"{s['context_tokens']:,}",
+                  "prompt": f"{s['prompt_tokens'] // 1000}k", "out": f"{s['max_output_tokens']:,}"}
+        out[k] = f
+    return out
+
+
 def hero(repo: Path, d: dict) -> dict:
     """One real desk day at all four batteries: GPT-6.1 Sol's v2 episodes on HERO's day, each battery's node prices,
     state of charge and metered output every 15 minutes, its wake-ups and its settled P from grades.jsonl.gz, and the
@@ -197,7 +213,7 @@ def hero(repo: Path, d: dict) -> dict:
     old = DATA / "banner.json"
     prev = json.loads(old.read_text()) if old.is_file() else {}
     return {"version": key, "name": v["name"], "date": iso,
-            "model": next(m["name"] for m in v["models"] if m["key"] == model),
+            "model": d["models"][model]["label"],
             "regions": {k: {"lon": x, "lat": y} for k, (x, y) in REGIONS.items()},
             "texas": prev.get("texas") or texas(), "sites": sites,
             "replay": {"task": REPLAY, "url": f"{VIEWER}/index.html?v={key}&m={model}&task={REPLAY}"},
@@ -216,9 +232,8 @@ def curve(repo: Path, d: dict) -> dict:
     dam = ep["dam"][iso]
     card = ep["site"]["card"]
     sub = next(s for s in ep["submissions"] if s["tool"] == "submit_dam_offers" and s["accepted"])
-    v = next(x for x in d["versions"] if x["version"] == key)
     return {"version": key, "task": task, "date": iso, "site": f"{card['name']} ({card['region']}, {card['size']})",
-            "model": next(m["name"] for m in v["models"] if m["key"] == model), "submitted": sub["t"],
+            "model": d["models"][model]["label"], "submitted": sub["t"],
             "hour": hour, "curves": dam["curves"], "spp": dam["spp"],
             "award": [round(x, 2) for x in dam["award_mw"]], "p_min": ep["site"]["lsl_mw"],
             "p_max": ep["site"]["hsl_mw"]}

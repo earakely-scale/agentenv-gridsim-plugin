@@ -13,6 +13,9 @@
   .gs-tools .bars span.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-color); }
   .gs-tools .bar { height: 7px; border-radius: 3px; min-width: 1px; }
   .gs-tools .track { background: var(--grid-color); border-radius: 3px; }
+  .gs-tools .gs-legend { margin: 0 0 10px; }
+  .gs-tools .gs-legend .lab { display: inline; }
+  .gs-tools .gs-legend b { font-weight: 600; color: var(--text-color); }
 </style>
 <script>
   (() => {
@@ -39,7 +42,7 @@
     K.whenD3(() => K.data("desk.json").then((D) => {
       const d3 = window.d3;
       let vi = D.versions.findLastIndex((v) => v.role === "ladder");
-      root.innerHTML = '<div class="gs-chips"><span class="gs-lab">Calls in</span></div><div class="grid"></div><div class="gs-note"></div>';
+      root.innerHTML = '<div class="gs-chips"><span class="gs-lab">Calls in</span></div><div class="gs-legend"></div><div class="grid"></div><div class="gs-note"></div>';
       const chips = d3.select(root).select(".gs-chips");
       D.versions.forEach((v, i) => {
         const b = chips.append("button").attr("class", "gs-chip").attr("type", "button").attr("aria-pressed", i === vi).html(v.role === "check" ? `<b>${v.version}</b> · price-impact check` : `<b>${v.version}</b> ${v.name}`);
@@ -47,6 +50,14 @@
       });
       function render() {
         const V = D.versions[vi], unit = V.days_per_task > 1 ? `${V.days_per_task}-day window` : "battery-day";
+        const legend = d3.select(root).select(".gs-legend").html("");
+        V.models.forEach((m) => {
+          const s = legend.append("span");
+          s.append("i").style("background", COL[m.key] || "var(--c-base)");
+          const l = s.append("span").attr("class", "lab");
+          l.append("b").text(D.models[m.key].name);
+          l.append(() => document.createTextNode(` · ${D.models[m.key].setting}`));
+        });
         const max = d3.max(V.models, (m) => d3.max(Object.values(m.calls_by_tool)));
         const grid = d3.select(root).select(".grid").html("");
         SYSTEMS.forEach(([name, tools]) => {
@@ -65,7 +76,7 @@
             });
           });
         });
-        d3.select(root).select(".gs-note").text(`Mean calls a ${unit} in ${V.label || `${V.version}, ${V.name}`}, from each model's runs (${V.models.map((m) => `${m.name} ${K.fmt.n(m.calls, 1)} calls in all`).join("; ")}). The real desk's systems behind each tool: ERCOT's public reports, the plant's telemetry, the desk's book, ERCOT's market submission system and the desk's own analytics.`);
+        d3.select(root).select(".gs-note").text(`Mean calls a ${unit} in ${V.label || `${V.version}, ${V.name}`}, from each model's runs (${V.models.map((m) => `${D.models[m.key].label}, ${K.fmt.n(m.calls, 1)} calls in all`).join("; ")}). The real desk's systems behind each tool: ERCOT's public reports, the plant's telemetry, the desk's book, ERCOT's market submission system and the desk's own analytics.`);
       }
       render();
     }));
