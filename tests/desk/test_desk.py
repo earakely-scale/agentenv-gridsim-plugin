@@ -5,7 +5,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from gridsim_core.desk import TOOL_SPECS, TOOLS, Session, clock, fixtures, policies, refs
+from gridsim_core.desk import TOOL_SPECS, TOOLS, Session, clock, fixtures, policies, refs, system_prompt, text
 from gridsim_core.desk.curves import check_eboc, check_side, clear, clear_pre, reduce
 from gridsim_core.desk.data import build
 from gridsim_core.desk.engine import Engine, site_of
@@ -264,8 +264,6 @@ def test_replay_is_deterministic(post):
 
 
 def test_prompt_and_text(post, pre):
-    from gridsim_core.desk import system_prompt, text
-
     p = system_prompt(post[0], "v2")
     assert "RTC+B" in p and "FIXTURE" not in p and p == system_prompt(Session(*post))
     assert "combo model" in system_prompt(pre[0])
