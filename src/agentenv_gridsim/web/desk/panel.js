@@ -24,7 +24,7 @@ export function plan(turn) {
   return { steps, quote, total: s + 0.2, busy };
 }
 
-export function buildPanel(M, { model }) {
+export function buildPanel(M, { model, label }) {
   const T = M.T, E = M.E;
   const charts = buildCharts(M, $("charts"));
   const cache = {};
@@ -66,7 +66,7 @@ export function buildPanel(M, { model }) {
   });
   const endcard = document.createElement("section");
   endcard.className = "endcard later";
-  endcard.innerHTML = statement(M, model);
+  endcard.innerHTML = statement(M, label);
   feed.append(endcard);
   let userScroll = -Infinity;
   feed.addEventListener("wheel", () => (userScroll = performance.now()), { passive: true });

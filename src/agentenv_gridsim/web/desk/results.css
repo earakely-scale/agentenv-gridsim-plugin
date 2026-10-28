@@ -52,6 +52,7 @@ body { background: var(--panel); }
 .t-ax { font-size: 11.5px; fill: var(--ink-3); font-variant-numeric: tabular-nums; }
 .t-lab { font-size: 13px; fill: var(--ink-2); }
 .t-lab.b { fill: var(--ink); font-weight: 620; }
+.t-set { font-size: 12px; fill: var(--ink-3); font-weight: 400; }
 .t-val { font-size: 12.5px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 .t-val.b { fill: var(--ink); font-weight: 620; }
 .t-ann { font-size: 11.5px; fill: var(--ink-3); }
@@ -76,6 +77,8 @@ body { background: var(--panel); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 10px; font-size: 13px; color: var(--ink-2); }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
 .legend .sw { width: 10px; height: 10px; border-radius: 50%; }
+.legend .lab { display: inline; color: var(--ink); }
+.legend .lab small { font-size: inherit; color: var(--ink-3); }
 .legend .ln { width: 18px; height: 0; border-top: 2px dashed var(--c-anchor); }
 .legend .ln.op { border-top: 2px dashed var(--c-op); }
 
@@ -102,6 +105,9 @@ table.replays td.rp a { display: inline-flex; align-items: center; gap: 5px; mar
 table.replays td.rp a:hover { border-color: var(--line-2); background: var(--panel-2); }
 table.replays td.rp a i { width: 8px; height: 8px; border-radius: 50%; }
 
+.models { margin: 0; padding-left: 18px; max-width: 84ch; color: var(--ink-2); font-size: 14px; line-height: 1.55; }
+.models li + li { margin-top: 6px; }
+.models b { color: var(--ink); font-weight: 620; }
 .tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 30px; }
 .tools div { font-size: 14px; color: var(--ink-2); line-height: 1.55; }
 .tools h3 { margin: 0 0 3px; font-size: 13.5px; font-weight: 640; color: var(--ink); }

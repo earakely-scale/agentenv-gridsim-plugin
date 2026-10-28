@@ -13,7 +13,6 @@ import { buildTimeline } from "./timeline.js";
 
 const RATE = { pre: 90, op: 30 };
 const SPEEDS = [0.5, 1, 2, 4, 8];
-const MODELS = { sol: "GPT-6.1 Sol", luna: "GPT-6 Luna", qwen: "Qwen3-4B" };
 const SHORT = { sol: "Sol", luna: "Luna", qwen: "Qwen3-4B" };
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
@@ -58,9 +57,9 @@ async function open(key, { t = null, play = true, push = false } = {}) {
   stage = null;
   M = modelOf(C, T, E);
   D = sceneOf(T, E);
-  const model = MODELS[E.model] || E.name;
-  plate(T, E, model);
-  panel = buildPanel(M, { model });
+  const ms = C.models[E.model];
+  plate(T, E, ms);
+  panel = buildPanel(M, { model: ms.name, label: ms.label });
   timeline = buildTimeline(M, $("scrub"), { onSeek: seek });
   S.t = t ?? M.t0 - 0.01;
   S.hold = null;
@@ -69,7 +68,7 @@ async function open(key, { t = null, play = true, push = false } = {}) {
   for (const [k, v] of [["v", T.version], ["m", E.model], ["task", T.task]]) u.searchParams.set(k, v);
   u.searchParams.delete("t");
   history[push ? "pushState" : "replaceState"](null, "", u);
-  document.title = `${T.site.name}, ${span(T.dates)}, ${model} · GridSimEnv Desk`;
+  document.title = `${T.site.name}, ${span(T.dates)}, ${ms.label} · GridSimEnv Desk`;
   try {
     stage = new GridStage($("stage"), D, { reduced, pixelRatio: Math.min(devicePixelRatio || 1, innerWidth < 700 ? 2 : 1.5) });
     stage.renderer.domElement.setAttribute("aria-hidden", "true");
@@ -86,11 +85,11 @@ async function open(key, { t = null, play = true, push = false } = {}) {
   window.gridsim.resolveReady?.();
 }
 
-function plate(T, E, model) {
+function plate(T, E, ms) {
   const v = C.versions.find((x) => x.version === T.version);
   $("p-ver").textContent = v?.label || `${T.version} ${v?.name || ""}`;
   $("p-site").innerHTML = `${esc(T.site.name)}, ${esc(T.site.region)}<small>${esc(T.site.size)}</small>`;
-  $("p-who").innerHTML = `<b>${esc(model)}</b> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
+  $("p-who").innerHTML = `<b>${esc(ms.name)}</b><span class="set"> · ${esc(ms.setting)}</span> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
 }
 
 function seek(t) {

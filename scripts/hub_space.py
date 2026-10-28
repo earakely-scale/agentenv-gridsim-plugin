@@ -41,7 +41,6 @@ DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 ARTICLE = "https://huggingface.co/spaces/earakely-scale/GridSimEnv"
 ARCHIVE = "cd4a17ed32275a93328ef286ad4f88cc3c3f7216"
 VERSIONS = ("v2", "v3", "v4", "v5")
-MODELS = {"sol": "GPT-6.1 Sol", "luna": "GPT-6 Luna", "qwen": "Qwen3-4B (untrained)"}
 SCENES = {"LZ_WEST": "west", "LZ_HOUSTON": "houston", "LZ_NORTH": "north", "LZ_SOUTH": "south"}
 THREE = WEB / "vendor" / "three-0.180.0"
 LIVE = ("board.html", "board.css", "board.js")
@@ -72,7 +71,8 @@ def main() -> int:
     (data / "task").mkdir(parents=True)
     (data / "ep").mkdir(parents=True)
     desk = json.loads((ROOT / "results" / "overview" / "desk.json").read_text())
-    cat = {"schema": "gridsim.desk.catalog/v1", "archive": ARCHIVE, "versions": [], "tasks": {}, "episodes": {}}
+    cat = {"schema": "gridsim.desk.catalog/v1", "archive": ARCHIVE, "models": desk["models"], "versions": [],
+           "tasks": {}, "episodes": {}}
     for key in VERSIONS:
         if not args.only or key in args.only:
             cat["versions"].append(version(key, desk, data, cat))
@@ -113,7 +113,7 @@ def version(key: str, desk: dict, data: Path, cat: dict) -> dict:
         cat["tasks"][task_id] = meta
         for g in (x for x in grades if x["task_id"] == task_id):
             ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
-            ev, row = episode_view(key, task, ser, ep, g)
+            ev, row = episode_view(key, task, ser, ep, g, desk["models"][g["model"]]["name"])
             name = f"{task_id}.{g['model']}"
             (data / "ep" / f"{name}.json").write_text(dumps(ev))
             cat["episodes"][name] = row
@@ -324,7 +324,7 @@ def mcpc(block: dict, product: str, h: int) -> float:
     return float(v[h]) if v else 0.0
 
 
-def episode_view(key: str, task: dict, ser, ep: dict, g: dict) -> tuple[dict, dict]:
+def episode_view(key: str, task: dict, ser, ep: dict, g: dict, name: str) -> tuple[dict, dict]:
     dates, nd = ep["dates"], len(ep["dates"])
 
     def cat(blk: str, k: str, n: int | None = None) -> list:
@@ -346,7 +346,7 @@ def episode_view(key: str, task: dict, ser, ep: dict, g: dict) -> tuple[dict, di
     pnl = shadow(site, ser_ep, award, bp, m, anc, rtcb)
     check(ep, g, site, ser_ep, award, bp, m, anc, rtcb, pnl)
     view = {
-        "schema": "gridsim.desk.view/v1", "version": key, "model": g["model"], "name": MODELS[g["model"]],
+        "schema": "gridsim.desk.view/v1", "version": key, "model": g["model"], "name": name,
         "task": ep["task_id"], "policy": {k: ep["policy"].get(k) for k in ("model", "effort")},
         "dam": [r2(x) for x in cat("dam", "spp")], "award": [r1(x) for x in award],
         "m": [r1(x) for x in m], "soc": [r1(x) for x in soc], "pnl": pnl,
@@ -767,6 +767,8 @@ def readme(cat: dict, desk: dict) -> str:
         for v in cat["versions"] if v["role"] == "check")
     lead = cat["featured"][0]["key"]
     task, model = lead.rsplit(".", 1)
+    how, *each = desk["models_lines"]
+    settings = "\n".join([how, "", *(f"- {x}" for x in each)])
     return f"""---
 title: GridSimEnv Desk
 emoji: 🔋
@@ -792,9 +794,9 @@ along the line as the battery charges or discharges, and the co-located solar tr
 Beside the scene, the desk shows prices only as they posted, and every tool call as the model made it. The clock
 stops at each of the agent's turns.
 
-**[Results]({APP}/results.html).** Hindsight capture, reward and settled dollars for GPT-6.1 Sol, GPT-6 Luna and an
-untrained Qwen3-4B, version by version. Each is set against the anchor, the hindsight optimum and the battery's real
-operator.
+**[Results]({APP}/results.html).** Hindsight capture, reward and settled dollars for GPT-6.1 Sol and GPT-6 Luna at
+high reasoning effort and an untrained Qwen3-4B with thinking off, version by version. Each is set against the anchor,
+the hindsight optimum and the battery's real operator.
 
 The ladder adds one kind of realism a version:
 
@@ -807,6 +809,10 @@ The ladder adds one kind of realism a version:
 There are {len(cat['episodes'])} replays: every model on every task of each version's eval pack. Each replay is a
 recorded episode (`gridsim.desk.episode/v1`) converted for the viewer, and nothing here calls a model. The running
 statement is the desk's shadow settlement, recomputed from the episode and checked against the environment's own.
+
+## Models and settings
+
+{settings}
 
 ## Links
 

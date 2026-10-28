@@ -24,7 +24,7 @@ const MODELLED = new Set(["degradation", "warranty_overage", "end_soc_shortfall"
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const md = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
 const minus = (s) => s.replace(/-/g, "−");
 const num = (x, n = 3) => {
   const [i, f = ""] = Math.abs(x).toString().split(".");
@@ -72,6 +72,10 @@ const txt = (x, y, s, cls, anchor = "start") => `<text x="${x}" y="${y}" class="
 const line = (x1, y1, x2, y2, stroke, w = 1, dash = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
 const block = (h, sub, inner, fig = "", id = "") => `<section class="panel${fig ? " fig" : ""}"${fig ? ` data-figure="${fig}"` : ""}${id ? ` id="${id}"` : ""}><div class="panel-head"><h2>${h}</h2>${sub ? `<p class="sub">${sub}</p>` : ""}</div>${inner}</section>`;
 const who = (color, label, sub = "") => `<span class="who"><i style="background:${color}"></i><span>${label}${sub ? `<span class="sub">${sub}</span>` : ""}</span></span>`;
+let MS = {};
+const labelOf = (k) => (MS[k] ? MS[k].label : k);
+const whoM = (k, color = COL[k] || "var(--c-hind)", extra = "") => who(color, `<b>${esc(MS[k].name)}</b>`, esc([MS[k].setting, extra].filter(Boolean).join(" · ")));
+const keyM = (k) => `<span><i class="sw" style="background:${COL[k]}"></i><span class="lab">${esc(MS[k].name)}<small> · ${esc(MS[k].setting)}</small></span></span>`;
 let RULER = null;
 const measure = (s, cls) => {
   if (!RULER) {
@@ -102,7 +106,7 @@ function ticks(d0, d1, n) {
 
 function rows(V) {
   const refs = V.references.filter((r) => r.key !== "hind" && (r.key !== "idle" || Math.abs(r.P.mean) >= 0.5));
-  return [...V.models.map((m) => ({ ...m, kind: "model", color: COL[m.key] || "var(--c-hind)" })),
+  return [...V.models.map((m) => ({ ...m, setting: MS[m.key].setting, label: MS[m.key].label, kind: "model", color: COL[m.key] || "var(--c-hind)" })),
     ...refs.map((r) => ({ ...r, kind: "ref", color: REFC[r.key] || "var(--c-hind)" }))];
 }
 
@@ -120,7 +124,7 @@ function render(D, C) {
   const B = isCheck(V) && D.versions.find((v) => v.version === V.check_of);
   const W = Math.max(280, Math.min(1080, $("main").clientWidth) - (innerWidth < 720 ? 24 : 44));
   const n = D.versions.reduce((a, v) => a + v.n_tasks * v.models.length, 0);
-  $("lede").innerHTML = `A desk agent trades one real ERCOT battery the way a QSE's battery desk does: <b>day-ahead bids before the 10:00 close, real-time offers and its operating plan through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, settled by ERCOT's rules. The ladder adds one kind of realism a version: v2 trades energy at the battery's own node, v3 adds reserves and co-located solar, v4 three-day weather fronts.${X ? ` Apart from the ladder, the ${esc(X.label)} plays ${X.check_of}'s days again with the day-ahead market re-cleared against the desk's own offers.` : ""} ${n} recorded runs: GPT-6.1 Sol, GPT-6 Luna and an untrained Qwen3-4B, each against the anchor, the hindsight optimum and the battery's real operator.`;
+  $("lede").innerHTML = `A desk agent trades one real ERCOT battery the way a QSE's battery desk does: <b>day-ahead bids before the 10:00 close, real-time offers and its operating plan through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, settled by ERCOT's rules. The ladder adds one kind of realism a version: v2 trades energy at the battery's own node, v3 adds reserves and co-located solar, v4 three-day weather fronts.${X ? ` Apart from the ladder, the ${esc(X.label)} plays ${X.check_of}'s days again with the day-ahead market re-cleared against the desk's own offers.` : ""} ${n} recorded runs: GPT-6.1 Sol and GPT-6 Luna at high reasoning effort and an untrained Qwen3-4B with thinking off, each against the anchor, the hindsight optimum and the battery's real operator.`;
   $("findings").innerHTML = findings(D).map((x, i) => `<li${i ? "" : ' class="lead"'}>${x}</li>`).join("");
   const tab = (x) => `<a href="?v=${x.version}#tabs" data-v="${x.version}" class="${[x === V ? "on" : "", isCheck(x) ? "check" : ""].join(" ").trim()}"${x === V ? ' aria-current="true"' : ""}><b>${title(x)}</b><small>${isCheck(x) ? `${x.check_of}'s ${x.n_tasks} ${unit(x)}s, re-cleared` : `${x.n_tasks} real ${unit(x)}s`}</small></a>`;
   const where = `${V.sites.length} real batteries (${esc(V.sites.map((s) => s.region).join(", "))}) ${V.days_per_task > 1 ? `across ${blocks(V)}` : `on ${V.n_days} days`} from ${day(V.dates[0])} to ${day(lastDay(V))}`;
@@ -132,6 +136,7 @@ function render(D, C) {
     reserves(V),
     block("How each desk traded", `Means per ${unit(V)}: turns are wake-ups the model acted on, calls its tool calls, submissions the DAM curves, RT curves and COP updates it filed (rejections carry ERCOT-style codes).`, behaviour(V)),
     replays(V, C),
+    settingsBlock(D),
     how(),
     sources(V),
   ];
@@ -167,7 +172,6 @@ function acrossBlock(D, W) {
   if (L.length < 2) return "";
   const OP = "operator_replay", narrow = W < 620;
   const keys = ORDER.filter((k) => L.some((v) => v.models.some((m) => m.key === k)));
-  const name = Object.fromEntries(D.versions.flatMap((v) => v.models.map((m) => [m.key, m.name])));
   const get = (v, k) => v.models.find((m) => m.key === k) || v.references.find((r) => r.key === k);
   const f1 = (v) => Math.round(v * 10) / 10;
   const T = (x, y, s, cls, a = "start") => `<text x="${f1(x)}" y="${f1(y)}" class="${cls}"${a === "start" ? "" : ` text-anchor="${a}"`}>${s}</text>`;
@@ -181,9 +185,8 @@ function acrossBlock(D, W) {
   const tk = [];
   for (let t = Math.ceil(lo * 10 - 1e-9) / 10; t <= hi + 1e-9; t = Math.round((t + 0.1) * 10) / 10) tk.push(t);
   const tickW = Math.max(...tk.map((t) => measure(`${Math.round(t * 100)}%`, "t-ax"))), left = tickW + 12;
-  const split = (t) => { const i = t.indexOf(" ("); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 1)]; };
   const last = L.at(-1);
-  const ends = narrow ? [] : [...keys.map((k) => ({ c: get(last, k).C.mean, name: split(name[k]), b: k === "sol" })), ...(get(last, OP) ? [{ c: get(last, OP).C.mean, name: ["Real operator", "(bids replayed)"], op: true }] : [])];
+  const ends = narrow ? [] : [...keys.map((k) => ({ c: get(last, k).C.mean, name: [MS[k].name, MS[k].setting], b: k === "sol" })), ...(get(last, OP) ? [{ c: get(last, OP).C.mean, name: ["Real operator", "(bids replayed)"], op: true }] : [])];
   const endW = ends.length ? Math.max(...ends.map((e) => measure(cp(e.c), "t-end-v") + 7 + Math.max(measure(e.name[0], e.b ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) + 12 : 0;
   const checkW = X && !narrow ? Math.max(250, Math.min(300, W * 0.28)) : 0;
   const R = W - checkW - endW - (checkW ? 28 : 0) - 6, pad = narrow ? 44 : 54;
@@ -201,7 +204,7 @@ function acrossBlock(D, W) {
   L.forEach((v, i) => { const r = get(v, OP); if (r) hit(xs[i], y(r.C.mean), `${v.version} ${esc(OPNAME)}`, [["C", cp(r.C.mean)], [`P a ${unit(v)}`, usd(r.P.mean)]]); });
   for (const sr of [...series].reverse()) {
     s += `<path class="ln${sr.k === "sol" ? " b" : ""}" d="${path(sr.p)}" stroke="${COL[sr.k]}"/>${sr.p.map(([x, yy]) => mk(x, yy, sr.k)).join("")}`;
-    sr.m.forEach((m, i) => hit(xs[i], y(m.C.mean), `${L[i].version} ${esc(name[sr.k])}`, [["C", `${cp(m.C.mean)} ${ptsci(m.C.ci)}`], [`P a ${unit(L[i])}`, `${usd(m.P.mean)} ${usdci(m.P.ci)}`]]));
+    sr.m.forEach((m, i) => hit(xs[i], y(m.C.mean), `${L[i].version} ${esc(labelOf(sr.k))}`, [["C", `${cp(m.C.mean)} ${ptsci(m.C.ci)}`], [`P a ${unit(L[i])}`, `${usd(m.P.mean)} ${usdci(m.P.ci)}`]]));
   }
   const placed = [...tk.map((t) => [left - 8 - tickW, y(t) - 7, left - 4, y(t) + 5]), ...series.flatMap((sr) => sr.p.map(([x, yy]) => [x - 7, yy - 7, x + 7, yy + 7])), ...opPts.map(([x, yy]) => [x - 4, yy - 4, x + 4, yy + 4])];
   const samples = [];
@@ -259,8 +262,8 @@ function acrossBlock(D, W) {
     for (const k of [...keys].reverse()) {
       const a = get(B, k), b = get(X, k), d = X.versus.models[k];
       s += `<path class="ln${k === "sol" ? " b" : ""}" d="M${f1(xa)},${f1(yc(a.C.mean))}L${f1(xb)},${f1(yc(b.C.mean))}" stroke="${COL[k]}"/>${mk(xa, yc(a.C.mean), k)}${mk(xb, yc(b.C.mean), k)}`;
-      hit(xa, yc(a.C.mean), `${B.version} ${esc(name[k])}`, [["C", `${cp(a.C.mean)} ${ptsci(a.C.ci)}`], [`P a ${unit(B)}`, usd(a.P.mean)]]);
-      hit(xb, yc(b.C.mean), `${esc(X.label)}: ${esc(name[k])}`, [["C", `${cp(b.C.mean)} ${ptsci(b.C.ci)}`], [`P a ${unit(X)}`, usd(b.P.mean)], ...(d ? [[`${X.version} − ${B.version}, paired`, `${pts(d.C.mean, true)} pts ${ptsci(d.C.ci)}`]] : [])]);
+      hit(xa, yc(a.C.mean), `${B.version} ${esc(labelOf(k))}`, [["C", `${cp(a.C.mean)} ${ptsci(a.C.ci)}`], [`P a ${unit(B)}`, usd(a.P.mean)]]);
+      hit(xb, yc(b.C.mean), `${esc(X.label)}: ${esc(labelOf(k))}`, [["C", `${cp(b.C.mean)} ${ptsci(b.C.ci)}`], [`P a ${unit(X)}`, usd(b.P.mean)], ...(d ? [[`${X.version} − ${B.version}, paired`, `${pts(d.C.mean, true)} pts ${ptsci(d.C.ci)}`]] : [])]);
     }
     const dodge = (its) => { its.sort((p, q) => p.y - q.y); for (let i = 1; i < its.length; i++) if (its[i].y - its[i - 1].y < 15) its[i].y = its[i - 1].y + 15; return its; };
     for (const it of dodge(keys.map((k) => ({ k, y: yc(get(B, k).C.mean) + 4 })))) s += T(xa - 11, it.y, cp(get(B, it.k).C.mean), it.k === "sol" ? "t-val b" : "t-val", "end");
@@ -269,10 +272,10 @@ function acrossBlock(D, W) {
     if (narrow) H = pbot + 44;
   }
   H = Math.ceil(H + 6);
-  const legend = narrow ? `<div class="legend">${keys.map((k) => `<span><i class="sw" style="background:${COL[k]}"></i>${esc(name[k])}</span>`).join("")}<span><i class="ln op"></i>${esc(OPNAME)}</span></div>` : "";
+  const legend = narrow ? `<div class="legend">${keys.map(keyM).join("")}<span><i class="ln op"></i>${esc(OPNAME)}</span></div>` : "";
   const cols = [...L, ...(X ? [X] : [])];
   const cell = (v, k) => { const m = get(v, k); return `<td data-l="${title(v)}"${isCheck(v) ? ' class="ck"' : ""}>${m ? `${cp(m.C.mean)}${m.C.ci && m.kind !== "ref" && v.models.includes(m) ? `<span class="sub">${ptsci(m.C.ci)}</span>` : ""}` : "–"}</td>`; };
-  const tr = [...keys.map((k) => `<tr><td>${who(COL[k], `<b>${esc(name[k])}</b>`)}</td>${cols.map((v) => cell(v, k)).join("")}</tr>`),
+  const tr = [...keys.map((k) => `<tr><td>${whoM(k)}</td>${cols.map((v) => cell(v, k)).join("")}</tr>`),
     `<tr class="ref"><td>${who("var(--c-op)", esc(OPNAME))}</td>${cols.map((v) => cell(v, OP)).join("")}</tr>`].join("");
   return block("Up the ladder: hindsight capture, v2 to v4", `C, the share of the hindsight optimum's profit over idle, for each model in each version of the ladder; the battery's real operator, its own disclosed bids replayed through the same clearing and settlement, is dashed.${X ? ` Apart from the ladder, the ${esc(X.label)} plays ${B.version}'s ${unit(X)}s again with the day-ahead market re-cleared, drawn beside ${B.version}'s values.` : ""} Hover a point for its 95% CI; the table has them all.`,
     `${legend}<div class="chart">${svg(W, H, s + hits.join(""), "Hindsight capture by model up the ladder, and the price-impact check beside it")}</div><div class="table-scroll"><table class="grid stack across"><thead><tr><th class="l">Desk</th>${cols.map((v) => `<th${isCheck(v) ? ' class="ck"' : ""}>${title(v)}</th>`).join("")}</tr></thead><tbody>${tr}</tbody></table></div><p class="note">C in % with its 95% ${L[0].block}-block bootstrap CI in brackets (fronts in v4).${X ? ` The ${esc(X.label)} is ${B.version}'s days re-cleared, not a fourth step; its paired gaps to ${B.version} are on its board.` : ""}</p>`, "", "across");
@@ -284,7 +287,7 @@ function kpis(V) {
   const tile = (v, cls, l, t) => `<div class="kpi"><div class="v ${cls}">${v}</div><div class="l">${l}</div><div class="t">${t}</div></div>`;
   const sign = (b) => (b.ci[0] > 0 ? "pos" : b.ci[1] < 0 ? "neg" : "");
   return [
-    tile(num(m.C.mean), "", `of the hindsight optimum, ${esc(m.name)}`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a ${unit(V)}. The anchor captures ${num(a.C.mean)}.`),
+    tile(num(m.C.mean), "", `of the hindsight optimum, <span class="nw">${esc(labelOf(m.key))}</span>`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a ${unit(V)}. The anchor captures ${num(a.C.mean)}.`),
     o.mean == null ? tile("–", "", "against the real operator", "No operator disclosure for these days.") :
       tile(usd(o.mean, true), sign(o), `a ${unit(V)} against the real operator's bids`, `${usdci(o.ci, true)}${o.ci[0] <= 0 && o.ci[1] >= 0 ? ", a CI that includes zero" : ""}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a ${unit(V)}.`),
     tile(usd(g.mean, true), sign(g), `a ${unit(V)} against the anchor`, `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of ${unit(V)}s. The anchor is the desk's own optimiser on the same information${((V.sensitivity || {}).bought_back || []).includes("anchor") ? "; its DAM/RT spread positions pay off on scarcity days" : ", free to take DAM/RT spread positions"}.`),
@@ -310,7 +313,7 @@ function board(V) {
   const pa = `P a ${unit(V)}`, head = ["Desk", "C", pa, "P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"];
   const cell = (l, v, sub = "") => `<td data-l="${l}">${v}${sub ? `<span class="sub">${sub}</span>` : ""}</td>`;
   const na = (l) => `<td class="na" data-l="${l}">–</td>`;
-  const name = (r) => who(r.color, r.kind === "model" ? `<b>${esc(r.name)}</b>` : esc(r.name), r.effort ? `${esc(r.effort)} effort` : r.weights === "open" ? "open weights" : "");
+  const name = (r) => (r.kind === "model" ? whoM(r.key, r.color, r.weights === "open" ? "open weights" : "") : who(r.color, esc(r.name)));
   const op = (r) => (r.P_minus_operator_replay.mean == null ? cell("P − operator's bids", "–") : cell("P − operator's bids", usd(r.P_minus_operator_replay.mean, true), usdci(r.P_minus_operator_replay.ci, true)));
   const body = rows(V).map((r) => r.kind === "model"
     ? `<tr><td>${name(r)}</td>${cell("C", `<b>${num(r.C.mean)}</b>`, ci(r.C.ci))}${cell(pa, usd(r.P.mean), usdci(r.P.ci))}${op(r)}${cell("P − anchor", usd(r.P_minus_anchor.mean, true), usdci(r.P_minus_anchor.ci, true))}${cell("R", num(r.R.mean, 2), ci(r.R.ci, 2))}${cell("Beats anchor", pct(r.beats_anchor))}${cell("$ a run", r.weights === "open" || r.usd_per_episode == null ? "–" : `$${r.usd_per_episode.toFixed(2)}`)}</tr>`
@@ -321,9 +324,11 @@ function board(V) {
 }
 
 function frame(R, W) {
-  const narrow = W < 560, rh = narrow ? 46 : 34, top = 30, H = top + R.length * rh + 34;
+  const narrow = W < 560, rh = narrow ? 46 : 38, top = 30, H = top + R.length * rh + 34;
   const left = narrow ? 10 : 218, y = (i) => top + i * rh + (narrow ? 30 : rh / 2);
-  const label = (r, i) => txt(narrow ? 10 : left - 8, narrow ? y(i) - 14 : y(i) + 4, esc(r.kind === "model" ? r.name : r.short || SHORT[r.key] || r.name), `t-lab${r.kind === "model" ? " b" : ""}`, narrow ? "start" : "end");
+  const label = (r, i) => (r.kind !== "model" ? txt(narrow ? 10 : left - 8, narrow ? y(i) - 14 : y(i) + 4, esc(r.short || SHORT[r.key] || r.name), "t-lab", narrow ? "start" : "end")
+    : narrow ? `<text x="10" y="${y(i) - 14}" class="t-lab b">${esc(r.name)}<tspan class="t-set"> · ${esc(r.setting)}</tspan></text>`
+    : txt(left - 8, y(i) - 1, esc(r.name), "t-lab b", "end") + txt(left - 8, y(i) + 13, esc(r.setting), "t-set", "end"));
   return { narrow, top, H, left, y, label };
 }
 
@@ -339,7 +344,7 @@ function sensitivity(V) {
   const per = w.days.map((d) => ({ ...sv.per_day_mean_P[d].models, ...sv.per_day_mean_P[d].references }));
   const cci = (b) => (b.ci ? `<span class="sub">${usdci(b.ci)}</span>` : "");
   const col = (d) => (V.days_per_task === 1 ? `On ${day_(d)}` : `On the ${day_(d).replace(/ \d{4}$/, "")} ${blk}`);
-  const tr = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}${cci(all[k])}</td>${per.map((on, i) => `<td data-l="${col(w.days[i])}">${on[k] == null ? "–" : usd(on[k])}</td>`).join("")}<td data-l="Without ${one ? "it" : "them"}">${usd(wo[k].P.mean)}${cci(wo[k].P)}</td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
+  const tr = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b><span class="sub">${esc(MS[k].setting)}</span>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}${cci(all[k])}</td>${per.map((on, i) => `<td data-l="${col(w.days[i])}">${on[k] == null ? "–" : usd(on[k])}</td>`).join("")}<td data-l="Without ${one ? "it" : "them"}">${usd(wo[k].P.mean)}${cci(wo[k].P)}</td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
   const loss = Object.entries(sv.losses).map(([k, x]) => `${esc(name(k))} ${x.tasks_p_below_0} of ${V.n_tasks}${x.tasks_p_below_0 ? ` (worst ${usd(x.worst_p)})` : ""}`).join("; ");
   const whom = (sv.carried || []).map(said), bb = (sv.bought_back || []).map(said);
   const from = !bb.length ? "" : bb.length === whom.length ? `, from ${BUYBACK}` : `; ${and(bb)} from ${BUYBACK}`;
@@ -356,7 +361,7 @@ function capFig(V, W) {
   s += line(x(0), F.top - 10, x(0), F.H - 26, "var(--text-muted)", 1) + txt(x(0) + 4, F.top - 14, "idle", "t-ann");
   s += line(x(1), F.top - 10, x(1), F.H - 26, "var(--text-muted)", 1, "4 3") + txt(x(1) - 4, F.top - 14, "hindsight optimum", "t-ann", "end");
   R.forEach((r, i) => {
-    const y = F.y(i), t = tip(tipRows(esc(r.name), [["C", `${num(r.C.mean)} ${ci(r.C.ci)}`], [`P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ...(r.kind === "model" ? [["P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`]] : [])]));
+    const y = F.y(i), t = tip(tipRows(esc(r.label || r.name), [["C", `${num(r.C.mean)} ${ci(r.C.ci)}`], [`P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ...(r.kind === "model" ? [["P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`]] : [])]));
     s += F.label(r, i) + line(x(r.C.ci[0]), y, x(r.C.ci[1]), y, r.color, 2);
     s += `<circle cx="${x(r.C.mean)}" cy="${y}" r="${r.kind === "model" ? 6 : 5}" fill="${r.kind === "model" ? r.color : "var(--surface-1)"}" stroke="${r.color}" stroke-width="2" ${t}/>`;
     s += txt(Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8, y + 4, num(r.C.mean), `t-val${r.kind === "model" ? " b" : ""}`);
@@ -373,7 +378,7 @@ function usdFig(V, W) {
   s += txt(x(hind.P.mean) - 4, F.top - 14, `hindsight optimum ${usd(hind.P.mean)}`, "t-ann", "end");
   R.forEach((r, i) => {
     const y = F.y(i), x0 = x(Math.min(0, r.P.mean)), w = Math.abs(x(r.P.mean) - x(0));
-    const t = tip(tipRows(esc(r.name), [[`P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ["C", num(r.C.mean)]]));
+    const t = tip(tipRows(esc(r.label || r.name), [[`P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`], ["C", num(r.C.mean)]]));
     s += F.label(r, i);
     s += `<rect x="${x0}" y="${y - 8}" width="${Math.max(1, w)}" height="16" rx="3" fill="${r.color}" fill-opacity="${r.kind === "model" ? 0.9 : 0.35}" ${t}/>`;
     s += line(x(r.P.ci[0]), y, x(r.P.ci[1]), y, "var(--text-primary)", 1.2);
@@ -386,9 +391,9 @@ function linesTable(V) {
   const keys = [...new Set(V.models.flatMap((m) => Object.keys(m.lines)))].filter((k) => V.models.some((m) => Math.abs(m.lines[k] || 0) >= 0.5));
   const order = Object.keys(LINE);
   keys.sort((a, b) => (order.indexOf(a) < 0 ? 99 : order.indexOf(a)) - (order.indexOf(b) < 0 ? 99 : order.indexOf(b)));
-  const head = `<tr><th class="l">Line</th>${V.models.map((m) => `<th>${esc(m.name)}</th>`).join("")}</tr>`;
-  const body = keys.map((k) => `<tr><td>${esc(LINE[k] || k)}${MODELLED.has(k) ? ' <span class="mod">modelled</span>' : ""}</td>${V.models.map((m) => `<td data-l="${esc(m.name)}">${usd(m.lines[k] || 0, true)}</td>`).join("")}</tr>`).join("");
-  const total = `<tr class="tot"><td><b>P</b></td>${V.models.map((m) => `<td data-l="${esc(m.name)}"><b>${usd(m.P.mean, true)}</b></td>`).join("")}</tr>`;
+  const head = `<tr><th class="l">Line</th>${V.models.map((m) => `<th>${esc(MS[m.key].name)}<span class="sub">${esc(MS[m.key].setting)}</span></th>`).join("")}</tr>`;
+  const body = keys.map((k) => `<tr><td>${esc(LINE[k] || k)}${MODELLED.has(k) ? ' <span class="mod">modelled</span>' : ""}</td>${V.models.map((m) => `<td data-l="${esc(labelOf(m.key))}">${usd(m.lines[k] || 0, true)}</td>`).join("")}</tr>`).join("");
+  const total = `<tr class="tot"><td><b>P</b></td>${V.models.map((m) => `<td data-l="${esc(labelOf(m.key))}"><b>${usd(m.P.mean, true)}</b></td>`).join("")}</tr>`;
   return `<div class="table-scroll"><table class="grid stack lines"><thead>${head}</thead><tbody>${body}${total}</tbody></table></div>`;
 }
 
@@ -405,15 +410,17 @@ function impact(V, W) {
   s += line(x(0), top - 10, x(0), H - 26, "var(--text-muted)", 1) + txt(x(0) - 6, top - 14, "price lower", "t-ann", "end") + txt(x(0) + 6, top - 14, "price higher", "t-ann");
   keys.forEach((k, i) => {
     const y = top + i * rh + (narrow ? 22 : 8), r = pi[k];
-    s += txt(narrow ? 10 : left - 8, narrow ? y - 6 : y + 14, esc(nm(k)), `t-lab${V.models.some((q) => q.key === k) ? " b" : ""}`, narrow ? "start" : "end");
+    s += !MS[k] ? txt(narrow ? 10 : left - 8, narrow ? y - 6 : y + 14, esc(nm(k)), "t-lab", narrow ? "start" : "end")
+      : narrow ? `<text x="10" y="${y - 6}" class="t-lab b">${esc(MS[k].name)}<tspan class="t-set"> · ${esc(MS[k].setting)}</tspan></text>`
+      : txt(left - 8, y + 9, esc(MS[k].name), "t-lab b", "end") + txt(left - 8, y + 24, esc(MS[k].setting), "t-set", "end");
     [[r.sales_mwh_weighted_usd_per_mwh, "on sales", 0], [r.purchases_mwh_weighted_usd_per_mwh, "on purchases", 1]].forEach(([v, lab, j]) => {
       const yy = y + j * 16, x0 = x(Math.min(0, v)), w = Math.max(1, Math.abs(x(v) - x(0)));
-      const t = tip(tipRows(esc(nm(k)), [["Sales, MWh-weighted", `${cents(r.sales_mwh_weighted_usd_per_mwh)}/MWh on ${Math.round(r.sales_mwh_per_episode)} MWh`], ["Purchases, MWh-weighted", `${cents(r.purchases_mwh_weighted_usd_per_mwh)}/MWh on ${Math.round(r.purchases_mwh_per_episode)} MWh`], ["Revenue effect", `${usd(r.revenue_effect_usd_per_episode, true)} a ${unit(V)}`]]));
+      const t = tip(tipRows(esc(MS[k] ? labelOf(k) : nm(k)), [["Sales, MWh-weighted", `${cents(r.sales_mwh_weighted_usd_per_mwh)}/MWh on ${Math.round(r.sales_mwh_per_episode)} MWh`], ["Purchases, MWh-weighted", `${cents(r.purchases_mwh_weighted_usd_per_mwh)}/MWh on ${Math.round(r.purchases_mwh_per_episode)} MWh`], ["Revenue effect", `${usd(r.revenue_effect_usd_per_episode, true)} a ${unit(V)}`]]));
       s += `<rect x="${x0}" y="${yy}" width="${w}" height="11" rx="2" fill="${color(k)}" fill-opacity="${j ? 0.45 : 0.9}" ${t}/>`;
       if (!narrow) s += txt(v < 0 ? x0 - 6 : x0 + w + 6, yy + 9, `${cents(v)} ${lab}`, "t-val", v < 0 ? "end" : "start");
     });
   });
-  const tr = keys.map((k) => { const r = pi[k]; return `<tr><td>${who(color(k), V.models.some((q) => q.key === k) ? `<b>${esc(nm(k))}</b>` : esc(nm(k)))}</td><td data-l="On its sales">${cents(r.sales_mwh_weighted_usd_per_mwh)}<span class="sub">${Math.round(r.sales_mwh_per_episode)} MWh</span></td><td data-l="On its purchases">${cents(r.purchases_mwh_weighted_usd_per_mwh)}<span class="sub">${Math.round(r.purchases_mwh_per_episode)} MWh</span></td><td data-l="Revenue effect">${usd(r.revenue_effect_usd_per_episode, true)}</td><td data-l="Largest move">$${r.max_abs_usd_per_mwh.toFixed(2)}/MWh</td><td data-l="Hours moved over 1¢">${r.hours_moved_over_1c} of ${r.awarded_hours}</td></tr>`; }).join("");
+  const tr = keys.map((k) => { const r = pi[k]; return `<tr><td>${MS[k] ? whoM(k, color(k)) : who(color(k), esc(nm(k)))}</td><td data-l="On its sales">${cents(r.sales_mwh_weighted_usd_per_mwh)}<span class="sub">${Math.round(r.sales_mwh_per_episode)} MWh</span></td><td data-l="On its purchases">${cents(r.purchases_mwh_weighted_usd_per_mwh)}<span class="sub">${Math.round(r.purchases_mwh_per_episode)} MWh</span></td><td data-l="Revenue effect">${usd(r.revenue_effect_usd_per_episode, true)}</td><td data-l="Largest move">$${r.max_abs_usd_per_mwh.toFixed(2)}/MWh</td><td data-l="Hours moved over 1¢">${r.hours_moved_over_1c} of ${r.awarded_hours}</td></tr>`; }).join("");
   return block("Price impact: what the desk's own DAM offers did to the price", `The day-ahead market re-cleared against the day's real offers with each desk's own: the re-cleared minus the real node price over awarded hours, MWh-weighted, per ${unit(V)}. A single 100–150 MW battery is a price taker here, as pre-registered; a fleet desk, a QSE trading a portfolio of batteries, is the next step for price impact to matter.`,
     `<div class="chart">${svg(W, H, s, "DAM price impact by desk")}</div><div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>On its sales</th><th>On its purchases</th><th>Revenue effect, $ a ${unit(V)}</th><th>Largest move</th><th>Hours moved over 1¢</th></tr></thead><tbody>${tr}</tbody></table></div>`);
 }
@@ -423,7 +430,7 @@ function versus(V, B) {
   const nm = (k) => (V.models.find((m) => m.key === k) || {}).name || k;
   const g = (b, n = 3) => `${sgn(b.mean, n)}<span class="sub">${sci(b.ci, n)}</span>`;
   const c = (v, k) => { const m = v.models.find((q) => q.key === k); return `${num(m.C.mean)}<span class="sub">${ci(m.C.ci)}</span>`; };
-  const tr = ORDER.filter((k) => vs.models[k]).map((k) => { const b = vs.models[k]; return `<tr><td>${who(COL[k], `<b>${esc(nm(k))}</b>`)}</td><td data-l="C in ${B.version}">${c(B, k)}</td><td data-l="C in ${V.version}">${c(V, k)}</td><td data-l="${V.version} − ${B.version}, C">${g(b.C)}</td><td data-l="${V.version} − ${B.version}, P">${usd(b.P.mean, true)}<span class="sub">${usdci(b.P.ci, true)}</span></td><td data-l="${V.version} − ${B.version}, R">${g(b.R, 2)}</td></tr>`; }).join("");
+  const tr = ORDER.filter((k) => vs.models[k]).map((k) => { const b = vs.models[k]; return `<tr><td>${whoM(k)}</td><td data-l="C in ${B.version}">${c(B, k)}</td><td data-l="C in ${V.version}">${c(V, k)}</td><td data-l="${V.version} − ${B.version}, C">${g(b.C)}</td><td data-l="${V.version} − ${B.version}, P">${usd(b.P.mean, true)}<span class="sub">${usdci(b.P.ci, true)}</span></td><td data-l="${V.version} − ${B.version}, R">${g(b.R, 2)}</td></tr>`; }).join("");
   return block(`${V.version} against ${B.version}, paired on the same ${unit(V)}s`, `Each model's ${V.version} run minus its ${B.version} run on the same ${V.n_tasks} ${unit(V)}s, with day-block 95% CIs.${noise(V) ? " Every gap's CI includes zero: two runs of the same model differ this much, while the price moved by cents." : ""}`,
     `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>C in ${B.version}</th><th>C in ${V.version}</th><th>${V.version} − ${B.version}, C</th><th>${V.version} − ${B.version}, P a ${unit(V)}</th><th>${V.version} − ${B.version}, R</th></tr></thead><tbody>${tr}</tbody></table></div>`);
 }
@@ -436,7 +443,7 @@ function reserves(V) {
   const body = ms.map((m) => {
     const a = m.ancillary, rc = Object.entries(a.rejected_codes_total), got = (m.lines.dam_as_capacity || 0) + (m.lines.rt_as_imbalance || 0);
     const refused = rc.length ? `${rc.reduce((x, [, k]) => x + k, 0)}<span class="sub">${rc.map(([c, k]) => `${esc(c)} ×${k}${ASO[c] ? `, ${ASO[c]}` : ""}`).join("; ")}</span>` : "–";
-    return `<tr><td>${who(COL[m.key] || "var(--c-hind)", `<b>${esc(m.name)}</b>`)}</td><td data-l="AS awards">${a.episodes_with_awards} of ${m.n}</td><td data-l="From the AS lines">${usd(got, true)}</td><td data-l="DAM award MWh">${f(mwh(a.dam_award_mwh))}<span class="sub">${parts(a.dam_award_mwh)}</span></td><td data-l="RT award MWh">${f(mwh(a.rt_award_mwh))}<span class="sub">${parts(a.rt_award_mwh)}</span></td><td class="full" data-l="AS offers refused">${refused}</td></tr>`;
+    return `<tr><td>${whoM(m.key)}</td><td data-l="AS awards">${a.episodes_with_awards} of ${m.n}</td><td data-l="From the AS lines">${usd(got, true)}</td><td data-l="DAM award MWh">${f(mwh(a.dam_award_mwh))}<span class="sub">${parts(a.dam_award_mwh)}</span></td><td data-l="RT award MWh">${f(mwh(a.rt_award_mwh))}<span class="sub">${parts(a.rt_award_mwh)}</span></td><td class="full" data-l="AS offers refused">${refused}</td></tr>`;
   }).join("");
   return block("Reserves: what each desk's AS offers won", `Means per ${unit(V)}. AS awards counts the ${unit(V)}s with any ancillary-service award; the AS lines are DAM capacity and RT imbalance; award MWh by product, DAM and real time.`,
     `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>AS awards</th><th>From the AS lines</th><th>DAM award MWh</th><th>RT award MWh</th><th>AS offers refused</th></tr></thead><tbody>${body}</tbody></table></div>${V.defects ? `<p class="note">${md(V.defects)}</p>` : ""}`);
@@ -447,7 +454,7 @@ function behaviour(V) {
   const body = V.models.map((m) => {
     const tools = Object.entries(m.calls_by_tool).slice(0, 4).map(([t, n]) => `<span class="nw"><code>${esc(t)}</code> ${num(n, 1)}</span>`).join(", ");
     const codes = Object.entries(m.rejected_codes).slice(0, 3).map(([c, n]) => `${esc(c)} ×${n}`).join(", ") || "–";
-    return `<tr><td>${who(COL[m.key] || "var(--c-hind)", `<b>${esc(m.name)}</b>`)}</td><td data-l="Turns">${num(m.turns, 1)}</td><td data-l="Wakes">${num(m.wakes, 1)}</td><td data-l="Calls">${num(m.calls, 1)}</td><td class="l full" data-l="Most-used tools">${tools}</td><td data-l="Accepted / rejected">${num(m.accepted, 1)} / ${num(m.rejected, 1)}</td><td class="l full codes" data-l="Rejection codes">${codes}</td><td data-l="Reminders">${num(m.reminders, 1)}</td><td data-l="Cycles">${num(m.cycles, 2)}</td></tr>`;
+    return `<tr><td>${whoM(m.key)}</td><td data-l="Turns">${num(m.turns, 1)}</td><td data-l="Wakes">${num(m.wakes, 1)}</td><td data-l="Calls">${num(m.calls, 1)}</td><td class="l full" data-l="Most-used tools">${tools}</td><td data-l="Accepted / rejected">${num(m.accepted, 1)} / ${num(m.rejected, 1)}</td><td class="l full codes" data-l="Rejection codes">${codes}</td><td data-l="Reminders">${num(m.reminders, 1)}</td><td data-l="Cycles">${num(m.cycles, 2)}</td></tr>`;
   }).join("");
   return `<div class="table-scroll"><table class="grid stack wrapcells beh"><thead><tr>${head.map((h, i) => `<th class="${i === 0 || i === 4 || i === 6 ? "l" : ""}">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
@@ -464,11 +471,16 @@ function replays(V, C) {
   const cell = (kt) => {
     if (!kt) return "<td></td>";
     const [k, t] = kt;
-    return `<td class="rp">${models.map((m) => { const e = C.episodes[`${k}.${m}`]; return e ? `<a href="./index.html?v=${V.version}&m=${m}&task=${k}" title="${esc(`${t.name}, ${label(t)}: ${(V.models.find((x) => x.key === m) || {}).name}, P ${usd(e.P)}`)}"><i style="background:${COL[m]}"></i>${e.C == null ? "–" : num(e.C, 2)}</a>` : ""; }).join("")}</td>`;
+    return `<td class="rp">${models.map((m) => { const e = C.episodes[`${k}.${m}`]; return e ? `<a href="./index.html?v=${V.version}&m=${m}&task=${k}" title="${esc(`${t.name}, ${label(t)}: ${labelOf(m)}, P ${usd(e.P)}`)}"><i style="background:${COL[m]}"></i>${e.C == null ? "–" : num(e.C, 2)}</a>` : ""; }).join("")}</td>`;
   };
   const tr = days.map((d) => { const t0 = tasks.find(([, t]) => t.dates[0] === d)[1]; return `<tr><th scope="row">${label(t0)}${t0.wx ? `<small>${esc(t0.wx)}</small>` : ""}</th>${sites.map((s) => cell(tasks.find(([, t]) => t.dates[0] === d && t.site === s.site))).join("")}</tr>`; }).join("");
   return block("Every run, replayed", `Each cell opens that ${unit(V)} on the battery site in 3D beside the desk, one link per model with its hindsight capture C.`,
-    `<div class="table-scroll"><table class="grid replays"><thead><tr><th></th>${sites.map((s) => `<th>${esc(s.name)}<small>${esc(s.region)}, ${esc(s.size)}${solar.has(s.site) ? ", solar on some days" : ""}</small></th>`).join("")}</tr></thead><tbody>${tr}</tbody></table></div>`);
+    `<div class="legend">${models.map(keyM).join("")}</div><div class="table-scroll"><table class="grid replays"><thead><tr><th></th>${sites.map((s) => `<th>${esc(s.name)}<small>${esc(s.region)}, ${esc(s.size)}${solar.has(s.site) ? ", solar on some days" : ""}</small></th>`).join("")}</tr></thead><tbody>${tr}</tbody></table></div>`);
+}
+
+function settingsBlock(D) {
+  const [lead, ...each] = D.models_lines;
+  return block("Models and settings", md(lead), `<ul class="models">${each.map((x) => `<li>${md(x)}</li>`).join("")}</ul>`);
 }
 
 function how() {
@@ -535,6 +547,7 @@ async function main() {
     return;
   }
   for (const v of D.versions) v.models.sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key));
+  MS = D.models;
   if (!EXPORT) C = await fetch("./data/catalog.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
   await document.fonts.ready;
   render(D, C);
