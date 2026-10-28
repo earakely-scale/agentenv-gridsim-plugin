@@ -1,0 +1,185 @@
+{
+ "schema": "gridsim.desk.calibration/v1",
+ "sites": {
+  "CROSSETT_ESR1": {
+   "rte": 0.9019,
+   "standby_loss_pct_per_h": 0.183,
+   "ramp_mw_per_min": 100.0,
+   "calibration": {
+    "source": "NP3-965-ER 60d_ESR_Data_in_SCED",
+    "window": [
+     "2026-02-03",
+     "2026-06-28"
+    ],
+    "windows": [
+     [
+      "2026-02-03",
+      "2026-03-02"
+     ],
+     [
+      "2026-06-01",
+      "2026-06-28"
+     ]
+    ],
+    "n_intervals": 16033,
+    "n_hours": 1324,
+    "n_days": 56,
+    "eta_c": 0.9703,
+    "eta_d": 0.9295,
+    "rte_raw": 0.9019,
+    "standby_raw_pct_per_h": 0.183,
+    "rte_ci": [
+     0.8917,
+     0.9116
+    ],
+    "standby_ci": [
+     0.1472,
+     0.2297
+    ],
+    "resid_mwh_mad": 0.4,
+    "r2": 0.9667,
+    "throughput_mwh": {
+     "charged": 6251.6,
+     "discharged": 5504.9
+    },
+    "clipped": false,
+    "method": "hourly SoC balance, Huber LS, day-block bootstrap (300), RTE clipped to [0.70, 0.98], standby to [0, 1] %/h"
+   }
+  },
+  "CLO_ESR1": {
+   "rte": 0.9066,
+   "standby_loss_pct_per_h": 0.6216,
+   "ramp_mw_per_min": 20.0,
+   "calibration": {
+    "source": "NP3-965-ER 60d_ESR_Data_in_SCED",
+    "window": [
+     "2026-02-03",
+     "2026-06-28"
+    ],
+    "windows": [
+     [
+      "2026-02-03",
+      "2026-03-02"
+     ],
+     [
+      "2026-06-01",
+      "2026-06-28"
+     ]
+    ],
+    "n_intervals": 16214,
+    "n_hours": 1339,
+    "n_days": 56,
+    "eta_c": 0.9715,
+    "eta_d": 0.9332,
+    "rte_raw": 0.9066,
+    "standby_raw_pct_per_h": 0.6216,
+    "rte_ci": [
+     0.8997,
+     0.9126
+    ],
+    "standby_ci": [
+     0.5617,
+     0.6891
+    ],
+    "resid_mwh_mad": 0.634,
+    "r2": 0.995,
+    "throughput_mwh": {
+     "charged": 10604.2,
+     "discharged": 8541.5
+    },
+    "clipped": false,
+    "method": "hourly SoC balance, Huber LS, day-block bootstrap (300), RTE clipped to [0.70, 0.98], standby to [0, 1] %/h"
+   }
+  },
+  "WIG_ESS_ESR1": {
+   "rte": 0.8601,
+   "standby_loss_pct_per_h": 0.7073,
+   "ramp_mw_per_min": 120.0,
+   "calibration": {
+    "source": "NP3-965-ER 60d_ESR_Data_in_SCED",
+    "window": [
+     "2026-02-03",
+     "2026-06-28"
+    ],
+    "windows": [
+     [
+      "2026-02-03",
+      "2026-03-02"
+     ],
+     [
+      "2026-06-01",
+      "2026-06-28"
+     ]
+    ],
+    "n_intervals": 16202,
+    "n_hours": 1338,
+    "n_days": 56,
+    "eta_c": 0.9469,
+    "eta_d": 0.9083,
+    "rte_raw": 0.8601,
+    "standby_raw_pct_per_h": 0.7073,
+    "rte_ci": [
+     0.8513,
+     0.8691
+    ],
+    "standby_ci": [
+     0.6489,
+     0.7725
+    ],
+    "resid_mwh_mad": 0.835,
+    "r2": 0.9913,
+    "throughput_mwh": {
+     "charged": 11522.5,
+     "discharged": 8878.8
+    },
+    "clipped": false,
+    "method": "hourly SoC balance, Huber LS, day-block bootstrap (300), RTE clipped to [0.70, 0.98], standby to [0, 1] %/h"
+   }
+  },
+  "WFTANK_ESR1": {
+   "rte": 0.8882,
+   "standby_loss_pct_per_h": 0.7227,
+   "ramp_mw_per_min": 999.0,
+   "calibration": {
+    "source": "NP3-965-ER 60d_ESR_Data_in_SCED",
+    "window": [
+     "2026-02-03",
+     "2026-06-28"
+    ],
+    "windows": [
+     [
+      "2026-02-03",
+      "2026-03-02"
+     ],
+     [
+      "2026-06-01",
+      "2026-06-28"
+     ]
+    ],
+    "n_intervals": 16238,
+    "n_hours": 1341,
+    "n_days": 56,
+    "eta_c": 0.8962,
+    "eta_d": 0.9911,
+    "rte_raw": 0.8882,
+    "standby_raw_pct_per_h": 0.7227,
+    "rte_ci": [
+     0.8801,
+     0.8956
+    ],
+    "standby_ci": [
+     0.6617,
+     0.7852
+    ],
+    "resid_mwh_mad": 0.829,
+    "r2": 0.9889,
+    "throughput_mwh": {
+     "charged": 12336.1,
+     "discharged": 9844.7
+    },
+    "clipped": false,
+    "method": "hourly SoC balance, Huber LS, day-block bootstrap (300), RTE clipped to [0.70, 0.98], standby to [0, 1] %/h"
+   }
+  }
+ }
+}
