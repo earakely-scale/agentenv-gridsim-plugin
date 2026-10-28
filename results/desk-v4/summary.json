@@ -2,7 +2,7 @@
  "schema": "gridsim.desk.report/v1",
  "layer": "v4",
  "pack": "desk-v4-eval",
- "generated": "2026-10-28T13:12:52Z",
+ "generated": "2026-10-28T13:33:58Z",
  "n_tasks": 16,
  "n_days": 4,
  "missing": {
@@ -11,7 +11,7 @@
   "qwen": []
  },
  "ci": {
-  "method": "day-block bootstrap, task-weighted",
+  "method": "block bootstrap over operating days (multi-day windows: the block named block_name), task-weighted",
   "resamples": 10000,
   "seed": 0,
   "level": 0.95
@@ -1156,6 +1156,7 @@
   "Qwen3-4B sharding: the coordinator set the Qwen task lists wrong. The four 2026-01-23 (Fern) windows first ran at 13:07 UTC as a fill-in, on the same frozen code and identical vLLM hosts. The 2026-05-08 S02\u2013S04 and 2026-04-03 S04 windows ran twice: their runs on the planned host are scored, and the duplicates are excluded under a rule set before any duplicate was read. The excluded copies are kept outside this folder and are not scored or reported beyond this line."
  ],
  "block_name": "front",
+ "unit": "3-day window",
  "pilot_note": "The v4 pilot (GPT-6.1 Sol, 2026-02-03..05 S01) ran at 3b7a4de, before the v4 polish and the desk-v4-freeze; graded as the runner wrote it, not in the tables above.",
  "block_alias": {
   "2026-04-03": "2026-04-17"

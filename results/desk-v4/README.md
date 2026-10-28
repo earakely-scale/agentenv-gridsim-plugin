@@ -1,10 +1,10 @@
 # GridSimEnv desk v4: results on `desk-v4-eval`
 
-16 battery-days (4 operating days), 3 models. P is the settled ERCOT
-statement in $ per battery-day; R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
+16 3-day windows (4 fronts), 3 models. P is the settled ERCOT
+statement in $ per 3-day window (summed over its days); R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
 (P − P_idle)/(P_hind − P_idle); C_phys the same against the hindsight optimum with its DAM position tied to dispatch.
 "floored" counts tasks whose reward scale is floored at 10% of (P_hind_phys − P_idle) because the anchor
-earns less (contract §9.1). Brackets are 95% day-block CIs.
+earns less (contract §9.1). Brackets are 95% front-block CIs.
 
 | model | n | valid | floored | R | C (hindsight) | C_phys | mean P | P − anchor | beats anchor | P − operator replay | P − operator actual | $ / episode |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -34,7 +34,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 | GPT-6 Luna − operator replay | 16 | +$15,387 [+$969, +$42,284] | — | — | 56% | 4/4 |
 | Qwen3-4B (base) − operator replay | 16 | −$36,506 [−$84,233, −$7,055] | — | — | 0% | 0/4 |
 
-### Statement lines (mean $ per battery-day)
+### Statement lines (mean $ per 3-day window)
 
 | line | GPT-6.1 Sol | GPT-6 Luna | Qwen3-4B (base) |
 |---|---|---|---|
@@ -132,7 +132,7 @@ Mean P per front:
 | Qwen3-4B (base) | 3 | 2 | desk-v4-2026-05-08-S04 | −$5,518 |
 
 
-![Mean P per battery-day against the references](figures/p-bars.png)
+![Mean P per 3-day window against the references](figures/p-bars.png)
 
 ![sol on desk-v4-2026-05-08-S04](figures/hero.png)
 
@@ -154,12 +154,12 @@ The v4 pilot (GPT-6.1 Sol, 2026-02-03..05 S01) ran at 3b7a4de, before the v4 pol
 
 ## Method
 
-- Pack `desk-v4-eval`, layer v4: 16 tasks, 4 operating days,
+- Pack `desk-v4-eval`, layer v4: 16 tasks, 4 fronts,
   4 sites, era rtcb.
   Every model plays every task once (`scripts/desk_run.py`, path B', the in-process Session); every grade replayed from its Episode JSON against the frozen refs (the pack task rows; anchor risk 1.5, DAM position spread).
 - Settings: GPT-6.1 Sol: kind model, model openai/gpt-6.1-sol, effort high; GPT-6 Luna: kind model, model openai/gpt-6-luna, effort high; Qwen3-4B (base): kind model, model qwen3-4b.
 - Budgets per episode: max_turns 100, calls_per_turn 14, max_reminders 12.
-- CIs: day-block bootstrap, 10,000 resamples of operating days, seed 0, task-weighted means (as
+- CIs: front-block bootstrap, 10,000 resamples of fronts, seed 0, task-weighted means (as
   `results/train/4b-blind`); paired gaps resample days over the tasks both sides played. "days ahead" counts days whose
   mean gap is positive.
 - References are settled by the same clearing, physics and settlement code (contract §9.2): idle, the

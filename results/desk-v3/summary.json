@@ -2,7 +2,7 @@
  "schema": "gridsim.desk.report/v1",
  "layer": "v3",
  "pack": "desk-v3-eval",
- "generated": "2026-10-28T13:07:29Z",
+ "generated": "2026-10-28T13:33:57Z",
  "n_tasks": 24,
  "n_days": 6,
  "missing": {
@@ -11,7 +11,7 @@
   "qwen": []
  },
  "ci": {
-  "method": "day-block bootstrap, task-weighted",
+  "method": "block bootstrap over operating days (multi-day windows: the block named block_name), task-weighted",
   "resamples": 10000,
   "seed": 0,
   "level": 0.95
@@ -147,6 +147,26 @@
    "cycles": 0.914,
    "discharged_mwh": 149.2,
    "cop_late": 0.0,
+   "submissions_by_day": {
+    "rt:D0": 12.292,
+    "dam:D0": 1.042
+   },
+   "day_lines": {
+    "D0": {
+     "dam_energy": 46812.33,
+     "rt_energy_imbalance": -42933.16,
+     "deviation": 0.0,
+     "load_allocated": 0.0,
+     "degradation": -1492.04,
+     "warranty_overage": -1.84,
+     "end_soc_shortfall": -395.21,
+     "dam_as_capacity": 1948.21,
+     "rt_as_imbalance": 1468.66,
+     "failure_to_provide": 0.0,
+     "capacity_short": 0.0,
+     "pv_energy": 5105.91
+    }
+   },
    "ancillary": {
     "offers_accepted": {
      "rt:regup": 5.5,
@@ -325,6 +345,26 @@
    "cycles": 0.762,
    "discharged_mwh": 123.6,
    "cop_late": 0.0,
+   "submissions_by_day": {
+    "rt:D0": 8.708,
+    "dam:D0": 1.375
+   },
+   "day_lines": {
+    "D0": {
+     "dam_energy": 8110.16,
+     "rt_energy_imbalance": -104.17,
+     "deviation": 0.0,
+     "load_allocated": 0.0,
+     "degradation": -1235.52,
+     "warranty_overage": 0.0,
+     "end_soc_shortfall": -809.07,
+     "dam_as_capacity": 0.0,
+     "rt_as_imbalance": 20.56,
+     "failure_to_provide": 0.0,
+     "capacity_short": 0.0,
+     "pv_energy": 5105.91
+    }
+   },
    "ancillary": {
     "offers_accepted": {
      "rt:regup": 1.125,
@@ -489,6 +529,26 @@
    "cycles": 0.363,
    "discharged_mwh": 50.9,
    "cop_late": 0.08,
+   "submissions_by_day": {
+    "rt:D0": 1.333,
+    "dam:D0": 0.375
+   },
+   "day_lines": {
+    "D0": {
+     "dam_energy": 2392.11,
+     "rt_energy_imbalance": -1538.5,
+     "deviation": 0.0,
+     "load_allocated": 0.0,
+     "degradation": -508.66,
+     "warranty_overage": -124.97,
+     "end_soc_shortfall": -341.86,
+     "dam_as_capacity": 1604.25,
+     "rt_as_imbalance": -83.5,
+     "failure_to_provide": 0.0,
+     "capacity_short": -508.05,
+     "pv_energy": 5105.91
+    }
+   },
    "ancillary": {
     "offers_accepted": {
      "rt:regup": 0.417,
@@ -1029,6 +1089,11 @@
  "defects": [
   "an empty `as_offers` list is answered with a spurious ASO-02 note (\"as_offers is a list of objects\"); energy curves in the same call are accepted; fixed after the v3/v5 freeze. The AS table counts these calls separately and leaves them out of the refusals."
  ],
+ "deviations": null,
+ "block_name": "day",
+ "unit": "battery-day",
+ "pilot_note": null,
+ "block_alias": null,
  "regraded": {
   "applied": true,
   "refs": "pack task rows",

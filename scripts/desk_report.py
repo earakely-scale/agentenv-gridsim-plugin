@@ -331,7 +331,7 @@ def date_span(dates: list[str]) -> str:
 
 def gz_copy(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    with open(src, "rb") as f, gzip.open(dst, "wb", compresslevel=9) as g:
+    with open(src, "rb") as f, gzip.GzipFile(dst, "wb", compresslevel=9, mtime=0) as g:
         shutil.copyfileobj(f, g)
 
 
@@ -425,9 +425,11 @@ def fig_bars(summary: dict, path: Path, mode: str) -> None:
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: money_s(v)))
         for s in ax.spines.values():
             s.set_visible(False)
-        ax.set_xlabel(f"mean P per battery-day ($, settled statement), 95% day-block CI, n = {summary['n_tasks']}",
+        ax.set_xlabel(f"mean P per {summary.get('unit', 'battery-day')} ($, settled statement), 95% "
+                      f"{summary.get('block_name', 'day')}-block CI, n = {summary['n_tasks']}",
                       fontsize=9)
-        ax.set_title(f"Mean P per battery-day on {summary['pack']}: models (bold) against the references",
+        ax.set_title(f"Mean P per {summary.get('unit', 'battery-day')} on {summary['pack']}: models (bold) against "
+                     "the references",
                      loc="left", fontsize=11, color=th["ink"], pad=14)
         fig.tight_layout()
         fig.savefig(path, dpi=200)
@@ -644,11 +646,12 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
 
 def bullets(summary: dict) -> list[str]:
     ms, refs, out = summary["models"], summary["references"], []
+    unit = summary.get("unit", "battery-day")
     order = sorted(ms, key=lambda k: -(ms[k]["P"]["mean"] or -1e18))
     if order:
         top = order[0]
         m = ms[top]
-        out.append(f"{NAMES.get(top, top)} has the highest mean P, {money_s(m['P']['mean'])} per battery-day "
+        out.append(f"{NAMES.get(top, top)} has the highest mean P, {money_s(m['P']['mean'])} per {unit} "
                    f"(R {m['R']['mean']:.2f}, C {m['C']['mean']:.2f}), against the anchor's "
                    f"{money_s(refs['anchor']['P']['mean'])} and the hindsight optimum's "
                    f"{money_s(refs['hind']['P']['mean'])}.")
@@ -658,14 +661,14 @@ def bullets(summary: dict) -> list[str]:
         if g["mean"] is not None:
             side = "above" if g["ci"][0] > 0 else "below" if g["ci"][1] < 0 else "level with"
             out.append(f"{NAMES.get(k, k)} is {side} the anchor: {fmt_ci(g, money=True, signed=True)} per "
-                       f"battery-day; it beats the anchor on {pct(m['beats_anchor_share'])} of tasks.")
+                       f"{unit}; it beats the anchor on {pct(m['beats_anchor_share'])} of tasks.")
     for b in summary["paired"].values():
         if b["b"] == "operator_replay" or b["P"]["mean"] is None:
             continue
         a, c = b["a"], b["b"]
         if b["P"]["ci"][0] > 0 or b["P"]["ci"][1] < 0:
             out.append(f"{NAMES.get(a, a)} − {NAMES.get(c, c)}: {fmt_ci(b['P'], money=True, signed=True)} per "
-                       f"battery-day; the CI excludes zero.")
+                       f"{unit}; the CI excludes zero.")
         else:
             out.append(f"{NAMES.get(a, a)} − {NAMES.get(c, c)}: {fmt_ci(b['P'], money=True, signed=True)}; the CI "
                        f"includes zero.")
@@ -866,16 +869,19 @@ def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
               money_s(p["p"]), money_s(p["p_anchor"]),
               "—" if p["p_operator_replay"] is None else money_s(p["p_operator_replay"]), str(p["turns"]),
               f"${p['cost_usd']:.2f}"] for p in summary["pilot"]]) + "\n"
-    fig = ("![Mean P per battery-day against the references](figures/p-bars.png)\n\n"
+    unit, blk = summary.get("unit", "battery-day"), summary.get("block_name", "day")
+    blocks = "operating day" if blk == "day" else blk
+    summed = " (summed over its days)" if unit != "battery-day" else ""
+    fig = (f"![Mean P per {unit} against the references](figures/p-bars.png)\n\n"
            + (f"![{summary['hero']['model']} on {summary['hero']['task_id']}](figures/hero.png)\n"
               if summary.get("hero") else ""))
     return f"""# GridSimEnv desk {lay}: results on `{summary['pack']}`
 
-{summary['n_tasks']} battery-days ({summary['n_days']} operating days), {len(ms)} models. P is the settled ERCOT
-statement in $ per battery-day; R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
+{summary['n_tasks']} {unit}s ({summary['n_days']} {blocks}s), {len(ms)} models. P is the settled ERCOT
+statement in $ per {unit}{summed}; R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
 (P − P_idle)/(P_hind − P_idle); C_phys the same against the hindsight optimum with its DAM position tied to dispatch.
 "floored" counts tasks whose reward scale is floored at 10% of (P_hind_phys − P_idle) because the anchor
-earns less (contract §9.1). Brackets are 95% day-block CIs.
+earns less (contract §9.1). Brackets are 95% {blk}-block CIs.
 
 {t1}
 
@@ -887,7 +893,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t3}
 
-### Statement lines (mean $ per battery-day)
+### Statement lines (mean $ per {unit})
 
 {t4}
 
@@ -903,12 +909,12 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 {pilot}
 ## Method
 
-- Pack `{summary['pack']}`, layer {lay}: {summary['n_tasks']} tasks, {summary['n_days']} operating days,
+- Pack `{summary['pack']}`, layer {lay}: {summary['n_tasks']} tasks, {summary['n_days']} {blocks}s,
   {meth['sites']} site{plural(meth['sites'])}, era{plural(len(meth['eras']))} {', '.join(meth['eras'])}.
   Every model plays every task once (`scripts/desk_run.py`, path B', the in-process Session); {meth['grading']}.
 - Settings: {settings}.
 - Budgets per episode: {meth['budget']}.
-- CIs: day-block bootstrap, {B:,} resamples of operating days, seed {SEED}, task-weighted means (as
+- CIs: {blk}-block bootstrap, {B:,} resamples of {blocks}s, seed {SEED}, task-weighted means (as
   `results/train/4b-blind`); paired gaps resample days over the tasks both sides played. "days ahead" counts days whose
   mean gap is positive.
 - References are settled by the same clearing, physics and settlement code (contract §9.2): idle, the
@@ -1025,11 +1031,14 @@ def main() -> None:
             dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "n_tasks": len(union), "n_days": len(set(days[t] for t in union)),
         "missing": {name: sorted(set(pack_tasks) - set(grades[name])) for name in runs} if pack_tasks else None,
-        "ci": {"method": "day-block bootstrap, task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
+        "ci": {"method": "block bootstrap over operating days (multi-day windows: the block named block_name), "
+                         "task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
         "models": models, "references": ref_block(union, days), "paired": pairs, "pilot": pilot or None,
         "sensitivity": sensitivity(grades, days, union, a.exclude_day), "defects": a.defect or None,
         "deviations": a.deviation or None,
         "block_name": "day" if max((len(e.get("dates", [])) for e in eps_any.values()), default=1) == 1 else "front",
+        "unit": "battery-day" if (wd := max((len(e.get("dates", [])) for e in eps_any.values()), default=1)) == 1
+        else f"{wd}-day window",
         "pilot_note": a.pilot_note, "block_alias": blocks or None,
         "regraded": {"applied": a.regrade, "refs": a.refs or ("pack task rows" if a.regrade else None),
                      "reward_changed": dict(regraded), "not_regraded": dict(unrefd), "diffs": diffs,
@@ -1066,9 +1075,8 @@ def main() -> None:
         summary["hero"] = {"model": name, "task_id": tid, "operator_soc": ser is not None, "label": label}
     for mode, suf in (("light", ""), ("dark", "-dark")):
         fig_bars(summary, out / "figures" / f"p-bars{suf}.png", mode)
-    with gzip.open(out / "grades.jsonl.gz", "wt") as f:
-        for row in grade_rows(runs, grades, days):
-            f.write(json.dumps(row) + "\n")
+    with gzip.GzipFile(out / "grades.jsonl.gz", "wb", mtime=0) as f:
+        f.write("".join(json.dumps(row) + "\n" for row in grade_rows(runs, grades, days)).encode())
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     notes = [x.strip().lstrip("- ") for x in Path(a.notes).read_text().splitlines() if x.strip()] if a.notes else None
     (out / "README.md").write_text(readme(summary, out, notes))
