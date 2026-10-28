@@ -369,6 +369,7 @@
    "desk-v3-2026-08-22-S01",
    "desk-v3-2026-08-22-S04"
   ],
+  "c_undefined": [],
   "anchor_below_idle": [
    "desk-v3-2026-04-11-S01",
    "desk-v3-2026-04-11-S02",
@@ -381,5 +382,32 @@
    "desk-v3-2026-07-21-S04",
    "desk-v3-2026-08-22-S04"
   ]
+ },
+ "refs_report": {
+  "pack": "desk-v3-eval",
+  "tasks": 24,
+  "floored": 13,
+  "floored_tasks": [
+   "desk-v3-2026-04-11-S01",
+   "desk-v3-2026-04-11-S02",
+   "desk-v3-2026-04-11-S03",
+   "desk-v3-2026-04-24-S04",
+   "desk-v3-2026-05-26-S01",
+   "desk-v3-2026-05-26-S02",
+   "desk-v3-2026-06-06-S01",
+   "desk-v3-2026-06-06-S02",
+   "desk-v3-2026-06-06-S03",
+   "desk-v3-2026-06-06-S04",
+   "desk-v3-2026-07-21-S04",
+   "desk-v3-2026-08-22-S01",
+   "desk-v3-2026-08-22-S04"
+  ],
+  "c_undefined": 0,
+  "c_undefined_tasks": [],
+  "anchor_setting": {
+   "risk": 1.5,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
  }
 }

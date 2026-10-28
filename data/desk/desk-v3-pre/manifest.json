@@ -87,6 +87,20 @@
    "{\"dam_position\": \"spread\", \"risk\": 1.5}"
   ],
   "floored": [],
+  "c_undefined": [],
   "anchor_below_idle": []
+ },
+ "refs_report": {
+  "pack": "desk-v3-pre",
+  "tasks": 2,
+  "floored": 0,
+  "floored_tasks": [],
+  "c_undefined": 0,
+  "c_undefined_tasks": [],
+  "anchor_setting": {
+   "risk": 1.5,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
  }
 }

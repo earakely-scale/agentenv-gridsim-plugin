@@ -88,9 +88,26 @@
    "desk-v3-2026-04-20-S01",
    "desk-v3-2026-08-14-S03"
   ],
+  "c_undefined": [],
   "anchor_below_idle": [
    "desk-v3-2026-04-20-S01",
    "desk-v3-2026-08-14-S03"
   ]
+ },
+ "refs_report": {
+  "pack": "desk-v3-pilot",
+  "tasks": 2,
+  "floored": 2,
+  "floored_tasks": [
+   "desk-v3-2026-04-20-S01",
+   "desk-v3-2026-08-14-S03"
+  ],
+  "c_undefined": 0,
+  "c_undefined_tasks": [],
+  "anchor_setting": {
+   "risk": 1.5,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
  }
 }

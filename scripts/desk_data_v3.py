@@ -360,8 +360,12 @@ def merge_refs(pack: str, refs_path: str) -> int:
     m["refs"] = {"n": len(rs), "core_version": sorted({r.get("core_version") for r in rs}),
                  "anchor_setting": sorted({json.dumps(r.get("anchor_setting"), sort_keys=True) for r in rs}),
                  "floored": [t["task_id"] for t in tasks if (t.get("refs") or {}).get("floored")],
+                 "c_undefined": [t["task_id"] for t in tasks if (t.get("refs") or {}).get("c_undefined")],
                  "anchor_below_idle": [t["task_id"] for t in tasks
                                        if t.get("refs") and t["refs"]["p_anchor"] < t["refs"]["p_idle"]]}
+    report = Path(refs_path).with_name("refs-report.json")
+    if report.exists():
+        m["refs_report"] = json.loads(report.read_text())
     (root / "manifest.json").write_text(json.dumps(m, indent=1))
     return n
 
