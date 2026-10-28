@@ -81,6 +81,9 @@ def main():
     ap.add_argument("--publish", action="store_true", help="Upload hub/article and the media to the Space.")
     ap.add_argument("--link", action="store_true",
                     help="Link the article from the dataset card and from the viewer Space's card and pages.")
+    ap.add_argument("--desk-repo", type=Path,
+                    help="A checkout of the desk branch: its packs name the real sites and operators that the article "
+                         "must not, once it carries the desk.")
     args = ap.parse_args()
     if args.media:
         record_media()
@@ -92,12 +95,22 @@ def main():
         out["banner.json"] = b
     if (desk := RESULTS.with_name("desk.json")).is_file():
         out["desk.json"] = json.loads(desk.read_text())
+    else:
+        (DATA / "desk.json").unlink(missing_ok=True)
     for name, obj in out.items():
         (DATA / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
         print(f"{name:16} {(DATA / name).stat().st_size / 1e3:7.1f} kB")
     copy_media()
     check_numbers(res)
     leaks(files_to_publish())
+    if "desk.json" in out:
+        if args.desk_repo is None:
+            raise SystemExit("the article carries the desk: pass --desk-repo to check it for site and operator names")
+        spec = importlib.util.spec_from_file_location("hub_desk", ROOT / "scripts" / "hub_desk.py")
+        hk = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hk)
+        hk.anonymous({k: p.read_bytes() for k, p in files_to_publish().items() if p.suffix in TEXT},
+                     hk.names(args.desk_repo))
     if args.build or args.publish:
         build()
     if args.publish:
@@ -502,10 +515,12 @@ def files_to_publish() -> dict[str, Path]:
     return out
 
 
+TEXT = (".md", ".mdx", ".html", ".json", ".js", ".mjs", ".astro", ".ts", ".css", ".bib", ".txt")
+
+
 def leaks(files: dict[str, Path]) -> None:
     from agentenv_hf.scan import known_values, scan
-    text = {k: p.read_bytes() for k, p in files.items() if p.suffix in (".md", ".mdx", ".html", ".json", ".js", ".mjs",
-                                                                         ".astro", ".ts", ".css", ".bib", ".txt")}
+    text = {k: p.read_bytes() for k, p in files.items() if p.suffix in TEXT}
     scan(text, known_values())
     for k, v in text.items():
         if hit := LEAK.search(v.decode()):
