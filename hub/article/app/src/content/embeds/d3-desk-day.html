@@ -17,7 +17,7 @@
     if (!root) return;
     const MARKET = new Set(["start", "dam_results", "adjustment_open", "checkpoint", "end"]);
     const OWN = new Set(["reminder"]);
-    const NAME = { sol: "GPT-6.1 Sol", luna: "GPT-6 Luna", qwen: "Qwen3-4B" };
+    const NAME = { sol: "GPT-6.1 Sol", luna: "GPT-6 Luna", qwen: "Qwen3-4B, untrained" };
     const kind = (w) => (w.reasons.some((r) => !MARKET.has(r) && !OWN.has(r)) ? "event" : w.reasons.some((r) => OWN.has(r)) ? "own" : "market");
     const COLOR = { market: "var(--text-color)", event: "var(--c-event)", own: "var(--c-own)" };
     const hhmm = (t) => { const m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };

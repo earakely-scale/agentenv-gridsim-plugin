@@ -27,11 +27,19 @@
     const root = K.mount("gs-deskb");
     if (!root) return;
     const f = K.fmt;
+    const hn = (x, n = 3) => {
+      const [i, d = ""] = Math.abs(x).toString().split(".");
+      if (/e/.test(i)) return f.n(x, n);
+      const v = BigInt(i + d.slice(0, n).padEnd(n, "0")) + (d[n] >= "5" ? 1n : 0n), t = v.toString().padStart(n + 1, "0");
+      return `${x < 0 && v ? "−" : ""}${t.slice(0, t.length - n)}.${t.slice(-n)}`;
+    };
+    const hci = (c) => `[${hn(c[0])}, ${hn(c[1])}]`;
     const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
     const REFC = { anchor: "var(--text-color)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)" };
-    const usd = (x, s = false) => (x == null ? "–" : `${x < 0 ? "−" : s ? "+" : ""}$${Math.round(Math.abs(x)).toLocaleString("en-US")}`);
+    const whole = (a) => { const f = Math.floor(a), d = a - f; return d > 0.5 || (d === 0.5 && f % 2 === 1) ? f + 1 : f; };
+    const usd = (x, s = false) => { if (x == null) return "–"; const w = whole(Math.abs(x)); return `${!w ? "" : x < 0 ? "−\u2060" : s ? "+\u2060" : ""}$${w.toLocaleString("en-US")}`; };
     const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
-    const usdk = (x, s = false) => { const a = Math.abs(x); return `${x < 0 ? "−" : s ? "+" : ""}${a >= 1e5 ? Math.round(a / 1e3) + "k" : a >= 1e3 ? (a / 1e3).toFixed(1) + "k" : Math.round(a)}`; };
+    const usdk = (x, s = false) => { const a = Math.abs(x), v = a >= 99950 ? whole(a / 1e3) + "k" : a >= 999.5 ? hn(a / 1e3, 1) + "k" : whole(a); return `${v === 0 ? "" : x < 0 ? "−" : s ? "+" : ""}${v}`; };
     const cik = (c, s = false) => `[${usdk(c[0], s)}, ${usdk(c[1], s)}]`;
     const sens = (V, top) => {
       const w = V.sensitivity && V.sensitivity.without;
@@ -61,7 +69,7 @@
           ...V.references.filter((r) => !["hind", "idle"].includes(r.key)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
         const top = V.models[0], g = top.P_minus_anchor, side = g.ci[0] > 0 ? "ahead of" : g.ci[1] < 0 ? "behind" : "level with";
         const o = top.P_minus_operator_replay;
-        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${f.n(top.C.mean)} of hindsight ${f.ci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${f.n(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.${sens(V, top)}`);
+        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${hn(top.C.mean)} of hindsight ${hci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${hn(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.${sens(V, top)}`);
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;
         const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + rows.length * rh + 30;
@@ -81,10 +89,10 @@
           svg.append("text").attr("class", `lab halo${r.ref ? "" : " b"}`).attr("x", narrow ? 8 : lw).attr("y", narrow ? y - 12 : y + 4).attr("text-anchor", narrow ? "start" : "end").text(r.name);
           svg.append("line").attr("x1", x(r.C.ci[0])).attr("x2", x(r.C.ci[1])).attr("y1", y).attr("y2", y).style("stroke", r.color).style("stroke-width", 2);
           const c = svg.append("circle").attr("cx", x(r.C.mean)).attr("cy", y).attr("r", r.ref ? 5 : 6).style("fill", r.ref ? "var(--page-bg)" : r.color).style("stroke", r.color).style("stroke-width", 2).style("cursor", "pointer");
-          svg.append("text").attr("class", `val halo${r.ref ? "" : " b"}`).attr("x", Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8).attr("y", y + 4).text(f.n(r.C.mean));
+          svg.append("text").attr("class", `val halo${r.ref ? "" : " b"}`).attr("x", Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8).attr("y", y + 4).text(hn(r.C.mean));
           const show = (ev) => tip.show((el) => {
             K.t.title(el, r.ref ? r.name : `${r.name}${r.effort ? `, ${r.effort} effort` : ""}`, r.color);
-            K.t.row(el, "C", `${f.n(r.C.mean)} ${f.ci(r.C.ci)}`);
+            K.t.row(el, "C", `${hn(r.C.mean)} ${hci(r.C.ci)}`);
             K.t.row(el, "P a battery-day", `${usd(r.P.mean)} ${usdci(r.P.ci)}`);
             if (!r.ref) K.t.row(el, "P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`);
           }, ev);

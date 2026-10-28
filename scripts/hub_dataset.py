@@ -824,7 +824,7 @@ def desk_results(v: dict) -> str:
 
 def desk_row(m: dict) -> str:
     cost = m["usd_per_episode"]
-    sub = ([f"{m['effort']} effort"] if m.get("effort") else ["untrained, open weights"] if m["weights"] == "open"
+    sub = ([f"{m['effort']} effort"] if m.get("effort") else ["open weights"] if m["weights"] == "open"
            else []) + ([f"${cost:.2f} a run"] if cost and m["weights"] != "open" else [])
     return (f"| **{m['name']}**<br><small>{' · '.join(sub)}</small> | **{h(m['C']['mean'])}**<br><small>"
             f"{ci(m['C']['ci'])}</small> | {stacked_usd(m['P'])} |")
@@ -841,15 +841,21 @@ def stacked_usd(b: dict, sign: bool = False) -> str:
 def usdk(x: float, sign: bool = False) -> str:
     """Thousands of dollars to one decimal, a whole dollar figure under $1,000; a word joiner keeps the sign on it."""
     v = f"{h(abs(x) / 1000, 1)}k" if abs(x) >= 999.5 else f"{abs(x):.0f}"
-    return f"{'−' if x < 0 else '+' if sign else ''}\u2060${v}"
+    return f"{'' if v == '0' else '−' if x < 0 else '+' if sign else ''}\u2060${v}"
 
 
 def desk_bullets(v: dict) -> list[str]:
     ms, refs = v["models"], {r["key"]: r for r in v["references"]}
     top, others = ms[0], ms[1:]
+    pairs = {(x["a"], x["b"]): x["C"] for x in v["paired"] if "C" in x}
+    leads = [(m, pairs[top["key"], m["key"]]) for m in others if (top["key"], m["key"]) in pairs]
     out = [f"**{top['name']} captures the most of hindsight:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
            f"{usd0(top['P']['mean'])} a {unit(v)}" + (", against " + " and ".join(
-               f"{m['name']}'s {h(m['C']['mean'])}" for m in others) if others else "") + "."]
+               f"{h(m['C']['mean'])} for {m['name']}" for m in others) if others else "") + "."
+           + (f" Paired by {unit(v)}, its C " + " and ".join(
+               f"{'leads' if d['mean'] >= 0 else 'trails'} {m['name']}'s by {gap(d)}"
+               + (", a CI that includes zero" if d["ci"][0] <= 0 <= d["ci"][1] else "") for m, d in leads)
+               + "." if leads else "")]
     if "operator_replay" in refs:
         op = refs["operator_replay"]["P"]["mean"]
         gaps = [f"{m['name']} {usd0(m['P_minus_operator_replay']['mean'], True)} "
@@ -922,7 +928,8 @@ def gif_block(gif: dict) -> str:
 
 
 def usd0(x: float, sign: bool = False) -> str:
-    return f"{'−' if x < 0 else '+' if sign else ''}\u2060${abs(x):,.0f}"
+    v = f"{abs(x):,.0f}"
+    return f"{'' if v == '0' else '−' if x < 0 else '+' if sign else ''}\u2060${v}"
 
 
 def usd0_ci(c: list[float], sign: bool = False) -> str:

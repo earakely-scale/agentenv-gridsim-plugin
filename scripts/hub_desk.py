@@ -41,7 +41,7 @@ LADDER = (
     ("v5", "The Market Floor", "price impact: its DAM offers re-clear the day-ahead market against the day's real "
      "offers, disclosed 60 days later", "offers into a market its own bids move"),
 )
-MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B", "open")}
+MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B, untrained", "open")}
 REFS = (("anchor", "Anchor", "Anchor: the desk's optimiser at every wake, same information"),
         ("operator_replay", "The operator's bids, replayed", "The real operator's disclosed bids, replayed"),
         ("operator_actual", "The operator, as settled", "The real operator's awards and metered output, settled"),
@@ -226,7 +226,8 @@ def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> tuple[
 
 
 def usd(x: float) -> str:
-    return f"{'−' if x < 0 else ''}\u2060${abs(x):,.0f}"
+    v = f"{abs(x):,.0f}"
+    return f"{'−' if x < 0 and v != '0' else ''}\u2060${v}"
 
 
 def date_label(dates: list[str]) -> str:

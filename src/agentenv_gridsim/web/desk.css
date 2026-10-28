@@ -18,11 +18,12 @@
 .tools code { color: var(--text-primary); font-size: 12.5px; }
 .desk-ep img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--hair); }
 .mod { color: var(--text-muted); font-size: 11.5px; }
+.nw { white-space: nowrap; }
 body.export section.fig { width: 640px; }
 @media (max-width: 720px) {
   .vtabs a, .vtabs span { min-width: 0; flex: 1 1 40%; }
   .tools { grid-template-columns: 1fr; }
   table.stack tr.ref td.na { display: none; }
-  table.stack td code { overflow-wrap: anywhere; }
   table.stack.lines tr { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  table.stack.beh td.codes { order: 1; }
 }

@@ -23,9 +23,10 @@ const num = (x, n = 3) => {
   return minus(`${x < 0 && v ? "-" : ""}${s.slice(0, s.length - n)}${n ? `.${s.slice(-n)}` : ""}`);
 };
 const ci = (c, n = 3) => `[${num(c[0], n)}, ${num(c[1], n)}]`;
-const usd = (x, s = false) => `${x < 0 ? "−" : s ? "+" : ""}$${Math.round(Math.abs(x)).toLocaleString("en-US")}`;
+const whole = (a) => { const f = Math.floor(a), d = a - f; return d > 0.5 || (d === 0.5 && f % 2 === 1) ? f + 1 : f; };
+const usd = (x, s = false) => { const w = whole(Math.abs(x)); return `${!w ? "" : x < 0 ? "−\u2060" : s ? "+\u2060" : ""}$${w.toLocaleString("en-US")}`; };
 const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
-const pct = (x) => `${Math.round(100 * x)}%`;
+const pct = (x) => `${whole(100 * x)}%`;
 const link = (href, t) => `<a href="${href}" target="_blank" rel="noopener">${t}</a>`;
 const day = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const day_ = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -183,11 +184,11 @@ function linesTable(V) {
 function behaviour(V) {
   const head = ["Desk", "Turns", "Wakes", "Calls", "Most-used tools", "Submissions accepted / rejected", "Rejection codes", "Reminders", "Cycles"];
   const body = V.models.map((m) => {
-    const tools = Object.entries(m.calls_by_tool).slice(0, 4).map(([t, n]) => `<code>${esc(t)}</code> ${num(n, 1)}`).join(", ");
+    const tools = Object.entries(m.calls_by_tool).slice(0, 4).map(([t, n]) => `<span class="nw"><code>${esc(t)}</code> ${num(n, 1)}</span>`).join(", ");
     const codes = Object.entries(m.rejected_codes).slice(0, 3).map(([c, n]) => `${esc(c)} ×${n}`).join(", ") || "–";
-    return `<tr><td><span class="who"><i style="background:${COL[m.key] || "var(--c-base)"}"></i><b>${esc(m.name)}</b></span></td><td data-l="Turns">${num(m.turns, 1)}</td><td data-l="Wakes">${num(m.wakes, 1)}</td><td data-l="Calls">${num(m.calls, 1)}</td><td class="l" data-l="Most-used tools">${tools}</td><td data-l="Accepted / rejected">${num(m.accepted, 1)} / ${num(m.rejected, 1)}</td><td class="l" data-l="Rejection codes">${codes}</td><td data-l="Reminders">${num(m.reminders, 1)}</td><td data-l="Cycles">${num(m.cycles, 2)}</td></tr>`;
+    return `<tr><td><span class="who"><i style="background:${COL[m.key] || "var(--c-base)"}"></i><b>${esc(m.name)}</b></span></td><td data-l="Turns">${num(m.turns, 1)}</td><td data-l="Wakes">${num(m.wakes, 1)}</td><td data-l="Calls">${num(m.calls, 1)}</td><td class="l full" data-l="Most-used tools">${tools}</td><td data-l="Accepted / rejected">${num(m.accepted, 1)} / ${num(m.rejected, 1)}</td><td class="l full codes" data-l="Rejection codes">${codes}</td><td data-l="Reminders">${num(m.reminders, 1)}</td><td data-l="Cycles">${num(m.cycles, 2)}</td></tr>`;
   }).join("");
-  return `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr>${head.map((h, i) => `<th class="${i === 0 || i === 4 || i === 6 ? "l" : ""}">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="table-scroll"><table class="grid stack wrapcells beh"><thead><tr>${head.map((h, i) => `<th class="${i === 0 || i === 4 || i === 6 ? "l" : ""}">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function episode(V, D) {

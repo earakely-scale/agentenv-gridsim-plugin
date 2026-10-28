@@ -666,7 +666,8 @@ def cut(s: str, n: int) -> str:
 
 
 def money(x: float) -> str:
-    return f"{'−' if x < 0 else ''}${abs(x):,.0f}"
+    v = f"{abs(x):,.0f}"
+    return f"{'−' if x < 0 and v != '0' else ''}${v}"
 
 
 def price(x: float) -> str:

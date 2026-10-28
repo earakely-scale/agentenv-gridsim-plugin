@@ -3,7 +3,8 @@
   const X0 = 52, X1 = 574, PR = [30, 166], SO = [194, 258], DI = [288, 378], TOP = 18;
   const two = (n) => String(n).padStart(2, "0");
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  const money = (x) => `${x < 0 ? "−" : ""}$${Math.abs(x).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  const whole = (a) => { const f = Math.floor(a), d = a - f; return d > 0.5 || (d === 0.5 && f % 2 === 1) ? f + 1 : f; };
+  const money = (x) => { const w = whole(Math.abs(x)); return `${x < 0 && w ? "−" : ""}$${w.toLocaleString("en-US")}`; };
   const price = (x) => { const v = Math.abs(x), s = v >= 99.95 ? v.toLocaleString("en-US", { maximumFractionDigits: 0 }) : v >= 10 ? String(Math.round(v * 10) / 10) : v.toFixed(2); return `${x < 0 ? "−" : ""}$${s}`; };
   const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const $ = (s) => document.querySelector(s);
@@ -264,7 +265,7 @@
     const vs = ref.key === "op" ? "against the real operator's own bids" : "against the anchor policy";
     const head = g.capture == null ? `<span class="${g.reward < 0.5 ? "low" : ""}"><small>reward</small>${g.reward.toFixed(2)}</span>` : `<span class="${g.capture < 0 ? "low" : ""}"><small>hindsight capture C</small>${g.capture.toFixed(2)}</span>`;
     const m = g.modelled, mod = m.length ? `; ${m.length > 1 ? `${m.slice(0, -1).join(", ")} and ${m.at(-1)} are` : `${m[0]} is`} modelled` : "";
-    return `<div class="t"><b>Day over · settled</b>${head}</div><div class="sub"><b class="${gap >= 0 ? "good" : "bad"}">${gap >= 0 ? "+" : "−"}$${Math.abs(gap).toLocaleString("en-US", { maximumFractionDigits: 0 })}</b> ${vs}${g.capture == null ? "" : ` · reward R ${g.reward.toFixed(2)}`}</div>${bars}<div class="ft">Profit P for the operating day from the desk's ERCOT statement, at ERCOT's real prices${mod}.</div>`;
+    return `<div class="t"><b>Day over · settled</b>${head}</div><div class="sub"><b class="${gap >= 0 ? "good" : "bad"}">${gap >= 0 ? "+" : "−"}$${whole(Math.abs(gap)).toLocaleString("en-US")}</b> ${vs}${g.capture == null ? "" : ` · reward R ${g.reward.toFixed(2)}`}</div>${bars}<div class="ft">Profit P for the operating day from the desk's ERCOT statement, at ERCOT's real prices${mod}.</div>`;
   }
 
   window.desk = { init, render };
