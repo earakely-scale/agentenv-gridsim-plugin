@@ -5,6 +5,7 @@ runner both drive it."""
 from __future__ import annotations
 
 import copy
+import json
 import math
 
 from gridsim_core.desk import clock
@@ -37,6 +38,11 @@ MAX_VALUES = 96
 NOTICE_CHARS = 300
 NOTE_CHARS = 120
 COP_LATE_MIN = 60
+
+
+def text(obj) -> str:
+    """The one serializer for tool outputs and wake messages, shared by every path."""
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
 
 def _r(x, nd: int = 2):
@@ -149,7 +155,7 @@ class Session:
 
     def end_turn(self, text: str | None = None) -> dict | None:
         """Close the current turn and run to the next wake-up; None when the episode is over."""
-        self._close_turn(text)
+        self.close_turn(text)
         nxt = self.next_wakeup()
         if nxt["at"] is None:
             self.finish()
@@ -178,7 +184,7 @@ class Session:
         if self.result is not None:
             return self.result
         if self.turn >= 0 and self.turns and self.turns[-1].get("open"):
-            self._close_turn(None)
+            self.close_turn(None)
         self.engine.advance(self.end)
         self._collect(self.now, self.end)
         self.now = self.end
@@ -285,7 +291,7 @@ class Session:
         self.turns.append({"turn": self.turn, "t": t, "wake": copy.deepcopy(w), "calls": [], "text": None, "open": True})
         return w
 
-    def _close_turn(self, text: str | None) -> None:
+    def close_turn(self, text: str | None) -> None:
         if self.turns and self.turns[-1].get("open"):
             self.turns[-1]["open"] = False
             self.turns[-1]["text"] = text

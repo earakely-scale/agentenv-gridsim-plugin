@@ -528,10 +528,13 @@ task, series = load_task(pack, task_id), load_series(pack, task)   # or fixtures
 s = Session(task, series, layer="v2")      # budgets from the layer; forecaster from the series (8.4)
 wake = s.start()                           # {"now", "reasons", "events", "deadlines", "budget"}
 s.call("get_prices", {"market": "dam"})    # one tool call (counts against calls_per_turn)
-wake = s.end_turn()                        # advance to the next wake; None at the end
+s.close_turn(text)                         # close the turn without moving time (gateway path)
+wake = s.end_turn(text)                    # close the turn and advance to the next wake; None at the end
 s.next_wakeup(); s.advance_to(minute)      # hook / gateway path (2.4)
 s.done; s.episode(); s.grade()             # Episode JSON and the 9.1 grade
-TOOL_SPECS                                 # the 11 tools' JSON schemas (OpenAI function format) for the layer
+TOOL_SPECS                                 # the 11 tools' JSON schemas (OpenAI function format); tool_specs(layer, rtcb)
+text(obj)                                  # the one serializer for tool outputs and wake messages (compact JSON)
+system_prompt(task, layer)                 # the desk brief from the task record (or system_prompt(session))
 ```
 
 Policies for runs and references: `desk.policies.idle`, `desk.policies.anchor`, `desk.policies.scripted` (a fixed-rule

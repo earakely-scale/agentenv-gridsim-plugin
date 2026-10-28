@@ -28,7 +28,7 @@ except ImportError:
 from gridsim_core.desk import fixtures, policies, refs
 from gridsim_core.desk.data import load_series, load_tasks
 from gridsim_core.desk.prompt import system_prompt
-from gridsim_core.desk.session import Session
+from gridsim_core.desk.session import Session, text
 from gridsim_core.desk.tools import tool_specs
 
 MODELS = {
@@ -261,10 +261,10 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
     status = "ok"
     try:
         while wake is not None:
-            agent.user(json.dumps(wake))
-            text = None
+            agent.user(text(wake))
+            reply = None
             for _ in range(s.budget["calls_per_turn"] + 3):
-                text, calls = agent.step(log)
+                reply, calls = agent.step(log)
                 if not calls:
                     break
                 for call_id, name, raw in calls:
@@ -274,11 +274,11 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
                         res = {"error": "args: arguments are not valid JSON"}
                     else:
                         res = s.call(name, args)
-                    agent.result(call_id, json.dumps(res))
+                    agent.result(call_id, text(res))
             turns = [{"calls": [{"tool": c["tool"], "args": c["args"]} for c in t["calls"]], "text": t.get("text")}
                      for t in s.turns]
-            turns[-1]["text"] = text
-            wake = s.end_turn(text)
+            turns[-1]["text"] = reply
+            wake = s.end_turn(reply)
             ck.write_text(json.dumps({"turns": turns, "agent": agent.state()}))
     except SpendCap as e:
         status = f"capped: {e}"

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from gridsim_core.desk import clock
-from gridsim_core.desk.session import Session
+from gridsim_core.desk.curves import caps
+from gridsim_core.desk.data import era_of
+from gridsim_core.desk.engine import idle_end_soc, site_of
+from gridsim_core.desk.session import BUDGETS, Session
 
 POST = """Market rules in force (ERCOT after RTC+B, Dec 2025):
 - Your battery is one Energy Storage Resource with ONE Energy Bid/Offer Curve per hour: 2-10 [MW, $/MWh] points from
@@ -53,13 +56,19 @@ co-optimiser that only sees the price view you give it; "desk" = the desk foreca
 (hour ending). Only data already published is visible. Keep each turn short and end it when you are done."""
 
 
-def system_prompt(s: Session) -> str:
-    site = s.task["site"]
-    card = site.get("card") or {}
-    rules = POST if s.rtcb else PRE.format(cap=s.caps["dam"])
+def system_prompt(task: dict | Session, layer: str | None = None, budgets: dict | None = None) -> str:
+    """The brief for a task (or a live Session); needs only the task record."""
+    if isinstance(task, Session):
+        task, layer, budgets = task.task, task.layer, task.budget
+    layer = layer or task.get("layer", "v2")
+    budget = dict(BUDGETS[layer], **(budgets or {}))
+    site, d0, days = site_of(task), task["dates"][0], len(task["dates"])
+    rtcb = (task.get("era") or era_of(task["dates"])) == "rtcb"
+    card = task["site"].get("card") or {}
+    rules = POST if rtcb else PRE.format(cap=caps(d0, rtcb)["dam"])
     return BRIEF.format(name=card.get("name", "the battery"), region=card.get("region", "Texas"),
-                        size=card.get("size", ""), hsl=s.site.hsl, lsl=s.site.lsl, emin=s.site.e_min,
-                        emax=s.site.e_max, rte=s.site.rte, d0=clock.day_label(0, s.d0), soc0=s.site.soc0,
-                        start=clock.label(clock.START, s.d0), end=clock.label(s.end, s.d0), deg=s.site.deg,
-                        cyc=s.site.warranty, target=s.target, rules=rules, turns=s.budget["max_turns"],
-                        calls=s.budget["calls_per_turn"])
+                        size=card.get("size", ""), hsl=site.hsl, lsl=site.lsl, emin=site.e_min, emax=site.e_max,
+                        rte=site.rte, d0=clock.day_label(0, d0), soc0=site.soc0, start=clock.label(clock.START, d0),
+                        end=clock.label(clock.DAY * days, d0), deg=site.deg, cyc=site.warranty,
+                        target=idle_end_soc(site, 288 * days), rules=rules, turns=budget["max_turns"],
+                        calls=budget["calls_per_turn"])

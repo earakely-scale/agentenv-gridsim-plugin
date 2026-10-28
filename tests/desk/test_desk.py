@@ -244,7 +244,7 @@ def test_gateway_path_matches_turn_path(post):
     w = s.start()
     while w is not None:
         policies.anchor(s, w)
-        s._close_turn(None)
+        s.close_turn(None)
         nxt = s.call("next_wakeup", {}, role="hook")
         w = s.advance_to(nxt["at"]) if nxt["at"] is not None else None
     s.finish()
@@ -261,3 +261,12 @@ def test_replay_is_deterministic(post):
             b.call(c["tool"], c["args"])
         b.end_turn(t["text"])
     assert b.done and b.result == a.result
+
+
+def test_prompt_and_text(post, pre):
+    from gridsim_core.desk import system_prompt, text
+
+    p = system_prompt(post[0], "v2")
+    assert "RTC+B" in p and "FIXTURE" not in p and p == system_prompt(Session(*post))
+    assert "combo model" in system_prompt(pre[0])
+    assert text({"a": "é", "b": [1, 2]}) == '{"a":"é","b":[1,2]}'
