@@ -1050,8 +1050,10 @@ def across(d: dict) -> str:
     cell = lambda v, k: next((f"{h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small>" for m in v["models"]  # noqa: E731
                               if m["key"] == k), "–")
     rows = [f"| **{names[k]}** | " + " | ".join(cell(v, k) for v in vs) + " |" for k in keys]
-    return "\n".join(["**Across versions:** hindsight capture C, with its 95% CI.", "",
-                      "| Desk | " + " | ".join(f"{v['version']}, {v['name']}" for v in vs) + " |",
+    names_ = "; ".join(f"{v['version']}, *{v['name']}*" + (f", in {unit(v)}s" if v["days_per_task"] > 1 else "")
+                       for v in vs)
+    return "\n".join([f"**Across versions:** hindsight capture C with its 95% CI ({names_}).", "",
+                      "| Desk | " + " | ".join(v["version"] for v in vs) + " |",
                       "|---|" + "---:|" * len(vs), *rows, "", across_text(d)])
 
 
