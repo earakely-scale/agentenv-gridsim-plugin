@@ -32,9 +32,10 @@ from gridsim_core.desk.session import Session
 from gridsim_core.desk.tools import tool_specs
 
 MODELS = {
-    "sol": {"model": "openai/gpt-6.1-sol", "price": (2.0, 10.0, 0.10), "effort": "high"},
-    "luna": {"model": "openai/gpt-6-luna", "price": (0.10, 0.50, 0.01), "effort": "high"},
-    "qwen": {"model": "Qwen/Qwen3-4B", "price": (0.0, 0.0, 0.0), "effort": None, "thinking": False},
+    "sol": {"model": "openai/gpt-6.1-sol", "price": (2.0, 10.0, 0.10), "effort": "high", "route": "responses"},
+    "luna": {"model": "openai/gpt-6-luna", "price": (0.10, 0.50, 0.01), "effort": "high", "route": "responses"},
+    "qwen": {"model": "qwen3-4b", "price": (0.0, 0.0, 0.0), "effort": None, "thinking": False, "route": "chat",
+             "sampling": {"temperature": 0.7, "top_p": 0.8}},
 }
 KEEP_TURNS = 4
 COMPACT_CHARS = 120_000
@@ -112,80 +113,137 @@ def done_ids(out: Path, tag: str) -> set[str]:
 
 
 class ModelAgent:
-    def __init__(self, a, preset: dict, lane_spent: float):
+    """One model behind either route: `responses` (the gateway's GPT models: tools with reasoning effort) or `chat`
+    (chat completions, e.g. vLLM). The transcript is a list of plain dicts so a checkpoint can restore it."""
+
+    def __init__(self, a, preset: dict, lane_spent: float, system: str, tools: list[dict]):
         base = a.base_url or gateway_url(a.gateway_env)
         key = "EMPTY" if a.base_url and not a.ssm_param and not os.environ.get("DESK_API_KEY") else api_key(a)
         self.client = openai.OpenAI(base_url=base, api_key=key, timeout=a.timeout, max_retries=4)
         self.model = a.model or preset["model"]
+        self.route = preset.get("route", "chat")
         self.price = tuple(a.price) if a.price else preset["price"]
         self.effort = a.effort if a.effort is not None else preset.get("effort")
+        self.sampling = preset.get("sampling", {})
         self.thinking = preset.get("thinking")
         self.max_usd, self.lane_cap, self.lane_spent = a.max_usd, a.lane_cap_usd, lane_spent
         self.max_tokens = a.max_tokens
+        self.system = system
+        if self.route == "responses":
+            self.tools = [{"type": "function", **t["function"]} for t in tools]
+            self.items: list[dict] = []
+        else:
+            self.tools = tools
+            self.items = [{"role": "system", "content": system}]
+        self.turn_starts: list[int] = []
         self.usage = {"api_calls": 0, "input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
                       "latency_s": 0.0}
 
-    def cost(self, u) -> float:
-        cached = getattr(getattr(u, "prompt_tokens_details", None), "cached_tokens", 0) or 0
-        pin, pout, pcache = self.price
-        return ((u.prompt_tokens - cached) * pin + cached * pcache + u.completion_tokens * pout) / 1e6
+    def state(self) -> dict:
+        return {"items": self.items, "turn_starts": self.turn_starts, "usage": self.usage}
 
-    def complete(self, messages, tools, log) -> dict:
+    def load(self, st: dict) -> None:
+        self.items, self.turn_starts, self.usage = st["items"], st["turn_starts"], st["usage"]
+
+    def user(self, text: str) -> None:
+        self.turn_starts.append(len(self.items))
+        if self.route == "responses":
+            self.items.append({"role": "user", "content": [{"type": "input_text", "text": text}]})
+        else:
+            self.items.append({"role": "user", "content": text})
+
+    def result(self, call_id: str, output: str) -> None:
+        if self.route == "responses":
+            self.items.append({"type": "function_call_output", "call_id": call_id, "output": output})
+        else:
+            self.items.append({"role": "tool", "tool_call_id": call_id, "content": output})
+
+    def compact(self) -> None:
+        """Elide tool results older than the last KEEP_TURNS turns, all at once, so the cached prefix changes rarely."""
+        if sum(len(json.dumps(m)) for m in self.items) < COMPACT_CHARS or len(self.turn_starts) <= KEEP_TURNS:
+            return
+        key = "output" if self.route == "responses" else "content"
+        for m in self.items[:self.turn_starts[-KEEP_TURNS]]:
+            if (m.get("type") == "function_call_output" or m.get("role") == "tool") and m[key] != ELIDED:
+                m[key] = ELIDED
+
+    def _charge(self, inp: int, out: int, cached: int, dt: float) -> float:
+        pin, pout, pcache = self.price
+        c = ((inp - cached) * pin + cached * pcache + out * pout) / 1e6
+        self.usage["api_calls"] += 1
+        self.usage["input_tokens"] += inp
+        self.usage["output_tokens"] += out
+        self.usage["cached_tokens"] += cached
+        self.usage["cost_usd"] = round(self.usage["cost_usd"] + c, 6)
+        self.usage["latency_s"] = round(self.usage["latency_s"] + dt, 2)
+        return c
+
+    def step(self, log) -> tuple[str, list[tuple[str, str, str]]]:
+        """One model call: (text, [(call_id, name, arguments json)])."""
         if self.usage["cost_usd"] >= self.max_usd:
             raise SpendCap(f"run cap ${self.max_usd} reached")
         if self.lane_cap is not None and self.lane_spent + self.usage["cost_usd"] >= self.lane_cap:
             raise SpendCap(f"lane cap ${self.lane_cap} reached")
-        kw = {"model": self.model, "messages": messages, "tools": tools, "tool_choice": "auto"}
-        if self.max_tokens:
-            kw["max_completion_tokens"] = self.max_tokens
-        if self.effort:
-            kw["reasoning_effort"] = self.effort
-        if self.thinking is not None:
-            kw["extra_body"] = {"chat_template_kwargs": {"enable_thinking": self.thinking}}
+        self.compact()
         t0 = time.time()
-        r = self.client.chat.completions.create(**kw)
-        dt = time.time() - t0
-        u = r.usage
-        c = self.cost(u) if u else 0.0
-        cached = (getattr(getattr(u, "prompt_tokens_details", None), "cached_tokens", 0) or 0) if u else 0
-        self.usage["api_calls"] += 1
-        self.usage["input_tokens"] += u.prompt_tokens if u else 0
-        self.usage["output_tokens"] += u.completion_tokens if u else 0
-        self.usage["cached_tokens"] += cached
-        self.usage["cost_usd"] = round(self.usage["cost_usd"] + c, 6)
-        self.usage["latency_s"] = round(self.usage["latency_s"] + dt, 2)
-        msg = r.choices[0].message
-        out = {"role": "assistant", "content": msg.content or ""}
-        if msg.tool_calls:
-            out["tool_calls"] = [{"id": tc.id, "type": "function",
-                                  "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
-                                 for tc in msg.tool_calls]
-        log({"t": time.time(), "model": self.model, "latency_s": round(dt, 2), "finish": r.choices[0].finish_reason,
-             "input_tokens": u.prompt_tokens if u else None, "output_tokens": u.completion_tokens if u else None,
-             "cached_tokens": cached, "cost_usd": round(c, 6), "tool_calls": len(msg.tool_calls or []),
-             "content": (msg.content or "")[:2000]})
-        return out
-
-
-def compact(messages: list[dict], turn_starts: list[int]) -> None:
-    """Elide tool results older than the last KEEP_TURNS turns, all at once, so the cached prefix changes rarely."""
-    if sum(len(json.dumps(m)) for m in messages) < COMPACT_CHARS or len(turn_starts) <= KEEP_TURNS:
-        return
-    cut = turn_starts[-KEEP_TURNS]
-    for m in messages[:cut]:
-        if m["role"] == "tool" and m["content"] != ELIDED:
-            m["content"] = ELIDED
+        if self.route == "responses":
+            kw = {"model": self.model, "instructions": self.system, "input": self.items, "tools": self.tools,
+                  "store": False, "include": ["reasoning.encrypted_content"]}
+            if self.effort:
+                kw["reasoning"] = {"effort": self.effort, "summary": "auto"}
+            if self.max_tokens:
+                kw["max_output_tokens"] = self.max_tokens
+            r = self.client.responses.create(**kw)
+            dt = time.time() - t0
+            out = [item.model_dump(exclude_none=True) for item in r.output]
+            self.items.extend(out)
+            text = "".join(c.get("text", "") for i in out if i.get("type") == "message" for c in i.get("content", []))
+            calls = [(i["call_id"], i["name"], i.get("arguments") or "{}") for i in out
+                     if i.get("type") == "function_call"]
+            reasoning = "\n".join(x.get("text", "") for i in out if i.get("type") == "reasoning"
+                                  for x in i.get("summary", []))
+            u = r.usage
+            inp, outp = (u.input_tokens or 0, u.output_tokens or 0) if u else (0, 0)
+            cached = (u.input_tokens_details.cached_tokens or 0) if u and u.input_tokens_details else 0
+            finish = r.status
+        else:
+            kw = {"model": self.model, "messages": self.items, "tools": self.tools, "tool_choice": "auto",
+                  **self.sampling}
+            if self.max_tokens:
+                kw["max_completion_tokens"] = self.max_tokens
+            if self.effort:
+                kw["reasoning_effort"] = self.effort
+            if self.thinking is not None:
+                kw["extra_body"] = {"chat_template_kwargs": {"enable_thinking": self.thinking}}
+            r = self.client.chat.completions.create(**kw)
+            dt = time.time() - t0
+            msg = r.choices[0].message
+            m = {"role": "assistant", "content": msg.content or ""}
+            if msg.tool_calls:
+                m["tool_calls"] = [{"id": tc.id, "type": "function",
+                                    "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                                   for tc in msg.tool_calls]
+            self.items.append(m)
+            text = msg.content or ""
+            calls = [(tc.id, tc.function.name, tc.function.arguments or "{}") for tc in msg.tool_calls or []]
+            reasoning = ""
+            u = r.usage
+            inp, outp = (u.prompt_tokens, u.completion_tokens) if u else (0, 0)
+            cached = (getattr(getattr(u, "prompt_tokens_details", None), "cached_tokens", 0) or 0) if u else 0
+            finish = r.choices[0].finish_reason
+        c = self._charge(inp, outp, cached, dt)
+        log({"t": time.time(), "model": self.model, "route": self.route, "latency_s": round(dt, 2), "finish": finish,
+             "input_tokens": inp, "output_tokens": outp, "cached_tokens": cached, "cost_usd": round(c, 6),
+             "tool_calls": [n for _, n, _ in calls], "content": text[:2000], "reasoning": reasoning[:2000]})
+        return text, calls
 
 
 def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -> tuple[Session, dict, str]:
     tid = task["task_id"]
     ck = out / "ckpt" / f"{tid}.{tag}.json"
     calls_log = out / "calls" / f"{tid}.{tag}.jsonl"
-    agent = ModelAgent(a, preset, lane_spent)
     s = Session(task, series, layer=a.layer, budgets=budgets(a))
-    tools = tool_specs(s.layer, s.rtcb)
-    messages = [{"role": "system", "content": system_prompt(s)}]
-    turn_starts: list[int] = []
+    agent = ModelAgent(a, preset, lane_spent, system_prompt(s), tool_specs(s.layer, s.rtcb))
     wake = s.start()
     if ck.exists():
         state = json.loads(ck.read_text())
@@ -193,7 +251,7 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
             for c in t["calls"]:
                 s.call(c["tool"], c["args"])
             wake = s.end_turn(t.get("text"))
-        messages, turn_starts, agent.usage = state["messages"], state["turn_starts"], state["usage"]
+        agent.load(state["agent"])
         print(f"  resumed {tid} at turn {len(state['turns'])}", flush=True)
 
     def log(row):
@@ -203,30 +261,25 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
     status = "ok"
     try:
         while wake is not None:
-            turn_starts.append(len(messages))
-            messages.append({"role": "user", "content": json.dumps(wake)})
+            agent.user(json.dumps(wake))
             text = None
             for _ in range(s.budget["calls_per_turn"] + 3):
-                compact(messages, turn_starts)
-                msg = agent.complete(messages, tools, log)
-                messages.append(msg)
-                if not msg.get("tool_calls"):
-                    text = msg["content"]
+                text, calls = agent.step(log)
+                if not calls:
                     break
-                for tc in msg["tool_calls"]:
+                for call_id, name, raw in calls:
                     try:
-                        args = json.loads(tc["function"]["arguments"] or "{}")
+                        args = json.loads(raw)
                     except json.JSONDecodeError:
                         res = {"error": "args: arguments are not valid JSON"}
                     else:
-                        res = s.call(tc["function"]["name"], args)
-                    messages.append({"role": "tool", "tool_call_id": tc["id"], "content": json.dumps(res)})
+                        res = s.call(name, args)
+                    agent.result(call_id, json.dumps(res))
             turns = [{"calls": [{"tool": c["tool"], "args": c["args"]} for c in t["calls"]], "text": t.get("text")}
                      for t in s.turns]
             turns[-1]["text"] = text
             wake = s.end_turn(text)
-            ck.write_text(json.dumps({"turns": turns, "messages": messages, "turn_starts": turn_starts,
-                                      "usage": agent.usage}))
+            ck.write_text(json.dumps({"turns": turns, "agent": agent.state()}))
     except SpendCap as e:
         status = f"capped: {e}"
         print(f"  {tid}: {status}; the market runs on with the standing offers", flush=True)
