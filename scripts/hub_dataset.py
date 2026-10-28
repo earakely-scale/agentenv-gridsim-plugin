@@ -318,13 +318,16 @@ def captions() -> dict:
 
 
 def figure(name: str, n: int, alt: str) -> str:
-    """A results-page figure as the card prints it: its title above the bare chart, then its caption and notes, with
-    its sources linked into this dataset."""
+    """A results-page figure as the card prints it: its title above the bare chart, drawn in the page's light or dark
+    theme as the Hub's theme is (Tailwind's dark: classes, which the Hub keeps on a card's HTML), then its caption and
+    notes, with its sources linked into this dataset."""
     c = captions()[name]
     src = c["src"].removeprefix("Sources: ").removesuffix(" in the GridSimEnv-AgentEnv dataset.")
     src = re.sub(r"results/[\w./-]+", lambda m: tree(m[0]), src)
     note = "".join(f" {md(x)}" for x in c["notes"])
-    return "\n".join([f"**{md(c['title'])}**", "", f"![{alt}](assets/figures/{name}.png)", "",
+    return "\n".join([f"**{md(c['title'])}**", "",
+                      f'<img class="dark:hidden" src="assets/figures/{name}.png" alt="{escape(alt)}">',
+                      f'<img class="hidden dark:block" src="assets/figures/{name}-dark.png" alt="{escape(alt)}">', "",
                       f"<small>Figure {n} · {md(c['sub'])}{note} Sources: {src}.</small>"])
 
 

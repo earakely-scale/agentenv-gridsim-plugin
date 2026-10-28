@@ -7,7 +7,8 @@ bootstrapped with report_blind's day-block resampler, and is checked against the
     .venv/bin/python scripts/hub_results.py --publish    # then upload to the dataset and the Space
 
 Beam's records are read from results/beam-agent/beam/ (or --beam DIR); each effort joins the frontier once all its
-tasks are there. The figures are the page's own charts, captured in headless Chrome at twice their pixel size.
+tasks are there. The figures are the page's own charts, captured in headless Chrome at twice their pixel size, in the
+page's light and dark themes.
 """
 
 import argparse
@@ -690,25 +691,34 @@ CAPTIONS = ("Object.fromEntries([...document.querySelectorAll('[data-figure]')].
             "sub: e.querySelector('.panel-head .sub').textContent, "
             "notes: [...e.querySelectorAll('p.note:not(.drop)')].map((n) => n.textContent), "
             "src: e.querySelector('p.src').textContent}]))")
-BARE = ("document.head.insertAdjacentHTML('beforeend', '<style>body.export section.fig { padding-top: 16px; } "
-        "body.export section.fig :is(.panel-head, .note, .src) { display: none; }</style>')")
+BARE = ("document.documentElement.dataset.theme = '%s'; document.head.insertAdjacentHTML('beforeend', '<style>"
+        "body.export section.fig { padding-top: 16px; } body.export section.fig :is(.panel-head, .note, .src) "
+        "{ display: none; } html, body.export, body.export section.fig { background: transparent !important; } "
+        "body.export .viz-root { --surface-1: %s !important; }</style>')")
+THEMES = (("", "light", "#ffffff"), ("-dark", "dark", "#0b0f19"))
 
 
 def figures(space: Path, chrome: str | None, shots: Path | None) -> tuple[dict[str, bytes], dict[str, bytes], dict]:
-    """Each figure of the page, 800 px wide on white, captured at 2x: as the page draws it, titled, and bare (the chart
-    and its legend), which the dataset card prints under its own title with the page's caption, notes and sources.
-    With ``shots``, the whole page at 1440 and 390."""
+    """Each figure of the page, 800 px wide, captured at 2x: as the page draws it, titled on white, and bare (the chart
+    and its legend) on a transparent background in the page's light and dark themes (name and name-dark), which the
+    dataset card prints under its own title with the page's caption, notes and sources, each theme's text halo the
+    colour of the Hub's page in that theme. With ``shots``, the whole page at 1440 and 390."""
     titled, bare = {}, {}
     with browser(space, chrome) as (page, base):
         open_page(page, f"{base}/results.html?export=1", 800, 900, 2)
         captions = page.js(CAPTIONS)
-        for out, folder in ((titled, "titled"), (bare, "figures")):
-            if out is bare:
-                page.js(BARE)
+        for b in page.js(BOXES):
+            path = BUILD / "titled" / f"{b['id']}.png"
+            shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
+            titled[b["id"]] = path.read_bytes()
+        page.call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
+        for suffix, theme, hub_bg in THEMES:
+            page.js(BARE % (theme, hub_bg))
             for b in page.js(BOXES):
-                path = BUILD / folder / f"{b['id']}.png"
+                path = BUILD / "figures" / f"{b['id']}{suffix}.png"
                 shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
-                out[b["id"]] = path.read_bytes()
+                bare[b["id"] + suffix] = path.read_bytes()
+        page.call("Emulation.setDefaultBackgroundColorOverride")
         if shots:
             for w, mobile in ((1440, False), (390, True)):
                 open_page(page, f"{base}/results.html", w, 900, 1 if w > 1000 else 2, mobile)

@@ -203,7 +203,13 @@ configs:
 
 <div align="center">
 
-<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/dam-v1-2025-03-15-HB_WEST-1h-t-zgptiln6.json"><img src="assets/gridsim-hero.jpg" alt="GPT-6.1 Sol's run of a 160 MW battery at ERCOT's West hub on 15 March 2025, replayed in 3D at the $102 evening peak" width="100%"></a>
+<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-0xqk8eef.json"><img src="assets/gridsim-hero.gif" alt="GPT-6.1 Sol's v3 run at ERCOT's North hub on 10 August 2023, replayed in 3D: charging from the panels at 8 am, the $3,548/MWh real-time price at 4 pm, 100 MW of reserves discharged at 7 pm, the yard at night and the race against the references" width="100%"></a>
+
+<small>GridSimEnv v3 preview, replayed in 3D: GPT-6.1 Sol runs a 150 MW solar farm with a 100 MW / 200 MWh battery at
+ERCOT's North hub on 10 August 2023, a heat wave whose real-time price reached $3,548/MWh, and earns $1.60M against the
+rolling anchor's $1.55M (R 1.00; hindsight capture C 0.282, the anchor's 0.262).
+[Open the replay](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-0xqk8eef.json).
+ERCOT prices and deployments, NWS bulletins and IEM weather, all public; not affiliated with or endorsed by ERCOT.</small>
 
 <h1>GridSimEnv v1: The Battery Desk</h1>
 
@@ -216,14 +222,6 @@ configs:
 <a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>
 
 </div>
-
-An [AgentEnv](https://www.agentenvframework.com) environment built from ERCOT's public day-ahead market prices and
-EIA-860 battery records, with 21,250 battery-days, a public train split and no judge: every schedule is scored against
-a dynamic program that finds the best possible day. This dataset holds the battery-days and their references, the
-leaderboard and every schedule behind it, and the recorded runs: the Dataset Viewer opens on the leaderboard, and the
-subset menu has the rest ([What's inside](#whats-inside)). **[Read the
-article](https://huggingface.co/spaces/earakely-scale/GridSimEnv)** for the environment, the models, the training and
-the dollars, with every figure interactive.
 
 ---
 
@@ -354,6 +352,13 @@ bundle published with a dataset. This dataset publishes none yet, so play the pa
 ---
 
 ## What's inside
+
+An [AgentEnv](https://www.agentenvframework.com) environment built from ERCOT's public day-ahead market prices and
+EIA-860 battery records, with 21,250 battery-days, a public train split and no judge: every schedule is scored against
+a dynamic program that finds the best possible day. This dataset holds the battery-days and their references, the
+leaderboard and every schedule behind it, and the recorded runs: the Dataset Viewer opens on the leaderboard, and the
+subset menu has the rest. **[Read the article](https://huggingface.co/spaces/earakely-scale/GridSimEnv)** for the
+environment, the models, the training and the dollars, with every figure interactive.
 
 | Config | What it holds |
 |---|---|
