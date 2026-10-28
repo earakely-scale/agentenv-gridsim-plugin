@@ -191,8 +191,9 @@ def chip(a: dict) -> str:
 
 
 def captions(ep: dict, booked: dict[int, str]) -> list[dict]:
-    """Each hour as it played, from the run's settled hours, with each reserve call from the minute it starts or
-    ends."""
+    """Each hour as it played, with only what was known at that minute: the hour's DA price, posted the day before,
+    and the RT price of the last hour settled, never the hour's own; each reserve call from the minute it starts or
+    ends; a reserve shortfall from the hour's start, its charge only in the grade."""
     realized = {r["h"]: r for s in ep["steps"] if s["tool"] == "advance" for r in s["output"].get("realized", [])}
     dur = next(s["output"]["as_rules"]["duration_h"] for s in ep["steps"] if s["tool"] == "get_situation")
     spans: dict[str, list[list[int]]] = {}
@@ -205,13 +206,16 @@ def captions(ep: dict, booked: dict[int, str]) -> list[dict]:
             else:
                 xs.append([a, b])
     e_mwh, out = ep["task"]["site"]["bess"]["e_mwh"], []
+    hot = lambda p: " hot" if p > 200 else ""  # noqa: E731
     for x in ep["hours"]:
         h, m0 = x["h"], x["h"] * 60
-        head = (f'<span class="w">{h:02d}:00–{h + 1:02d}:00</span> '
-                f'<span class="p{" hot" if x["rt"] > 200 else ""}">RT ${x["rt"]:,.0f}</span> · ')
+        last = ep["hours"][h - 1]["rt"] if h else None
+        head = [f'<span class="w">{h:02d}:00–{h + 1:02d}:00</span> '
+                f'<span class="p{hot(x["da"])}">DA ${x["da"]:,.0f}</span>',
+                *([f'<span class="p{hot(last)}">RT ${last:,.0f} last hour</span>'] if h else [])]
         aw = {k: v for k, v in x["awards"].items() if v > 0.05}
-        tail = [f'<span class="bad">{approx(realized[h]["ftp_mw"])} MW of reserve short: {money(-x["ftp_usd"])} '
-                f'failure to provide</span>'] if x["ftp_usd"] > 0.5 else []
+        tail = [f'<span class="bad">{approx(realized[h]["ftp_mw"])} MW of reserve short</span>'] \
+            if x["ftp_usd"] > 0.5 else []
         batt = ""
         if abs(x["b_mw"]) > 0.05:
             batt = (f'<span class="{"c" if x["b_mw"] < 0 else "d"}">{"charging" if x["b_mw"] < 0 else "discharging"} '
@@ -224,22 +228,24 @@ def captions(ep: dict, booked: dict[int, str]) -> list[dict]:
                     marks += ([(a, (p, "on"))] if a > m0 else []) + ([(b, (p, "off"))] if b < m0 + 60 else [])
         for m, ev in sorted(marks, key=lambda z: z[0]):
             if ev and ev[1] == "on":
-                body = (f'<span class="d">ERCOT calls its {PRODUCT[ev[0]]}: {mw(aw[ev[0]])} MW</span>'
-                        + (f" from {hhmm(m)}" if m > m0 else ""))
+                body = [f'<span class="d">ERCOT calls its {PRODUCT[ev[0]]}: {mw(aw[ev[0]])} MW</span>'
+                        + (f" from {hhmm(m)}" if m > m0 else "")]
                 if batt:
-                    body += f" · {batt} · net discharging {approx(aw[ev[0]] + x['b_mw'])} MW"
+                    body += [batt, f"net discharging {approx(aw[ev[0]] + x['b_mw'])} MW"]
             elif ev:
-                body = f"the {PRODUCT[ev[0]]} call ends at {hhmm(m)} · holding {PRODUCT[ev[0]]} {mw(aw[ev[0]])} MW"
+                body = [f"the {PRODUCT[ev[0]]} call ends at {hhmm(m)}", f"holding {PRODUCT[ev[0]]} {mw(aw[ev[0]])} MW"]
             elif batt:
                 pv = min(-x["b_mw"], max(0.0, x["pv_mw"] - x["curtailed_mw"])) if x["b_mw"] < 0 else 0
-                body = batt.replace("</span>", f"</span>, {approx(pv)} from the panels", 1) if pv > 0.5 else batt
+                body = [batt.replace("</span>", f"</span>, {approx(pv)} from the panels", 1) if pv > 0.5 else batt]
             elif x["soc_mwh"] >= e_mwh - 0.5 and not aw:
-                body = f"battery full at {x['soc_mwh']:.0f} MWh · the panels export {approx(x['export_mw'])} MW"
+                body = [f"battery full at {x['soc_mwh']:.0f} MWh", f"the panels export {approx(x['export_mw'])} MW"]
             elif aw:
-                body = "holding " + " + ".join(f"{PRODUCT[k]} {mw(v)} MW" for k, v in aw.items()) + " in reserve"
+                body = ["holding " + " + ".join(f"{PRODUCT[k]} {mw(v)} MW" for k, v in aw.items()) + " in reserve"]
             else:
-                body = "idle"
-            out.append({"min": m, "html": head + " · ".join([body] + tail)})
+                body = ["idle"]
+            segs = head + body + tail
+            out.append({"min": m, "html": " ".join(f'<span class="hs">{seg}{" ·" if i < len(segs) - 1 else ""}</span>'
+                                                   for i, seg in enumerate(segs))})
     return out
 
 
@@ -324,8 +330,9 @@ def storyboard(ep: dict, fps: int) -> tuple[dict, list[dict]]:
 
 def grade(ep: dict, name: str) -> str:
     ref, p = ep["references"], ep["profit_usd"]
-    pi, pa, ph = ref["p_idle"], ref["p_anchor"], ref["p_hind"]
-    rows = ((name, p, "#0b9fc6"), ("Rolling anchor (MILP, same information)", pa, "#7a868e"),
+    pi, pa, ph, ftp = ref["p_idle"], ref["p_anchor"], ref["p_hind"], ep["cash"]["ftp"]
+    rows = ((name + (f", after {money(ftp)} failure to provide" if ftp > 0.5 else ""), p, "#0b9fc6"),
+            ("Rolling anchor (MILP, same information)", pa, "#7a868e"),
             ("Hindsight optimum", ph, "#b9c0c5"), ("Solar alone, battery idle", pi, "#d9dddf"))
     bars = "".join(f'<div class="gr"><span>{escape(label)}</span><b>{money(v)}</b></div><div class="bar">'
                    f'<i style="width:{v / ph * 100:.1f}%;background:{col}"></i></div>' for label, v, col in rows)

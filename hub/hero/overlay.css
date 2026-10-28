@@ -63,6 +63,7 @@
 #sb .st.play { background: #def3e6; color: #0f7a45; }
 #sb .st.end { background: #e8ecef; color: #3d4a54; }
 #sb .ln { margin-top: 3px; font-size: 16px; font-weight: 550; color: #2a343c; }
+#sb .ln .hs { white-space: nowrap; }
 #sb .ln .w { font-weight: 700; color: #1c2329; font-variant-numeric: tabular-nums; }
 #sb .ln .p { font-weight: 650; color: #46525b; font-variant-numeric: tabular-nums; }
 #sb .ln .p.hot, #sb .ln .bad { color: #cf3e33; }
