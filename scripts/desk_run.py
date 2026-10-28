@@ -20,6 +20,11 @@ from pathlib import Path
 
 import openai
 
+try:
+    import boto3
+except ImportError:
+    boto3 = None
+
 from gridsim_core.desk import fixtures, policies, refs
 from gridsim_core.desk.data import load_series, load_tasks
 from gridsim_core.desk.prompt import system_prompt
@@ -47,7 +52,8 @@ def gateway_url(path: str | None) -> str:
     for line in Path(p).read_text().splitlines():
         line = line.strip().removeprefix("export ").strip()
         if line.startswith("LITELLM_BASE_URL="):
-            return line.split("=", 1)[1].strip().strip("'\"")
+            url = line.split("=", 1)[1].strip().strip("'\"").rstrip("/")
+            return url if url.endswith("/v1") else url + "/v1"
     raise SystemExit(f"no LITELLM_BASE_URL= line in {p}")
 
 
@@ -57,11 +63,13 @@ def api_key(a) -> str:
     param = a.ssm_param or os.environ.get("DESK_SSM_PARAM")
     if not param:
         raise SystemExit("set DESK_API_KEY or --ssm-param / DESK_SSM_PARAM")
-    cmd = ["aws", "ssm", "get-parameter", "--name", param, "--with-decryption", "--query", "Parameter.Value",
-           "--output", "text", "--region", a.aws_region or os.environ.get("DESK_AWS_REGION", "us-west-2")]
+    region = a.aws_region or os.environ.get("DESK_AWS_REGION", "us-west-2")
     prof = a.aws_profile or os.environ.get("DESK_AWS_PROFILE")
-    if prof:
-        cmd += ["--profile", prof]
+    if boto3 is not None:
+        sess = boto3.Session(profile_name=prof, region_name=region) if prof else boto3.Session(region_name=region)
+        return sess.client("ssm").get_parameter(Name=param, WithDecryption=True)["Parameter"]["Value"]
+    cmd = ["aws", "ssm", "get-parameter", "--name", param, "--with-decryption", "--query", "Parameter.Value",
+           "--output", "text", "--region", region] + (["--profile", prof] if prof else [])
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0 or not r.stdout.strip():
         raise SystemExit("could not read the API key from SSM (check the profile and region)")
