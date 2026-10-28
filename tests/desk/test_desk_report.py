@@ -34,7 +34,8 @@ def test_report_on_policy_runs(tmp_path, monkeypatch):
     out = tmp_path / "report"
     monkeypatch.setattr(sys, "argv", ["desk_report.py", "--layer", "v2", "--pack", "fixtures",
                                       "--run", f"sol={tmp_path / 'anchor'}", "--run", f"qwen={tmp_path / 'scripted'}",
-                                      "--pilot", str(tmp_path / "anchor"), "--out", str(out)])
+                                      "--pilot", str(tmp_path / "anchor"), "--exclude-day", "2026-02-14",
+                                      "--out", str(out)])
     desk_report.main()
     s = json.loads((out / "summary.json").read_text())
     sol, qwen = s["models"]["sol"], s["models"]["qwen"]
@@ -56,6 +57,10 @@ def test_report_on_policy_runs(tmp_path, monkeypatch):
     readme = (out / "README.md").read_text()
     assert readme.index("| model |") < readme.index("## What the numbers say") < readme.index("## Method")
     assert len(s["pilot"]) == 3
+    sv = s["sensitivity"]
+    assert sv["without"]["n_tasks"] == 2 and set(sv["per_day_mean_P"]) == {d for d, _ in seeds}
+    assert sv["losses"]["sol"]["worst_p"] == min(sv["per_day_mean_P"][d]["models"]["sol"] for d, _ in seeds)
+    assert readme.index("## Sensitivity (post hoc, not pre-registered)") > readme.index("### Paired gaps")
     assert "| floored |" in readme and isinstance(sol["floored"], int)
 
 

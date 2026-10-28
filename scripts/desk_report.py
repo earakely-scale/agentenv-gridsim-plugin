@@ -459,7 +459,7 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
     with plt.rc_context(theme_rc(th)):
         fig = plt.figure(figsize=(14, 7.6))
         gs = fig.add_gridspec(3, 2, width_ratios=[3.1, 1.25], height_ratios=[1.25, 1.0, 0.8], hspace=0.12,
-                              wspace=0.04, left=0.06, right=0.99, top=0.84, bottom=0.08)
+                              wspace=0.04, left=0.06, right=0.99, top=0.80, bottom=0.08)
         ax_p, ax_s, ax_d = (fig.add_subplot(gs[i, 0]) for i in range(3))
         ax_t = fig.add_subplot(gs[:, 1])
         ax_t.axis("off")
@@ -487,11 +487,16 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
         ax_p.set_ylim(bot, top)
         ax_p.set_ylabel("$/MWh", fontsize=9)
         span_x = 1440 * nd - t0 * k
-        level, last = 0, None
+        lanes: list[float] = []
         for i, w, _, acted in items:
             x = w["t"] * k if w["t"] < 0 else w["t"]
-            level = (level + 1) % 3 if last is not None and x - last < 0.022 * span_x else 0
-            last = x
+            level = next((j for j, v in enumerate(lanes) if x - v >= 0.017 * span_x), len(lanes))
+            if level >= 4:
+                level = int(np.argmin(lanes))
+            if level < len(lanes):
+                lanes[level] = x
+            else:
+                lanes.append(x)
             ax_p.annotate(str(i), (w["t"], top), xytext=(0, 9 + 14 * level), textcoords="offset points", ha="center",
                           va="center", fontsize=7.5, color=th["bg"] if acted else th["ink"], annotation_clip=False,
                           bbox={"boxstyle": "circle,pad=0.22", "fc": accent if acted else th["bg"],
@@ -604,6 +609,82 @@ def anchor_note(refs_by: dict, days: dict) -> list[str]:
     return [k if len(c) == 1 else f"{k} ×{v}" for k, v in c.items()]
 
 
+def sensitivity(grades: dict, days: dict, union: dict, exclude: list[str]) -> dict:
+    """Post hoc views: medians, means without the excluded days, per-day mean P, loss counts."""
+    refk = (("anchor", "p_anchor"), ("operator_replay", "p_operator_replay"), ("operator_actual", "p_operator_actual"))
+    out = {"median_P": {m: round(float(np.median([g["p"] for g in gs.values()])), 2) for m, gs in grades.items()
+                        if gs},
+           "median_P_references": {k: round(float(np.median(v)), 2) for k, f in refk
+                                   if (v := [g[f] for g in union.values() if g.get(f) is not None])}}
+    keep = [t for t in union if days[t] not in exclude]
+    if exclude:
+        w = {"models": {}, "references": {}}
+        for m, gs in grades.items():
+            ts = [t for t in gs if t in keep]
+            dd = [days[t] for t in ts]
+            cs = [(gs[t]["capture"], days[t]) for t in ts if gs[t]["capture"] is not None]
+            cp = [(gs[t]["capture_phys"], days[t]) for t in ts if gs[t].get("capture_phys") is not None]
+            w["models"][m] = {"P": boot([gs[t]["p"] for t in ts], dd), "R": boot([gs[t]["reward"] for t in ts], dd),
+                    "C": boot([a for a, _ in cs], [b for _, b in cs]), "C_phys": boot([a for a, _ in cp],
+                                                                                  [b for _, b in cp])}
+        for k, f in refk:
+            ts = [t for t in keep if union[t].get(f) is not None]
+            w["references"][k] = {"P": boot([union[t][f] for t in ts], [days[t] for t in ts])}
+        out["without"] = {"days": exclude, "n_tasks": len(keep), "means": w}
+    by = {}
+    for d in sorted({days[t] for t in union}):
+        row = {"models": {}, "references": {}}
+        for m, gs in grades.items():
+            v = [g["p"] for t, g in gs.items() if days[t] == d]
+            row["models"][m] = round(float(np.mean(v)), 2) if v else None
+        for k, f in refk:
+            v = [union[t][f] for t in union if days[t] == d and union[t].get(f) is not None]
+            row["references"][k] = round(float(np.mean(v)), 2) if v else None
+        by[d] = row
+    out["per_day_mean_P"] = by
+    loss = {}
+    for m, gs in grades.items():
+        if not gs:
+            continue
+        worst = min(gs, key=lambda t: gs[t]["p"])
+        loss[m] = {"tasks_p_below_0": sum(g["p"] < 0 for g in gs.values()),
+                   "days_mean_p_below_0": sum(1 for d in by if (by[d]["models"].get(m) or 0) < 0),
+                   "worst_task": worst, "worst_p": gs[worst]["p"]}
+    out["losses"] = loss
+    return out
+
+
+def sens_md(summary: dict) -> str:
+    sv, ms = summary.get("sensitivity"), summary["models"]
+    if not sv:
+        return ""
+    refs = ("anchor", "operator_replay", "operator_actual")
+    lm = {k: NAMES.get(k, k) for k in ms}
+    lr = {k: summary["references"][k]["label"] for k in refs}
+    parts = ["## Sensitivity (post hoc, not pre-registered)", "",
+             table(["", *lm.values(), *lr.values()],
+                   [["median P", *[money_s(sv["median_P"][k]) for k in ms],
+                     *[money_s(sv["median_P_references"][k]) if k in sv["median_P_references"] else "—"
+                       for k in refs]]])]
+    w = sv.get("without")
+    if w:
+        parts += ["", f"Means without {', '.join(w['days'])} ({w['n_tasks']} tasks):", "",
+                  table(["", "n", "mean P", "R", "C", "C_phys"],
+                        [[lm[k] if g == "models" else lr[k], str(v["P"]["n"]), fmt_ci(v["P"], money=True),
+                          fmt_ci(v["R"], digits=2) if "R" in v else "—", fmt_ci(v["C"], digits=2) if "C" in v else "—",
+                          fmt_ci(v["C_phys"], digits=2) if "C_phys" in v else "—"]
+                         for g in ("models", "references") for k, v in w["means"][g].items()])]
+    parts += ["", "Mean P per operating day:", "",
+              table(["day", *lm.values(), *lr.values()],
+                    [[d, *["—" if v is None else money_s(v) for v in [*row["models"].values(),
+                                                                     *row["references"].values()]]]
+                     for d, row in sv["per_day_mean_P"].items()]),
+              "", table(["model", "tasks with P < 0", "days with mean P < 0", "worst task", "worst P"],
+                        [[lm[k], str(v["tasks_p_below_0"]), str(v["days_mean_p_below_0"]), v["worst_task"],
+                          money_s(v["worst_p"])] for k, v in sv["losses"].items()]), ""]
+    return "\n".join(parts) + "\n"
+
+
 def plural(n: int) -> str:
     return "" if n == 1 else "s"
 
@@ -689,6 +770,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t5}
 
+{sens_md(summary)}
 {fig}
 ## What the numbers say
 
@@ -723,6 +805,8 @@ def main() -> None:
     ap.add_argument("--regrade", action="store_true", help="grade every episode against the pack's frozen refs")
     ap.add_argument("--refs", help="a refs.jsonl ({task_id, refs} per line) that overrides the pack's task refs")
     ap.add_argument("--hero", help="MODEL or MODEL:TASK_ID for the timeline (default: the best Sol episode by C)")
+    ap.add_argument("--exclude-day", action="append", default=[], metavar="DATE",
+                    help="post hoc: also report means without these operating days (Sensitivity section)")
     ap.add_argument("--notes", help="a file of README bullets (one per line) instead of the generated ones")
     ap.add_argument("--no-copy", action="store_true")
     ap.add_argument("--out", required=True)
@@ -812,6 +896,7 @@ def main() -> None:
         "missing": {name: sorted(set(pack_tasks) - set(grades[name])) for name in runs} if pack_tasks else None,
         "ci": {"method": "day-block bootstrap, task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
         "models": models, "references": ref_block(union, days), "paired": pairs, "pilot": pilot or None,
+        "sensitivity": sensitivity(grades, days, union, a.exclude_day),
         "regraded": {"applied": a.regrade, "refs": a.refs or ("pack task rows" if a.regrade else None),
                      "reward_changed": dict(regraded), "not_regraded": dict(unrefd), "diffs": diffs,
                      "anchor_settings": dict(Counter(json.dumps(x.get("anchor_setting"), sort_keys=True)
