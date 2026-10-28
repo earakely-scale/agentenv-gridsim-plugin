@@ -1,10 +1,11 @@
-"""The desk on the Hub: results/overview/desk.json (read by the Space's desk page, the card's desk section and the
-article's desk chapter), the dataset's desk_leaderboard and desk_runs configs and its results/desk-v<N>/ folders, from
-the result folders scripts/desk_report.py writes on the desk branch. Each version's grades are checked against its
-summary.json before anything is written, and links to its files on GitHub pin the version's results tag.
+"""The desk on the Hub: results/overview/desk.json (read by the dataset card, the article and the viewer Space), the
+dataset's desk_leaderboard, desk_runs and desk_tasks configs, its results/desk-v<N>/ folders and the card's charts,
+exported from the desk page staged locally. Each version's grades are checked against its summary.json and its tasks'
+references against the grades before anything is written, and links to its files on GitHub pin its results tag. The
+viewer Space builds and publishes itself.
 
-    .venv/bin/python scripts/hub_desk.py --desk ~/gridsim-desk/results --ref v2=desk-v2-results
-    .venv/bin/python scripts/hub_desk.py --desk ~/gridsim-desk/results --ref v2=desk-v2-results --publish
+    .venv/bin/python scripts/hub_desk.py --desk results --ref v2=desk-v2-results ... --gif v4 TASK GIF --lead v4
+    .venv/bin/python scripts/hub_desk.py --desk results --ref v2=desk-v2-results ... --lead v4 --publish
 """
 
 import argparse
@@ -29,6 +30,7 @@ REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
 GIF = "assets/gridsim-desk-hero.gif"
+PAGE = ("desk.html", "desk.js", "desk.css", "board.css", "results.css")
 LADDER = (
     ("v2", "The Live Grid", "energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS "
      "alerts and the battery's outages at their real minutes",
@@ -105,8 +107,7 @@ def main():
     ap.add_argument("--gif-model", default="sol", help="The model whose episodes the GIFs film.")
     ap.add_argument("--lead", metavar="VERSION", help="The version whose GIF leads the card; else the first GIF opens "
                                                      "the desk section. Every GIF plays on its version's desk page.")
-    ap.add_argument("--publish", nargs="*", choices=("dataset", "space"),
-                    help="Upload to these repos; bare, to the dataset and the Space.")
+    ap.add_argument("--publish", action="store_true", help="Upload to the dataset; the viewer Space publishes itself.")
     ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
@@ -133,33 +134,29 @@ def main():
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
     hr = module("hub_results", "scripts/hub_results.py")
     hd = module("hub_dataset", "scripts/hub_dataset.py")
-    sp = space_files(desk, hr.live_file("space", "README.md"))
     space = BUILD / "space"
     shutil.rmtree(space, ignore_errors=True)
-    for k, v in (sp | {n: (WEB / n).read_bytes() for n in ("board.css", "results.css")}).items():
-        (space / k).parent.mkdir(parents=True, exist_ok=True)
-        (space / k).write_bytes(v)
+    space.mkdir(parents=True)
+    for n in PAGE:
+        (space / n).write_bytes((WEB / n).read_bytes())
+    (space / "desk.json").write_text(json.dumps(desk, ensure_ascii=False, separators=(",", ":")))
     figs = figures(space, [v["version"] for v in desk["versions"]], hr)
     card = hd.card_only(args.results)
     ds = files | figs | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
     text = {k: v for k, v in ds.items() if not k.endswith(".gif")}
-    hr.leaks(text | {f"space/{k}": v for k, v in sp.items()})
-    anonymous(text | {f"space/{k}": v for k, v in sp.items()}, names(args.desk.parent))
+    hr.leaks(text)
+    anonymous(text, names(args.desk.parent))
     dataset = BUILD / "dataset"
     shutil.rmtree(dataset, ignore_errors=True)
     for k, v in ds.items():
         (dataset / k).parent.mkdir(parents=True, exist_ok=True)
         (dataset / k).write_bytes(v)
-    for name, fs, where in (("dataset", ds, dataset), ("space", sp, space)):
-        print(f"{name}: {len(fs)} files, {sum(map(len, fs.values())) / 1e6:.2f} MB in {where}")
+    print(f"dataset: {len(ds)} files, {sum(map(len, ds.values())) / 1e6:.2f} MB in {dataset}")
     for v in desk["versions"]:
         print(f"{v['version']} {v['pack']}: " + ", ".join(f"{m['name']} C {m['C']['mean']}" for m in v["models"]))
-    if args.publish is not None:
-        done, to = ", ".join(v["version"] for v in desk["versions"]), args.publish or ["dataset", "space"]
-        if "dataset" in to:
-            print("dataset:", hr.publish("dataset", ds, f"The desk: {done} results and tables"))
-        if "space" in to:
-            print("space:", hr.publish("space", sp, f"The desk page: {done} results"))
+    if args.publish:
+        done = ", ".join(v["version"] for v in desk["versions"])
+        print("dataset:", hr.publish("dataset", ds, f"The desk: {done} results and tables"))
 
 
 def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple[dict, dict[str, bytes]]:
@@ -539,24 +536,6 @@ def relink(text: str, rel: str, tag: str, folder: Path) -> str:
             url = f"{REPO}/blob/{tag}/{path}"
         return f"{bang}[{label}]({url})"
     return LINK.sub(fix, text)
-
-
-def space_files(desk: dict, live_readme: str) -> dict[str, bytes]:
-    names = ("desk.html", "desk.js", "desk.css", "results.html", "board.html", "index.html")
-    return {n: (WEB / n).read_bytes() for n in names} | {
-        "desk.json": json.dumps(desk, ensure_ascii=False, separators=(",", ":")).encode(),
-        "README.md": space_readme(desk, live_readme).encode()}
-
-
-def space_readme(desk: dict, live: str) -> str:
-    """The Space card as published, with the desk page linked above the results page."""
-    names = [m["name"] for m in desk["versions"][-1]["models"]]
-    par = (f"**[The desk]({APP}/desk.html):** one real ERCOT battery traded through the day-ahead market and real "
-           f"time by {', '.join(names[:-1])} and {names[-1]}, on ERCOT's real prices, forecasts and notices as each "
-           "was posted, against the hindsight optimum and the real operator's own bids, version by version.\n\n")
-    text = re.sub(r"\*\*\[The desk\]\(.*?\n\n", "", live, flags=re.S)
-    at = text.index("**[What training bought, in dollars]")
-    return text[:at] + par + text[at:]
 
 
 def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
