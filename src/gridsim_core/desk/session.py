@@ -235,7 +235,7 @@ class Session:
         if r == "outage":
             u = i["unit"]
             if i["phase"] == "start":
-                end = clock.label(u["t_end"], self.d0) if u.get("t_end") is not None else "unknown"
+                end = clock.label(_planned_end(u), self.d0) if _planned_end(u) is not None else "unknown"
                 return {"t": t, "kind": "outage", "text": f"{u['kind'].replace('_', ' ')}: HSL {u.get('hsl_mw', 0):g} MW,"
                         f" LSL {u.get('lsl_mw', 0):g} MW until {end} (expected). Update your COP within 60 minutes"}
             return {"t": t, "kind": "outage", "text": "Unit back to normal limits"}
@@ -399,7 +399,11 @@ class Session:
                     "values": [_r(v) for v in vals], "stats": _stats(vals)}
         if j is None:
             hist = self.ser.history_rt if market == "rt" else self.ser.history_lmp
-            vals = hist.get(date) if not hub else None
+            if hub and market == "sced" and self.layer != "v2":
+                hist, hub_ok = self.ser.history_lmp_hub, True
+            else:
+                hub_ok = not hub
+            vals = hist.get(date) if hub_ok else None
             if vals is None:
                 return {"error": f"data: no {market} prices on the desk for {date}"}
             base_step = 15 if market == "rt" else 5
@@ -420,9 +424,9 @@ class Session:
         if market == "rt":
             src = self.ser.rt_spp_hub if hub else self.ser.rt_spp
         else:
-            if hub:
+            if hub and (self.layer == "v2" or not self.ser.rt_lmp_hub):
                 return {"error": "data: SCED LMPs are shown for your node only"}
-            src = self.ser.rt_lmp
+            src = self.ser.rt_lmp_hub if hub else self.ser.rt_lmp
         if not src:
             return {"error": "data: no hub prices in this pack"}
         default_h = 6 if market == "rt" else 2
@@ -635,8 +639,8 @@ class Session:
                 "nameplate": {"hsl_mw": s.hsl, "lsl_mw": s.lsl, "e_max_mwh": s.e_max, "e_min_mwh": s.e_min,
                               "ramp_mw_per_min": _r(s.ramp, 1)},
                 "last_base_points": last, "metered_mw": _r(e.metered[k - 1], 1) if k else 0.0,
-                "outage": None if ev is None else {"kind": ev["kind"], "until": clock.label(ev["t_end"], self.d0)
-                                                   if ev.get("t_end") is not None else None},
+                "outage": None if ev is None else {"kind": ev["kind"], "until": clock.label(_planned_end(ev), self.d0)
+                                                   if _planned_end(ev) is not None else None},
                 "curve_in_force": src, "cycles_today": _r(dis / s.usable, 3),
                 "rte": s.rte, "standby_loss_pct_per_h": s.loss_pct_h,
                 "deg_usd_per_mwh": s.deg, "warranty_cycles_per_day": s.warranty,
@@ -1166,6 +1170,11 @@ class Session:
                 "statement": self.result, "grade": grade, "compliance": self.compliance(),
                 "usage": usage or {}, "budget": self.budget, "series_sha": self.series_sha,
                 "core_version": CORE_VERSION}
+
+
+def _planned_end(u: dict) -> float | None:
+    """The end the operator expects: the first report's planned end when the pack has it, else the recorded end."""
+    return u.get("t_end_planned", u.get("t_end"))
 
 
 def is_idle_status(s: str) -> bool:

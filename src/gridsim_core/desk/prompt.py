@@ -35,8 +35,8 @@ PRE = """Market rules in force (ERCOT before RTC+B, the "combo model"):
   Settlement: DAM energy at the DAM price; deviations from the DAM award at the 15-minute real-time price (including
   ORDC scarcity adders); base-point deviation beyond 5%/5 MW is charged."""
 
-AS_POST = """Ancillary services (after RTC+B): you may also sell RegUp, RegDn, RRS (PFR at most 20% of your
-range, or FFR), ECRS and Non-Spin. DAM AS offers (by 10:00 the day before) are paid the DAM MCPC but are financial: in real time
+AS_POST = """Ancillary services (after RTC+B): you may also sell RegUp, RegDn, RRS (PFR or FFR), ECRS
+and Non-Spin. DAM AS offers (by 10:00 the day before) are paid the DAM MCPC but are financial: in real time
 SCED re-awards AS every 5 minutes against your RT AS offers (or ERCOT's proxy offers if you have none) and the DAM award
 is bought back or topped up at the RT MCPC. SCED only awards AS your state of charge can sustain: RegUp/RegDn 0.5 h,
 RRS 0.5 h (FFR 0.25 h), ECRS 1 h, Non-Spin 4 h, and energy plus up-reserves cannot exceed your HSL. Regulation moves
@@ -54,6 +54,9 @@ price you are paid and what you buy raises it, more steeply at high prices. Real
 
 PV = """Your site also has {pv:g} MW of co-located solar (modelled) behind a {poi:g} MW point of interconnection: solar sells
 at the real-time price (curtailed below $0), and battery discharge plus solar cannot exceed the POI."""
+
+LMP_V2 = "5-minute SCED LMPs are shown for your node; hubs and load zones as 15-minute RT SPPs."
+LMP_V3 = "5-minute SCED LMPs are shown for your node and your hub; RT SPPs every 15 minutes."
 
 BRIEF = """You are the battery trader on a QSE desk in ERCOT. You run one real grid-scale battery: {name}, {region},
 {size} (max discharge {hsl:g} MW, max charge {lsl:g} MW, usable {emin:g}-{emax:g} MWh, round-trip efficiency {rte:.0%}).
@@ -75,7 +78,7 @@ get_asset_status, get_position, submit_dam_offers, submit_rt_offers, update_cop,
 co-optimiser that only sees the price view you give it; "desk" = the desk forecast) and set_reminder. Hours are HE01..HE24
 (hour ending). Days: "D-1" is the day you start on (you trade the D0 DAM on it), "D0" is the operating day{later}.
 Times are accepted as shown ("Sun 04-26 09:00" or "04-26 09:00"), as "D-1 09:30" / "D0 14:35", or ISO.
-5-minute SCED LMPs are shown for your node; hubs and load zones as 15-minute RT SPPs.
+{lmp_line}
 Only data already published is visible. Keep each turn short and end it when you are done."""
 
 
@@ -101,4 +104,5 @@ def system_prompt(task: dict | Session, layer: str | None = None, budgets: dict 
                         end=clock.label(clock.DAY * days, d0), deg=site.deg, cyc=site.warranty,
                         target=idle_end_soc(site, 288 * days), rules=rules, turns=budget["max_turns"],
                         calls=budget["calls_per_turn"],
-                        later="" if days == 1 else f" and D1..D{days - 1} the operating days after it")
+                        later="" if days == 1 else f" and D1..D{days - 1} the operating days after it",
+                        lmp_line=LMP_V2 if layer == "v2" else LMP_V3)

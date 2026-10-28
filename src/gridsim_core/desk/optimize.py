@@ -13,7 +13,6 @@ import numpy as np
 from gridsim_core.desk.ancillary import (
     DEPLOY_FACTOR,
     DURATION_POST,
-    PFR_SHARE,
     PRICE_KEY,
     REG_MEAN,
     remaining_hour_duration,
@@ -175,7 +174,7 @@ def solve(p: Problem) -> Plan:
     fd = np.asarray(p.reg_dn or [REG_MEAN["dn"]] * nH, dtype=float)[hs]
 
     def cap(pr: str, H: int) -> float:
-        c = PFR_SHARE * rng if pr == "rrspfr" else rng
+        c = rng
         if p.as_cap and p.as_cap[H] and pr in p.as_cap[H]:
             c = min(c, p.as_cap[H][pr])
         return c

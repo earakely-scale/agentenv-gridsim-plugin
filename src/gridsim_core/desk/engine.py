@@ -169,7 +169,7 @@ class Engine:
                 pk = asv.PRICE_KEY[p]
                 asdc = (self.ser.asdc.get(pk) or [None] * self.H)[H]
                 plan = (self.ser.as_plan.get(pk) or [None] * self.H)[H]
-                mw = asv.PFR_SHARE * self.range_mw if p == "rrspfr" else self.range_mw
+                mw = self.range_mw
                 merged[p], src[p] = [[mw, asv.proxy_offer(mw, asdc, plan, highest)[0][1]]], "proxy"
         return merged, src
 
@@ -195,7 +195,7 @@ class Engine:
         self.t = t
 
     def _caps(self, H: int, rt: bool) -> dict:
-        out = {"rrspfr": asv.PFR_SHARE * self.range_mw}
+        out = {}
         if rt:
             for p, v in self.cop["as_cap"][H].items():
                 out[p] = min(out.get(p, v), v)

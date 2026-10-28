@@ -2,7 +2,8 @@
 AS offer validation, ERCOT's proxy AS offers and the price-taker energy + AS co-clearing used by the DAM and by SCED.
 
 Sources (desk-research.md): products and ESR restrictions §2c, §4; durations §4a (NPRR1282 post-RTC+B; NPRR1186
-remaining-hour rule before); PFR at most 20% of (HSL - LSL) §4a; proxy AS offers §2d (P§6.5.7.3(5)); DAM linkage
+remaining-hour rule before; the 20% PFR default of §4a is not applied: P§3.18(3)(a) sets a resource-specific droop limit
+and real ESR awards exceed 20%); proxy AS offers §2d (P§6.5.7.3(5)); DAM linkage
 §3 (P§4.5.1(4)(c)(iii), P§3.18)."""
 
 from __future__ import annotations
@@ -24,7 +25,6 @@ NAMES = {"regup": "RegUp", "regdn": "RegDn", "rrspfr": "RRS-PFR", "rrsffr": "RRS
          "nspin": "Non-Spin"}
 DURATION_POST = {"regup": 0.5, "regdn": 0.5, "rrspfr": 0.5, "rrsffr": 0.25, "ecrs": 1.0, "nspin": 4.0}
 DURATION_PRE = {"regup": 1.0, "regdn": 1.0, "rrspfr": 1.0, "rrsffr": 0.25, "ecrs": 2.0, "nspin": 4.0}
-PFR_SHARE = 0.2
 MAX_BLOCKS = 5
 MIN_BLOCK_MW = 0.1
 NPRR1186_START = dt.date(2024, 6, 27)
@@ -77,7 +77,7 @@ def check_as_offer(product, blocks, cap: float, range_mw: float, date: str) -> l
         if not 0.0 <= b[1] <= cap:
             errs.append(_err("ASO-04", f"price {b[1]:g} outside [0, {cap:g}] $/MW/h"))
     total = sum(float(b[0]) for b in blocks)
-    limit = PFR_SHARE * range_mw if product == "rrspfr" else range_mw
+    limit = range_mw
     if total > limit + 1e-6:
         errs.append(_err("ASO-05", f"{total:g} MW offered; at most {limit:g} MW of {NAMES[product]}"))
     return errs[:1]

@@ -101,6 +101,8 @@ class Series:
     history_mcpc: dict = field(default_factory=dict)
     history_rt_mcpc: dict = field(default_factory=dict)
     market: dict = field(default_factory=dict)
+    rt_lmp_hub: list = field(default_factory=list)
+    history_lmp_hub: dict = field(default_factory=dict)
 
     @property
     def days(self) -> int:
@@ -186,6 +188,10 @@ def _ancillary(ser: Series, series: dict, dates: list[str], hist: list[str]) -> 
     ser.history_mcpc = {d: series["dam_mcpc"][d] for d in hist if d in (series.get("dam_mcpc") or {})}
     ser.history_rt_mcpc = {d: series["rt_mcpc_15"][d] for d in hist if d in (series.get("rt_mcpc_15") or {})}
     ser.market = {d: series["market"][d] for d in dates if d in (series.get("market") or {})}
+    hub = series.get("rt_lmp_hub") or {}
+    if all(d in hub for d in dates):
+        ser.rt_lmp_hub = _flat(hub, dates, 288, "rt_lmp_hub")
+    ser.history_lmp_hub = {d: hub[d] for d in hist if d in hub}
 
 
 def build(task: dict, series: dict) -> Series:
@@ -214,7 +220,7 @@ def build(task: dict, series: dict) -> Series:
         forecasts=_vintages(series.get("forecasts"), d0),
         outage_capacity=_vintages([dict(r, kind="outages") for r in series.get("outage_capacity") or []], d0),
         desk_forecast=_vintages(series.get("desk_forecast"), d0, kind_key="market"),
-        unit_events=_timed(series.get("unit_events"), d0, "start", "end"),
+        unit_events=_timed(series.get("unit_events"), d0, "start", "end", "end_planned"),
         notices=_timed(series.get("notices"), d0, "issued_at"),
         nws=_timed(series.get("nws"), d0, "issued_at", "expires", "expires_initial"),
         deployments=_timed(series.get("deployments"), d0, "start", "end"),

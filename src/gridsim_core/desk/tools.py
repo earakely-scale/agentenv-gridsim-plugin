@@ -41,7 +41,7 @@ def _as_offers(rtcb: bool, market: str) -> dict:
     return {"type": "array", "description": (
         "AS offers per product and hour: {hours, product, blocks: [[mw, $/MW/h], ...]} (up to 5 blocks, the same each "
         "hour; [] cancels) or {hours, product, mw: [...], price: [...]} (one block per hour; 0 MW cancels). Products: "
-        f"regup, regdn, rrspfr, rrsffr, ecrs, nspin; price $0..${cap:,}/MW/h; min 0.1 MW; RRS-PFR <= 20% of the range."),
+        f"regup, regdn, rrspfr, rrsffr, ecrs, nspin; price $0..${cap:,}/MW/h; min 0.1 MW; at most HSL - LSL."),
         "items": {"type": "object", "properties": {
             "hours": _HOURS, "product": {"type": "string", "enum": ["regup", "regdn", "rrspfr", "rrsffr", "ecrs",
                                                                     "nspin"]},

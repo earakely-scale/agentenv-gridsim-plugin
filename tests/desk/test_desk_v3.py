@@ -40,7 +40,8 @@ def test_as_offer_codes():
     assert ancillary.check_as_offer("ecrs", [[1, 1]], 5000, 200, "2023-01-05")[0]["code"] == "ASO-01"
     assert ancillary.check_as_offer("regup", [[0.05, 1]], 5000, 200, POST)[0]["code"] == "ASO-03"
     assert ancillary.check_as_offer("regup", [[10, 2500]], 2000, 200, POST)[0]["code"] == "ASO-04"
-    assert ancillary.check_as_offer("rrspfr", [[50, 1]], 5000, 200, POST)[0]["code"] == "ASO-05"
+    assert ancillary.check_as_offer("rrspfr", [[150, 1]], 5000, 200, POST) == []
+    assert ancillary.check_as_offer("rrspfr", [[150, 1], [60, 2]], 5000, 200, POST)[0]["code"] == "ASO-05"
     assert ancillary.check_as_offer("regup", [[1, 1]] * 6, 5000, 200, POST)[0]["code"] == "ASO-02"
     assert ancillary.check_as_offer("nspin", [[20, 3.0], [10, 5.0]], 5000, 200, POST) == []
 
@@ -52,7 +53,6 @@ def test_v3_soc_holds_and_awards_within_headroom(post3):
         assert site.e_min - 1e-6 <= e.soc[k + 1] <= site.e_max + 1e-6
         up = sum(e.rt_as[k].get(p, 0.0) for p in ancillary.UP)
         assert up <= site.hsl - site.lsl + 1e-6
-        assert e.rt_as[k].get("rrspfr", 0.0) <= ancillary.PFR_SHARE * (site.hsl - site.lsl) + 1e-6
 
 
 def test_v3_grades(post3, pre3):
@@ -124,3 +124,18 @@ def test_operator_replay_with_simultaneous_as_updates():
     series["operator"]["sced"][d]["as_offer_updates"] = [{"t": t, "product": "regup", "blocks": [[10, 1.0]]},
                                                          {"t": t, "product": "ecrs", "blocks": [[5, 2.0]]}]
     assert refs.operator_replay(task, series)["p"] is not None
+
+
+def test_hub_sced_lmp_in_v3():
+    task, series = fixtures.make(POST, seed=1, layer="v3")
+    series["rt_lmp_hub"] = {d: [x - 1.0 for x in v] for d, v in series["rt_lmp"].items()}
+    s = Session(task, series)
+    s.start()
+    s.advance_to(700)
+    node = s.call("get_prices", {"market": "sced"})["values"]
+    hub = s.call("get_prices", {"market": "sced", "point": "hub"})["values"]
+    assert hub == pytest.approx([x - 1.0 for x in node], abs=0.02)
+    v2 = Session(*fixtures.make(POST, seed=1))
+    v2.start()
+    v2.advance_to(700)
+    assert "error" in v2.call("get_prices", {"market": "sced", "point": "hub"})

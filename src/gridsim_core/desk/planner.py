@@ -54,7 +54,7 @@ def problem(e: Engine, now: int, dam: list[float], rt5: list[float], constraints
     hsl, lsl = list(e.cop["hsl"]), list(e.cop["lsl"])
     ehsl, elsl, ev = e.event_limits(now)
     if ev is not None:
-        end = ev.get("t_end", float("inf"))
+        end = ev.get("t_end_planned", ev.get("t_end", float("inf")))
         for H in range(e.H):
             if 60 * H < end and 60 * (H + 1) > max(now, 0):
                 hsl[H], lsl[H] = min(hsl[H], ehsl), max(lsl[H], elsl)

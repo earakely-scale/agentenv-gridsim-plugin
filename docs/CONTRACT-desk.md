@@ -543,8 +543,10 @@ product rrs|ecrs|nspin, start, end, frac or null = 1), `pv` {date: [288]} and `f
 [{t, product, blocks}], `cop[date].as_capability`. Operator product keys rrspfr/rrsffr (rrs_pfr/rrs_ffr accepted).
 
 **Products.** regup, regdn, rrspfr, rrsffr, ecrs, nspin (price keys regup, regdn, rrs, ecrs, nspin). ESRs offer no UFR,
-off-line reserves or ECRS-MD (§2c, "RTC+B DAM Changes" slide 10); ECRS exists from 2023-06-10. RRS-PFR at most 20% of
-(HSL − LSL) (§4a, ESR training slide 13).
+off-line reserves or ECRS-MD (§2c, "RTC+B DAM Changes" slide 10); ECRS exists from 2023-06-10. The 20% RRS-PFR share
+of ESR training slide 13 (§4a) is **not** applied: P§3.18(3)(a) makes the PFR limit resource-specific (droop-based) and
+the disclosures show ESR PFR awards above 20% (CROSSETT_ESR1 85 MW of a 196 MW range, 2026-04-20); every product is
+capped at HSL − LSL.
 
 **AS offers** (`as_offers` on `submit_dam_offers` / `submit_rt_offers`): per hour and product, 1..5 blocks [mw, $/MW/h]
 (`blocks`, the same each hour) or one block per hour (`mw` + `price` lists). Codes: ASO-01 product, ASO-02 shape, ASO-03
