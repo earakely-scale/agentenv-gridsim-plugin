@@ -35,7 +35,7 @@ import json
 import re
 import shutil
 import tomllib
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from html import escape
 from pathlib import Path
@@ -802,19 +802,20 @@ def desk_results(v: dict) -> str:
     return "\n".join([
         f"### {v['version']}, {v['name']}: results", "",
         (f"{v['n_tasks']} battery-days: {len(v['sites'])} real batteries ({sites}) on {v['n_days']} operating days "
-         if v["days_per_task"] == 1 else
-         f"{v['n_tasks']} battery-windows of {v['days_per_task']} operating days each: {len(v['sites'])} real "
-         f"batteries ({sites}), windows starting on {v['n_days']} days ")
-        + f"from {a} to {b}, each old enough for ERCOT to have disclosed the operators' bids. Each model plays each "
-        "one once under pre-registered settings.", "",
+         f"from {a} to {b}" if v["days_per_task"] == 1 else
+         f"{v['n_tasks']} windows of {v['days_per_task']} operating days: {len(v['sites'])} real batteries ({sites}) "
+         f"across {v['n_days']} {v['block']}s from {a} to {last(v)}")
+        + ", each old enough for ERCOT to have disclosed the operators' bids. Each model plays each one once under "
+        "pre-registered settings.", "",
         f"| Desk | C, hindsight capture | P, $ a {unit(v)} |", "|---|---:|---:|", *rows, "",
         f"| Paired, $ a {unit(v)} | P − the operator's bids | P − anchor |", "|---|---:|---:|", *gaps, "",
         "<small>The anchor is the desk's own optimiser, re-planning at every wake on the same information. The "
-        "operator rows are the real operator's own bids on each battery-day, disclosed by ERCOT 60 days later and "
+        f"operator rows are the real operator's own bids on each {unit(v)}, disclosed by ERCOT 60 days later and "
         "replayed through the same clearing and settlement, and its actual awards and metered output settled the same "
         "way. Hindsight knows every price in advance. " + (f"{v['idle']} " if v.get("idle") else "")
-        + "Brackets: day-block bootstrap 95% CIs.</small>", "",
-        *([f"<small>{v['defects']}</small>", ""] if v.get("defects") else []),
+        + f"Brackets: {v['block']}-block bootstrap 95% CIs over {v['n_days']} {v['block']}s.</small>", "",
+        *([f"<small>{' '.join(x for x in (v.get('defects'), v.get('deviations')) if x)}</small>", ""]
+          if v.get("defects") or v.get("deviations") else []),
         f"**How much of the hindsight optimum each desk captured, {v['version']}**", "",
         f'<img class="dark:hidden" src="{fig}.png" alt="{escape(capture_alt(v))}">',
         f'<img class="hidden dark:block" src="{fig}-dark.png" alt="{escape(capture_alt(v))}">', "",
@@ -823,6 +824,10 @@ def desk_results(v: dict) -> str:
         f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
         "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
         f"split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the plugin."])
+
+
+def last(v: dict) -> str:
+    return f"{date.fromisoformat(v['dates'][1]) + timedelta(days=v['days_per_task'] - 1):%-d %B %Y}"
 
 
 def desk_row(m: dict) -> str:
@@ -872,7 +877,7 @@ def desk_bullets(v: dict) -> list[str]:
                    + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
                       "No model is ahead with a CI above zero.")
                    + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
-    out += sensitivity(v) + reserves(v)
+    out += sensitivity(v) + reserves(v) + dam_days(v)
     a, spread = refs["anchor"], "anchor" in (v.get("sensitivity") or {}).get("bought_back", [])
     out.append("**The anchor,** the desk's own optimiser on the same information, "
                + ("" if spread else "free to take DAM/RT spread positions, ")
@@ -890,43 +895,57 @@ def desk_bullets(v: dict) -> list[str]:
 
 
 def sensitivity(v: dict) -> list[str]:
-    """The report's post-hoc check of the days it leaves out: what each earned, which desks made more than half their
-    total P there and, where the day's statements were read (scripts/hub_desk.py), what paid; the means without them,
-    the medians over every task and each model's losing tasks."""
+    """The post-hoc check of the block that carries the means (the report's, else the one scripts/hub_desk.py derives
+    from the grades): what each desk earned there, which desks made more than half their total P there and, where the
+    statements show it, how; the means without it, the medians over every task and each model's losing tasks."""
     sv = v.get("sensitivity") or {}
-    w = sv.get("without")
+    w = sv.get("without") or sv.get("derived")
     if not w:
         return []
-    ms, u = {m["key"]: m for m in v["models"]}, unit(v)
+    ms, u, blk = {m["key"]: m for m in v["models"]}, unit(v), sv.get("block", "day")
     name = lambda k: ms[k]["name"] if k in ms else SHORTS.get(k, k)  # noqa: E731
-    days = {d: f"{date.fromisoformat(d):%-d %B %Y}" for d in w["days"]}
+    days = {d: block_label(v, d) for d in w["days"]}
     on = {label: ", ".join(f"{name(k)} {usd0(x)}" for k, x in {
         **sv["per_day_mean_P"][d]["models"], **sv["per_day_mean_P"][d]["references"]}.items() if x is not None)
         for d, label in days.items()}
-    wo = "; ".join(f"{name(k)} {usd0(b['P']['mean'])} {usd0_ci(b['P']['ci'])}" for k, b in w["means"]["models"].items())
+    wo = "; ".join(f"{name(k)} {usd0(b['P']['mean'])}" + (f" {usd0_ci(b['P']['ci'])}" if "ci" in b["P"] else "")
+                   for k, b in w["means"]["models"].items())
     wr = " and ".join(f"{name(k)} {usd0(b['P']['mean'])}" for k, b in w["means"]["references"].items()
                       if k in ("operator_replay", "anchor"))
     med = "; ".join(f"{name(k)} {usd0(x)}" for k, x in {**sv["median_P"], **sv["median_P_references"]}.items()
                     if k in ms or k == "operator_replay")
-    loss = "; ".join(f"{name(k)} on {x['tasks_p_below_0']} (worst {usd0(x['worst_p'])})"
+    loss = "; ".join(f"{name(k)} {x['tasks_p_below_0']} of {v['n_tasks']}"
+                     + (f" (worst {usd0(x['worst_p'])})" if x["tasks_p_below_0"] else "")
                      for k, x in sv["losses"].items())
     who, bb = [name(k) for k in sv.get("carried", [])], [name(k) for k in sv.get("bought_back", [])]
-    one = len(days) == 1
-    head = (("One day carries" if one else "A few days carry") + " the means" if who
-            else f"Without {and_join(list(days.values()))}")
-    when = (f"Mean P a {u} on {next(iter(on))}" + (f", {sv['why_short']}" if sv.get("why_short") else "")
+    one, there = len(days) == 1, "there" if blk != "day" else "that day"
+    head = (f"One {blk} carries" if one else f"A few {blk}s carry") + " the means" if who else \
+        f"Without {and_join(list(days.values()))}"
+    when = (f"Mean P a {u} {next(iter(on))}" + (f", {sv['why_short']}" if sv.get("why_short") else "")
             + f": {next(iter(on.values()))}." if one else f"Mean P a {u}: " + "; ".join(
-                f"on {d}, {x}" for d, x in on.items()) + ".")
+                f"{d}, {x}" for d, x in on.items()) + ".")
     return [f"**{head}.** {when}"
             + (f" {and_join(who)} made more than half of {'its' if len(who) == 1 else 'their'} total P "
-               f"{'that day' if one else 'on those days'}" + ("" if not bb else f", from {BUYBACK}" if bb == who
-                                                              else f"; {and_join(bb)} from {BUYBACK}") + "."
+               f"{there if one else f'in those {blk}s'}" + ("" if not bb else f", from {BUYBACK}" if bb == who
+                                                             else f"; {and_join(bb)} from {BUYBACK}") + "."
                if who else "")
             + f" Without {'it' if one else 'them'} ({w['n_tasks']} {u}s): {wo}, against {wr}. Over every {u}, the "
             f"medians are {med}. P below zero: {loss}. A post-hoc check, not pre-registered."]
 
 
-AS_CODES = {"ASO-02": "the shape check", "ASO-06": "after the market window closed"}
+def block_label(v: dict, d: str) -> str:
+    """'on 25 January 2026' for a day; 'on the front of 23 to 25 January 2026 (winter storm Fern)' for a window."""
+    a = date.fromisoformat(d)
+    if v["days_per_task"] == 1:
+        return f"on {a:%-d %B %Y}"
+    b = a + timedelta(days=v["days_per_task"] - 1)
+    named = (v.get("sensitivity") or {}).get("names", {}).get(d)
+    return (f"on the front of {a:%-d} to {b:%-d %B %Y}" if a.month == b.month else
+            f"on the front of {a:%-d %B} to {b:%-d %B %Y}") + (f" ({named})" if named else "")
+
+
+AS_CODES = {"ASO-01": "a product the battery may not offer", "ASO-02": "the shape check",
+            "ASO-06": "after the market window closed"}
 
 
 def reserves(v: dict) -> list[str]:
@@ -943,6 +962,21 @@ def reserves(v: dict) -> list[str]:
         return (f"{m['name']}: AS awards in {a['episodes_with_awards']} of {m['n']} {unit(v)}s, {usd0(got, True)} a "
                 f"{unit(v)} from the AS lines{no}")
     return ["**Reserves.** " + "; ".join(one(m) for m in ms) + "."]
+
+
+def dam_days(v: dict) -> list[str]:
+    """Over a multi-day window: how often each model's day-ahead bids for each operating day were accepted."""
+    ms = [m for m in v["models"] if m.get("submissions_by_day") and v["days_per_task"] > 1]
+    if not ms:
+        return []
+    days = [f"D{i}" for i in range(v["days_per_task"])]
+    return [f"**{NUM[len(days)]} day-ahead markets.** Accepted DAM submissions a window for each operating day, "
+            + "/".join(days) + ": " + "; ".join(
+                f"{m['name']} " + "/".join(f"{m['submissions_by_day'].get(f'dam:{d}', 0):.2f}" for d in days)
+                for m in ms) + ". A mean above one means a desk rebid some of those markets as forecasts moved."]
+
+
+NUM = {2: "Two", 3: "Three", 4: "Four", 5: "Five"}
 
 
 def and_join(xs: list[str]) -> str:

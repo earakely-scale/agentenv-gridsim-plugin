@@ -42,6 +42,7 @@ LADDER = (
      "offers, disclosed 60 days later", "offers into a market its own bids move"),
 )
 WHY = {"v2": "when the node's day-ahead price ran far above real time"}
+NAMED = {"v4": {"2026-01-23": "winter storm Fern"}}
 IDLE = {"v3": "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the "
               "co-located solar (modelled)."}
 MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B (untrained)", "open")}
@@ -84,23 +85,32 @@ def main():
                     help="The git tag of a version's results commit on the desk branch; its GitHub links pin it.")
     ap.add_argument("--results", type=Path, default=ROOT / "results",
                     help="Where overview/desk.json goes, beside overview/results.json; the card is built from both.")
-    ap.add_argument("--gif", type=Path, help="The newest version's desk hero GIF (scripts/hub_desk_hero.py).")
-    ap.add_argument("--gif-task", help="The task id of the episode the GIF films.")
-    ap.add_argument("--gif-model", default="sol", help="The model whose episode the GIF films.")
-    ap.add_argument("--gif-version", help="The version whose episode the GIF films; the newest by default.")
-    ap.add_argument("--lead", action="store_true", help="The desk GIF leads the card; else it opens the desk section.")
+    ap.add_argument("--gif", nargs=3, action="append", default=[], metavar=("VERSION", "TASK", "PATH"),
+                    help="A desk GIF (scripts/hub_desk_hero.py) of the model's episode on TASK; one per version.")
+    ap.add_argument("--gif-model", default="sol", help="The model whose episodes the GIFs film.")
+    ap.add_argument("--lead", metavar="VERSION", help="The version whose GIF leads the card; else the first GIF opens "
+                                                     "the desk section. Every GIF plays on its version's desk page.")
     ap.add_argument("--publish", action="store_true", help="Upload to the dataset and the Space.")
     ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
     desk, files = build(args.desk, refs, args.only)
-    if args.gif:
-        v = next(x for x in desk["versions"] if x["version"] == (args.gif_version or desk["versions"][-1]["version"]))
-        desk["gif"], ep = gif_info(v, args.desk / f"desk-{v['version']}", args.gif_model, args.gif_task, args.lead)
+    lead = args.lead or (args.gif[0][0] if args.gif else None)
+    desk["gifs"] = {}
+    for key, task, path in args.gif:
+        v = next(x for x in desk["versions"] if x["version"] == key)
+        info, ep = gif_info(v, args.desk / f"desk-{key}", args.gif_model, task, key == lead and bool(args.lead))
+        info["path"] = GIF if key == lead else f"assets/gridsim-desk-{key}.gif"
+        desk["gifs"][key] = info
         card = ep["site"]["card"]
         v["story"] = story(ep, {"model": args.gif_model, "label": f"{card['name']} ({card['region']}, {card['size']}), "
                                                                    f"{date_label(ep['dates'])}"})
-        files[GIF] = args.gif.read_bytes()
+        files[info["path"]] = Path(path).read_bytes()
+    if lead:
+        desk["gif"] = desk["gifs"][lead]
+        one = [k for k in [lead, *desk["gifs"]] if next(v for v in desk["versions"] if v["version"] == k)[
+            "days_per_task"] == 1]
+        desk["story_version"] = one[0] if one else lead
     out = args.results / "overview" / "desk.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
@@ -115,9 +125,9 @@ def main():
     figs = figures(space, [v["version"] for v in desk["versions"]], hr)
     card = hd.card_only(args.results)
     ds = files | figs | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
-    hr.leaks({k: v for k, v in ds.items() if k != GIF} | {f"space/{k}": v for k, v in sp.items()})
-    anonymous({k: v for k, v in ds.items() if k != GIF} | {f"space/{k}": v for k, v in sp.items()},
-              names(args.desk.parent))
+    text = {k: v for k, v in ds.items() if not k.endswith(".gif")}
+    hr.leaks(text | {f"space/{k}": v for k, v in sp.items()})
+    anonymous(text | {f"space/{k}": v for k, v in sp.items()}, names(args.desk.parent))
     dataset = BUILD / "dataset"
     shutil.rmtree(dataset, ignore_errors=True)
     for k, v in ds.items():
@@ -172,8 +182,10 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],
          "budget": s["method"]["budget"], "core": s["method"]["core_versions"], "ci": s["ci"], "models": models,
          "references": refs, "paired": paired, "hero": s.get("hero"), "defects": defects(key, s),
+         "deviations": deviations(key, s),
          "idle": IDLE.get(key),
-         "sensitivity": sensitivity(key, s, grades, folder.parent.parent),
+         "sensitivity": sensitivity(key, s, grades, folder.parent.parent, models[0]["key"]),
+         "block": s.get("block_name") or "day",
          "figures": {k: f"{rel}/figures/{f}" for k, f in (("bars", "p-bars.png"), ("bars_dark", "p-bars-dark.png"),
                                                          ("hero", "hero.png"), ("hero_dark", "hero-dark.png"))
                      if (folder / "figures" / f).is_file()},
@@ -212,21 +224,26 @@ def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> tuple[
     events = sum(any(r in ("notice", "nws", "outage", "deployment") for r in w["reasons"]) for w in acted)
     reasons = Counter("reminder" for w in acted if "reminder" in w["reasons"])
     calls = sum(len(t["calls"]) for t in ep["turns"])
-    day = date_label(ep["dates"])
-    acts = ([f"bids the day-ahead market at {clock_label(dam[0]['t'])} the day before"] if dam else [])
+    day, nd = date_label(ep["dates"]), len(ep["dates"])
+    bid = len({x.get("day") for x in dam})
+    acts = ([f"bids the day-ahead market at {clock_label(dam[0]['t'])} the day before" if nd == 1 else
+             f"bids {COUNT.get(bid, bid)} day-ahead markets, the first at {clock_label(dam[0]['t'])} the day before"]
+            if dam else [])
     acts += [f"sends {len(rt)} sets of real-time curves"] if rt else []
     why = [f"{events} for ERCOT notices, NWS alerts or outages"] if events else []
     why += [f"{reasons['reminder']} for its own reminders"] if reasons["reminder"] else []
     acts += [f"wakes {len(ep['turns'])} times" + (f", {' and '.join(why)}" if why else "")]
     op = g.get("p_operator_replay")
     caption = (f"GridSimEnv Desk, {v['version']}, {v['name']}: {name} trades {card['name']} ({card['region']}, "
-               f"{card['size']}), a real ERCOT battery, on {day}, beside its {calls} tool calls. It "
+               f"{card['size']}), a real ERCOT battery, {'on' if nd == 1 else 'over'} {day}, beside its {calls} tool "
+               "calls. It "
                + ", ".join(acts[:-1]) + (" and " if len(acts) > 1 else "") + acts[-1]
                + f". The battery settles at {usd(g['p'])}, hindsight capture C "
                f"{g['capture']:.3f}" + (f"; the real operator's own bids, replayed, earn {usd(op)}" if op is not None
                                          else "") + f". [Open the desk page]({APP}/desk.html?v={v['version']}). "
                "Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT.")
-    alt = (f"{name} at the desk of {card['name']} ({card['region']}, {card['size']}) on {day}: the node's prices as "
+    alt = (f"{name} at the desk of {card['name']} ({card['region']}, {card['size']}) {'on' if nd == 1 else 'over'} "
+           f"{day}: the node's prices as "
            "they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, "
            "then the settled grade")
     return {"version": v["version"], "model": model, "task_id": task, "lead": lead, "path": GIF,
@@ -236,6 +253,9 @@ def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> tuple[
 def usd(x: float) -> str:
     v = f"{abs(x):,.0f}"
     return f"{'−' if x < 0 and v != '0' else ''}\u2060${v}"
+
+
+COUNT = {1: "one", 2: "two", 3: "three", 4: "four"}
 
 
 def date_label(dates: list[str]) -> str:
@@ -292,20 +312,36 @@ def check(s: dict, grades: list[dict]) -> None:
             raise Mismatch(f"{s['layer']} {k}: grades give {got}, summary.json {want}")
 
 
-def sensitivity(key: str, s: dict, grades: list[dict], repo: Path) -> dict | None:
-    """The report's post-hoc check, with the desks that made more than half their total P on the days it leaves out
-    and, of those, the ones whose statements show day-ahead sales bought back in real time there (the anchor's from the
-    frozen refs the grades were replayed against)."""
+def sensitivity(key: str, s: dict, grades: list[dict], repo: Path, top: str) -> dict | None:
+    """The report's post-hoc check, with the desks that made more than half their total P in the block it leaves out
+    (the report's own, else the block that made most of the top model's P, when that is more than half of it) and, of
+    those, the ones whose statements show day-ahead sales bought back in real time there (the anchor's from the frozen
+    refs the grades were replayed against). Means without that block, when the report gives none, are task means
+    from the grades, without CIs."""
     sv = s.get("sensitivity")
-    if not sv or not sv.get("without"):
+    if not sv:
         return sv
-    days, first = set(sv["without"]["days"]), next(iter(s["models"]))
-    p = {k: [(g["date"], g["p"]) for g in grades if g["model"] == k] for k in s["models"]} | {
-        k: [(g["date"], g[f"p_{k}"]) for g in grades if g["model"] == first and g[f"p_{k}"] is not None]
+    alias, first = s.get("block_alias") or {}, next(iter(s["models"]))
+    p = {k: [(alias.get(g["date"], g["date"]), g["p"]) for g in grades if g["model"] == k] for k in s["models"]} | {
+        k: [(alias.get(g["date"], g["date"]), g[f"p_{k}"]) for g in grades
+            if g["model"] == first and g[f"p_{k}"] is not None]
         for k in ("anchor", "operator_replay", "operator_actual")}
+    out = sv | {"block": s.get("block_name") or "day", "names": NAMED.get(key, {})}
+    if sv.get("without"):
+        days = set(sv["without"]["days"])
+    else:
+        tot = sum(x for _, x in p[top])
+        best = max(sorted({d for d, _ in p[top]}), key=lambda b: sum(x for d, x in p[top] if d == b))
+        if tot <= 0 or sum(x for d, x in p[top] if d == best) <= tot / 2:
+            return out
+        days, rest = {best}, {k: [x for d, x in xs if d != best] for k, xs in p.items()}
+        out["derived"] = {"days": [best], "n_tasks": len(rest[top]), "means": {
+            g: {k: {"P": {"mean": round(sum(rest[k]) / len(rest[k]), 4)}} for k in rest
+                if (k in s["models"]) == (g == "models") and rest[k]} for g in ("models", "references")}}
     carried = [k for k, xs in p.items() if xs and (t := sum(x for _, x in xs)) > 0
                and sum(x for d, x in xs if d in days) > t / 2]
-    lines = {k: [g["lines"] for g in grades if g["model"] == k and g["date"] in days] for k in s["models"]}
+    lines = {k: [g["lines"] for g in grades if g["model"] == k and alias.get(g["date"], g["date"]) in days]
+             for k in s["models"]}
     refs = repo / ((s.get("regraded") or {}).get("refs") or "-")
     if refs.is_file():
         with open(refs) as f:
@@ -313,7 +349,7 @@ def sensitivity(key: str, s: dict, grades: list[dict], repo: Path) -> dict | Non
                                for d, day in r["refs"]["anchor"]["statement"]["days"].items() if d in days]
     sold = {k: (sum(x.get("dam_energy", 0.0) for x in xs), sum(x.get("rt_energy_imbalance", 0.0) for x in xs))
             for k, xs in lines.items()}
-    return sv | {"carried": carried, "bought_back": [k for k in carried if k in sold and sold[k][0] > 0
+    return out | {"carried": carried, "bought_back": [k for k in carried if k in sold and sold[k][0] > 0
                                                      and sold[k][1] < -0.1 * sold[k][0]]} | (
         {"why_short": WHY[key]} if key in WHY else {})
 
@@ -323,10 +359,27 @@ KNOWN = (("empty `as_offers` list", "an empty `as_offers` list drew a spurious A
                                     "refused offers"),)
 
 
+LOGGED = (("Qwen3-4B sharding",
+           "the Qwen3-4B task lists were set wrong, so its four winter storm Fern windows ran late as a fill-in on the "
+           "same frozen code and four other windows ran twice; the runs on the planned host are scored, under a rule "
+           "set before any duplicate was read"),)
+
+
+def deviations(key: str, s: dict) -> str | None:
+    """The report's logged deviations from the pre-registration, in the words every surface uses."""
+    out = []
+    for d in s.get("deviations") or []:
+        said = [t for k, t in LOGGED if k in d]
+        if not said:
+            raise Mismatch(f"desk-{key} logs a deviation the hub does not describe yet: {d}")
+        out += said
+    return f"Logged deviation from the pre-registration: {'; '.join(out)}." if out else None
+
+
 def defects(key: str, s: dict) -> str | None:
     """The report's known env defects, in the words every surface uses; one this script has no words for stops it."""
     out = []
-    for d in s.get("defects", []):
+    for d in s.get("defects") or []:
         said = [t for k, t in KNOWN if k in d]
         if not said:
             raise Mismatch(f"desk-{key} lists an env defect the hub does not describe yet: {d}")
@@ -344,7 +397,7 @@ def model_row(k: str, m: dict) -> dict:
             "P_minus_operator_actual": m["P_minus_operator_actual"], "lines": m["lines"],
             "usd_per_episode": m["cost_usd"]["per_episode"], "usd_total": m["cost_usd"]["total_all_attempts"],
             "turns": m["turns"], "wakes": m["wakes"], "calls": m["calls"], "calls_by_tool": m["calls_by_tool"],
-            "ancillary": m.get("ancillary"),
+            "ancillary": m.get("ancillary"), "submissions_by_day": m.get("submissions_by_day"),
             "accepted": m["submissions"]["accepted"], "rejected": m["submissions"]["rejected"],
             "rejected_codes": m["submissions"]["rejected_codes_total"], "reminders": m["reminders"],
             "cycles": m["cycles"], "tokens": m["tokens"]}
@@ -482,7 +535,11 @@ def names(repo: Path) -> list[str]:
 
 
 def anonymous(files: dict[str, bytes], terms: list[str]) -> None:
-    pat = re.compile("|".join(rf"\b{re.escape(t)}\b" for t in sorted(terms, key=len, reverse=True)), re.I)
+    """Short upper-case codes (CLO, WIG) match as written, so a word cut short in a note ('clo…') is not a hit."""
+    code = lambda t: len(t) <= 4 and t.isupper()  # noqa: E731
+    any_case = "|".join(rf"\b{re.escape(t)}\b" for t in sorted(terms, key=len, reverse=True) if not code(t))
+    pat = re.compile("|".join(filter(None, [rf"(?i:{any_case})" if any_case else "", *(
+        rf"\b{re.escape(t)}\b" for t in terms if code(t))])))
     for path, content in files.items():
         if path.endswith(".png"):
             continue

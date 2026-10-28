@@ -41,14 +41,16 @@
     const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
     const usdk = (x, s = false) => { const a = Math.abs(x), v = a >= 99950 ? whole(a / 1e3) + "k" : a >= 999.5 ? hn(a / 1e3, 1) + "k" : whole(a); return `${v === 0 ? "" : x < 0 ? "−" : s ? "+" : ""}${v}`; };
     const cik = (c, s = false) => `[${usdk(c[0], s)}, ${usdk(c[1], s)}]`;
+    const unit = (V) => (V.days_per_task > 1 ? `${V.days_per_task}-day window` : "battery-day");
+    const blocks = (V) => (V.block === "day" ? `${V.n_days} operating days` : `${V.n_days} ${V.block}s`);
     const sens = (V, top) => {
-      const sv = V.sensitivity, w = sv && sv.without;
+      const sv = V.sensitivity, w = sv && (sv.without || sv.derived);
       if (!w) return "";
-      const days = w.days.map((d) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }));
+      const days = w.days.map((d) => `${V.days_per_task > 1 ? "the front of " : ""}${new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}${(sv.names || {})[d] ? ` (${sv.names[d]})` : ""}`);
       const day = days.length < 2 ? days[0] : `${days.slice(0, -1).join(", ")} and ${days.at(-1)}`;
       const m = w.means.models[top.key], o = w.means.references.operator_replay;
-      const lead = `without ${day}${sv.why_short ? `, ${sv.why_short}` : ""}`, rest = `${top.name} averages ${usd(m.P.mean)} ${usdci(m.P.ci)}${o ? ` against the operator's bids' ${usd(o.P.mean)}` : ""} (post hoc, not pre-registered).`;
-      return (sv.carried || []).length ? ` <b>${days.length > 1 ? "A few days carry" : "One day carries"} the means:</b> ${lead}, ${rest}` : ` <b>W${lead.slice(1)}:</b> ${rest}`;
+      const blk = sv.block || "day", lead = `without ${day}${sv.why_short ? `, ${sv.why_short}` : ""}`, rest = `${top.name} averages ${usd(m.P.mean)}${m.P.ci ? ` ${usdci(m.P.ci)}` : ""}${o ? ` against the operator's bids' ${usd(o.P.mean)}` : ""} (post hoc, not pre-registered).`;
+      return (sv.carried || []).length ? ` <b>${days.length > 1 ? `A few ${blk}s carry` : `One ${blk} carries`} the means:</b> ${lead}, ${rest}` : ` <b>W${lead.slice(1)}:</b> ${rest}`;
     };
     K.whenD3(() => K.data("desk.json").then((D) => {
       const d3 = window.d3;
@@ -71,7 +73,7 @@
           ...V.references.filter((r) => r.key !== "hind" && (r.key !== "idle" || Math.abs(r.P.mean) >= 0.5)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
         const top = V.models[0], g = top.P_minus_anchor, side = g.ci[0] > 0 ? "ahead of" : g.ci[1] < 0 ? "behind" : "level with";
         const o = top.P_minus_operator_replay;
-        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${hn(top.C.mean)} of hindsight ${hci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${hn(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.${sens(V, top)}`);
+        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} ${unit(V)}s at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${hn(top.C.mean)} of hindsight ${hci(top.C.ci)}, ${usd(top.P.mean)} a ${unit(V)}${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${hn(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.${sens(V, top)}`);
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;
         const dots = rows.filter((r) => r.key !== "idle");
@@ -96,7 +98,7 @@
           const show = (ev) => tip.show((el) => {
             K.t.title(el, r.ref ? r.name : `${r.name}${r.effort ? `, ${r.effort} effort` : ""}`, r.color);
             K.t.row(el, "C", `${hn(r.C.mean)} ${hci(r.C.ci)}`);
-            K.t.row(el, "P a battery-day", `${usd(r.P.mean)} ${usdci(r.P.ci)}`);
+            K.t.row(el, `P a ${unit(V)}`, `${usd(r.P.mean)} ${usdci(r.P.ci)}`);
             if (!r.ref) K.t.row(el, "P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`);
           }, ev);
           c.on("mousemove", show).on("mouseleave", () => tip.hide());
@@ -105,12 +107,12 @@
         const cell = (v, s) => (v == null || v.mean == null ? "<td>–</td>" : `<td>${usd(v.mean, s)}<small>${ci(v.ci, s)}</small></td>`);
         const vals = (r) => r.ref ? `${cell(r.P)}<td>–</td><td>–</td>` : `${cell(r.P)}${cell(r.P_minus_operator_replay, true)}${cell(r.P_minus_anchor, true)}`;
         const name = (r) => `<i class="k" style="background:${r.color}"></i>${r.ref ? r.name : `<b>${r.name}</b>`}`;
-        const cols = "<th>P a battery-day</th><th>P − the operator's bids</th><th>P − anchor</th>";
+        const cols = `<th>P a ${unit(V)}</th><th>P − the operator's bids</th><th>P − anchor</th>`;
         const table = narrow
           ? `<table class="narrow"><tr>${cols}</tr>${rows.map((r) => `<tr class="nm${r.ref ? " ref" : ""}"><td colspan="3">${name(r)}</td></tr><tr class="v${r.ref ? " ref" : ""}">${vals(r)}</tr>`).join("")}</table>`
           : `<table><tr><th>Desk</th>${cols}</tr>${rows.map((r) => `<tr${r.ref ? ' class="ref"' : ""}><td>${name(r)}</td>${vals(r)}</tr>`).join("")}</table>`;
         d3.select(root).select(".wrap").html(table);
-        d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a battery-day. Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.${V.defects ? ` ${V.defects.replace(/`/g, "")}` : ""}`);
+        d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a ${unit(V)}. Brackets: ${V.block}-block bootstrap 95% CIs over ${blocks(V)}. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.${V.defects ? ` ${V.defects.replace(/`/g, "")}` : ""}`);
       }
       render();
       K.watch(root, render);

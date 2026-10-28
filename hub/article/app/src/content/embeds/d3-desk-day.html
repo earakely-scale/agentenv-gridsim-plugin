@@ -23,7 +23,7 @@
     const hhmm = (t) => { const m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
     K.whenD3(() => K.data("desk.json").then((D) => {
       const d3 = window.d3;
-      const V = D.versions.find((v) => D.gif && v.version === D.gif.version) || D.versions[D.versions.length - 1];
+      const V = D.versions.find((v) => v.version === D.story_version) || D.versions.find((v) => D.gif && v.version === D.gif.version) || D.versions[D.versions.length - 1];
       const S = V && V.story;
       if (!S) return;
       const tip = K.tip(root);

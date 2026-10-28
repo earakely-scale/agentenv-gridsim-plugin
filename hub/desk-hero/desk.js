@@ -48,7 +48,7 @@
     $("#hd .day").textContent = t < 0 ? D.dayBefore : D.days[Math.min(day, D.nd - 1)];
     const st = $("#hd .st"), next = D.wakes.find((w) => w.t > t + 1e-6 && w.reasons.some((r) => r in PLANNED));
     st.className = `st ${mode}`;
-    st.textContent = mode === "hold" ? "clock paused · the agent’s turn" : mode === "end" ? "day over" : next ? `clock running to ${hhmm(next.t)} · ${PLANNED[next.reasons.find((r) => r in PLANNED)]}` : "clock running";
+    st.textContent = mode === "hold" ? "clock paused · the agent’s turn" : mode === "end" ? (D.nd > 1 ? "window over" : "day over") : next ? `clock running to ${hhmm(next.t)} · ${PLANNED[next.reasons.find((r) => r in PLANNED)]}` : "clock running";
     $("#hd .ln").innerHTML = caption(t, mode).map((x, i, a) => `<span class="hs">${x}${i < a.length - 1 ? " ·" : ""}</span>`).join(" ");
     const soc = socAt(t);
     $("#hd .soc").innerHTML = `SoC <b>${soc.toFixed(0)}</b> of ${D.eMax.toFixed(0)} MWh`;
@@ -57,7 +57,7 @@
   }
 
   function caption(t, mode) {
-    if (mode === "end" || t >= D.t1) return [`<span class="w">day over</span>`, "every interval settled", `${D.turns} wake-ups, ${D.total} tool calls`];
+    if (mode === "end" || t >= D.t1) return [`<span class="w">${D.nd > 1 ? "window over" : "day over"}</span>`, "every interval settled", `${D.turns} wake-ups, ${D.total} tool calls`];
     if (t < 0) {
       const d = D.days[0].split(" ").slice(0, 3).join(" ");
       if (t < -840) return [`<span class="w">DAM for ${d}</span> open until 10:00`];
@@ -265,7 +265,7 @@
     const vs = ref.key === "op" ? "against the real operator's own bids" : "against the anchor policy";
     const head = g.capture == null ? `<span class="${g.reward < 0.5 ? "low" : ""}"><small>reward</small>${g.reward.toFixed(2)}</span>` : `<span class="${g.capture < 0 ? "low" : ""}"><small>hindsight capture C</small>${g.capture.toFixed(2)}</span>`;
     const m = g.modelled, mod = m.length ? `; ${m.length > 1 ? `${m.slice(0, -1).join(", ")} and ${m.at(-1)} are` : `${m[0]} is`} modelled` : "";
-    return `<div class="t"><b>Day over · settled</b>${head}</div><div class="sub"><b class="${gap >= 0 ? "good" : "bad"}">${gap >= 0 ? "+" : "−"}$${whole(Math.abs(gap)).toLocaleString("en-US")}</b> ${vs}${g.capture == null ? "" : ` · reward R ${g.reward.toFixed(2)}`}</div>${bars}<div class="ft">Profit P for the operating day from the desk's ERCOT statement, at ERCOT's real prices${mod}.</div>`;
+    return `<div class="t"><b>${D.nd > 1 ? `${["", "", "Two", "Three", "Four"][D.nd] || D.nd} days` : "Day over"} · settled</b>${head}</div><div class="sub"><b class="${gap >= 0 ? "good" : "bad"}">${gap >= 0 ? "+" : "−"}$${whole(Math.abs(gap)).toLocaleString("en-US")}</b> ${vs}${g.capture == null ? "" : ` · reward R ${g.reward.toFixed(2)}`}</div>${bars}<div class="ft">Profit P for the ${D.nd > 1 ? `${["", "", "two", "three", "four"][D.nd] || D.nd} operating days` : "operating day"} from the desk's ERCOT statement, at ERCOT's real prices${mod}.</div>`;
   }
 
   window.desk = { init, render };

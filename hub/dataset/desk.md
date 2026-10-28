@@ -1,7 +1,7 @@
 ## GridSimEnv Desk
 
 {gif}**The desk seats the agent at a real ERCOT battery's trading desk for a whole market day,** from 06:00 the day
-before to midnight on the operating day.
+before to midnight on the operating day; in v4, for three operating days in a row.
 
 - **A real battery, ERCOT's own objects.** The agent is the battery trader at a QSE for one real ERCOT energy storage
   resource at its own node. It never moves a megawatt itself: it bids energy curves into the day-ahead market (DAM)

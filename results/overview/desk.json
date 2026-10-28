@@ -20,7 +20,7 @@
    "name": "Weather Front",
    "adds": "three operating days across a weather front, on ERCOT's forecasts as each was issued",
    "does": "bids three day-ahead markets as the forecasts move",
-   "status": "next"
+   "status": "results"
   },
   {
    "version": "v5",
@@ -181,6 +181,7 @@
       "check_submission": 0.875
      },
      "ancillary": null,
+     "submissions_by_day": null,
      "accepted": 16.22,
      "rejected": 0.0,
      "rejected_codes": {},
@@ -294,6 +295,7 @@
       "submit_dam_offers": 0.969
      },
      "ancillary": null,
+     "submissions_by_day": null,
      "accepted": 15.09,
      "rejected": 0.0,
      "rejected_codes": {},
@@ -407,6 +409,7 @@
       "get_grid_conditions": 0.031
      },
      "ancillary": null,
+     "submissions_by_day": null,
      "accepted": 7.31,
      "rejected": 1.47,
      "rejected_codes": {
@@ -794,6 +797,7 @@
     "label": "Battery S01 (Far West, 100 MW / 104 MWh), Sun 23 Aug 2026"
    },
    "defects": null,
+   "deviations": null,
    "idle": null,
    "sensitivity": {
     "median_P": {
@@ -1083,6 +1087,8 @@
       "worst_p": -68292.77
      }
     },
+    "block": "day",
+    "names": {},
     "carried": [
      "sol",
      "luna",
@@ -1096,6 +1102,7 @@
     ],
     "why_short": "when the node's day-ahead price ran far above real time"
    },
+   "block": "day",
    "figures": {
     "bars": "results/desk-v2/figures/p-bars.png",
     "bars_dark": "results/desk-v2/figures/p-bars-dark.png",
@@ -1516,7 +1523,7 @@
    "budget": "max_turns 48, calls_per_turn 14, max_reminders 8",
    "core": "desk-2.1",
    "ci": {
-    "method": "day-block bootstrap, task-weighted",
+    "method": "block bootstrap over operating days (multi-day windows: the block named block_name), task-weighted",
     "resamples": 10000,
     "seed": 0,
     "level": 0.95
@@ -1661,6 +1668,10 @@
       },
       "episodes_with_awards": 24
      },
+     "submissions_by_day": {
+      "rt:D0": 12.292,
+      "dam:D0": 1.042
+     },
      "accepted": 31.21,
      "rejected": 0.83,
      "rejected_codes": {
@@ -1800,6 +1811,10 @@
        "ecrs": 0.148
       },
       "episodes_with_awards": 6
+     },
+     "submissions_by_day": {
+      "rt:D0": 8.708,
+      "dam:D0": 1.375
      },
      "accepted": 16.88,
      "rejected": 0.08,
@@ -1954,6 +1969,10 @@
        "ecrs": 10.306
       },
       "episodes_with_awards": 17
+     },
+     "submissions_by_day": {
+      "rt:D0": 1.333,
+      "dam:D0": 0.375
      },
      "accepted": 2.62,
      "rejected": 1.75,
@@ -2342,6 +2361,7 @@
     "label": "Battery S03 (North, 120 MW / 187 MWh), Tue 26 May 2026"
    },
    "defects": "Known env defect, frozen for v3 and fixed after it: an empty `as_offers` list drew a spurious ASO-02 note while the energy curves in the same call were accepted, so the reserve figures leave those calls out of the refused offers.",
+   "deviations": null,
    "idle": "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the co-located solar (modelled).",
    "sensitivity": {
     "median_P": {
@@ -2447,8 +2467,59 @@
       "worst_task": "desk-v3-2026-04-11-S03",
       "worst_p": -7120.46
      }
-    }
+    },
+    "block": "day",
+    "names": {},
+    "derived": {
+     "days": [
+      "2026-07-21"
+     ],
+     "n_tasks": 20,
+     "means": {
+      "models": {
+       "sol": {
+        "P": {
+         "mean": 4387.0845
+        }
+       },
+       "luna": {
+        "P": {
+         "mean": 8155.6115
+        }
+       },
+       "qwen": {
+        "P": {
+         "mean": 4085.624
+        }
+       }
+      },
+      "references": {
+       "anchor": {
+        "P": {
+         "mean": 10040.416
+        }
+       },
+       "operator_replay": {
+        "P": {
+         "mean": 15462.044
+        }
+       },
+       "operator_actual": {
+        "P": {
+         "mean": 15131.8135
+        }
+       }
+      }
+     }
+    },
+    "carried": [
+     "sol"
+    ],
+    "bought_back": [
+     "sol"
+    ]
    },
+   "block": "day",
    "figures": {
     "bars": "results/desk-v3/figures/p-bars.png",
     "bars_dark": "results/desk-v3/figures/p-bars-dark.png",
@@ -2765,16 +2836,1608 @@
     "leaderboard": 9,
     "runs": 72
    }
+  },
+  {
+   "version": "v4",
+   "name": "Weather Front",
+   "adds": "three operating days across a weather front, on ERCOT's forecasts as each was issued",
+   "does": "bids three day-ahead markets as the forecasts move",
+   "ref": "desk-v4-results",
+   "folder": "results/desk-v4",
+   "pack": "desk-v4-eval",
+   "n_tasks": 16,
+   "n_days": 4,
+   "dates": [
+    "2026-01-23",
+    "2026-05-08"
+   ],
+   "days_per_task": 3,
+   "sites": [
+    {
+     "name": "Battery S01",
+     "region": "Far West",
+     "size": "100 MW / 104 MWh"
+    },
+    {
+     "name": "Battery S02",
+     "region": "Houston",
+     "size": "100 MW / 206 MWh"
+    },
+    {
+     "name": "Battery S03",
+     "region": "North",
+     "size": "120 MW / 187 MWh"
+    },
+    {
+     "name": "Battery S04",
+     "region": "South",
+     "size": "150 MW / 185 MWh"
+    }
+   ],
+   "eras": [
+    "rtcb"
+   ],
+   "budget": "max_turns 100, calls_per_turn 14, max_reminders 12",
+   "core": "desk-2.1",
+   "ci": {
+    "method": "block bootstrap over operating days (multi-day windows: the block named block_name), task-weighted",
+    "resamples": 10000,
+    "seed": 0,
+    "level": 0.95
+   },
+   "models": [
+    {
+     "key": "sol",
+     "name": "GPT-6.1 Sol",
+     "model_id": "openai/gpt-6.1-sol",
+     "effort": "high",
+     "weights": "API",
+     "n": 16,
+     "days": 4,
+     "valid": 1.0,
+     "C": {
+      "mean": 0.3463,
+      "ci": [
+       0.1788,
+       0.5918
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 0.7441,
+      "ci": [
+       0.4322,
+       1.2426
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "R": {
+      "mean": 0.9335,
+      "ci": [
+       0.8375,
+       0.9913
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P": {
+      "mean": 275261.1763,
+      "ci": [
+       19974.5112,
+       770316.9675
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P_minus_anchor": {
+      "mean": 21498.4012,
+      "ci": [
+       2617.6712,
+       40379.1312
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "beats_anchor": 0.8125,
+     "P_minus_operator_replay": {
+      "mean": 238923.205,
+      "ci": [
+       13192.2462,
+       686143.4838
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P_minus_operator_actual": {
+      "mean": 247689.6681,
+      "ci": [
+       13554.4975,
+       710714.52
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "lines": {
+      "dam_energy": 469569.45,
+      "rt_energy_imbalance": -200892.43,
+      "deviation": 0.0,
+      "load_allocated": 0.0,
+      "degradation": -4585.08,
+      "warranty_overage": -169.81,
+      "end_soc_shortfall": -179.95,
+      "dam_as_capacity": 19385.19,
+      "rt_as_imbalance": -7843.89,
+      "failure_to_provide": 0.0,
+      "capacity_short": -22.3,
+      "pv_energy": 0.0
+     },
+     "usd_per_episode": 3.2097,
+     "usd_total": 51.3547,
+     "turns": 44.5,
+     "wakes": 44.5,
+     "calls": 219.06,
+     "calls_by_tool": {
+      "get_forecasts": 58.562,
+      "get_prices": 37.5,
+      "get_asset_status": 32.5,
+      "submit_rt_offers": 20.938,
+      "set_reminder": 20.812,
+      "get_position": 20.688,
+      "update_cop": 12.25,
+      "get_grid_conditions": 8.062,
+      "submit_dam_offers": 4.812,
+      "check_submission": 1.688,
+      "optimize": 1.25
+     },
+     "ancillary": {
+      "offers_accepted": {
+       "rt:regup": 7.312,
+       "rt:regdn": 5.812,
+       "rt:rrsffr": 5.625,
+       "rt:nspin": 3.438,
+       "rt:ecrs": 2.562,
+       "dam:regdn": 2.312,
+       "dam:rrsffr": 2.0,
+       "dam:regup": 1.625,
+       "dam:nspin": 1.188,
+       "dam:ecrs": 0.75,
+       "rt:rrspfr": 0.062
+      },
+      "rejected_codes_total": {
+       "ASO-02": 26,
+       "ASO-06": 2
+      },
+      "empty_as_flagged_total": 121,
+      "dam_award_mwh": {
+       "regdn": 3172.688,
+       "rrsffr": 1409.469,
+       "regup": 855.938,
+       "nspin": 118.375,
+       "ecrs": 97.375
+      },
+      "rt_award_mwh": {
+       "regdn": 666.789,
+       "regup": 349.12,
+       "rrsffr": 230.761,
+       "nspin": 108.905,
+       "ecrs": 6.092
+      },
+      "episodes_with_awards": 15
+     },
+     "submissions_by_day": {
+      "rt:D2": 9.562,
+      "rt:D0": 5.688,
+      "rt:D1": 5.125,
+      "dam:D0": 1.375,
+      "dam:D2": 1.375,
+      "dam:D1": 1.25
+     },
+     "accepted": 53.75,
+     "rejected": 1.38,
+     "rejected_codes": {
+      "EBOC-07": 22
+     },
+     "reminders": 20.81,
+     "cycles": 2.761,
+     "tokens": {
+      "api_calls": 147.0,
+      "input_tokens": 5250675.2,
+      "output_tokens": 38340.5,
+      "cached_tokens": 4039524.2
+     }
+    },
+    {
+     "key": "luna",
+     "name": "GPT-6 Luna",
+     "model_id": "openai/gpt-6-luna",
+     "effort": "high",
+     "weights": "API",
+     "n": 16,
+     "days": 4,
+     "valid": 1.0,
+     "C": {
+      "mean": 0.1151,
+      "ci": [
+       0.0731,
+       0.167
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 0.2424,
+      "ci": [
+       0.1722,
+       0.3352
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "R": {
+      "mean": 0.6244,
+      "ci": [
+       0.4144,
+       0.8787
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P": {
+      "mean": 51725.0444,
+      "ci": [
+       7971.5125,
+       127305.8419
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P_minus_anchor": {
+      "mean": -202037.7306,
+      "ci": [
+       -614500.2481,
+       17772.3838
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "beats_anchor": 0.25,
+     "P_minus_operator_replay": {
+      "mean": 15387.0731,
+      "ci": [
+       968.5737,
+       42283.5363
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P_minus_operator_actual": {
+      "mean": 24153.5363,
+      "ci": [
+       1551.4987,
+       67501.3494
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "lines": {
+      "dam_energy": 67003.77,
+      "rt_energy_imbalance": -11924.24,
+      "deviation": 0.0,
+      "load_allocated": 0.0,
+      "degradation": -3380.9,
+      "warranty_overage": 0.0,
+      "end_soc_shortfall": -308.38,
+      "dam_as_capacity": 0.0,
+      "rt_as_imbalance": 334.79,
+      "failure_to_provide": 0.0,
+      "capacity_short": 0.0,
+      "pv_energy": 0.0
+     },
+     "usd_per_episode": 0.5404,
+     "usd_total": 8.6469,
+     "turns": 34.62,
+     "wakes": 34.62,
+     "calls": 236.38,
+     "calls_by_tool": {
+      "get_forecasts": 57.188,
+      "get_prices": 34.938,
+      "get_position": 31.0,
+      "get_asset_status": 29.75,
+      "get_grid_conditions": 18.562,
+      "update_cop": 15.312,
+      "check_submission": 14.5,
+      "submit_rt_offers": 13.5,
+      "set_reminder": 12.312,
+      "optimize": 4.688,
+      "submit_dam_offers": 4.625
+     },
+     "ancillary": {
+      "offers_accepted": {
+       "rt:nspin": 0.938,
+       "rt:regup": 0.375,
+       "rt:regdn": 0.375,
+       "rt:rrspfr": 0.375,
+       "rt:rrsffr": 0.375,
+       "rt:ecrs": 0.375
+      },
+      "rejected_codes_total": {
+       "ASO-02": 39
+      },
+      "empty_as_flagged_total": 234,
+      "dam_award_mwh": {},
+      "rt_award_mwh": {
+       "nspin": 21.434
+      },
+      "episodes_with_awards": 8
+     },
+     "submissions_by_day": {
+      "rt:D2": 5.938,
+      "rt:D1": 4.25,
+      "rt:D0": 3.188,
+      "dam:D2": 1.625,
+      "dam:D1": 1.562,
+      "dam:D0": 1.312
+     },
+     "accepted": 34.0,
+     "rejected": 0.19,
+     "rejected_codes": {
+      "EBOC-07": 3
+     },
+     "reminders": 12.25,
+     "cycles": 2.029,
+     "tokens": {
+      "api_calls": 123.1,
+      "input_tokens": 13778828.6,
+      "output_tokens": 185429.6,
+      "cached_tokens": 10335208.4
+     }
+    },
+    {
+     "key": "qwen",
+     "name": "Qwen3-4B (untrained)",
+     "model_id": "qwen3-4b",
+     "effort": null,
+     "weights": "open",
+     "n": 16,
+     "days": 4,
+     "valid": 0.5,
+     "C": {
+      "mean": -0.0074,
+      "ci": [
+       -0.021,
+       0.0005
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": -0.0154,
+      "ci": [
+       -0.0461,
+       0.0011
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "R": {
+      "mean": 0.1002,
+      "ci": [
+       0.0277,
+       0.1726
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P": {
+      "mean": -167.8431,
+      "ci": [
+       -1643.0963,
+       1156.1731
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P_minus_anchor": {
+      "mean": -253930.6181,
+      "ci": [
+       -740475.9587,
+       -2887.8406
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "beats_anchor": 0.125,
+     "P_minus_operator_replay": {
+      "mean": -36505.8144,
+      "ci": [
+       -84232.8488,
+       -7054.6587
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "P_minus_operator_actual": {
+      "mean": -27739.3512,
+      "ci": [
+       -58603.7425,
+       -7491.2288
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "lines": {
+      "dam_energy": 281.23,
+      "rt_energy_imbalance": -1554.22,
+      "deviation": 0.0,
+      "load_allocated": 0.0,
+      "degradation": -149.64,
+      "warranty_overage": 0.0,
+      "end_soc_shortfall": -8.91,
+      "dam_as_capacity": 956.72,
+      "rt_as_imbalance": 402.11,
+      "failure_to_provide": 0.0,
+      "capacity_short": -95.13,
+      "pv_energy": 0.0
+     },
+     "usd_per_episode": 0.0,
+     "usd_total": 0.0,
+     "turns": 25.56,
+     "wakes": 25.56,
+     "calls": 93.75,
+     "calls_by_tool": {
+      "get_forecasts": 25.25,
+      "get_prices": 20.562,
+      "set_reminder": 11.562,
+      "get_asset_status": 9.125,
+      "optimize": 8.25,
+      "get_position": 8.0,
+      "submit_dam_offers": 3.938,
+      "update_cop": 3.938,
+      "submit_rt_offers": 2.75,
+      "check_submission": 0.312,
+      "get_grid_conditions": 0.062
+     },
+     "ancillary": {
+      "offers_accepted": {
+       "dam:rrsffr": 0.188,
+       "dam:nspin": 0.188,
+       "rt:regdn": 0.188,
+       "dam:regup": 0.125,
+       "dam:rrspfr": 0.125,
+       "dam:regdn": 0.125,
+       "dam:ecrs": 0.062
+      },
+      "rejected_codes_total": {
+       "ASO-06": 49,
+       "ASO-01": 10,
+       "ASO-02": 3
+      },
+      "empty_as_flagged_total": 39,
+      "dam_award_mwh": {
+       "regdn": 208.26,
+       "regup": 138.906,
+       "nspin": 64.269,
+       "rrsffr": 62.831,
+       "rrspfr": 25.046,
+       "ecrs": 7.5
+      },
+      "rt_award_mwh": {
+       "regdn": 121.991,
+       "regup": 61.785,
+       "nspin": 53.75,
+       "rrsffr": 48.045,
+       "rrspfr": 15.804
+      },
+      "episodes_with_awards": 13
+     },
+     "submissions_by_day": {
+      "rt:D0": 1.25,
+      "dam:D1": 0.312,
+      "dam:D2": 0.125,
+      "dam:D0": 0.125,
+      "rt:D1": 0.062,
+      "rt:D2": 0.062
+     },
+     "accepted": 3.44,
+     "rejected": 4.75,
+     "rejected_codes": {
+      "EBOC-06": 65,
+      "EBOC-07": 8,
+      "EBOC-01": 3,
+      "EBOC-04": 1
+     },
+     "reminders": 5.38,
+     "cycles": 0.081,
+     "tokens": {
+      "api_calls": 111.3,
+      "input_tokens": 2144771.5,
+      "output_tokens": 15971.4,
+      "cached_tokens": 0.0
+     }
+    }
+   ],
+   "references": [
+    {
+     "key": "anchor",
+     "short": "Anchor",
+     "name": "Anchor: the desk's optimiser at every wake, same information",
+     "P": {
+      "mean": 253762.775,
+      "ci": [
+       2826.6575,
+       741104.8275
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C": {
+      "mean": 0.2499,
+      "ci": [
+       0.0312,
+       0.5625
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 0.5429,
+      "ci": [
+       0.0667,
+       1.1761
+      ],
+      "n": 16,
+      "days": 4
+     }
+    },
+    {
+     "key": "operator_replay",
+     "short": "The operator's bids, replayed",
+     "name": "The real operator's disclosed bids, replayed",
+     "P": {
+      "mean": 36337.9712,
+      "ci": [
+       5983.4437,
+       85433.5987
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C": {
+      "mean": 0.084,
+      "ci": [
+       0.0278,
+       0.1444
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 0.1874,
+      "ci": [
+       0.0797,
+       0.3043
+      ],
+      "n": 16,
+      "days": 4
+     }
+    },
+    {
+     "key": "operator_actual",
+     "short": "The operator, as settled",
+     "name": "The real operator's awards and metered output, settled",
+     "P": {
+      "mean": 27571.5081,
+      "ci": [
+       6420.0138,
+       59804.4925
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C": {
+      "mean": 0.0799,
+      "ci": [
+       0.0479,
+       0.1286
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 0.1772,
+      "ci": [
+       0.1127,
+       0.2655
+      ],
+      "n": 16,
+      "days": 4
+     }
+    },
+    {
+     "key": "hind_phys",
+     "short": "Hindsight, DAM tied to dispatch",
+     "name": "Hindsight optimum, DAM position tied to dispatch",
+     "P": {
+      "mean": 211267.3919,
+      "ci": [
+       45813.7781,
+       527818.0212
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C": {
+      "mean": 0.4485,
+      "ci": [
+       0.4009,
+       0.496
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 1.0,
+      "ci": [
+       1.0,
+       1.0
+      ],
+      "n": 16,
+      "days": 4
+     }
+    },
+    {
+     "key": "hind",
+     "short": "Hindsight optimum",
+     "name": "Hindsight optimum",
+     "P": {
+      "mean": 443669.1162,
+      "ci": [
+       111815.8231,
+       1079502.1069
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C": {
+      "mean": 1.0,
+      "ci": [
+       1.0,
+       1.0
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 2.3158,
+      "ci": [
+       2.0621,
+       2.5695
+      ],
+      "n": 16,
+      "days": 4
+     }
+    },
+    {
+     "key": "idle",
+     "short": "Idle",
+     "name": "Idle",
+     "P": {
+      "mean": 261.105,
+      "ci": [
+       8.1412,
+       642.3694
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C": {
+      "mean": 0.0,
+      "ci": [
+       0.0,
+       0.0
+      ],
+      "n": 16,
+      "days": 4
+     },
+     "C_phys": {
+      "mean": 0.0,
+      "ci": [
+       0.0,
+       0.0
+      ],
+      "n": 16,
+      "days": 4
+     }
+    }
+   ],
+   "paired": [
+    {
+     "a": "sol",
+     "b": "luna",
+     "P": {
+      "mean": 223536.1319,
+      "ci": [
+       12002.9987,
+       643350.2
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.9375,
+      "level": 0.0,
+      "days_ahead": 4
+     },
+     "R": {
+      "mean": 0.3091,
+      "ci": [
+       0.0719,
+       0.5463
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.6875,
+      "level": 0.25,
+      "days_ahead": 3
+     },
+     "C": {
+      "mean": 0.2312,
+      "ci": [
+       0.0903,
+       0.4801
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.9375,
+      "level": 0.0,
+      "days_ahead": 4
+     }
+    },
+    {
+     "a": "sol",
+     "b": "qwen",
+     "P": {
+      "mean": 275429.0194,
+      "ci": [
+       21045.7262,
+       769116.2175
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.9375,
+      "level": 0.0,
+      "days_ahead": 4
+     },
+     "R": {
+      "mean": 0.8333,
+      "ci": [
+       0.7554,
+       0.9361
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.9375,
+      "level": 0.0,
+      "days_ahead": 4
+     },
+     "C": {
+      "mean": 0.3537,
+      "ci": [
+       0.1926,
+       0.5985
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.9375,
+      "level": 0.0,
+      "days_ahead": 4
+     }
+    },
+    {
+     "a": "luna",
+     "b": "qwen",
+     "P": {
+      "mean": 51892.8875,
+      "ci": [
+       9042.7275,
+       126105.0919
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 1.0,
+      "level": 0.0,
+      "days_ahead": 4
+     },
+     "R": {
+      "mean": 0.5242,
+      "ci": [
+       0.2884,
+       0.7319
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 1.0,
+      "level": 0.0,
+      "days_ahead": 4
+     },
+     "C": {
+      "mean": 0.1225,
+      "ci": [
+       0.0869,
+       0.1716
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 1.0,
+      "level": 0.0,
+      "days_ahead": 4
+     }
+    },
+    {
+     "a": "sol",
+     "b": "operator_replay",
+     "P": {
+      "mean": 238923.205,
+      "ci": [
+       13192.2462,
+       686143.4838
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.875,
+      "level": 0.0,
+      "days_ahead": 4
+     }
+    },
+    {
+     "a": "luna",
+     "b": "operator_replay",
+     "P": {
+      "mean": 15387.0731,
+      "ci": [
+       968.5737,
+       42283.5363
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.5625,
+      "level": 0.0,
+      "days_ahead": 4
+     }
+    },
+    {
+     "a": "qwen",
+     "b": "operator_replay",
+     "P": {
+      "mean": -36505.8144,
+      "ci": [
+       -84232.8488,
+       -7054.6587
+      ],
+      "n": 16,
+      "days": 4,
+      "ahead": 0.0,
+      "level": 0.0,
+      "days_ahead": 0
+     }
+    }
+   ],
+   "hero": {
+    "model": "sol",
+    "task_id": "desk-v4-2026-05-08-S04",
+    "operator_soc": true,
+    "label": "Battery S04 (South, 150 MW / 185 MWh), Fri 08 – Sun 10 May 2026"
+   },
+   "defects": "Known env defect, frozen for v4 and fixed after it: an empty `as_offers` list drew a spurious ASO-02 note while the energy curves in the same call were accepted, so the reserve figures leave those calls out of the refused offers.",
+   "deviations": "Logged deviation from the pre-registration: the Qwen3-4B task lists were set wrong, so its four winter storm Fern windows ran late as a fill-in on the same frozen code and four other windows ran twice; the runs on the planned host are scored, under a rule set before any duplicate was read.",
+   "idle": null,
+   "sensitivity": {
+    "median_P": {
+     "sol": 33041.54,
+     "luna": 15983.64,
+     "qwen": 70.91
+    },
+    "median_P_references": {
+     "anchor": 16449.67,
+     "operator_replay": 12105.92,
+     "operator_actual": 13646.83
+    },
+    "per_day_mean_P": {
+     "2026-01-23": {
+      "models": {
+       "sol": 1019997.89,
+       "luna": 166424.67,
+       "qwen": 1576.82
+      },
+      "references": {
+       "anchor": 982821.67,
+       "operator_replay": 110643.67,
+       "operator_actual": 77031.39
+      }
+     },
+     "2026-03-16": {
+      "models": {
+       "sol": 41097.8,
+       "luna": 24532.49,
+       "qwen": -105.76
+      },
+      "references": {
+       "anchor": -2484.24,
+       "operator_replay": 22741.33,
+       "operator_actual": 20414.62
+      }
+     },
+     "2026-04-17": {
+      "models": {
+       "sol": 21274.22,
+       "luna": 9949.36,
+       "qwen": 72.55
+      },
+      "references": {
+       "anchor": 18759.36,
+       "operator_replay": 9803.38,
+       "operator_actual": 8123.81
+      }
+     },
+     "2026-05-08": {
+      "models": {
+       "sol": 18674.81,
+       "luna": 5993.66,
+       "qwen": -2214.98
+      },
+      "references": {
+       "anchor": 15954.32,
+       "operator_replay": 2163.51,
+       "operator_actual": 4716.22
+      }
+     }
+    },
+    "losses": {
+     "sol": {
+      "tasks_p_below_0": 1,
+      "days_mean_p_below_0": 0,
+      "worst_task": "desk-v4-2026-04-17-S03",
+      "worst_p": -1302.72
+     },
+     "luna": {
+      "tasks_p_below_0": 0,
+      "days_mean_p_below_0": 0,
+      "worst_task": "desk-v4-2026-05-08-S03",
+      "worst_p": 5540.57
+     },
+     "qwen": {
+      "tasks_p_below_0": 3,
+      "days_mean_p_below_0": 2,
+      "worst_task": "desk-v4-2026-05-08-S04",
+      "worst_p": -5517.9
+     }
+    },
+    "block": "front",
+    "names": {
+     "2026-01-23": "winter storm Fern"
+    },
+    "derived": {
+     "days": [
+      "2026-01-23"
+     ],
+     "n_tasks": 12,
+     "means": {
+      "models": {
+       "sol": {
+        "P": {
+         "mean": 27015.6067
+        }
+       },
+       "luna": {
+        "P": {
+         "mean": 13491.8367
+        }
+       },
+       "qwen": {
+        "P": {
+         "mean": -749.3967
+        }
+       }
+      },
+      "references": {
+       "anchor": {
+        "P": {
+         "mean": 10743.145
+        }
+       },
+       "operator_replay": {
+        "P": {
+         "mean": 11569.4042
+        }
+       },
+       "operator_actual": {
+        "P": {
+         "mean": 11084.8817
+        }
+       }
+      }
+     }
+    },
+    "carried": [
+     "sol",
+     "luna",
+     "anchor",
+     "operator_replay",
+     "operator_actual"
+    ],
+    "bought_back": [
+     "sol",
+     "luna"
+    ]
+   },
+   "block": "front",
+   "figures": {
+    "bars": "results/desk-v4/figures/p-bars.png",
+    "bars_dark": "results/desk-v4/figures/p-bars-dark.png",
+    "hero": "results/desk-v4/figures/hero.png",
+    "hero_dark": "results/desk-v4/figures/hero-dark.png"
+   },
+   "github": "https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/desk-v4-results/results/desk-v4",
+   "story": {
+    "model": "sol",
+    "task_id": "desk-v4-2026-05-08-S04",
+    "label": "Battery S04 (South, 150 MW / 185 MWh), 8 to 10 May 2026",
+    "dates": [
+     "2026-05-08",
+     "2026-05-09",
+     "2026-05-10"
+    ],
+    "start": -1080,
+    "end": 4320,
+    "dam_results": [
+     -637,
+     753,
+     2208
+    ],
+    "wakes": [
+     {
+      "t": -1080,
+      "label": "Thu 05-07 06:00",
+      "reasons": [
+       "start"
+      ],
+      "calls": 9,
+      "submitted": false,
+      "did": "optimize; a reminder"
+     },
+     {
+      "t": -885,
+      "label": "Thu 05-07 09:15",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 8,
+      "submitted": true,
+      "did": "DAM offers HE1–24, 1 rejected; COP"
+     },
+     {
+      "t": -637,
+      "label": "Thu 05-07 13:23",
+      "reasons": [
+       "dam_results"
+      ],
+      "calls": 3,
+      "submitted": false,
+      "did": "read prices, forecasts, position"
+     },
+     {
+      "t": -360,
+      "label": "Thu 05-07 18:00",
+      "reasons": [
+       "adjustment_open"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE1–24; a reminder"
+     },
+     {
+      "t": 0,
+      "label": "Fri 05-08 00:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 2,
+      "submitted": false,
+      "did": "read forecasts, grid conditions"
+     },
+     {
+      "t": 55,
+      "label": "Fri 05-08 00:55",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE2–9; COP"
+     },
+     {
+      "t": 360,
+      "label": "Fri 05-08 06:00",
+      "reasons": [
+       "checkpoint",
+       "dam_morning"
+      ],
+      "calls": 8,
+      "submitted": true,
+      "did": "RT curves HE11–16; a reminder"
+     },
+     {
+      "t": 555,
+      "label": "Fri 05-08 09:15",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "DAM offers HE1–24; COP"
+     },
+     {
+      "t": 720,
+      "label": "Fri 05-08 12:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 5,
+      "submitted": true,
+      "did": "RT curves HE13–19"
+     },
+     {
+      "t": 753,
+      "label": "Fri 05-08 12:33",
+      "reasons": [
+       "dam_results"
+      ],
+      "calls": 1,
+      "submitted": false,
+      "did": "read position"
+     },
+     {
+      "t": 1080,
+      "label": "Fri 05-08 18:00",
+      "reasons": [
+       "adjustment_open",
+       "checkpoint"
+      ],
+      "calls": 10,
+      "submitted": true,
+      "did": "RT curves HE1–24; COP; a reminder"
+     },
+     {
+      "t": 1260,
+      "label": "Fri 05-08 21:00",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE22–24"
+     },
+     {
+      "t": 1440,
+      "label": "Sat 05-09 00:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 5,
+      "submitted": true,
+      "did": "RT curves HE1–24"
+     },
+     {
+      "t": 1800,
+      "label": "Sat 05-09 06:00",
+      "reasons": [
+       "checkpoint",
+       "dam_morning"
+      ],
+      "calls": 8,
+      "submitted": true,
+      "did": "RT curves HE7–18; a reminder"
+     },
+     {
+      "t": 1995,
+      "label": "Sat 05-09 09:15",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 7,
+      "submitted": true,
+      "did": "DAM offers HE1–24; RT curves HE10–18; COP"
+     },
+     {
+      "t": 2004,
+      "label": "Sat 05-09 09:24",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 3,
+      "submitted": false,
+      "did": "read forecasts, grid conditions, asset status"
+     },
+     {
+      "t": 2043,
+      "label": "Sat 05-09 10:03",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2078,
+      "label": "Sat 05-09 10:38",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 1,
+      "submitted": false,
+      "did": "read asset status"
+     },
+     {
+      "t": 2160,
+      "label": "Sat 05-09 12:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 4,
+      "submitted": true,
+      "did": "RT curves HE19–22; a reminder"
+     },
+     {
+      "t": 2208,
+      "label": "Sat 05-09 12:48",
+      "reasons": [
+       "dam_results"
+      ],
+      "calls": 1,
+      "submitted": false,
+      "did": "read position"
+     },
+     {
+      "t": 2520,
+      "label": "Sat 05-09 18:00",
+      "reasons": [
+       "adjustment_open",
+       "checkpoint"
+      ],
+      "calls": 9,
+      "submitted": true,
+      "did": "RT curves HE1–24; COP; a reminder"
+     },
+     {
+      "t": 2599,
+      "label": "Sat 05-09 19:19",
+      "reasons": [
+       "deployment"
+      ],
+      "calls": 3,
+      "submitted": false,
+      "did": "read prices, grid conditions, asset status"
+     },
+     {
+      "t": 2600,
+      "label": "Sat 05-09 19:20",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2601,
+      "label": "Sat 05-09 19:21",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2611,
+      "label": "Sat 05-09 19:31",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2631,
+      "label": "Sat 05-09 19:51",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2640,
+      "label": "Sat 05-09 20:00",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 7,
+      "submitted": true,
+      "did": "RT curves HE21–24; a reminder"
+     },
+     {
+      "t": 2651,
+      "label": "Sat 05-09 20:11",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2661,
+      "label": "Sat 05-09 20:21",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2663,
+      "label": "Sat 05-09 20:23",
+      "reasons": [
+       "notice"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 2760,
+      "label": "Sat 05-09 22:00",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE1–24"
+     },
+     {
+      "t": 2880,
+      "label": "Sun 05-10 00:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 4,
+      "submitted": true,
+      "did": "RT curves HE1–18"
+     },
+     {
+      "t": 3240,
+      "label": "Sun 05-10 06:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 4,
+      "submitted": true,
+      "did": "RT curves HE13–22"
+     },
+     {
+      "t": 3600,
+      "label": "Sun 05-10 12:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 5,
+      "submitted": false,
+      "did": "a reminder"
+     },
+     {
+      "t": 3780,
+      "label": "Sun 05-10 15:00",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE20–22"
+     },
+     {
+      "t": 3917,
+      "label": "Sun 05-10 17:17",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 2,
+      "submitted": false,
+      "did": "read grid conditions, asset status"
+     },
+     {
+      "t": 3960,
+      "label": "Sun 05-10 18:00",
+      "reasons": [
+       "checkpoint"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE20–22; a reminder"
+     },
+     {
+      "t": 3977,
+      "label": "Sun 05-10 18:17",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 1,
+      "submitted": false,
+      "did": "read asset status"
+     },
+     {
+      "t": 4026,
+      "label": "Sun 05-10 19:06",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 2,
+      "submitted": false,
+      "did": "read grid conditions, asset status"
+     },
+     {
+      "t": 4110,
+      "label": "Sun 05-10 20:30",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 6,
+      "submitted": true,
+      "did": "RT curves HE21–23"
+     },
+     {
+      "t": 4190,
+      "label": "Sun 05-10 21:50",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 8,
+      "submitted": true,
+      "did": "RT curves HE22–22; COP; a reminder"
+     },
+     {
+      "t": 4205,
+      "label": "Sun 05-10 22:05",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 1,
+      "submitted": false,
+      "did": "read asset status"
+     },
+     {
+      "t": 4216,
+      "label": "Sun 05-10 22:16",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 4220,
+      "label": "Sun 05-10 22:20",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 7,
+      "submitted": true,
+      "did": "RT curves HE23–23"
+     },
+     {
+      "t": 4236,
+      "label": "Sun 05-10 22:36",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 4250,
+      "label": "Sun 05-10 22:50",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 5,
+      "submitted": true,
+      "did": "RT curves HE23–23; a reminder"
+     },
+     {
+      "t": 4252,
+      "label": "Sun 05-10 22:52",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 4254,
+      "label": "Sun 05-10 22:54",
+      "reasons": [
+       "nws"
+      ],
+      "calls": 0,
+      "submitted": false,
+      "did": "no calls"
+     },
+     {
+      "t": 4270,
+      "label": "Sun 05-10 23:10",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 3,
+      "submitted": false,
+      "did": "a reminder"
+     },
+     {
+      "t": 4315,
+      "label": "Sun 05-10 23:55",
+      "reasons": [
+       "reminder"
+      ],
+      "calls": 2,
+      "submitted": false,
+      "did": "read asset status, position"
+     }
+    ]
+   },
+   "rows": {
+    "leaderboard": 9,
+    "runs": 48
+   }
   }
  ],
+ "gifs": {
+  "v2": {
+   "version": "v2",
+   "model": "sol",
+   "task_id": "desk-v2-2026-08-23-S02",
+   "lead": false,
+   "path": "assets/gridsim-desk-v2.gif",
+   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v2",
+   "alt": "GPT-6.1 Sol at the desk of Battery S02 (Houston, 100 MW / 206 MWh) on 23 August 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
+   "caption": "GridSimEnv Desk, v2, The Live Grid: GPT-6.1 Sol trades Battery S02 (Houston, 100 MW / 206 MWh), a real ERCOT battery, on 23 August 2026, beside its 125 tool calls. It bids the day-ahead market at 09:30 the day before, sends 10 sets of real-time curves and wakes 35 times, 13 for ERCOT notices, NWS alerts or outages and 15 for its own reminders. The battery settles at ⁠$48,662, hindsight capture C 0.347; the real operator's own bids, replayed, earn ⁠$34,022. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v2). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+  },
+  "v4": {
+   "version": "v4",
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "lead": true,
+   "path": "assets/gridsim-desk-hero.gif",
+   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4",
+   "alt": "GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
+   "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+  }
+ },
  "gif": {
-  "version": "v2",
+  "version": "v4",
   "model": "sol",
-  "task_id": "desk-v2-2026-08-23-S02",
+  "task_id": "desk-v4-2026-05-08-S04",
   "lead": true,
   "path": "assets/gridsim-desk-hero.gif",
-  "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v2",
-  "alt": "GPT-6.1 Sol at the desk of Battery S02 (Houston, 100 MW / 206 MWh) on 23 August 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-  "caption": "GridSimEnv Desk, v2, The Live Grid: GPT-6.1 Sol trades Battery S02 (Houston, 100 MW / 206 MWh), a real ERCOT battery, on 23 August 2026, beside its 125 tool calls. It bids the day-ahead market at 09:30 the day before, sends 10 sets of real-time curves and wakes 35 times, 13 for ERCOT notices, NWS alerts or outages and 15 for its own reminders. The battery settles at ⁠$48,662, hindsight capture C 0.347; the real operator's own bids, replayed, earn ⁠$34,022. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v2). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
- }
+  "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4",
+  "alt": "GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
+  "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+ },
+ "story_version": "v2"
 }

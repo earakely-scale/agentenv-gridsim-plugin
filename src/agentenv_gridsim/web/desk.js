@@ -9,7 +9,7 @@ const ARTICLE = "https://huggingface.co/spaces/earakely-scale/GridSimEnv";
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
 const REFC = { anchor: "var(--c-anchor)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)", idle: "var(--c-rule)" };
 const AS = { regup: "RegUp", regdn: "RegDn", rrsffr: "RRS-FFR", rrspfr: "RRS-PFR", ecrs: "ECRS", nspin: "Non-Spin" };
-const ASO = { "ASO-02": "the shape check", "ASO-06": "after the market window closed" };
+const ASO = { "ASO-01": "a product the battery may not offer", "ASO-02": "the shape check", "ASO-06": "after the market window closed" };
 const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
 const BUYBACK = "day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, and which ERCOT's DAM credit screening, not modelled here, would limit";
 const INLINE = { anchor: "the anchor", operator_replay: "the operator's bids", operator_actual: "the operator as settled" };
@@ -33,6 +33,15 @@ const usd = (x, s = false) => { const w = whole(Math.abs(x)); return `${!w ? "" 
 const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
 const pct = (x) => `${whole(100 * x)}%`;
 const unit = (V) => (V.days_per_task > 1 ? `${V.days_per_task}-day window` : "battery-day");
+const blocks = (V) => (V.block === "day" ? `${V.n_days} operating days` : `${V.n_days} ${V.block}s`);
+const lastDay = (V) => { const d = new Date(`${V.dates[1]}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + V.days_per_task - 1); return d.toISOString().slice(0, 10); };
+const blockLabel = (V, d) => {
+  if (V.days_per_task === 1) return day_(d);
+  const a = new Date(`${d}T12:00:00Z`), b = new Date(a), f = (x, o) => x.toLocaleDateString("en-GB", { ...o, timeZone: "UTC" });
+  b.setUTCDate(b.getUTCDate() + V.days_per_task - 1);
+  const name = ((V.sensitivity || {}).names || {})[d];
+  return `the front of ${f(a, { day: "numeric", ...(a.getUTCMonth() === b.getUTCMonth() ? {} : { month: "long" }) })} to ${f(b, { day: "numeric", month: "long", year: "numeric" })}${name ? ` (${name})` : ""}`;
+};
 const link = (href, t) => `<a href="${href}" target="_blank" rel="noopener">${t}</a>`;
 const day = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const day_ = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -80,10 +89,10 @@ function render(D) {
   }
   const W = Math.max(280, Math.min(1080, $("main").clientWidth) - (innerWidth < 720 ? 26 : 42));
   const regions = V.sites.map((s) => s.region).join(", ");
-  $("lede").innerHTML = `One real ERCOT battery, traded the way a desk trades it: <b>day-ahead bids before the 10:00 close, real-time offers and the COP through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, with the clock moving on its own between turns. ${esc(V.version)}, <i>${esc(V.name)}</i>, adds ${esc(V.adds)}. ${V.n_tasks} ${unit(V)}s: ${V.sites.length} real batteries (${esc(regions)}) on ${V.n_days} days from ${day(V.dates[0])} to ${day(V.dates[1])}.`;
+  $("lede").innerHTML = `One real ERCOT battery, traded the way a desk trades it: <b>day-ahead bids before the 10:00 close, real-time offers and the COP through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, with the clock moving on its own between turns. ${esc(V.version)}, <i>${esc(V.name)}</i>, adds ${esc(V.adds)}. ${V.n_tasks} ${unit(V)}s: ${V.sites.length} real batteries (${esc(regions)}) ${V.days_per_task > 1 ? `across ${blocks(V)}` : `on ${V.n_days} days`} from ${day(V.dates[0])} to ${day(lastDay(V))}.`;
   $("kpis").innerHTML = kpis(V);
   $("main").innerHTML = [
-    block("The board", `Each model played each ${unit(V)} once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a ${unit(V)}; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days.`, board(V), `${V.version} · ${esc(V.name)}`),
+    block("The board", `Each model played each ${unit(V)} once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a ${unit(V)}; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: ${V.block}-block bootstrap 95% CIs over ${blocks(V)}.`, board(V), `${V.version} · ${esc(V.name)}`),
     sensitivity(V),
     capFig(V, W),
     usdFig(V, W),
@@ -106,7 +115,7 @@ function kpis(V) {
     o.mean == null ? tile("–", "", "against the real operator", "No operator disclosure for these days.") :
       tile(usd(o.mean, true), sign(o), `a ${unit(V)} against the real operator's bids`, `${usdci(o.ci, true)}${o.ci[0] <= 0 && o.ci[1] >= 0 ? ", a CI that includes zero" : ""}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a ${unit(V)}.`),
     tile(usd(g.mean, true), sign(g), `a ${unit(V)} against the anchor`, `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of ${unit(V)}s. The anchor is the desk's own optimiser on the same information${((V.sensitivity || {}).bought_back || []).includes("anchor") ? "; its DAM/RT spread positions pay off on scarcity days" : ", free to take DAM/RT spread positions"}.`),
-    tile(String(V.n_tasks), "", `real ${unit(V)}s`, `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${V.n_days} operating days, every one old enough for ERCOT to have disclosed the operators' bids.`),
+    tile(String(V.n_tasks), "", `real ${unit(V)}s`, `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${blocks(V)}, every one old enough for ERCOT to have disclosed the operators' bids.`),
   ].join("");
 }
 
@@ -132,21 +141,25 @@ function frame(R, W) {
 }
 
 function sensitivity(V) {
-  const sv = V.sensitivity, w = sv && sv.without;
+  const sv = V.sensitivity, w = sv && (sv.without || sv.derived);
   if (!w) return "";
   const ms = Object.fromEntries(V.models.map((m) => [m.key, m])), name = (k) => (ms[k] ? ms[k].name : SHORT[k] || k);
   const said = (k) => (ms[k] ? ms[k].name : INLINE[k] || k), and = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
-  const one = w.days.length === 1, day = and(w.days.map(day_)), all = Object.fromEntries([...V.models.map((m) => [m.key, m.P]), ...V.references.map((r) => [r.key, r.P])]);
+  const one = w.days.length === 1, blk = sv.block || "day", day = and(w.days.map((d) => blockLabel(V, d)));
+  const all = Object.fromEntries([...V.models.map((m) => [m.key, m.P]), ...V.references.map((r) => [r.key, r.P])]);
   const keys = [...Object.keys(w.means.models), ...Object.keys(w.means.references)];
   const wo = { ...w.means.models, ...w.means.references }, med = { ...sv.median_P, ...sv.median_P_references };
   const per = w.days.map((d) => ({ ...sv.per_day_mean_P[d].models, ...sv.per_day_mean_P[d].references }));
-  const rows = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}<span class="sub">${usdci(all[k].ci)}</span></td>${per.map((on, i) => `<td data-l="On ${day_(w.days[i])}">${on[k] == null ? "–" : usd(on[k])}</td>`).join("")}<td data-l="Without ${one ? "it" : "them"}">${usd(wo[k].P.mean)}<span class="sub">${usdci(wo[k].P.ci)}</span></td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
-  const loss = Object.entries(sv.losses).map(([k, x]) => `${esc(name(k))} on ${x.tasks_p_below_0} (worst ${usd(x.worst_p)})`).join("; ");
+  const ci = (b) => (b.ci ? `<span class="sub">${usdci(b.ci)}</span>` : "");
+  const col = (d) => (V.days_per_task === 1 ? `On ${day_(d)}` : `On the ${day_(d).replace(/ \d{4}$/, "")} ${blk}`);
+  const rows = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}${ci(all[k])}</td>${per.map((on, i) => `<td data-l="${col(w.days[i])}">${on[k] == null ? "–" : usd(on[k])}</td>`).join("")}<td data-l="Without ${one ? "it" : "them"}">${usd(wo[k].P.mean)}${ci(wo[k].P)}</td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
+  const loss = Object.entries(sv.losses).map(([k, x]) => `${esc(name(k))} ${x.tasks_p_below_0} of ${V.n_tasks}${x.tasks_p_below_0 ? ` (worst ${usd(x.worst_p)})` : ""}`).join("; ");
   const who = (sv.carried || []).map(said), bb = (sv.bought_back || []).map(said);
   const from = !bb.length ? "" : bb.length === who.length ? `, from ${BUYBACK}` : `; ${and(bb)} from ${BUYBACK}`;
   const lead = who.length ? `On ${day}${sv.why_short ? `, ${esc(sv.why_short)}` : ""}, ${esc(and(who))} made more than half of ${who.length > 1 ? "their" : "its"} total P${esc(from)}. ` : "";
-  return block(who.length ? `${one ? "One day carries" : "A few days carry"} the means` : `Without ${day}`, `${lead}Mean P a ${unit(V)} with and without ${one ? "that day" : "those days"}, and the median over every ${unit(V)}. P below zero: ${loss}. A post-hoc check, not pre-registered.`,
-    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>All ${V.n_tasks}</th>${w.days.map((d) => `<th>On ${day_(d)}</th>`).join("")}<th>Without ${one ? "it" : "them"} (${w.n_tasks})</th><th>Median, all</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Sensitivity");
+  const title = who.length ? `${one ? `One ${blk} carries` : `A few ${blk}s carry`} the means` : `Without ${day}`;
+  return block(title, `${lead}Mean P a ${unit(V)} with and without ${one ? `that ${blk}` : `those ${blk}s`}${sv.derived ? " (means from the grades, without CIs)" : ""}, and the median over every ${unit(V)}. P below zero: ${loss}. A post-hoc check, not pre-registered.`,
+    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>All ${V.n_tasks}</th>${w.days.map((d) => `<th>${col(d)}</th>`).join("")}<th>Without ${one ? "it" : "them"} (${w.n_tasks})</th><th>Median, all</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Sensitivity");
 }
 
 function capFig(V, W) {
@@ -219,8 +232,9 @@ function behaviour(V) {
 function episode(V, D) {
   const res = (rel) => `${DATASET}/resolve/main/${rel}`;
   const h = V.hero;
-  if (D.gif && D.gif.version === V.version) {
-    return block(`One ${unit(V)}, as it happened`, `${esc(D.gif.alt)}.`, `<div class="desk-ep"><a href="${res(D.gif.path)}"><img src="${res(D.gif.path)}" alt="${esc(D.gif.alt)}" loading="lazy"></a></div>`, "A run");
+  const G = (D.gifs || {})[V.version] || (D.gif && D.gif.version === V.version ? D.gif : null);
+  if (G) {
+    return block(`One ${unit(V)}, as it happened`, `${esc(G.alt)}.`, `<div class="desk-ep"><a href="${res(G.path)}"><img src="${res(G.path)}" alt="${esc(G.alt)}" loading="lazy"></a></div>`, "A run");
   }
   if (!h || !V.figures.hero) return "";
   return block(`One ${unit(V)}: ${esc(h.label)}`, "The node's day-ahead and 5-minute real-time prices, the battery's state of charge (dashed: the real operator's, as disclosed) and its dispatch against the DAM award, with every wake-up and what the desk did at it.",
@@ -242,7 +256,7 @@ function sources(V) {
     <div><h3>On the dataset</h3><ul><li>${link(t(V.folder), `<code>${V.folder}</code>`)}</li><li>${link(b(`${V.folder}/README.md`), "README")} · ${link(b(`${V.folder}/summary.json`), "summary.json")} · ${link(b(`${V.folder}/grades.jsonl.gz`), "grades")}</li><li>configs <code>desk_leaderboard</code> and <code>desk_runs</code>, split <code>${V.version}</code></li></ul></div>
     <div><h3>On GitHub, tag <code>${esc(V.ref)}</code></h3><ul><li>${link(V.github, "the result folder")}</li><li>${link(`${REPO}/blob/${V.ref}/docs/prereg/${V.version}-desk.md`, "the pre-registration")}</li><li>${link(`${REPO}/blob/${V.ref}/docs/CONTRACT-desk.md`, "the desk contract")}</li></ul></div>
     <div><h3>Settings</h3><ul><li>${esc(V.budget)}</li><li>core ${esc(V.core)}, ${esc(V.eras.join(", "))} rules</li><li>${esc(V.ci.method)}, ${V.ci.resamples.toLocaleString("en-US")} resamples</li></ul></div></div>
-    ${V.defects ? `<p class="note">${md(V.defects)}</p>` : ""}<p class="note">Prices, notices and disclosures: ERCOT's public reports; weather alerts: NWS. Not affiliated with or endorsed by ERCOT.</p>`);
+    ${V.defects ? `<p class="note">${md(V.defects)}</p>` : ""}${V.deviations ? `<p class="note">${md(V.deviations)}</p>` : ""}<p class="note">Prices, notices and disclosures: ERCOT's public reports; weather alerts: NWS. Not affiliated with or endorsed by ERCOT.</p>`);
 }
 
 function tips() {
