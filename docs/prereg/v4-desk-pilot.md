@@ -22,3 +22,11 @@ g5 run host. Episode cap $10, lane cap $12. GPT compaction for v4: tool results 
    post (perturbation check on the pilot task).
 4. The per-day statements add up to the episode P, and the grade replays from the Episode JSON to the cent.
 5. Cost and wall time per window measured, to size the v4 eval.
+
+## Outcome (appended after the run)
+One episode, ended normally with no tool error: 44 of 100 turns, 247 tool calls, $4.95, 45 minutes. P $25,389
+(per day $5,036 / $12,046 / $8,307; the per-day statements sum to P) against anchor $19,122, operator actual about $13.7k
+and hindsight $121,092. DAM offers submitted and accepted for each of the three operating days; three DAM results,
+three adjustment-period openings and two `dam_morning` wakes fired; AS lines settle each day. Pass.
+Deviation: the pilot ran at 3b7a4de, before CORE's v4 polish 41f146f (`optimize` proposes curves for the next open DAM
+day only; per-day forecast vintage labels). The v4 eval runs on the v4 freeze, which includes it.
