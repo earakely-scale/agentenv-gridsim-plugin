@@ -1,0 +1,1258 @@
+{
+ "schema": "gridsim.desk.report/v1",
+ "layer": "v3",
+ "pack": "desk-v3-eval",
+ "generated": "2026-10-28T13:03:59Z",
+ "n_tasks": 24,
+ "n_days": 6,
+ "missing": {
+  "sol": [],
+  "luna": [],
+  "qwen": []
+ },
+ "ci": {
+  "method": "day-block bootstrap, task-weighted",
+  "resamples": 10000,
+  "seed": 0,
+  "level": 0.95
+ },
+ "models": {
+  "sol": {
+   "policy": {
+    "kind": "model",
+    "model": "openai/gpt-6.1-sol",
+    "effort": "high"
+   },
+   "n": 24,
+   "days": 6,
+   "status": {
+    "ok": 24
+   },
+   "valid_share": 1.0,
+   "R": {
+    "mean": 0.5493,
+    "ci": [
+     0.3588,
+     0.7319
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.1004,
+    "ci": [
+     -0.0535,
+     0.2657
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": 1.4541,
+    "ci": [
+     0.1381,
+     3.0069
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "P": {
+    "mean": 10512.8567,
+    "ci": [
+     -3565.8437,
+     25808.1837
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "lines": {
+    "dam_energy": 46812.33,
+    "rt_energy_imbalance": -42933.16,
+    "deviation": 0.0,
+    "load_allocated": 0.0,
+    "degradation": -1492.04,
+    "warranty_overage": -1.84,
+    "end_soc_shortfall": -395.21,
+    "dam_as_capacity": 1948.21,
+    "rt_as_imbalance": 1468.66,
+    "failure_to_provide": 0.0,
+    "capacity_short": 0.0,
+    "pv_energy": 5105.91
+   },
+   "P_minus_anchor": {
+    "mean": -1423.415,
+    "ci": [
+     -19579.545,
+     12202.3712
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "floored": 13,
+   "beats_anchor_share": 0.625,
+   "P_minus_operator_replay": {
+    "mean": -6921.0592,
+    "ci": [
+     -29497.5683,
+     9952.6279
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "P_minus_operator_actual": {
+    "mean": -4509.7975,
+    "ci": [
+     -29848.8208,
+     15051.2554
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "turns": 30.71,
+   "wakes": 30.71,
+   "calls": 162.46,
+   "calls_by_tool": {
+    "get_prices": 36.708,
+    "get_forecasts": 31.75,
+    "get_asset_status": 23.833,
+    "set_reminder": 19.792,
+    "get_position": 17.917,
+    "submit_rt_offers": 12.833,
+    "get_grid_conditions": 8.5,
+    "update_cop": 6.708,
+    "optimize": 1.625,
+    "check_submission": 1.458,
+    "submit_dam_offers": 1.333
+   },
+   "submissions": {
+    "accepted": 31.21,
+    "rejected": 0.83,
+    "by_tool_total": {
+     "submit_rt_offers:accepted": 542,
+     "update_cop:accepted": 160,
+     "submit_dam_offers:accepted": 47,
+     "submit_rt_offers:rejected": 13,
+     "submit_dam_offers:rejected": 7
+    },
+    "rejected_codes_total": {
+     "EBOC-07": 20
+    },
+    "accepted_with_codes_total": {
+     "COP-05": 10,
+     "ASO-02": 9,
+     "COP-03": 6
+    }
+   },
+   "reminders": 19.79,
+   "cycles": 0.914,
+   "discharged_mwh": 149.2,
+   "cop_late": 0.0,
+   "ancillary": {
+    "offers_accepted": {
+     "rt:regup": 5.5,
+     "rt:regdn": 4.042,
+     "rt:rrsffr": 4.042,
+     "rt:nspin": 3.875,
+     "rt:ecrs": 2.417,
+     "rt:rrspfr": 0.583,
+     "dam:regdn": 0.583,
+     "dam:rrsffr": 0.292,
+     "dam:nspin": 0.208,
+     "dam:regup": 0.208,
+     "dam:ecrs": 0.167
+    },
+    "rejected_codes_total": {
+     "ASO-02": 80
+    },
+    "dam_award_mwh": {
+     "regdn": 663.646,
+     "rrsffr": 202.917,
+     "nspin": 43.875,
+     "regup": 35.0,
+     "ecrs": 8.958
+    },
+    "rt_award_mwh": {
+     "regdn": 229.594,
+     "regup": 178.213,
+     "rrsffr": 135.002,
+     "nspin": 54.608,
+     "ecrs": 25.032
+    },
+    "episodes_with_awards": 24
+   },
+   "cost_usd": {
+    "per_episode": 1.7377,
+    "total_scored": 41.7039,
+    "total_all_attempts": 41.7039,
+    "attempts": 24
+   },
+   "tokens": {
+    "api_calls": 102.1,
+    "input_tokens": 3114202.8,
+    "output_tokens": 25221.3,
+    "cached_tokens": 2496294.9
+   },
+   "wall_s": 1131.4
+  },
+  "luna": {
+   "policy": {
+    "kind": "model",
+    "model": "openai/gpt-6-luna",
+    "effort": "high"
+   },
+   "n": 24,
+   "days": 6,
+   "status": {
+    "ok": 24
+   },
+   "valid_share": 1.0,
+   "R": {
+    "mean": 0.5973,
+    "ci": [
+     0.4238,
+     0.7683
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.0689,
+    "ci": [
+     0.0275,
+     0.1256
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": 0.1009,
+    "ci": [
+     -0.0485,
+     0.2489
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "P": {
+    "mean": 11087.8742,
+    "ci": [
+     6214.3138,
+     17463.1608
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "lines": {
+    "dam_energy": 8110.16,
+    "rt_energy_imbalance": -104.17,
+    "deviation": 0.0,
+    "load_allocated": 0.0,
+    "degradation": -1235.52,
+    "warranty_overage": 0.0,
+    "end_soc_shortfall": -809.07,
+    "dam_as_capacity": 0.0,
+    "rt_as_imbalance": 20.56,
+    "failure_to_provide": 0.0,
+    "capacity_short": 0.0,
+    "pv_energy": 5105.91
+   },
+   "P_minus_anchor": {
+    "mean": -848.3975,
+    "ci": [
+     -14307.3858,
+     8396.266
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "floored": 13,
+   "beats_anchor_share": 0.5833,
+   "P_minus_operator_replay": {
+    "mean": -6346.0417,
+    "ci": [
+     -24450.7392,
+     4446.0542
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "P_minus_operator_actual": {
+    "mean": -3934.78,
+    "ci": [
+     -23386.3779,
+     8362.0121
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "turns": 17.79,
+   "wakes": 17.79,
+   "calls": 110.46,
+   "calls_by_tool": {
+    "get_forecasts": 20.333,
+    "get_prices": 18.75,
+    "get_asset_status": 14.667,
+    "get_position": 14.458,
+    "get_grid_conditions": 9.333,
+    "submit_rt_offers": 8.75,
+    "check_submission": 8.417,
+    "set_reminder": 6.917,
+    "update_cop": 5.417,
+    "optimize": 2.0,
+    "submit_dam_offers": 1.417
+   },
+   "submissions": {
+    "accepted": 16.88,
+    "rejected": 0.08,
+    "by_tool_total": {
+     "submit_rt_offers:accepted": 242,
+     "update_cop:accepted": 127,
+     "submit_dam_offers:accepted": 36,
+     "submit_rt_offers:rejected": 1,
+     "submit_dam_offers:rejected": 1
+    },
+    "rejected_codes_total": {
+     "EBOC-04": 1,
+     "EBOC-07": 1
+    },
+    "accepted_with_codes_total": {
+     "COP-05": 11,
+     "COP-03": 1
+    }
+   },
+   "reminders": 6.92,
+   "cycles": 0.762,
+   "discharged_mwh": 123.6,
+   "cop_late": 0.0,
+   "ancillary": {
+    "offers_accepted": {
+     "rt:regup": 1.125,
+     "rt:nspin": 0.75,
+     "rt:regdn": 0.542,
+     "rt:rrspfr": 0.542,
+     "rt:rrsffr": 0.542,
+     "rt:ecrs": 0.542,
+     "dam:regup": 0.125
+    },
+    "rejected_codes_total": {
+     "ASO-02": 208
+    },
+    "dam_award_mwh": {},
+    "rt_award_mwh": {
+     "nspin": 1.112,
+     "ecrs": 0.148
+    },
+    "episodes_with_awards": 6
+   },
+   "cost_usd": {
+    "per_episode": 0.1466,
+    "total_scored": 3.5175,
+    "total_all_attempts": 3.5175,
+    "attempts": 24
+   },
+   "tokens": {
+    "api_calls": 64.1,
+    "input_tokens": 3601514.7,
+    "output_tokens": 69299.6,
+    "cached_tokens": 2758225.4
+   },
+   "wall_s": 839.9
+  },
+  "qwen": {
+   "policy": {
+    "kind": "model",
+    "model": "qwen3-4b",
+    "effort": null
+   },
+   "n": 24,
+   "days": 6,
+   "status": {
+    "ok": 24
+   },
+   "valid_share": 0.5417,
+   "R": {
+    "mean": 0.1969,
+    "ci": [
+     0.0805,
+     0.3103
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": -0.0126,
+    "ci": [
+     -0.0435,
+     0.0133
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": -1.7228,
+    "ci": [
+     -4.3106,
+     0.0357
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "P": {
+    "mean": 5996.7325,
+    "ci": [
+     1757.2313,
+     10660.1825
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "lines": {
+    "dam_energy": 2392.11,
+    "rt_energy_imbalance": -1538.5,
+    "deviation": 0.0,
+    "load_allocated": 0.0,
+    "degradation": -508.66,
+    "warranty_overage": -124.97,
+    "end_soc_shortfall": -341.86,
+    "dam_as_capacity": 1604.25,
+    "rt_as_imbalance": -83.5,
+    "failure_to_provide": 0.0,
+    "capacity_short": -508.05,
+    "pv_energy": 5105.91
+   },
+   "P_minus_anchor": {
+    "mean": -5939.5392,
+    "ci": [
+     -16201.7296,
+     1849.3125
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "floored": 13,
+   "beats_anchor_share": 0.4583,
+   "P_minus_operator_replay": {
+    "mean": -11437.1833,
+    "ci": [
+     -26455.1296,
+     -1158.0025
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "P_minus_operator_actual": {
+    "mean": -9025.9217,
+    "ci": [
+     -25736.9888,
+     2054.3129
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "turns": 14.17,
+   "wakes": 14.17,
+   "calls": 72.21,
+   "calls_by_tool": {
+    "get_forecasts": 23.625,
+    "get_prices": 11.292,
+    "set_reminder": 9.25,
+    "get_asset_status": 7.708,
+    "optimize": 6.125,
+    "get_position": 5.667,
+    "update_cop": 4.292,
+    "submit_dam_offers": 1.958,
+    "submit_rt_offers": 1.5,
+    "check_submission": 0.708,
+    "get_grid_conditions": 0.083
+   },
+   "submissions": {
+    "accepted": 2.62,
+    "rejected": 1.75,
+    "by_tool_total": {
+     "submit_rt_offers:accepted": 42,
+     "submit_dam_offers:rejected": 38,
+     "submit_dam_offers:accepted": 18,
+     "submit_rt_offers:rejected": 4,
+     "update_cop:accepted": 3
+    },
+    "rejected_codes_total": {
+     "EBOC-06": 37,
+     "EBOC-07": 5
+    },
+    "accepted_with_codes_total": {
+     "EBOC-06": 6
+    }
+   },
+   "reminders": 4.88,
+   "cycles": 0.363,
+   "discharged_mwh": 50.9,
+   "cop_late": 0.08,
+   "ancillary": {
+    "offers_accepted": {
+     "rt:regup": 0.417,
+     "rt:regdn": 0.417,
+     "rt:rrsffr": 0.333,
+     "dam:regdn": 0.333,
+     "dam:nspin": 0.292,
+     "rt:nspin": 0.25,
+     "rt:ecrs": 0.25,
+     "dam:regup": 0.167,
+     "dam:rrsffr": 0.083,
+     "dam:ecrs": 0.083
+    },
+    "rejected_codes_total": {
+     "ASO-02": 36,
+     "ASO-06": 15
+    },
+    "dam_award_mwh": {
+     "regdn": 768.704,
+     "rrsffr": 60.483,
+     "regup": 50.166,
+     "nspin": 40.253,
+     "ecrs": 5.0
+    },
+    "rt_award_mwh": {
+     "regdn": 312.939,
+     "regup": 82.248,
+     "nspin": 20.638,
+     "rrsffr": 20.157,
+     "ecrs": 10.306
+    },
+    "episodes_with_awards": 17
+   },
+   "cost_usd": {
+    "per_episode": 0.0,
+    "total_scored": 0.0,
+    "total_all_attempts": 0.0,
+    "attempts": 24
+   },
+   "tokens": {
+    "api_calls": 86.6,
+    "input_tokens": 1618750.3,
+    "output_tokens": 12487.5,
+    "cached_tokens": 0.0
+   },
+   "wall_s": 1990.4
+  }
+ },
+ "references": {
+  "idle": {
+   "label": "idle",
+   "P": {
+    "mean": 6276.4162,
+    "ci": [
+     3302.9763,
+     9694.7192
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.0,
+    "ci": [
+     0.0,
+     0.0
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": 0.0,
+    "ci": [
+     0.0,
+     0.0
+    ],
+    "n": 24,
+    "days": 6
+   }
+  },
+  "anchor": {
+   "label": "anchor (information-matched)",
+   "P": {
+    "mean": 11936.2717,
+    "ci": [
+     1345.6296,
+     24067.8521
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.0256,
+    "ci": [
+     -0.0427,
+     0.0907
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": 0.3344,
+    "ci": [
+     -0.3836,
+     1.2676
+    ],
+    "n": 24,
+    "days": 6
+   }
+  },
+  "hind": {
+   "label": "hindsight optimum",
+   "P": {
+    "mean": 126854.4504,
+    "ci": [
+     77221.3363,
+     209780.7212
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 1.0,
+    "ci": [
+     1.0,
+     1.0
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": 22.8325,
+    "ci": [
+     1.9412,
+     61.7673
+    ],
+    "n": 24,
+    "days": 6
+   }
+  },
+  "hind_phys": {
+   "label": "hindsight, DAM = physical",
+   "P": {
+    "mean": 60442.9992,
+    "ci": [
+     33517.2754,
+     98015.0463
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.4407,
+    "ci": [
+     0.3533,
+     0.5245
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": 1.0,
+    "ci": [
+     1.0,
+     1.0
+    ],
+    "n": 24,
+    "days": 6
+   }
+  },
+  "operator_replay": {
+   "label": "operator replay",
+   "P": {
+    "mean": 17433.9158,
+    "ci": [
+     5187.755,
+     33263.51
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.0669,
+    "ci": [
+     -0.0021,
+     0.1372
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": -0.4429,
+    "ci": [
+     -1.5246,
+     0.2474
+    ],
+    "n": 24,
+    "days": 6
+   }
+  },
+  "operator_actual": {
+   "label": "operator actual",
+   "P": {
+    "mean": 15022.6542,
+    "ci": [
+     4305.1729,
+     31589.6492
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C": {
+    "mean": 0.0336,
+    "ci": [
+     -0.0132,
+     0.0884
+    ],
+    "n": 24,
+    "days": 6
+   },
+   "C_phys": {
+    "mean": -0.061,
+    "ci": [
+     -0.6897,
+     0.4159
+    ],
+    "n": 24,
+    "days": 6
+   }
+  }
+ },
+ "paired": {
+  "sol-luna": {
+   "a": "sol",
+   "b": "luna",
+   "P": {
+    "mean": -575.0175,
+    "ci": [
+     -10086.9137,
+     8917.3263
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5833,
+    "level": 0.0,
+    "days_ahead": 3
+   },
+   "R": {
+    "mean": -0.048,
+    "ci": [
+     -0.1863,
+     0.1008
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.375,
+    "level": 0.25,
+    "days_ahead": 2
+   },
+   "C": {
+    "mean": 0.0315,
+    "ci": [
+     -0.0991,
+     0.1468
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5833,
+    "level": 0.0,
+    "days_ahead": 3
+   }
+  },
+  "sol-qwen": {
+   "a": "sol",
+   "b": "qwen",
+   "P": {
+    "mean": 4516.1242,
+    "ci": [
+     -7113.6537,
+     16458.4879
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5833,
+    "level": 0.0,
+    "days_ahead": 3
+   },
+   "R": {
+    "mean": 0.3524,
+    "ci": [
+     0.2224,
+     0.4892
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5417,
+    "level": 0.3333,
+    "days_ahead": 6
+   },
+   "C": {
+    "mean": 0.113,
+    "ci": [
+     -0.0353,
+     0.2674
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5833,
+    "level": 0.0,
+    "days_ahead": 3
+   }
+  },
+  "luna-qwen": {
+   "a": "luna",
+   "b": "qwen",
+   "P": {
+    "mean": 5091.1417,
+    "ci": [
+     1524.6488,
+     8102.1254
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.8333,
+    "level": 0.0,
+    "days_ahead": 5
+   },
+   "R": {
+    "mean": 0.4004,
+    "ci": [
+     0.294,
+     0.5053
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.8333,
+    "level": 0.0833,
+    "days_ahead": 6
+   },
+   "C": {
+    "mean": 0.0815,
+    "ci": [
+     0.0348,
+     0.1301
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.8333,
+    "level": 0.0,
+    "days_ahead": 5
+   }
+  },
+  "sol-operator_replay": {
+   "a": "sol",
+   "b": "operator_replay",
+   "P": {
+    "mean": -6921.0592,
+    "ci": [
+     -29497.5683,
+     9952.6279
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5,
+    "level": 0.0,
+    "days_ahead": 3
+   }
+  },
+  "luna-operator_replay": {
+   "a": "luna",
+   "b": "operator_replay",
+   "P": {
+    "mean": -6346.0417,
+    "ci": [
+     -24450.7392,
+     4446.0542
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.5417,
+    "level": 0.0,
+    "days_ahead": 4
+   }
+  },
+  "qwen-operator_replay": {
+   "a": "qwen",
+   "b": "operator_replay",
+   "P": {
+    "mean": -11437.1833,
+    "ci": [
+     -26455.1296,
+     -1158.0025
+    ],
+    "n": 24,
+    "days": 6,
+    "ahead": 0.25,
+    "level": 0.0,
+    "days_ahead": 1
+   }
+  }
+ },
+ "pilot": [
+  {
+   "task_id": "desk-v3-2026-04-20-S01",
+   "tag": "gpt-6.1-sol",
+   "status": "ok",
+   "reward": 0.0,
+   "capture": -0.10138,
+   "capture_phys": -0.348758,
+   "p": 4819.87,
+   "p_anchor": 7673.27,
+   "p_hind": 127657.7,
+   "p_operator_replay": 10548.93,
+   "turns": 27,
+   "cost_usd": 1.404439
+  },
+  {
+   "task_id": "desk-v3-2026-08-14-S03",
+   "tag": "gpt-6.1-sol",
+   "status": "ok",
+   "reward": 1.0,
+   "capture": 0.194207,
+   "capture_phys": 0.694457,
+   "p": 4477.31,
+   "p_anchor": -1448.29,
+   "p_hind": 23054.31,
+   "p_operator_replay": -194.37,
+   "turns": 25,
+   "cost_usd": 1.422392
+  }
+ ],
+ "sensitivity": {
+  "median_P": {
+   "sol": 11901.71,
+   "luna": 8786.19,
+   "qwen": 3135.47
+  },
+  "median_P_references": {
+   "anchor": 6794.56,
+   "operator_replay": 11103.06,
+   "operator_actual": 9277.0
+  },
+  "per_day_mean_P": {
+   "2026-04-11": {
+    "models": {
+     "sol": -10827.32,
+     "luna": 4671.53,
+     "qwen": -2569.72
+    },
+    "references": {
+     "anchor": -8667.39,
+     "operator_replay": 3861.11,
+     "operator_actual": 4585.18
+    }
+   },
+   "2026-04-24": {
+    "models": {
+     "sol": -7292.06,
+     "luna": 3845.24,
+     "qwen": 6865.4
+    },
+    "references": {
+     "anchor": 36777.05,
+     "operator_replay": 53842.67,
+     "operator_actual": 55015.32
+    }
+   },
+   "2026-05-26": {
+    "models": {
+     "sol": 16716.79,
+     "luna": 9401.42,
+     "qwen": 2350.9
+    },
+    "references": {
+     "anchor": 8823.56,
+     "operator_replay": 5379.89,
+     "operator_actual": 6456.69
+    }
+   },
+   "2026-06-06": {
+    "models": {
+     "sol": 1338.79,
+     "luna": 12008.94,
+     "qwen": 8087.97
+    },
+    "references": {
+     "anchor": 3836.84,
+     "operator_replay": 3797.86,
+     "operator_actual": 584.25
+    }
+   },
+   "2026-07-21": {
+    "models": {
+     "sol": 41141.72,
+     "luna": 25749.19,
+     "qwen": 15552.28
+    },
+    "references": {
+     "anchor": 21415.55,
+     "operator_replay": 27293.28,
+     "operator_actual": 14476.86
+    }
+   },
+   "2026-08-22": {
+    "models": {
+     "sol": 21999.22,
+     "luna": 10850.93,
+     "qwen": 5693.57
+    },
+    "references": {
+     "anchor": 9432.01,
+     "operator_replay": 10428.69,
+     "operator_actual": 9017.63
+    }
+   }
+  },
+  "losses": {
+   "sol": {
+    "tasks_p_below_0": 7,
+    "days_mean_p_below_0": 2,
+    "worst_task": "desk-v3-2026-04-24-S04",
+    "worst_p": -44564.45
+   },
+   "luna": {
+    "tasks_p_below_0": 3,
+    "days_mean_p_below_0": 0,
+    "worst_task": "desk-v3-2026-04-24-S03",
+    "worst_p": -34050.55
+   },
+   "qwen": {
+    "tasks_p_below_0": 4,
+    "days_mean_p_below_0": 1,
+    "worst_task": "desk-v3-2026-04-11-S03",
+    "worst_p": -7120.46
+   }
+  }
+ },
+ "regraded": {
+  "applied": true,
+  "refs": "pack task rows",
+  "reward_changed": {
+   "sol": 0,
+   "luna": 0,
+   "qwen": 0
+  },
+  "not_regraded": {},
+  "diffs": [
+   {
+    "model": "sol",
+    "task_id": "desk-v3-2026-04-11-S04",
+    "changed": {
+     "capture": [
+      null,
+      0.029061
+     ],
+     "capture_phys": [
+      null,
+      13.579678
+     ],
+     "p_hind": [
+      0.0,
+      68704.97
+     ],
+     "p_hind_phys": [
+      0.0,
+      147.03
+     ]
+    }
+   },
+   {
+    "model": "sol",
+    "task_id": "desk-v3-2026-05-26-S02",
+    "changed": {
+     "capture": [
+      11.807996,
+      0.553975
+     ],
+     "capture_phys": [
+      98.138994,
+      18.415968
+     ],
+     "p_hind": [
+      11553.47,
+      48579.03
+     ],
+     "p_hind_phys": [
+      9950.19,
+      10899.5
+     ]
+    }
+   },
+   {
+    "model": "sol",
+    "task_id": "desk-v3-2026-04-11-S01",
+    "changed": {
+     "capture": [
+      -0.328757,
+      -0.280663
+     ],
+     "p_hind": [
+      62098.17,
+      72506.48
+     ]
+    }
+   },
+   {
+    "model": "luna",
+    "task_id": "desk-v3-2026-05-26-S02",
+    "changed": {
+     "capture": [
+      -0.857196,
+      -0.040216
+     ],
+     "capture_phys": [
+      -7.124356,
+      -1.336899
+     ],
+     "p_hind": [
+      11553.47,
+      48579.03
+     ],
+     "p_hind_phys": [
+      9950.19,
+      10899.5
+     ]
+    }
+   },
+   {
+    "model": "luna",
+    "task_id": "desk-v3-2026-04-11-S04",
+    "changed": {
+     "capture": [
+      null,
+      0.0
+     ],
+     "capture_phys": [
+      null,
+      0.0
+     ],
+     "p_hind": [
+      0.0,
+      68704.97
+     ],
+     "p_hind_phys": [
+      0.0,
+      147.03
+     ]
+    }
+   },
+   {
+    "model": "luna",
+    "task_id": "desk-v3-2026-04-11-S01",
+    "changed": {
+     "capture": [
+      0.309967,
+      0.264622
+     ],
+     "p_hind": [
+      62098.17,
+      72506.48
+     ]
+    }
+   },
+   {
+    "model": "qwen",
+    "task_id": "desk-v3-2026-04-11-S04",
+    "changed": {
+     "capture": [
+      null,
+      -0.065736
+     ],
+     "capture_phys": [
+      null,
+      -30.717337
+     ],
+     "p_hind": [
+      0.0,
+      68704.97
+     ],
+     "p_hind_phys": [
+      0.0,
+      147.03
+     ]
+    }
+   },
+   {
+    "model": "qwen",
+    "task_id": "desk-v3-2026-04-11-S01",
+    "changed": {
+     "p_hind": [
+      62098.17,
+      72506.48
+     ]
+    }
+   },
+   {
+    "model": "qwen",
+    "task_id": "desk-v3-2026-05-26-S02",
+    "changed": {
+     "capture": [
+      -6.980917,
+      -0.327512
+     ],
+     "capture_phys": [
+      -58.020019,
+      -10.887566
+     ],
+     "p_hind": [
+      11553.47,
+      48579.03
+     ],
+     "p_hind_phys": [
+      9950.19,
+      10899.5
+     ]
+    }
+   }
+  ],
+  "anchor_settings": {
+   "{\"dam_position\": \"spread\", \"risk\": 1.5}": 24
+  },
+  "core_versions": {
+   "desk-2.1": 24
+  }
+ },
+ "copies": {
+  "sol": {
+   "episodes": 24,
+   "calls_mb": 0.92,
+   "calls_copied": true
+  },
+  "luna": {
+   "episodes": 24,
+   "calls_mb": 1.21,
+   "calls_copied": true
+  },
+  "qwen": {
+   "episodes": 24,
+   "calls_mb": 0.68,
+   "calls_copied": true
+  },
+  "pilot": {
+   "episodes": 2,
+   "calls_mb": 0.07,
+   "calls_copied": true
+  }
+ },
+ "method": {
+  "sites": 4,
+  "eras": [
+   "rtcb"
+  ],
+  "core_versions": "desk-2.1",
+  "budget": "max_turns 48, calls_per_turn 14, max_reminders 8",
+  "grading": "every grade replayed from its Episode JSON against the frozen refs (the pack task rows; anchor risk 1.5, DAM position spread)",
+  "calls_note": "; per-call logs `runs/<model>/calls/*.jsonl.gz`",
+  "calls_mb": {
+   "sol": 0.92,
+   "luna": 1.21,
+   "qwen": 0.68,
+   "pilot": 0.07
+  }
+ },
+ "hero": {
+  "model": "sol",
+  "task_id": "desk-v3-2026-05-26-S03",
+  "operator_soc": true,
+  "label": "Battery S03 (North, 120 MW / 187 MWh), Tue 26 May 2026"
+ }
+}

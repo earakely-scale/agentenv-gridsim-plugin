@@ -163,7 +163,37 @@ def behaviour(ep: dict) -> dict:
             "submissions_by_tool": {f"{k}:{'accepted' if a else 'rejected'}": v for (k, a), v in by_tool.items()},
             "reminders": reminders, "cycles": sum(d.get("cycles", 0.0) for d in days),
             "discharged_mwh": sum(d.get("discharged_mwh", 0.0) for d in days),
-            "cop_late": (ep.get("compliance") or {}).get("cop_late", 0), "wakes": len(ep.get("wakes", []))}
+            "cop_late": (ep.get("compliance") or {}).get("cop_late", 0), "wakes": len(ep.get("wakes", [])),
+            "ancillary": ancillary(ep)}
+
+
+AS_NAMES = {"RegUp": "regup", "RegDn": "regdn", "RRS-FFR": "rrsffr", "RRS-PFR": "rrspfr", "ECRS": "ecrs",
+            "Non-Spin": "nspin"}
+AS_LABEL = {v: k for k, v in AS_NAMES.items()}
+
+
+def ancillary(ep: dict) -> dict | None:
+    """AS offers accepted per product and market, AS rejection codes, and awarded MWh per product (v3+)."""
+    d0 = ep["dates"][0]
+    if "as_award_mw" not in ep["dam"].get(d0, {}) and "as_award_mw" not in ep["rt"].get(d0, {}):
+        return None
+    acc, rej = Counter(), Counter()
+    for t in ep["turns"]:
+        for c in t["calls"]:
+            if c["tool"] not in ("submit_dam_offers", "submit_rt_offers") or not isinstance(c.get("result"), dict):
+                continue
+            mkt = "dam" if c["tool"] == "submit_dam_offers" else "rt"
+            for k in c["result"].get("as_accepted") or {}:
+                acc[f"{mkt}:{AS_NAMES.get(k, k)}"] += 1
+            for x in c["result"].get("as_rejected") or []:
+                rej[x.get("code", "?") if isinstance(x, dict) else "?"] += 1
+    dam, rt = Counter(), Counter()
+    for d in ep["dates"]:
+        for h in ep["dam"].get(d, {}).get("as_award_mw") or []:
+            dam.update({k: v for k, v in (h or {}).items() if v})
+        for i in ep["rt"].get(d, {}).get("as_award_mw") or []:
+            rt.update({k: v / 12 for k, v in (i or {}).items() if v})
+    return {"accepted": dict(acc), "rejected_codes": dict(rej), "dam_mwh": dict(dam), "rt_mwh": dict(rt)}
 
 
 def mean_counter(cs: list[dict]) -> dict:
@@ -228,6 +258,12 @@ def model_block(run: dict, grades: dict, days: dict) -> dict:
         "cycles": round(float(np.mean([b["cycles"] for b in beh])), 3) if beh else None,
         "discharged_mwh": round(float(np.mean([b["discharged_mwh"] for b in beh])), 1) if beh else None,
         "cop_late": round(float(np.mean([b["cop_late"] for b in beh])), 2) if beh else None,
+        "ancillary": {"offers_accepted": mean_counter([x["accepted"] for x in anc]),
+                      "rejected_codes_total": sum_counter([x["rejected_codes"] for x in anc]),
+                      "dam_award_mwh": mean_counter([x["dam_mwh"] for x in anc]),
+                      "rt_award_mwh": mean_counter([x["rt_mwh"] for x in anc]),
+                      "episodes_with_awards": sum(1 for x in anc if x["dam_mwh"] or x["rt_mwh"])}
+        if (anc := [b["ancillary"] for b in beh if b["ancillary"]]) else None,
         "cost_usd": {"per_episode": round(float(np.mean(num("cost_usd"))), 4) if tids else None,
                      "total_scored": round(float(np.sum(num("cost_usd"))), 4),
                      "total_all_attempts": round(sum((r.get("usage") or {}).get("cost_usd", 0.0)
@@ -403,6 +439,8 @@ def turn_label(ep: dict, turn: dict) -> str:
         seen[c["tool"]] += 1
     groups = {}
     for s in subs:
+        if s.get("as"):
+            continue
         g = groups.setdefault((s["tool"], s.get("day") if len(ep.get("dates", [])) > 1 else None, s["accepted"]),
                               {"hours": set(), "codes": []})
         g["hours"].update(s.get("hours") or [])
@@ -410,9 +448,14 @@ def turn_label(ep: dict, turn: dict) -> str:
     for (tool, day, ok), g in groups.items():
         what = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "update_cop": "COP"}.get(tool, tool)
         hrs = g["hours"]
-        span = f" HE{min(hrs)}–{max(hrs)}" if hrs and tool != "update_cop" else ""
+        span = "" if not hrs or tool == "update_cop" else \
+            f" HE{min(hrs)}" if min(hrs) == max(hrs) else f" HE{min(hrs)}–{max(hrs)}"
         acts.append(f"{what}{f' {day}' if day else ''}{span}"
                     + ("" if ok else f" (rejected {','.join(g['codes'][:2])})"))
+    for c in turn["calls"]:
+        res = c.get("result") if isinstance(c.get("result"), dict) else {}
+        if c["tool"] in ("submit_dam_offers", "submit_rt_offers") and res.get("as_accepted"):
+            acts.append(f"AS {'DAM' if c['tool'] == 'submit_dam_offers' else 'RT'} " + ", ".join(res["as_accepted"]))
     for c in turn["calls"]:
         if c["tool"] == "set_reminder" and c.get("ok"):
             at = (c.get("args") or {}).get("at")
@@ -517,10 +560,18 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
         ax_d.fill_between(t5, 0, np.where(metered < 0, metered, 0), step="post", color=th["charge"], lw=0,
                           alpha=0.85, zorder=2, label="charge")
         ax_d.step(th_, np.append(award, award[-1]), where="post", color=th["ink"], lw=1.0, zorder=3, label="DAM award")
+        for mkt, key, n, tt in (("DAM", "dam", 24, th_), ("RT", "rt", 288, np.append(t5, t5[-1] + 5))):
+            aw = [i or {} for d in dates for i in (ep[key][d].get("as_award_mw") or [{}] * n)]
+            up = np.array([sum(v or 0.0 for k, v in i.items() if k != "regdn") for i in aw])
+            dn = np.array([-(i.get("regdn") or 0.0) for i in aw])
+            for y, lab, ls in ((up, "AS up", (0, (1.5, 1.5))), (dn, "RegDn", (0, (4, 1.5)))):
+                if y.any():
+                    ax_d.step(tt, np.append(y, y[-1]), where="post", color=th["muted"] if key == "dam" else th["ink"],
+                              lw=1.1, ls=ls, zorder=3, label=f"{lab} award ({mkt})")
         ax_d.axhline(0, color=th["muted"], lw=0.6)
         ax_d.set_ylim(ep["site"]["lsl_mw"] * 1.1, ep["site"]["hsl_mw"] * 1.5)
         ax_d.set_ylabel("MW", fontsize=9)
-        ax_d.legend(loc="upper left", fontsize=8.5, frameon=False, ncol=3)
+        ax_d.legend(loc="upper left", fontsize=8, frameon=False, ncol=4)
         ticks = ([t for t in ((-1080, -360) if nd == 1 else (-1080,)) if t >= t0] if t0 < 0 else []) + \
             [d * 1440 + h for d in range(nd) for h in (0, 360, 720, 1080)] + [1440 * nd]
         names = []
@@ -654,6 +705,28 @@ def sensitivity(grades: dict, days: dict, union: dict, exclude: list[str]) -> di
     return out
 
 
+def as_md(ms: dict) -> str:
+    rows = []
+    for k, m in ms.items():
+        a = m.get("ancillary")
+        if not a:
+            continue
+        prods = [p for p in AS_LABEL if any(p in a[f] or f"dam:{p}" in a[f] or f"rt:{p}" in a[f]
+                                            for f in ("offers_accepted", "dam_award_mwh", "rt_award_mwh"))]
+        for p in prods:
+            rows.append([NAMES.get(k, k), AS_LABEL[p], f"{a['offers_accepted'].get(f'dam:{p}', 0):.2f}",
+                         f"{a['offers_accepted'].get(f'rt:{p}', 0):.2f}", f"{a['dam_award_mwh'].get(p, 0):,.1f}",
+                         f"{a['rt_award_mwh'].get(p, 0):,.1f}"])
+        codes = ", ".join(f"{c} ×{v}" for c, v in list(a["rejected_codes_total"].items())[:4]) or "none"
+        rows.append([NAMES.get(k, k), "all", "", "", "", f"{a['episodes_with_awards']}/{m['n']} episodes with an AS "
+                     f"award; AS rejections: {codes}"])
+    if not rows:
+        return ""
+    return "\n".join(["### Ancillary services (mean per episode)", "",
+                      table(["model", "product", "DAM submissions accepted", "RT submissions accepted",
+                             "DAM award MWh", "RT award MWh"], rows), "", ""])
+
+
 def sens_md(summary: dict) -> str:
     sv, ms = summary.get("sensitivity"), summary["models"]
     if not sv:
@@ -735,9 +808,10 @@ def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
                          for k, m in ms.items())
     pilot = ""
     if summary.get("pilot"):
-        pilot = "\n## Pilot\n\n" + table(
+        pilot = "\n## Pilot\n\nThe pilot pack, graded as the runner wrote it (not in the tables above).\n\n" + table(
             ["task", "policy", "R", "C", "P", "anchor", "operator replay", "turns", "$"],
-            [[p["task_id"], p["tag"], f"{p['reward']:.2f}", "—" if p["capture"] is None else f"{p['capture']:.2f}",
+            [[p["task_id"], p["tag"], f"{p['reward']:.2f}",
+              "—" if p["capture"] is None else f"{p['capture']:.2f}".replace("-", "−"),
               money_s(p["p"]), money_s(p["p_anchor"]),
               "—" if p["p_operator_replay"] is None else money_s(p["p_operator_replay"]), str(p["turns"]),
               f"${p['cost_usd']:.2f}"] for p in summary["pilot"]]) + "\n"
@@ -770,7 +844,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t5}
 
-{sens_md(summary)}
+{as_md(ms)}{sens_md(summary)}
 {fig}
 ## What the numbers say
 
