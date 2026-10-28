@@ -550,8 +550,15 @@ wins large DAM/RT spreads on the scarcity days, so R on those days rewards match
 | 2.0 | spread | 54,845 | -1,133 |
 
 **Chosen for v3: risk 1.5, DAM basis "spread"** (runner-up 1.25/spread $62,500, 7.4% below; worst day −$1,323).
-Settings live per layer in `policies.SETTINGS` (`policies.setting(layer)`); a layer without a tuned entry uses risk
-0.5 / physical until its tune pick (v4, v5 on their own tune packs).
+The tune days carry real DAM/RT MCPCs and ASDCs but no deployment series (`deployments` empty, no `reg_deploy`, so
+regulation energy uses the labelled 0.17/0.20 fractions): the v3 pick is made without deployments. The tune days are
+disjoint from every v3 eval day.
+
+**v4 and v5 (pre-registered 2026-10-28, before any v4/v5 refs):** no separate tune packs (the ERCOT API is the
+bottleneck); both reuse the v3 pick, risk 1.5 / spread — v4 is the v3 rules over three days and v5 the v3 rules plus
+the DAM re-clear. Settings live per layer in `policies.SETTINGS` (`policies.setting(layer)`) and every refs block
+records `anchor_setting`. If the re-clear makes the spread anchor lose heavily on the v5 pilot refs, that is reported
+before the v5 pilot runs; the setting is not changed without approval.
 
 ### 10.1 v3 "Sun, Storage and Reserves" as built (`gridsim_core.desk.ancillary`; desk-research.md sections cited)
 

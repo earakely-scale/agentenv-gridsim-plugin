@@ -25,13 +25,15 @@ def idle(s: Session, wake: dict) -> None:
         s.call("submit_dam_offers", {"day": f"D{j}", "curves": [curve]})
 
 
-SETTINGS = {"v2": {"risk": 1.25, "dam_position": "spread"}, "v3": {"risk": 1.5, "dam_position": "spread"}}
+V3_PICK = {"risk": 1.5, "dam_position": "spread"}
+SETTINGS = {"v2": {"risk": 1.25, "dam_position": "spread"}, "v3": V3_PICK, "v4": V3_PICK, "v5": V3_PICK}
 DEFAULT = {"risk": 0.5, "dam_position": "physical"}
 OVERRIDE: dict | None = None
 
 
 def setting(layer: str) -> dict:
-    """The anchor's (risk, DAM basis) for a layer, chosen on its tune pack (contract 9.3); OVERRIDE is for sweeps."""
+    """The anchor's (risk, DAM basis) for a layer (contract 9.3): v2 and v3 picked on desk-v2-tune, v4 and v5 reuse
+    the v3 pick by the pre-registered rule; OVERRIDE is for sweeps."""
     return dict(OVERRIDE or SETTINGS.get(layer, DEFAULT))
 
 
