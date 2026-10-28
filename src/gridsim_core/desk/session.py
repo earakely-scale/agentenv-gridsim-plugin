@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
 
 from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
@@ -25,7 +26,7 @@ from gridsim_core.desk.engine import (
 from gridsim_core.desk.planner import ViewError, propose
 from gridsim_core.desk.settle import partial, statement
 
-CORE_VERSION = "desk-2.0"
+CORE_VERSION = "desk-2.1"
 EPISODE_SCHEMA = "gridsim.desk.episode/v1"
 LAYERS = ("v2", "v3", "v4", "v5")
 BUDGETS = {"v2": {"max_turns": 40, "calls_per_turn": 12, "max_reminders": 8},
@@ -118,7 +119,8 @@ class Session:
                           "id": n.get("event_id")})
         for n in self.ser.nws:
             t = n["t_issued_at"]
-            items.append({"t": max(t, clock.START), "reason": "nws", "wakes": t > clock.START, "nws": n,
+            wakes = t > clock.START and any(w in str(n.get("event", "")) for w in ("Warning", "Watch"))
+            items.append({"t": max(t, clock.START), "reason": "nws", "wakes": wakes, "nws": n,
                           "id": n.get("event_id")})
         for e in self.ser.unit_events:
             items.append({"t": max(e["t_start"], clock.START), "reason": "outage", "wakes": True, "unit": e,
@@ -228,8 +230,7 @@ class Session:
         if r == "nws":
             n = i["nws"]
             return {"t": t, "kind": "weather", "event": n.get("event"), "severity": n.get("severity"),
-                    "text": (n.get("headline") or "")[:NOTICE_CHARS],
-                    "expires": clock.label(n["t_expires"], self.d0) if n.get("t_expires") is not None else None}
+                    "text": (n.get("headline") or "")[:NOTICE_CHARS], "expires": self._nws_expiry(n)}
         if r == "outage":
             u = i["unit"]
             if i["phase"] == "start":
@@ -247,6 +248,14 @@ class Session:
         if r in ("dam_close", "druc", "adjustment_open", "dam_morning"):
             return {"t": t, "kind": r, "text": i["text"]}
         return None
+
+    def _nws_expiry(self, n: dict) -> str | None:
+        """The expiry as first issued (`expires_initial`); a folded final expiry would leak extensions."""
+        t = n.get("t_expires_initial")
+        return clock.label(t, self.d0) if t is not None else None
+
+    def _nws_end(self, n: dict) -> float:
+        return n.get("t_expires_initial", n.get("t_expires", math.inf))
 
     def _dam_summary(self, day: int) -> str:
         a = self.engine.dam_award[24 * day:24 * day + 24]
@@ -278,7 +287,7 @@ class Session:
             close = j * clock.DAY + clock.DAM_CLOSE
             if self.now < close and close - self.now <= clock.DAY:
                 out.append({"what": f"DAM for {clock.day_label(j, self.d0)} closes", "at": clock.label(close, self.d0)})
-        nxt = (max(self.now, -60) // 60 + 1) * 60
+        nxt = max((self.now // 60 + 2) * 60, 0)
         if nxt - 60 < self.end and nxt < self.end:
             out.append({"what": f"COP and{'' if self.rtcb else ' charging bid for'} {clock.he((nxt // 60) % 24 + 1)}"
                         f" {clock.day_label(nxt // clock.DAY, self.d0)} freeze", "at": clock.label(nxt - 60, self.d0)})
@@ -320,8 +329,8 @@ class Session:
             out = {"error": f"args: {e}"}
         except ViewError as e:
             out = {"error": f"price_view: {e}"}
-        except TypeError as e:
-            out = {"error": f"args: {e}"}
+        except (TypeError, ValueError, KeyError, AttributeError, IndexError) as e:
+            out = {"error": f"bad_args: {type(e).__name__}: {str(e)[:200]}"}
         out = {"now": self._now(), **out}
         return self._log(name, args, out, "error" not in out)
 
@@ -343,7 +352,10 @@ class Session:
     def _price_day(self, day) -> tuple[int | None, str]:
         """Operating-day index or None for a history date, and the ISO date."""
         if isinstance(day, str) and day.strip().startswith("D-"):
-            date = clock.date_of(int(day.strip()[1:]), self.d0)
+            try:
+                date = clock.date_of(int(day.strip()[1:]), self.d0)
+            except ValueError as e:
+                raise clock.TimeError(f"day {day!r} not understood") from e
             return None, date
         if isinstance(day, str) and len(day) == 10 and day not in self.ser.dates:
             return None, day
@@ -396,9 +408,13 @@ class Session:
                         "note": "no intervals of that day posted yet"}
             want = {"5m": 5, "15m": 15, "1h": 60}.get(step or "", 60)
             want = max(want, base_step)
-            agg = [sum(vals[i:i + want // base_step]) / (want // base_step) for i in range(0, len(vals), want // base_step)]
-            return {"market": market, "point": point, "unit": "$/MWh", "date": date, "step": f"{want}m",
-                    "start": "00:00", "values": [_r(v) for v in agg], "stats": _stats(vals)}
+            g = want // base_step
+            agg = [sum(vals[i:i + g]) / len(vals[i:i + g]) for i in range(0, len(vals), g)]
+            out = {"market": market, "point": point, "unit": "$/MWh", "date": date, "step": f"{want}m",
+                   "start": "00:00", "values": [_r(v) for v in agg], "stats": _stats(vals)}
+            if len(vals) % g:
+                out["partial_last"] = f"the last value averages the {len(vals) % g} interval(s) posted so far"
+            return out
         base_step, lag = (15, 2) if market == "rt" else (5, 1)
         if market == "rt":
             src = self.ser.rt_spp_hub if hub else self.ser.rt_spp
@@ -421,7 +437,9 @@ class Session:
             want = 60 if want < 60 else want * 2
         g = want // base_step
         agg = [sum(vals[i:i + g]) / len(vals[i:i + g]) for i in range(0, len(vals), g)]
-        return {"market": market, "point": point, "unit": "$/MWh", "date": date, "step": f"{want}m",
+        part = {"partial_last": f"the last value averages the {len(vals) % g} interval(s) posted so far"} \
+            if len(vals) % g else {}
+        return {**part, "market": market, "point": point, "unit": "$/MWh", "date": date, "step": f"{want}m",
                 "start": clock.label(s, self.d0), "end": clock.label(e, self.d0),
                 "values": [_r(v) for v in agg], "stats": _stats(vals)}
 
@@ -540,11 +558,10 @@ class Session:
                     _r(parts["load"][h] - parts["wind"][h] - parts["solar"][h], 0) for h in range(24)]
             return {"kind": "net_load", "date": date, "step": "1h", "start": "HE01", "unit": "MW", "values": vals}
         if kind == "weather":
-            alerts = [n for n in self.ser.nws if n["t_issued_at"] <= at and n.get("t_expires", math.inf) > at]
+            alerts = [n for n in self.ser.nws if n["t_issued_at"] <= at and self._nws_end(n) > at]
             return {"kind": "weather", "alerts": [{"event": n.get("event"), "severity": n.get("severity"),
                                                     "issued": clock.label(n["t_issued_at"], self.d0),
-                                                    "expires": clock.label(n["t_expires"], self.d0)
-                                                    if n.get("t_expires") is not None else None,
+                                                    "expires": self._nws_expiry(n),
                                                     "headline": (n.get("headline") or "")[:160]} for n in alerts[-8:]]}
         return {"error": "args: kind is price, as_price, pv, load, wind, solar, net_load, outages or weather"}
 
@@ -583,6 +600,9 @@ class Session:
         recent = [n for n in self.ser.notices if self.now - clock.DAY <= n["t_issued_at"] <= self.now]
         eea = next((n.get("level") for n in reversed(recent) if str(n.get("level", "")).upper().startswith("EEA")), None)
         out["eea_level"] = eea
+        nws = [n for n in self.ser.nws if n["t_issued_at"] <= self.now and self._nws_end(n) > self.now]
+        if nws:
+            out["nws_in_force"] = [{"event": n.get("event"), "expires": self._nws_expiry(n)} for n in nws[-5:]]
         out["notices_recent"] = [{"t": clock.label(n["t_issued_at"], self.d0), "level": n.get("level"),
                                   "title": n.get("title")} for n in recent[-5:]]
         return out
@@ -731,6 +751,8 @@ class Session:
             if "points" not in c:
                 return [{"code": "EBOC-01", "text": "points missing"}], [], None
             errs, warns = check_eboc(c["points"], cap, s.lsl, s.hsl)
+            if errs:
+                return errs, warns, None
             if not errs:
                 lo, hi = self.engine.cop["lsl"][H], self.engine.cop["hsl"][H]
                 if any(q < lo - 1e-6 or q > hi + 1e-6 for q, _ in c["points"]):
@@ -745,7 +767,9 @@ class Session:
         for side, limit in (("offer", s.hsl), ("bid", -s.lsl)):
             if c.get(side) is not None:
                 errs += check_side(c[side], cap, limit, side)
-                cur[side] = [[float(q), float(p)] for q, p in c[side]] if not errs else None
+                if errs:
+                    return errs, [], None
+                cur[side] = [[float(q), float(p)] for q, p in c[side]]
         if not cur:
             errs.append({"code": "GOC-00", "text": "give an 'offer', a 'bid' or both"})
         return errs, [], cur
@@ -1065,6 +1089,10 @@ class Session:
         if at is None:
             return {"error": "args: at is required"}
         t = clock.parse_time(at, self.d0, max(self.now, 0) // clock.DAY)
+        if isinstance(at, str) and re.fullmatch(r"\s*\d{1,2}:\d{2}\s*", at):
+            t = t % clock.DAY + (self.now // clock.DAY) * clock.DAY
+            while t <= self.now:
+                t += clock.DAY
         t = -(-t // 5) * 5
         if t <= self.now:
             return {"error": f"args: {clock.label(t, self.d0)} is not after now"}

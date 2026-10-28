@@ -29,7 +29,7 @@ except ImportError:
     boto3 = None
 
 from gridsim_core.desk import fixtures, policies, refs
-from gridsim_core.desk.data import load_series, load_tasks
+from gridsim_core.desk.data import load_series, load_tasks, pack_dir
 from gridsim_core.desk.prompt import system_prompt
 from gridsim_core.desk.session import Session, text
 from gridsim_core.desk.tools import tool_specs
@@ -45,6 +45,26 @@ KEEP_TURNS = 4
 COMPACT_CHARS = 120_000
 COMPACTION = {"v4": (3, 80_000)}
 ELIDED = "[elided: an earlier tool result; call the tool again if you need it]"
+SUMMARY = "[summary of an earlier result] "
+KEEP_SUMMARY = ("submit_dam_offers", "submit_rt_offers", "update_cop", "check_submission", "set_reminder")
+
+
+def summary(name: str, content: str) -> str:
+    """One line kept for an elided submission: what was accepted and every rejection code."""
+    try:
+        r = json.loads(content)
+    except json.JSONDecodeError:
+        return ELIDED
+    parts = [name, r.get("now", "")]
+    if r.get("error"):
+        parts.append(f"error {r['error'][:80]}")
+    for k in ("date", "accepted_hours", "as_accepted", "at"):
+        if r.get(k):
+            parts.append(f"{k}={r[k]}")
+    codes = sorted({f"{x.get('hours')}:{x.get('code')}" for k in ("rejected", "as_rejected") for x in r.get(k) or []})
+    if codes:
+        parts.append("rejected " + ",".join(codes)[:200])
+    return SUMMARY + " ".join(str(p) for p in parts if p)
 
 
 WORST_OUT = 16_000
@@ -118,6 +138,14 @@ def api_key(a) -> str:
     return r.stdout.strip()
 
 
+def task_layer(task: dict, a) -> str:
+    """The task's own layer; --layer may only confirm it (refs are built for the task's layer)."""
+    layer = task.get("layer", "v2")
+    if a.layer and a.layer != layer:
+        raise SystemExit(f"--layer {a.layer} does not match {task['task_id']}'s layer {layer}")
+    return layer
+
+
 def budgets(a) -> dict | None:
     return {"max_turns": a.max_turns} if a.max_turns else None
 
@@ -127,7 +155,7 @@ def tasks_from(a) -> list[tuple[dict, dict]]:
         out = []
         for spec in a.fixture:
             date, _, seed = spec.partition(":")
-            out.append(fixtures.make(date, seed=int(seed or 0), outage=True, layer=a.layer))
+            out.append(fixtures.make(date, seed=int(seed or 0), outage=True, layer=a.layer or "v2"))
         return out
     rows = load_tasks(a.pack)
     want = set(a.tasks or [])
@@ -163,7 +191,7 @@ class ModelAgent:
     (chat completions, e.g. vLLM). The transcript is a list of plain dicts so a checkpoint can restore it."""
 
     def __init__(self, a, preset: dict, lane_spent: float, system: str, tools: list[dict],
-                 budget: Budget | None = None):
+                 budget: Budget | None = None, layer: str | None = None):
         base = a.base_url or gateway_url(a.gateway_env)
         key = "EMPTY" if a.base_url and not a.ssm_param and not os.environ.get("DESK_API_KEY") else api_key(a)
         self.client = openai.OpenAI(base_url=base, api_key=key, timeout=a.timeout, max_retries=4)
@@ -184,7 +212,7 @@ class ModelAgent:
             self.tools = tools
             self.items = [{"role": "system", "content": system}]
         self.turn_starts: list[int] = []
-        self.compaction = COMPACTION.get(getattr(a, "layer", "v2"), (KEEP_TURNS, COMPACT_CHARS))
+        self.compaction = COMPACTION.get(layer or getattr(a, "layer", None) or "v2", (KEEP_TURNS, COMPACT_CHARS))
         self.context = preset.get("context")
         self.prompt_target = preset.get("prompt_target")
         self.max_out = preset.get("max_out")
@@ -219,17 +247,48 @@ class ModelAgent:
     def est_tokens(self) -> int:
         return int(self.chars() * self.tok_per_char)
 
+    def _names(self) -> dict[str, str]:
+        out = {}
+        for m in self.items:
+            if m.get("type") == "function_call":
+                out[m["call_id"]] = m["name"]
+            for tc in m.get("tool_calls") or []:
+                out[tc["id"]] = tc["function"]["name"]
+        return out
+
+    def _read_upto(self) -> int:
+        """Index after the last model item: tool outputs past it have not been read yet and are never elided."""
+        for i in range(len(self.items) - 1, -1, -1):
+            m = self.items[i]
+            if m.get("role") == "assistant" or m.get("type") in ("function_call", "message", "reasoning"):
+                return i
+        return 0
+
     def _elide(self, upto: int, spare_last: int = 0) -> None:
+        """Elide read tool outputs before `upto`: reads first; submissions keep a one-line summary of what was
+        accepted and rejected; the last `spare_last` read outputs stay whole."""
         key = "output" if self.route == "responses" else "content"
-        tools = [m for m in self.items[:upto] if m.get("type") == "function_call_output" or m.get("role") == "tool"]
-        for m in tools[:len(tools) - spare_last] if spare_last else tools:
-            if m[key] != ELIDED:
+        names = self._names()
+        upto = min(upto, self._read_upto(), self.turn_starts[-1] if self.turn_starts else upto)
+        recent = self.turn_starts[-2] if len(self.turn_starts) >= 2 else 0
+        outs = [(i, m) for i, m in enumerate(self.items[:upto])
+                if m.get("type") == "function_call_output" or m.get("role") == "tool"]
+        if spare_last:
+            outs = outs[:max(len(outs) - spare_last, 0)]
+        for i, m in outs:
+            if m[key] == ELIDED or m[key].startswith(SUMMARY):
+                continue
+            name = names.get(m.get("call_id") or m.get("tool_call_id"), "")
+            if name in KEEP_SUMMARY:
+                if i < recent:
+                    m[key] = summary(name, m[key])
+            else:
                 m[key] = ELIDED
 
     def compact(self, hard: bool = False) -> None:
-        """Elide tool results older than the last `keep` turns, all at once, so the cached prefix changes rarely. With a
-        token budget (a small-context model) it measures in tokens and, if needed, also elides inside the kept turns
-        down to the last two tool results."""
+        """Elide read tool outputs older than the last `keep` turns, all at once, so the cached prefix changes rarely.
+        With a token budget (a small-context model) it measures in tokens and, if needed, also elides inside the kept
+        turns down to the last two read outputs; outputs the model has not read are never elided."""
         keep, limit = self.compaction
         if self.prompt_target:
             if not hard and self.est_tokens() < limit:
@@ -351,8 +410,9 @@ def run_model(task, series, a, preset, out: Path, tag: str, budget: Budget) -> t
     tid = task["task_id"]
     ck = out / "ckpt" / f"{tid}.{tag}.json"
     calls_log = out / "calls" / f"{tid}.{tag}.jsonl"
-    s = Session(task, series, layer=a.layer, budgets=budgets(a))
-    agent = ModelAgent(a, preset, 0.0, system_prompt(s), tool_specs(s.layer, s.rtcb), budget)
+    spent = out / "ckpt" / f"{tid}.{tag}.usage.json"
+    s = Session(task, series, layer=task_layer(task, a), budgets=budgets(a))
+    agent = ModelAgent(a, preset, 0.0, system_prompt(s), tool_specs(s.layer, s.rtcb), budget, layer=s.layer)
     wake = s.start()
     if ck.exists():
         state = json.loads(ck.read_text())
@@ -361,11 +421,16 @@ def run_model(task, series, a, preset, out: Path, tag: str, budget: Budget) -> t
                 s.call(c["tool"], c["args"])
             wake = s.end_turn(t.get("text"))
         agent.load(state["agent"])
+        if spent.exists():
+            seen = json.loads(spent.read_text())
+            if seen.get("cost_usd", 0.0) > agent.usage.get("cost_usd", 0.0):
+                agent.usage = dict(agent.usage, **{k: v for k, v in seen.items() if k != "latency_s"})
         print(f"  resumed {tid} at turn {len(state['turns'])}", flush=True)
 
     def log(row):
         with open(calls_log, "a") as f:
             f.write(json.dumps(dict(row, turn=s.turn)) + "\n")
+        spent.write_text(json.dumps(agent.usage))
 
     status = "ok"
     try:
@@ -409,14 +474,28 @@ def _refs_row(args) -> str:
 
 
 def refs_only(a, out: Path) -> None:
-    """Compute every task's refs block in parallel and write <out>/refs.jsonl (the data lane merges it)."""
+    """Compute every task's refs block in parallel and write <out>/refs.jsonl (the data lane merges it), with the
+    floored tasks reported in <out>/refs-report.json and, with --manifest, in the pack's manifest.json."""
     items = tasks_from(a)
+    rows = []
     with ProcessPoolExecutor(max_workers=a.workers) as ex, open(out / "refs.jsonl", "w") as f:
         for line in ex.map(_refs_row, items, chunksize=1):
             f.write(line + "\n")
             r = json.loads(line)
-            print(r["task_id"], {k: r["refs"][k] for k in ("p_idle", "p_anchor", "p_hind", "p_operator_replay")},
-                  flush=True)
+            rows.append(r)
+            print(r["task_id"], {k: r["refs"][k] for k in ("p_idle", "p_anchor", "p_hind", "p_hind_phys",
+                                                           "p_operator_replay", "floored")}, flush=True)
+    floored = sorted(r["task_id"] for r in rows if r["refs"]["floored"])
+    report = {"pack": a.pack, "tasks": len(rows), "floored": len(floored), "floored_tasks": floored,
+              "anchor_setting": rows[0]["refs"]["anchor_setting"] if rows else None,
+              "core_version": rows[0]["refs"]["core_version"] if rows else None}
+    (out / "refs-report.json").write_text(json.dumps(report, indent=1))
+    print(f"floored: {len(floored)} of {len(rows)} {floored}", flush=True)
+    if a.manifest and a.pack:
+        mp = pack_dir(a.pack) / "manifest.json"
+        man = json.loads(mp.read_text()) if mp.exists() else {}
+        man["refs_report"] = report
+        mp.write_text(json.dumps(man, indent=1) + "\n")
 
 
 def main() -> None:
@@ -428,7 +507,7 @@ def main() -> None:
     ap.add_argument("--tasks-file", help="task ids, one per line (or a jsonl with task_id)")
     ap.add_argument("--parallel", type=int, default=1, help="episodes run concurrently in this process")
     ap.add_argument("--limit", type=int)
-    ap.add_argument("--layer", default="v2")
+    ap.add_argument("--layer", help="must match the tasks' layer when given (fixtures: the layer to build)")
     ap.add_argument("--policy", default="model", choices=["model", "anchor", "idle", "scripted"])
     ap.add_argument("--preset", default="sol", choices=sorted(MODELS))
     ap.add_argument("--model")
@@ -448,6 +527,7 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     ap.add_argument("--refs-only", action="store_true", help="only compute refs for the tasks (parallel)")
     ap.add_argument("--workers", type=int, default=os.cpu_count())
+    ap.add_argument("--manifest", action="store_true", help="with --refs-only: write the floored report into the pack")
     a = ap.parse_args()
     out = Path(a.out)
     for d in ("episodes", "calls", "ckpt"):
@@ -504,7 +584,7 @@ def episode(task, series, a, preset, out: Path, tag: str, budget: Budget) -> dic
             return None
         pol = {"kind": "model", "model": a.model or preset["model"], "effort": a.effort or preset.get("effort")}
     else:
-        s = policies.run(task, series, a.policy, layer=a.layer, budgets=budgets(a))
+        s = policies.run(task, series, a.policy, layer=task_layer(task, a), budgets=budgets(a))
         usage, status = {"cost_usd": 0.0}, "ok"
         pol = {"kind": a.policy}
     g = refs.grade(s, r)

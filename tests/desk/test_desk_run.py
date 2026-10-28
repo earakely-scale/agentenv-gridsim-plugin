@@ -18,7 +18,7 @@ class FakeAgent(desk_run.ModelAgent):
 
     COST = 0.02
 
-    def __init__(self, a, preset, lane_spent, system, tools, budget=None):
+    def __init__(self, a, preset, lane_spent, system, tools, budget=None, layer=None):
         self.max_usd, self.max_tokens, self.price = a.max_usd, None, (0.0, 0.0, 0.0)
         self.system, self.tools = system, []
         self.budget = budget or desk_run.Budget(None, 0.0)
@@ -44,7 +44,7 @@ class FakeAgent(desk_run.ModelAgent):
 
 
 def _args(out, **kw):
-    base = dict(pack=None, fixture=None, tasks=None, tasks_file=None, limit=None, layer="v2", policy="model",
+    base = dict(pack=None, fixture=None, tasks=None, tasks_file=None, limit=None, layer=None, policy="model",
                 preset="luna", model="fake", effort=None, price=None, base_url=None, gateway_env=None, ssm_param=None,
                 aws_profile=None, aws_region=None, max_usd=5.0, lane_cap_usd=None, max_tokens=None, max_turns=None,
                 timeout=1.0, tag="fake", parallel=3)
@@ -107,7 +107,7 @@ def test_small_context_compaction_and_overflow(tmp_path):
     agent = desk_run.ModelAgent(a, desk_run.MODELS["qwen"], 0.0, "sys", [])
     for t in range(8):
         agent.user("wake " + "x" * 2000)
-        for i in range(10):
+        for i in range(10 if t < 7 else 2):
             agent.items.append({"role": "assistant", "content": "", "tool_calls": []})
             agent.result(f"c{t}{i}", "y" * 3000)
     before = agent.est_tokens()
@@ -131,3 +131,23 @@ class _Resp:
     status_code = 400
     headers = {}
     request = None
+
+
+def test_compaction_never_elides_unread_and_keeps_submission_summaries(tmp_path):
+    a = _args(tmp_path, preset="qwen", base_url="http://127.0.0.1:9/v1")
+    agent = desk_run.ModelAgent(a, desk_run.MODELS["qwen"], 0.0, "sys", [])
+    for t in range(6):
+        agent.user("wake " + "x" * 3000)
+        calls = [{"id": f"r{t}{i}", "type": "function", "function": {"name": "get_prices", "arguments": "{}"}}
+                 for i in range(8)]
+        calls.append({"id": f"s{t}", "type": "function", "function": {"name": "submit_dam_offers", "arguments": "{}"}})
+        agent.items.append({"role": "assistant", "content": "", "tool_calls": calls})
+        for c in calls[:-1]:
+            agent.result(c["id"], "y" * 4000)
+        agent.result(f"s{t}", '{"now":"x","accepted_hours":"HE01-HE12","rejected":[{"hours":"HE13","code":"EBOC-02"}]}')
+    agent.compact()
+    tools = [m for m in agent.items if m.get("role") == "tool"]
+    assert all(m["content"] != desk_run.ELIDED for m in tools[-9:])
+    subs = [m["content"] for m in tools if m["tool_call_id"].startswith("s")]
+    assert all("EBOC-02" in c for c in subs)
+    assert any(m["content"] == desk_run.ELIDED for m in tools)

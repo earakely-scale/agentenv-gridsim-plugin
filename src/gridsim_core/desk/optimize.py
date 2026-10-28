@@ -59,6 +59,7 @@ class Problem:
     reg_dn: list = field(default_factory=list)
     pv: list = field(default_factory=list)
     poi: float | None = None
+    dam_tied: bool = False
 
 
 @dataclass
@@ -165,6 +166,8 @@ def solve(p: Problem) -> Plan:
         cost[j] = p.dam[H] - rt_mean
         lo[j], hi[j] = min(p.lsl[H], 0.0), max(p.hsl[H], 0.0)
         cost[j + 1] = cost[j + 2] = -EPS_TIE
+        if p.dam_tied:
+            hi[j + 1] = hi[j + 2] = 0.0
     cost[W:W + p.days] = -2 * s.deg
     cost[U] = -p.pen
     rng = s.hsl - s.lsl

@@ -459,8 +459,14 @@ hour's mean absolute deviation over the posted history days (minimum $5).
 ### 9.1 Reward
 
 - **No valid action → R = 0**: an episode with no accepted `submit_dam_offers` or `submit_rt_offers` scores 0.
-- `R = clip(0.2 + 0.8·(P − P_idle)/(P_anchor − P_idle), 0, 1)` (`gridsim_core.grade.reward_value`, degenerate rule
-  included).
+- `R = clip(0.2 + 0.8·(P − P_idle)/den, 0, 1)` with **den = max(P_anchor − P_idle, 0.1·(P_hind_phys − P_idle))**
+  (`desk.refs.desk_reward`; approved 2026-10-28). Reason: a single-day information-matched anchor can lose money on real
+  days (DATA's desk-v2-eval had P_anchor < P_idle on 10 of 32 tasks under the first anchor), and the old degenerate rule
+  then turns R into a 0/1 step that pays an idle-but-valid agent 1.0. When den is still ≤ 0 (a flat day) the
+  degenerate rule of `grade.reward_value` applies. `floored: true|false` is recorded in every task's refs and every
+  grade; `desk_run --refs-only` prints the floored tasks and writes them to `refs-report.json` (and, with
+  `--manifest`, to the pack's manifest). The floor only guards the denominator; the anchor's settings come from the
+  tune pack (9.3).
 - `C = (P − P_idle)/(P_hind − P_idle)` (hindsight capture, reported; the board headline as in v2–v5).
 - Training stretch S (`grade.stretch_value`) as v2–v5.
 
@@ -471,7 +477,7 @@ hour's mean absolute deviation over the posted history days (minimum $5).
 | `idle` | submits a 0 MW curve for every hour at `start` and nothing else. P_idle = 0 by construction (the end target is the idle path) |
 | `anchor` (information-matched) | at every wake-up except reminders (milestones, notices, outages, deployments), calls `optimize(price_view="desk", risk=0.5)` and submits its DAM curves (while the DAM is open), RT curves (once the adjustment period opens) and COP. The same desk forecast vintages the agent can read |
 | `hind` | the 8.1 LP with the real DASPP and the real RT SPP (the settlement price; each 15-min value on its three SCED intervals), all DAM hours open at start, unit events known; its net dispatch is then run through the physics (net MW, SoC-clipped) and settled: the rules-bound optimum (includes DA/RT spread positions within [LSL, HSL]) |
-| `hind_phys` | as `hind` with q_h = n_h (DAM position = physical plan) |
+| `hind_phys` | the physical optimum without DAM/RT spread positions: max of the LP with no DAM energy position (pure RT) and the LP with q_h = n_h (DAM position = its own dispatch), each executed and settled on its own (`p_hind_rt_only`, `p_hind_tied`) |
 | `operator_replay` | the operator's disclosed DAM curves and SCED curves (1.5) through our clearing, physics and settlement from soc0 |
 | `operator_actual` | the operator's disclosed DAM awards and telemetered output settled directly (their own SoC path) |
 

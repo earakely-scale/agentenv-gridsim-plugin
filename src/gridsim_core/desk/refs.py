@@ -4,9 +4,10 @@ operator replay and the operator's own outcome, all settled by the one statement
 from __future__ import annotations
 
 import dataclasses
+import math
 
 from gridsim_core.desk import ancillary as asv
-from gridsim_core.desk import clock
+from gridsim_core.desk import clock, policies
 from gridsim_core.desk.data import Series, build, era_of, series_sha
 from gridsim_core.desk.engine import PER_H, Engine, drift, idle_end_soc, next_soc, site_of
 from gridsim_core.desk.optimize import Problem, end_penalty, solve
@@ -57,7 +58,8 @@ def _awards(block: dict | None, n: int, offset: int = 0) -> list[dict]:
 
 def hindsight(task: dict, series) -> dict:
     """The rules-bound optimum on real prices (all DAM hours open at D-1 06:00, unit events, regulation and AS
-    deployments known), and the same with the DAM energy position tied to physical dispatch."""
+    deployments known) and the physical optimum without DAM/RT spread positions: the better of the plan with no DAM
+    energy position and the plan whose DAM position equals its own dispatch, each solved and settled on its own."""
     ser, site, rtcb, anc = _ser(task, series), site_of(task), _rtcb(task), _anc(task)
     e = Engine(site, ser, rtcb, ancillary=anc, impact=task.get("layer") == "v5")
     K, H = e.K, e.H
@@ -71,48 +73,60 @@ def hindsight(task: dict, series) -> dict:
         lsl.append(ls)
     rt5 = [ser.rt_spp[k // 3] for k in range(K)]
     target = idle_end_soc(site, K)
-    p = Problem(site, ser.days, 0, site.soc0, list(ser.dam_spp), rt5, [True] * H, [0.0] * H, hsl, lsl,
-                [site.e_min] * H, [site.e_max] * H, 0.0, target, end_penalty(site, ser.dam_spp[H - 24:H]))
-    if anc:
-        p.products, p.rtcb, p.soc_rule = tuple(e.products), rtcb, e.soc_rule
-        p.as_dam = dict(ser.dam_mcpc)
-        p.as_rt = {k: [ser.rt_mcpc_15[k][i // 3] if k in ser.rt_mcpc_15 else v[i] for i in range(K)]
-                   for k, v in ser.rt_mcpc.items()}
-        p.reg_up, p.reg_dn = list(ser.reg_up), list(ser.reg_dn)
-    if site.pv_mw > 0 and ser.pv:
-        p.pv, p.poi = [0.0 if ser.rt_lmp[k] < 0 else min(ser.pv[k], site.pv_mw) for k in range(K)], site.poi_mw
-    plan = solve(p)
-    net = list(plan.net())
-    dam_as = [{pr: plan.R[(pr, h)] for pr in e.products if plan.R.get((pr, h), 0.0) > 1e-6} for h in range(H)]
-    rt_as = [{pr: float(plan.r[pr][k]) for pr in plan.r if plan.r[pr][k] > 1e-6} for k in range(K)] if rtcb \
-        else [dam_as[k // PER_H] for k in range(K)]
-    metered, soc, socs = [], site.soc0, [site.soc0]
-    for k in range(K):
-        a, b, _ = e.event_limits(5 * k)
-        m = min(max(net[k], b), a)
+
+    def problem(dam_open: bool, tied: bool) -> Problem:
+        p = Problem(site, ser.days, 0, site.soc0, list(ser.dam_spp), rt5, [dam_open] * H, [0.0] * H, hsl, lsl,
+                    [site.e_min] * H, [site.e_max] * H, 0.0, target, end_penalty(site, ser.dam_spp[H - 24:H]))
+        p.dam_tied = tied
         if anc:
-            fu, fd = e.reg_fraction(k // PER_H)
-            aw = rt_as[k]
-            m += aw.get("regup", 0.0) * fu - aw.get("regdn", 0.0) * fd + e.deployed(5 * k, aw)
-        hi = max(0.0, site.eta * PER_H * (drift(site, soc) - site.e_min))
-        lo = min(0.0, -PER_H * (site.e_max - drift(site, soc)) / site.eta)
-        m = min(max(m, lo), hi)
-        metered.append(float(m))
-        soc = next_soc(site, soc, m)
-        socs.append(soc)
-    q = [min(max(plan.q.get(h, 0.0), lsl[h]), hsl[h]) for h in range(H)]
-    phys = [sum(metered[PER_H * h:PER_H * (h + 1)]) / PER_H for h in range(H)]
-    ancillary = None
-    if anc:
-        druc = [{"hbsoc": [socs[288 * j + PER_H * h] for h in range(24)], "min_soc": [site.e_min] * 24}
-                for j in range(ser.days)]
-        ancillary = {"dam_as": dam_as, "rt_as": rt_as if rtcb else None, "short": [{} for _ in range(K)],
-                     "druc": druc, "pv": p.pv or None}
-    elif p.pv:
-        ancillary = {"dam_as": [{} for _ in range(H)], "rt_as": None, "short": None, "druc": None, "pv": p.pv}
-    full = statement(site, _recleared(e, q), rtcb, q, metered, metered, soc, target, ancillary)
-    st_phys = statement(site, _recleared(e, phys), rtcb, phys, metered, metered, soc, target, ancillary)
-    return {"p_hind": full["total"], "p_hind_phys": st_phys["total"], "lp_objective": round(plan.objective, 2),
+            p.products, p.rtcb, p.soc_rule = tuple(e.products), rtcb, e.soc_rule
+            p.as_dam = dict(ser.dam_mcpc)
+            p.as_rt = {k: [ser.rt_mcpc_15[k][i // 3] if k in ser.rt_mcpc_15 else v[i] for i in range(K)]
+                       for k, v in ser.rt_mcpc.items()}
+            p.reg_up, p.reg_dn = list(ser.reg_up), list(ser.reg_dn)
+        if site.pv_mw > 0 and ser.pv:
+            p.pv = [0.0 if ser.rt_lmp[k] < 0 else min(ser.pv[k], site.pv_mw) for k in range(K)]
+            p.poi = site.poi_mw
+        return p
+
+    def run(p: Problem) -> tuple[dict, list, list, object]:
+        plan = solve(p)
+        net = list(plan.net())
+        dam_as = [{pr: plan.R[(pr, h)] for pr in e.products if plan.R.get((pr, h), 0.0) > 1e-6} for h in range(H)]
+        rt_as = [{pr: float(plan.r[pr][k]) for pr in plan.r if plan.r[pr][k] > 1e-6} for k in range(K)] if rtcb \
+            else [dam_as[k // PER_H] for k in range(K)]
+        metered, soc, socs = [], site.soc0, [site.soc0]
+        for k in range(K):
+            a, b, _ = e.event_limits(5 * k)
+            m = min(max(net[k], b), a)
+            if anc:
+                fu, fd = e.reg_fraction(k // PER_H)
+                aw = rt_as[k]
+                m += aw.get("regup", 0.0) * fu - aw.get("regdn", 0.0) * fd + e.deployed(5 * k, aw)
+            hi = max(0.0, site.eta * PER_H * (drift(site, soc) - site.e_min))
+            lo = min(0.0, -PER_H * (site.e_max - drift(site, soc)) / site.eta)
+            m = min(max(m, lo), hi)
+            metered.append(float(m))
+            soc = next_soc(site, soc, m)
+            socs.append(soc)
+        q = [min(max(plan.q.get(h, 0.0), lsl[h]), hsl[h]) for h in range(H)]
+        ancillary = None
+        if anc:
+            druc = [{"hbsoc": [socs[288 * j + PER_H * h] for h in range(24)], "min_soc": [site.e_min] * 24}
+                    for j in range(ser.days)]
+            ancillary = {"dam_as": dam_as, "rt_as": rt_as if rtcb else None, "short": [{} for _ in range(K)],
+                         "druc": druc, "pv": p.pv or None}
+        elif p.pv:
+            ancillary = {"dam_as": [{} for _ in range(H)], "rt_as": None, "short": None, "druc": None, "pv": p.pv}
+        st = statement(site, _recleared(e, q), rtcb, q, metered, metered, soc, target, ancillary)
+        return st, q, metered, (plan, dam_as)
+
+    full, q, metered, (plan, dam_as) = run(problem(True, False))
+    rt_only = run(problem(False, False))[0]
+    tied = run(problem(True, True))[0]
+    return {"p_hind": full["total"], "p_hind_phys": max(rt_only["total"], tied["total"]),
+            "p_hind_rt_only": rt_only["total"], "p_hind_tied": tied["total"],
+            "lp_objective": round(plan.objective, 2),
             "dam_mw": [round(x, 3) for x in q], "rt_mw_15": [round(sum(metered[3 * i:3 * i + 3]) / 3, 3)
                                                              for i in range(K // 3)],
             "dam_as_mw": [{k: round(v, 2) for k, v in d.items()} for d in dam_as] if anc else None}
@@ -159,12 +173,32 @@ def operator_replay(task: dict, series) -> dict | None:
                 pr = PRODUCT_ALIASES.get(row["product"], row["product"])
                 if pr in e.products:
                     e.rt_as_offer[H].append((t, {pr: row["blocks"]}))
+    _carry(e)
     e.advance(ser.end)
     target = idle_end_soc(site, e.K)
     rec = {"dam_as": e.dam_as, "rt_as": e.rt_as if rtcb else None, "short": e.as_short, "druc": e.druc,
            "pv": e.pv if site.pv_mw > 0 else None} if anc else None
     st = statement(site, e.ser, rtcb, e.dam_award, e.bp, e.metered, e.soc[-1], target, rec)
     return {"p": st["total"], "dam_award_mw": e.dam_award, "statement": st}
+
+
+def _carry(e: Engine) -> None:
+    """The disclosure lists SCED curves and AS offers only where they changed: carry the last one at or before each
+    hour's start into that hour, so an hour without its own row keeps the operator's real-time curve."""
+    for books in (e.rt, e.rt_bid, e.rt_as_offer):
+        rows = sorted((t, c) for H in range(e.H) for t, c in books[H])
+        if not rows:
+            continue
+        for H in range(e.H):
+            before = [r for r in rows if r[0] <= 60 * H]
+            if before and not any(t == 60 * H for t, _ in books[H]):
+                last_t, last_c = before[-1]
+                if books is e.rt_as_offer:
+                    merged = {}
+                    for _, c in before:
+                        merged.update(c)
+                    last_c = merged
+                books[H].insert(0, (60 * H, last_c))
 
 
 def operator_actual(task: dict, series) -> dict | None:
@@ -201,8 +235,11 @@ def build_refs(task: dict, series) -> dict:
     hind = hindsight(task, ser)
     rep = operator_replay(task, ser)
     act = operator_actual(task, ser)
+    floored = denominator(idle.result["total"], anc.result["total"], hind["p_hind_phys"])[1]
     return {"p_idle": idle.result["total"], "p_anchor": anc.result["total"], "p_hind": hind["p_hind"],
-            "p_hind_phys": hind["p_hind_phys"],
+            "p_hind_phys": hind["p_hind_phys"], "p_hind_rt_only": hind["p_hind_rt_only"],
+            "p_hind_tied": hind["p_hind_tied"], "floored": floored,
+            "anchor_setting": {"risk": policies.RISK, "dam_position": policies.DAM_POSITION},
             "p_operator_replay": rep["p"] if rep else None, "p_operator_actual": act["p"] if act else None,
             "anchor": {"statement": anc.result, "turns": len(anc.turns)},
             "hind": {"dam_mw": hind["dam_mw"], "rt_mw_15": hind["rt_mw_15"]},
@@ -216,9 +253,29 @@ def _policy(task: dict, ser: Series, name: str) -> Session:
 def refs_for(task: dict, series) -> dict:
     ser = _ser(task, series)
     r = task.get("refs")
-    if r and r.get("series_sha") == series_sha(ser.raw) and r.get("core_version") == CORE_VERSION:
+    setting = {"risk": policies.RISK, "dam_position": policies.DAM_POSITION}
+    if (r and r.get("series_sha") == series_sha(ser.raw) and r.get("core_version") == CORE_VERSION
+            and r.get("anchor_setting") == setting):
         return r
     return build_refs(task, ser)
+
+
+FLOOR_SHARE = 0.1
+
+
+def denominator(p_idle: float, p_anchor: float, p_hind_phys: float | None) -> tuple[float, bool]:
+    """(the anchor P the reward scales to, floored): den = max(P_anchor - P_idle, 0.1 (P_hind_phys - P_idle))."""
+    den = p_anchor - p_idle
+    floor = FLOOR_SHARE * (p_hind_phys - p_idle) if p_hind_phys is not None else -math.inf
+    if floor > den:
+        return p_idle + floor, True
+    return p_anchor, False
+
+
+def desk_reward(p: float, p_idle: float, p_anchor: float, p_hind_phys: float | None) -> tuple[float, bool]:
+    """The 9.1 reward with the denominator floor; a flat day (den <= 0) keeps the degenerate rule."""
+    eff, floored = denominator(p_idle, p_anchor, p_hind_phys)
+    return reward_value(p, p_idle, eff), floored
 
 
 def grade(session: Session, refs: dict | None = None) -> dict:
@@ -227,14 +284,16 @@ def grade(session: Session, refs: dict | None = None) -> dict:
     r = refs or refs_for(session.task, session.ser)
     p, p_idle, p_anchor, p_hind = st["total"], r["p_idle"], r["p_anchor"], r["p_hind"]
     valid = session.valid
-    reward = reward_value(p, p_idle, p_anchor) if valid else 0.0
+    eff, floored = denominator(p_idle, p_anchor, r.get("p_hind_phys"))
+    reward = reward_value(p, p_idle, eff) if valid else 0.0
     den = p_hind - p_idle
     out = {"valid": valid, "reward": reward, "p": p, "p_idle": p_idle, "p_anchor": p_anchor, "p_hind": p_hind,
            "p_hind_phys": r.get("p_hind_phys"), "capture": round((p - p_idle) / den, 6) if den > 1e-9 else None,
            "anchor_capture": round((p_anchor - p_idle) / den, 6) if den > 1e-9 else None,
            "capture_phys": _cap(p, p_idle, r.get("p_hind_phys")),
            "anchor_capture_phys": _cap(p_anchor, p_idle, r.get("p_hind_phys")),
-           "beats_anchor": p > p_anchor + 1e-9, "stretch": stretch_value(p, p_idle, p_anchor, p_hind) if valid else 0.0,
+           "beats_anchor": p > p_anchor + 1e-9, "floored": floored, "p_reward_scale": round(eff, 2),
+           "stretch": stretch_value(p, p_idle, eff, p_hind) if valid else 0.0,
            "p_operator_replay": r.get("p_operator_replay"), "p_operator_actual": r.get("p_operator_actual")}
     if r.get("p_operator_replay") is not None:
         out["vs_operator_replay"] = round(p - r["p_operator_replay"], 2)

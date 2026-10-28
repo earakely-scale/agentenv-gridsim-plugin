@@ -296,3 +296,33 @@ def test_unit_event_hidden_until_it_starts():
         s.start()
     assert a.call("get_asset_status") == b.call("get_asset_status")
     assert a.call("optimize", {}) == b.call("optimize", {})
+
+
+def test_malformed_arguments_come_back_as_errors():
+    task, series = fixtures.make(POST, seed=1, layer="v3")
+    s = Session(task, series)
+    s.start()
+    bad = [("submit_dam_offers", {"curves": [{"hours": "HE01", "points": [[0, "x"], [10, 20]]}]}),
+           ("submit_rt_offers", {"curves": [{"hours": "HE01", "points": [[0, 1, 2], [10, 20]]}]}),
+           ("check_submission", {"kind": "dam", "payload": {"curves": [{"hours": "HE01", "points": [[0, "x"]]}]}}),
+           ("optimize", {"constraints": {"max_cycles": "lots"}}),
+           ("optimize", {"constraints": {"end_soc_mwh": [1]}}),
+           ("optimize", {"price_view": {"scenarios": ["x"]}}),
+           ("optimize", {"price_view": {"scenarios": [{"dam": [30] * 24, "weight": "w"}]}}),
+           ("get_prices", {"market": "rt", "day": "D-1x"}),
+           ("submit_dam_offers", {"as_offers": [{"hours": "HE01", "product": "regup", "mw": ["a"], "price": [1]}]}),
+           ("update_cop", {"rows": [{"hours": "HE05", "as_capability": "x"}]}),
+           ("set_reminder", {"at": {"x": 1}})]
+    for name, args in bad:
+        out = s.call(name, args)
+        rejected = out.get("rejected") or out.get("as_rejected")
+        assert "error" in out or rejected, (name, args, out)
+    assert not s.done
+
+
+def test_reward_floor():
+    assert refs.desk_reward(0.0, 0.0, -5000.0, 50000.0) == (pytest.approx(0.2), True)
+    r, floored = refs.desk_reward(2500.0, 0.0, -5000.0, 50000.0)
+    assert floored and r == pytest.approx(0.6)
+    assert refs.desk_reward(10000.0, 0.0, 10000.0, 50000.0) == (pytest.approx(1.0), False)
+    assert refs.desk_reward(0.0, 0.0, 0.0, 0.0) == (1.0, False)

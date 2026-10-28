@@ -6,6 +6,7 @@ import datetime as dt
 import gzip
 import hashlib
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -134,7 +135,7 @@ def _vintages(rows, d0: str, kind_key: str = "kind") -> list[Vintage]:
     out = []
     for r in rows or []:
         vals = {k: r[k] for k in ("values", "p10", "p50", "p90") if k in r}
-        out.append(Vintage(r.get(kind_key) or r.get("market") or "", int(round(clock.to_minutes(r["issued_at"], d0))),
+        out.append(Vintage(r.get(kind_key) or r.get("market") or "", math.ceil(clock.to_minutes(r["issued_at"], d0) - 1e-9),
                            int(round(clock.to_minutes(r["start"], d0))), int(r.get("step_min", 60)), vals,
                            r.get("model", ""), r.get("product", "")))
     return sorted(out, key=lambda v: (v.kind, v.issued_at))
@@ -192,7 +193,7 @@ def build(task: dict, series: dict) -> Series:
     if d0 != dates[0]:
         raise ValueError(f"series d0 {d0} != task dates[0] {dates[0]}")
     posted = (series.get("posted") or {}).get("dam") or {}
-    dam_posted = [int(round(clock.to_minutes(posted[d], d0))) if d in posted else j * clock.DAY + clock.DAM_RESULTS
+    dam_posted = [math.ceil(clock.to_minutes(posted[d], d0) - 1e-9) if d in posted else j * clock.DAY + clock.DAM_RESULTS
                   for j, d in enumerate(dates)]
     hist = [d for d in series.get("history_days", []) if d not in dates]
     dam_hub = series.get("dam_spp_hub") or {}
@@ -215,7 +216,7 @@ def build(task: dict, series: dict) -> Series:
         desk_forecast=_vintages(series.get("desk_forecast"), d0, kind_key="market"),
         unit_events=_timed(series.get("unit_events"), d0, "start", "end"),
         notices=_timed(series.get("notices"), d0, "issued_at"),
-        nws=_timed(series.get("nws"), d0, "issued_at", "expires"),
+        nws=_timed(series.get("nws"), d0, "issued_at", "expires", "expires_initial"),
         deployments=_timed(series.get("deployments"), d0, "start", "end"),
         operator=series.get("operator") or {},
         raw=series,
