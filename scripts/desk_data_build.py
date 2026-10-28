@@ -53,10 +53,14 @@ PACKS = {
                      "tasks": [(d, s) for d in ("2026-01-25", "2026-02-24", "2026-03-23", "2026-04-24", "2026-05-03",
                                                 "2026-06-24", "2026-07-22", "2026-08-23") for s in SITES]},
     "desk-v2-tune": {"split": "train", "layer": "v2",
-                     "tasks": [("2026-01-08", "S01"), ("2026-04-15", "S01"), ("2026-07-09", "S01"),
+                     "tasks": [("2026-01-12", "S01"), ("2026-04-15", "S01"), ("2026-07-14", "S01"),
                                ("2026-02-11", "S02"), ("2026-05-20", "S02"), ("2026-08-05", "S02"),
                                ("2026-01-14", "S03"), ("2026-04-02", "S03"), ("2026-06-17", "S03"),
                                ("2026-03-04", "S04"), ("2026-05-27", "S04"), ("2026-08-12", "S04")]},
+    "desk-v4-pilot": {"split": "pilot", "layer": "v4", "n_days": 3, "tasks": [("2026-02-03", "S01")]},
+    "desk-v4-eval": {"split": "eval", "layer": "v4", "n_days": 3,
+                     "tasks": [(d, s) for d in ("2026-01-23", "2026-03-16", "2026-04-17", "2026-05-08")
+                               for s in SITES]},
     "desk-v2-pre": {"split": "train", "layer": "v2",
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
@@ -345,6 +349,40 @@ def forecasts(days: list[dt.date]) -> list[dict]:
     return out
 
 
+API_FORECASTS = {"load": ("np3-565-cd/lf_by_model_weather_zone", "systemTotal",
+                          "ERCOT STLF (NP3-565-CD, in-use model)"),
+                 "wind": ("np4-732-cd/wpp_hrly_avrg_actl_fcast", "STWPFSystemWide", "ERCOT STWPF (NP4-732-CD system)"),
+                 "solar": ("np4-737-cd/spp_hrly_avrg_actl_fcast", "STPPFSystemWide", "ERCOT STPPF (NP4-737-CD system)")}
+
+
+def forecasts_api(days: list[dt.date]) -> list[dict]:
+    """Every hourly posting from D-1 00:00 to the last day 23:59, straight from the API (the store keeps 72 h; multi-day
+    windows need the full 168 h), hourly values from the posting's hour to the last day 24:00."""
+    d0, dl = days[0], days[-1]
+    end = dt.datetime(dl.year, dl.month, dl.day, tzinfo=CPT) + dt.timedelta(days=1)
+    out = []
+    for kind, (path, col, model) in API_FORECASTS.items():
+        f, r = A.query(path, {"postedDatetimeFrom": f"{d0 - dt.timedelta(days=1)}T00:00:00",
+                              "postedDatetimeTo": f"{dl}T23:59:59"})
+        df = pd.DataFrame(r, columns=f)
+        if "inUseFlag" in df:
+            df = df[df["inUseFlag"].astype(bool)]
+        df = df[~df["DSTFlag"].astype(bool)]
+        he = df["hourEnding"].astype(str).str.split(":").str[0].astype(int)
+        df = df.assign(hb=pd.to_datetime(df["deliveryDate"]) + pd.to_timedelta(he - 1, unit="h"))
+        for posted, g in df.groupby("postedDatetime"):
+            pt = parse_local(posted)
+            first = pt.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+            g = g[(g["hb"] >= first) & (g["hb"] < end.replace(tzinfo=None))].drop_duplicates("hb").sort_values("hb")
+            if g.empty or g[col].isna().all():
+                continue
+            out.append({"kind": kind, "issued_at": local_iso(pt), "start": local_iso(g["hb"].iloc[0].to_pydatetime()
+                                                                                   .replace(tzinfo=CPT)),
+                        "step_min": 60, "values": [None if pd.isna(v) else round(float(v), 1) for v in g[col]],
+                        "model": model, "zone": "system"})
+    return sorted(out, key=lambda x: (x["kind"], x["issued_at"]))
+
+
 def outage_capacity(days: list[dt.date]) -> list[dict]:
     d0, dl = days[0], days[-1]
     f, r = A.query("np3-233-cd/hourly_res_outage_cap", {"postedDatetimeFrom": f"{d0 - dt.timedelta(days=1)}T00:00:00",
@@ -361,30 +399,50 @@ def outage_capacity(days: list[dt.date]) -> list[dict]:
     return sorted(out, key=lambda x: x["issued_at"])
 
 
-def unit_events(site: dict, days: list[dt.date]) -> list[dict]:
-    names = {site["resource"], (site.get("resource_pre") or {}).get("gen")}
-    first = days[0] - dt.timedelta(days=1)
-    docs = A.archive_list("np1-346-er", f"{first + dt.timedelta(days=2)}T00:00:00",
-                          f"{days[-1] + dt.timedelta(days=6)}T00:00:00")
+def outage_rows(first: dt.date, last: dt.date, names: set) -> list[tuple[str, dict]]:
+    docs = A.archive_list("np1-346-er", f"{first}T00:00:00", f"{last}T23:59:59")
     paths = A.archive_fetch("np1-346-er", docs)
-    ev = {}
-    for doc in docs:
+    out = []
+    for doc in sorted(docs, key=lambda d: d["postDatetime"]):
         z = zipfile.ZipFile(paths[doc["docId"]])
         x = pd.read_excel(io.BytesIO(z.read(z.namelist()[0])), sheet_name="Unplanned Resource Outages", header=4)
-        x = x[x["Resource Unit Code"].isin(names)]
-        for _, row in x.iterrows():
-            start = pd.Timestamp(row["Actual Outage Start"]).to_pydatetime().replace(tzinfo=CPT)
-            end = row["Actual End Date"] if pd.notna(row["Actual End Date"]) else row["Planned End Date"]
-            end = pd.Timestamp(end).to_pydatetime().replace(tzinfo=CPT)
-            lo = dt.datetime(days[0].year, days[0].month, days[0].day, tzinfo=CPT)
-            hi = lo + dt.timedelta(days=len(days))
-            if end <= lo or start >= hi:
-                continue
-            avail = float(row["Available MW During Outage"])
-            key = (row["Resource Unit Code"], start.isoformat())
-            ev[key] = {"kind": "forced_outage" if avail <= 0 else "derate", "start": local_iso(start),
-                       "end": local_iso(end), "hsl_mw": avail, "lsl_mw": -avail, "source": "NP1-346-ER",
-                       "outage_type": str(row["Outage Type"]), "nature": str(row.get("Nature Of Work", ""))}
+        out += [(doc["postDatetime"], row) for row in x[x["Resource Unit Code"].isin(names)].to_dict("records")]
+    return out
+
+
+def xl_time(v) -> dt.datetime | None:
+    if v is None or isinstance(v, dt.time) or (not isinstance(v, str | dt.datetime) and pd.isna(v)):
+        return None
+    t = pd.Timestamp(v, tz=None) if not isinstance(v, pd.Timestamp) else v
+    return None if pd.isna(t) else t.to_pydatetime().replace(tzinfo=CPT)
+
+
+def unit_events(site: dict, days: list[dt.date]) -> list[dict]:
+    """NP1-346-ER forced outages/derates overlapping the window. `end` is the realized end (actual, else the latest
+    planned end); `end_planned` is the Planned End Date in the first report that lists the outage (~3 days after it
+    starts), the closest public record of the expected end when it began."""
+    names = {site["resource"], (site.get("resource_pre") or {}).get("gen")}
+    lo = dt.datetime(days[0].year, days[0].month, days[0].day, tzinfo=CPT)
+    hi = lo + dt.timedelta(days=len(days))
+    ev, first_planned = {}, {}
+    for _, row in outage_rows(days[0] + dt.timedelta(days=1), days[-1] + dt.timedelta(days=6), names):
+        start = xl_time(row["Actual Outage Start"])
+        end = xl_time(row["Actual End Date"]) or xl_time(row["Planned End Date"]) or hi
+        if start is None or end <= lo or start >= hi:
+            continue
+        avail = float(row["Available MW During Outage"])
+        key = (row["Resource Unit Code"], start.isoformat())
+        first_planned.setdefault(key, row["Planned End Date"])
+        ev[key] = {"kind": "forced_outage" if avail <= 0 else "derate", "start": local_iso(start),
+                   "end": local_iso(end), "hsl_mw": avail, "lsl_mw": -avail, "source": "NP1-346-ER",
+                   "outage_type": str(row["Outage Type"]), "nature": str(row.get("Nature Of Work", ""))}
+    for key, e in ev.items():
+        start = dt.datetime.fromisoformat(key[1]).date()
+        early = [r for _, r in outage_rows(start, start + dt.timedelta(days=5), names)
+                 if xl_time(r["Actual Outage Start"]) is not None
+                 and (r["Resource Unit Code"], xl_time(r["Actual Outage Start"]).isoformat()) == key]
+        planned = xl_time(early[0]["Planned End Date"] if early else first_planned[key])
+        e["end_planned"] = local_iso(planned) if planned else None
     return sorted(ev.values(), key=lambda e: e["start"])
 
 
@@ -413,6 +471,27 @@ def notices(days: list[dt.date]) -> list[dict]:
     return sorted(out, key=lambda x: x["issued_at"])
 
 
+IEM = Path("/Users/edgar.arakelyan/agentenv-gridsim-plugin/cache/raw/notices/iem")
+_init_expire: dict | None = None
+
+
+def init_expire(n: dict) -> str | None:
+    """IEM's `init_expire` (the expiry as first issued) for a VTEC row of data/notices/nws_vtec.jsonl.gz, whose
+    `expires_at_utc` is the folded final expiry and must not reach the agent."""
+    global _init_expire
+    if _init_expire is None:
+        _init_expire = {}
+        for f in IEM.glob("json_vtec_events_bystate*"):
+            for e in json.loads(f.read_text())["events"]:
+                key = (e["wfo"], e["phenomena"], e["significance"], int(e["eventid"]), e["issue"][:4])
+                _init_expire.setdefault(key, e.get("init_expire"))
+    m = re.match(r"VTEC-(\w+)-(\w+)\.(\w)-(\d{4})-(\d+)-", n["notice_id"])
+    if not m:
+        return None
+    wfo, ph, sig, year, eid = m.groups()
+    return _init_expire.get((wfo, ph, sig, int(eid), year))
+
+
 def nws(region: str, days: list[dt.date]) -> list[dict]:
     global _nws
     if _nws is None:
@@ -425,12 +504,15 @@ def nws(region: str, days: list[dt.date]) -> list[dict]:
         if n["region"] != region:
             continue
         t = dt.datetime.fromisoformat(n["issued_at_utc"].replace("Z", "+00:00"))
-        exp = dt.datetime.fromisoformat(n["expires_at_utc"].replace("Z", "+00:00")) if n.get("expires_at_utc") else t
-        if t < hi and exp >= lo:
+        ie = init_expire(n)
+        exp = dt.datetime.fromisoformat(ie.replace("Z", "+00:00")) if ie else None
+        if t < hi and (exp or t) >= lo:
+            eff = n.get("effective_from_utc")
             out.append({"event_id": n["notice_id"], "event": n["name"], "severity": sev.get(n["significance"], ""),
-                        "issued_at": local_iso(t), "effective": local_iso(dt.datetime.fromisoformat(
-                            n["effective_from_utc"].replace("Z", "+00:00"))) if n.get("effective_from_utc") else None,
-                        "expires": local_iso(exp), "area": ", ".join(n.get("counties", [])[:12]),
+                        "issued_at": local_iso(t),
+                        "effective": local_iso(dt.datetime.fromisoformat(eff.replace("Z", "+00:00"))) if eff else None,
+                        "expires_initial": local_iso(exp) if exp else None,
+                        "area": ", ".join(n.get("counties", [])[:12]),
                         "headline": f"{n['name']} ({n['wfo']}) for {len(n.get('counties', []))} counties"})
     return sorted(out, key=lambda x: x["issued_at"])
 
@@ -656,7 +738,8 @@ def soc0(site: dict, d0: dt.date) -> tuple[float | None, str]:
 # ---------------------------------------------------------------- desk forecast
 
 def desk_forecast(site: dict, days: list[dt.date]) -> list[dict]:
-    p = A.RAW / "forecast" / "vintages" / f"{site['settlement_point']}_{days[0]}.json.gz"
+    tail = f"_{len(days)}d" if len(days) > 1 else ""
+    p = A.RAW / "forecast" / "vintages" / f"{site['settlement_point']}_{days[0]}{tail}.json.gz"
     if not p.exists():
         return []
     return json.loads(gzip.decompress(p.read_bytes()))
@@ -665,7 +748,7 @@ def desk_forecast(site: dict, days: list[dt.date]) -> list[dict]:
 # ---------------------------------------------------------------- task
 
 def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict, dict, dict]:
-    days = [d_(d0)]
+    days = [d_(d0) + dt.timedelta(days=k) for k in range(spec.get("n_days", 1))]
     if not dst_free([days[0] - dt.timedelta(days=7)] + days):
         raise ValueError(f"{d0}: DST transition inside the window")
     era = "rtcb" if days[0] >= RTCB else "pre"
@@ -703,7 +786,7 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
             ser["system"][str(d)], sys_info[str(d)] = system_day(d)
         else:
             ser["system"][str(d)], sys_info[str(d)] = system_pre(d)
-    ser["forecasts"] = forecasts(days)
+    ser["forecasts"] = forecasts(days) if len(days) == 1 else forecasts_api(days)
     ser["outage_capacity"] = outage_capacity(days)
     ser["desk_forecast"] = desk_forecast(site, days)
     ser["unit_events"] = unit_events(site, days)
@@ -721,7 +804,7 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
         op["dam"][str(d)], op["sced"][str(d)], op["cop"][str(d)] = o["dam"], o["sced"], o["cop"]
         for k, v in oi.items():
             info[k] += v
-        dam_ok = (era == "pre" and all(a is not None for a in o["dam"]["pre"]["offer_award_mw"])) or \
+        dam_ok = (era == "pre" and all(x is not None for x in o["dam"]["spp"])) or \
             (era == "rtcb" and all(st is not None for st in o["dam"]["status"]))
         sced_ok = o["sced"] is not None and oi.get("sced_rows", 0) >= (250 if era == "rtcb" else 90) and \
             (era == "pre" or oi.get("soc_null", 288) == 0)

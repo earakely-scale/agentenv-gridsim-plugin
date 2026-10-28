@@ -174,13 +174,15 @@ def features(nd: Node, EV, t: pd.DatetimeIndex, T: pd.DatetimeIndex, market: str
     return df
 
 
-def samples_for_day(nd: Node, EV, d: pd.Timestamp, market: str, rt_every: int = 1):
-    """d: operating day (CPT midnight). Returns (t, T, X, y) for the DAM vintage or the RT vintages."""
+def samples_for_day(nd: Node, EV, d: pd.Timestamp, market: str, rt_every: int = 1, span: int = 1):
+    """d: first operating day (CPT midnight); span: operating days in the window. Returns (t, T, X, y) for the DAM
+    vintage of d or the RT vintages issued hourly (every rt_every h) from d-1 06:00 to the window's last hour."""
     d = d.tz_localize(CPT) if d.tzinfo is None else d
-    end = (d + pd.Timedelta(days=1)).tz_convert("UTC")
+    end = (d + pd.Timedelta(days=span)).tz_convert("UTC")
     if market == "dam":
         t0 = (d - pd.Timedelta(hours=18)).tz_convert("UTC")
-        T = pd.date_range(d.tz_convert("UTC"), end, freq="h", inclusive="left")
+        T = pd.date_range(d.tz_convert("UTC"), (d + pd.Timedelta(days=1)).tz_convert("UTC"), freq="h",
+                          inclusive="left")
         t = pd.DatetimeIndex([t0] * len(T))
     else:
         issues = pd.date_range((d - pd.Timedelta(hours=18)).tz_convert("UTC"), end - pd.Timedelta(hours=1),
@@ -196,12 +198,12 @@ def samples_for_day(nd: Node, EV, d: pd.Timestamp, market: str, rt_every: int = 
     return t, T, X, y
 
 
-def build_set(nodes, EV, days, market, rt_every):
+def build_set(nodes, EV, days, market, rt_every, span: int = 1):
     parts = []
     days = list(days)
     for nd in nodes:
         for d in days:
-            t, T, X, y = samples_for_day(nd, EV, d, market, rt_every)
+            t, T, X, y = samples_for_day(nd, EV, d, market, rt_every, span)
             X = X.assign(_y=y, _t=t, _T=T, _day=d.date())
             parts.append(X)
     df = pd.concat(parts, ignore_index=True)
@@ -413,5 +415,68 @@ def summarize(report):
     report["held_out_post_rtcb"] = tot
 
 
+def main_v4(packs: list[str]):
+    """v4 windows (CONTRACT-desk 10.2): a DAM vintage for each operating day at its D-1 06:00 and hourly RT vintages
+    from D-1 06:00 to D2 23:00 with horizons to D2 24:00, from an RT model trained on 3-day spans (issues every 6 h).
+    Bands are widened by the previous month's out-of-sample errors on the same span; scores go to report["v4"]."""
+    EV = ercot_vintages()
+    reg = pd.read_parquet(ROOT / "data" / "desk" / "sites.parquet").set_index("resource_name")
+    nodes = [Node(k, reg.loc[s["resource"], "settlement_point"], s["hub"]) for k, s in enumerate(SITES.values())]
+    by_point = {nd.point: nd for nd in nodes}
+    tasks = [(d0, sid) for name in packs for d0, sid in PACKS[name]["tasks"]]
+    months = sorted({d0[:7] for d0, _ in tasks})
+    last_day = pd.Timestamp("2026-08-31", tz=CPT)
+    pool = {"dam": build_set(nodes, EV, pd.date_range(T0, last_day, freq="D"), "dam", 1),
+            "rt": build_set(nodes, EV, pd.date_range(T0, last_day - pd.Timedelta(days=2), freq="D"), "rt", 6, 3)}
+    log(f"v4 pools: dam {len(pool['dam'])}, rt {len(pool['rt'])}")
+    rp = OUT / "report.json"
+    report = json.loads(rp.read_text())
+    report.setdefault("v4", {})
+    for m in months:
+        m0 = pd.Timestamp(f"{m}-01", tz=CPT)
+        pm0 = m0 - pd.offsets.MonthBegin(1)
+        rec = {}
+        for market in ("dam", "rt"):
+            cols = [c for c in pool[market].columns if not c.startswith("_")]
+            T = pd.DatetimeIndex(pool[market]["_T"])
+            day = pd.DatetimeIndex(pool[market]["_day"].astype(str))
+            prev_tr = pool[market][T + pd.Timedelta(hours=1) <= pm0.tz_convert("UTC")]
+            a0, a1 = pm0.tz_localize(None), (m0 - pd.Timedelta(days=3)).tz_localize(None)
+            prev_te = pool[market][(day >= a0) & (day <= a1)]
+            mp = QR().fit(prev_tr[cols], prev_tr["_y"].to_numpy())
+            kb = band_scale(prev_te["_y"].to_numpy(), mp.predict(prev_te[cols]))
+            tr = pool[market][T + pd.Timedelta(hours=1) <= m0.tz_convert("UTC")]
+            model = QR().fit(tr[cols], tr["_y"].to_numpy())
+            b0, b1 = m0.tz_localize(None), (m0 + pd.offsets.MonthBegin(1)).tz_localize(None)
+            te = pool[market][(day >= b0) & (day < b1)]
+            P = widen(model.predict(te[cols]), kb)
+            rec[market] = {"n_train": int(len(tr)), "n_test": int(len(te)), "band_scale": [round(x, 3) for x in kb],
+                           "model": pinball(te["_y"].to_numpy(), P)}
+            mm = rec[market]["model"]
+            log(f"v4 {m} {market}: pinball {mm['mean']:.2f} cover80 {mm['cover_80']:.2f}")
+            for d0, sid in tasks:
+                if d0[:7] != m:
+                    continue
+                nd = by_point[reg.loc[SITES[sid]["resource"], "settlement_point"]]
+                d = pd.Timestamp(d0, tz=CPT)
+                p = VDIR / f"{nd.point}_{d0}_3d.json.gz"
+                old = json.loads(gzip.decompress(p.read_bytes())) if p.exists() else []
+                old = [v for v in old if v["market"] != market]
+                if market == "dam":
+                    for k in range(3):
+                        t, Tt, X, _ = samples_for_day(nd, EV, d + pd.Timedelta(days=k), "dam")
+                        old += write_vintages(t, Tt, widen(model.predict(X[cols]), kb), "dam")
+                else:
+                    t, Tt, X, _ = samples_for_day(nd, EV, d, "rt", 1, 3)
+                    old += write_vintages(t, Tt, widen(model.predict(X[cols]), kb), "rt")
+                p.write_bytes(gzip.compress(json.dumps(old).encode(), mtime=0))
+        report["v4"][m] = rec
+        report["v4_method"] = "dam as v2 at each day's D-1 06:00; rt trained on 3-day spans, issues every 6 h"
+        rp.write_text(json.dumps(report, indent=1))
+
+
 if __name__ == "__main__":
-    main()
+    if "--v4" in sys.argv:
+        main_v4([a for a in sys.argv[sys.argv.index("--v4") + 1:]])
+    else:
+        main()

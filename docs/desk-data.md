@@ -99,6 +99,22 @@ notices archive and NWS:
 M-B040326-01 window, where null AS offer prices were written as $0. On that day the operator's AS offer replay is
 unreliable; flag it in v3 or swap in 2026-01-28 (Non-Spin deployment, $1,281). Its energy data is unaffected.
 
+**Tune pack** (`desk-v2-tune`): CORE uses it to tune the anchor's risk setting and DAM basis, so that the eval days
+are never used to choose a reference. It has 12 post-RTC+B battery-days, all operator_ok and disjoint from eval and
+pilot. Each site gets three days across the season:
+
+| Site | Days |
+|---|---|
+| S01 | 2026-01-12, 04-15, 07-14 |
+| S02 | 2026-02-11, 05-20, 08-05 |
+| S03 | 2026-01-14, 04-02, 06-17 |
+| S04 | 2026-03-04, 05-27, 08-12 |
+
+Most of these are ordinary days; 2026-03-04 has negative prices and 2026-06-17 carries notices.
+
+CROSSETT_ALL's RT SPP is incomplete on 2026-01-08, 03-08, 06-04 and 07-09. The builder rejects tasks with null
+prices, so those days are not used for S01.
+
 Per-task tags (`day_kind`, `notices`, `max/min_rt_lmp`, `dam_spread`, `neg_lmp_intervals`) are computed at the node.
 
 ## 4. Series fields and their sources
@@ -117,9 +133,9 @@ Per-task tags (`day_kind`, `notices`, `max/min_rt_lmp`, `dam_spread`, `neg_lmp_i
 | `system.wind_mw`, `solar_mw` | NP4-733-CD, NP4-738-CD actual 5-min system generation | |
 | `forecasts` | v4 forecast store (`cache/forecast/store`, built from NP3-565-CD in-use model, NP4-742-CD, NP4-745-CD) | system zone; every hourly vintage issued D-1 00:00..D 23:59; horizon cut at D+1 24:00 (store keeps 72 h) |
 | `outage_capacity` | NP3-233-CD | every posting D-1..D; values = Σ zones (resource + IRR outage MW), hourly from the first operating hour in the posting |
-| `unit_events` | NP1-346-ER daily Unplanned Resource Outages (posted ~3 days late) | reports posted D+1..D+6 filtered on the ESR unit code (and the pre-RTC+B gen code); `hsl_mw` = available MW during outage |
+| `unit_events` | NP1-346-ER daily Unplanned Resource Outages (posted ~3 days late) | reports posted D+1..D+6 filtered on the ESR unit code (and the pre-RTC+B gen code). `hsl_mw` is the available MW during the outage. `end` is the realized end (actual, else the latest planned). `end_planned` is the Planned End Date in the first report listing the outage, about 3 days after it starts (REVIEW F3); no earlier public record of the expected end exists |
 | `notices` | `data/notices/notices.jsonl.gz` (previews archive, covers through 2026-10) | minute-stamped, operator-relevant or grid-condition, issued D-2..D |
-| `nws` | `data/notices/nws_vtec.jsonl.gz` (IEM VTEC) | the site's region (west/houston/north/south), in force D-2..D |
+| `nws` | `data/notices/nws_vtec.jsonl.gz` (IEM VTEC), with `expires_initial` = IEM `init_expire` from the raw IEM cache | the site's region (west/houston/north/south), in force D-2..D (by initial expiry). From desk-v2-tune on, the folded final expiry (`expires`) is dropped (REVIEW F15); desk-v2-eval/pilot still carry it and core masks it |
 | `deployments` | — | `[]` in v2; v3 adds them |
 | `desk_forecast` | desk-qr-v1 (§7) | |
 | `operator` | NP3-966-ER 60d DAM ESR Data; NP3-965-ER 60d ESR Data in SCED; NP3-991-EX 60d COP All Updates | below |

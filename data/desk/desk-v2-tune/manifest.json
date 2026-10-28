@@ -1,0 +1,189 @@
+{
+ "pack": "desk-v2-tune",
+ "schema": "gridsim.desk.pack/v1",
+ "split": "train",
+ "layer": "v2",
+ "n_tasks": 12,
+ "sites": [
+  "S01",
+  "S02",
+  "S03",
+  "S04"
+ ],
+ "dates": [
+  "2026-01-12",
+  "2026-01-14",
+  "2026-02-11",
+  "2026-03-04",
+  "2026-04-02",
+  "2026-04-15",
+  "2026-05-20",
+  "2026-05-27",
+  "2026-06-17",
+  "2026-07-14",
+  "2026-08-05",
+  "2026-08-12"
+ ],
+ "operator_ok": 12,
+ "sced_fill": {
+  "desk-v2-2026-01-12-S01": 0,
+  "desk-v2-2026-04-15-S01": 0,
+  "desk-v2-2026-07-14-S01": 0,
+  "desk-v2-2026-02-11-S02": 0,
+  "desk-v2-2026-05-20-S02": 0,
+  "desk-v2-2026-08-05-S02": 0,
+  "desk-v2-2026-01-14-S03": 0,
+  "desk-v2-2026-04-02-S03": 0,
+  "desk-v2-2026-06-17-S03": 0,
+  "desk-v2-2026-03-04-S04": 0,
+  "desk-v2-2026-05-27-S04": 0,
+  "desk-v2-2026-08-12-S04": 0
+ },
+ "coverage": {
+  "desk-v2-2026-01-12-S01": {
+   "sced_fill": 0,
+   "sced_rows": 290,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-04-15-S01": {
+   "sced_fill": 0,
+   "sced_rows": 295,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 5,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-07-14-S01": {
+   "sced_fill": 0,
+   "sced_rows": 292,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-02-11-S02": {
+   "sced_fill": 0,
+   "sced_rows": 288,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-05-20-S02": {
+   "sced_fill": 0,
+   "sced_rows": 290,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 1,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-08-05-S02": {
+   "sced_fill": 0,
+   "sced_rows": 290,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 2,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-01-14-S03": {
+   "sced_fill": 0,
+   "sced_rows": 294,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-04-02-S03": {
+   "sced_fill": 0,
+   "sced_rows": 292,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 1,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-06-17-S03": {
+   "sced_fill": 0,
+   "sced_rows": 290,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 16,
+   "nws": 1,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-03-04-S04": {
+   "sced_fill": 0,
+   "sced_rows": 295,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 10,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-05-27-S04": {
+   "sced_fill": 0,
+   "sced_rows": 288,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 23,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2026-08-12-S04": {
+   "sced_fill": 0,
+   "sced_rows": 288,
+   "soc_null": 0,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  }
+ },
+ "built_utc": "2026-10-28T08:09:40Z",
+ "builder": "scripts/desk_data_build.py",
+ "sources": {
+  "dam_spp": "NP4-190-CD",
+  "rt_spp": "NP6-905-CD",
+  "rt_lmp": "NP6-788-CD",
+  "dam_mcpc": "NP4-188-CD",
+  "rt_mcpc": "NP6-332-CD",
+  "rt_mcpc_15": "NP6-331-CD",
+  "asdc": "NP4-212-CD",
+  "system.lambda": "NP6-323-CD",
+  "system.prc_mw": "post: proxy (docs/desk-data.md) from NP6-323-CD and NP6-345-CD; pre: NP6-792-ER",
+  "system.load_mw": "NP6-345-CD (hourly actual system load, repeated on the 5-min grid)",
+  "system.wind_mw": "NP4-733-CD",
+  "system.solar_mw": "NP4-738-CD",
+  "forecasts": "v4 forecast store (NP3-565-CD, NP4-742-CD, NP4-745-CD system vintages)",
+  "outage_capacity": "NP3-233-CD",
+  "unit_events": "NP1-346-ER",
+  "notices": "data/notices/notices.jsonl.gz",
+  "nws": "data/notices/nws_vtec.jsonl.gz",
+  "operator.dam": "NP3-966-ER",
+  "operator.sced": "NP3-965-ER",
+  "operator.cop": "NP3-991-EX",
+  "desk_forecast": "data/desk/forecast (desk-qr-v1)"
+ }
+}
