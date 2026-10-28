@@ -25,7 +25,8 @@ import numpy as np  # noqa: E402
 
 from gridsim_core.desk import fixtures  # noqa: E402
 from gridsim_core.desk.data import load_series, load_tasks  # noqa: E402
-from gridsim_core.grade import reward_value  # noqa: E402
+from gridsim_core.desk.refs import denominator  # noqa: E402
+from gridsim_core.grade import reward_value, stretch_value  # noqa: E402
 
 B, SEED = 10_000, 0
 CALLS_MAX_MB = 50
@@ -48,6 +49,8 @@ THEMES = {
              "model": {"sol": "#4a90e8", "luna": "#f07a4a", "qwen": "#2cc28a"}, "extra": ["#8f80f0", "#d0679f"],
              "dam": "#ecebe8", "rt": "#6f6d68", "op": "#a3a19b", "charge": "#4a90e8", "discharge": "#f07a4a"},
 }
+GRADE_KEYS = ("valid", "reward", "capture", "capture_phys", "stretch", "beats_anchor", "floored", "p", "p_idle",
+              "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual")
 FONTS = ["Inter", "Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"]
 
 
@@ -101,9 +104,28 @@ def regrade(g: dict, ep: dict, refs: dict) -> dict:
     def cap(q):
         return round((p - pi) / (q - pi), 6) if q is not None and q - pi > 1e-9 else None
 
+    eff, floored = denominator(pi, pa, pp)
     out = dict(g, p=p, p_idle=pi, p_anchor=pa, p_hind=ph, p_hind_phys=pp, capture=cap(ph), capture_phys=cap(pp),
-               reward=reward_value(p, pi, pa) if g["valid"] else 0.0, beats_anchor=p > pa + 1e-9,
+               reward=reward_value(p, pi, eff) if g["valid"] else 0.0, beats_anchor=p > pa + 1e-9,
+               floored=floored, p_reward_scale=round(eff, 2),
+               stretch=stretch_value(p, pi, eff, ph) if g["valid"] else 0.0,
                p_operator_replay=refs.get("p_operator_replay"), p_operator_actual=refs.get("p_operator_actual"))
+    if out["p_operator_replay"] is not None:
+        out["vs_operator_replay"] = round(p - out["p_operator_replay"], 2)
+    return out
+
+
+def grade_rows(runs: dict, grades: dict, days: dict) -> list[dict]:
+    out = []
+    for name, run in runs.items():
+        for tid in sorted(grades[name]):
+            g, r, ep = grades[name][tid], run["rows"][tid], run["episodes"].get(tid)
+            subs = (ep or {}).get("submissions", [])
+            out.append({"model": name, "task_id": tid, "tag": r["tag"], "date": days[tid], "site": site_key(tid),
+                        "status": r.get("status", "ok"), **{k: g.get(k) for k in GRADE_KEYS},
+                        "lines": statement_lines(ep) if ep else None, "usage": r.get("usage"),
+                        "submissions": len(subs), "rejected": sum(not x["accepted"] for x in subs),
+                        "episode": f"episodes/{name}/{tid}.{r['tag']}.json.gz" if ep else None})
     return out
 
 
@@ -190,6 +212,7 @@ def model_block(run: dict, grades: dict, days: dict) -> dict:
         "lines": {k: round(float(np.mean([ln.get(k, 0.0) for ln in lines])), 2) for k in
                   dict.fromkeys(k for ln in lines for k in ln)},
         "P_minus_anchor": gap("p_anchor"),
+        "floored": sum(bool(x.get("floored")) for x in g),
         "beats_anchor_share": round(float(np.mean([x["p"] > x["p_anchor"] + 1e-9 for x in g])), 4) if g else None,
         "P_minus_operator_replay": gap("p_operator_replay"), "P_minus_operator_actual": gap("p_operator_actual"),
         "turns": round(float(np.mean([b["turns"] for b in beh])), 2) if beh else None,
@@ -586,9 +609,9 @@ def table(head: list[str], rows: list[list[str]]) -> str:
 
 def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
     ms, refs, lay = summary["models"], summary["references"], summary["layer"]
-    t1 = table(["model", "n", "valid", "R", "C (hindsight)", "C_phys", "mean P", "P − anchor", "beats anchor",
-                "P − operator replay", "P − operator actual", "$ / episode"],
-               [[NAMES.get(k, k), str(m["n"]), pct(m["valid_share"]), fmt_ci(m["R"], digits=2),
+    t1 = table(["model", "n", "valid", "floored", "R", "C (hindsight)", "C_phys", "mean P", "P − anchor",
+                "beats anchor", "P − operator replay", "P − operator actual", "$ / episode"],
+               [[NAMES.get(k, k), str(m["n"]), pct(m["valid_share"]), str(m["floored"]), fmt_ci(m["R"], digits=2),
                  fmt_ci(m["C"], digits=2), fmt_ci(m["C_phys"], digits=2), fmt_ci(m["P"], money=True),
                  fmt_ci(m["P_minus_anchor"], money=True, signed=True), pct(m["beats_anchor_share"]),
                  fmt_ci(m["P_minus_operator_replay"], money=True, signed=True),
@@ -639,7 +662,8 @@ def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
 {summary['n_tasks']} battery-days ({summary['n_days']} operating days), {len(ms)} models. P is the settled ERCOT
 statement in $ per battery-day; R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
 (P − P_idle)/(P_hind − P_idle); C_phys the same against the hindsight optimum with its DAM position tied to dispatch.
-Brackets are 95% day-block CIs.
+"floored" counts tasks whose reward scale is floored at 10% of (P_hind_phys − P_idle) because the anchor
+earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t1}
 
@@ -799,6 +823,9 @@ def main() -> None:
         summary["hero"] = {"model": name, "task_id": tid, "operator_soc": ser is not None, "label": label}
     for mode, suf in (("light", ""), ("dark", "-dark")):
         fig_bars(summary, out / "figures" / f"p-bars{suf}.png", mode)
+    with gzip.open(out / "grades.jsonl.gz", "wt") as f:
+        for row in grade_rows(runs, grades, days):
+            f.write(json.dumps(row) + "\n")
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     notes = [x.strip().lstrip("- ") for x in Path(a.notes).read_text().splitlines() if x.strip()] if a.notes else None
     (out / "README.md").write_text(readme(summary, out, notes))

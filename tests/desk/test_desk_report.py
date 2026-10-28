@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 pytest.importorskip("matplotlib")
@@ -55,3 +56,27 @@ def test_report_on_policy_runs(tmp_path, monkeypatch):
     readme = (out / "README.md").read_text()
     assert readme.index("| model |") < readme.index("## What the numbers say") < readme.index("## Method")
     assert len(s["pilot"]) == 3
+    assert "| floored |" in readme and isinstance(sol["floored"], int)
+
+
+def test_grades_rows_reproduce_summary(tmp_path, monkeypatch):
+    seeds = [("2026-02-14", 1), ("2026-02-15", 2), ("2026-02-16", 3)]
+    for p in ("anchor", "scripted", "idle"):
+        _run(tmp_path / p, p, seeds)
+    out = tmp_path / "report"
+    runs = [x for p in ("anchor", "scripted", "idle") for x in ("--run", f"{p}={tmp_path / p}")]
+    monkeypatch.setattr(sys, "argv", ["desk_report.py", "--layer", "v2", "--pack", "fixtures", "--no-copy", *runs,
+                                      "--out", str(out)])
+    desk_report.main()
+    s = json.loads((out / "summary.json").read_text())
+    rows = [json.loads(x) for x in gzip.open(out / "grades.jsonl.gz", "rt")]
+    assert len(rows) == 9 and {r["model"] for r in rows} == set(s["models"])
+    for name, m in s["models"].items():
+        mine = [r for r in rows if r["model"] == name]
+        caps = [r["capture"] for r in mine if r["capture"] is not None]
+        assert np.mean([r["reward"] for r in mine]) == pytest.approx(m["R"]["mean"], abs=1e-4)
+        assert np.mean(caps) == pytest.approx(m["C"]["mean"], abs=1e-4)
+        assert np.mean([r["p"] for r in mine]) == pytest.approx(m["P"]["mean"], abs=1e-2)
+        assert sum(r["floored"] for r in mine) == m["floored"]
+        assert all(r["episode"] == f"episodes/{name}/{r['task_id']}.{r['tag']}.json.gz" for r in mine)
+        assert all(sum(r["lines"].values()) == pytest.approx(r["p"], abs=0.05) for r in mine)
