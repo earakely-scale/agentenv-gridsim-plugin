@@ -1,10 +1,11 @@
-"""What training bought, in dollars: the results page on the Space, its figures on the dataset card, the result
-folders under the dataset's results/, and every schedule behind the leaderboard for the dataset's eval_runs config.
+"""What training bought, in dollars: its figures on the dataset card (drawn by the results page staged locally), the
+result folders under the dataset's results/, and every schedule behind the leaderboard for the dataset's eval_runs
+config. The viewer Space is the desk's and publishes itself (hub_space.py).
 Every number comes from a committed summary, or from committed per-task records re-graded with gridsim_core and
 bootstrapped with report_blind's day-block resampler, and is checked against the summary that reports it.
 
     .venv/bin/python scripts/hub_results.py              # results/overview/ and build/hub/results/, nothing uploaded
-    .venv/bin/python scripts/hub_results.py --publish    # then upload to the dataset and the Space
+    .venv/bin/python scripts/hub_results.py --publish    # then upload to the dataset
 
 Beam's records are read from results/beam-agent/beam/ (or --beam DIR); each effort joins the frontier once all its
 tasks are there. The figures are the page's own charts, captured in headless Chrome at twice their pixel size, in the
@@ -792,36 +793,6 @@ def dataset_files(card: str, figs: dict[str, bytes], tables: dict[str, bytes]) -
     return files
 
 
-def space_readme(live: str) -> str:
-    """The Space card as published, with the results page linked above the featured day and the live board's passes
-    on demand."""
-    live_par = re.search(r"\*\*\[The live board\]\((\S+?)/board\.html\):\*\*.*?\n\n", live, re.S)
-    if not live_par or "**The featured day,**" not in live:
-        raise SystemExit("the Space card changed shape; update space_readme")
-    app = live_par[1]
-    results = (f"**[What training bought, in dollars]({app}/results.html):** Qwen3-4B, trained on this environment's "
-               "exact grader,\nwent from below idle to bidding as well as GPT-6 Luna at a quarter of its cost, with "
-               "GPT-6.1 Sol still ahead: the\nbefore and after, the score-against-cost frontier, the training runs and "
-               "what the decisions earn per MW of battery.\n\n")
-    board = (f"**[The live board]({app}/board.html):** on each pass, GPT-6.1 Sol, GPT-6 Luna, the trained 4B and three "
-             "rules seal a\nschedule for 45 batteries before ERCOT's day-ahead market closes; the first seal is for "
-             "2026-10-29, and passes run on\ndemand. The schedules are settled at the prices ERCOT then posts, and the "
-             "P&L adds up day by day.\n\n")
-    text = live[:live_par.start()] + board + live[live_par.end():]
-    text = re.sub(r"\*\*\[What training bought, in dollars\]\(.*?\n\n", "", text, flags=re.S)
-    text = text.replace("**The featured day,**", results + "**The featured day,**", 1)
-    new = "The viewer holds **replays only**: every replay plays back a recorded episode"
-    text = text.replace("This Space holds **replays only**: every page plays back a recorded episode", new)
-    if new not in text:
-        raise SystemExit("the Space card's replays paragraph changed; update space_readme")
-    return text
-
-
-def space_files(space: Path, live_readme: str) -> dict[str, bytes]:
-    names = ("results.html", "results.js", "results.css", "results.json", "index.html", "board.html")
-    return {n: (space / n).read_bytes() for n in names} | {"README.md": space_readme(live_readme).encode()}
-
-
 def card_diff(new: str, live: str) -> list[str]:
     """What the new card drops from the live one, line by line. Its front matter must keep every key of the live one
     and every config with the same data files: the dataset viewer and existing loaders read them."""
@@ -859,7 +830,7 @@ def publish(repo_type: str, files: dict[str, bytes], message: str) -> str:
 
 
 def live_shots(chrome: str | None, shots: Path) -> None:
-    """After publishing: the dataset card and the Space's results page as the world sees them."""
+    """After publishing: the dataset card as the world sees it."""
     rec = module("record", "scripts/record.py")
     with tempfile.TemporaryDirectory() as profile:
         proc = subprocess.Popen(rec.chrome_args(rec.find_chrome(chrome), Path(profile), 1440, 900),
@@ -868,9 +839,7 @@ def live_shots(chrome: str | None, shots: Path) -> None:
             with rec.connect(rec.devtools(Path(profile), proc), max_size=None) as ws:
                 page = rec.Page(ws)
                 page.call("Page.enable")
-                for url, stem, w, mobile in ((DATASET, "card-live-1440", 1440, False),
-                                             (f"{APP}/results.html", "results-live-1440", 1440, False),
-                                             (f"{APP}/results.html", "results-live-390", 390, True)):
+                for url, stem, w, mobile in ((DATASET, "card-live-1440", 1440, False),):
                     page.call("Emulation.setDeviceMetricsOverride", width=w, height=900,
                               deviceScaleFactor=1 if w > 1000 else 2, mobile=mobile)
                     page.call("Page.navigate", url=f"{url}{'&' if '?' in url else '?'}t={int(time.time())}")
@@ -888,10 +857,10 @@ def main():
     ap.add_argument("--beam", type=Path, default=ROOT / "results/beam-agent/beam")
     ap.add_argument("--chrome", help="Chrome to capture the figures with (default: found on the machine).")
     ap.add_argument("--shots", type=Path, help="Write full-page screenshots of the results page here (and, with "
-                                                "--publish, of the published card and page).")
+                                                "--publish, of the published card).")
     ap.add_argument("--pareto", type=Path, default=Path.home() / "Downloads" / "gridsim-blind-fresh-pareto.png",
                     help="Also write the frontier figure here.")
-    ap.add_argument("--publish", action="store_true", help="Upload to the dataset and the Space.")
+    ap.add_argument("--publish", action="store_true", help="Upload to the dataset.")
     args = ap.parse_args()
     res = build(args.beam)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -910,24 +879,20 @@ def main():
     hub_dataset = module("hub_dataset", "scripts/hub_dataset.py")
     card = hub_dataset.card_only(ROOT / "results")
     tables = hub_dataset.result_tables(res, eval_runs(args.beam))
-    live_card, live_readme = live_file("dataset", "README.md"), live_file("space", "README.md")
-    dropped = card_diff(card, live_card)
-    ds, sp = dataset_files(card, figs, tables), space_files(space, live_readme)
-    leaks(ds | {f"space/{k}": v for k, v in sp.items()})
-    for name, files in (("dataset", ds), ("space", sp)):
-        out = BUILD / name
-        shutil.rmtree(out, ignore_errors=True)
-        for k, v in files.items():
-            (out / k).parent.mkdir(parents=True, exist_ok=True)
-            (out / k).write_bytes(v)
-        print(f"{name}: {len(files)} files, {sum(map(len, files.values())) / 1e6:.2f} MB in {out}")
+    dropped = card_diff(card, live_file("dataset", "README.md"))
+    ds = dataset_files(card, figs, tables)
+    leaks(ds)
+    out = BUILD / "dataset"
+    shutil.rmtree(out, ignore_errors=True)
+    for k, v in ds.items():
+        (out / k).parent.mkdir(parents=True, exist_ok=True)
+        (out / k).write_bytes(v)
+    print(f"dataset: {len(ds)} files, {sum(map(len, ds.values())) / 1e6:.2f} MB in {out}")
     print(f"{len(figs)} figures in {OUT / 'figures'}; the frontier also at {args.pareto}")
     print(f"the card drops {len(dropped)} lines of the live card:", *(f"  - {x[:150]}" for x in dropped), sep="\n")
     if args.publish:
         print("dataset:", publish("dataset", ds, "Results: what training bought, in dollars (training, score against "
                                                   "cost, economics, live board), with the result folders"))
-        print("space:", publish("space", sp, "Results page: what training bought, in dollars; linked from the viewer, "
-                                              "the live board and the card"))
         if args.shots:
             live_shots(args.chrome, args.shots)
 

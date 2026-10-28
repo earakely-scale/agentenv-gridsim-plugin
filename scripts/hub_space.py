@@ -44,6 +44,7 @@ VERSIONS = ("v2", "v3", "v4", "v5")
 MODELS = {"sol": "GPT-6.1 Sol", "luna": "GPT-6 Luna", "qwen": "Qwen3-4B (untrained)"}
 SCENES = {"LZ_WEST": "west", "LZ_HOUSTON": "houston", "LZ_NORTH": "north", "LZ_SOUTH": "south"}
 THREE = WEB / "vendor" / "three-0.180.0"
+LIVE = ("board.html", "board.css", "board.js")
 FEATURED = (("desk-v4-2026-05-08-S04.sol", "Three days of spring thunderstorms in South Texas"),
             ("desk-v2-2026-08-23-S02.sol", "A Houston scarcity day with 13 ERCOT notices"),
             ("desk-v2-2026-01-25-S03.sol", "Winter storm Fern in North Texas"),
@@ -710,13 +711,16 @@ def featured(cat: dict) -> list[dict]:
 
 def site(out: Path) -> None:
     """The pages, their stylesheets and fonts at the root, and every module they import, followed from each page's
-    scripts: the desk's own, the stage's under stage/, three.js under vendor/."""
+    scripts: the desk's own, the stage's under stage/, three.js under vendor/. The v1 live board's page stays at its
+    address, outside the desk's navigation."""
     for f in DESK.rglob("*"):
         if f.is_file() and f.name != ".DS_Store":
             dst = out / f.relative_to(DESK)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(f, dst)
     shutil.copy(out / "results.html", out / "desk.html")
+    for name in LIVE:
+        shutil.copy(WEB / name, out / name)
     todo, seen = [f for f in DESK.glob("*.js")], set()
     while todo:
         f = todo.pop()
