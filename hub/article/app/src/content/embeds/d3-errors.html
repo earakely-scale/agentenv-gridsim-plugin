@@ -16,14 +16,14 @@
     if (!root) return;
     const f = K.fmt;
     const COLS = [
-      { k: "ok", l: "every rule kept", good: true },
-      { k: "all_idle", l: "all idle" },
-      { k: "overfill", l: "overfill" },
-      { k: "sell_before_charge", l: "sell before charge" },
-      { k: "rate", l: "rate" },
-      { k: "cycle_cap", l: "cycle cap" },
-      { k: "end_short", l: "end short" },
-      { k: "invalid", l: "no valid schedule", of: ["malformed", "truncated", "error"] },
+      { k: "ok", l: "every rule kept", s: "rules kept", good: true },
+      { k: "all_idle", l: "all idle", s: "all idle" },
+      { k: "overfill", l: "overfill", s: "overfill" },
+      { k: "sell_before_charge", l: "sell before charge", s: "sell first" },
+      { k: "rate", l: "rate", s: "rate" },
+      { k: "cycle_cap", l: "cycle cap", s: "cycle cap" },
+      { k: "end_short", l: "end short", s: "end short" },
+      { k: "invalid", l: "no valid schedule", s: "no call", of: ["malformed", "truncated", "error"] },
     ];
     K.whenD3(() => K.data("results.json").then((R) => {
       const d3 = window.d3;
@@ -47,21 +47,21 @@
         const rows = P.rows.slice().sort((a, b) => b.mean - a.mean);
         const W = plot.clientWidth || 640;
         const narrow = W < 560;
-        const lw = narrow ? 112 : 176, top = narrow ? 92 : 80, rh = 28;
-        const cw = (W - lw - 6) / COLS.length;
+        const lw = narrow ? 98 : 176, top = narrow ? 64 : 80, rh = 28;
+        const cw = (W - lw - (narrow ? 18 : 6)) / COLS.length;
         const H = top + rows.length * rh + 6;
         svg.selectAll("*").remove();
         svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
         COLS.forEach((c, j) => {
           const cx = lw + j * cw + cw / 2;
-          svg.append("text").attr("class", "ch").attr("transform", `translate(${cx + 3},${top - 8}) rotate(-38)`).text(c.l);
+          svg.append("text").attr("class", "ch").attr("transform", `translate(${cx + 3},${top - 8}) rotate(${narrow ? -58 : -38})`).text(narrow ? c.s : c.l);
         });
         const share = (r, c) => { const n = Object.values(r.kinds).reduce((a, b) => a + b, 0); const v = c.of ? c.of.reduce((a, k) => a + (r.kinds[k] || 0), 0) : r.kinds[c.k] || 0; return { v, s: v / n, n }; };
         const heat = d3.scaleLinear().domain([0, 0.5]).range([0.06, 0.85]).clamp(true);
         rows.forEach((r, i) => {
           const y = top + i * rh;
           if (r.key === "final") svg.append("rect").attr("class", "band").attr("x", 0).attr("y", y).attr("width", W).attr("height", rh - 2).attr("rx", 4);
-          const short = narrow ? r.label.replace("Qwen3-4B, ", "4B, ").replace("GPT-6.1 ", "").replace("GPT-6 ", "").replace("-1.0", "") : r.label;
+          const short = narrow ? r.label.replace(/ \(run \d\)/, "").replace("Qwen3-4B, ", "4B, ").replace("GPT-6.1 ", "").replace("GPT-6 ", "").replace("-1.0", "") : r.label;
           const t = svg.append("text").attr("class", "rl" + (r.key === "final" ? " me" : "")).attr("x", lw - 10).attr("y", y + 17).attr("text-anchor", "end").text(short);
           if (r.effort) t.append("tspan").attr("class", "re").text(` ${r.effort}`);
           COLS.forEach((c, j) => {
@@ -69,8 +69,8 @@
             const x = lw + j * cw;
             svg.append("rect").attr("x", x + 1).attr("y", y + 2).attr("width", cw - 2).attr("height", rh - 6).attr("rx", 3)
               .style("fill", c.good ? "var(--c-good)" : "var(--c-bad)").style("fill-opacity", v ? (c.good ? 0.12 + 0.25 * s : heat(s)) : 0.03);
-            const txt = v === 0 ? "·" : s < 0.0095 ? "<1%" : `${Math.round(100 * s)}%`;
-            svg.append("text").attr("class", "cv").attr("x", x + cw / 2).attr("y", y + 17).attr("text-anchor", "middle")
+            const txt = v === 0 ? "·" : s < 0.0095 ? (narrow ? "<1" : "<1%") : `${Math.round(100 * s)}${narrow ? "" : "%"}`;
+            svg.append("text").attr("class", "cv").attr("x", x + cw / 2).attr("y", y + 17).attr("text-anchor", "middle").style("font-size", narrow ? "10px" : null)
               .style("fill", !c.good && v && heat(s) > 0.55 ? "#fff" : v ? "var(--text-color)" : "var(--muted-color)").style("font-weight", c.good ? 400 : 600).text(txt);
             svg.append("rect").attr("x", x).attr("y", y).attr("width", cw).attr("height", rh).style("fill", "transparent")
               .on("pointerenter pointermove", (ev) => tip.show((el) => {
@@ -81,7 +81,7 @@
               }, ev)).on("pointerleave", () => tip.hide());
           });
         });
-        note.textContent = `${P.label}, ${P.n_tasks} battery-days. Each schedule gets one kind: all idle (24 zeros), else its first broken rule, else a shortfall at the end of the day; the rest keep every rule. A broken rule truncates the day at that hour.`;
+        note.textContent = `${P.label}, ${P.n_tasks} battery-days${narrow ? ", in %" : ""}. Each schedule gets one kind: all idle (24 zeros), else its first broken rule, else a shortfall at the end of the day; the rest keep every rule. A broken rule truncates the day at that hour.`;
       }
       render();
       K.watch(root, render);

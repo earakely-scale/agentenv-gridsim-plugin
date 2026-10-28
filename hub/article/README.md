@@ -18,6 +18,8 @@ tags:
   - electricity-markets
   - battery-storage
   - agentenv
+datasets:
+  - earakely-scale/GridSimEnv-AgentEnv
 thumbnail: >-
   https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/og-image.jpg
 ---

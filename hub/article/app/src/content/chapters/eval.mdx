@@ -23,8 +23,9 @@ models think as long as their effort setting allows.
   days and 0.903 on 2025. A rule with no language model, the exact optimum on yesterday's prices (persistence-DP),
   captures 0.871 and 0.882. On 2025 only Sol scores above it; on the newest days, Sol and Beam at its maximum effort
   do.
-- **The untrained 4B cannot play.** Without training, Qwen3-4B scores 0.06 at foresight, mostly because its replies do
-  not parse, and 0.17 blind, below doing nothing, because it either idles all day or sells before it has charged.
+- **The untrained 4B cannot play.** Without training, Qwen3-4B scores 0.06 at foresight, mostly because its replies are
+  cut off or do not parse, and 0.16 and 0.17 blind, below doing nothing: it idles all day or sells before it has
+  charged.
 - **Training changes that.** The trained 4B scores 0.885 and 0.855 at foresight and 0.828 and 0.841 blind. It is
   level with GPT-6 Luna at high effort on both blind packs and on 2025's foresight days, behind it on the newest
   foresight days, and behind Sol everywhere.

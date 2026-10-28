@@ -54,8 +54,8 @@
             svg.append("line").attr("x1", x(s)).attr("x2", x(s)).attr("y1", y(v.ci[0])).attr("y2", y(v.ci[1])).style("stroke", c).style("stroke-width", 1.4);
             svg.append("circle").attr("cx", x(s)).attr("cy", y(v.mean)).attr("r", 3.6).style("fill", c).style("stroke", "var(--page-bg)").style("stroke-width", 1.5);
           });
-          svg.append("text").attr("class", "lab halo").attr("x", x(r.end.step) + (narrow ? -6 : 8)).attr("y", y(r.end.mean) + (k === "run1" ? 12 : 4)).attr("text-anchor", narrow ? "end" : "start")
-            .text(`${l} ${f.n(r.start.mean)} → ${f.n(r.end.mean)}`);
+          if (!narrow) svg.append("text").attr("class", "lab halo").attr("x", x(r.end.step) + 8).attr("y", y(r.end.mean) + (k === "run1" ? 12 : 4))
+            .text(l);
         });
         // run 3: every checkpoint, sampled, with its interval
         const c3 = C.run3;
@@ -63,8 +63,8 @@
         svg.append("path").attr("class", "l3").attr("d", d3.line().x((p) => x(p.step)).y((p) => y(p.sampled.mean)).curve(d3.curveMonotoneX)(c3));
         c3.forEach((p) => svg.append("circle").attr("cx", x(p.step)).attr("cy", y(p.sampled.mean)).attr("r", 3.2).style("fill", "var(--c-qwen)").style("stroke", "var(--page-bg)").style("stroke-width", 1.5));
         const last = c3[c3.length - 1];
-        svg.append("text").attr("class", "lab b halo").attr("x", x(last.step) + (narrow ? -6 : 8)).attr("y", y(last.sampled.mean) - (narrow ? 10 : 2)).attr("text-anchor", narrow ? "end" : "start")
-          .text(`run 3, exact DP advantages ${f.n(c3[0].sampled.mean)} → ${f.n(last.sampled.mean)}`);
+        if (!narrow) svg.append("text").attr("class", "lab b halo").attr("x", x(last.step) + 8).attr("y", y(last.sampled.mean) - 2)
+          .text("run 3, DP advantages");
         // hover: nearest run-3 checkpoint
         const hl = svg.append("line").attr("class", "hov").attr("y1", mt).attr("y2", H - mb).style("display", "none");
         svg.append("rect").attr("x", ml).attr("y", mt).attr("width", W - mr - ml).attr("height", H - mb - mt).style("fill", "transparent")
@@ -82,9 +82,9 @@
           .on("pointerleave", () => { hl.style("display", "none"); tip.hide(); });
         leg.replaceChildren();
         const item = (cls, style, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.className = cls; Object.assign(i.style, style); s.append(i, document.createTextNode(text)); leg.appendChild(s); };
-        item("line", { background: "var(--c-qwen)" }, "run 3: exact per-hour DP advantages (PPO-clipped loop, PEFT, vLLM)");
-        item("dash", { borderColor: "var(--c-base)" }, "run 2: GRPO in TRL, same warm start");
-        item("dash", { borderColor: "var(--c-rule)" }, "run 1: GRPO in TRL, weaker warm start");
+        item("line", { background: "var(--c-qwen)" }, `run 3: exact per-hour DP advantages (PPO-clipped loop, PEFT, vLLM), ${f.n(c3[0].sampled.mean)} → ${f.n(last.sampled.mean)}`);
+        item("dash", { borderColor: "var(--c-base)" }, `run 2: GRPO in TRL, same warm start, ${f.n(C.run2.start.mean)} → ${f.n(C.run2.end.mean)}`);
+        item("dash", { borderColor: "var(--c-rule)" }, `run 1: GRPO in TRL, weaker warm start, ${f.n(C.run1.start.mean)} → ${f.n(C.run1.end.mean)}`);
       }
       render();
       K.watch(root, render);

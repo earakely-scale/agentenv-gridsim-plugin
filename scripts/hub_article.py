@@ -438,6 +438,8 @@ def checks(r: dict) -> list[tuple[str, str]]:
         ("eval.mdx", f"scores {h(lb['foresight-eval2025']['final']['mean'])} and "
                      f"{h(lb['foresight-fresh']['final']['mean'])} at foresight and {h(bf['final']['mean'])} and "
                      f"{h(lf['final']['mean'])} blind"),
+        ("eval.mdx", f"scores {h(lb['foresight-eval2025']['base']['mean'], 2)} at foresight"),
+        ("eval.mdx", f"and {h(bf['base']['mean'], 2)} and {h(lf['base']['mean'], 2)} blind, below doing nothing"),
         ("eval.mdx", gap(fr["luna-high"]["final_minus"])), ("eval.mdx", gap(fr["luna-low"]["final_minus"])),
         ("eval.mdx", f"captures {h(-sol_m['mean'])} more** {ci(neg(sol_m)['ci'])}"),
         ("eval.mdx", f"captures {h(fr['beam-max']['mean'])}, ahead of the trained 4B ({gap(neg(beam_m))})"),
