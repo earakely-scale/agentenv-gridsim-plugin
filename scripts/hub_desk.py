@@ -43,8 +43,8 @@ LADDER = (
 )
 WHY = {"v2": "when the node's day-ahead price ran far above real time"}
 NAMED = {"v4": {"2026-01-23": "winter storm Fern"}}
-IDLE = {"v3": "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the "
-              "co-located solar (modelled)."}
+IDLE = {v: "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the co-located solar "
+           "(modelled)." for v in ("v3", "v5")}
 MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B (untrained)", "open")}
 REFS = (("anchor", "Anchor", "Anchor: the desk's optimiser at every wake, same information"),
         ("operator_replay", "The operator's bids, replayed", "The real operator's disclosed bids, replayed"),
@@ -111,6 +111,7 @@ def main():
         one = [k for k in [lead, *desk["gifs"]] if next(v for v in desk["versions"] if v["version"] == k)[
             "days_per_task"] == 1]
         desk["story_version"] = one[0] if one else lead
+    desk["across"] = module("hub_dataset", "scripts/hub_dataset.py").across_text(desk)
     out = args.results / "overview" / "desk.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
@@ -182,7 +183,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],
          "budget": s["method"]["budget"], "core": s["method"]["core_versions"], "ci": s["ci"], "models": models,
          "references": refs, "paired": paired, "hero": s.get("hero"), "defects": defects(key, s),
-         "deviations": deviations(key, s),
+         "deviations": deviations(key, s), "versus": s.get("versus"), "price_impact": s.get("price_impact"),
          "idle": IDLE.get(key),
          "sensitivity": sensitivity(key, s, grades, folder.parent.parent, models[0]["key"]),
          "block": s.get("block_name") or "day",
@@ -362,7 +363,12 @@ KNOWN = (("empty `as_offers` list", "an empty `as_offers` list drew a spurious A
 LOGGED = (("Qwen3-4B sharding",
            "the Qwen3-4B task lists were set wrong, so its four winter storm Fern windows ran late as a fill-in on the "
            "same frozen code and four other windows ran twice; the runs on the planned host are scored, under a rule "
-           "set before any duplicate was read"),)
+           "set before any duplicate was read"),
+          ("began before the v5 pilot was checked",
+           "the Qwen3-4B runs began before the v5 pilot was checked (the pilot passed)"),
+          ("The same task-list error as v4",
+           "as in v4, six Qwen3-4B tasks ran late as a fill-in on the same frozen code and six ran on two hosts; the "
+           "runs on the planned host are scored, under a rule set before any duplicate was read"))
 
 
 def deviations(key: str, s: dict) -> str | None:
@@ -373,7 +379,9 @@ def deviations(key: str, s: dict) -> str | None:
         if not said:
             raise Mismatch(f"desk-{key} logs a deviation the hub does not describe yet: {d}")
         out += said
-    return f"Logged deviation from the pre-registration: {'; '.join(out)}." if out else None
+    if not out:
+        return None
+    return f"Logged deviation{'s' if len(out) > 1 else ''} from the pre-registration: {'; '.join(out)}."
 
 
 def defects(key: str, s: dict) -> str | None:

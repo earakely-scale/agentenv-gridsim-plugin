@@ -764,7 +764,8 @@ def desk_blocks(d: dict) -> dict[str, str]:
     results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
                    "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
     inline = f"{gif_block(gif)}\n\n" if gif and not gif["lead"] else ""
-    desk = DESK_MD.read_text().format(gif=inline, ladder=ladder_block(d), results="\n\n".join(results))
+    desk = DESK_MD.read_text().format(gif=inline, ladder=ladder_block(d), results="\n\n".join(results),
+                                      across=across(d))
     out = {"desk": desk.rstrip(), "desk-run": DESK_RUN.read_text().format(ref=latest["ref"],
                                                                           latest=latest["version"]).rstrip()}
     if gif and gif["lead"]:
@@ -856,6 +857,8 @@ def desk_bullets(v: dict) -> list[str]:
     ms, refs = v["models"], {r["key"]: r for r in v["references"]}
     top, others = ms[0], ms[1:]
     pairs = {(x["a"], x["b"]): x["C"] for x in v["paired"] if "C" in x}
+    pairs |= {(b, a): {"mean": -c["mean"], "ci": [-c["ci"][1], -c["ci"][0]]} for (a, b), c in list(pairs.items())
+              if (b, a) not in pairs}
     leads = [(m, pairs[top["key"], m["key"]]) for m in others if (top["key"], m["key"]) in pairs]
     out = [f"**{top['name']} captures the most of hindsight:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
            f"{usd0(top['P']['mean'])} a {unit(v)}" + (", against " + " and ".join(
@@ -877,7 +880,7 @@ def desk_bullets(v: dict) -> list[str]:
                    + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
                       "No model is ahead with a CI above zero.")
                    + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
-    out += sensitivity(v) + reserves(v) + dam_days(v)
+    out += sensitivity(v) + reserves(v) + dam_days(v) + impact(v) + versus(v)
     a, spread = refs["anchor"], "anchor" in (v.get("sensitivity") or {}).get("bought_back", [])
     out.append("**The anchor,** the desk's own optimiser on the same information, "
                + ("" if spread else "free to take DAM/RT spread positions, ")
@@ -962,6 +965,75 @@ def reserves(v: dict) -> list[str]:
         return (f"{m['name']}: AS awards in {a['episodes_with_awards']} of {m['n']} {unit(v)}s, {usd0(got, True)} a "
                 f"{unit(v)} from the AS lines{no}")
     return ["**Reserves.** " + "; ".join(one(m) for m in ms) + "."]
+
+
+def impact(v: dict) -> list[str]:
+    """v5: what the desk's own DAM offers did to the price they cleared at, from the report's re-clear."""
+    pi = v.get("price_impact")
+    if not pi:
+        return []
+    ms = {m["key"]: m["name"] for m in v["models"]}
+    name = lambda k: ms.get(k, SHORTS.get(k, k))  # noqa: E731
+    keys = [k for k in [*ms, "anchor"] if k in pi]
+    cents = lambda x: f"{'−' if x < 0 else '+' if x > 0 else ''}{abs(x) * 100:.1f}¢"  # noqa: E731
+    big = max(pi[k]["max_abs_usd_per_mwh"] for k in keys)
+    return ["**One battery moves the DAM price by cents.** Re-clearing the DAM against the day's real offers with "
+            "each desk's own moves the node's price on its sales, MWh-weighted over its awarded hours, by: "
+            + "; ".join(
+                f"{name(k)} {cents(pi[k]['sales_mwh_weighted_usd_per_mwh'])}/MWh" for k in keys)
+            + f". The largest single move is ${big:.2f}/MWh; on revenue it is worth " + and_join(
+                [f"{name(k)} {usd0(pi[k]['revenue_effect_usd_per_episode'], True)}" for k in keys])
+            + f" a {unit(v)}. A single 100–150 MW battery is a price taker here, so {v['version']} matches "
+            f"{(v.get('versus') or {}).get('label', 'v3')} by construction of the market, as pre-registered. A next "
+            "step is a portfolio desk: a QSE bidding its whole fleet of batteries into the DAM at once."]
+
+
+def versus(v: dict) -> list[str]:
+    """v5: each model's paired gap to the version it repeats, on the same tasks."""
+    vs = v.get("versus")
+    if not vs:
+        return []
+    ms = {m["key"]: m["name"] for m in v["models"]}
+    gaps = "; ".join(f"{ms.get(k, k)} {usd0(b['P']['mean'], True)} {usd0_ci(b['P']['ci'], True)}"
+                     for k, b in vs["models"].items())
+    noise = all(b[x]["ci"][0] <= 0 <= b[x]["ci"][1] for b in vs["models"].values() for x in ("P", "R", "C"))
+    return [f"**{v['version']} against {vs['label']},** paired on the same {v['n_tasks']} {unit(v)}s, P a {unit(v)}: "
+            f"{gaps}." + (" Every P, R and C gap has a CI that includes zero: two runs of the same model differ "
+                          "this much, while the price moved by cents." if noise else "")]
+
+
+def across(d: dict) -> str:
+    """The models' C version by version, and what the paired gaps between them say."""
+    vs = d["versions"]
+    if len(vs) < 2:
+        return ""
+    keys = list(dict.fromkeys(m["key"] for v in vs for m in v["models"]))
+    names = {m["key"]: m["name"] for v in vs for m in v["models"]}
+    cell = lambda v, k: next((f"{h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small>" for m in v["models"]  # noqa: E731
+                              if m["key"] == k), "–")
+    rows = [f"| **{names[k]}** | " + " | ".join(cell(v, k) for v in vs) + " |" for k in keys]
+    return "\n".join(["**Across versions:** hindsight capture C, with its 95% CI.", "",
+                      "| Desk | " + " | ".join(f"{v['version']}, {v['name']}" for v in vs) + " |",
+                      "|---|" + "---:|" * len(vs), *rows, "", across_text(d)])
+
+
+def across_text(d: dict) -> str:
+    """Where the paired C gap between GPT-6.1 Sol and GPT-6 Luna excludes zero, and whether the untrained model is
+    last in every version."""
+    vs, out = d["versions"], []
+    keys = {m["key"] for v in vs for m in v["models"]}
+    pair = lambda v, a, b: next((x["C"] for x in v["paired"] if {x["a"], x["b"]} == {a, b} and "C" in x), None)  # noqa: E731
+    if {"sol", "luna"} <= keys:
+        clear = [v for v in vs if (g := pair(v, "sol", "luna")) and (g["ci"][0] > 0 or g["ci"][1] < 0)]
+        rest = [v["version"] for v in vs if v not in clear]
+        out.append("Paired by task, GPT-6.1 Sol and GPT-6 Luna differ in C with a CI that excludes zero only in "
+                   + and_join([f"{v['version']}" + (f", on {v['days_per_task']}-day weather fronts"
+                                                     if v["days_per_task"] > 1 else "") for v in clear])
+                   + f" (Sol ahead); in {and_join(rest)} they are close." if clear else
+                   "Paired by task, GPT-6.1 Sol and GPT-6 Luna never differ in C with a CI that excludes zero.")
+    if "qwen" in keys and all(min(v["models"], key=lambda m: m["C"]["mean"])["key"] == "qwen" for v in vs):
+        out.append("The untrained Qwen3-4B has the lowest C in every version.")
+    return " ".join(out)
 
 
 def dam_days(v: dict) -> list[str]:

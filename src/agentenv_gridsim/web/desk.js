@@ -93,9 +93,12 @@ function render(D) {
   $("kpis").innerHTML = kpis(V);
   $("main").innerHTML = [
     block("The board", `Each model played each ${unit(V)} once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a ${unit(V)}; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: ${V.block}-block bootstrap 95% CIs over ${blocks(V)}.`, board(V), `${V.version} · ${esc(V.name)}`),
+    across(D, V),
     sensitivity(V),
     capFig(V, W),
     usdFig(V, W),
+    impact(V, W),
+    versus(V),
     block("Where the money came from", `Each line of the settled statement, mean $ a ${unit(V)}. DAM energy settles at the node's day-ahead price, RT imbalance at its 15-minute real-time price; modelled lines are marked.`, linesTable(V)),
     reserves(V),
     block("How each desk traded", `Means per ${unit(V)}: turns are wake-ups the model acted on, calls its tool calls, submissions the DAM curves, RT curves and COP updates it filed (rejections carry ERCOT-style codes).`, behaviour(V)),
@@ -103,6 +106,16 @@ function render(D) {
     how(),
     sources(V),
   ].join("");
+}
+
+function across(D, V) {
+  if (D.versions.length < 2) return "";
+  const keys = [...new Set(D.versions.flatMap((v) => v.models.map((m) => m.key)))];
+  const name = Object.fromEntries(D.versions.flatMap((v) => v.models.map((m) => [m.key, m.name])));
+  const cell = (v, k) => { const m = v.models.find((x) => x.key === k); return m ? `<td data-l="${v.version}">${v === V ? `<b>${num(m.C.mean)}</b>` : num(m.C.mean)}<span class="sub">${ci(m.C.ci)}</span></td>` : `<td data-l="${v.version}">–</td>`; };
+  const rows = keys.map((k) => `<tr><td><span class="who"><i style="background:${COL[k] || "var(--c-base)"}"></i><b>${esc(name[k])}</b></span></td>${D.versions.map((v) => cell(v, k)).join("")}</tr>`).join("");
+  return block("Across versions", `Hindsight capture C with its 95% CI, version by version. ${esc(D.across || "")}`,
+    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th>${D.versions.map((v) => `<th>${v.version} · ${esc(v.name)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`, "All versions");
 }
 
 function kpis(V) {
@@ -203,6 +216,44 @@ function linesTable(V) {
   const body = keys.map((k) => `<tr><td>${esc(LINE[k] || k)}${MODELLED.has(k) ? ' <span class="mod">modelled</span>' : ""}</td>${V.models.map((m) => `<td data-l="${esc(m.name)}">${usd(m.lines[k] || 0, true)}</td>`).join("")}</tr>`).join("");
   const total = `<tr><td><b>P</b></td>${V.models.map((m) => `<td data-l="${esc(m.name)}"><b>${usd(m.P.mean, true)}</b></td>`).join("")}</tr>`;
   return `<div class="table-scroll"><table class="grid stack lines"><thead>${head}</thead><tbody>${body}${total}</tbody></table></div>`;
+}
+
+function impact(V, W) {
+  const pi = V.price_impact;
+  if (!pi) return "";
+  const keys = [...V.models.map((m) => m.key), "anchor"].filter((k) => pi[k]);
+  const nm = (k) => (V.models.find((m) => m.key === k) || {}).name || SHORT[k] || k;
+  const color = (k) => COL[k] || REFC[k] || "var(--c-rule)";
+  const ct = (x) => `${x < 0 ? "−" : x > 0 ? "+" : ""}${(Math.abs(x) * 100).toFixed(1)}¢`;
+  const narrow = W < 560, left = narrow ? 10 : 218, rh = narrow ? 58 : 46, top = 26, H = top + keys.length * rh + 30;
+  const vals = keys.flatMap((k) => [pi[k].sales_mwh_weighted_usd_per_mwh, pi[k].purchases_mwh_weighted_usd_per_mwh]);
+  const m = Math.max(0.05, ...vals.map(Math.abs)) * (narrow ? 1.15 : 1.6), x = lin(-m, m, narrow ? 10 : left, W - 20);
+  let s = ticks(-m, m, narrow ? 3 : 5).map((t) => `<g class="grid">${line(x(t), top - 6, x(t), H - 26, "", 1)}</g>${txt(x(t), H - 10, ct(t), "t-ax", "middle")}`).join("");
+  s += line(x(0), top - 10, x(0), H - 26, "var(--text-muted)", 1) + txt(x(0) - 6, top - 14, "price lower", "t-ann", "end") + txt(x(0) + 6, top - 14, "price higher", "t-ann");
+  keys.forEach((k, i) => {
+    const y = top + i * rh + (narrow ? 22 : 8), r = pi[k];
+    s += txt(narrow ? 10 : left - 8, narrow ? y - 6 : y + 14, esc(nm(k)), `t-lab${V.models.some((q) => q.key === k) ? " b" : ""}`, narrow ? "start" : "end");
+    [[r.sales_mwh_weighted_usd_per_mwh, "on sales", 0], [r.purchases_mwh_weighted_usd_per_mwh, "on purchases", 1]].forEach(([v, lab, j]) => {
+      const yy = y + j * 16, x0 = x(Math.min(0, v)), w = Math.max(1, Math.abs(x(v) - x(0)));
+      const t = tip(tipRows(esc(nm(k)), [["Sales, MWh-weighted", `${ct(r.sales_mwh_weighted_usd_per_mwh)}/MWh on ${Math.round(r.sales_mwh_per_episode)} MWh`], ["Purchases, MWh-weighted", `${ct(r.purchases_mwh_weighted_usd_per_mwh)}/MWh on ${Math.round(r.purchases_mwh_per_episode)} MWh`], ["Revenue effect", `${usd(r.revenue_effect_usd_per_episode, true)} a ${unit(V)}`]]));
+      s += `<rect x="${x0}" y="${yy}" width="${w}" height="11" rx="2" fill="${color(k)}" fill-opacity="${j ? 0.45 : 0.9}" ${t}/>`;
+      if (!narrow) s += txt(v < 0 ? x0 - 6 : x0 + w + 6, yy + 9, `${ct(v)} ${lab}`, "t-val", v < 0 ? "end" : "start");
+    });
+  });
+  const rows = keys.map((k) => { const r = pi[k]; return `<tr><td><span class="who"><i style="background:${color(k)}"></i>${V.models.some((q) => q.key === k) ? `<b>${esc(nm(k))}</b>` : esc(nm(k))}</span></td><td data-l="On its sales">${ct(r.sales_mwh_weighted_usd_per_mwh)}<span class="sub">${Math.round(r.sales_mwh_per_episode)} MWh</span></td><td data-l="On its purchases">${ct(r.purchases_mwh_weighted_usd_per_mwh)}<span class="sub">${Math.round(r.purchases_mwh_per_episode)} MWh</span></td><td data-l="Revenue effect">${usd(r.revenue_effect_usd_per_episode, true)}</td><td data-l="Largest move">$${r.max_abs_usd_per_mwh.toFixed(2)}/MWh</td><td data-l="Hours moved over 1¢">${r.hours_moved_over_1c} of ${r.awarded_hours}</td></tr>`; }).join("");
+  return block("Price impact: what the desk's own DAM offers did to the price", `The day-ahead market re-cleared against the day's real offers with each desk's own: the re-cleared minus the real node price over awarded hours, MWh-weighted, per ${unit(V)}. A single 100–150 MW battery is a price taker here, as pre-registered; a portfolio desk, a QSE bidding its whole fleet, is the next step for price impact to matter.`,
+    `<div class="chart fig">${svg(W, H, s, "DAM price impact by desk")}</div><div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>On its sales</th><th>On its purchases</th><th>Revenue effect, $ a ${unit(V)}</th><th>Largest move</th><th>Hours moved over 1¢</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Price impact");
+}
+
+function versus(V) {
+  const vs = V.versus;
+  if (!vs) return "";
+  const nm = (k) => (V.models.find((m) => m.key === k) || {}).name || k;
+  const g = (b, n = 3) => `${num(b.mean, n).replace(/^(?!−)/, b.mean > 0 ? "+" : "")}<span class="sub">${ci(b.ci, n)}</span>`;
+  const rows = Object.entries(vs.models).map(([k, b]) => `<tr><td><span class="who"><i style="background:${COL[k] || "var(--c-base)"}"></i><b>${esc(nm(k))}</b></span></td><td data-l="ΔP">${usd(b.P.mean, true)}<span class="sub">${usdci(b.P.ci, true)}</span></td><td data-l="ΔR">${g(b.R, 2)}</td><td data-l="ΔC">${g(b.C)}</td></tr>`).join("");
+  const noise = Object.values(vs.models).every((b) => ["P", "R", "C"].every((x) => b[x].ci[0] <= 0 && b[x].ci[1] >= 0));
+  return block(`${V.version} against ${vs.label}, task by task`, `Each model's ${V.version} run minus its ${vs.label} run on the same ${V.n_tasks} ${unit(V)}s, with day-block 95% CIs.${noise ? " Every gap's CI includes zero: two runs of the same model differ this much, while the price moved by cents." : ""}`,
+    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>ΔP, $ a ${unit(V)}</th><th>ΔR</th><th>ΔC</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Against " + vs.label);
 }
 
 function reserves(V) {

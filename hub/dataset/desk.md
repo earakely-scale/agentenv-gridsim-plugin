@@ -16,6 +16,8 @@ before to midnight on the operating day; in v4, for three operating days in a ro
   replayed through the same clearing and settlement, and through its actual awards and metered output, settled the
   same way.
 
+{across}
+
 {results}
 
 <details>
