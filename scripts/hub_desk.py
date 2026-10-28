@@ -53,7 +53,10 @@ WHY = {"v2": "when the node's day-ahead price ran far above real time"}
 NAMED = {"v2": {"2026-01-25": "winter storm Fern"}, "v4": {"2026-01-23": "winter storm Fern"}}
 IDLE = {v: "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the co-located solar "
            "(modelled)." for v in ("v3", "v5")}
-MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B (untrained)", "open")}
+MODELS = {"sol": ("GPT-6.1 Sol", "API", {"api": "Responses API"}),
+          "luna": ("GPT-6 Luna", "API", {"api": "Responses API"}),
+          "qwen": ("Qwen3-4B (untrained)", "open", {"checkpoint": "Qwen/Qwen3-4B", "server": "vLLM 0.29",
+                                                     "dtype": "bf16", "tool_parser": "hermes"})}
 REFS = (("anchor", "Anchor", "Anchor: the desk's optimiser at every wake, same information"),
         ("operator_replay", "The operator's bids, replayed", "The real operator's disclosed bids, replayed"),
         ("operator_actual", "The operator, as settled", "The real operator's awards and metered output, settled"),
@@ -64,7 +67,8 @@ LINES = ("dam_energy", "rt_energy_imbalance", "deviation", "load_allocated", "da
 F64, I64, STR, BOOL = pa.float64(), pa.int64(), pa.string(), pa.bool_()
 LEADERBOARD = pa.schema([
     ("version", STR), ("pack", STR), ("type", STR), ("key", STR), ("name", STR), ("model_id", STR), ("effort", STR),
-    ("weights", STR), ("tasks", I64), ("days_per_task", I64), ("operating_days", I64), ("valid", F64),
+    ("reasoning_effort", STR), ("thinking", BOOL), ("weights", STR), ("tasks", I64), ("days_per_task", I64),
+    ("operating_days", I64), ("valid", F64),
     *((f"{m}{s}", F64) for m in ("capture", "reward", "p_usd", "p_minus_anchor_usd", "p_minus_operator_replay_usd",
                                   "p_minus_operator_actual_usd") for s in ("", "_ci_low", "_ci_high")),
     ("capture_phys", F64), ("beats_anchor", F64), ("usd_per_episode", F64), ("turns", F64), ("calls", F64),
@@ -73,7 +77,8 @@ LEADERBOARD = pa.schema([
 ])
 RUNS = pa.schema([
     ("version", STR), ("pack", STR), ("model", STR), ("name", STR), ("model_id", STR), ("effort", STR),
-    ("task_id", STR), ("date", STR), ("site", STR), ("region", STR), ("battery", STR), ("era", STR), ("status", STR),
+    ("reasoning_effort", STR), ("thinking", BOOL), ("task_id", STR), ("date", STR), ("site", STR), ("region", STR),
+    ("battery", STR), ("era", STR), ("status", STR),
     ("valid", BOOL), ("capture", F64), ("capture_phys", F64), ("reward", F64), ("stretch", F64), ("floored", BOOL),
     ("beats_anchor", BOOL), ("p_usd", F64), ("p_idle", F64), ("p_anchor", F64), ("p_hind", F64), ("p_hind_phys", F64),
     ("p_operator_replay", F64), ("p_operator_actual", F64), *((f"{x}_usd", F64) for x in LINES), ("lines", STR),
@@ -122,7 +127,8 @@ def main():
     desk["gifs"] = {}
     for key, task, path in args.gif:
         v = next(x for x in desk["versions"] if x["version"] == key)
-        info, ep = gif_info(v, args.desk / f"desk-{key}", args.gif_model, task, key == lead and bool(args.lead))
+        info, ep = gif_info(v, args.desk / f"desk-{key}", desk["models"][args.gif_model]["label"], args.gif_model,
+                            task, key == lead and bool(args.lead))
         info["path"] = GIF if key == lead else f"assets/gridsim-desk-{key}.gif"
         desk["gifs"][key] = info
         card = ep["site"]["card"]
@@ -134,12 +140,12 @@ def main():
         one = [k for k in [lead, *desk["gifs"]] if next(v for v in desk["versions"] if v["version"] == k)[
             "days_per_task"] == 1]
         desk["story_version"] = one[0] if one else lead
-    desk["across"] = module("hub_dataset", "scripts/hub_dataset.py").across_text(desk)
+    hd = module("hub_dataset", "scripts/hub_dataset.py")
+    desk["across"], desk["models_lines"] = hd.across_text(desk), hd.models_lines(desk)
     out = args.results / "overview" / "desk.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
     hr = module("hub_results", "scripts/hub_results.py")
-    hd = module("hub_dataset", "scripts/hub_dataset.py")
     space = BUILD / "space"
     shutil.rmtree(space, ignore_errors=True)
     space.mkdir(parents=True)
@@ -170,25 +176,42 @@ def main():
 
 
 def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple[dict, dict[str, bytes]]:
-    versions, files = [], {}
+    versions, files, ms = [], {}, settings()
     for key, name, adds, does in LADDER:
         folder = desk_dir / f"desk-{key}"
         if not (folder / "summary.json").is_file() or only and key not in only:
             continue
         if key not in refs:
             raise SystemExit(f"--ref {key}=TAG: the results tag that {folder} was committed under")
-        v, fs = version(key, name, adds, does, folder, refs[key])
+        v, fs = version(key, name, adds, does, folder, refs[key], ms)
         versions.append(v)
         files |= fs
     ladder = [{"version": k, "name": n, "adds": a, "does": d, "status": "results" if any(
         v["version"] == k for v in versions) else "next"} for k, n, a, d in LADDER if k not in CHECKS]
     c = [x for v in versions if v["role"] == "ladder" for d in v["days"] for x in d["C"].values()]
     scale = [round(math.floor((min(c) - 0.02) / 0.2) * 0.2, 6), round(math.ceil((max(c) + 0.04) / 0.2) * 0.2, 6)]
-    return {"schema": "gridsim.desk.hub/v1", "ladder": ladder, "versions": versions,
+    return {"schema": "gridsim.desk.hub/v1", "models": ms, "ladder": ladder, "versions": versions,
             "charts": CARD_CHARTS | {"days_scale": scale}}, files
 
 
-def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -> tuple[dict, dict[str, bytes]]:
+def settings() -> dict:
+    """Each model's settings as scripts/desk_run.py's presets ran it in every frozen version (no run passed an
+    override), how it was served and its label: desk.json's `models`, which every surface names the models from."""
+    run = module("desk_run", "scripts/desk_run.py").MODELS
+    out = {}
+    for k, (name, weights, served) in MODELS.items():
+        p = run[k]
+        setting = f"effort {p['effort']}" if p["effort"] else f"thinking {'on' if p['thinking'] else 'off'}"
+        chat = {"temperature": p["sampling"]["temperature"], "top_p": p["sampling"]["top_p"],
+                "context_tokens": p["context"], "prompt_tokens": p["prompt_target"],
+                "max_output_tokens": p["max_out"]} if "sampling" in p else {}
+        out[k] = {"name": name, "setting": setting, "label": f"{name} · {setting}", "model_id": p["model"],
+                  "weights": weights, "reasoning_effort": p["effort"], "thinking": p.get("thinking"), **chat, **served}
+    return out
+
+
+def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str,
+            ms: dict) -> tuple[dict, dict[str, bytes]]:
     s = json.loads((folder / "summary.json").read_text())
     if s["layer"] != key:
         raise Mismatch(f"{folder}: layer {s['layer']}, expected {key}")
@@ -197,7 +220,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     episodes = {g["episode"]: json.loads(gzip.decompress((folder / g["episode"]).read_bytes())) for g in grades}
     check(s, grades)
     rel = f"results/desk-{key}"
-    models = [model_row(k, m) for k, m in s["models"].items()]
+    models = [model_row(k, m, ms[k]) for k, m in s["models"].items()]
     models.sort(key=lambda m: -m["C"]["mean"])
     refs = [{"key": k, "short": short, "name": label, **{x: s["references"][k][x] for x in ("P", "C", "C_phys")}}
             for k, short, label in REFS if s["references"].get(k, {}).get("P", {}).get("mean") is not None]
@@ -226,8 +249,8 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     if hero:
         g = next(g for g in grades if g["model"] == hero["model"] and g["task_id"] == hero["task_id"])
         v["story"] = story(episodes[g["episode"]], hero)
-    rows = [run_row(key, s, g, episodes[g["episode"]]) for g in grades]
-    board = [board_row(key, s, m, v["days_per_task"]) for m in models] + [
+    rows = [run_row(key, s, g, episodes[g["episode"]], ms[g["model"]]) for g in grades]
+    board = [board_row(key, s, m, v["days_per_task"], ms[m["key"]]) for m in models] + [
         ref_row(key, s, r, v["days_per_task"]) for r in refs]
     tasks = task_rows(key, folder.parent.parent, grades)
     files = {f"desk_leaderboard/{key}.parquet": parquet(board, LEADERBOARD),
@@ -274,13 +297,13 @@ SUBMIT = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "u
 READS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position", "check_submission")
 
 
-def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> tuple[dict, dict]:
+def gif_info(v: dict, folder: Path, name: str, model: str, task: str, lead: bool) -> tuple[dict, dict]:
     """The desk hero GIF's link, alt text and caption, every number from the episode's grade in grades.jsonl.gz, and
     the episode it films."""
     with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
         g = next(x for x in map(json.loads, f) if x["model"] == model and x["task_id"] == task)
     ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
-    card, name = ep["site"]["card"], MODELS.get(model, (model, None))[0]
+    card = ep["site"]["card"]
     subs = [x for x in ep.get("submissions", []) if x["accepted"]]
     dam = [x for x in subs if x["tool"] == "submit_dam_offers"]
     rt = [x for x in subs if x["tool"] == "submit_rt_offers"]
@@ -463,13 +486,15 @@ def defects(key: str, s: dict) -> str | None:
     return f"Known env defect, frozen for {key} and fixed after it: {'; '.join(out)}." if out else None
 
 
-def model_row(k: str, m: dict) -> dict:
-    name, weights = MODELS.get(k, (k, None))
+def model_row(k: str, m: dict, preset: dict) -> dict:
     pol = m["policy"]
-    return {"key": k, "name": name, "model_id": pol.get("model"), "effort": pol.get("effort"), "weights": weights,
-            "n": m["n"], "days": m["days"], "valid": m["valid_share"], "C": m["C"], "C_phys": m["C_phys"],
-            "R": m["R"], "P": m["P"], "P_minus_anchor": m["P_minus_anchor"], "beats_anchor": m["beats_anchor_share"],
-            "P_minus_operator_replay": m["P_minus_operator_replay"],
+    if (pol.get("model"), pol.get("effort")) != (preset["model_id"], preset["reasoning_effort"]):
+        raise Mismatch(f"{k}: the runs recorded {pol.get('model')} at effort {pol.get('effort')}, the runner's "
+                       f"preset is {preset['model_id']} at {preset['reasoning_effort']}")
+    return {"key": k, "name": preset["name"], "model_id": pol.get("model"), "effort": pol.get("effort"),
+            "weights": preset["weights"], "n": m["n"], "days": m["days"], "valid": m["valid_share"], "C": m["C"],
+            "C_phys": m["C_phys"], "R": m["R"], "P": m["P"], "P_minus_anchor": m["P_minus_anchor"],
+            "beats_anchor": m["beats_anchor_share"], "P_minus_operator_replay": m["P_minus_operator_replay"],
             "P_minus_operator_actual": m["P_minus_operator_actual"], "lines": m["lines"],
             "usd_per_episode": m["cost_usd"]["per_episode"], "usd_total": m["cost_usd"]["total_all_attempts"],
             "turns": m["turns"], "wakes": m["wakes"], "calls": m["calls"], "calls_by_tool": m["calls_by_tool"],
@@ -521,10 +546,11 @@ def task_rows(key: str, repo: Path, grades: list[dict]) -> list[dict]:
     return out
 
 
-def board_row(key: str, s: dict, m: dict, dpt: int) -> dict:
+def board_row(key: str, s: dict, m: dict, dpt: int, preset: dict) -> dict:
     return common(key, s, dpt) | {
         "type": "model", "key": m["key"], "name": m["name"], "model_id": m["model_id"], "effort": m["effort"],
-        "weights": m["weights"], "valid": m["valid"], **band("capture", m["C"]), **band("reward", m["R"]),
+        "reasoning_effort": preset["reasoning_effort"], "thinking": preset["thinking"], "weights": m["weights"],
+        "valid": m["valid"], **band("capture", m["C"]), **band("reward", m["R"]),
         **band("p_usd", m["P"]), **band("p_minus_anchor_usd", m["P_minus_anchor"]),
         **band("p_minus_operator_replay_usd", m["P_minus_operator_replay"]),
         **band("p_minus_operator_actual_usd", m["P_minus_operator_actual"]), "capture_phys": m["C_phys"]["mean"],
@@ -547,11 +573,11 @@ def band(name: str, b: dict) -> dict:
     return {name: b["mean"], f"{name}_ci_low": b["ci"][0], f"{name}_ci_high": b["ci"][1]}
 
 
-def run_row(key: str, s: dict, g: dict, ep: dict) -> dict:
-    name, _ = MODELS.get(g["model"], (g["model"], None))
+def run_row(key: str, s: dict, g: dict, ep: dict, preset: dict) -> dict:
     pol, u, card = ep["policy"], g["usage"], ep["site"]["card"]
-    return {"version": key, "pack": s["pack"], "model": g["model"], "name": name, "model_id": pol.get("model"),
-            "effort": pol.get("effort"), "task_id": g["task_id"], "date": g["date"], "site": g["site"],
+    return {"version": key, "pack": s["pack"], "model": g["model"], "name": preset["name"],
+            "model_id": pol.get("model"), "effort": pol.get("effort"), "reasoning_effort": preset["reasoning_effort"],
+            "thinking": preset["thinking"], "task_id": g["task_id"], "date": g["date"], "site": g["site"],
             "region": card["region"], "battery": card["size"], "era": ep["era"], "status": g["status"],
             "valid": g["valid"], "capture": g["capture"], "capture_phys": g["capture_phys"], "reward": g["reward"],
             "stretch": g["stretch"], "floored": g.get("floored"), "beats_anchor": g["beats_anchor"], "p_usd": g["p"],

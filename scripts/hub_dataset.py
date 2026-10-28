@@ -771,9 +771,9 @@ def desk_blocks(d: dict) -> dict[str, str]:
     results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
                    "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
     return {"badges": "\n".join(BADGES), "gif": gif_block(d["gif"]), "across": across(d),
-            "results": "\n\n".join(results + [price_check(v) for v in checks(d)]),
+            "results": "\n\n".join(results + [price_check(v, d) for v in checks(d)]),
             "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]), "ladder": ladder_block(d),
-            "inside": inside(d), "archive": ARCHIVE}
+            "models": models_block(d), "inside": inside(d), "archive": ARCHIVE}
 
 
 def ladder(d: dict) -> list[dict]:
@@ -789,11 +789,11 @@ def inside(d: dict) -> str:
     tick = lambda vs: and_join([f"`{v['version']}`" for v in vs])  # noqa: E731
     return "\n".join([
         "| Config | Rows | What it holds |", "|---|---:|---|",
-        f"| **`desk_leaderboard`**, the default | {n['leaderboard']:,} | Each model and reference of each version: C, "
-        "P and R, the paired gaps to the anchor and to the real operator's bids with their CIs, cost and how it "
-        "traded. |",
-        f"| **`desk_runs`** | {n['runs']:,} | Each model's every task: its grade, every statement line, usage and its "
-        "Episode JSON's path. |",
+        f"| **`desk_leaderboard`**, the default | {n['leaderboard']:,} | Each model and reference of each version: "
+        "each model's settings (`reasoning_effort`, `thinking`), C, P and R, the paired gaps to the anchor and to the "
+        "real operator's bids with their CIs, cost and how it traded. |",
+        f"| **`desk_runs`** | {n['runs']:,} | Each model's every task: its settings, its grade, every statement line, "
+        "usage and its Episode JSON's path. |",
         f"| **`desk_tasks`** | {n['tasks']:,} | Every task of each version's pilot, eval and tune packs: its dates, "
         "anonymous site card, tags and the references it was graded against. |", "",
         f"One split per version, {tick(ladder(d))}, and one for the price-impact check, {tick(checks(d))}. Each "
@@ -849,10 +849,10 @@ def desk_results(v: dict, d: dict) -> str:
     charts = d["charts"]
     sites = ", ".join(f"{s['region']} {s['size']}" for s in v["sites"])
     a, b = (f"{date.fromisoformat(x):%-d %B %Y}" for x in v["dates"])
-    rows = [desk_row(m) for m in v["models"]] + [
+    rows = [desk_row(m, d["models"][m["key"]]) for m in v["models"]] + [
         f"| *{r['short']}* | *{h(r['C']['mean'])}* | *{usdk(r['P']['mean'])}* |"
         for r in v["references"] if r["key"] != "idle" or abs(r["P"]["mean"]) >= 0.5]
-    gaps = [f"| **{m['name']}** | "
+    gaps = [f"| {who(d['models'][m['key']])} | "
             + ("–" if m["P_minus_operator_replay"]["mean"] is None else stacked_usd(m["P_minus_operator_replay"], True))
             + f" | {stacked_usd(m['P_minus_anchor'], True)} |" for m in v["models"]]
     return "\n".join([
@@ -898,7 +898,8 @@ def by(v: dict) -> str:
 
 def days_alt(v: dict, desk: dict) -> str:
     ds, scale, n = v["days"], desk["charts"]["days_scale"], NUM[len(ladder(desk))].lower()
-    each = [f"{m['name']} " + ", ".join(f"{pc(d['C'][m['key']])}%" for d in ds) for m in v["models"]]
+    each = [f"{desk['models'][m['key']]['label']} " + ", ".join(f"{pc(d['C'][m['key']])}%" for d in ds)
+            for m in v["models"]]
     each += ["the real operator's bids, replayed, " + ", ".join(f"{pc(d['C']['operator_replay'])}%" for d in ds)
              if all(d["C"].get("operator_replay") is not None for d in ds) else ""]
     named, years = [d for d in ds if d.get("named")], "–".join(sorted({d["block"][:4] for d in ds}))
@@ -947,12 +948,36 @@ def last(v: dict) -> str:
     return f"{date.fromisoformat(v['dates'][1]) + timedelta(days=v['days_per_task'] - 1):%-d %B %Y}"
 
 
-def desk_row(m: dict) -> str:
+def desk_row(m: dict, s: dict) -> str:
     cost = m["usd_per_episode"]
-    sub = ([f"{m['effort']} effort"] if m.get("effort") else ["open weights"] if m["weights"] == "open"
-           else []) + ([f"${cost:.2f} a run"] if cost and m["weights"] != "open" else [])
-    return (f"| **{m['name']}**<br><small>{' · '.join(sub)}</small> | **{h(m['C']['mean'])}**<br><small>"
+    sub = [s["setting"]] + (["open weights"] if m["weights"] == "open" else [f"${cost:.2f} a run"] if cost else [])
+    return (f"| **{s['name']}**<br><small>{' · '.join(sub)}</small> | **{h(m['C']['mean'])}**<br><small>"
             f"{ci(m['C']['ci'])}</small> | {stacked_usd(m['P'])} |")
+
+
+def who(s: dict) -> str:
+    """A model as the card's tables name it: its name over its setting, the two halves of its label."""
+    return f"**{s['name']}**<br><small>{s['setting']}</small>"
+
+
+def models_block(d: dict) -> str:
+    lead, *each = models_lines(d)
+    return "\n".join([f"- **Models and settings.** {lead}", *(f"  - {x}" for x in each)])
+
+
+def models_lines(d: dict) -> list[str]:
+    """The models and their settings in Markdown, from desk.json's `models`: how every run was played, then what each
+    label's setting is and how the model was served. desk.json carries them as `models_lines` for the viewer."""
+    api = [s for s in d["models"].values() if s["weights"] == "API"]
+    q = next(s for s in d["models"].values() if s["weights"] == "open")
+    names, ids = and_join([f"**{s['label']}**" for s in api]), ", ".join(f"`{s['model_id']}`" for s in api)
+    return ["One sampled run per model per task, with the same system prompt, the same 11 tools and the same turn "
+            "budget.",
+            f"{names} ({ids}): reasoning effort {api[0]['reasoning_effort']}, through the {api[0]['api']}.",
+            f"**{q['label']}** (`{q['checkpoint']}`): thinking {'on' if q['thinking'] else 'off'}, temperature "
+            f"{q['temperature']}, top_p {q['top_p']}; served by {q['server']} in {q['dtype']} with a "
+            f"{q['context_tokens']:,}-token context and the {q['tool_parser']} tool parser; prompts compacted to about "
+            f"{q['prompt_tokens'] // 1000}k tokens, with up to {q['max_output_tokens']:,} output tokens a call."]
 
 
 def unit(v: dict) -> str:
@@ -1083,7 +1108,7 @@ def reserves(v: dict) -> list[str]:
     return ["**Reserves.** " + "; ".join(one(m) for m in ms) + "."]
 
 
-def price_check(v: dict) -> str:
+def price_check(v: dict, d: dict) -> str:
     """v5: the battery-days of the version it checks, re-run with each desk's DAM curves re-cleared against the day's
     real offers; how far that moved the price, and each model's gap to its own run there, paired by task."""
     pi, vs, u, of = v["price_impact"], v["versus"]["models"], unit(v), v["check_of"]
@@ -1092,7 +1117,7 @@ def price_check(v: dict) -> str:
     mw, move = sorted({int(x["size"].split()[0]) for x in v["sites"]}), pi[top]["sales_mwh_weighted_usd_per_mwh"] * 100
     effect = usd0(pi[top]["revenue_effect_usd_per_episode"], True)
     noise = all(b[x]["ci"][0] <= 0 <= b[x]["ci"][1] for b in vs.values() for x in ("P", "R", "C"))
-    rows = [f"| **{m['name']}** | {h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small> | "
+    rows = [f"| {who(d['models'][m['key']])} | {h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small> | "
             f"{stacked(vs[m['key']]['C'])} | {stacked_usd(vs[m['key']]['P'], True)} |" for m in v["models"]]
     return "\n".join([
         f"### {v['version']} · {v['name']}: a price-impact check", "",
@@ -1122,7 +1147,7 @@ def across(d: dict) -> str:
     names = {m["key"]: m["name"] for v in vs for m in v["models"]}
     cell = lambda v, k: next((f"{h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small>" for m in v["models"]  # noqa: E731
                               if m["key"] == k), "–")
-    rows = [f"| **{names[k]}** | " + " | ".join(cell(v, k) for v in vs) + " |" for k in keys]
+    rows = [f"| {who(d['models'][k])} | " + " | ".join(cell(v, k) for v in vs) + " |" for k in keys]
     return "\n".join(["**How much of the hindsight optimum each desk captured, version by version**", "",
                       *chart("desk-across", across_alt(d, keys, names), d["charts"]["lead"],
                              d["charts"]["phone"]["media"]), "",
@@ -1133,7 +1158,7 @@ def across(d: dict) -> str:
 
 def across_alt(d: dict, keys: list[str], names: dict[str, str]) -> str:
     vs = ladder(d)
-    each = [f"{names[k]} " + ", ".join(f"{pc(m['C']['mean'])}%" for v in vs if (m := next(
+    each = [f"{d['models'][k]['label']} " + ", ".join(f"{pc(m['C']['mean'])}%" for v in vs if (m := next(
         (x for x in v["models"] if x["key"] == k), None))) for k in keys]
     ops = [next((r for r in v["references"] if r["key"] == "operator_replay"), None) for v in vs]
     op = ["the real operator's bids, replayed, " + ", ".join(f"{pc(r['C']['mean'])}%" for r in ops)] if all(

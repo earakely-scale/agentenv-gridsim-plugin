@@ -122,8 +122,7 @@ R = 0.
   dispatch; the real operator's disclosed bids, replayed, and its actual awards and metered output, settled.
 - **Uncertainty.** 95% CIs come from a block bootstrap over operating days (in v4, over the four weather fronts):
   10,000 resamples, seed 0, task-weighted. Paired gaps resample the tasks both sides played.
-- **Models.** GPT-6.1 Sol and GPT-6 Luna at high reasoning effort, and Qwen3-4B, untrained, with thinking off, served
-  with vLLM; the same system prompt, tools and turn budget for all three, and one run per model per task.
+<!-- models -->
 
 ## Limitations
 

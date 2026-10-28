@@ -127,11 +127,11 @@ function place(labels, obstacles, bounds) {
 function key(items, W, y0) {
   let s = "", x = 0, y = y0;
   for (const it of items) {
-    const w = 22 + 7 + measure(it.label, it.cls);
+    const tail = it.setting ? ` · ${it.setting}` : "", w = 22 + 7 + measure(it.label + tail, it.cls);
     if (x > 0 && x + w > W) (x = 0), (y += 21);
     s += it.op ? `<path class="op" d="M${f1(x)},${f1(y - 4.5)}H${f1(x + 22)}"/>`
       : `<path class="ln-s" d="M${f1(x)},${f1(y - 4.5)}H${f1(x + 22)}" stroke="${it.color}"/><circle cx="${f1(x + 11)}" cy="${f1(y - 4.5)}" r="4" fill="${it.color}" class="mk-s"/>`;
-    s += T(x + 29, y, it.label, it.cls);
+    s += `<text x="${f1(x + 29)}" y="${f1(y)}" class="${it.cls}">${esc(it.label)}${tail ? `<tspan class="t-key-q">${esc(tail)}</tspan>` : ""}</text>`;
     x += w + 16;
   }
   return [s, y];
@@ -150,17 +150,16 @@ const ladder = (D) => D.versions.filter((v) => v.role === "ladder");
 
 function across(D, W, narrow) {
   W = narrow ? W : D.charts.lead;
-  const V = ladder(D), n = V.length, keys = ORDER.filter((k) => V.some((v) => model(v, k)));
-  const names = Object.fromEntries(V.flatMap((v) => v.models.map((m) => [m.key, m.name])));
+  const V = ladder(D), n = V.length, keys = ORDER.filter((k) => V.some((v) => model(v, k))), M = D.models;
   let [s, y] = header("Hindsight capture C", "% of the hindsight optimum's profit over idle", W);
   if (narrow) {
-    const [k, ky] = key([...keys.map((k) => ({ color: COL[k], label: names[k], cls: k === "sol" ? "t-key b" : "t-key" })), { op: true, label: OP.label, cls: "t-key op-t" }], W, y + 26);
+    const [k, ky] = key([...keys.map((k) => ({ color: COL[k], label: M[k].name, setting: M[k].setting, cls: k === "sol" ? "t-key b" : "t-key" })), { op: true, label: OP.label, cls: "t-key op-t" }], W, y + 26);
     s += k;
     y = ky;
   }
   const y0head = y;
   const last = V[n - 1], split = (t) => { const i = t.indexOf(" ("); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 1)]; };
-  const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: model(last, k).C.mean, val: pct(model(last, k).C.mean), bold: k === "sol", name: split(names[k]) })),
+  const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: model(last, k).C.mean, val: pct(model(last, k).C.mean), bold: k === "sol", name: [M[k].name, M[k].setting] })),
     ...(ref(last, OP.key) ? [{ key: OP.key, c: ref(last, OP.key).C.mean, val: pct(ref(last, OP.key).C.mean), op: true, name: split(OP.label) }] : [])];
   const vw = Math.max(0, ...ends.map((e) => (e.val ? measure(e.val, "t-end-v") : 0))) + 7;
   const ew = ends.length ? vw + Math.max(...ends.map((e) => Math.max(measure(e.name[0], e.bold ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) : 0;
@@ -243,16 +242,16 @@ function across(D, W, narrow) {
 }
 
 function daily(v, D, W, narrow, scale) {
-  const days = v.days, n = days.length, multi = v.days_per_task > 1, keys = ORDER.filter((k) => model(v, k));
+  const days = v.days, n = days.length, multi = v.days_per_task > 1, keys = ORDER.filter((k) => model(v, k)), M = D.models;
   let [s, y] = header(multi ? "Hindsight capture C, front by front" : "Hindsight capture C, day by day", `mean of the ${days[0].n} sites, %`, W);
   if (narrow) {
-    const [k, ky] = key([...keys.map((k) => ({ color: COL[k], label: model(v, k).name, cls: k === "sol" ? "t-key b" : "t-key" })), { op: true, label: OP.short, cls: "t-key op-t" }], W, y + 24);
+    const [k, ky] = key([...keys.map((k) => ({ color: COL[k], label: M[k].name, setting: M[k].setting, cls: k === "sol" ? "t-key b" : "t-key" })), { op: true, label: OP.short, cls: "t-key op-t" }], W, y + 24);
     s += k;
     y = ky;
   }
-  const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: days[n - 1].C[k], text: model(v, k).name, bold: k === "sol" })), { key: OP.key, c: days[n - 1].C[OP.key], text: OP.short, op: true }]
-    .filter((e) => e.c != null).map((e) => ({ ...e, lines: [e.text] }));
-  const ew = ends.length ? Math.max(...ends.map((e) => measure(e.text, e.bold ? "t-end b" : "t-end"))) : 0;
+  const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: days[n - 1].C[k], text: M[k].name, sub: M[k].setting, bold: k === "sol" })), { key: OP.key, c: days[n - 1].C[OP.key], text: OP.short, op: true }]
+    .filter((e) => e.c != null);
+  const ew = ends.length ? Math.max(...ends.map((e) => Math.max(measure(e.text, e.bold ? "t-end b" : "t-end"), e.sub ? measure(e.sub, "t-end-q") : 0))) : 0;
   const [lo, hi] = scale, tk = ticks(lo, hi, 0.2, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14;
   const R = W - (ends.length ? ew + 30 : 10), pad = narrow ? 24 : n > 5 ? 24 : 36;
   const xs = days.map((_, i) => L + pad + ((R - L - 2 * pad) * i) / Math.max(1, n - 1));
@@ -279,9 +278,11 @@ function daily(v, D, W, narrow, scale) {
     labels += T(Math.max(xs[fern] + 9, bandRight + 6), yv(days[fern].C[k]) + 4.5, pct(days[fern].C[k]), "t-val b");
   }
   const ex = xs[n - 1] + 24;
-  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c), h: 15 })), top - 6, bottom + 12, 2)) {
-    labels += `<path class="lead" d="M${f1(xs[n - 1] + 7)},${f1(yv(e.c))}L${f1(ex - 5)},${f1(e.ly)}"/>`;
-    labels += T(ex, e.ly + 4.5, e.text, e.op ? "t-end op-t" : e.bold ? "t-end b" : "t-end");
+  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c) + (e.sub ? 7.5 : 0), h: e.sub ? 30 : 15 })), top - 6, bottom + 12, 5)) {
+    const ly = e.ly - (e.sub ? 7.5 : 0);
+    labels += `<path class="lead" d="M${f1(xs[n - 1] + 7)},${f1(yv(e.c))}L${f1(ex - 5)},${f1(ly)}"/>`;
+    labels += T(ex, ly + 4.5, e.text, e.op ? "t-end op-t" : e.bold ? "t-end b" : "t-end");
+    if (e.sub) labels += T(ex, ly + 19.5, e.sub, "t-end-q");
   }
   let xl = "";
   const every = narrow && n > 6 ? 2 : 1;
@@ -312,9 +313,10 @@ function standalone(el, font) {
   const out = el.cloneNode(true), src = el.querySelectorAll("*"), dst = out.querySelectorAll("*");
   src.forEach((e, i) => {
     const cs = getComputedStyle(e), d = dst[i];
-    for (const [p, initial] of Object.entries(e.tagName === "text" ? { ...PAINT, ...FONT } : PAINT)) {
+    const span = e.tagName === "tspan";
+    for (const [p, initial] of Object.entries(e.tagName === "text" || span ? { ...PAINT, ...FONT } : PAINT)) {
       const v = cs.getPropertyValue(p);
-      if (v && v !== initial) d.setAttribute(p, v);
+      if (v && (v !== initial || span)) d.setAttribute(p, v);
       else d.removeAttribute(p);
     }
     d.removeAttribute("class");

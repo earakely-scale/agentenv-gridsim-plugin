@@ -1,5 +1,45 @@
 {
  "schema": "gridsim.desk.hub/v1",
+ "models": {
+  "sol": {
+   "name": "GPT-6.1 Sol",
+   "setting": "effort high",
+   "label": "GPT-6.1 Sol · effort high",
+   "model_id": "openai/gpt-6.1-sol",
+   "weights": "API",
+   "reasoning_effort": "high",
+   "thinking": null,
+   "api": "Responses API"
+  },
+  "luna": {
+   "name": "GPT-6 Luna",
+   "setting": "effort high",
+   "label": "GPT-6 Luna · effort high",
+   "model_id": "openai/gpt-6-luna",
+   "weights": "API",
+   "reasoning_effort": "high",
+   "thinking": null,
+   "api": "Responses API"
+  },
+  "qwen": {
+   "name": "Qwen3-4B (untrained)",
+   "setting": "thinking off",
+   "label": "Qwen3-4B (untrained) · thinking off",
+   "model_id": "qwen3-4b",
+   "weights": "open",
+   "reasoning_effort": null,
+   "thinking": false,
+   "temperature": 0.7,
+   "top_p": 0.8,
+   "context_tokens": 32768,
+   "prompt_tokens": 24000,
+   "max_output_tokens": 4096,
+   "checkpoint": "Qwen/Qwen3-4B",
+   "server": "vLLM 0.29",
+   "dtype": "bf16",
+   "tool_parser": "hermes"
+  }
+ },
  "ladder": [
   {
    "version": "v2",
@@ -7290,8 +7330,8 @@
    "lead": false,
    "path": "assets/gridsim-desk-v2.gif",
    "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02",
-   "alt": "GPT-6.1 Sol at the desk of Battery S02 (Houston, 100 MW / 206 MWh) on 23 August 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-   "caption": "GridSimEnv Desk, v2, The Live Grid: GPT-6.1 Sol trades Battery S02 (Houston, 100 MW / 206 MWh), a real ERCOT battery, on 23 August 2026, beside its 125 tool calls. It bids the day-ahead market at 09:30 the day before, sends 10 sets of real-time curves and wakes 35 times, 13 for ERCOT notices, NWS alerts or outages and 15 for its own reminders. The battery settles at ⁠$48,662, hindsight capture C 0.347; the real operator's own bids, replayed, earn ⁠$34,022. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+   "alt": "GPT-6.1 Sol · effort high at the desk of Battery S02 (Houston, 100 MW / 206 MWh) on 23 August 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
+   "caption": "GridSimEnv Desk, v2, The Live Grid: GPT-6.1 Sol · effort high trades Battery S02 (Houston, 100 MW / 206 MWh), a real ERCOT battery, on 23 August 2026, beside its 125 tool calls. It bids the day-ahead market at 09:30 the day before, sends 10 sets of real-time curves and wakes 35 times, 13 for ERCOT notices, NWS alerts or outages and 15 for its own reminders. The battery settles at ⁠$48,662, hindsight capture C 0.347; the real operator's own bids, replayed, earn ⁠$34,022. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
   },
   "v4": {
    "version": "v4",
@@ -7300,8 +7340,8 @@
    "lead": true,
    "path": "assets/gridsim-desk-hero.gif",
    "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04",
-   "alt": "GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-   "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+   "alt": "GPT-6.1 Sol · effort high at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
+   "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol · effort high trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
   }
  },
  "gif": {
@@ -7311,9 +7351,14 @@
   "lead": true,
   "path": "assets/gridsim-desk-hero.gif",
   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04",
-  "alt": "GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-  "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+  "alt": "GPT-6.1 Sol · effort high at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
+  "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol · effort high trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
  },
  "story_version": "v2",
- "across": "Paired by task, GPT-6.1 Sol and GPT-6 Luna are within noise on single days (v2, v3) and Sol is clearly ahead on 3-day weather fronts (v4: +23.1 pts of hindsight capture, 95% CI [9.0, 48.0]). The untrained Qwen3-4B has the lowest capture throughout."
+ "across": "Paired by task, GPT-6.1 Sol and GPT-6 Luna are within noise on single days (v2, v3) and Sol is clearly ahead on 3-day weather fronts (v4: +23.1 pts of hindsight capture, 95% CI [9.0, 48.0]). The untrained Qwen3-4B has the lowest capture throughout.",
+ "models_lines": [
+  "One sampled run per model per task, with the same system prompt, the same 11 tools and the same turn budget.",
+  "**GPT-6.1 Sol · effort high** and **GPT-6 Luna · effort high** (`openai/gpt-6.1-sol`, `openai/gpt-6-luna`): reasoning effort high, through the Responses API.",
+  "**Qwen3-4B (untrained) · thinking off** (`Qwen/Qwen3-4B`): thinking off, temperature 0.7, top_p 0.8; served by vLLM 0.29 in bf16 with a 32,768-token context and the hermes tool parser; prompts compacted to about 24k tokens, with up to 4,096 output tokens a call."
+ ]
 }

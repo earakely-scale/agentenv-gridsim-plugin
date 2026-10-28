@@ -38,6 +38,7 @@ svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-l
 .t-key { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
 .t-key.b { font-weight: 700; fill: var(--ink); }
 .t-key.op-t { font-weight: 500; fill: var(--ink-3); }
+.t-key-q { font-weight: 400; fill: var(--ink-3); }
 .t-call { font-size: 12.5px; fill: var(--ink-3); }
 .t-call.b { font-size: 13px; font-weight: 640; fill: var(--ink-2); }
 .t-ver { font-size: 16.5px; font-weight: 650; fill: var(--ink); }
