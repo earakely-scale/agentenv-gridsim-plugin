@@ -11,7 +11,7 @@ money. Time moves on its own: the agent wakes at market milestones, shift checkp
 watches, outages and its own reminders.
 
 ## Code and data
-- Code: the tag `desk-v2-freeze` (cf27f8d). No agent-visible behaviour changes until the last v2 episode ends.
+- Code: the tag `desk-v2-freeze` (bcd30f7). No agent-visible behaviour changes until the last v2 episode ends.
 - `desk-v2-eval`: 32 battery-days, 4 real ESR sites (Far West 100 MW / 104 MWh, Houston 100 MW / 206 MWh, North
   120 MW / 187 MWh, South 150 MW / 185 MWh) × 8 post-RTC+B days (2026-01-25, 02-24, 03-23, 04-24, 05-03, 06-24,
   07-22, 08-23), every day ≥ 60 days old with complete operator disclosures; 14 scarcity, 10 negative-price and 8
@@ -59,3 +59,11 @@ commit before two information-timing fixes found in review (049cc93), so it is n
 Sol near or above the anchor on most days, with occasional large losses from DAM over-commitment (seen in the pilot);
 Luna below Sol; Qwen3-4B untrained mostly valid but well below both. The real operator's actual P sits between the
 anchor and the hindsight optimum on most days.
+
+## Deviations
+1. 2026-10-28 08:01 UTC: a first launch of all three models on `desk-v2-freeze` at cf27f8d was stopped after about
+   5 minutes with no episode finished (spend $1.93 Sol, $0.27 Luna, counted against the caps), because the env refused
+   its own displayed time format in tool arguments ("Sun 04-26 09:00"), so reminders set that way failed. Its outputs
+   were set aside unread. The tag was moved to bcd30f7, which accepts the displayed formats, adds two lines to the
+   brief (which day is D-1 and D0; hubs as 15-minute SPPs) and posts hourly load actuals at the hour's end, and the
+   runs were restarted from scratch.
