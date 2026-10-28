@@ -1,0 +1,38 @@
+:root { --halo: #ffffff; --dot: 0.78; --ref: 0.72; }
+:root[data-theme="dark"] { --halo: #0b0f19; --dot: 0.86; --ref: 0.75; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --dot: 0.86; --ref: 0.75; } }
+
+html, body { background: transparent; }
+body { margin: 0; padding: 12px; }
+#figs { display: flex; flex-direction: column; align-items: flex-start; gap: 28px; }
+section.fig { margin: 0; padding: 0; }
+#ruler { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; visibility: hidden; }
+
+svg.chart { display: block; overflow: visible; font-family: var(--sans); }
+svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.zero { stroke: var(--ink-3); stroke-width: 1.25; }
+.top { stroke: var(--ink-3); stroke-width: 1; }
+.lead { stroke: var(--ink-3); stroke-width: 1; fill: none; }
+.brk { stroke: var(--ink); stroke-width: 1.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.dot { fill-opacity: var(--dot); }
+.ref { stroke-opacity: var(--ref); }
+.key { fill: var(--ink-3); }
+.key-mean { stroke: var(--halo); stroke-width: 2; }
+.key-ci { stroke: var(--ink-3); stroke-width: 2.8; stroke-linecap: round; }
+
+.t-tick { font-size: 13px; fill: var(--ink-3); }
+.t-axis { font-size: 14px; font-weight: 620; fill: var(--ink); }
+.t-axis-s { font-size: 13px; fill: var(--ink-3); }
+.t-leg { font-size: 14.5px; fill: var(--ink-2); }
+.t-leg.b { fill: var(--ink); font-weight: 600; }
+.t-ver { font-size: 16.5px; font-weight: 650; fill: var(--ink); }
+.t-name { font-size: 13.5px; fill: var(--ink-2); }
+.t-unit { font-size: 13px; fill: var(--ink-3); }
+.t-col { font-size: 14px; font-weight: 620; fill: var(--ink); }
+.t-ref { font-size: 13px; fill: var(--ink-2); }
+.t-ann { font-size: 13.5px; font-weight: 640; fill: var(--ink); }
+.t-ann-s { font-size: 13px; fill: var(--ink-2); }
+.t-out { font-size: 12.5px; font-weight: 600; fill: var(--ink-2); }
+.t-kv { font-size: 13.5px; font-weight: 650; fill: var(--ink); }
+.t-kd { font-size: 13.5px; fill: var(--ink-2); }

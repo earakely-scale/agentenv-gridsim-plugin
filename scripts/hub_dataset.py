@@ -766,7 +766,7 @@ def desk_blocks(d: dict) -> dict[str, str]:
     the results across versions, the newest version's results open and the earlier ones folded, the quick start from
     main, the version ladder, the configs and files, and the line to the archived v1."""
     vs = d["versions"]
-    results = [desk_results(v) for v in reversed(vs)]
+    results = [desk_results(v, d["charts"]) for v in reversed(vs)]
     results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
                    "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
     return {"badges": "\n".join(BADGES), "gif": gif_block(d["gif"]), "across": across(d),
@@ -828,7 +828,7 @@ def ladder_block(d: dict) -> str:
                       "grading.", "", "| Version | What it adds | What the agent does |", "|---|---|---|", *rows])
 
 
-def desk_results(v: dict) -> str:
+def desk_results(v: dict, charts: dict) -> str:
     sites = ", ".join(f"{s['region']} {s['size']}" for s in v["sites"])
     a, b = (f"{date.fromisoformat(x):%-d %B %Y}" for x in v["dates"])
     rows = [desk_row(m) for m in v["models"]] + [
@@ -837,7 +837,6 @@ def desk_results(v: dict) -> str:
     gaps = [f"| **{m['name']}** | "
             + ("–" if m["P_minus_operator_replay"]["mean"] is None else stacked_usd(m["P_minus_operator_replay"], True))
             + f" | {stacked_usd(m['P_minus_anchor'], True)} |" for m in v["models"]]
-    fig = f"assets/figures/desk-{v['version']}-capture"
     return "\n".join([
         f"### {v['version']}, {v['name']}: results", "",
         (f"{v['n_tasks']} battery-days: {len(v['sites'])} real batteries ({sites}) on {v['n_days']} operating days "
@@ -855,16 +854,73 @@ def desk_results(v: dict) -> str:
         + f"Brackets: {v['block']}-block bootstrap 95% CIs over {v['n_days']} {v['block']}s.</small>", "",
         *([f"<small>{' '.join(x for x in (v.get('defects'), v.get('deviations')) if x)}</small>", ""]
           if v.get("defects") or v.get("deviations") else []),
-        f"**How much of the hindsight optimum each desk captured, {v['version']}**", "",
-        f'<img class="dark:hidden" src="{fig}.png" alt="{escape(capture_alt(v))}">',
-        f'<img class="hidden dark:block" src="{fig}-dark.png" alt="{escape(capture_alt(v))}">', "",
-        "<small>C with its 95% CI for each model, the anchor and the real operator; idle is 0 and the hindsight "
-        "optimum 1 by definition.</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
+        f"**How much of the hindsight optimum each desk captured on each {span(v)}, {v['version']}**", "",
+        *chart(f"desk-{v['version']}-tasks", tasks_alt(v, charts["tasks_axis"]), charts), "",
+        f"<small>{tasks_caption(v, charts['tasks_axis'])}</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
         f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the viewer lists every "
         f"{unit(v)} with a replay of each model's run.", "",
         f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
         "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
         f"split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the plugin."])
+
+
+def chart(name: str, alt: str, charts: dict) -> list[str]:
+    """One of the card's own charts (scripts/hub_desk.py draws them from hub/desk-charts) as SVG at the width it is
+    drawn at, in the page's light or dark theme as the Hub's theme is, and on a phone in its phone layout (a source
+    the Hub leaves as written, so its URL is absolute)."""
+    phone = f"{DATASET}/resolve/main/assets/figures/{name}-phone"
+    return [f'<picture><source media="{charts["phone"]["media"]}" srcset="{phone}{sfx}.svg"><img class="{cls}" '
+            f'src="assets/figures/{name}{sfx}.svg" width="{charts["width"]}" alt="{escape(alt)}"></picture>'
+            for sfx, cls in (("", "dark:hidden"), ("-dark", "hidden dark:block"))]
+
+
+def tasks_alt(v: dict, axis: list[float]) -> str:
+    refs = {r["key"]: r for r in v["references"]}
+    each = [f"{m['name']} {h(m['C']['mean'])} {ci(m['C']['ci'])}, from {h(min(c), 2)} to {h(max(c), 2)}"
+            for m in v["models"] if (c := task_cs(v, m["key"]))]
+    named = [t for t in v["tasks"] if t.get("named")]
+    ringed = [f"{m['name']} {h(min(c), 2)} to {h(max(c), 2)}" for m in v["models"]
+              if (c := [t["C"][m["key"]] for t in named if t["C"].get(m["key"]) is not None])]
+    return (f"Hindsight capture C on each of the {v['n_tasks']} {span(v)}s of {v['pack']}, one dot per {span(v)} for "
+            "each model beside its mean and 95% CI: " + "; ".join(each) + ". Lines: " + " and ".join(
+                f"{SHORTS[k]} {h(refs[k]['C']['mean'])}" for k in ("anchor", "operator_replay") if k in refs)
+            + "; idle 0, the hindsight optimum 1."
+            + (f" Ringed, {when(v, named)}: " + "; ".join(ringed) + "." if ringed else "") + beyond(v, axis))
+
+
+def tasks_caption(v: dict, axis: list[float]) -> str:
+    named = [t for t in v["tasks"] if t.get("named")]
+    n = len(outside(v, axis))
+    return (f"Each dot is one {span(v)}, {v['n_tasks']} for each model; the large dot and bar are the model's mean C "
+            "and its 95% CI, as in the table. The lines are the mean C of the anchor (dashed) and of the real "
+            "operator's bids, replayed (dotted)."
+            + (f" Ringed: {when(v, named)}." if named else "")
+            + (f" The one value below {h(axis[0], 1)} is drawn as an arrow with its value." if n == 1 else
+               f" The {n} values below {h(axis[0], 1)} are drawn as arrows with their values." if n else ""))
+
+
+def task_cs(v: dict, key: str) -> list[float]:
+    return [t["C"][key] for t in v["tasks"] if t["C"].get(key) is not None]
+
+
+def outside(v: dict, axis: list[float]) -> list[tuple[str, float]]:
+    return [(m["name"], c) for m in v["models"] for c in task_cs(v, m["key"]) if not axis[0] <= c <= axis[1]]
+
+
+def beyond(v: dict, axis: list[float]) -> str:
+    out = outside(v, axis)
+    return (f" Beyond the axis ({h(axis[0], 1)} to {h(axis[1], 1)}), marked with an arrow: "
+            + "; ".join(f"{n} {h(c, 2)}" for n, c in out) + "." if out else "")
+
+
+def when(v: dict, named: list[dict]) -> str:
+    """'the 4 battery-days of 25 January 2026, winter storm Fern'; 'the 4 three-day windows of 23 to 25 January 2026,
+    winter storm Fern'."""
+    a = date.fromisoformat(named[0]["date"])
+    b = a + timedelta(days=v["days_per_task"] - 1)
+    days = f"{a:%-d %B %Y}" if a == b else f"{a:%-d} to {b:%-d %B %Y}" if a.month == b.month else (
+        f"{a:%-d %B} to {b:%-d %B %Y}")
+    return f"the {len(named)} {span(v)}s of {days}, {named[0]['named']}"
 
 
 def last(v: dict) -> str:
@@ -1043,7 +1099,8 @@ def versus(v: dict) -> list[str]:
 
 
 def across(d: dict) -> str:
-    """The models' C version by version, and what the paired gaps between them say."""
+    """The models' C version by version, as the card's lead chart and a table, and what the paired gaps between them
+    say."""
     vs = d["versions"]
     if len(vs) < 2:
         return ""
@@ -1052,11 +1109,62 @@ def across(d: dict) -> str:
     cell = lambda v, k: next((f"{h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small>" for m in v["models"]  # noqa: E731
                               if m["key"] == k), "–")
     rows = [f"| **{names[k]}** | " + " | ".join(cell(v, k) for v in vs) + " |" for k in keys]
-    names_ = "; ".join(f"{v['version']}, *{v['name']}*" + (f", in {unit(v)}s" if v["days_per_task"] > 1 else "")
-                       for v in vs)
-    return "\n".join([f"**Across versions:** hindsight capture C with its 95% CI ({names_}).", "",
+    return "\n".join(["**How much of the hindsight optimum each desk captured, version by version**", "",
+                      *chart("desk-across", across_alt(d, keys, names), d["charts"]), "",
+                      f"<small>{across_caption(d, names)}</small>", "",
                       "| Desk | " + " | ".join(v["version"] for v in vs) + " |",
                       "|---|" + "---:|" * len(vs), *rows, "", across_text(d)])
+
+
+def across_alt(d: dict, keys: list[str], names: dict[str, str]) -> str:
+    parts = []
+    for v in d["versions"]:
+        ms, refs = {m["key"]: m for m in v["models"]}, {r["key"]: r for r in v["references"]}
+        each = [f"{names[k]} {h(ms[k]['C']['mean'])} {ci(ms[k]['C']['ci'])}" for k in keys if k in ms]
+        lines = [f"{SHORTS[k]} {h(refs[k]['C']['mean'])}" for k in ("anchor", "operator_replay") if k in refs]
+        parts.append(f"{v['version']}, {v['name']}, {count(v)}: " + "; ".join(each) + "; " + " and ".join(lines))
+    gaps = [f" In {v['version']}, {names['sol']} − {names['luna']}, paired by {span(v)}: {h(g['mean'], 2, True)} "
+            f"{ci(g['ci'], 2)}." for v, g in clear_gaps(d)]
+    return ("Hindsight capture C by version, each model's mean with its 95% CI, beside the anchor's and the real "
+            "operator's replayed bids' C. " + ". ".join(parts) + "." + "".join(gaps))
+
+
+def across_caption(d: dict, names: dict[str, str]) -> str:
+    multi = [f"in {v['version']}, over its {v['n_days']} {v['block']}s" for v in d["versions"] if v["block"] != "day"]
+    clear = clear_gaps(d)
+    return ("Each model's mean C and its 95% CI, from a block bootstrap over operating days"
+            + (f" ({'; '.join(multi)})" if multi else "") + ", as in the table below. The lines are the anchor, the "
+            "desk's own optimiser on the same information (dashed), and the real operator's own bids, replayed "
+            "(dotted)."
+            + (f" The bracket in {and_join([v['version'] for v, _ in clear])} is {names['sol']}'s lead over "
+               f"{names['luna']}, paired by {and_join(list(dict.fromkeys(span(v) for v, _ in clear)))}, with its 95% "
+               f"CI; {and_join([v['version'] for v, _ in clear])} "
+               f"{'is the only version' if len(clear) == 1 else 'are the only versions'} where that CI excludes zero."
+               if clear else ""))
+
+
+def count(v: dict) -> str:
+    """'32 battery-days'; '16 three-day windows over 4 fronts'."""
+    return f"{v['n_tasks']} {span(v)}s" + (f" over {v['n_days']} {v['block']}s" if v["days_per_task"] > 1 else "")
+
+
+def span(v: dict) -> str:
+    d = v["days_per_task"]
+    return f"{NUM.get(d, str(d)).lower()}-day window" if d > 1 else "battery-day"
+
+
+def clear_gaps(d: dict) -> list[tuple[dict, dict]]:
+    """The versions where GPT-6.1 Sol and GPT-6 Luna's paired C gap has a CI that excludes zero, Sol minus Luna."""
+    return [(v, g) for v in d["versions"] if (g := paired_c(v, "sol", "luna")) and (g["ci"][0] > 0 or g["ci"][1] < 0)]
+
+
+def paired_c(v: dict, a: str, b: str) -> dict | None:
+    for x in v["paired"]:
+        if (x["a"], x["b"]) == (a, b) and "C" in x:
+            return x["C"]
+        if (x["a"], x["b"]) == (b, a) and "C" in x:
+            return {"mean": -x["C"]["mean"], "ci": [-x["C"]["ci"][1], -x["C"]["ci"][0]]}
+    return None
 
 
 def across_text(d: dict) -> str:
@@ -1101,13 +1209,6 @@ BUYBACK = ("day-ahead sales bought back in real time: positions the DAM allows b
            "which ERCOT's DAM credit screening, not modelled here, would limit")
 SHORTS = {"anchor": "the anchor", "operator_replay": "the operator's bids",
           "operator_actual": "the operator as settled"}
-
-
-def capture_alt(v: dict) -> str:
-    rows = [(m["name"], m["C"]) for m in v["models"]] + [
-        (r["short"], r["C"]) for r in v["references"] if r["key"] not in ("hind", "idle")]
-    return (f"Hindsight capture on {v['pack']}, with 95% CIs: "
-            + "; ".join(f"{n} {h(c['mean'])} {ci(c['ci'])}" for n, c in rows) + ". Idle is 0, the hindsight optimum 1.")
 
 
 def gif_block(gif: dict) -> str:

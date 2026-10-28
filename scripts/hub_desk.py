@@ -33,6 +33,8 @@ GIF = "assets/gridsim-desk-hero.gif"
 PAGE = {"desk.html": "desk/results.html", "results.js": "desk/results.js", "results.css": "desk/results.css",
         "base.css": "desk/base.css",
         **{f"fonts/{f}": f"desk/fonts/{f}" for f in ("plex-sans.woff2", "plex-mono-500.woff2", "plex-mono-600.woff2")}}
+CHARTS = ROOT / "hub" / "desk-charts"
+CARD_CHARTS = {"width": 600, "phone": {"width": 350, "media": "(max-width: 480px)"}, "tasks_axis": [-0.4, 1.0]}
 LADDER = (
     ("v2", "The Live Grid", "energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS "
      "alerts and the battery's outages at their real minutes",
@@ -46,7 +48,7 @@ LADDER = (
      "offers, disclosed 60 days later", "offers into a market its own bids move"),
 )
 WHY = {"v2": "when the node's day-ahead price ran far above real time"}
-NAMED = {"v4": {"2026-01-23": "winter storm Fern"}}
+NAMED = {"v2": {"2026-01-25": "winter storm Fern"}, "v4": {"2026-01-23": "winter storm Fern"}}
 IDLE = {v: "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the co-located solar "
            "(modelled)." for v in ("v3", "v5")}
 MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B (untrained)", "open")}
@@ -142,11 +144,14 @@ def main():
     for n, src in PAGE.items():
         (space / n).parent.mkdir(parents=True, exist_ok=True)
         (space / n).write_bytes((WEB / src).read_bytes())
+    for src in CHARTS.iterdir():
+        (space / src.name).write_bytes(src.read_bytes())
     (space / "desk.json").write_text(json.dumps(desk, ensure_ascii=False, separators=(",", ":")))
     figs = figures(space, [v["version"] for v in desk["versions"]], hr)
     card = hd.card_only(args.results)
     ds = files | figs | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
-    text = {k: v for k, v in ds.items() if not k.endswith(".gif")}
+    text = {k: re.sub(rb"base64,[\w+/=]+", b"base64,", v) if k.endswith(".svg") else v for k, v in ds.items()
+            if not k.endswith(".gif")}
     hr.leaks(text)
     anonymous(text, names(args.desk.parent))
     dataset = BUILD / "dataset"
@@ -175,7 +180,7 @@ def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple
         files |= fs
     ladder = [{"version": k, "name": n, "adds": a, "does": d, "status": "results" if any(
         v["version"] == k for v in versions) else "next"} for k, n, a, d in LADDER]
-    return {"schema": "gridsim.desk.hub/v1", "ladder": ladder, "versions": versions}, files
+    return {"schema": "gridsim.desk.hub/v1", "ladder": ladder, "versions": versions, "charts": CARD_CHARTS}, files
 
 
 def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -> tuple[dict, dict[str, bytes]]:
@@ -205,6 +210,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "idle": IDLE.get(key),
          "sensitivity": sensitivity(key, s, grades, folder.parent.parent, models[0]["key"]),
          "block": s.get("block_name") or "day",
+         "tasks": captures(grades, NAMED.get(key, {}), s.get("block_alias") or {}),
          "figures": {k: f"{rel}/figures/{f}" for k, f in (("bars", "p-bars.png"), ("bars_dark", "p-bars-dark.png"),
                                                          ("hero", "hero.png"), ("hero_dark", "hero-dark.png"))
                      if (folder / "figures" / f).is_file()},
@@ -224,6 +230,18 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
         name = f"{rel}/{path.relative_to(folder).as_posix()}"
         files[name] = relink(path.read_text(), rel, tag, folder).encode() if path.suffix == ".md" else path.read_bytes()
     return v, files
+
+
+def captures(grades: list[dict], named: dict[str, str], alias: dict[str, str]) -> list[dict]:
+    """Each task's hindsight capture C by model, as the grades give it, with the named event (NAMED) its day or window
+    falls in: the card's task-by-task charts."""
+    out = {}
+    for g in sorted(grades, key=lambda g: (g["date"], g["site"])):
+        t = out.setdefault(g["task_id"], {"task_id": g["task_id"], "date": g["date"], "site": g["site"], "C": {}})
+        t["C"][g["model"]] = g["capture"]
+        if name := named.get(alias.get(g["date"], g["date"])):
+            t["named"] = name
+    return list(out.values())
 
 
 SUBMIT = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "update_cop": "COP"}
@@ -547,8 +565,11 @@ def relink(text: str, rel: str, tag: str, folder: Path) -> str:
 
 
 def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
-    """Each version's capture and dollars charts as the desk page draws them, 640 px wide at twice that, bare on a
-    transparent background in the page's light and dark themes, each theme's text halo the Hub page's colour."""
+    """Each version's capture and dollars charts as the desk page draws them, 640 px wide at twice that, and the card's
+    own charts (hub/desk-charts: capture across versions and each version's task by task) as standalone SVG with the
+    font embedded, which the card prints, at its width and in a phone layout, and the former also at twice its width
+    as PNG; all bare on a transparent background in the light and dark themes, each theme's text halo the Hub page's
+    colour."""
     out = {}
     with hr.browser(space, None) as (page, base):
         for v in versions:
@@ -565,6 +586,24 @@ def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
                     hr.shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
                     out[f"assets/figures/{path.name}"] = path.read_bytes()
             page.call("Emulation.setDefaultBackgroundColorOverride")
+        page.call("Emulation.setDeviceMetricsOverride", width=640, height=900, deviceScaleFactor=2, mobile=False)
+        page.call("Page.navigate", url=f"{base}/charts.html")
+        page.js("new Promise((r, j) => { const s = Date.now(); const f = () => window.chartsReady ? r() : "
+                "Date.now() - s > 30000 ? j('timeout') : setTimeout(f, 50); f(); })")
+        page.js("document.fonts.ready.then(() => new Promise((r) => setTimeout(r, 400)))")
+        page.call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
+        for suffix, theme, hub_bg in hr.THEMES:
+            page.js(f"document.documentElement.dataset.theme = '{theme}'; "
+                    f"document.documentElement.style.setProperty('--halo', '{hub_bg}')")
+            for b in page.js(hr.BOXES):
+                if b["id"].endswith("-phone"):
+                    continue
+                path = BUILD / "figures" / f"{b['id']}{suffix}.png"
+                hr.shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
+                out[f"assets/figures/{path.name}"] = path.read_bytes()
+            for name, svg in page.js("chartsSvg()").items():
+                out[f"assets/figures/{name}{suffix}.svg"] = svg.encode()
+        page.call("Emulation.setDefaultBackgroundColorOverride")
     return out
 
 
