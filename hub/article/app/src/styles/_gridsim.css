@@ -83,3 +83,14 @@
 @media (max-width: 1100px) {
   .html-embed--wide { -webkit-mask: none; mask: none; }
 }
+
+@media (min-width: 1101px) {
+  .content-grid .html-embed--wide {
+    width: min(1100px, calc(100% + 292px));
+    margin-left: 0;
+    transform: none;
+    padding-inline: 0;
+    -webkit-mask: none;
+    mask: none;
+  }
+}

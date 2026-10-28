@@ -2,7 +2,7 @@
    Book Print Styles — "A Book Apart" inspired
    
    Design principles:
-   - Georgia body, Source Sans Pro headings (ABA uses Expo Serif + Titling Gothic)
+   - Georgia body, Source Sans 3 headings (ABA uses Expo Serif + Titling Gothic)
    - Single accent color (#E85D3A — warm orange-red, ABA signature)
    - Generous white space, the page breathes
    - Chapter openings: large number + title on their own page
@@ -86,7 +86,7 @@
   }
 
   .hero-title {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 36pt;
     font-weight: 800;
     line-height: 1.08;
@@ -159,7 +159,7 @@
   }
 
   .meta-container-cell h3 {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 8pt;
     text-transform: uppercase;
     letter-spacing: 1.5pt;
@@ -188,7 +188,7 @@
   .meta h3,
   .hero h3,
   header h3 {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
   .authors {
@@ -224,7 +224,7 @@
   }
 
   .book-toc__title {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 12pt;
     font-weight: 700;
     text-transform: uppercase;
@@ -260,7 +260,7 @@
   }
 
   .book-toc__number {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 11pt;
     font-weight: 700;
     color: #E85D3A;
@@ -291,7 +291,7 @@
   }
 
   .book-toc__section-number {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 8.5pt;
     font-weight: 600;
     color: #999;
@@ -325,7 +325,7 @@
   }
 
   h2 {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 28pt;
     font-weight: 800;
     margin: 0;
@@ -349,7 +349,7 @@
   h2[data-chapter-num]::before {
     content: attr(data-chapter-num);
     display: block;
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 80pt;
     font-weight: 800;
     color: #E85D3A;
@@ -375,7 +375,7 @@
   }
 
   h3 {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 14pt;
     font-weight: 700;
     margin: 10mm 0 4mm;
@@ -392,7 +392,7 @@
   }
 
   h4 {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 11pt;
     font-weight: 700;
     margin: 7mm 0 3mm;
@@ -403,7 +403,7 @@
   }
 
   h5, h6 {
-    font-family: "Source Sans Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 10.5pt;
     font-weight: 700;
     margin: 5mm 0 2mm;
@@ -522,7 +522,7 @@
   }
 
   figcaption {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 8.5pt;
     color: #666;
     margin-top: 2.5mm;
@@ -562,7 +562,7 @@
   }
 
   th {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-weight: 700;
     text-align: left;
     padding: 2mm 2.5mm;
@@ -719,7 +719,7 @@
   }
 
   .html-embed__title {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 8.5pt;
     font-weight: 700;
     color: #1a1a1a;
@@ -729,7 +729,7 @@
   }
 
   .html-embed__desc {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 8.5pt;
     color: #666;
     font-style: italic;
@@ -806,7 +806,7 @@
   .accordion__summary,
   details.accordion > summary,
   details > summary {
-    font-family: "Source Sans Pro", sans-serif;
+    font-family: "Source Sans 3", sans-serif;
     font-size: 9.5pt;
     font-weight: 700;
     padding: 2mm 4mm !important;
