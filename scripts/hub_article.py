@@ -90,6 +90,8 @@ def main():
            "timeline.json": timeline()}
     if (b := banner()) is not None:
         out["banner.json"] = b
+    if (desk := RESULTS.with_name("desk.json")).is_file():
+        out["desk.json"] = json.loads(desk.read_text())
     for name, obj in out.items():
         (DATA / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
         print(f"{name:16} {(DATA / name).stat().st_size / 1e3:7.1f} kB")

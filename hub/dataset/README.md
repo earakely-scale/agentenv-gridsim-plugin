@@ -203,6 +203,7 @@ configs:
 
 <div align="center">
 
+<!-- hero -->
 <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-0xqk8eef.json"><img src="assets/gridsim-hero.gif" alt="GPT-6.1 Sol's v3 run at ERCOT's North hub on 10 August 2023, replayed in 3D beside its 20 tool calls: the day-ahead book checked and committed at 14:00 the day before, each later watch read with get_situation and ended with advance, two re-plans after ERCOT deploys its ECRS reserve, each hour as it plays, and the grade" width="100%"></a>
 
 <small>GridSimEnv v3 preview: GPT-6.1 Sol runs a solar farm and a 100 MW battery at ERCOT's North hub through the heat
@@ -210,6 +211,7 @@ wave of 10 August 2023, beside its 20 tool calls: `check_schedule` and `commit_s
 before, `get_situation` and `advance` read each later watch and run the clock to the next, and it re-plans twice when
 ERCOT calls its reserves. It earns $1.60M, ahead of the rolling anchor's $1.55M (reward 1.00). [Open the 3D replay](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?episode=runs/hyb-v3-2023-08-10-HB_NORTH-pv150-b100x2h-poi150-0xqk8eef.json).
 Data: ERCOT, NWS and IEM, public; not affiliated with or endorsed by ERCOT.</small>
+<!-- /hero -->
 
 <h1>GridSimEnv v1: The Battery Desk</h1>
 
@@ -224,6 +226,9 @@ Data: ERCOT, NWS and IEM, public; not affiliated with or endorsed by ERCOT.</sma
 </div>
 
 ---
+
+<!-- desk -->
+<!-- /desk -->
 
 ## At a glance
 

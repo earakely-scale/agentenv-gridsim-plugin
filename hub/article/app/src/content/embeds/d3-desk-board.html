@@ -1,0 +1,86 @@
+<div class="gs-deskb"></div>
+<style>
+  .gs-deskb { font-size: 12.5px; --c-op: #8a6d3b; }
+  [data-theme="dark"] .gs-deskb { --c-op: #c9a86a; }
+  .gs-deskb svg { display: block; width: 100%; overflow: visible; }
+  .gs-deskb .summary { font-size: 13px; line-height: 1.5; color: var(--text-color); margin: 0 0 6px; }
+  .gs-deskb .summary b { font-weight: 650; }
+  .gs-deskb table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .gs-deskb th, .gs-deskb td { padding: 6px 8px; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap; }
+  .gs-deskb th { color: var(--muted-color); font-weight: 600; font-size: 11.5px; }
+  .gs-deskb th:first-child, .gs-deskb td:first-child { text-align: left; white-space: normal; }
+  .gs-deskb td small { display: block; color: var(--muted-color); font-size: 11px; }
+  .gs-deskb tr.ref td { color: var(--muted-color); }
+  .gs-deskb .wrap { overflow-x: auto; }
+  .gs-deskb .k { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-deskb");
+    if (!root) return;
+    const f = K.fmt;
+    const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
+    const REFC = { anchor: "var(--text-color)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)" };
+    const usd = (x, s = false) => (x == null ? "–" : `${x < 0 ? "−" : s ? "+" : ""}$${Math.round(Math.abs(x)).toLocaleString("en-US")}`);
+    const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      if (!D.versions.length) return;
+      let vi = D.versions.length - 1;
+      root.innerHTML = '<div class="gs-chips"><span class="gs-lab">Version</span></div><p class="summary"></p><div class="plot"></div><div class="wrap"></div><div class="gs-note"></div>';
+      const chips = d3.select(root).select(".gs-chips");
+      D.ladder.forEach((x) => {
+        const i = D.versions.findIndex((v) => v.version === x.version);
+        const b = chips.append("button").attr("class", "gs-chip").attr("type", "button").property("disabled", i < 0)
+          .attr("aria-pressed", i === vi).html(`<b>${x.version}</b> ${x.name}${i < 0 ? " · next" : ""}`);
+        if (i >= 0) b.on("click", () => { vi = i; chips.selectAll(".gs-chip").attr("aria-pressed", function () { return this === b.node(); }); render(); });
+      });
+      const tip = K.tip(root);
+      const svg = d3.select(root).select(".plot").append("svg").attr("class", "gs-svg");
+      function render() {
+        const V = D.versions[vi];
+        const refs = Object.fromEntries(V.references.map((r) => [r.key, r]));
+        const rows = [...V.models.map((m) => ({ ...m, ref: false, color: COL[m.key] || "var(--c-base)" })),
+          ...V.references.filter((r) => !["hind", "idle"].includes(r.key)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
+        const top = V.models[0], g = top.P_minus_anchor, side = g.ci[0] > 0 ? "ahead of" : g.ci[1] < 0 ? "behind" : "level with";
+        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${f.n(top.C.mean)} of hindsight ${f.ci(top.C.ci)}, ${usd(top.P.mean)} a battery-day, ${side} the anchor (${usd(g.mean, true)} ${usdci(g.ci, true)}).${refs.operator_replay ? ` The real operator's own bids, replayed, earn ${usd(refs.operator_replay.P.mean)}.` : ""}`);
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 700, narrow = W < 560;
+        const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + rows.length * rh + 30;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const lo = Math.min(0, ...rows.map((r) => r.C.ci[0])), hi = Math.max(1, ...rows.map((r) => r.C.ci[1]));
+        const x = d3.scaleLinear().domain([lo - 0.02, hi + 0.02]).range([lw + 8, W - 50]);
+        x.ticks(narrow ? 4 : 8).forEach((t) => {
+          svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", t0 - 6).attr("y2", H - 22).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", x(t)).attr("y", H - 8).attr("text-anchor", "middle").attr("class", "sub").text(f.n(t, 1));
+        });
+        [[0, "idle", "start", 4], [1, "hindsight optimum", "end", -4]].forEach(([v, l, a, dx]) => {
+          svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", t0 - 10).attr("y2", H - 22).style("stroke", "var(--muted-color)").style("stroke-dasharray", v ? "4 3" : null);
+          svg.append("text").attr("x", x(v) + dx).attr("y", t0 - 14).attr("text-anchor", a).attr("class", "sub").text(l);
+        });
+        rows.forEach((r, i) => {
+          const y = t0 + i * rh + (narrow ? 26 : rh / 2);
+          svg.append("text").attr("class", `lab halo${r.ref ? "" : " b"}`).attr("x", narrow ? 8 : lw).attr("y", narrow ? y - 12 : y + 4).attr("text-anchor", narrow ? "start" : "end").text(r.name);
+          svg.append("line").attr("x1", x(r.C.ci[0])).attr("x2", x(r.C.ci[1])).attr("y1", y).attr("y2", y).style("stroke", r.color).style("stroke-width", 2);
+          const c = svg.append("circle").attr("cx", x(r.C.mean)).attr("cy", y).attr("r", r.ref ? 5 : 6).style("fill", r.ref ? "var(--page-bg)" : r.color).style("stroke", r.color).style("stroke-width", 2).style("cursor", "pointer");
+          svg.append("text").attr("class", `val halo${r.ref ? "" : " b"}`).attr("x", Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8).attr("y", y + 4).text(f.n(r.C.mean));
+          const show = (ev) => tip.show((el) => {
+            K.t.title(el, r.ref ? r.name : `${r.name}${r.effort ? `, ${r.effort} effort` : ""}`, r.color);
+            K.t.row(el, "C", `${f.n(r.C.mean)} ${f.ci(r.C.ci)}`);
+            K.t.row(el, "P a battery-day", `${usd(r.P.mean)} ${usdci(r.P.ci)}`);
+            if (!r.ref) K.t.row(el, "P − anchor", `${usd(r.P_minus_anchor.mean, true)} ${usdci(r.P_minus_anchor.ci, true)}`);
+          }, ev);
+          c.on("mousemove", show).on("mouseleave", () => tip.hide());
+        });
+        const head = "<tr><th>Desk</th><th>P a battery-day</th><th>P − anchor</th><th>P − the operator's bids</th></tr>";
+        const body = rows.map((r) => r.ref ? `<tr class="ref"><td><i class="k" style="background:${r.color}"></i>${r.name}</td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>–</td><td>–</td></tr>`
+          : `<tr><td><i class="k" style="background:${r.color}"></i><b>${r.name}</b></td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>${usd(r.P_minus_anchor.mean, true)}<small>${usdci(r.P_minus_anchor.ci, true)}</small></td><td>${r.P_minus_operator_replay.mean == null ? "–" : `${usd(r.P_minus_operator_replay.mean, true)}<small>${usdci(r.P_minus_operator_replay.ci, true)}</small>`}</td></tr>`).join("");
+        d3.select(root).select(".wrap").html(`<table>${head}${body}</table>`);
+        d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a battery-day. Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.`);
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

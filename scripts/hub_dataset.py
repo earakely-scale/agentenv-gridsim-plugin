@@ -35,6 +35,7 @@ import json
 import re
 import shutil
 import tomllib
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from html import escape
 from pathlib import Path
@@ -70,8 +71,10 @@ PACK_FILES = ("stats.md", "ridge-v1.json")
 TOLERANCE = 1e-6
 DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
-PREVIEWS = ("v2_", "v3_", "v4_", "v5_")
+ELSEWHERE = ("v2_", "v3_", "v4_", "v5_", "desk_")
 RESULTS = "overview/results.json"
+DESK = "overview/desk.json"
+DESK_MD = ROOT / "hub/dataset/desk.md"
 CAPTIONS = ROOT / "results/overview/figures/captions.json"
 BEAM = ROOT / "results/beam-agent/beam"
 MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles", "leaderboard", "eval_runs")
@@ -748,6 +751,133 @@ def results_blocks(r: dict) -> dict[str, str]:
             "training-results": training_block(r), "worth": worth_block(r), "live": live_block(r)}
 
 
+def desk_blocks(d: dict) -> dict[str, str]:
+    """The card's desk section and, once a desk hero leads, its lead visual, from results/overview/desk.json
+    (scripts/hub_desk.py writes it). The newest version's results are open, earlier ones fold."""
+    vs, latest = d["versions"], d["versions"][-1]
+    results = [desk_results(v) for v in reversed(vs)]
+    results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
+                   "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
+    out = {"desk": DESK_MD.read_text().format(ladder=ladder_block(d), results="\n\n".join(results),
+                                              ref=latest["ref"], latest=latest["version"]).rstrip() + "\n\n---"}
+    if d.get("lead"):
+        out["hero"] = lead_block(d["lead"])
+    return out
+
+
+def ladder_block(d: dict) -> str:
+    done = {v["version"]: v for v in d["versions"]}
+    rows = [f"| **{x['version']}, {x['name']}**<br><small>" + (
+        f"{done[x['version']]['n_tasks']} battery-days, results above" if x["version"] in done else "next")
+        + f"</small> | {md(x['adds'])} | {md(x['does'])} |" for x in d["ladder"]]
+    return "\n".join(["**The version ladder.** Each version adds one kind of realism to the same desk, tools and "
+                      "grading.", "", "| Version | What it adds | What the agent does |", "|---|---|---|", *rows])
+
+
+def desk_results(v: dict) -> str:
+    sites = ", ".join(f"{s['region']} {s['size']}" for s in v["sites"])
+    a, b = (f"{date.fromisoformat(x):%-d %B %Y}" for x in v["dates"])
+    rows = [desk_row(m) for m in v["models"]] + [
+        f"| *{r['short']}* | *{h(r['C']['mean'])}* | *{usdk(r['P']['mean'])}* |"
+        for r in v["references"] if r["key"] != "idle"]
+    gaps = [f"| **{m['name']}** | {stacked_usd(m['P_minus_anchor'], True)} | "
+            + ("–" if m["P_minus_operator_replay"]["mean"] is None else stacked_usd(m["P_minus_operator_replay"], True))
+            + " |" for m in v["models"]]
+    fig = f"assets/figures/desk-{v['version']}-capture"
+    return "\n".join([
+        f"### {v['version']}, {v['name']}: results", "",
+        f"{v['n_tasks']} battery-days: {len(v['sites'])} real batteries ({sites}) on {v['n_days']} operating days "
+        f"from {a} to {b}, each old enough for ERCOT to have disclosed the operators' bids. Each model plays each "
+        "battery-day once under pre-registered settings.", "",
+        "| Desk | C, hindsight capture | P, $ a battery-day |", "|---|---:|---:|", *rows, "",
+        "| Paired, $ a battery-day | P − anchor | P − the operator's bids |", "|---|---:|---:|", *gaps, "",
+        "<small>The anchor is the desk's own optimiser, re-planning at every wake on the same information. The "
+        "operator rows are the real operator's own bids on each battery-day, disclosed by ERCOT 60 days later and "
+        "replayed through the same clearing and settlement, and its actual awards and metered output settled the same "
+        "way. Hindsight knows every price in advance. Brackets: day-block bootstrap 95% CIs.</small>", "",
+        f"**How much of the hindsight optimum each desk captured, {v['version']}**", "",
+        f'<img class="dark:hidden" src="{fig}.png" alt="{escape(capture_alt(v))}">',
+        f'<img class="hidden dark:block" src="{fig}-dark.png" alt="{escape(capture_alt(v))}">', "",
+        "<small>C with its 95% CI for each model, the anchor and the real operator; idle is 0 and the hindsight "
+        "optimum 1 by definition.</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
+        f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
+        "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
+        f"split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the plugin."])
+
+
+def desk_row(m: dict) -> str:
+    cost = m["usd_per_episode"]
+    sub = ([f"{m['effort']} effort"] if m.get("effort") else ["untrained, open weights"] if m["weights"] == "open"
+           else []) + ([f"${cost:.2f} a run"] if cost and m["weights"] != "open" else [])
+    return (f"| **{m['name']}**<br><small>{' · '.join(sub)}</small> | **{h(m['C']['mean'])}**<br><small>"
+            f"{ci(m['C']['ci'])}</small> | {stacked_usd(m['P'])} |")
+
+
+def stacked_usd(b: dict, sign: bool = False) -> str:
+    return f"{usdk(b['mean'], sign)}<br><small>[{usdk(b['ci'][0], sign)}, {usdk(b['ci'][1], sign)}]</small>"
+
+
+def usdk(x: float, sign: bool = False) -> str:
+    """Thousands of dollars to one decimal, a whole dollar figure under $1,000; a word joiner keeps the sign on it."""
+    v = f"{h(abs(x) / 1000, 1)}k" if abs(x) >= 999.5 else f"{abs(x):.0f}"
+    return f"{'−' if x < 0 else '+' if sign else ''}\u2060${v}"
+
+
+def desk_bullets(v: dict) -> list[str]:
+    ms, refs = v["models"], {r["key"]: r for r in v["references"]}
+    top, anchor = ms[0], refs["anchor"]
+    out = [f"**{top['name']} captures the most:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
+           f"{usd0(top['P']['mean'])} a battery-day, against the anchor's C {h(anchor['C']['mean'])} and "
+           f"{usd0(anchor['P']['mean'])}."]
+    vs = [f"{m['name']} {usd0(m['P_minus_anchor']['mean'], True)} {usd0_ci(m['P_minus_anchor']['ci'], True)}, ahead "
+          f"on {m['beats_anchor']:.0%} of battery-days" for m in ms]
+    above = [m["name"] for m in ms if m["P_minus_anchor"]["ci"][0] > 0]
+    below = [m["name"] for m in ms if m["P_minus_anchor"]["ci"][1] < 0]
+    out.append(f"**Against the anchor,** a battery-day: {'; '.join(vs)}. "
+               + (f"Above it with a CI clear of zero: {' and '.join(above)}. " if above else "")
+               + (f"Below it: {' and '.join(below)}." if below else "")
+               + ("No model is separated from it." if not above and not below else ""))
+    if "operator_replay" in refs:
+        ahead = [m["name"] for m in ms if m["P_minus_operator_replay"]["mean"] is not None
+                 and m["P_minus_operator_replay"]["ci"][0] > 0]
+        out.append("**The real operators' own bids,** replayed through the same clearing and settlement, earn "
+                   f"{usd0(refs['operator_replay']['P']['mean'])} a battery-day; " + (
+                       f"{' and '.join(ahead)} beat{'s' if len(ahead) == 1 else ''} them with a CI above zero."
+                       if ahead else "no model beats them with a CI above zero."))
+    paid = [f"{m['name']} ${m['usd_per_episode']:.2f}" for m in ms if m["weights"] != "open" and m["usd_per_episode"]]
+    local = [m["name"] for m in ms if m["weights"] == "open"]
+    if paid:
+        out.append(f"**A battery-day's inference** costs {' and '.join(paid)} at list prices"
+                   + (f"; {' and '.join(local)} runs on one GPU." if local else "."))
+    return [x.strip() for x in out]
+
+
+def capture_alt(v: dict) -> str:
+    rows = [(m["name"], m["C"]) for m in v["models"]] + [
+        (r["short"], r["C"]) for r in v["references"] if r["key"] not in ("hind", "idle")]
+    return (f"Hindsight capture on {v['pack']}, with 95% CIs: "
+            + "; ".join(f"{n} {h(c['mean'])} {ci(c['ci'])}" for n, c in rows) + ". Idle is 0, the hindsight optimum 1.")
+
+
+def lead_block(lead: dict) -> str:
+    return "\n".join([f'<a href="{lead["link"]}"><img src="{lead["gif"]}" alt="{escape(lead["alt"])}" '
+                      'width="100%"></a>', "", f"<small>{lead['caption']}</small>"])
+
+
+def usd0(x: float, sign: bool = False) -> str:
+    return f"{'−' if x < 0 else '+' if sign else ''}\u2060${abs(x):,.0f}"
+
+
+def usd0_ci(c: list[float], sign: bool = False) -> str:
+    return f"[{usd0(c[0], sign)}, {usd0(c[1], sign)}]"
+
+
+def desk_configs(d: dict) -> list[dict]:
+    return [{"config_name": f"desk_{name}", "data_files": [
+        {"split": v["version"], "path": f"desk_{name}/{v['version']}.parquet"} for v in d["versions"]]}
+        for name in ("leaderboard", "runs")]
+
+
 def eval_runs() -> dict[str, list[dict]]:
     """Every schedule behind the leaderboard, as scripts/hub_results.py re-grades them from the committed records."""
     spec = importlib.util.spec_from_file_location("hub_results", ROOT / "scripts/hub_results.py")
@@ -760,8 +890,8 @@ def card_text(files: dict[str, bytes] | None, bundles: dict[str, str], plugin: s
     """The card with its results blocks and counts filled in from results.json, and each bundle's configs and needs as
     agentenv-hf writes them. Given the files this build wrote, v1_episodes lists the splits that have episodes and a
     v1 config whose tables are all empty is left off (`datasets` can't load a parquet file with no rows); the previews'
-    configs stay as the card lists them, since their tables are built on the previews branch. Without files, every
-    config stays as listed."""
+    configs stay as the card lists them, since their tables are built on the previews branch, and so do the desk's,
+    which scripts/hub_desk.py builds. Without files, every config stays as listed."""
     text = CARD.read_text()
     if (results_dir / RESULTS).is_file():
         r = json.loads((results_dir / RESULTS).read_text())
@@ -772,16 +902,26 @@ def card_text(files: dict[str, bytes] | None, bundles: dict[str, str], plugin: s
                 raise SystemExit(f"{CARD} has no <!-- {name} --> block")
         values = counts(r)
         text = re.sub(r"<!-- =(\w+) -->", lambda m: values[m[1]], text)
+    desk = json.loads((results_dir / DESK).read_text()) if (results_dir / DESK).is_file() else None
+    if desk and desk["versions"]:
+        for name, block in desk_blocks(desk).items():
+            text, n = re.subn(rf"(<!-- {name} -->\n).*?([ \t]*<!-- /{name} -->)",
+                              lambda m, b=block: f"{m[1]}{b}\n{m[2]}", text, flags=re.S)
+            if n != 1:
+                raise SystemExit(f"{CARD} has no <!-- {name} --> block")
     for name, split in bundles.items():
         text = card(text, name=name, split=split, repo=None, description=None, license=None,
                     needs={"plugins": [plugin], "setup": SETUP})
     result = DatasetCard(text)
+    if desk and desk["versions"]:
+        at = next(i for i, c in enumerate(result.data.configs) if c["config_name"] == "eval_runs") + 1
+        result.data.configs[at:at] = desk_configs(desk)
     if files is not None:
         episodes_config = {"config_name": "v1_episodes", "data_files": [
             {"split": s, "path": f"episodes/v1/{s}.parquet"} for s in (*SPLITS, "showcase")
             if f"episodes/v1/{s}.parquet" in files]}
         configs = [episodes_config if c["config_name"] == "v1_episodes" else c for c in result.data.configs]
-        result.data.configs = [c for c in configs if c["config_name"].startswith(PREVIEWS) or any(
+        result.data.configs = [c for c in configs if c["config_name"].startswith(ELSEWHERE) or any(
             f["path"] in files and pq.read_metadata(io.BytesIO(files[f["path"]])).num_rows for f in c["data_files"])]
     if bundles:
         result.data.agentenv = {"default": next(iter(bundles)), **result.data.agentenv}
