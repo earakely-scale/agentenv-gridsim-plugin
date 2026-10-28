@@ -160,6 +160,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     dates = sorted({e["dates"][0] for e in episodes.values()})
     v = {"version": key, "name": name, "adds": adds, "does": does, "ref": tag, "folder": rel, "pack": s["pack"],
          "n_tasks": s["n_tasks"], "n_days": s["n_days"], "dates": [dates[0], dates[-1]],
+         "days_per_task": max(len(e["dates"]) for e in episodes.values()),
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],
          "budget": s["method"]["budget"], "core": s["method"]["core_versions"], "ci": s["ci"], "models": models,
          "references": refs, "paired": paired, "hero": s.get("hero"),

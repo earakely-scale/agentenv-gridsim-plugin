@@ -800,11 +800,14 @@ def desk_results(v: dict) -> str:
     fig = f"assets/figures/desk-{v['version']}-capture"
     return "\n".join([
         f"### {v['version']}, {v['name']}: results", "",
-        f"{v['n_tasks']} battery-days: {len(v['sites'])} real batteries ({sites}) on {v['n_days']} operating days "
-        f"from {a} to {b}, each old enough for ERCOT to have disclosed the operators' bids. Each model plays each "
-        "battery-day once under pre-registered settings.", "",
-        "| Desk | C, hindsight capture | P, $ a battery-day |", "|---|---:|---:|", *rows, "",
-        "| Paired, $ a battery-day | P − the operator's bids | P − anchor |", "|---|---:|---:|", *gaps, "",
+        (f"{v['n_tasks']} battery-days: {len(v['sites'])} real batteries ({sites}) on {v['n_days']} operating days "
+         if v["days_per_task"] == 1 else
+         f"{v['n_tasks']} battery-windows of {v['days_per_task']} operating days each: {len(v['sites'])} real "
+         f"batteries ({sites}), windows starting on {v['n_days']} days ")
+        + f"from {a} to {b}, each old enough for ERCOT to have disclosed the operators' bids. Each model plays each "
+        "one once under pre-registered settings.", "",
+        f"| Desk | C, hindsight capture | P, $ a {unit(v)} |", "|---|---:|---:|", *rows, "",
+        f"| Paired, $ a {unit(v)} | P − the operator's bids | P − anchor |", "|---|---:|---:|", *gaps, "",
         "<small>The anchor is the desk's own optimiser, re-planning at every wake on the same information. The "
         "operator rows are the real operator's own bids on each battery-day, disclosed by ERCOT 60 days later and "
         "replayed through the same clearing and settlement, and its actual awards and metered output settled the same "
@@ -827,6 +830,10 @@ def desk_row(m: dict) -> str:
             f"{ci(m['C']['ci'])}</small> | {stacked_usd(m['P'])} |")
 
 
+def unit(v: dict) -> str:
+    return "battery-day" if v["days_per_task"] == 1 else f"{v['days_per_task']}-day window"
+
+
 def stacked_usd(b: dict, sign: bool = False) -> str:
     return f"{usdk(b['mean'], sign)}<br><small>[{usdk(b['ci'][0], sign)}, {usdk(b['ci'][1], sign)}]</small>"
 
@@ -841,7 +848,7 @@ def desk_bullets(v: dict) -> list[str]:
     ms, refs = v["models"], {r["key"]: r for r in v["references"]}
     top, others = ms[0], ms[1:]
     out = [f"**{top['name']} captures the most of hindsight:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
-           f"{usd0(top['P']['mean'])} a battery-day" + (", against " + " and ".join(
+           f"{usd0(top['P']['mean'])} a {unit(v)}" + (", against " + " and ".join(
                f"{m['name']}'s {h(m['C']['mean'])}" for m in others) if others else "") + "."]
     if "operator_replay" in refs:
         op = refs["operator_replay"]["P"]["mean"]
@@ -853,20 +860,20 @@ def desk_bullets(v: dict) -> list[str]:
         behind = [m["name"] for m in ms if m["P_minus_operator_replay"]["mean"] is not None
                   and m["P_minus_operator_replay"]["ci"][1] < 0]
         out.append(f"**Against the real operator:** its own bids, replayed through the same clearing and settlement, "
-                   f"earn {usd0(op)} a battery-day; paired, {'; '.join(gaps)}. "
+                   f"earn {usd0(op)} a {unit(v)}; paired, {'; '.join(gaps)}. "
                    + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
                       "No model is ahead with a CI above zero.")
                    + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
     a = refs["anchor"]
     out.append(f"**The anchor,** the desk's own optimiser on the same information, captures C {h(a['C']['mean'])} "
-               f"({usd0(a['P']['mean'])} a battery-day), partly from DAM/RT spread positions that pay off on scarcity "
-               "days; paired against it, a battery-day: " + "; ".join(
+               f"({usd0(a['P']['mean'])} a {unit(v)}), partly from DAM/RT spread positions that pay off on scarcity "
+               f"days; paired against it, a {unit(v)}: " + "; ".join(
                    f"{m['name']} {usd0(m['P_minus_anchor']['mean'], True)} {usd0_ci(m['P_minus_anchor']['ci'], True)}"
                    for m in ms) + ".")
     paid = [f"{m['name']} ${m['usd_per_episode']:.2f}" for m in ms if m["weights"] != "open" and m["usd_per_episode"]]
     local = [m["name"] for m in ms if m["weights"] == "open"]
     if paid:
-        out.append(f"**A battery-day's inference** costs {' and '.join(paid)} at list prices"
+        out.append(f"**A {unit(v)}'s inference** costs {' and '.join(paid)} at list prices"
                    + (f"; {' and '.join(local)} runs on one GPU." if local else "."))
     return out
 
