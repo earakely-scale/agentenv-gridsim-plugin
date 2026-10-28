@@ -9,7 +9,7 @@ task_categories:
 - reinforcement-learning
 - text-generation
 size_categories:
-- 10K<n<100K
+- 100K<n<1M
 tags:
 - agentenv
 - rl-environment
@@ -30,8 +30,22 @@ tags:
 - forecasting
 - auctions
 configs:
-- config_name: v1_tasks
+- config_name: leaderboard
   default: true
+  data_files:
+  - split: v1
+    path: leaderboard/v1.parquet
+- config_name: eval_runs
+  data_files:
+  - split: blind_fresh
+    path: eval_runs/v1/blind_fresh.parquet
+  - split: blind_eval_2025
+    path: eval_runs/v1/blind_eval_2025.parquet
+  - split: foresight_eval_2025
+    path: eval_runs/v1/foresight_eval_2025.parquet
+  - split: foresight_fresh
+    path: eval_runs/v1/foresight_fresh.parquet
+- config_name: v1_tasks
   data_files:
   - split: train
     path: tasks/v1/train.parquet
@@ -195,333 +209,284 @@ configs:
 
 <h3>Run a grid battery at a Texas hub for one day on the real day-ahead prices, graded exactly against the optimum</h3>
 
-<p>An AgentEnv environment built from ERCOT's public day-ahead market prices and EIA-860 battery records, with 21,250 battery-days, a public train split and no judge: every schedule is scored against a dynamic program that finds the best possible day.</p>
-
 <a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/%F0%9F%93%96%20Article-Running%20a%20grid%20battery-0e7d56?style=for-the-badge&labelColor=1a1a1a" alt="The article: GridSimEnv, running a grid battery on ERCOT's real prices" height="32"></a>
 <a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Space-Replays-FFD21E?style=for-the-badge&labelColor=1a1a1a" alt="Replays" height="32"></a>
 <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html"><img src="https://img.shields.io/badge/Results-What%20training%20bought-1baf7a?style=for-the-badge&labelColor=1a1a1a" alt="Results: what training bought, in dollars" height="32"></a>
 <a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" height="32"></a>
 <a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>
 
-<p><b>Read the article:</b> <a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv">GridSimEnv: running a grid battery on ERCOT's real prices</a>, the long-form write-up of the environment, the models, the training and the dollars, with every figure interactive.</p>
-
 </div>
+
+An [AgentEnv](https://www.agentenvframework.com) environment built from ERCOT's public day-ahead market prices and
+EIA-860 battery records, with 21,250 battery-days, a public train split and no judge: every schedule is scored against
+a dynamic program that finds the best possible day. This dataset holds the battery-days and their references, the
+leaderboard and every schedule behind it, and the recorded runs. **[Read the
+article](https://huggingface.co/spaces/earakely-scale/GridSimEnv)** for the environment, the models, the training and
+the dollars, with every figure interactive.
 
 ---
 
-## Results at a glance
+## At a glance
 
 <!-- glance -->
 <!-- /glance -->
 
-## Training results
-
-<!-- training-results -->
-<!-- /training-results -->
-
-## Score vs cost
-
-<!-- frontier -->
-<!-- /frontier -->
-
-## What it's worth
-
-<!-- worth -->
-<!-- /worth -->
-
-## Live board
-
-<!-- live -->
-<!-- /live -->
-
 ---
 
-> **Also here, as previews:** [v2, The Live Grid](#v2-preview-the-live-grid), the same batteries played live through
-> the day on real-time prices and grid bulletins; [v3, Sun, Storage and Reserves](#v3-preview-sun-storage-and-reserves),
-> a solar farm and a battery behind one meter selling energy and ERCOT reserves;
-> [v4, Weather Front](#v4-preview-weather-front), that plant run for three days on weather and load forecasts as they
-> were issued; and
-> [v5, The Market Floor](#v5-preview-the-market-floor), a battery bidding into ERCOT's day-ahead market as it clears
-> again from the real offers of the day. Each has its own configs, references and pilot runs. v1 is the release; the
-> previews have open design decisions.
+## Quick start
 
-## The task
+Python 3.11.4 or newer. The plugin brings the grader, `gridsim_core`; the first three steps need no model, no key and
+no Docker.
 
-An agent operates one battery in the ERCOT day-ahead market (DAM) for one operating day at one of ERCOT's 7 trading
-hubs or 8 load zones. It reads the battery and the day's 24 hourly DAM settlement point prices, then submits 24
-integers, one per hour ending (HE01 to HE24, Central Prevailing Time): how many energy units to sell (positive) or buy
-(negative) that hour. The battery is a price taker, so each hour settles at that hour's price. The schedule is graded
-once, exactly, against the best schedule a dynamic program finds for the same day.
+```bash
+pip install datasets \
+  "agentenv-gridsim @ git+https://github.com/earakely-scale/agentenv-gridsim-plugin"
+```
 
-The battery moves energy in whole units of `unit_mwh` MWh and holds 0 to `soc_levels` units. The rules:
-
-1. Each hour, `-k_ch <= a <= k_dis`.
-2. The state of charge stays between 0 and `soc_levels` after every hour; selling `a` units lowers it by `a`.
-3. The units discharged over the day sum to at most `cycle_cap_units`.
-4. At the first hour that breaks rule 1, 2 or 3, that hour and every later hour execute as 0; the hours before still
-   settle.
-5. The state of charge after HE24 must be at least `s_end_min`. Each missing unit is bought back at `unit_mwh / eta`
-   MWh times the day's highest price, or $50/MWh if that is higher.
-
-Selling `a` units delivers `a * unit_mwh` MWh. Buying `a` units draws `a * unit_mwh / eta` MWh, so the losses fall on
-the buy side. Each unit discharged costs `c_deg * unit_mwh` dollars of degradation. Profit is the sum of the hourly
-cash less the end-of-day penalty.
-
-The env exposes three tools: `get_situation`, `check_schedule` (up to 3 dry runs that return feasibility, the state
-of charge path, any end shortfall and, at the foresight tier, the profit) and `submit_schedule`, which ends the
-episode. An episode allows 4 turns and 24 tool calls. The `oneshot` harness, which training uses, offers only
-`submit_schedule`.
-
-**Two tiers.** At the **foresight** tier the agent sees the day's 24 prices. At the **blind** tier it sees the prices
-at the same point for the previous day and for each of the previous 7 days, not the day's own, and its schedule
-settles on the day's actual prices. Each row of `v1_tasks` is one battery-day at one tier; a battery-day with blind
-inputs appears once per tier.
-
-### A worked day
-
-`dam-v1-2025-02-25-LZ_AEN-2h-o`, from `eval_2025`: the Austin Energy load zone on Tuesday 25 February 2025, with a
-150 MW / 300 MWh battery (archetype `2h-o`): `unit_mwh` 75, `soc_levels` 4, `k_dis` = `k_ch` = 2 (150 MW),
-`eta` 0.80, `c_deg` $4/MWh, `cycle_cap_units` 6 (1.5 cycles), starting empty and free to end empty. The prices, in
-$/MWh:
-
-| HE | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| $/MWh | 22.49 | 22.77 | 23.97 | 25.86 | 31.00 | 41.90 | 49.57 | 46.44 | 27.87 | 21.10 | 18.18 | 17.00 | 14.61 | 14.45 | 12.61 | 10.79 | 16.16 | 29.37 | 49.59 | 34.00 | 27.89 | 23.32 | 21.26 | 20.23 |
-
-The day has two peaks, at HE07 and HE19. The optimum takes both, and its second round trip uses the last two units
-of the cycle cap:
-
-| HE | Price | Action | MWh | Cash | State of charge after |
-|---|---:|---:|---:|---:|---:|
-| 01 | 22.49 | −2 (buy) | −187.5 | −$4,216.88 | 2 |
-| 07 | 49.57 | +2 (sell) | 150 | $6,835.50 | 0 |
-| 15 | 12.61 | −2 | −187.5 | −$2,364.38 | 2 |
-| 16 | 10.79 | −2 | −187.5 | −$2,023.12 | 4 |
-| 19 | 49.59 | +2 | 150 | $6,838.50 | 2 |
-| 20 | 34.00 | +2 | 150 | $4,500.00 | 0 |
-
-Every other hour is idle. The day's profit is **$9,569.63** (P_opt; doing nothing earns $0), net of $1,800 of
-degradation, and captures all of hindsight: C 1.000, R 1.0. The pack's references on the same day: the greedy rule,
-which pairs the cheapest hours with the dearest later ones, makes one evening round trip for $4,815.38 (C 0.503, R
-0.603); the threshold rule $5,411.63 (C 0.566, R 0.652); the clock rule, which charges HE02 to HE05 and sells HE18 to
-HE21, $1,880.25 (C 0.196, R 0.357). At the blind tier the anchor is the DP schedule on the previous day's prices,
-settled on this day: $8,937.75, a hindsight capture C of 0.934.
-
-## Grading
-
-Every GridSim version reports on one scale ([`docs/REWARD-SCALES.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/docs/REWARD-SCALES.md)).
-The headline is the hindsight capture
-
-    C = (P - P_idle) / (P_hind - P_idle)
-
-unclipped, where P is the run's profit, P_idle the profit of doing nothing (negative for the 12 of the 78 battery
-designs whose end obligation is above their starting charge) and P_hind the clairvoyant optimum of the same
-settlement, in v1 P_opt. Nothing settles above it: a property test checks every stored reference, each anchor and
-baseline, on every day of every v3, v4 and v5 pack against P_hind to the cent (in v5 against BR_rt, the best
-response settled at real-time prices). C is printed beside the anchor's own C on the same days and Δ = C − C_anchor,
-the paired gap, with its 95% interval; any other comparison is (P − P_ref) / (P_hind − P_idle). Second comes the
-reward on the anchor scale,
-
-    R = clip(0.2 + 0.8 * (P - P_idle) / (P_anchor - P_idle), 0, 1)
-
-a level with its share at R = 1 and its beats-anchor share, never differenced, where P_anchor is the reference with
-the same information as the agent:
-
-- **foresight**: P_opt, the exact optimum. A dynamic program over the state of charge, the units discharged so far
-  and every allowed action finds it in under a millisecond, with ties broken deterministically. An LP relaxation
-  bound (`p_lp`) is reported beside it: over every candidate day, the bound exceeds the optimum by at most 4.2% of
-  its margin over idle, and by nothing up to the 99th percentile.
-- **blind**: max(P_persist, P_ridge), the better of two schedules a desk could make from the same lagged prices,
-  each the DP schedule on a price forecast, settled on the actual day: persistence (the previous day's prices) and a
-  lagged ridge regression (`raw/packs/ridge-v1.json`).
-
-At the foresight tier the anchor is the hindsight, so C = (R − 0.2) / 0.8 and a model at C 1 has solved the tier. At
-the blind tier C replaces the `r_opt` this card printed before (r_opt = 0.2 + 0.8 · C, still a weight-0 row of the
-verifier and a column of the episodes). Idle scores C 0 and R 0.2, the anchor R 1.0. A run that never submits a
-parseable schedule scores 0 on both; there is no format credit. Training uses a third scale, S: R up to the anchor,
-then rising linearly to 1.2 at hindsight. In v1 the trained tier is foresight, where the anchor is the hindsight, so
-S = R and `gridsim_core.trl.reward_fn` is unchanged. The env, its verifier and training all grade with the same code,
-`gridsim_core.grade`, and the plugin's tests check that the env and gridsim_core agree to 1e-6.
-
-## Tables
-
-All parquet. The splits are `train`, `eval_2025`, `eval_iid` and `rtcb`; the showcase days are a config of their
-own, so they never mix into a split.
-
-| Config | Split | Rows | What |
-|---|---|---:|---|
-| `v1_tasks` (default) | `train` | 26,000 | 20,000 battery-days of 2014 to 2024 at the foresight tier, and 6,000 of them again at the blind tier |
-| | `eval_2025` | 800 | 500 held-out battery-days of January to November 2025, and 300 of them at the blind tier |
-| | `eval_iid` | 500 | 500 battery-days on reserved dates of 2014 to 2024 (every 10th calendar day), foresight only |
-| | `rtcb` | 452 | 250 battery-days after ERCOT's real-time co-optimization went live (5 December 2025 to 17 October 2026), and 202 of them at the blind tier |
-| `v1_showcase` | `showcase` | 1,461 | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind: for display, never for scoring a claim |
-| `v1_references` | each split above | 20,000 / 500 / 500 / 250 / 761 | per battery-day: P_opt and its schedule, P_idle, the LP bound, the clock, threshold, greedy and random-feasible schedules with their profits and rewards, and for blind battery-days the persistence and ridge schedules and the anchor |
-| `v1_episodes` | `eval_2025`, `rtcb`, `showcase`, `train` (each episode's day) | 1,338 / 250 / 10 / 7 | recorded runs: the model or checkpoint, the tier and harness, the reward and hindsight capture, the schedule, every tool call and the transcript as chat messages. GPT-6.1 Sol's 1,550 board runs (1,300 on `eval_2025`, 250 on `rtcb`) with the agent's own transcripts, 37 reference episodes the Space also replays, the 16 Qwen3-1.7B checkpoint episodes of its LEVEL UP view on one `eval_2025` day, and registered Qwen3-4B run 2's SFT-10k and final episodes on that day, from its race |
-
-`raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line (`<pack>.jsonl`), with each
-pack's manifest (sources and their SHA-256, filters, counts, the battery table) and `stats.md`, the pack statistics.
-`runs/` holds the Episode JSON (`gridsim.episode/v1`) the replay Space reads, with `runs/index.json` listing them, and
-`results/` the eval card `eval-v1.json` and `board.md`, and under `results/train/`, `results/cost-matched/`,
-`results/economics/`, `results/fresh/`, `results/blind-ceiling/` and `results/beam-agent/` each run's README, summary
-and figures, with the per-task records the score-against-cost chart is computed from; `results/overview/results.json`
-holds every number of the results sections, and `assets/figures/` their charts. Each bundle published for `agent-env hf run` adds the bundle
-under `bundles/` and agentenv-hf's `<bundle>_tasks` config, and `<bundle>_episodes` once it has recorded runs (see
-[Run it yourself](#run-it-yourself)). A config with no rows yet is left off this card. `training/` holds the
-training summary ([Training record](#training-record)); the v2 to v5 previews have configs of their own, set out in their sections,
-and v4's forecast store and v5's market days are under `raw/`.
-
-## Use
+**Load the tables.** The default config is the leaderboard; name the others.
 
 ```python
-import json
 from datasets import load_dataset
 
 repo = "earakely-scale/GridSimEnv-AgentEnv"
-days = load_dataset(repo, "v1_tasks", split="eval_2025", revision="v0.1.0")
-day = days[0]
-print(day["task_id"], day["tier"], day["settlement_point"], day["archetype"])
-# what the agent gets: the system prompt and the situation, as path-B training sends them
-print(day["system_prompt"], day["situation"], sep="\n\n")
-day["prompt"]                      # the same two messages, as a chat list
-json.loads(day["tools"])           # the submit_schedule function schema
-blind = days.filter(lambda r: r["tier"] == "blind")    # the 300 blind battery-days
+board = load_dataset(repo, "leaderboard", split="v1")          # models, baselines
+runs = load_dataset(repo, "eval_runs", split="blind_fresh")    # every schedule
+days = load_dataset(repo, "v1_tasks", split="eval_2025")       # days and prompts
+refs = load_dataset(repo, "v1_references", split="eval_2025")  # optimum, baselines
 
-refs = load_dataset(repo, "v1_references", split="eval_2025", revision="v0.1.0")
-print(refs[0]["p_opt"], refs[0]["opt"], refs[0]["greedy_reward"])
+top = board.to_pandas().query("pack == 'blind_fresh'")
+print(top[["model", "effort", "score", "usd_per_battery_day"]])
 ```
 
-Grade any schedule with `gridsim_core`, which installs with the plugin:
+**Grade a schedule.** Each `v1_tasks` row carries the battery-day as the env loads it, and `gridsim_core` grades any
+24 actions against it, exactly.
 
 ```python
+import json
 from gridsim_core.grade import grade
 
-task = json.loads(day["task"])                                        # the battery-day as the env loads it
-grade(task, [0] * 24, day["tier"])["reward"]                          # idle: 0.2
-grade(task, task["refs"]["foresight"]["opt"], "foresight")["reward"]  # the DP optimum: 1.0
+day = days[0]
+task = json.loads(day["task"])
+print(day["situation"])                         # what the agent reads
+print(grade(task, [0] * 24, day["tier"]))       # doing nothing: reward 0.2
+opt = task["refs"]["foresight"]["opt"]          # the DP optimum's 24 actions
+print(grade(task, opt, day["tier"])["reward"])  # 1.0
 ```
 
-For TRL, `v1_tasks` is a GRPO dataset as it stands: `prompt` is the conversational prompt, and
-`gridsim_core.trl.reward_fn` takes the `task` and `tier` columns TRL passes to reward functions, reads the
-`submit_schedule` call out of each completion and returns its reward.
+**Play a battery-day with a model.** The leaderboard's one-call harness: the row's prompt and tool schema go to any
+OpenAI-compatible endpoint, here Beam-1.0 on the Hugging Face router, and `reward_fn` grades the reply.
 
 ```python
+import os
+from openai import OpenAI  # pip install openai
 from gridsim_core.trl import reward_fn
+
+client = OpenAI(base_url="https://router.huggingface.co/v1",
+                api_key=os.environ["HF_TOKEN"])
+reply = client.chat.completions.create(
+    model="reflection/Beam-1.0-501B-A23B", reasoning_effort="low",
+    messages=day["prompt"], tools=json.loads(day["tools"]))
+completion = [reply.choices[0].message.model_dump()]
+print(reward_fn([day["prompt"]], [completion],
+                task=[day["task"]], tier=[day["tier"]]))
+```
+
+**Train with TRL.** `v1_tasks` is a GRPO dataset as it stands: `prompt` is the conversational prompt, and `reward_fn`
+reads the `task` and `tier` columns TRL passes to reward functions. This is the minimal wiring; the published runs
+start from SFT on solver schedules ([Training](#training)).
+
+```python
 from trl import GRPOConfig, GRPOTrainer
 
-train = load_dataset(repo, "v1_tasks", split="train", revision="v0.1.0").filter(lambda r: r["tier"] == "foresight")
-trainer = GRPOTrainer(model="Qwen/Qwen3-1.7B", reward_funcs=reward_fn, train_dataset=train,
+train = load_dataset(repo, "v1_tasks", split="train")
+train = train.filter(lambda r: r["tier"] == "foresight")
+trainer = GRPOTrainer(model="Qwen/Qwen3-4B", reward_funcs=reward_fn,
+                      train_dataset=train,
                       args=GRPOConfig(output_dir="gridsim-grpo"))
+trainer.train()
 ```
 
-This is the minimal wiring; the recipes behind the published runs, with their scripts, logs and package versions,
-are in [Training results](#training-results) and under `results/train/`.
-
-## Run it yourself
-
-You need Docker, [uv](https://docs.astral.sh/uv/) and git. Install the plugin, build and register the env and the
-`gridsim-llm` agent, and check the wiring with a task that calls no model:
+**Run the environment.** With Docker, [uv](https://docs.astral.sh/uv/) and git, the env runs in AgentEnv with its
+three tools. The first check needs no model key.
 
 ```bash
-uv tool install agentenv-framework \
-    --with "agentenv-gridsim @ git+https://github.com/earakely-scale/agentenv-gridsim-plugin@v0.1.0"
-# build the env and agent images and register them
-agent-env gridsim setup --agent
-# no model: submits the DP optimum of a fixture day, prints "passed"
-agent-env run gridsim --task smoke
+uv tool install agentenv-framework --with \
+  "agentenv-gridsim @ git+https://github.com/earakely-scale/agentenv-gridsim-plugin"
+agent-env gridsim setup --agent     # build the env and agent images
+agent-env run gridsim --task smoke  # a fixture day, its optimum: passed
 ```
 
-Then play a battery-day straight from this dataset with a model on your LiteLLM endpoint:
+<details>
+<summary><b>More</b>: a model on the env, a pack as a bundle, sweeps and the local viewer</summary>
+
+Point the `gridsim-llm` agent at a model on your LiteLLM endpoint and play the fixture day with the full harness:
 
 ```bash
 export LITELLM_BASE_URL=https://your-litellm-proxy/v1 LITELLM_API_KEY=...
-agent-env hf run earakely-scale/GridSimEnv-AgentEnv@v0.1.0 --bundle ercot-dam-v1-eval \
-    --task dam-v1-2025-02-25-LZ_AEN-2h-o --model openai/gpt-6.1-sol
+agent-env run gridsim --task full --model openai/gpt-6.1-sol
 ```
 
-<!-- TODO: confirm which bundles (packs, tiers, harnesses) the release publishes -->
-
-The plugin brings agentenv-hf with it. `hf run` downloads this card and `bundles/` at the tag's commit, checks that
-the plugin the card's `agentenv` table names is installed, shows what it will run and asks first; `--dry-run` runs
-nothing. To sweep a model over a pack and write the board, use the plugin's CLI:
+Write a pack as a bundle, one task per battery-day at one tier and harness (`--zone HB_WEST` keeps one settlement
+point), and play a day of it:
 
 ```bash
-agent-env gridsim sweep run --name mine --models openai/gpt-6.1-sol --tasks 20 --cap-usd 5
-agent-env gridsim sweep report mine      # results/eval-v1.json and results/board.md
-agent-env gridsim episodes mine          # Episode JSON under results/runs/mine/, each replayed and checked
-agent-env gridsim view                   # the viewer on http://127.0.0.1:8239/
+agent-env gridsim tasks generate --pack ercot-dam-v1-eval --tier blind --bundle full
+agent-env run results/bundles/ercot-dam-v1-eval-blind-full \
+  --task dam-v1-2025-02-25-LZ_AEN-2h-o --model openai/gpt-6.1-sol
 ```
 
-## How the battery-days were picked
+Sweep a model over a pack under a spend cap, then write the board, the Episode JSON and the replays:
 
-- **Prices.** ERCOT's *Historical DAM Load Zone and Hub Prices* (report NP4-180-ER, report type 13060), the yearly
-  files for 2014 to 2026, with their SHA-256 in each manifest: the hourly DAM settlement point price at the hubs
-  HB_HOUSTON, HB_NORTH, HB_PAN (from 6 April 2019), HB_SOUTH, HB_WEST, HB_HUBAVG and HB_BUSAVG, and the load zones
-  LZ_AEN, LZ_CPS, LZ_HOUSTON, LZ_LCRA, LZ_NORTH, LZ_RAYBN, LZ_SOUTH and LZ_WEST.
-- **Clean days.** Days of the daylight-saving changes are dropped (364 point-days), as is any day without exactly 24
-  hourly prices (none). 67,810 point-days remain. Seven point-days of 17 February 2021 (Uri) above the era's
-  $9,000/MWh cap are kept for the showcase only.
-- **Duplicates.** Within a date, a point whose 24 prices match a point already kept (correlation above 0.999 and no
-  hour more than $1 apart) is dropped: 19,733 point-days, most of them load zones that track their hub, and the two
-  averages.
-- **Splits by date.** `eval_2025` is 1 January to 30 November 2025 (the first battery-day is 6 January); `rtcb` is 5
-  December 2025, when real-time co-optimization plus batteries (RTC+B) went live, to 17 October 2026; `eval_iid` is
-  every 10th calendar day from 10 January 2014 through 2024; `train` is the rest of 2014 to 2024; the showcase
-  windows are 10 to 22 February 2021, 22 to 24 December 2022, August 2023, 6 September 2023 and 13 to 17 January
-  2024. 1 to 4 December 2025 is unused. 2025 and later never reach `train`.
-- **Batteries.** Each point-day gets one archetype battery, chosen by a stable hash of the date and point: the
-  duration class with the mix 1 h 40%, 2 h 45%, 4 h 15%, then one of 26 lettered designs in that class. Power,
-  `unit_mwh` and the rest come from a fixed table (in each manifest and in `stats.md`): 7.5 to 225 MW, round-trip
-  efficiency 0.80 to 0.90, degradation $0 to $8/MWh discharged, 1 to 2 cycles a day, varied start and end charge, and
-  up to 16 charge levels. The sizes follow EIA-860 2025 (Schedule 3_4, operable storage in the ERCO balancing
-  authority): 204 units, 13,115 MW, a mean duration of 1.645 h weighted by power, and 40% / 59% / 1% of the power in
-  the 1 h / 2 h / 4 h classes. 4 h batteries are over-weighted on purpose, to give long-duration days. The batteries
-  are archetypes, not real sites.
-- **Filters.** A battery-day is dropped as low-spread when P_opt − P_idle is under $22 per MW of discharge power
-  (14.6% of train candidates, 5.4% of eval), and 80% of the days where the greedy rule already scores 0.97 or more
-  are dropped, chosen by hash (31,281 train candidates). The values were tuned on train and eval so that the greedy
-  mean lands near 0.75 to 0.80 and about 15% of train drops as low-spread; the tuning table is in `stats.md`. A day
-  joins the blind tier only if its anchor clears the same low-spread margin.
-- **Sampling.** `train` is 20,000 of the 27,688 kept candidates by hash, and 6,000 of those with blind inputs form
-  its blind tier. `eval_2025`, `eval_iid` and `rtcb` are drawn round-robin over (point, duration class, month) to 500,
-  500 and 250; `eval_2025`'s 300 blind battery-days are drawn the same way, and `rtcb` uses every blind-eligible
-  day (202). `eval_iid` has no blind tier.
-- **Tags.** `binding` names the first of the cycle cap, the end obligation and the rate limit whose removal would
-  raise P_opt by more than 10% of P_opt − P_idle (`none` otherwise); `neg_hours` counts negative-price hours; `spike`
-  marks a day whose top price reaches the larger of $200 and 3 times its median. `difficulty` is 1 minus the greedy
-  reward. The curriculum is `C2` when the cycle cap or the end obligation binds or any hour is negative, else `C0`
-  when difficulty is at most 0.15, else `C1`.
+```bash
+agent-env gridsim sweep run --name mine --models openai/gpt-6.1-sol \
+  --tasks 20 --cap-usd 5
+agent-env gridsim sweep report mine  # results/eval-v1.json and results/board.md
+agent-env gridsim episodes mine      # Episode JSON under results/runs/mine/
+agent-env gridsim view               # the viewer on http://127.0.0.1:8239/
+```
 
-## Baselines
+The plugin brings [agentenv-hf](https://github.com/earakely-scale/agentenv-hf-plugin), whose `agent-env hf run` plays a
+bundle published with a dataset. This dataset publishes none yet, so play the packs locally as above.
 
-Mean foresight reward per pack, from `stats.md`. Idle is 0.2 and the DP optimum 1.0 by construction. The anchor here
-is the optimum, so a rule's C is (R − 0.2) / 0.8 wherever R is not clipped at 0: on `eval_2025`, clock 0.341, threshold
-0.543 and greedy 0.701.
+</details>
 
-| Pack | Split | Battery-days | Blind | Clock | Threshold | Greedy | Random feasible |
-|---|---|---:|---:|---:|---:|---:|---:|
-| `ercot-dam-v1-train` | `train` | 20,000 | 6,000 | 0.573 | 0.606 | 0.761 | 0.064 |
-| `ercot-dam-v1-eval` | `eval_2025` | 500 | 300 | 0.485 | 0.642 | 0.761 | 0.072 |
-| `ercot-dam-v1-eval-iid` | `eval_iid` | 500 | 0 | 0.555 | 0.607 | 0.751 | 0.067 |
-| `ercot-dam-v1-rtcb` | `rtcb` | 250 | 202 | 0.435 | 0.664 | 0.724 | 0.043 |
-| `showcase` | `showcase` | 761 | 700 | 0.627 | 0.602 | 0.832 | 0.125 |
+---
 
-- **Clock**: charge at full rate HE02 to HE05, sell at full rate HE18 to HE21.
-- **Threshold**: charge at or below the day's 25th-percentile price, sell at or above its 75th while the spread
-  covers the losses and degradation.
-- **Greedy**: pair the cheapest hours with the dearest later ones at full rate while each pair pays.
-- **Random feasible**: uniform over the actions that keep every rule and leave the end obligation reachable.
+## What's inside
 
-Each is clipped to the rules hour by hour and repaired to meet the end obligation. At the blind tier, the hindsight
-capture C of the anchor and of persistence alone:
+| Config | Splits (rows) | What it holds | Use it for |
+|---|---|---|---|
+| `leaderboard` (default) | `v1` (<!-- =leaderboard_rows -->) | Every model, reasoning effort and no-LLM baseline on the four evaluation packs: the score with its 95% CI, $ per battery-day, open or API weights, and whether it is on the cost frontier | comparing models; score against cost |
+| `eval_runs` | <!-- =eval_runs_rows --> | Every schedule behind the leaderboard, one row per model and battery-day: the 24 actions, the score, the kind of failure and the day's profit per MW, beside the optimum's and idle's | error analysis; the leaderboard and the dollars, recomputed |
+| `v1_tasks` | `train` (26,000), `eval_2025` (800), `eval_iid` (500), `rtcb` (452) | Each battery-day at each tier it plays: the battery, the 24 prices, the blind inputs, the one-call prompt and tool schema, the tags and the task as the env loads it | GRPO prompts; evaluating any model |
+| `v1_showcase` | `showcase` (1,461) | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind, in the same shape | demos and replays, never scoring |
+| `v1_references` | `train` (20,000), `eval_2025` (500), `eval_iid` (500), `rtcb` (250), `showcase` (761) | Per battery-day: the DP optimum and its schedule, idle, the LP bound, the clock, threshold, greedy and random schedules, and at the blind tier the persistence and ridge plans and the anchor | grading without the plugin; baselines |
+| `v1_episodes` | `eval_2025` (1,338), `rtcb` (250), `showcase` (10), `train` (7) | 1,605 recorded runs, each with every tool call and its output, the grade and the transcript as chat messages | transcripts for SFT and analysis; replays |
 
-| Pack | Blind battery-days | Anchor C | Persistence C |
-|---|---:|---:|---:|
-| `ercot-dam-v1-train` | 6,000 | 0.880 | 0.822 |
-| `ercot-dam-v1-eval` | 300 | 0.901 | 0.852 |
-| `ercot-dam-v1-rtcb` | 202 | 0.860 | 0.805 |
-| `showcase` | 700 | 0.867 | 0.852 |
+- **The v1 splits are by date,** so 2025 and later never reach `train`: `train` is 2014 to 2024 (20,000 battery-days,
+  6,000 of them also blind), `eval_2025` January to November 2025 (500, 300 also blind), `eval_iid` reserved dates of
+  2014 to 2024, every 10th calendar day (500, foresight only), and `rtcb` the days after ERCOT's real-time
+  co-optimization went live on 5 December 2025, to 17 October 2026 (250, 202 also blind). The showcase days are a
+  config of their own, so they never mix into a split.
+  <!-- packs -->
+  <!-- /packs -->
+- **Beside the tables,** `raw/packs/` holds the five packs exactly as the env loads them, one JSON task per line, with
+  each pack's manifest and `stats.md`; `runs/` the Episode JSON the [replay
+  Space](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) reads; `results/` each result folder's
+  README, summary, figures and per-task records, with `results/overview/results.json` holding every number on this
+  card; `training/` the earlier training summaries; and `live/` the live board's sealed schedules and settlements. The
+  v2 to v5 previews have configs of their own, and v4's forecast store and v5's market days are under `raw/`.
 
-## Results
+<details>
+<summary><b>Every column</b> of every v1 table</summary>
+
+**Leaderboard** (`leaderboard`), one row per model and reasoning effort on each pack, and per no-LLM baseline:
+
+- `pack` (the evaluation pack, as `eval_runs` names its splits), `model` (GPT-6.1 Sol, GPT-6 Luna, Beam-1.0, Qwen3-4B
+  untrained or trained with its run, or a baseline), `effort` (the reasoning effort; empty for the 4Bs and the
+  baselines).
+- `score`: the mean over the pack's battery-days of the share of the hindsight optimum captured, on the reward's scale
+  (idle 0.2, the optimum 1.0, no valid schedule 0): `r_opt` at the blind tier, the reward R at foresight, where the
+  two are equal (`metric` says which). `ci_low` and `ci_high`: its 95% interval, a day-block bootstrap with 10,000
+  resamples of days.
+- `usd_per_battery_day`: the inference cost of one battery-day. API models at their recorded token usage × list
+  price, Beam-1.0 at its price on the Hugging Face router, the 4Bs at their logged batched-generation time on one GPU;
+  empty where it was not measured.
+- `weights` (`open` or `API`), `frontier` (on `blind_fresh`, whether no cheaper model scores as much), `valid` (the
+  share of battery-days with a valid schedule), `battery_days`, `type` (`model` or `baseline`) and `source`, the
+  results folder that documents the run.
+
+**Eval runs** (`eval_runs`), one row per model and battery-day, a split per pack:
+
+- `model`, `effort`, `weights`, `tier`, `task_id`, `date`, `settlement_point`, `battery` (the archetype),
+  `power_mw`, `energy_mwh`.
+- `score`, as the leaderboard counts it; its mean by model and pack is the leaderboard's `score`.
+- `kind`: `ok`, or how the schedule failed: `all_idle`, `overfill` (charged past full), `sell_before_charge` (sold
+  below empty), `end_short` (ended under its obligation), `cycle_cap`, `rate`, `malformed` (no parseable call),
+  `truncated` (cut off while thinking) or `error` (an infrastructure failure).
+- `profit_usd`, the day's profit at ERCOT's day-ahead prices (a reply with no valid schedule settles as idle), and
+  `profit_usd_per_mw`, `optimum_usd_per_mw` and `idle_usd_per_mw`, the run's, the hindsight optimum's and idle's
+  profit per MW of battery power. On the blind packs, the mean of `profit_usd_per_mw` × 365 is the dollars of
+  [What it's worth](#what-its-worth).
+- `actions` (the 24 submitted integers; empty with no valid schedule), `forecast` (run 4's written 24-hour price
+  forecast, $/MWh), `prices` (the day's 24 day-ahead prices the schedule settles at; the blind tier never shows them),
+  `usd` (the inference cost: per call for API models, the batch's GPU time spread over its battery-days for the 4Bs),
+  `output_tokens` and `source`.
+
+**Tasks** (`v1_tasks`, `v1_showcase`), one row per battery-day and tier:
+
+- `task_id` (`dam-v1-<date>-<point>-<archetype>`; the tier is not in the id), `tier` (`foresight` or `blind`),
+  `has_blind` (the battery-day also plays at the blind tier), `split`, `date`, `settlement_point`, `point_kind`
+  (`hub` or `load_zone`), `region` (the viewer's backdrop: west, panhandle, north, houston, south or central).
+- The battery: `archetype`, `p_dis_mw`, `p_ch_mw`, `energy_mwh`, `unit_mwh`, `q_15`, `k_dis`, `k_ch`, `soc_levels`,
+  `eta`, `c_deg` ($/MWh discharged), `cycle_cap_units`, `s0`, `s_end_min`.
+- `prices`: the day's 24 DAM prices in $/MWh, HE01 first, on which every tier settles (a blind row's agent never sees
+  them). `dam_prev_day` (24) and `dam_prev_7d` (7 × 24, oldest first): the blind inputs, when the battery-day has
+  them.
+- `system_prompt`, `situation`: the system prompt and the opening user message exactly as the `oneshot` harness and
+  path-B training send them (`gridsim_core.prompt`); `prompt` is the same pair as a chat list, and `tools` the JSON
+  function schema of `submit_schedule`. The `full` harness's prompt differs only in describing `check_schedule` and
+  the check budget.
+- `curriculum` (`C0`, `C1`, `C2`), `difficulty`, `season`, `binding`, `neg_hours`, `spike`, `era` (the market era:
+  price caps and products in force), and `tags`, all the tags as JSON.
+- `task`: the full battery-day as JSON, as the env loads it, with its references.
+
+**References** (`v1_references`), one row per battery-day: `p_idle`, `p_opt`, `opt` (the DP schedule), `p_lp`; for
+each of `clock`, `threshold`, `greedy` and `random`, its `_profit`, `_reward` and `_schedule`; and for blind
+battery-days `p_persist` and `persist`, `p_ridge` and `ridge`, `p_anchor` and which one it is (`anchor`),
+`r_opt_anchor`, and each forecast schedule's blind-tier `_reward` and `_r_opt`.
+
+**Episodes** (`v1_episodes`), one row per recorded run: `episode_id`, `task_id`, `split`, `tier`, `bundle` (`full`,
+`oneshot` or `train`), `path` (`A`, a full AgentEnv episode; `B`, a training-path completion), `model` (the LiteLLM
+id, or `reference/...` for the reference episodes the Space also replays: the DP optimum, the baselines, persistence-DP
+and a deliberately flawed plan), `model_label` (the display name, e.g. GPT-6.1 Sol), `trained`
+(`base`, `grpo` or `sft`), `checkpoint_step`, `seed`; `reward`, `r_opt`, `beats_anchor` (blind), `submitted`,
+`feasible`, `truncated_at`, `violation`, `end_shortfall_units`, `profit_usd`, `p_opt`, `p_idle`, `p_anchor`;
+`final_schedule`, `soc_path`, `checks_used`, `tool_calls`, `steps` (each call's arguments as sent and its output, as
+JSON); `messages`, the transcript as chat messages in the shape TRL and transformers read (OpenAI roles, `tool_calls`
+with `arguments` as objects, `tool_call_id` and `name` on tool messages; the `actions` argument kept as the model sent
+it, a list or a string); `transcript` (`record`, the agent's own record, or `rebuilt` from the Episode JSON's calls
+when that record isn't published); `assistant_text`; `input_tokens`, `output_tokens`, `usd`, `wall_seconds`; and
+`file`, the episode's JSON under `runs/`. Every episode is graded again with `gridsim_core` before it is published,
+and the build stops if any reward, profit or situation differs.
+
+</details>
+
+<details>
+<summary><b>The preview configs</b>, v2 to v5</summary>
+
+| Config | Splits (rows) | What it holds |
+|---|---|---|
+| `v2_tasks` | `train` (15,189), `eval_2024` (1,128), `test_2025` (779), `rtcb` (386) | The Live Grid: each battery-day at each of its four tiers, with the bulletins its watches deliver |
+| `v2_showcase` | `showcase` (309) | 90 display-only days in the same shape |
+| `v2_references` | `train` (4,000), `eval_2024` (300), `test_2025` (200), `rtcb` (100), `showcase` (90) | idle, naive, hindsight, the LP bound and each tier's rolling anchor |
+| `v2_episodes` | `eval_2024` (40), `showcase` (1) | the registered pilot's runs |
+| `v3_tasks` | `train` (4,800), `eval` (600), `rtcb` (400) | Sun, Storage and Reserves: each site-day at the energy and reserves tiers |
+| `v3_showcase` | `showcase` (8) | 4 display-only site-days |
+| `v3_references` | `train` (2,400), `eval` (300), `rtcb` (200), `showcase` (4) | the anchor, hindsight, the LP bound, the one-shot optimum and the baselines |
+| `v3_episodes` | `train` (3), `eval` (53), `showcase` (15) | the rules-3.2 pilot and the reference runs |
+| `v4_tasks` | `train` (1,290), `eval` (60), `rtcb` (20) | Weather Front: three-day windows on forecasts as they were issued |
+| `v4_showcase` | `showcase` (4) | 4 display-only windows |
+| `v4_references` | `train` (1,290), `eval` (60), `rtcb` (20), `showcase` (4) | the rolling anchors, persistence, the naive gate rule, hindsight and the LP bound |
+| `v4_episodes` | `eval` (33), `showcase` (2) | the rules-4.1 pilot's runs |
+| `v5_tasks` | `train` (3,777), `eval` (289), `rtcb` (65) | The Market Floor: a battery seat in ERCOT's day-ahead market, cleared again from the day's real offers |
+| `v5_showcase` | `showcase` (6) | 6 display-only floors |
+| `v5_references` | `train` (3,777), `eval` (289), `rtcb` (65), `showcase` (6) | the anchor's forecast and self-schedule, the best responses and the baselines |
+| `v5_episodes` | `eval` (40), `showcase` (2) | the rules-5.1 pilot's runs |
+
+Each preview's section under [Versions](#versions) sets out its tables in full.
+
+</details>
+
+---
+
+## How the models did
+
+<!-- board -->
+<!-- /board -->
+
+<details>
+<summary><b>GPT-6.1 Sol's pre-registered v1 board</b>: the env's full three-tool harness on every held-out battery-day</summary>
 
 GPT-6.1 Sol (`openai/gpt-6.1-sol`, reasoning effort high) played each battery-day once, under the board registered
 before the first run ([`docs/prereg/v1-board.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v1-board.md)):
@@ -560,12 +525,17 @@ The dataset's
 the full board: the amendment, the breakdowns by checks used, battery class, binding constraint and day type, cost and
 time, the hypotheses against what was measured, and the unscored runs.
 
-The trained models' results are under [Training results](#training-results).
+</details>
 
-## Training record
+---
+
+## Training
+
+<!-- training-results -->
+<!-- /training-results -->
 
 <details>
-<summary>Every arm and registered run before run 3 in full: the four exploratory Qwen3-1.7B arms, registered Qwen3-4B runs 1 and 2, and the confirmatory evaluation of SFT-10k. Runs 3 and 4 are in <a href="#training-results">Training results</a>.</summary>
+<summary><b>The training record</b>: the four exploratory Qwen3-1.7B arms, registered Qwen3-4B runs 1 and 2, and the confirmatory evaluation of SFT-10k, in full</summary>
 
 The point of GridSimEnv is to show training on an AgentEnv simulation end to end. Path B trains on the `train`
 split with one prompt and one completion per battery-day: the prompt is exactly `v1_tasks`' `prompt` (the `oneshot`
@@ -667,7 +637,227 @@ The confirmatory evaluation of SFT-10k, pre-registered, sampled, on battery-days
 
 </details>
 
-## Simplifications
+---
+
+## What it's worth
+
+<!-- worth -->
+<!-- /worth -->
+
+---
+
+## Live board
+
+<!-- live -->
+<!-- /live -->
+
+---
+
+## The environment
+
+### The task
+
+An agent operates one battery in the ERCOT day-ahead market (DAM) for one operating day at one of ERCOT's 7 trading
+hubs or 8 load zones. It reads the battery and the day's 24 hourly DAM settlement point prices, then submits 24
+integers, one per hour ending (HE01 to HE24, Central Prevailing Time): how many energy units to sell (positive) or buy
+(negative) that hour. The battery is a price taker, so each hour settles at that hour's price. The schedule is graded
+once, exactly, against the best schedule a dynamic program finds for the same day.
+
+The env exposes three tools: `get_situation`, `check_schedule` (up to 3 dry runs that return feasibility, the state
+of charge path, any end shortfall and, at the foresight tier, the profit) and `submit_schedule`, which ends the
+episode. An episode allows 4 turns and 24 tool calls. The `oneshot` harness, which training uses, offers only
+`submit_schedule`.
+
+**Two tiers.** At the **foresight** tier the agent sees the day's 24 prices. At the **blind** tier it sees the prices
+at the same point for the previous day and for each of the previous 7 days, not the day's own, and its schedule
+settles on the day's actual prices. Each row of `v1_tasks` is one battery-day at one tier; a battery-day with blind
+inputs appears once per tier.
+
+<details>
+<summary><b>The rules</b>: whole units, five rules, losses and degradation</summary>
+
+The battery moves energy in whole units of `unit_mwh` MWh and holds 0 to `soc_levels` units. The rules:
+
+1. Each hour, `-k_ch <= a <= k_dis`.
+2. The state of charge stays between 0 and `soc_levels` after every hour; selling `a` units lowers it by `a`.
+3. The units discharged over the day sum to at most `cycle_cap_units`.
+4. At the first hour that breaks rule 1, 2 or 3, that hour and every later hour execute as 0; the hours before still
+   settle.
+5. The state of charge after HE24 must be at least `s_end_min`. Each missing unit is bought back at `unit_mwh / eta`
+   MWh times the day's highest price, or $50/MWh if that is higher.
+
+Selling `a` units delivers `a * unit_mwh` MWh. Buying `a` units draws `a * unit_mwh / eta` MWh, so the losses fall on
+the buy side. Each unit discharged costs `c_deg * unit_mwh` dollars of degradation. Profit is the sum of the hourly
+cash less the end-of-day penalty.
+
+</details>
+
+### A worked day
+
+<details>
+<summary>The Austin Energy load zone on 25 February 2025, a 150 MW / 300 MWh battery, hour by hour</summary>
+
+`dam-v1-2025-02-25-LZ_AEN-2h-o`, from `eval_2025`: the Austin Energy load zone on Tuesday 25 February 2025, with a
+150 MW / 300 MWh battery (archetype `2h-o`): `unit_mwh` 75, `soc_levels` 4, `k_dis` = `k_ch` = 2 (150 MW),
+`eta` 0.80, `c_deg` $4/MWh, `cycle_cap_units` 6 (1.5 cycles), starting empty and free to end empty. The prices, in
+$/MWh:
+
+| HE | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| $/MWh | 22.49 | 22.77 | 23.97 | 25.86 | 31.00 | 41.90 | 49.57 | 46.44 | 27.87 | 21.10 | 18.18 | 17.00 |
+
+| HE | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| $/MWh | 14.61 | 14.45 | 12.61 | 10.79 | 16.16 | 29.37 | 49.59 | 34.00 | 27.89 | 23.32 | 21.26 | 20.23 |
+
+The day has two peaks, at HE07 and HE19. The optimum takes both, and its second round trip uses the last two units
+of the cycle cap:
+
+| HE | Price | Action | MWh | Cash | State of charge after |
+|---|---:|---:|---:|---:|---:|
+| 01 | 22.49 | −2 (buy) | −187.5 | −$4,216.88 | 2 |
+| 07 | 49.57 | +2 (sell) | 150 | $6,835.50 | 0 |
+| 15 | 12.61 | −2 | −187.5 | −$2,364.38 | 2 |
+| 16 | 10.79 | −2 | −187.5 | −$2,023.12 | 4 |
+| 19 | 49.59 | +2 | 150 | $6,838.50 | 2 |
+| 20 | 34.00 | +2 | 150 | $4,500.00 | 0 |
+
+Every other hour is idle. The day's profit is **$9,569.63** (P_opt; doing nothing earns $0), net of $1,800 of
+degradation, and captures all of hindsight: C 1.000, R 1.0. The pack's references on the same day: the greedy rule,
+which pairs the cheapest hours with the dearest later ones, makes one evening round trip for $4,815.38 (C 0.503, R
+0.603); the threshold rule $5,411.63 (C 0.566, R 0.652); the clock rule, which charges HE02 to HE05 and sells HE18 to
+HE21, $1,880.25 (C 0.196, R 0.357). At the blind tier the anchor is the DP schedule on the previous day's prices,
+settled on this day: $8,937.75, a hindsight capture C of 0.934.
+
+</details>
+
+### Grading
+
+Every schedule is graded once, exactly. The headline is the hindsight capture C = (P − P_idle) / (P_hind − P_idle):
+idle scores 0 and the clairvoyant optimum 1. Second comes the reward R, which puts idle at 0.2 and the anchor, the
+best reference with the agent's own information, at 1. At the foresight tier the anchor is the exact optimum, so a
+model at R 1 has solved the day. A reply without a parseable schedule scores 0; there is no format credit.
+
+<details>
+<summary><b>The grading contract</b>: C, R and S, the anchors and the property tests</summary>
+
+Every GridSim version reports on one scale ([`docs/REWARD-SCALES.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/docs/REWARD-SCALES.md)).
+The headline is the hindsight capture
+
+    C = (P - P_idle) / (P_hind - P_idle)
+
+unclipped, where P is the run's profit, P_idle the profit of doing nothing (negative for the 12 of the 78 battery
+designs whose end obligation is above their starting charge) and P_hind the clairvoyant optimum of the same
+settlement, in v1 P_opt. Nothing settles above it: a property test checks every stored reference, each anchor and
+baseline, on every day of every v3, v4 and v5 pack against P_hind to the cent (in v5 against BR_rt, the best
+response settled at real-time prices). C is printed beside the anchor's own C on the same days and Δ = C − C_anchor,
+the paired gap, with its 95% interval; any other comparison is (P − P_ref) / (P_hind − P_idle). Second comes the
+reward on the anchor scale,
+
+    R = clip(0.2 + 0.8 * (P - P_idle) / (P_anchor - P_idle), 0, 1)
+
+a level with its share at R = 1 and its beats-anchor share, never differenced, where P_anchor is the reference with
+the same information as the agent:
+
+- **foresight**: P_opt, the exact optimum. A dynamic program over the state of charge, the units discharged so far
+  and every allowed action finds it in under a millisecond, with ties broken deterministically. An LP relaxation
+  bound (`p_lp`) is reported beside it: over every candidate day, the bound exceeds the optimum by at most 4.2% of
+  its margin over idle, and by nothing up to the 99th percentile.
+- **blind**: max(P_persist, P_ridge), the better of two schedules a desk could make from the same lagged prices,
+  each the DP schedule on a price forecast, settled on the actual day: persistence (the previous day's prices) and a
+  lagged ridge regression (`raw/packs/ridge-v1.json`).
+
+At the foresight tier the anchor is the hindsight, so C = (R − 0.2) / 0.8 and a model at C 1 has solved the tier. At
+the blind tier C replaces the `r_opt` this card printed before (r_opt = 0.2 + 0.8 · C, still a weight-0 row of the
+verifier and a column of the episodes). Idle scores C 0 and R 0.2, the anchor R 1.0. A run that never submits a
+parseable schedule scores 0 on both; there is no format credit. Training uses a third scale, S: R up to the anchor,
+then rising linearly to 1.2 at hindsight. In v1 the trained tier is foresight, where the anchor is the hindsight, so
+S = R and `gridsim_core.trl.reward_fn` is unchanged. The env, its verifier and training all grade with the same code,
+`gridsim_core.grade`, and the plugin's tests check that the env and gridsim_core agree to 1e-6.
+
+</details>
+
+### How the battery-days were picked
+
+<details>
+<summary>Prices, clean days, duplicates, splits by date, batteries, filters, sampling and tags</summary>
+
+- **Prices.** ERCOT's *Historical DAM Load Zone and Hub Prices* (report NP4-180-ER, report type 13060), the yearly
+  files for 2014 to 2026, with their SHA-256 in each manifest: the hourly DAM settlement point price at the hubs
+  HB_HOUSTON, HB_NORTH, HB_PAN (from 6 April 2019), HB_SOUTH, HB_WEST, HB_HUBAVG and HB_BUSAVG, and the load zones
+  LZ_AEN, LZ_CPS, LZ_HOUSTON, LZ_LCRA, LZ_NORTH, LZ_RAYBN, LZ_SOUTH and LZ_WEST.
+- **Clean days.** Days of the daylight-saving changes are dropped (364 point-days), as is any day without exactly 24
+  hourly prices (none). 67,810 point-days remain. Seven point-days of 17 February 2021 (Uri) above the era's
+  $9,000/MWh cap are kept for the showcase only.
+- **Duplicates.** Within a date, a point whose 24 prices match a point already kept (correlation above 0.999 and no
+  hour more than $1 apart) is dropped: 19,733 point-days, most of them load zones that track their hub, and the two
+  averages.
+- **Splits by date.** `eval_2025` is 1 January to 30 November 2025 (the first battery-day is 6 January); `rtcb` is 5
+  December 2025, when real-time co-optimization plus batteries (RTC+B) went live, to 17 October 2026; `eval_iid` is
+  every 10th calendar day from 10 January 2014 through 2024; `train` is the rest of 2014 to 2024; the showcase
+  windows are 10 to 22 February 2021, 22 to 24 December 2022, August 2023, 6 September 2023 and 13 to 17 January
+  2024. 1 to 4 December 2025 is unused. 2025 and later never reach `train`.
+- **Batteries.** Each point-day gets one archetype battery, chosen by a stable hash of the date and point: the
+  duration class with the mix 1 h 40%, 2 h 45%, 4 h 15%, then one of 26 lettered designs in that class. Power,
+  `unit_mwh` and the rest come from a fixed table (in each manifest and in `stats.md`): 7.5 to 225 MW, round-trip
+  efficiency 0.80 to 0.90, degradation $0 to $8/MWh discharged, 1 to 2 cycles a day, varied start and end charge, and
+  up to 16 charge levels. The sizes follow EIA-860 2025 (Schedule 3_4, operable storage in the ERCO balancing
+  authority): 204 units, 13,115 MW, a mean duration of 1.645 h weighted by power, and 40% / 59% / 1% of the power in
+  the 1 h / 2 h / 4 h classes. 4 h batteries are over-weighted on purpose, to give long-duration days. The batteries
+  are archetypes, not real sites.
+- **Filters.** A battery-day is dropped as low-spread when P_opt − P_idle is under $22 per MW of discharge power
+  (14.6% of train candidates, 5.4% of eval), and 80% of the days where the greedy rule already scores 0.97 or more
+  are dropped, chosen by hash (31,281 train candidates). The values were tuned on train and eval so that the greedy
+  mean lands near 0.75 to 0.80 and about 15% of train drops as low-spread; the tuning table is in `stats.md`. A day
+  joins the blind tier only if its anchor clears the same low-spread margin.
+- **Sampling.** `train` is 20,000 of the 27,688 kept candidates by hash, and 6,000 of those with blind inputs form
+  its blind tier. `eval_2025`, `eval_iid` and `rtcb` are drawn round-robin over (point, duration class, month) to 500,
+  500 and 250; `eval_2025`'s 300 blind battery-days are drawn the same way, and `rtcb` uses every blind-eligible
+  day (202). `eval_iid` has no blind tier.
+- **Tags.** `binding` names the first of the cycle cap, the end obligation and the rate limit whose removal would
+  raise P_opt by more than 10% of P_opt − P_idle (`none` otherwise); `neg_hours` counts negative-price hours; `spike`
+  marks a day whose top price reaches the larger of $200 and 3 times its median. `difficulty` is 1 minus the greedy
+  reward. The curriculum is `C2` when the cycle cap or the end obligation binds or any hour is negative, else `C0`
+  when difficulty is at most 0.15, else `C1`.
+
+</details>
+
+### Baselines
+
+<details>
+<summary>The clock, threshold, greedy and random-feasible rules on every pack, and the blind anchors</summary>
+
+Mean foresight reward per pack, from `stats.md`. Idle is 0.2 and the DP optimum 1.0 by construction. The anchor here
+is the optimum, so a rule's C is (R − 0.2) / 0.8 wherever R is not clipped at 0: on `eval_2025`, clock 0.341, threshold
+0.543 and greedy 0.701.
+
+| Pack | Split | Battery-days | Blind | Clock | Threshold | Greedy | Random feasible |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `ercot-dam-v1-train` | `train` | 20,000 | 6,000 | 0.573 | 0.606 | 0.761 | 0.064 |
+| `ercot-dam-v1-eval` | `eval_2025` | 500 | 300 | 0.485 | 0.642 | 0.761 | 0.072 |
+| `ercot-dam-v1-eval-iid` | `eval_iid` | 500 | 0 | 0.555 | 0.607 | 0.751 | 0.067 |
+| `ercot-dam-v1-rtcb` | `rtcb` | 250 | 202 | 0.435 | 0.664 | 0.724 | 0.043 |
+| `showcase` | `showcase` | 761 | 700 | 0.627 | 0.602 | 0.832 | 0.125 |
+
+- **Clock**: charge at full rate HE02 to HE05, sell at full rate HE18 to HE21.
+- **Threshold**: charge at or below the day's 25th-percentile price, sell at or above its 75th while the spread
+  covers the losses and degradation.
+- **Greedy**: pair the cheapest hours with the dearest later ones at full rate while each pair pays.
+- **Random feasible**: uniform over the actions that keep every rule and leave the end obligation reachable.
+
+Each is clipped to the rules hour by hour and repaired to meet the end obligation. At the blind tier, the hindsight
+capture C of the anchor and of persistence alone:
+
+| Pack | Blind battery-days | Anchor C | Persistence C |
+|---|---:|---:|---:|
+| `ercot-dam-v1-train` | 6,000 | 0.880 | 0.822 |
+| `ercot-dam-v1-eval` | 300 | 0.901 | 0.852 |
+| `ercot-dam-v1-rtcb` | 202 | 0.860 | 0.805 |
+| `showcase` | 700 | 0.867 | 0.852 |
+
+</details>
+
+### Simplifications
 
 - **A price taker.** The battery's trades never move the price.
 - **The DAM award is the physical schedule.** No real-time market, no deviations, no imbalance settlement.
@@ -680,46 +870,29 @@ The confirmatory evaluation of SFT-10k, pre-registered, sampled, on battery-days
   node, no outages.
 - **Integer charge levels.** Energy moves in whole units, which is what makes the optimum exact.
 
-## Dataset structure
+---
 
-**Tasks** (`v1_tasks`, `v1_showcase`), one row per battery-day and tier:
+## Versions
 
-- `task_id` (`dam-v1-<date>-<point>-<archetype>`; the tier is not in the id), `tier` (`foresight` or `blind`),
-  `has_blind` (the battery-day also plays at the blind tier), `split`, `date`, `settlement_point`, `point_kind`
-  (`hub` or `load_zone`), `region` (the viewer's backdrop: west, panhandle, north, houston, south or central).
-- The battery: `archetype`, `p_dis_mw`, `p_ch_mw`, `energy_mwh`, `unit_mwh`, `q_15`, `k_dis`, `k_ch`, `soc_levels`,
-  `eta`, `c_deg` ($/MWh discharged), `cycle_cap_units`, `s0`, `s_end_min`.
-- `prices`: the day's 24 DAM prices in $/MWh, HE01 first, on which every tier settles (a blind row's agent never sees
-  them). `dam_prev_day` (24) and `dam_prev_7d` (7 × 24, oldest first): the blind inputs, when the battery-day has
-  them.
-- `system_prompt`, `situation`: the system prompt and the opening user message exactly as the `oneshot` harness and
-  path-B training send them (`gridsim_core.prompt`); `prompt` is the same pair as a chat list, and `tools` the JSON
-  function schema of `submit_schedule`. The `full` harness's prompt differs only in describing `check_schedule` and
-  the check budget.
-- `curriculum` (`C0`, `C1`, `C2`), `difficulty`, `season`, `binding`, `neg_hours`, `spike`, `era` (the market era:
-  price caps and products in force), and `tags`, all the tags as JSON.
-- `task`: the full battery-day as JSON, as the env loads it, with its references.
+v1 is the release. Four previews extend it, each adding one kind of realism under the same reward contract, each with
+a pre-registered pilot of GPT-6.1 Sol and design decisions still open. They replay in the same viewer and have their
+own configs here.
 
-**References** (`v1_references`), one row per battery-day: `p_idle`, `p_opt`, `opt` (the DP schedule), `p_lp`; for
-each of `clock`, `threshold`, `greedy` and `random`, its `_profit`, `_reward` and `_schedule`; and for blind
-battery-days `p_persist` and `persist`, `p_ridge` and `ridge`, `p_anchor` and which one it is (`anchor`),
-`r_opt_anchor`, and each forecast schedule's blind-tier `_reward` and `_r_opt`.
+| Version | What it adds | What the agent does | Status |
+|---|---|---|---|
+| **v1, The Battery Desk** | exact battery physics on ERCOT's real day-ahead prices, at a foresight and a blind tier | writes 24 hourly actions in one call | the release, everything above |
+| **v2, The Live Grid** | time: day-ahead against real-time prices, with ERCOT and weather bulletins on a virtual clock | commits a day-ahead position, then re-plans its 15-minute dispatch at watches through the day | preview, one registered pilot |
+| **v3, Sun, Storage and Reserves** | a solar farm and the battery behind one meter, and five ERCOT reserve products | sells energy and reserves the day before and keeps the charge to cover them | preview, rules 3.2 pilot |
+| **v4, Weather Front** | three operating days on load, wind, solar and price forecasts as they were issued | bids each day-ahead market and re-plans as the weather turns | preview, rules 4.1 pilot |
+| **v5, The Market Floor** | price-making: offers re-clear the day-ahead market from ERCOT's real disclosed offers, against rival portfolios | offers curves for a battery portfolio and hedges | preview, rules 5.1 pilot |
 
-**Episodes** (`v1_episodes`), one row per recorded run: `episode_id`, `task_id`, `split`, `tier`, `bundle` (`full`,
-`oneshot` or `train`), `path` (`A`, a full AgentEnv episode; `B`, a training-path completion), `model` (the LiteLLM
-id, or `reference/...` for the reference episodes the Space also replays: the DP optimum, the baselines, persistence-DP
-and a deliberately flawed plan), `model_label` (the display name, e.g. GPT-6.1 Sol), `trained`
-(`base`, `grpo` or `sft`), `checkpoint_step`, `seed`; `reward`, `r_opt`, `beats_anchor` (blind), `submitted`,
-`feasible`, `truncated_at`, `violation`, `end_shortfall_units`, `profit_usd`, `p_opt`, `p_idle`, `p_anchor`;
-`final_schedule`, `soc_path`, `checks_used`, `tool_calls`, `steps` (each call's arguments as sent and its output, as
-JSON); `messages`, the transcript as chat messages in the shape TRL and transformers read (OpenAI roles, `tool_calls`
-with `arguments` as objects, `tool_call_id` and `name` on tool messages; the `actions` argument kept as the model sent
-it, a list or a string); `transcript` (`record`, the agent's own record, or `rebuilt` from the Episode JSON's calls
-when that record isn't published); `assistant_text`; `input_tokens`, `output_tokens`, `usd`, `wall_seconds`; and
-`file`, the episode's JSON under `runs/`. Every episode is graded again with `gridsim_core` before it is published,
-and the build stops if any reward, profit or situation differs.
+In the v2 to v4 pilots, Sol captures less of hindsight than the rolling re-planner each version uses as its anchor, so
+those tiers have room to train in a way v1's foresight tier no longer does.
 
-## v2 preview: The Live Grid
+### v2 preview: The Live Grid
+
+<details>
+<summary>The task, the grading, the configs and the registered pilot</summary>
 
 > **A preview, not a release.** The env, the packs and the grading are built and tested, and one registered pilot
 > has run. The headline metric is decided (below); columns and numbers may still change before v2 ships. The contract
@@ -805,7 +978,12 @@ Sol against naive on the same days: +0.012 (−0.004 to +0.028) of the hindsight
   `gridsim_core.live` and passes its audit. The full reading is in
   [`results/board-v2.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/results/board-v2.md).
 
-## v3 preview: Sun, Storage and Reserves
+</details>
+
+### v3 preview: Sun, Storage and Reserves
+
+<details>
+<summary>The task, the grading, rules 3.1 and 3.2, the configs and the registered pilot</summary>
 
 > **A preview, not a release.** The env, the packs and the grading are built and tested, and a registered pilot has
 > run on rules 3.2. Some design decisions are open (below). The contract is [`docs/CONTRACT-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/docs/CONTRACT-v3.md).
@@ -944,7 +1122,12 @@ anchor 0.449 at the reserves tier; the sponge 0.142, v2 energy-only 0.317 and th
   Rules 3.0, on packs since rebuilt: reserves C 0.397 against 0.480, Δ −0.083 (−0.120 to −0.049)
   ([`results/board-v3.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/results/board-v3.md)).
 
-## v4 preview: Weather Front
+</details>
+
+### v4 preview: Weather Front
+
+<details>
+<summary>The task, the forecasts, the grading, the configs, the forecast store and the registered pilot</summary>
 
 > **A preview, not a release.** The env, the packs, the forecast store and the grading are built and tested, and a
 > registered pilot has run on rules 4.1. Some decisions are open (below), so tiers, filters and numbers may change
@@ -1077,7 +1260,12 @@ against Sol's 0.463; R: P_roll3 0.973, P_blind 0.762 and the naive gate rule 0.6
   ([`results/board-v4.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/results/board-v4.md)).
   On the 11 windows both pilots ran, rules 4.1 did not lift Sol's capture: −0.031 (−0.073 to +0.000).
 
-## v5 preview: The Market Floor
+</details>
+
+### v5 preview: The Market Floor
+
+<details>
+<summary>The task, the grading, what is real and modelled, the configs, the market days and the registered pilot</summary>
 
 > **A preview, not a release.** The env, the packs, the market days and the grading are built and tested, and a
 > registered pilot has run on rules 5.1. Some design decisions are open (below). The contract is
@@ -1213,7 +1401,18 @@ plus two showcase floors for display, played at `floor-day` under the compliant 
   dataset ([`results/board-v5.md`](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/previews/results/board-v5.md)).
   On the 7 floors both pilots played, Sol's 5.1 runs capture less, −0.104 (−0.176 to −0.036), one run a floor each.
 
-## Licence and attribution
+</details>
+
+---
+
+## Data sources and licence
+
+| Source | What it gives | Terms |
+|---|---|---|
+| ERCOT, *Historical DAM Load Zone and Hub Prices* (NP4-180-ER) | every v1 price, and the prompts, references and runs derived from them | ERCOT's Website User Agreement, section 5; not relicensed |
+| U.S. Energy Information Administration, Form EIA-860 (2025, Schedule 3_4) | the battery archetypes' sizes | public domain |
+| `gridsim_core`, the verifier and the plugin | the grader, the env and the code that builds this dataset | Apache-2.0 |
+| More ERCOT reports, NOAA's HRRR, EIA-930, EIA-923 and the IEM's archive of NWS products | the v2 to v5 previews | as set out below |
 
 The dataset carries several sets of terms, hence `license: other`; the plugin's
 [data/LICENSE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE) holds the ERCOT
@@ -1246,6 +1445,13 @@ EIA-860 annual electric generator data (2025 release, Schedule 3_4, Energy Stora
 <https://www.eia.gov/electricity/data/eia860/>, a work of the U.S. Government. Source: U.S. Energy Information
 Administration.
 
+**Apache-2.0: the code.** The grader (`gridsim_core`), the verifier and bundle files under `bundles/` and the plugin
+that builds this dataset are Apache-2.0. The prompts, references and transcripts are derived from the ERCOT prices
+and carry ERCOT's terms with them.
+
+<details>
+<summary><b>The previews' sources</b>: more ERCOT data, NOAA's HRRR, EIA-930 and the 60-Day DAM Disclosure</summary>
+
 **v2 and v3 previews: more ERCOT data, under the same terms.** The previews add ERCOT's real-time settlement point
 prices at the hubs and load zones (NP6-785-ER, *Historical RTM Load Zone and Hub Prices*), its day-ahead
 ancillary-service clearing prices (NP4-181-ER and NP4-188-CD, *DAM Clearing Prices for Capacity*), its system-wide solar
@@ -1274,9 +1480,7 @@ and each seat's portfolio by an anonymous pool id. No disclosure file and no res
 The CT heat rates are from the EIA's Form EIA-923 (public domain). GridSimEnv is not affiliated with or endorsed by
 ERCOT, and ERCOT does not guarantee the accuracy of these compilations.
 
-**Apache-2.0: the code.** The grader (`gridsim_core`), the verifier and bundle files under `bundles/` and the plugin
-that builds this dataset are Apache-2.0. The prompts, references and transcripts are derived from the ERCOT prices
-and carry ERCOT's terms with them.
+</details>
 
 **Not in this dataset.** The replay Space can show each day's weather at a representative airport, from the Iowa
 Environmental Mesonet's ASOS archive (Iowa State University), credited there.
@@ -1284,14 +1488,18 @@ Environmental Mesonet's ASOS archive (Iowa State University), credited there.
 `scripts/hub_dataset.py` in the plugin builds this dataset, after agentenv-hf's scan of every file for keys and token
 shapes. Neither ERCOT, NOAA, the EIA, the NWS nor the IEM is affiliated with it or endorses it.
 
+---
+
 ## Citation
 
 ```bibtex
 @misc{gridsimenv2026,
-  title        = {{GridSimEnv}: run a grid battery on the real {Texas} day-ahead market, an {AgentEnv} environment},
-  author       = {Arakelyan, Edgar and Kolavi, Adithya S},
-  year         = {2026},
-  howpublished = {\url{https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv}},
-  note         = {Version v0.1.0. Prices: ERCOT NP4-180-ER. Code: https://github.com/earakely-scale/agentenv-gridsim-plugin}
+  title = {{GridSimEnv}: run a grid battery on the real {Texas} day-ahead
+           market, an {AgentEnv} environment},
+  author = {Arakelyan, Edgar and Kolavi, Adithya S},
+  year = {2026},
+  url = {https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv},
+  note = {GridSimEnv v1, The Battery Desk. Prices: ERCOT NP4-180-ER. Code:
+          \url{https://github.com/earakely-scale/agentenv-gridsim-plugin}}
 }
 ```

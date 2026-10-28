@@ -1,7 +1,7 @@
-"""What training bought, in dollars: the results page on the Space, its figures on the dataset card, and the result
-folders under the dataset's results/. Every number comes from a committed summary, or from committed per-task records
-re-graded with gridsim_core and bootstrapped with report_blind's day-block resampler, and is checked against the
-summary that reports it.
+"""What training bought, in dollars: the results page on the Space, its figures on the dataset card, the result
+folders under the dataset's results/, and every schedule behind the leaderboard for the dataset's eval_runs config.
+Every number comes from a committed summary, or from committed per-task records re-graded with gridsim_core and
+bootstrapped with report_blind's day-block resampler, and is checked against the summary that reports it.
 
     .venv/bin/python scripts/hub_results.py              # results/overview/ and build/hub/results/, nothing uploaded
     .venv/bin/python scripts/hub_results.py --publish    # then upload to the dataset and the Space
@@ -15,6 +15,7 @@ import base64
 import gzip
 import hashlib
 import importlib.util
+import io
 import json
 import posixpath
 import re
@@ -28,10 +29,11 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import numpy as np
+import pyarrow.parquet as pq
 from agentenv_hf.scan import known_values, scan
-from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+from huggingface_hub import CommitOperationAdd, DatasetCard, HfApi, hf_hub_download
 
-from gridsim_core.grade import reward_value
+from gridsim_core.grade import grade, reward_value
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -338,6 +340,79 @@ def leaderboard(beam_dir: Path, front: dict) -> dict:
             "ci": "day-block bootstrap, 10,000 resamples of days", "packs": packs}
 
 
+def pack_runs(key: str, beam_dir: Path) -> list[tuple]:
+    """The runs leaderboard() grades on a pack with their per-task records: (row key, label, family, effort, open,
+    records, the file they come from, $ per task when the run's cost is one batch's GPU time, else None)."""
+    p = RC.PACKS[key]
+    n, run = len(RC.tasks_of(key)), "run 4" if p["tier"] == "blind" else "run 3"
+
+    def sampled(rel: str, pack: str | None) -> dict:
+        return next(r for r in load(rel)["runs"] if r["decoding"] == "sampled" and (pack is None or r["pack"] == pack))
+
+    four = sampled(*p["fourb"])
+    out = [("final", f"Qwen3-4B, trained ({run})", "qwen", None, True, {t["task_id"]: t for t in four["per_task"]},
+            p["fourb"][0], four["wall_s"] * p["rate"] / 3600 / n)]
+    if key == "foresight-eval2025":
+        sol = {}
+        for d in RC.BOARD:
+            for e in (json.loads(f.read_text()) for f in sorted((ROOT / d).glob("*.json"))):
+                sol[e["task_id"]] = {"actions": e["final_schedule"], "reward": e["reward"], "usd": e["usage"]["usd"],
+                                     "usage": {"output": e["usage"]["output_tokens"]}}
+        out.append(("sol", "GPT-6.1 Sol", "sol", "high", False, sol, RC.BOARD[0], None))
+    else:
+        out.append(("sol", "GPT-6.1 Sol", "sol", "high", False, records(ROOT / p["sol"]), p["sol"], None))
+    for effort in ("high", "low"):
+        rel = f"{CM}/luna/luna-{key}-{effort}.jsonl.gz"
+        out.append((f"luna-{effort}", "GPT-6 Luna", "luna", effort, False, records(ROOT / rel), rel, None))
+    for pk, rk, label, family, effort, open_, src in BOARD_ROWS:
+        if pk != key:
+            continue
+        if isinstance(src, tuple):
+            r = sampled(*src)
+            out.append((rk, label, family, effort, open_, {t["task_id"]: t for t in r["per_task"]}, src[0],
+                        r["wall_s"] * p["rate"] / 3600 / n if p["tier"] == "blind" else None))
+            continue
+        path = beam_dir / src if src.startswith("beam-") else ROOT / src
+        if path.is_file():
+            out.append((rk, label, family, effort, open_, records(path), path.relative_to(ROOT).as_posix(), None))
+    return out
+
+
+def eval_runs(beam_dir: Path) -> dict[str, list[dict]]:
+    """Every schedule the leaderboard grades, one row per run and battery-day, re-graded with gridsim_core and checked
+    against its record: the score as the leaderboard counts it (0 with no valid schedule), the failure kind, and the
+    day's profit, settled as idle when no schedule is valid, as the economics re-analysis settles it."""
+    out = {}
+    for key, p in RC.PACKS.items():
+        tasks, tier = RC.tasks_of(key), p["tier"]
+        sk = "c" if tier == "blind" else "reward"
+        rows = []
+        for rk, label, family, effort, open_, recs, src, batch_usd in pack_runs(key, beam_dir):
+            for t in tasks:
+                r = recs[t["task_id"]]
+                acts = r.get("actions")
+                g = grade(t, acts, tier) if acts is not None else None
+                score = (g["r_opt"] if tier == "blind" else g["reward"]) if g else 0.0
+                if abs(score - (r.get(sk) or 0.0)) > 1e-6:
+                    raise SystemExit(f"{src}: {t['task_id']} re-grades to {score}, its record says {r.get(sk)}")
+                b, f = t["battery"], t["refs"]["foresight"]
+                profit = g["profit"] if g else f["p_idle"]
+                rows.append({
+                    "key": rk, "model": label, "family": family, "effort": effort, "open": open_, "tier": tier,
+                    "task_id": t["task_id"], "date": t["date"], "settlement_point": t["settlement_point"],
+                    "battery": b["archetype"], "power_mw": b["p_dis_mw"], "energy_mwh": b["energy_mwh"],
+                    "score": score, "kind": RC.KIND_OF(g, acts) if g else r.get("kind", "error"),
+                    "profit_usd": round(profit, 2), "profit_usd_per_mw": round(profit / b["p_dis_mw"], 4),
+                    "optimum_usd_per_mw": round(f["p_opt"] / b["p_dis_mw"], 4),
+                    "idle_usd_per_mw": round(f["p_idle"] / b["p_dis_mw"], 4), "actions": acts,
+                    "forecast": r.get("forecast"), "prices": t["prices"],
+                    "usd": round(batch_usd, 8) if batch_usd is not None else r.get("usd"),
+                    "output_tokens": r["len"] if "len" in r else (r.get("usage") or {}).get("output"),
+                    "source": src})
+        out[key] = rows
+    return out
+
+
 def dollars() -> dict:
     """$k per MW of battery per year (economics/summary.json): the before and after, the ladder of every policy, the
     paired gaps, inference against value, the price-shape quartiles and the fresh days one by one."""
@@ -608,23 +683,37 @@ def page_shots(page, stem: Path, segment: int = 3000) -> list[Path]:
     return out
 
 
-def figures(space: Path, chrome: str | None, shots: Path | None) -> dict[str, bytes]:
-    """Each figure of the page, 800 px wide on white, captured at 2x; with ``shots``, the whole page at 1440 and 390."""
-    out = {}
+BOXES = ("[...document.querySelectorAll('[data-figure]')].map((e) => { const r = e.getBoundingClientRect(); return "
+         "{id: e.dataset.figure, x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height}; })")
+CAPTIONS = ("Object.fromEntries([...document.querySelectorAll('[data-figure]')].map((e) => [e.dataset.figure, "
+            "{title: e.querySelector('.panel-head h2').textContent, "
+            "sub: e.querySelector('.panel-head .sub').textContent, "
+            "notes: [...e.querySelectorAll('p.note:not(.drop)')].map((n) => n.textContent), "
+            "src: e.querySelector('p.src').textContent}]))")
+BARE = ("document.head.insertAdjacentHTML('beforeend', '<style>body.export section.fig { padding-top: 16px; } "
+        "body.export section.fig :is(.panel-head, .note, .src) { display: none; }</style>')")
+
+
+def figures(space: Path, chrome: str | None, shots: Path | None) -> tuple[dict[str, bytes], dict[str, bytes], dict]:
+    """Each figure of the page, 800 px wide on white, captured at 2x: as the page draws it, titled, and bare (the chart
+    and its legend), which the dataset card prints under its own title with the page's caption, notes and sources.
+    With ``shots``, the whole page at 1440 and 390."""
+    titled, bare = {}, {}
     with browser(space, chrome) as (page, base):
         open_page(page, f"{base}/results.html?export=1", 800, 900, 2)
-        boxes = page.js("[...document.querySelectorAll('[data-figure]')].map((e) => { const r = "
-                        "e.getBoundingClientRect(); return {id: e.dataset.figure, x: r.x + scrollX, y: r.y + scrollY, "
-                        "width: r.width, height: r.height}; })")
-        for b in boxes:
-            path = BUILD / "figures" / f"{b['id']}.png"
-            shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
-            out[b["id"]] = path.read_bytes()
+        captions = page.js(CAPTIONS)
+        for out, folder in ((titled, "titled"), (bare, "figures")):
+            if out is bare:
+                page.js(BARE)
+            for b in page.js(BOXES):
+                path = BUILD / folder / f"{b['id']}.png"
+                shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
+                out[b["id"]] = path.read_bytes()
         if shots:
             for w, mobile in ((1440, False), (390, True)):
                 open_page(page, f"{base}/results.html", w, 900, 1 if w > 1000 else 2, mobile)
                 page_shots(page, shots / f"results-{w}", 2400 if w > 1000 else 1200)
-    return out
+    return bare, titled, captions
 
 
 SHIP = {
@@ -681,10 +770,10 @@ def relink(text: str, folder: str, shipped: set[str]) -> str:
     return LINK.sub(fix, text)
 
 
-def dataset_files(card: str, figs: dict[str, bytes]) -> dict[str, bytes]:
+def dataset_files(card: str, figs: dict[str, bytes], tables: dict[str, bytes]) -> dict[str, bytes]:
     shipped = {f"{d}/{f}" for d, fs in SHIP.items() for f in fs}
     files = {"README.md": card.encode(), "results/overview/results.json": (OUT / "results.json").read_bytes(),
-             **{f"assets/figures/{k}.png": v for k, v in figs.items()}}
+             **{f"assets/figures/{k}.png": v for k, v in figs.items()}, **tables}
     for rel in sorted(shipped):
         content = (ROOT / rel).read_bytes()
         if rel.endswith(".md"):
@@ -723,14 +812,15 @@ def space_files(space: Path, live_readme: str) -> dict[str, bytes]:
     return {n: (space / n).read_bytes() for n in names} | {"README.md": space_readme(live_readme).encode()}
 
 
-def front(text: str) -> str:
-    return text[:text.index("\n---\n", 4) + 5]
-
-
 def card_diff(new: str, live: str) -> list[str]:
-    """What the new card drops from the live one, line by line; the front matter must be identical."""
-    if front(new) != front(live):
-        raise SystemExit("the new card's front matter differs from the live card's; the dataset viewer reads it")
+    """What the new card drops from the live one, line by line. Its front matter must keep every key of the live one
+    and every config with the same data files: the dataset viewer and existing loaders read them."""
+    a, b = DatasetCard(new).data.to_dict(), DatasetCard(live).data.to_dict()
+    files = {c["config_name"]: c["data_files"] for c in a.get("configs", [])}
+    lost = [k for k in b if k not in a] + [c["config_name"] for c in b.get("configs", [])
+                                           if files.get(c["config_name"]) != c["data_files"]]
+    if lost:
+        raise SystemExit(f"the new card's front matter drops or changes {', '.join(lost)}; the dataset viewer reads it")
     have = {x.strip() for x in new.splitlines()}
     return [x for x in live.splitlines() if x.strip() and x.strip() not in have]
 
@@ -740,7 +830,9 @@ def leaks(files: dict[str, bytes]) -> None:
     for path, content in files.items():
         if path.endswith(".png"):
             continue
-        text = gzip.decompress(content).decode() if path.endswith(".gz") else content.decode()
+        text = (json.dumps(pq.read_table(io.BytesIO(content)).to_pylist(), ensure_ascii=False, default=str)
+                if path.endswith(".parquet") else gzip.decompress(content).decode() if path.endswith(".gz")
+                else content.decode())
         if hit := LEAK.search(text):
             raise SystemExit(f"{path} holds {hit[0]!r}; nothing was published")
 
@@ -797,18 +889,20 @@ def main():
     for g in res["glance"]:
         print(f"{g['value']:>16}  {g['label']}")
     space = stage(res)
-    figs = figures(space, args.chrome, args.shots)
+    figs, titled, captions = figures(space, args.chrome, args.shots)
     (OUT / "figures").mkdir(exist_ok=True)
     for name, png in figs.items():
         (OUT / "figures" / f"{name}.png").write_bytes(png)
+    (OUT / "figures" / "captions.json").write_text(json.dumps(captions, indent=1, ensure_ascii=False) + "\n")
     if args.pareto:
         args.pareto.parent.mkdir(parents=True, exist_ok=True)
-        args.pareto.write_bytes(figs["frontier"])
+        args.pareto.write_bytes(titled["frontier"])
     hub_dataset = module("hub_dataset", "scripts/hub_dataset.py")
     card = hub_dataset.card_only(ROOT / "results")
+    tables = hub_dataset.result_tables(res, eval_runs(args.beam))
     live_card, live_readme = live_file("dataset", "README.md"), live_file("space", "README.md")
     dropped = card_diff(card, live_card)
-    ds, sp = dataset_files(card, figs), space_files(space, live_readme)
+    ds, sp = dataset_files(card, figs, tables), space_files(space, live_readme)
     leaks(ds | {f"space/{k}": v for k, v in sp.items()})
     for name, files in (("dataset", ds), ("space", sp)):
         out = BUILD / name

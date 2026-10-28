@@ -1,0 +1,40 @@
+{
+ "before-after": {
+  "title": "Training took Qwen3-4B from below idle to level with GPT-6 Luna",
+  "sub": "The same one-call prompt for every model. Top: the share of the hindsight optimum each schedule captures (idle 0.2, perfect hindsight 1.0). Bottom: what the schedules earn at ERCOT's day-ahead prices. GPT-6.1 Sol stays ahead on every row. Lines: 95% CIs.",
+  "notes": [
+   "Not drawn: foresight on the newest days, where the untrained 4B was not run. There GPT-6 Luna is ahead of the trained 4B, 0.958 against 0.855, paired −0.102 [−0.123, −0.083]."
+  ],
+  "src": "Sources: results/train/4b-blind, results/train/4b-dpa, results/cost-matched and results/economics in the GridSimEnv-AgentEnv dataset."
+ },
+ "frontier": {
+  "title": "The trained 4B is on the frontier: GPT-6 Luna's score at a quarter of its cost",
+  "sub": "Bidding blind on the 331 newest battery-days, 18–27 October 2026. Each point is one model at one reasoning effort; lines are day-block 95% CIs. Dashed: the frontier, the best capture any model reaches at that cost or less.",
+  "notes": [],
+  "src": "Sources: results/cost-matched, results/beam-agent and results/train/4b-blind in the GridSimEnv-AgentEnv dataset."
+ },
+ "training": {
+  "title": "GRPO stalled on SFT-10k; exact DP advantages lifted held-out reward",
+  "sub": "Foresight tier: held-out reward R on the same 200 battery-days of 2025, sampled at temperature 0.7. Run 3's band is the 95% CI at each checkpoint; runs 1 and 2 were scored on all 200 days at their start and end only. Labels: the registered paired change, end minus start.",
+  "notes": [],
+  "src": "Sources: results/train/4b, results/train/4b-v2 and results/train/4b-dpa in the GridSimEnv-AgentEnv dataset."
+ },
+ "planning": {
+  "title": "Bidding blind, the 4B forecasts like its teacher and loses its score in planning",
+  "sub": "Run 4 writes a 24-hour price forecast, then its schedule. Planned by the exact DP, its own forecasts would capture as much as GPT-6.1 Sol; its own schedules capture less. Dots: capture; lines: day-block 95% CIs.",
+  "notes": [],
+  "src": "Sources: results/train/4b-blind in the GridSimEnv-AgentEnv dataset."
+ },
+ "ladder": {
+  "title": "Training bought $41.2k per MW-year; the 4B still trails a free heuristic by $3.4k",
+  "sub": "Every recorded blind schedule of 2025 settled again at ERCOT's day-ahead prices (300 battery-days on 191 days), its profit per MW of battery power × 365. Lines: day-block 95% CIs. Day-ahead energy arbitrage only.",
+  "notes": [],
+  "src": "Sources: results/economics, a descriptive re-analysis in the GridSimEnv-AgentEnv dataset."
+ },
+ "regimes": {
+  "title": "Sol's edge over the heuristic is on the days when the price shape changes",
+  "sub": "Blind, 2025: the 191 days split into quartiles by how far the day's 24 hourly prices move from the day before's shape (1 − Pearson r). Grey: what persistence-DP left below the hindsight optimum. Points: each model minus persistence-DP in $ per MW of battery power per day, with day-block 95% CIs.",
+  "notes": [],
+  "src": "Sources: results/economics, a descriptive re-analysis in the GridSimEnv-AgentEnv dataset."
+ }
+}
