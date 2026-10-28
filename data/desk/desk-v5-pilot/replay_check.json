@@ -1,0 +1,79 @@
+{
+ "pack": "desk-v5-pilot",
+ "no_battery_err_usd": {
+  "n": 48,
+  "mean": 0.0,
+  "p50": 0.0,
+  "p90": 0.0,
+  "p99": 0.0,
+  "max": 0.0
+ },
+ "with_operator_err_usd": {
+  "n": 26,
+  "mean": 0.0012,
+  "p50": 0.0,
+  "p90": 0.0,
+  "p99": 0.0204,
+  "max": 0.0245
+ },
+ "operator_award_err_mw": {
+  "n": 26,
+  "mean": 0.0107,
+  "p50": 0.0,
+  "p90": 0.0,
+  "p99": 0.1948,
+  "max": 0.25
+ },
+ "replay_lambda_vs_np4523_usd": {
+  "n": 48,
+  "mean": 4.6863,
+  "p50": 3.4329,
+  "p90": 10.2639,
+  "p99": 15.5073,
+  "max": 15.5784
+ },
+ "tasks": [
+  {
+   "task_id": "desk-v5-2026-04-20-S01",
+   "date": "2026-04-20",
+   "max_abs_err_no_battery": 0.0,
+   "operator_hours": 24,
+   "mae_with_operator": 0.0,
+   "max_abs_err_with_operator": 0.0,
+   "fidelity": {
+    "within_ns": 0.4583,
+    "ns_hours": 24,
+    "mae_ns_usd": 6.15,
+    "mae_usd": 6.15,
+    "max_err_usd": 15.81,
+    "simplify_err_usd": 0.39
+   },
+   "carved": {
+    "resource": "CROSSETT_ESR1",
+    "supply_hours": 24,
+    "demand_hours": 24
+   }
+  },
+  {
+   "task_id": "desk-v5-2026-08-14-S03",
+   "date": "2026-08-14",
+   "max_abs_err_no_battery": 0.0,
+   "operator_hours": 2,
+   "mae_with_operator": 0.0162,
+   "max_abs_err_with_operator": 0.0245,
+   "fidelity": {
+    "within_ns": 0.8333,
+    "ns_hours": 24,
+    "mae_ns_usd": 3.25,
+    "mae_usd": 3.25,
+    "max_err_usd": 11.08,
+    "simplify_err_usd": 0.24
+   },
+   "carved": {
+    "resource": "WIG_ESS_ESR1",
+    "supply_hours": 2,
+    "demand_hours": 2
+   }
+  }
+ ]
+}
