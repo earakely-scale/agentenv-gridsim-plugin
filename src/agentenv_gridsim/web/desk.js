@@ -75,7 +75,7 @@ function render(D) {
   $("lede").innerHTML = `One real ERCOT battery, traded the way a desk trades it: <b>day-ahead bids before the 10:00 close, real-time offers and the COP through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, with the clock moving on its own between turns. ${esc(V.version)}, <i>${esc(V.name)}</i>, adds ${esc(V.adds)}. ${V.n_tasks} battery-days: ${V.sites.length} real batteries (${esc(regions)}) on ${V.n_days} days from ${day(V.dates[0])} to ${day(V.dates[1])}.`;
   $("kpis").innerHTML = kpis(V);
   $("main").innerHTML = [
-    block("The board", `Each model played each battery-day once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a battery-day; R the env's reward (idle 0.2, the anchor 1.0). Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days.`, board(V), `${V.version} · ${esc(V.name)}`),
+    block("The board", `Each model played each battery-day once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a battery-day; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days.`, board(V), `${V.version} · ${esc(V.name)}`),
     capFig(V, W),
     usdFig(V, W),
     block("Where the money came from", "Each line of the settled statement, mean $ a battery-day. DAM energy settles at the node's day-ahead price, RT imbalance at its 15-minute real-time price; modelled lines are marked.", linesTable(V)),
@@ -93,19 +93,22 @@ function kpis(V) {
   const sign = (b) => (b.ci[0] > 0 ? "pos" : b.ci[1] < 0 ? "neg" : "");
   return [
     tile(num(m.C.mean), "", `of the hindsight optimum captured: ${esc(m.name)}`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a battery-day. The anchor captures ${num(a.C.mean)}, the hindsight optimum 1 by definition.`),
-    tile(usd(g.mean, true), sign(g), "a battery-day against the anchor", `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of battery-days. The anchor is the desk's own optimiser, re-planning at every wake on the same information.`),
     o.mean == null ? tile("–", "", "against the real operator", "No operator disclosure for these days.") :
       tile(usd(o.mean, true), sign(o), "a battery-day against the real operator's bids", `${usdci(o.ci, true)}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a battery-day.`),
+    tile(usd(g.mean, true), sign(g), "a battery-day against the anchor", `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of battery-days. The anchor is the desk's own optimiser on the same information; its DAM/RT spread positions pay off on scarcity days.`),
     tile(String(V.n_tasks), "", "real battery-days", `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${V.n_days} operating days, every one old enough for ERCOT to have disclosed the operators' bids.`),
   ].join("");
 }
 
 function board(V) {
-  const head = ["Desk", "C", "P a battery-day", "R", "P − anchor", "P − operator's bids", "Beats anchor", "$ a run"];
+  const head = ["Desk", "C", "P a battery-day", "P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"];
   const cell = (l, v, sub = "") => `<td data-l="${l}">${v}${sub ? `<span class="sub">${sub}</span>` : ""}</td>`;
-  const who = (r) => `<span class="who"><i style="background:${r.color}"></i><span>${r.kind === "model" ? `<b>${esc(r.name)}</b>` : esc(r.name)}${r.effort ? `<span class="sub">${esc(r.effort)} effort</span>` : r.weights === "open" ? `<span class="sub">open weights</span>` : ""}</span></span>`;
-  const body = rows(V).map((r) => r.kind === "model" ? `<tr>${`<td>${who(r)}</td>`}${cell("C", `<b>${num(r.C.mean)}</b>`, ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}${cell("R", num(r.R.mean, 2), ci(r.R.ci, 2))}${cell("P − anchor", usd(r.P_minus_anchor.mean, true), usdci(r.P_minus_anchor.ci, true))}${r.P_minus_operator_replay.mean == null ? cell("P − operator's bids", "–") : cell("P − operator's bids", usd(r.P_minus_operator_replay.mean, true), usdci(r.P_minus_operator_replay.ci, true))}${cell("Beats anchor", pct(r.beats_anchor))}${cell("$ a run", r.weights === "open" || r.usd_per_episode == null ? "–" : `$${r.usd_per_episode.toFixed(2)}`)}</tr>`
-    : `<tr class="ref"><td>${who(r)}</td>${cell("C", num(r.C.mean), ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}<td class="na" data-l="R">–</td><td class="na" data-l="P − anchor">–</td><td class="na" data-l="P − operator's bids">–</td><td class="na" data-l="Beats anchor">–</td><td class="na" data-l="$ a run">–</td></tr>`).join("");
+  const na = (l) => `<td class="na" data-l="${l}">–</td>`;
+  const who = (r) => `<span class="who"><i style="background:${r.color}"></i><span>${r.kind === "model" ? `<b>${esc(r.name)}</b>` : esc(r.name)}${r.effort ? `<span class="sub">${esc(r.effort)} effort</span>` : r.weights === "open" ? `<span class="sub">untrained, open weights</span>` : ""}</span></span>`;
+  const op = (r) => (r.P_minus_operator_replay.mean == null ? cell("P − operator's bids", "–") : cell("P − operator's bids", usd(r.P_minus_operator_replay.mean, true), usdci(r.P_minus_operator_replay.ci, true)));
+  const body = rows(V).map((r) => r.kind === "model"
+    ? `<tr><td>${who(r)}</td>${cell("C", `<b>${num(r.C.mean)}</b>`, ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}${op(r)}${cell("P − anchor", usd(r.P_minus_anchor.mean, true), usdci(r.P_minus_anchor.ci, true))}${cell("R", num(r.R.mean, 2), ci(r.R.ci, 2))}${cell("Beats anchor", pct(r.beats_anchor))}${cell("$ a run", r.weights === "open" || r.usd_per_episode == null ? "–" : `$${r.usd_per_episode.toFixed(2)}`)}</tr>`
+    : `<tr class="ref"><td>${who(r)}</td>${cell("C", num(r.C.mean), ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}${["P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"].map(na).join("")}</tr>`).join("");
   const hind = V.references.find((r) => r.key === "hind");
   return `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr>${head.map((h, i) => `<th class="${i ? "" : "l"}">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
     <p class="note">The hindsight optimum earns ${usd(hind.P.mean)} a battery-day ${usdci(hind.P.ci)}: the best the rules allow with every price known in advance, DAM/RT spread positions included. The operator rows use the real operator's own disclosed bids and awards on each battery-day, settled by the same code.</p>`;
@@ -174,8 +177,8 @@ function behaviour(V) {
 function episode(V, D) {
   const res = (rel) => `${DATASET}/resolve/main/${rel}`;
   const h = V.hero;
-  if (D.lead && D.lead.version === V.version) {
-    return block("One battery-day, as it happened", esc(D.lead.caption_text || ""), `<div class="desk-ep"><a href="${res(D.lead.gif)}"><img src="${res(D.lead.gif)}" alt="${esc(D.lead.alt)}" loading="lazy"></a></div>`, "The best-looking run");
+  if (D.gif && D.gif.version === V.version) {
+    return block("One battery-day, as it happened", `${esc(D.gif.alt)}.`, `<div class="desk-ep"><a href="${res(D.gif.path)}"><img src="${res(D.gif.path)}" alt="${esc(D.gif.alt)}" loading="lazy"></a></div>`, "A run");
   }
   if (!h || !V.figures.hero) return "";
   return block(`One battery-day: ${esc(h.label)}`, "The node's day-ahead and 5-minute real-time prices, the battery's state of charge (dashed: the real operator's, as disclosed) and its dispatch against the DAM award, with every wake-up and what the desk did at it.",

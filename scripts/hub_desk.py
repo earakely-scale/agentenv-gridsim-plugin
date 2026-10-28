@@ -16,6 +16,7 @@ import posixpath
 import re
 import shutil
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 import pyarrow as pa
@@ -27,6 +28,7 @@ WEB = ROOT / "src" / "agentenv_gridsim" / "web"
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
+GIF = "assets/gridsim-desk-hero.gif"
 LADDER = (
     ("v2", "The Live Grid", "energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS "
      "alerts and the battery's outages at their real minutes",
@@ -79,10 +81,18 @@ def main():
                     help="The git tag of a version's results commit on the desk branch; its GitHub links pin it.")
     ap.add_argument("--results", type=Path, default=ROOT / "results",
                     help="Where overview/desk.json goes, beside overview/results.json; the card is built from both.")
+    ap.add_argument("--gif", type=Path, help="The newest version's desk hero GIF (scripts/hub_desk_hero.py).")
+    ap.add_argument("--gif-task", help="The task id of the episode the GIF films.")
+    ap.add_argument("--gif-model", default="sol", help="The model whose episode the GIF films.")
+    ap.add_argument("--lead", action="store_true", help="The desk GIF leads the card; else it opens the desk section.")
     ap.add_argument("--publish", action="store_true", help="Upload to the dataset and the Space.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
     desk, files = build(args.desk, refs)
+    if args.gif:
+        v = desk["versions"][-1]
+        desk["gif"] = gif_info(v, args.desk / f"desk-{v['version']}", args.gif_model, args.gif_task, args.lead)
+        files[GIF] = args.gif.read_bytes()
     out = args.results / "overview" / "desk.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
@@ -97,7 +107,7 @@ def main():
     figs = figures(space, [v["version"] for v in desk["versions"]], hr)
     card = hd.card_only(args.results)
     ds = files | figs | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
-    hr.leaks(ds | {f"space/{k}": v for k, v in sp.items()})
+    hr.leaks({k: v for k, v in ds.items() if k != GIF} | {f"space/{k}": v for k, v in sp.items()})
     dataset = BUILD / "dataset"
     shutil.rmtree(dataset, ignore_errors=True)
     for k, v in ds.items():
@@ -171,6 +181,53 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
 
 SUBMIT = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "update_cop": "COP"}
 READS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position", "check_submission")
+
+
+def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> dict:
+    """The desk hero GIF's link, alt text and caption, every number from the episode's grade in grades.jsonl.gz."""
+    with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
+        g = next(x for x in map(json.loads, f) if x["model"] == model and x["task_id"] == task)
+    ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
+    card, name = ep["site"]["card"], MODELS.get(model, (model, None))[0]
+    subs = [x for x in ep.get("submissions", []) if x["accepted"]]
+    dam = [x for x in subs if x["tool"] == "submit_dam_offers"]
+    rt = [x for x in subs if x["tool"] == "submit_rt_offers"]
+    acted = [w for w in ep["wakes"] if w.get("turn") is not None]
+    events = sum(any(r in ("notice", "nws", "outage", "deployment") for r in w["reasons"]) for w in acted)
+    reasons = Counter("reminder" for w in acted if "reminder" in w["reasons"])
+    calls = sum(len(t["calls"]) for t in ep["turns"])
+    day = date_label(ep["dates"])
+    acts = ([f"bids the day-ahead market at {clock_label(dam[0]['t'])} the day before"] if dam else [])
+    acts += [f"sends {len(rt)} sets of real-time curves"] if rt else []
+    why = [f"{events} for ERCOT notices, NWS alerts or outages"] if events else []
+    why += [f"{reasons['reminder']} for its own reminders"] if reasons["reminder"] else []
+    acts += [f"wakes {len(ep['turns'])} times" + (f", {' and '.join(why)}" if why else "")]
+    op = g.get("p_operator_replay")
+    caption = (f"GridSimEnv Desk, {v['version']}, {v['name']}: {name} trades {card['name']} ({card['region']}, "
+               f"{card['size']}), a real ERCOT battery, on {day}, beside its {calls} tool calls. It "
+               + ", ".join(acts[:-1]) + (" and " if len(acts) > 1 else "") + acts[-1]
+               + f". The battery settles at {usd(g['p'])}, hindsight capture C "
+               f"{g['capture']:.3f}" + (f"; the real operator's own bids, replayed, earn {usd(op)}" if op is not None
+                                         else "") + f". [Open the desk page]({APP}/desk.html?v={v['version']}). "
+               "Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT.")
+    alt = (f"{name} at the desk of {card['name']} ({card['region']}, {card['size']}) on {day}: the node's prices as "
+           "they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, "
+           "then the settled grade")
+    return {"version": v["version"], "model": model, "task_id": task, "lead": lead, "path": GIF,
+            "link": f"{APP}/desk.html?v={v['version']}", "alt": alt, "caption": caption}
+
+
+def usd(x: float) -> str:
+    return f"{'−' if x < 0 else ''}\u2060${abs(x):,.0f}"
+
+
+def date_label(dates: list[str]) -> str:
+    a, b = date.fromisoformat(dates[0]), date.fromisoformat(dates[-1])
+    return f"{a:%-d %B %Y}" if a == b else f"{a:%-d} to {b:%-d %B %Y}"
+
+
+def clock_label(minute: int) -> str:
+    return f"{(minute % 1440) // 60:02d}:{minute % 60:02d}"
 
 
 def story(ep: dict, hero: dict) -> dict:

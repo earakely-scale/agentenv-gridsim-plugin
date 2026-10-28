@@ -44,7 +44,8 @@
         const rows = [...V.models.map((m) => ({ ...m, ref: false, color: COL[m.key] || "var(--c-base)" })),
           ...V.references.filter((r) => !["hind", "idle"].includes(r.key)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
         const top = V.models[0], g = top.P_minus_anchor, side = g.ci[0] > 0 ? "ahead of" : g.ci[1] < 0 ? "behind" : "level with";
-        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${f.n(top.C.mean)} of hindsight ${f.ci(top.C.ci)}, ${usd(top.P.mean)} a battery-day, ${side} the anchor (${usd(g.mean, true)} ${usdci(g.ci, true)}).${refs.operator_replay ? ` The real operator's own bids, replayed, earn ${usd(refs.operator_replay.P.mean)}.` : ""}`);
+        const o = top.P_minus_operator_replay;
+        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${f.n(top.C.mean)} of hindsight ${f.ci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${f.n(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.`);
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;
         const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + rows.length * rh + 30;
@@ -73,9 +74,9 @@
           }, ev);
           c.on("mousemove", show).on("mouseleave", () => tip.hide());
         });
-        const head = "<tr><th>Desk</th><th>P a battery-day</th><th>P − anchor</th><th>P − the operator's bids</th></tr>";
+        const head = "<tr><th>Desk</th><th>P a battery-day</th><th>P − the operator's bids</th><th>P − anchor</th></tr>";
         const body = rows.map((r) => r.ref ? `<tr class="ref"><td><i class="k" style="background:${r.color}"></i>${r.name}</td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>–</td><td>–</td></tr>`
-          : `<tr><td><i class="k" style="background:${r.color}"></i><b>${r.name}</b></td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>${usd(r.P_minus_anchor.mean, true)}<small>${usdci(r.P_minus_anchor.ci, true)}</small></td><td>${r.P_minus_operator_replay.mean == null ? "–" : `${usd(r.P_minus_operator_replay.mean, true)}<small>${usdci(r.P_minus_operator_replay.ci, true)}</small>`}</td></tr>`).join("");
+          : `<tr><td><i class="k" style="background:${r.color}"></i><b>${r.name}</b></td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>${r.P_minus_operator_replay.mean == null ? "–" : `${usd(r.P_minus_operator_replay.mean, true)}<small>${usdci(r.P_minus_operator_replay.ci, true)}</small>`}</td><td>${usd(r.P_minus_anchor.mean, true)}<small>${usdci(r.P_minus_anchor.ci, true)}</small></td></tr>`).join("");
         d3.select(root).select(".wrap").html(`<table>${head}${body}</table>`);
         d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a battery-day. Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.`);
       }

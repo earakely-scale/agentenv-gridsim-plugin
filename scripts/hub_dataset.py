@@ -75,6 +75,10 @@ ELSEWHERE = ("v2_", "v3_", "v4_", "v5_", "desk_")
 RESULTS = "overview/results.json"
 DESK = "overview/desk.json"
 DESK_MD = ROOT / "hub/dataset/desk.md"
+DESK_RUN = ROOT / "hub/dataset/desk-run.md"
+DESK_BADGE = (f'<a href="{APP}/desk.html"><img src="https://img.shields.io/badge/%F0%9F%93%88%20Desk-A%20live%20ERCOT%20'
+              'battery%20desk-2a78d6?style=for-the-badge&labelColor=1a1a1a" alt="The desk: a live ERCOT battery desk" '
+              'height="32"></a>')
 CAPTIONS = ROOT / "results/overview/figures/captions.json"
 BEAM = ROOT / "results/beam-agent/beam"
 MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles", "leaderboard", "eval_runs")
@@ -752,16 +756,19 @@ def results_blocks(r: dict) -> dict[str, str]:
 
 
 def desk_blocks(d: dict) -> dict[str, str]:
-    """The card's desk section and, once a desk hero leads, its lead visual, from results/overview/desk.json
-    (scripts/hub_desk.py writes it). The newest version's results are open, earlier ones fold."""
-    vs, latest = d["versions"], d["versions"][-1]
+    """The card's desk section, its quick start and, when the desk's hero GIF leads the card, the lead; from
+    results/overview/desk.json (scripts/hub_desk.py writes it). The newest version's results are open, earlier ones
+    fold; a desk GIF that does not lead opens the desk section instead."""
+    vs, latest, gif = d["versions"], d["versions"][-1], d.get("gif")
     results = [desk_results(v) for v in reversed(vs)]
     results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
                    "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
-    out = {"desk": DESK_MD.read_text().format(ladder=ladder_block(d), results="\n\n".join(results),
-                                              ref=latest["ref"], latest=latest["version"]).rstrip() + "\n\n---"}
-    if d.get("lead"):
-        out["hero"] = lead_block(d["lead"])
+    inline = f"{gif_block(gif)}\n\n" if gif and not gif["lead"] else ""
+    desk = DESK_MD.read_text().format(gif=inline, ladder=ladder_block(d), results="\n\n".join(results))
+    out = {"desk": desk.rstrip(), "desk-run": DESK_RUN.read_text().format(ref=latest["ref"],
+                                                                          latest=latest["version"]).rstrip()}
+    if gif and gif["lead"]:
+        out["hero"] = gif_block(gif)
     return out
 
 
@@ -780,9 +787,9 @@ def desk_results(v: dict) -> str:
     rows = [desk_row(m) for m in v["models"]] + [
         f"| *{r['short']}* | *{h(r['C']['mean'])}* | *{usdk(r['P']['mean'])}* |"
         for r in v["references"] if r["key"] != "idle"]
-    gaps = [f"| **{m['name']}** | {stacked_usd(m['P_minus_anchor'], True)} | "
+    gaps = [f"| **{m['name']}** | "
             + ("–" if m["P_minus_operator_replay"]["mean"] is None else stacked_usd(m["P_minus_operator_replay"], True))
-            + " |" for m in v["models"]]
+            + f" | {stacked_usd(m['P_minus_anchor'], True)} |" for m in v["models"]]
     fig = f"assets/figures/desk-{v['version']}-capture"
     return "\n".join([
         f"### {v['version']}, {v['name']}: results", "",
@@ -790,7 +797,7 @@ def desk_results(v: dict) -> str:
         f"from {a} to {b}, each old enough for ERCOT to have disclosed the operators' bids. Each model plays each "
         "battery-day once under pre-registered settings.", "",
         "| Desk | C, hindsight capture | P, $ a battery-day |", "|---|---:|---:|", *rows, "",
-        "| Paired, $ a battery-day | P − anchor | P − the operator's bids |", "|---|---:|---:|", *gaps, "",
+        "| Paired, $ a battery-day | P − the operator's bids | P − anchor |", "|---|---:|---:|", *gaps, "",
         "<small>The anchor is the desk's own optimiser, re-planning at every wake on the same information. The "
         "operator rows are the real operator's own bids on each battery-day, disclosed by ERCOT 60 days later and "
         "replayed through the same clearing and settlement, and its actual awards and metered output settled the same "
@@ -825,31 +832,36 @@ def usdk(x: float, sign: bool = False) -> str:
 
 def desk_bullets(v: dict) -> list[str]:
     ms, refs = v["models"], {r["key"]: r for r in v["references"]}
-    top, anchor = ms[0], refs["anchor"]
-    out = [f"**{top['name']} captures the most:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
-           f"{usd0(top['P']['mean'])} a battery-day, against the anchor's C {h(anchor['C']['mean'])} and "
-           f"{usd0(anchor['P']['mean'])}."]
-    vs = [f"{m['name']} {usd0(m['P_minus_anchor']['mean'], True)} {usd0_ci(m['P_minus_anchor']['ci'], True)}, ahead "
-          f"on {m['beats_anchor']:.0%} of battery-days" for m in ms]
-    above = [m["name"] for m in ms if m["P_minus_anchor"]["ci"][0] > 0]
-    below = [m["name"] for m in ms if m["P_minus_anchor"]["ci"][1] < 0]
-    out.append(f"**Against the anchor,** a battery-day: {'; '.join(vs)}. "
-               + (f"Above it with a CI clear of zero: {' and '.join(above)}. " if above else "")
-               + (f"Below it: {' and '.join(below)}." if below else "")
-               + ("No model is separated from it." if not above and not below else ""))
+    top, others = ms[0], ms[1:]
+    out = [f"**{top['name']} captures the most of hindsight:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
+           f"{usd0(top['P']['mean'])} a battery-day" + (", against " + " and ".join(
+               f"{m['name']}'s {h(m['C']['mean'])}" for m in others) if others else "") + "."]
     if "operator_replay" in refs:
+        op = refs["operator_replay"]["P"]["mean"]
+        gaps = [f"{m['name']} {usd0(m['P_minus_operator_replay']['mean'], True)} "
+                f"{usd0_ci(m['P_minus_operator_replay']['ci'], True)}" for m in ms
+                if m["P_minus_operator_replay"]["mean"] is not None]
         ahead = [m["name"] for m in ms if m["P_minus_operator_replay"]["mean"] is not None
                  and m["P_minus_operator_replay"]["ci"][0] > 0]
-        out.append("**The real operators' own bids,** replayed through the same clearing and settlement, earn "
-                   f"{usd0(refs['operator_replay']['P']['mean'])} a battery-day; " + (
-                       f"{' and '.join(ahead)} beat{'s' if len(ahead) == 1 else ''} them with a CI above zero."
-                       if ahead else "no model beats them with a CI above zero."))
+        behind = [m["name"] for m in ms if m["P_minus_operator_replay"]["mean"] is not None
+                  and m["P_minus_operator_replay"]["ci"][1] < 0]
+        out.append(f"**Against the real operator:** its own bids, replayed through the same clearing and settlement, "
+                   f"earn {usd0(op)} a battery-day; paired, {'; '.join(gaps)}. "
+                   + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
+                      "No model is ahead with a CI above zero.")
+                   + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
+    a = refs["anchor"]
+    out.append(f"**The anchor,** the desk's own optimiser on the same information, captures C {h(a['C']['mean'])} "
+               f"({usd0(a['P']['mean'])} a battery-day), partly from DAM/RT spread positions that pay off on scarcity "
+               "days; paired against it, a battery-day: " + "; ".join(
+                   f"{m['name']} {usd0(m['P_minus_anchor']['mean'], True)} {usd0_ci(m['P_minus_anchor']['ci'], True)}"
+                   for m in ms) + ".")
     paid = [f"{m['name']} ${m['usd_per_episode']:.2f}" for m in ms if m["weights"] != "open" and m["usd_per_episode"]]
     local = [m["name"] for m in ms if m["weights"] == "open"]
     if paid:
         out.append(f"**A battery-day's inference** costs {' and '.join(paid)} at list prices"
                    + (f"; {' and '.join(local)} runs on one GPU." if local else "."))
-    return [x.strip() for x in out]
+    return out
 
 
 def capture_alt(v: dict) -> str:
@@ -859,9 +871,9 @@ def capture_alt(v: dict) -> str:
             + "; ".join(f"{n} {h(c['mean'])} {ci(c['ci'])}" for n, c in rows) + ". Idle is 0, the hindsight optimum 1.")
 
 
-def lead_block(lead: dict) -> str:
-    return "\n".join([f'<a href="{lead["link"]}"><img src="{lead["gif"]}" alt="{escape(lead["alt"])}" '
-                      'width="100%"></a>', "", f"<small>{lead['caption']}</small>"])
+def gif_block(gif: dict) -> str:
+    return "\n".join([f'<a href="{gif["link"]}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
+                      "", f"<small>{gif['caption']}</small>"])
 
 
 def usd0(x: float, sign: bool = False) -> str:
@@ -909,6 +921,8 @@ def card_text(files: dict[str, bytes] | None, bundles: dict[str, str], plugin: s
                               lambda m, b=block: f"{m[1]}{b}\n{m[2]}", text, flags=re.S)
             if n != 1:
                 raise SystemExit(f"{CARD} has no <!-- {name} --> block")
+        space = text.index('<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"><img')
+        text = text[:space] + DESK_BADGE + "\n" + text[space:]
     for name, split in bundles.items():
         text = card(text, name=name, split=split, repo=None, description=None, license=None,
                     needs={"plugins": [plugin], "setup": SETUP})
