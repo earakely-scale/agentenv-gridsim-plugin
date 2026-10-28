@@ -68,8 +68,8 @@ the grader; the env, its verifier and training all import it, so a policy is nev
   [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv) holds every
   battery-day at each tier with its prompt, the references and the recorded runs; the
   [Space](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) replays the runs as a 3D battery yard in the
-  point's region, in that day's light and weather. The plugin installs agentenv-hf, so `agent-env hf run` plays a
-  battery-day straight from the dataset.
+  point's region, in that day's light and weather. The plugin installs agentenv-hf, so `agent-env hf run` can play a
+  bundle published with a dataset.
 
 ## The v1 game
 
@@ -113,7 +113,7 @@ You need [Docker](https://docs.docker.com/get-docker/), running and usable witho
 
 ```bash
 uv tool install agentenv-framework \
-    --with "agentenv-gridsim @ git+https://github.com/earakely-scale/agentenv-gridsim-plugin@v0.1.0"
+    --with "agentenv-gridsim @ git+https://github.com/earakely-scale/agentenv-gridsim-plugin"
 agent-env gridsim setup --agent        # build the env and agent images; register the env "gridsim" and "gridsim-llm"
 agent-env run gridsim --task smoke     # load a fixture day, submit its DP optimum, grade it: passed
 ```
@@ -374,7 +374,7 @@ from datasets import load_dataset
 from trl import GRPOConfig, GRPOTrainer
 from gridsim_core.trl import reward_fn
 
-train = load_dataset("earakely-scale/GridSimEnv-AgentEnv", "v1_tasks", split="train", revision="v0.1.0")
+train = load_dataset("earakely-scale/GridSimEnv-AgentEnv", "v1_tasks", split="train")
 train = train.filter(lambda r: r["tier"] == "foresight")
 trainer = GRPOTrainer(model="Qwen/Qwen3-1.7B", reward_funcs=reward_fn, train_dataset=train,
                       args=GRPOConfig(output_dir="gridsim-grpo"))
@@ -415,31 +415,29 @@ The dataset [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets
 
 | Config | Splits | What |
 |---|---|---|
-| `v1_tasks` (default) | `train`, `eval_2025`, `eval_iid`, `rtcb` | each battery-day at each tier it plays: the battery, the prices, the blind inputs, the path-B prompt, the tags and the full task |
+| `leaderboard` (default) | `v1` | every model, reasoning effort and no-LLM baseline on the four evaluation packs: the score with its 95% CI, $ per battery-day, open or API weights and the cost frontier |
+| `eval_runs` | `blind_fresh`, `blind_eval_2025`, `foresight_eval_2025`, `foresight_fresh` | every schedule behind the leaderboard, one row per model and battery-day: the actions, the score, the failure kind and the profit per MW |
+| `v1_tasks` | `train`, `eval_2025`, `eval_iid`, `rtcb` | each battery-day at each tier it plays: the battery, the prices, the blind inputs, the path-B prompt, the tags and the full task |
 | `v1_showcase` | `showcase` | the display-only days, in the same shape |
 | `v1_references` | the four splits and `showcase` | P_opt and its schedule, P_idle, the LP bound, the baselines' schedules, profits and rewards, the blind anchors |
 | `v1_episodes` | the split of each run's day | every published run: the reward, the schedule, the tool calls and the transcript as chat messages |
 
 `raw/packs/` holds the packs as JSON lines with their manifests, `runs/` the Episode JSON the
-[Space](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) replays, and `results/` the eval card and
-the board. `scripts/hub_dataset.py` builds the folder from this checkout and a folder of Episode JSON, grades every
-episode again, adds agentenv-hf's tables and bundle for each `--bundle`, and scans every file for keys before writing;
-it never pushes:
+[Space](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) replays, and `results/` the eval card, the
+board and each result folder. `scripts/hub_dataset.py` builds the folder from this checkout and a folder of Episode
+JSON, grades every episode again, builds `leaderboard` from `results/overview/results.json` and `eval_runs` from the
+committed per-task records (each schedule re-graded and checked against the leaderboard), adds agentenv-hf's tables
+and bundle for each `--bundle`, and scans every file for keys before writing; it never pushes:
 
 ```bash
 uv run python scripts/hub_dataset.py --out build/hub/dataset --runs results/runs --results results
 ```
 
-The plugin installs [agentenv-hf](https://github.com/earakely-scale/agentenv-hf-plugin), so a battery-day plays
-straight from the dataset's bundle, which the card's `agentenv` table pins to this plugin's tag:
-
-```bash
-agent-env hf run earakely-scale/GridSimEnv-AgentEnv@v0.1.0 --bundle ercot-dam-v1-eval \
-    --task dam-v1-2025-02-25-LZ_AEN-2h-o --model openai/gpt-6.1-sol
-```
-
-It downloads the card and `bundles/` at the tag's commit, checks the plugin is installed, shows what it will run and
-asks first; `--dry-run` runs nothing. To publish the bundle with the dataset, write it first:
+The plugin installs [agentenv-hf](https://github.com/earakely-scale/agentenv-hf-plugin), whose `agent-env hf run`
+plays a bundle published with a dataset: it downloads the card and `bundles/`, checks the plugin the card's `agentenv`
+table names is installed, shows what it will run and asks first. The dataset publishes no bundle yet, so play a pack
+locally with `agent-env gridsim tasks generate` and `agent-env run` ([Run it yourself](#run-it-yourself)). To publish
+a bundle with the dataset, write it first:
 
 ```bash
 agent-env gridsim tasks generate --pack ercot-dam-v1-eval --out build/bundles/ercot-dam-v1-eval
