@@ -45,6 +45,8 @@ def main():
     ap.add_argument("--episode", type=Path, help="A gridsim.desk.episode/v1 JSON, plain or gzipped.")
     ap.add_argument("--results", type=Path, help="A results/desk-v<N> folder: rank its Sol episodes and film the best.")
     ap.add_argument("--series", type=Path, help="The task's series JSON (for the operator's disclosed SoC at the end).")
+    ap.add_argument("--grades", type=Path, help="The version's grades.jsonl.gz (desk_report.py): the end card shows "
+                                                "its regraded P, references and capture; --results reads its own.")
     ap.add_argument("--hold", help="Comma-separated turn numbers to hold, overriding the automatic choice.")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--css-size", default="960x540", help="The page's CSS size; the GIF is this times --scale.")
@@ -55,7 +57,7 @@ def main():
     ap.add_argument("--stills", help="Comma-separated GIF seconds: write those frames as PNGs beside --out, no GIF.")
     args = ap.parse_args()
     path = args.episode or best(args.results)
-    ep = read(path)
+    ep = regraded(read(path), path, args.grades or (args.results / "grades.jsonl.gz" if args.results else None))
     series = read(args.series) if args.series else None
     holds = [int(x) for x in args.hold.split(",")] if args.hold else None
     cw, ch = (int(v) for v in args.css_size.split("x"))
@@ -86,8 +88,22 @@ def main():
           f"{args.out.stat().st_size / 1e6:.2f} MB, rendered in {time.monotonic() - t0:.0f} s")
 
 
+def regraded(ep: dict, path: Path, grades: Path | None) -> dict:
+    """The episode with the grade its version's report settled on (frozen references, the reward floor), as every
+    published table has it; the run's own grade only when no report is given."""
+    if grades is None:
+        return ep
+    with gzip.open(grades, "rt") as f:
+        row = next(g for g in map(json.loads, filter(str.strip, f))
+                   if g["task_id"] == ep["task_id"] and Path(g["episode"]).name == path.name)
+    keys = ("p", "p_idle", "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual", "capture",
+            "reward", "valid")
+    return {**ep, "grade": {**ep["grade"], **{k: row[k] for k in keys}}}
+
+
 def best(results: Path) -> Path:
-    ranked = sorted(((score(read(p)), p) for p in sorted((results / "episodes/sol").glob("*.json*"))),
+    ranked = sorted(((score(regraded(read(p), p, results / "grades.jsonl.gz")), p)
+                     for p in sorted((results / "episodes/sol").glob("*.json*"))),
                     key=lambda x: -x[0][0])
     for (s, why), p in ranked[:5]:
         print(f"{s:6.2f}  {p.name}  {why}")
@@ -500,15 +516,15 @@ def page_data(ep: dict, series: dict | None, d0: date, k: float, t_start: int, t
     g = ep["grade"]
     card = (ep.get("site") or {}).get("card") or {}
     rows = [{"key": "model", "label": name(ep), "p": g["p"]}]
-    if (ep.get("policy") or {}).get("kind") != "anchor":
-        rows.append({"key": "anchor", "label": "Anchor policy: the optimiser at every wake-up, same information",
-                     "p": g["p_anchor"]})
     if g.get("p_operator_replay") is not None:
         rows.append({"key": "op", "label": "The real operator's disclosed bids, through the same market",
                      "p": g["p_operator_replay"]})
     if g.get("p_operator_actual") is not None:
         rows.append({"key": "opa", "label": "The real operator, as it ran (disclosed awards and telemetry)",
                      "p": g["p_operator_actual"]})
+    if (ep.get("policy") or {}).get("kind") != "anchor":
+        rows.append({"key": "anchor", "label": "Anchor policy: the optimiser at every wake-up, same information",
+                     "p": g["p_anchor"]})
     rows.append({"key": "hind", "label": "Hindsight optimum under the same rules", "p": g["p_hind"]})
     op_soc = None
     if series and series.get("operator"):

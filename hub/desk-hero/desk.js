@@ -260,10 +260,11 @@
     const g = D.grade, rows = g.rows, ps = rows.map((r) => r.p), lo = Math.min(0, ...ps), hi = Math.max(...ps), w = (v) => ((v - lo) / (hi - lo)) * 100;
     const col = { model: "#0b9fc6", anchor: "#7a868e", op: "#a48a5a", opa: "#c8b48c", hind: "#b9c0c5" };
     const bars = rows.map((r) => `<div class="gr"><span class="${r.key === "model" ? "me" : ""}">${esc(r.label)}</span><b>${money(r.p)}</b></div><div class="bar"><i style="left:${Math.min(w(0), w(r.p)).toFixed(1)}%;width:${Math.abs(w(r.p) - w(0)).toFixed(1)}%;background:${col[r.key]}"></i>${lo < 0 ? `<span class="z" style="left:${w(0).toFixed(1)}%"></span>` : ""}</div>`).join("");
-    const gap = g.p - g.anchor;
-    const cap = g.capture == null ? "" : ` · hindsight capture C ${g.capture.toFixed(2)}`;
+    const ref = rows.find((r) => r.key === "op") || { key: "anchor", p: g.anchor }, gap = g.p - ref.p;
+    const vs = ref.key === "op" ? "against the real operator's own bids" : "against the anchor policy";
+    const head = g.capture == null ? `<span class="${g.reward < 0.5 ? "low" : ""}"><small>reward</small>${g.reward.toFixed(2)}</span>` : `<span class="${g.capture < 0 ? "low" : ""}"><small>hindsight capture C</small>${g.capture.toFixed(2)}</span>`;
     const m = g.modelled, mod = m.length ? `; ${m.length > 1 ? `${m.slice(0, -1).join(", ")} and ${m.at(-1)} are` : `${m[0]} is`} modelled` : "";
-    return `<div class="t"><b>Day over · settled</b><span class="${g.reward < 0.5 ? "low" : ""}"><small>reward</small>${g.reward.toFixed(2)}</span></div><div class="sub"><b class="${gap >= 0 ? "good" : "bad"}">${gap >= 0 ? "+" : "−"}$${Math.abs(gap).toLocaleString("en-US", { maximumFractionDigits: 0 })}</b> against the anchor policy${cap}</div>${bars}<div class="ft">Profit P for the operating day from the desk's ERCOT statement, at ERCOT's real prices${mod}.</div>`;
+    return `<div class="t"><b>Day over · settled</b>${head}</div><div class="sub"><b class="${gap >= 0 ? "good" : "bad"}">${gap >= 0 ? "+" : "−"}$${Math.abs(gap).toLocaleString("en-US", { maximumFractionDigits: 0 })}</b> ${vs}${g.capture == null ? "" : ` · reward R ${g.reward.toFixed(2)}`}</div>${bars}<div class="ft">Profit P for the operating day from the desk's ERCOT statement, at ERCOT's real prices${mod}.</div>`;
   }
 
   window.desk = { init, render };
