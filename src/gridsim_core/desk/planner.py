@@ -199,6 +199,12 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
     def keep(H: int) -> bool:
         return (want is None or H % 24 + 1 in want) and (want_day is None or H // 24 == want_day)
 
+    open_days = [j for j in range(e.ser.days) if e.dam_close(j) > now]
+    dam_day = want_day if want_day is not None else (open_days[0] if open_days else None)
+
+    def dam_hour(H: int) -> bool:
+        return e.dam_close(H // 24) > now and (e.ser.days == 1 or H // 24 == dam_day)
+
     dam_curves, rt_curves, cop = {}, {}, []
     first_h = k0 // PER_H
     for H in range(first_h, e.H):
@@ -207,7 +213,7 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
         lams = sorted(x for x in (p.hour_lambda(H) for _, _, p in plans) if x is not None)
         if not lams:
             continue
-        if e.dam_close(H // 24) > now:
+        if dam_hour(H):
             nets = [p.hourly_net(H) if dam_basis == "physical" else p.q.get(H, p.hourly_net(H)) for _, _, p in plans]
             dam_curves[H] = hour_curves(e.site, lams, risk, dis_cap=max(max(nets), 0.0),
                                         ch_cap=min(min(nets), 0.0))
@@ -222,7 +228,7 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
                 continue
             for pr in e.products:
                 pk = asv.PRICE_KEY[pr]
-                if e.dam_close(H // 24) > now:
+                if dam_hour(H):
                     mw = base.R.get((pr, H), 0.0)
                     if mw >= asv.MIN_BLOCK_MW:
                         price = min(asv_views["dam"][q][pk][H] for q in ("p10", "p50", "p90"))

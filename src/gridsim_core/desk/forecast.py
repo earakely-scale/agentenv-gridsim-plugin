@@ -5,7 +5,7 @@ from posted prices. Both give dense views on the episode grid (DAM hourly, RT 15
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from gridsim_core.desk import clock
@@ -18,7 +18,8 @@ MIN_SPREAD = 5.0
 
 @dataclass
 class View:
-    """One market's P10/P50/P90 on the episode grid; `posted[i]` marks slots that are real posted prices."""
+    """One market's P10/P50/P90 on the episode grid; `posted[i]` marks slots that are real posted prices and
+    `source[i]` the issue time of the vintage that priced slot i (None: the naive fallback)."""
 
     market: str
     step_min: int
@@ -28,6 +29,7 @@ class View:
     posted: list[bool]
     issued_at: int | None
     model: str
+    source: list = field(default_factory=list)
 
     def q(self, name: str) -> list[float]:
         return getattr(self, name)
@@ -135,8 +137,10 @@ def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
             [p50[h % 24] + spread[h % 24] for h in range(H)]]
     vd = fc.vintage("dam", now)
     dam = base
+    dsrc: list = [None] * H
     for v in issued(fc, "dam", now):
-        dam, _ = _fill(v, H, 60, dam)
+        dam, cov = _fill(v, H, 60, dam)
+        dsrc = [v.issued_at if c else x for c, x in zip(cov, dsrc, strict=True)]
     posted = [False] * H
     for j in range(ser.days):
         if ser.dam_posted[j] <= now:
@@ -149,8 +153,10 @@ def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
              [dam[1][i // 4] + basis[(i // 4) % 24] for i in range(NI)]]
     vr = fc.vintage("rt", now)
     rt = rbase
+    rsrc: list = [None] * NI
     for v in issued(fc, "rt", now):
-        rt, _ = _fill(v, NI, 15, rt)
+        rt, cov = _fill(v, NI, 15, rt)
+        rsrc = [v.issued_at if c else x for c, x in zip(cov, rsrc, strict=True)]
     rposted = [False] * NI
     for i in range(NI):
         if 15 * i + 15 + 2 <= now:
@@ -162,8 +168,8 @@ def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
             lo, mid, hi = sorted((q[0][i], q[1][i], q[2][i]))
             q[0][i], q[1][i], q[2][i] = lo, mid, hi
     name = fc.name if fc.name != "series" else (vd.model if vd else vr.model if vr else "series")
-    return {"dam": View("dam", 60, *dam, posted, vd.issued_at if vd else None, name if vd else "naive"),
-            "rt": View("rt", 15, *rt, rposted, vr.issued_at if vr else None, name if vr else "naive")}
+    return {"dam": View("dam", 60, *dam, posted, vd.issued_at if vd else None, name if vd else "naive", dsrc),
+            "rt": View("rt", 15, *rt, rposted, vr.issued_at if vr else None, name if vr else "naive", rsrc)}
 
 
 def label(fc_model: str) -> str:

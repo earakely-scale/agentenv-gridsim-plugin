@@ -519,8 +519,7 @@ class Session:
             posted = v.posted[sl][::g]
             res = {"kind": "price", "market": market, "date": date, "step": "1h" if g == 4 or market == "dam" else "15m",
                    "start": "HE01" if g != 1 or market == "dam" else "00:00",
-                   "issued_at": fcm.issued_label(v, self.d0), "model": v.model,
-                   "label": fcm.label(v.model), **out}
+                   **self._vintage_of(v, sl), **out}
             if any(posted):
                 res["posted_slots"] = sum(posted)
                 res["note"] = "slots already posted show the real price in all three quantiles"
@@ -569,6 +568,15 @@ class Session:
                                                     "expires": self._nws_expiry(n),
                                                     "headline": (n.get("headline") or "")[:160]} for n in alerts[-8:]]}
         return {"error": "args: kind is price, as_price, pv, load, wind, solar, net_load, outages or weather"}
+
+    def _vintage_of(self, v, sl: slice) -> dict:
+        """issued_at / model / label of the vintage that priced the requested day (the naive fallback if none)."""
+        srcs = {x for x, p in zip(v.source[sl], v.posted[sl], strict=True) if not p} if v.source else set()
+        if v.source and srcs == {None}:
+            return {"issued_at": None, "model": "naive", "label": fcm.label("naive")}
+        t = max((x for x in srcs if x is not None), default=v.issued_at)
+        return {"issued_at": clock.label(t, self.d0) if t is not None else None, "model": v.model,
+                "label": fcm.label(v.model)}
 
     def _vintage_day(self, v, j: int) -> list:
         vals = v.values["values"]
