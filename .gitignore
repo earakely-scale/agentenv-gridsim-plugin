@@ -8,7 +8,7 @@ __pycache__/
 results/runs/*/raw/
 .agentenv/config.toml
 dist/
-build/
+/build/
 *.egg-info/
 results/bundles/
 results/videos/
