@@ -215,8 +215,17 @@ CPT, so every vintage in a pack is out of sample.
 **Band widening.** Split-conformal: the month-M bands are widened by the 90th-percentile normalised exceedance of
 month M−1's out-of-sample errors. Month M−1's targets are revealed before M-01.
 
-**Results.** Pinball loss ($/MWh, mean of q10/q50/q90) on every day of Dec 2025–Aug 2026, all four nodes, against
-the contract's NaiveForecaster rule on the same rows: see `held_out_post_rtcb` in the report; summary in §9 below.
+**Results.** Pinball loss in $/MWh, the mean of q10/q50/q90. Every day of Dec 2025–Aug 2026, all four nodes. The
+baseline is the contract's NaiveForecaster rule (§8.4) on the same rows.
+
+| Market | n | desk-qr-v1 | naive | P50 MAE (model / naive) | 80% band coverage (model / naive) |
+|---|---|---|---|---|---|
+| DAM | 26,304 hours | **4.18** | 6.20 | 12.0 / 17.8 | 0.77 / 0.70 |
+| RT (hourly, all horizons) | 989,688 hour-targets | **4.78** | 6.02 | 13.5 / 17.1 | 0.79 / 0.70 |
+
+**By month.** Before widening, the DAM band covered only 51–72%. With widening it covers 68–86%. The model beats
+naive in every month except DAM 2026-07 (2.53 vs 2.25). Winter Storm Fern dominates 2026-01: DAM 15.0 vs 23.1, RT 8.2
+vs 13.7. The per-month and per-node detail is in the report.
 
 ## 8. Errata and gaps
 
@@ -227,7 +236,8 @@ the contract's NaiveForecaster rule on the same rows: see `held_out_post_rtcb` i
 
 **Gaps**
 - **NP4-160-SG mapping** is MIS-only, so load zone and hub are inferred from the CDR zone.
-- **Pre-RTC+B SoC** is not disclosed in the API, so pre tasks have `operator_ok` without SoC and `soc0` is the default.
+- **Pre-RTC+B SCED disclosures in the API.** They carry no SoC field. The 60d SCED Gen/Load Resource endpoints also return only one SCED run per 15 minutes (96 a day; the NP3-965-ER archive zips were not checked). Pre tasks therefore have `soc_mwh` null, `soc0` at the 50% default, and SCED curves carried forward 15 minutes. Their `operator_ok` requires ≥ 90 SCED rows, not 250.
+- **Pre-RTC+B DAM bids.** `dam.pre.bid` aggregates every DAM energy bid by the operator's QSE at the node, as MW wanted at each price. It may include bids that are not the battery's (for example a QSE's load at the same node).
 - **Real-time load** is hourly (NP6-345-CD), not 5-min. NP6-235-CD keeps only ~7 months in the API.
 - **ERCOT forecast horizon** is 72 h in the store. This is enough for one-day tasks; v4's 3-day windows need the raw postings (168 h), re-pulled from the API.
 - **Post-RTC+B PRC** has no public history; the series uses the proxy (§6).

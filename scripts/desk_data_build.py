@@ -52,6 +52,11 @@ PACKS = {
     "desk-v2-eval": {"split": "eval", "layer": "v2",
                      "tasks": [(d, s) for d in ("2026-01-25", "2026-02-24", "2026-03-23", "2026-04-24", "2026-05-03",
                                                 "2026-06-24", "2026-07-22", "2026-08-23") for s in SITES]},
+    "desk-v2-tune": {"split": "train", "layer": "v2",
+                     "tasks": [("2026-01-08", "S01"), ("2026-04-15", "S01"), ("2026-07-09", "S01"),
+                               ("2026-02-11", "S02"), ("2026-05-20", "S02"), ("2026-08-05", "S02"),
+                               ("2026-01-14", "S03"), ("2026-04-02", "S03"), ("2026-06-17", "S03"),
+                               ("2026-03-04", "S04"), ("2026-05-27", "S04"), ("2026-08-12", "S04")]},
     "desk-v2-pre": {"split": "train", "layer": "v2",
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
@@ -550,19 +555,26 @@ def operator_pre(site: dict, day: dt.date) -> tuple[dict, dict]:
     aw = bid_aw.groupby(bid_aw[he_aw].astype(str).str.split(":").str[0].astype(int))[aw_col].sum() \
         if aw_col and not bid_aw.empty else pd.Series(dtype=float)
 
-    def bid_curve(rows):
-        if not rows:
-            return None
-        row = rows[0]
-        mw_cols = sorted([c for c in row if re.match(r".*MW\d+$", c)], key=lambda c: int(re.findall(r"\d+$", c)[0]))
+    def one_bid(row):
         pts = []
-        for c in mw_cols:
-            i = re.findall(r"\d+$", c)[0]
-            pc = next((k for k in row if k.lower().endswith(f"price{i}")), None)
-            if row[c] is None or pc is None or row[pc] is None:
+        for i in range(1, 11):
+            m, p = row.get(f"energyOnlyBidMW{i}"), row.get(f"energyOnlyBidPrice{i}")
+            if m is None or p is None or np.isnan(float(m)) or np.isnan(float(p)):
                 break
-            pts.append([r2(row[c]), r2(row[pc])])
-        return pts or None
+            pts.append((float(m), float(p)))
+        return pts
+
+    def bid_curve(rows):
+        """The QSE's DAM energy bids at the node for one hour, aggregated: MW wanted at each price (price falling)."""
+        bids = [b for b in (one_bid(r) for r in rows or []) if b]
+        if not bids:
+            return None
+        prices = sorted({p for b in bids for _, p in b}, reverse=True)
+        out = []
+        for p in prices:
+            q = sum(max((m for m, bp in b if bp >= p), default=0.0) for b in bids)
+            out.append([r2(q), r2(p)])
+        return out[:10]
 
     dam = {"curves": [None] * 24, "award_mw": [None] * 24,
            "spp": [r2(gen[h]["energySettlementPointPrice"]) if h in gen else None for h in range(1, 25)],
@@ -570,7 +582,7 @@ def operator_pre(site: dict, day: dt.date) -> tuple[dict, dict]:
                              for h in range(1, 25)],
                    "bid": [bid_curve(bid_rows.get(h)) for h in range(1, 25)],
                    "offer_award_mw": [r2(gen[h]["awardedQuantity"]) if h in gen else None for h in range(1, 25)],
-                   "bid_award_mw": [r2(aw.get(h, 0.0)) for h in range(1, 25)]}}
+                   "bid_award_mw": [r2(abs(aw.get(h, 0.0))) for h in range(1, 25)]}}
     dam["award_mw"] = [None if a is None else round(a - (b or 0.0), 3)
                        for a, b in zip(dam["pre"]["offer_award_mw"], dam["pre"]["bid_award_mw"], strict=False)]
     f, r = A.query("np3-965-er/60_sced_gen_res_data", {"resourceName": pre["gen"],
@@ -711,7 +723,7 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
             info[k] += v
         dam_ok = (era == "pre" and all(a is not None for a in o["dam"]["pre"]["offer_award_mw"])) or \
             (era == "rtcb" and all(st is not None for st in o["dam"]["status"]))
-        sced_ok = o["sced"] is not None and oi.get("sced_rows", 0) >= 250 and \
+        sced_ok = o["sced"] is not None and oi.get("sced_rows", 0) >= (250 if era == "rtcb" else 90) and \
             (era == "pre" or oi.get("soc_null", 288) == 0)
         ok = ok and dam_ok and sced_ok
     ser["operator"] = op

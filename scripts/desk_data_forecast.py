@@ -289,6 +289,7 @@ def months_needed():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--months", nargs="*")
+    ap.add_argument("--packs", nargs="*", help="write vintages only for these packs' tasks")
     a = ap.parse_args()
     EV = ercot_vintages()
     log("ERCOT vintages loaded")
@@ -299,7 +300,9 @@ def main():
     log("node timelines ready")
     by_point = {nd.point: nd for nd in nodes}
     task_days = {}
-    for spec in PACKS.values():
+    for name, spec in PACKS.items():
+        if a.packs and name not in a.packs:
+            continue
         for d0, sid in spec["tasks"]:
             task_days.setdefault(d0[:7], set()).add((d0, sid))
     VDIR.mkdir(parents=True, exist_ok=True)
