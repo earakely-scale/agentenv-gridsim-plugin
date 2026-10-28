@@ -13,10 +13,9 @@ pushed. Two kinds of files share it:
 - agentenv-hf's, one pair per --bundle folder, as `agent-env hf publish` writes them: the bundle's tasks and runs and
   the bundle itself under bundles/, which `agent-env hf run` plays; the card's `agentenv` table names what it needs.
 
-The card is hub/dataset/README.md with its results sections and row counts filled in from
-results/overview/results.json (scripts/hub_results.py writes that file, the figures and their captions) and the
-bundles' configs. The v1 board and the v2 to v5 previews are kept as the card has them: their tables and boards are
-built on the previews branch. --card-only writes the card alone. Every file goes through agentenv-hf's scan for keys
+The card is hub/dataset/README.md, the desk's card, with its blocks filled in from
+results/overview/desk.json (scripts/hub_desk.py writes it and the desk's tables); the v1 tables stay in the
+repo outside every config. --card-only writes the card alone. Every file goes through agentenv-hf's scan for keys
 and token shapes before anything is written. Nothing is pushed: upload the folder with
 `hf upload <repo> <out> --repo-type dataset` after reading it.
 
@@ -44,7 +43,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from agent_env.store.routing import namespace_routing
 from agentenv_hf import dataset, runs, tables
-from agentenv_hf.card import card
 from agentenv_hf.messages import to_messages
 from agentenv_hf.scan import known_values, scan
 from huggingface_hub import DatasetCard
@@ -74,11 +72,18 @@ APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
 ELSEWHERE = ("v2_", "v3_", "v4_", "v5_", "desk_")
 RESULTS = "overview/results.json"
 DESK = "overview/desk.json"
-DESK_MD = ROOT / "hub/dataset/desk.md"
-DESK_RUN = ROOT / "hub/dataset/desk-run.md"
-DESK_BADGE = (f'<a href="{APP}/desk.html"><img src="https://img.shields.io/badge/%F0%9F%93%88%20Desk-A%20live%20ERCOT%20'
-              'battery%20desk-2a78d6?style=for-the-badge&labelColor=1a1a1a" alt="The desk: a live ERCOT battery desk" '
-              'height="32"></a>')
+BADGES = (
+    '<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/'
+    '%F0%9F%93%96%20Article-A%20live%20ERCOT%20battery%20desk-0e7d56?style=for-the-badge&labelColor=1a1a1a" '
+    'alt="The article: a live ERCOT battery desk" height="32"></a>',
+    f'<a href="{APP}/desk.html"><img src="https://img.shields.io/badge/%F0%9F%93%88%20Desk%20page-Every%20version'
+    '%2C%20line%20by%20line-2a78d6?style=for-the-badge&labelColor=1a1a1a" alt="The desk page: every version, line by '
+    'line" height="32"></a>',
+    '<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-'
+    'agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" '
+    'height="32"></a>',
+    '<a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?'
+    'style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>')
 CAPTIONS = ROOT / "results/overview/figures/captions.json"
 BEAM = ROOT / "results/beam-agent/beam"
 MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles", "leaderboard", "eval_runs")
@@ -756,28 +761,60 @@ def results_blocks(r: dict) -> dict[str, str]:
 
 
 def desk_blocks(d: dict) -> dict[str, str]:
-    """The card's desk section, its quick start and, when the desk's hero GIF leads the card, the lead; from
-    results/overview/desk.json (scripts/hub_desk.py writes it). The newest version's results are open, earlier ones
-    fold; a desk GIF that does not lead opens the desk section instead."""
-    vs, latest, gif = d["versions"], d["versions"][-1], d.get("gif")
+    """The card's blocks, from results/overview/desk.json (scripts/hub_desk.py writes it): the badges and the lead GIF,
+    the results across versions, the newest version's results open and the earlier ones folded, the quick start from
+    main, the version ladder, the configs and files, and the line to the archived v1."""
+    vs = d["versions"]
     results = [desk_results(v) for v in reversed(vs)]
     results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
                    "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
-    inline = f"{gif_block(gif)}\n\n" if gif and not gif["lead"] else ""
-    desk = DESK_MD.read_text().format(gif=inline, ladder=ladder_block(d), results="\n\n".join(results),
-                                      across=across(d))
-    out = {"desk": desk.rstrip(), "desk-run": DESK_RUN.read_text().format(ref=latest["ref"],
-                                                                          latest=latest["version"]).rstrip()}
-    if gif and gif["lead"]:
-        out["hero"] = gif_block(gif)
-    n = {k: sum(v["rows"][k] for v in vs) for k in ("leaderboard", "runs")}
-    splits = ", ".join(f"`{v['version']}`" for v in vs)
-    out["desk-configs"] = (
-        f"  The desk's configs: **`desk_leaderboard`** ({n['leaderboard']:,} rows), each model and reference of each "
-        "desk version with its C, P, R and paired gaps and their CIs, cost and how it traded; and **`desk_runs`** "
-        f"({n['runs']:,} rows), each model's every battery-day with its grade, every statement line, usage and its "
-        f"Episode JSON's path under `results/desk-v<N>/`. One split per version: {splits}.")
-    return out
+    return {"badges": "\n".join(BADGES), "gif": gif_block(d["gif"]), "across": across(d),
+            "results": "\n\n".join(results), "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]),
+            "ladder": ladder_block(d), "inside": inside(d), "archive": ARCHIVE}
+
+
+def inside(d: dict) -> str:
+    n = {k: sum(v["rows"][k] for v in d["versions"]) for k in ("leaderboard", "runs", "tasks")}
+    splits = ", ".join(f"`{v['version']}`" for v in d["versions"])
+    return "\n".join([
+        "| Config | Rows | What it holds |", "|---|---:|---|",
+        f"| **`desk_leaderboard`**, the default | {n['leaderboard']:,} | Each model and reference of each version: C, "
+        "P and R, the paired gaps to the anchor and to the real operator's bids with their CIs, cost and how it "
+        "traded. |",
+        f"| **`desk_runs`** | {n['runs']:,} | Each model's every task: its grade, every statement line, usage and its "
+        "Episode JSON's path. |",
+        f"| **`desk_tasks`** | {n['tasks']:,} | Every task of each version's pilot, eval and tune packs: its dates, "
+        "anonymous site card, tags and the references it was graded against. |", "",
+        f"One split per version: {splits}. Each version's folder, `results/desk-v<N>/`, holds its README, "
+        "`summary.json`, `grades.jsonl.gz`, figures, raw runs (`runs/<model>/results.jsonl.gz` and the per-call logs) "
+        "and every Episode JSON (`episodes/<model>/*.json.gz`); `assets/` holds the desk GIFs and this card's charts."])
+
+
+QUICKSTART = """In process, with no Docker and no model key, play the anchor policy on v2's two pilot battery-days:
+
+```bash
+git clone https://github.com/earakely-scale/agentenv-gridsim-plugin
+cd agentenv-gridsim-plugin && uv sync --extra dev
+uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor --out runs/anchor
+```
+
+Each run writes every task's Episode JSON and a results row with its grade. `--policy model --model NAME --base-url URL`
+plays any model behind an OpenAI-compatible endpoint the same way, with its key in `DESK_API_KEY`, and every version's
+packs are under `data/desk/`. On AgentEnv, after `agent-env gridsim setup`, `scripts/desk_e2e.py` plays a task through
+the gateway env, its post-turn hook and its verifier, and checks it against the in-process run byte for byte.
+
+The tables:
+
+```python
+from datasets import load_dataset
+
+repo = "earakely-scale/GridSimEnv-AgentEnv"
+board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
+runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's every task
+tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
+```"""
+ARCHIVE = ("GridSimEnv v1 (one-shot day-ahead schedule, training results) is archived at revision "
+           f"[6ae10fcc]({DATASET}/tree/6ae10fcc7fea8037716a0ea7f4ef761786a34f87).")
 
 
 def ladder_block(d: dict) -> str:
@@ -1083,9 +1120,9 @@ def usd0_ci(c: list[float], sign: bool = False) -> str:
 
 
 def desk_configs(d: dict) -> list[dict]:
-    return [{"config_name": f"desk_{name}", "data_files": [
+    return [{"config_name": f"desk_{name}", **({"default": True} if name == "leaderboard" else {}), "data_files": [
         {"split": v["version"], "path": f"desk_{name}/{v['version']}.parquet"} for v in d["versions"]]}
-        for name in ("leaderboard", "runs")]
+        for name in ("leaderboard", "runs", "tasks")]
 
 
 def eval_runs() -> dict[str, list[dict]]:
@@ -1096,48 +1133,18 @@ def eval_runs() -> dict[str, list[dict]]:
     return hr.eval_runs(BEAM)
 
 
-def card_text(files: dict[str, bytes] | None, bundles: dict[str, str], plugin: str, results_dir: Path) -> str:
-    """The card with its results blocks and counts filled in from results.json, and each bundle's configs and needs as
-    agentenv-hf writes them. Given the files this build wrote, v1_episodes lists the splits that have episodes and a
-    v1 config whose tables are all empty is left off (`datasets` can't load a parquet file with no rows); the previews'
-    configs stay as the card lists them, since their tables are built on the previews branch, and so do the desk's,
-    which scripts/hub_desk.py builds. Without files, every config stays as listed."""
+def card_text(results_dir: Path) -> str:
+    """The desk's card: hub/dataset/README.md with each block filled in from results/overview/desk.json and the desk's
+    configs as the only ones; the v1 files stay in the repo, outside every config."""
+    d = json.loads((results_dir / DESK).read_text())
     text = CARD.read_text()
-    if (results_dir / RESULTS).is_file():
-        r = json.loads((results_dir / RESULTS).read_text())
-        for name, block in results_blocks(r).items():
-            text, n = re.subn(rf"(<!-- {name} -->\n).*?([ \t]*<!-- /{name} -->)",
-                              lambda m, b=block: f"{m[1]}{b}\n{m[2]}", text, flags=re.S)
-            if n != 1:
-                raise SystemExit(f"{CARD} has no <!-- {name} --> block")
-        values = counts(r)
-        text = re.sub(r"<!-- =(\w+) -->", lambda m: values[m[1]], text)
-    desk = json.loads((results_dir / DESK).read_text()) if (results_dir / DESK).is_file() else None
-    if desk and desk["versions"]:
-        for name, block in desk_blocks(desk).items():
-            text, n = re.subn(rf"(<!-- {name} -->\n).*?([ \t]*<!-- /{name} -->)",
-                              lambda m, b=block: f"{m[1]}{b}\n{m[2]}", text, flags=re.S)
-            if n != 1:
-                raise SystemExit(f"{CARD} has no <!-- {name} --> block")
-        space = text.index('<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"><img')
-        text = text[:space] + DESK_BADGE + "\n" + text[space:]
-    for name, split in bundles.items():
-        text = card(text, name=name, split=split, repo=None, description=None, license=None,
-                    needs={"plugins": [plugin], "setup": SETUP})
-    result = DatasetCard(text)
-    if desk and desk["versions"]:
-        at = next(i for i, c in enumerate(result.data.configs) if c["config_name"] == "eval_runs") + 1
-        result.data.configs[at:at] = desk_configs(desk)
-    if files is not None:
-        episodes_config = {"config_name": "v1_episodes", "data_files": [
-            {"split": s, "path": f"episodes/v1/{s}.parquet"} for s in (*SPLITS, "showcase")
-            if f"episodes/v1/{s}.parquet" in files]}
-        configs = [episodes_config if c["config_name"] == "v1_episodes" else c for c in result.data.configs]
-        result.data.configs = [c for c in configs if c["config_name"].startswith(ELSEWHERE) or any(
-            f["path"] in files and pq.read_metadata(io.BytesIO(files[f["path"]])).num_rows for f in c["data_files"])]
-    if bundles:
-        result.data.agentenv = {"default": next(iter(bundles)), **result.data.agentenv}
-    return str(result)
+    for name, block in desk_blocks(d).items():
+        text, n = re.subn(rf"^<!-- {name} -->$", lambda m, b=block: b, text, flags=re.M)
+        if n != 1:
+            raise SystemExit(f"{CARD} has no <!-- {name} --> line")
+    out = DatasetCard(text)
+    out.data.configs = desk_configs(d)
+    return str(out)
 
 
 def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: str) -> dict[str, bytes]:
@@ -1172,7 +1179,7 @@ def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: st
         bundles[path.name] = bundle_split(path.name)
         files |= dataset.build(runs.locate(str(path)), name=path.name, split=bundles[path.name],
                                which="latest").files
-    return files | {"README.md": card_text(files, bundles, plugin, results_dir).encode()}
+    return files | {"README.md": card_text(results_dir).encode()}
 
 
 def write(files: dict[str, bytes], out: Path) -> None:
@@ -1184,7 +1191,7 @@ def write(files: dict[str, bytes], out: Path) -> None:
 
 
 def card_only(results_dir: Path) -> str:
-    return card_text(None, {}, "", results_dir)
+    return card_text(results_dir)
 
 
 def main():

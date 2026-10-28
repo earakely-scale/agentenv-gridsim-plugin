@@ -74,6 +74,21 @@ RUNS = pa.schema([
 ])
 
 
+TASKS = pa.schema([
+    ("version", STR), ("pack", STR), ("role", STR), ("task_id", STR), ("era", STR), ("dates", pa.list_(STR)),
+    ("days", I64), ("site", STR), ("region", STR), ("battery", STR), ("hsl_mw", F64), ("e_max_mwh", F64),
+    ("round_trip_efficiency", F64), ("standby_loss_pct_per_h", F64), ("degradation_usd_per_mwh", F64),
+    ("warranty_cycles_per_day", F64), ("soc0_mwh", F64), ("pv_mw_ac", F64), ("operator_disclosed", BOOL),
+    ("season", STR), ("day_kind", STR), ("notices", I64), ("deployments", I64), ("max_rt_lmp", F64),
+    ("min_rt_lmp", F64), ("negative_lmp_intervals", I64), ("dam_spread", F64), ("max_dam_mcpc", F64),
+    ("max_rt_mcpc", F64), ("p_idle", F64), ("p_anchor", F64), ("p_hind", F64), ("p_hind_phys", F64),
+    ("p_operator_replay", F64), ("p_operator_actual", F64), ("floored", BOOL), ("anchor_risk", F64),
+    ("anchor_dam_position", STR), ("core_version", STR),
+])
+ROLES = ("pilot", "eval", "tune")
+GRADED = ("p_idle", "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual")
+
+
 class Mismatch(Exception):
     pass
 
@@ -90,7 +105,8 @@ def main():
     ap.add_argument("--gif-model", default="sol", help="The model whose episodes the GIFs film.")
     ap.add_argument("--lead", metavar="VERSION", help="The version whose GIF leads the card; else the first GIF opens "
                                                      "the desk section. Every GIF plays on its version's desk page.")
-    ap.add_argument("--publish", action="store_true", help="Upload to the dataset and the Space.")
+    ap.add_argument("--publish", nargs="*", choices=("dataset", "space"),
+                    help="Upload to these repos; bare, to the dataset and the Space.")
     ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
@@ -138,10 +154,12 @@ def main():
         print(f"{name}: {len(fs)} files, {sum(map(len, fs.values())) / 1e6:.2f} MB in {where}")
     for v in desk["versions"]:
         print(f"{v['version']} {v['pack']}: " + ", ".join(f"{m['name']} C {m['C']['mean']}" for m in v["models"]))
-    if args.publish:
-        done = ", ".join(v["version"] for v in desk["versions"])
-        print("dataset:", hr.publish("dataset", ds, f"The desk: {done} results, desk_leaderboard and desk_runs"))
-        print("space:", hr.publish("space", sp, f"The desk page: {done} results"))
+    if args.publish is not None:
+        done, to = ", ".join(v["version"] for v in desk["versions"]), args.publish or ["dataset", "space"]
+        if "dataset" in to:
+            print("dataset:", hr.publish("dataset", ds, f"The desk: {done} results and tables"))
+        if "space" in to:
+            print("space:", hr.publish("space", sp, f"The desk page: {done} results"))
 
 
 def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple[dict, dict[str, bytes]]:
@@ -198,9 +216,10 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     rows = [run_row(key, s, g, episodes[g["episode"]]) for g in grades]
     board = [board_row(key, s, m, v["days_per_task"]) for m in models] + [
         ref_row(key, s, r, v["days_per_task"]) for r in refs]
+    tasks = task_rows(key, folder.parent.parent, grades)
     files = {f"desk_leaderboard/{key}.parquet": parquet(board, LEADERBOARD),
-             f"desk_runs/{key}.parquet": parquet(rows, RUNS)}
-    v["rows"] = {"leaderboard": len(board), "runs": len(rows)}
+             f"desk_runs/{key}.parquet": parquet(rows, RUNS), f"desk_tasks/{key}.parquet": parquet(tasks, TASKS)}
+    v["rows"] = {"leaderboard": len(board), "runs": len(rows), "tasks": len(tasks)}
     for path in sorted(p for p in folder.rglob("*") if p.is_file()):
         name = f"{rel}/{path.relative_to(folder).as_posix()}"
         files[name] = relink(path.read_text(), rel, tag, folder).encode() if path.suffix == ".md" else path.read_bytes()
@@ -409,6 +428,48 @@ def model_row(k: str, m: dict) -> dict:
             "accepted": m["submissions"]["accepted"], "rejected": m["submissions"]["rejected"],
             "rejected_codes": m["submissions"]["rejected_codes_total"], "reminders": m["reminders"],
             "cycles": m["cycles"], "tokens": m["tokens"]}
+
+
+def task_rows(key: str, repo: Path, grades: list[dict]) -> list[dict]:
+    """Every task of the version's pilot, eval and tune packs, by its anonymous site card, with the references it was
+    graded against: the frozen refs file where the report replayed against one, else the pack's own rows. The eval
+    rows must carry exactly the references in the grades."""
+    out = []
+    for role in ROLES:
+        pack = f"desk-{key}-{role}"
+        if not (repo / "data/desk" / pack / "tasks.jsonl.gz").is_file():
+            continue
+        with gzip.open(repo / "data/desk" / pack / "tasks.jsonl.gz", "rt") as f:
+            tasks = [json.loads(x) for x in f if x.strip()]
+        frozen = repo / "results/desk-refs" / pack / "refs.jsonl"
+        refs = ({r["task_id"]: r["refs"] for r in map(json.loads, filter(str.strip, frozen.read_text().splitlines()))}
+                if frozen.is_file() else {t["task_id"]: t["refs"] for t in tasks})
+        for t in tasks:
+            site, tags, r = t["site"], t["tags"], refs[t["task_id"]]
+            out.append({
+                "version": key, "pack": pack, "role": role, "task_id": t["task_id"], "era": t["era"],
+                "dates": t["dates"], "days": len(t["dates"]), "site": site["card"]["name"],
+                "region": site["card"]["region"], "battery": site["card"]["size"], "hsl_mw": site["hsl_mw"],
+                "e_max_mwh": site["e_max_mwh"], "round_trip_efficiency": site["rte"],
+                "standby_loss_pct_per_h": site["standby_loss_pct_per_h"],
+                "degradation_usd_per_mwh": site["deg_usd_per_mwh"],
+                "warranty_cycles_per_day": site["warranty_cycles_per_day"], "soc0_mwh": site["soc0_mwh"],
+                "pv_mw_ac": (site.get("pv") or {}).get("mw_ac"), "operator_disclosed": t["operator_ok"],
+                "season": tags["season"], "day_kind": tags["day_kind"], "notices": tags["notices"],
+                "deployments": tags.get("deployments"), "max_rt_lmp": tags["max_rt_lmp"],
+                "min_rt_lmp": tags["min_rt_lmp"], "negative_lmp_intervals": tags["neg_lmp_intervals"],
+                "dam_spread": tags["dam_spread"], "max_dam_mcpc": tags.get("max_dam_mcpc"),
+                "max_rt_mcpc": tags.get("max_rt_mcpc"), **{x: r[x] for x in GRADED}, "floored": r["floored"],
+                "anchor_risk": r["anchor_setting"]["risk"], "anchor_dam_position": r["anchor_setting"]["dam_position"],
+                "core_version": r.get("core_version")})
+    first = next(iter({g["model"] for g in grades}))
+    by_id = {x["task_id"]: x for x in out if x["role"] == "eval"}
+    for g in (g for g in grades if g["model"] == first):
+        row = by_id.get(g["task_id"])
+        if row is None or any(abs((g[x] or 0.0) - (row[x] or 0.0)) > 0.005 or (g[x] is None) != (row[x] is None)
+                              for x in GRADED):
+            raise Mismatch(f"desk-{key}: {g['task_id']}'s grade references differ from desk_tasks")
+    return out
 
 
 def board_row(key: str, s: dict, m: dict, dpt: int) -> dict:
