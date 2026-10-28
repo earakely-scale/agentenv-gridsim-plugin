@@ -390,6 +390,8 @@ environment, the models, the training and the dollars, with every figure interac
   README, summary, figures and per-task records, with `results/overview/results.json` holding every number on this
   card; `training/` the earlier training summaries; and `live/` the live board's sealed schedules and settlements. The
   v2 to v5 previews have configs of their own, and v4's forecast store and v5's market days are under `raw/`.
+  <!-- desk-configs -->
+  <!-- /desk-configs -->
 
 <details>
 <summary><b>Every column</b> of every v1 table</summary>

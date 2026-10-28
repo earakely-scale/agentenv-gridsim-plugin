@@ -769,6 +769,13 @@ def desk_blocks(d: dict) -> dict[str, str]:
                                                                           latest=latest["version"]).rstrip()}
     if gif and gif["lead"]:
         out["hero"] = gif_block(gif)
+    n = {k: sum(v["rows"][k] for v in vs) for k in ("leaderboard", "runs")}
+    splits = ", ".join(f"`{v['version']}`" for v in vs)
+    out["desk-configs"] = (
+        f"  The desk's configs: **`desk_leaderboard`** ({n['leaderboard']:,} rows), each model and reference of each "
+        "desk version with its C, P, R and paired gaps and their CIs, cost and how it traded; and **`desk_runs`** "
+        f"({n['runs']:,} rows), each model's every battery-day with its grade, every statement line, usage and its "
+        f"Episode JSON's path under `results/desk-v<N>/`. One split per version: {splits}.")
     return out
 
 

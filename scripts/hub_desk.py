@@ -98,7 +98,7 @@ def main():
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
     hr = module("hub_results", "scripts/hub_results.py")
     hd = module("hub_dataset", "scripts/hub_dataset.py")
-    sp = space_files(desk)
+    sp = space_files(desk, hr.live_file("space", "README.md"))
     space = BUILD / "space"
     shutil.rmtree(space, ignore_errors=True)
     for k, v in (sp | {n: (WEB / n).read_bytes() for n in ("board.css", "results.css")}).items():
@@ -173,6 +173,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     board = [board_row(key, s, m) for m in models] + [ref_row(key, s, r) for r in refs]
     files = {f"desk_leaderboard/{key}.parquet": parquet(board, LEADERBOARD),
              f"desk_runs/{key}.parquet": parquet(rows, RUNS)}
+    v["rows"] = {"leaderboard": len(board), "runs": len(rows)}
     for path in sorted(p for p in folder.rglob("*") if p.is_file()):
         name = f"{rel}/{path.relative_to(folder).as_posix()}"
         files[name] = relink(path.read_text(), rel, tag, folder).encode() if path.suffix == ".md" else path.read_bytes()
@@ -359,10 +360,22 @@ def relink(text: str, rel: str, tag: str, folder: Path) -> str:
     return LINK.sub(fix, text)
 
 
-def space_files(desk: dict) -> dict[str, bytes]:
+def space_files(desk: dict, live_readme: str) -> dict[str, bytes]:
     names = ("desk.html", "desk.js", "desk.css", "results.html", "board.html", "index.html")
-    return {n: (WEB / n).read_bytes() for n in names} | {"desk.json": json.dumps(
-        desk, ensure_ascii=False, separators=(",", ":")).encode()}
+    return {n: (WEB / n).read_bytes() for n in names} | {
+        "desk.json": json.dumps(desk, ensure_ascii=False, separators=(",", ":")).encode(),
+        "README.md": space_readme(desk, live_readme).encode()}
+
+
+def space_readme(desk: dict, live: str) -> str:
+    """The Space card as published, with the desk page linked above the results page."""
+    names = [m["name"] for m in desk["versions"][-1]["models"]]
+    par = (f"**[The desk]({APP}/desk.html):** one real ERCOT battery traded through the day-ahead market and real "
+           f"time by {', '.join(names[:-1])} and {names[-1]}, on ERCOT's real prices, forecasts and notices as each "
+           "was posted, against the hindsight optimum and the real operator's own bids, version by version.\n\n")
+    text = re.sub(r"\*\*\[The desk\]\(.*?\n\n", "", live, flags=re.S)
+    at = text.index("**[What training bought, in dollars]")
+    return text[:at] + par + text[at:]
 
 
 def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
