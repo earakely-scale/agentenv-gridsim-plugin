@@ -7,11 +7,11 @@ import json
 from importlib.resources import files
 
 import pytest
-from desk_util import pack
+from desk_util import anyio_backend, pack  # noqa: F401
 from fastmcp import Client
 
-from agentenv_gridsim.desk import desk_env, env_name, text
-from gridsim_core.desk import Session, fixtures
+from agentenv_gridsim.desk import desk_env, env_name
+from gridsim_core.desk import Session, fixtures, text
 from gridsim_core.desk.clock import START, to_utc
 
 pytestmark = pytest.mark.anyio

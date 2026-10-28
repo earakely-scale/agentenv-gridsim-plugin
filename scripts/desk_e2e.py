@@ -34,9 +34,8 @@ from agent_env.store.routing import namespace_routing
 from agent_env.task import EpisodeSpec
 
 from agentenv_gridsim import desk_tasks
-from agentenv_gridsim.desk import text
 from agentenv_gridsim.sweep import context
-from gridsim_core.desk import Session, grade, load_series, load_task, policies, tool_specs
+from gridsim_core.desk import Session, grade, load_series, load_task, policies, system_prompt, text, tool_specs
 from gridsim_core.desk.clock import parse_time
 
 LUNA = "openai/gpt-6-luna"
@@ -145,7 +144,8 @@ async def run(bundle: Path, name: str, task: dict, series: dict, policy: str, mo
                     if k == 0 and reminder:
                         await shadow.call_async("set_reminder", {"at": reminder, "note": "desk_e2e reminder"})
                     if policy == "llm":
-                        llm = llm or LLM(model, turn.system_prompt or desk_tasks.SYSTEM, tools.list(), max_cost)
+                        system = turn.system_prompt or system_prompt(shadow_session)
+                        llm = llm or LLM(model, system, tools.list(), max_cost)
                         reply = await llm.turn(shadow, turn.prompt, shadow_session.budget["calls_per_turn"])
                     else:
                         reply = await play_policy(policies.POLICIES[policy], shadow, wake)

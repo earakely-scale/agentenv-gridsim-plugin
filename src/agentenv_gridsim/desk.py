@@ -8,9 +8,7 @@ next_wakeup and advance_to, which the GridSim post-turn hook uses to run the mar
 frozen clock, and episode and grade, which the verifier reads. Once the clock is synced, advance_to refuses to run the
 market to a minute the gateway clock is not at."""
 
-import json
 import os
-from typing import Any
 
 import httpx
 from agentenv_protocol import AgentEnvEnvironment, DataPart, environment_card, extension, get_data, reset_data, tool
@@ -19,7 +17,7 @@ from fastmcp.server.middleware import Middleware
 from fastmcp.tools import ToolResult
 from mcp.types import TextContent
 
-from gridsim_core.desk import Session, grade, load_series, load_task, tool_specs
+from gridsim_core.desk import Session, grade, load_series, load_task, text, tool_specs
 from gridsim_core.desk.clock import to_utc
 
 LAYERS = ("v2", "v3", "v4", "v5")
@@ -30,10 +28,6 @@ CLOCK_URI = "urn:agentenv:clock/v1"
 HOOK_ROLE = "hook"
 HIDDEN = ("next_wakeup", "advance_to", "episode", "grade")
 DEFAULT_PACK = "fixtures"
-
-
-def text(out: Any) -> str:
-    return out if isinstance(out, str) else json.dumps(out, ensure_ascii=False, separators=(",", ":"))
 
 
 def env_name(layer: str, era: str) -> str:

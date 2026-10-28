@@ -11,6 +11,11 @@ market to that minute and wakes the agent with the wake message; when nothing is
 and ends the conversation. `gridsim-desk-verifier` reads the grade through the hidden `grade` tool: the score is the
 reward R, with the hindsight capture C and the references in the result's metadata.
 
+The tasks play the env's fixture pack `fixtures-env` (synthetic days from `gridsim_core.desk.fixtures`, written by
+`tests/env_desk/make_fixture_pack.py`; not ERCOT data): `outage` (post-RTC+B, a derate in the afternoon), `quiet`
+(post-RTC+B) and `pre` (a pre-RTC+B day on `gridsim-desk-v2-pre`). They deploy the framework's default agent;
+`agent-env gridsim desk-tasks --agent <id>` writes them for another.
+
 `agent-env gridsim desk-tasks --pack <pack>` writes a bundle of a desk pack's tasks; `scripts/desk_e2e.py` plays one
 end to end through the framework's Episode API, with a core policy ($0) or a model, and checks it against the
 in-process Session byte for byte.

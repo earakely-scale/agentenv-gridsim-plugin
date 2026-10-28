@@ -8,10 +8,10 @@ from pathlib import Path
 
 import click
 
-from gridsim_core.desk import Session, load_series, load_tasks
+from gridsim_core.desk import Session, load_series, load_tasks, system_prompt, text
 from gridsim_core.desk.clock import START, to_utc
 
-from .desk import HIDDEN, HOOK_ROLE, LOAD_URI, env_name, text
+from .desk import HIDDEN, HOOK_ROLE, LOAD_URI, env_name
 
 HOOK = "gridsim-desk-hook"
 VERIFIER = "gridsim-desk-verifier"
@@ -20,16 +20,11 @@ CLOCK_TOOL = "get_time"
 MODEL_PARAMS = {"max_tokens": 8192}
 EFFORT = "high"
 PLAY_SECONDS = 4 * 3600
-SYSTEM = ("You are the battery trader at a QSE running one battery energy storage resource in ERCOT. Act through your "
-          "tools: submit DAM and real-time offer curves and keep the COP current; clearing decides what the battery "
-          "does. Time is frozen while you work and moves only when you end your turn (reply without a tool call): you "
-          "are woken at market milestones, notices, outages and your own reminders. Each wake-up is a JSON message "
-          "with the time, the reasons, the events since and your budget.")
 LICENCE = ("Prices and system data: ERCOT public reports (Nodal Protocols market data); ERCOT does not endorse this "
            "work. Weather alerts: NWS.")
 
 
-def steps(task: dict, series: dict, pack: str, agent: str | None = None, system: str = SYSTEM) -> list[dict]:
+def steps(task: dict, series: dict, pack: str, agent: str | None = None) -> list[dict]:
     """deploy the layer's desk env, load the task, show the hidden tools to the hook role and hide get_time from the
     agent, deploy the agent, arm the clock frozen at the start, play from the start wake with the hook, grade."""
     s = Session(task, series)
@@ -45,7 +40,7 @@ def steps(task: dict, series: dict, pack: str, agent: str | None = None, system:
         {"id": "deploy-agent", "type": "deploy_agent", "env_ids": [env]} | ({"a2a_agent_id": agent} if agent else {}),
         {"id": "clock", "type": "sync_env_clock", "env_id": env, "virtual_time": to_utc(START, s.d0),
          "virtual_seconds_per_real_second": 0, "tolerate_missing_sync_time": False},
-        {"id": "play", "type": "prompt_agent", "prompt_id": task["task_id"], "system_prompt": system,
+        {"id": "play", "type": "prompt_agent", "prompt_id": task["task_id"], "system_prompt": system_prompt(s),
          "prompt": text(s.start()), "max_conversation_turns": s.budget["max_turns"], "model_params": MODEL_PARAMS,
          "effort": EFFORT, "timeout_seconds": PLAY_SECONDS,
          "post_turn_hooks": [{"file_artifact_id": HOOK, "params": {"env_id": env}}]},

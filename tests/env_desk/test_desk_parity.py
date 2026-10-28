@@ -5,11 +5,11 @@ the gridsim-desk env's MCP server, woken by its hidden next_wakeup / advance_to 
 import json
 
 import pytest
-from desk_util import pack
+from desk_util import anyio_backend, pack  # noqa: F401
 from fastmcp import Client
 
-from agentenv_gridsim.desk import DESK_ENVS, HIDDEN, desk_env, env_name, text
-from gridsim_core.desk import Session, fixtures, grade, policies, tool_specs
+from agentenv_gridsim.desk import DESK_ENVS, HIDDEN, desk_env, env_name
+from gridsim_core.desk import Session, fixtures, grade, policies, text, tool_specs
 
 pytestmark = pytest.mark.anyio
 
