@@ -3,62 +3,208 @@
   .gs-across { font-size: 12.5px; --c-op: #8a6d3b; }
   [data-theme="dark"] .gs-across { --c-op: #c9a86a; }
   .gs-across svg { display: block; width: 100%; overflow: visible; }
-  .gs-across .lead { font-size: 13.5px; line-height: 1.55; margin: 0 0 8px; color: var(--text-color); }
-  .gs-across .vname { fill: var(--text-color); font-size: 12px; font-weight: 650; }
-  .gs-across .vsub { fill: var(--muted-color); font-size: 11px; }
-  .gs-across .band { fill: var(--grid-color); fill-opacity: 0.35; }
+  .gs-across .hd { fill: var(--text-color); font-size: 14px; font-weight: 650; }
+  .gs-across .hd-s { fill: var(--muted-color); font-size: 12px; }
+  .gs-across .tick { fill: var(--muted-color); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .gs-across .grid { stroke: var(--grid-color); stroke-width: 1; }
+  .gs-across .zero { stroke: var(--muted-color); stroke-width: 1; }
+  .gs-across .sep { stroke: var(--border-color); stroke-width: 1; }
+  .gs-across .xv { fill: var(--text-color); font-size: 13px; font-weight: 650; }
+  .gs-across .xn { fill: var(--muted-color); font-size: 11.5px; }
+  .gs-across .ln { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+  .gs-across .ln.b { stroke-width: 3; }
+  .gs-across .op { fill: none; stroke: var(--c-op); stroke-width: 1.75; stroke-dasharray: 5 4; }
+  .gs-across .op-dot { fill: var(--c-op); }
+  .gs-across .mk { stroke: var(--page-bg); stroke-width: 2; }
+  .html-embed__card:not(.is-frameless) .gs-across .mk { stroke: var(--surface-bg); }
+  .gs-across .val { fill: var(--text-color); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .gs-across .val.b { font-weight: 650; font-size: 13.5px; }
+  .gs-across .end { fill: var(--text-color); font-size: 12.5px; }
+  .gs-across .end.b { font-weight: 650; }
+  .gs-across .end-v { fill: var(--text-color); font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .gs-across .end-q { fill: var(--muted-color); font-size: 11.5px; }
+  .gs-across .op-t { fill: var(--c-op); }
+  .gs-across .ck { fill: var(--text-color); font-size: 13px; font-weight: 650; }
+  .gs-across .ck-s { fill: var(--muted-color); font-size: 11.5px; font-weight: 400; }
+  .gs-across .key { fill: var(--text-color); font-size: 12px; }
+  .gs-across .hit { fill: transparent; cursor: pointer; }
 </style>
 <script>
   (() => {
     const K = window.GridsimKit;
     const root = K.mount("gs-across");
     if (!root) return;
+    const ORDER = ["sol", "luna", "qwen"];
+    const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
+    const SHORT = { sol: "Sol", luna: "Luna", qwen: "Qwen" };
+    const OP = "operator_replay", OPNAME = "Real operator (bids replayed)";
     const f = K.fmt;
-    const SERIES = [
-      { key: "sol", color: "var(--c-sol)" }, { key: "luna", color: "var(--c-luna)" }, { key: "qwen", color: "var(--c-qwen)" },
-      { key: "anchor", ref: true, color: "var(--text-color)" }, { key: "operator_replay", ref: true, color: "var(--c-op)" },
-    ];
+    const pts = (x, sign = false) => {
+      const k = Math.round(parseFloat(f.c(x, 3).replace("−", "-")) * 1000), a = Math.abs(k);
+      return `${k < 0 ? "−" : sign && k > 0 ? "+" : ""}${Math.floor(a / 10)}.${a % 10}`;
+    };
+    const pct = (x) => `${pts(x)}%`;
+    const span = (c) => `[${pts(c[0])}, ${pts(c[1])}]`;
+    const lin = (d0, d1, r0, r1) => (v) => r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    const T = (x, y, s, cls, a = "start") => `<text x="${r1(x)}" y="${r1(y)}" class="${cls}"${a === "start" ? "" : ` text-anchor="${a}"`}>${esc(s)}</text>`;
+    const path = (p) => p.map(([x, y], i) => `${i ? "L" : "M"}${r1(x)},${r1(y)}`).join("");
+    const unit = (v) => (v.days_per_task > 1 ? `${v.days_per_task}-day window` : "battery-day");
+
     K.whenD3(() => K.data("desk.json").then((D) => {
       const d3 = window.d3;
-      root.innerHTML = '<div class="plot"></div><div class="gs-legend"></div><div class="gs-note"></div>';
-      const tip = K.tip(root);
-      const names = {};
-      D.versions.forEach((v) => { v.models.forEach((m) => (names[m.key] = m.name)); v.references.forEach((r) => (names[r.key] = r.short)); });
-      const leg = d3.select(root).select(".gs-legend");
-      SERIES.forEach((s) => { const sp = leg.append("span"); sp.append("i").style("background", s.ref ? "transparent" : s.color).style("border", `2px solid ${s.color}`).style("box-sizing", "border-box"); sp.append("span").text(names[s.key] || s.key); });
-      d3.select(root).select(".gs-note").text("Hindsight capture C with its 95% block-bootstrap CI, version by version: idle is 0 and the hindsight optimum 1 by definition, so versions compare on one scale even where P does not (v4's tasks are 3-day windows). Hollow marks: the anchor and the real operator's bids, replayed.");
+      const L = D.versions.filter((v) => v.role === "ladder");
+      const X = D.versions.find((v) => v.role === "check");
+      const B = X && D.versions.find((v) => v.version === X.check_of);
+      const keys = ORDER.filter((k) => L.some((v) => v.models.some((m) => m.key === k)));
+      const name = Object.fromEntries(D.versions.flatMap((v) => v.models.map((m) => [m.key, m.name])));
       const get = (v, k) => v.models.find((m) => m.key === k) || v.references.find((r) => r.key === k);
+      const noise = X && Object.values(X.versus.models).every((b) => ["P", "C", "R"].every((q) => b[q].ci[0] <= 0 && b[q].ci[1] >= 0));
+      root.innerHTML = '<div class="plot"></div><div class="gs-note"></div>';
+      const tip = K.tip(root);
+      d3.select(root).select(".gs-note").text(`C in % of the hindsight optimum's profit over idle, each model playing each task once: idle is 0% and the hindsight optimum 100% by definition. Lines join each model's C up the ladder; the dashed line is the battery's real operator, its own disclosed bids replayed through the same clearing and settlement. Hover a point for its 95% CI; each version's board above has them all.${X ? ` Apart from the ladder, the ${X.label} plays ${B.version}'s ${X.n_tasks} ${unit(X)}s again with each day-ahead market re-cleared against the desk's own offers${noise ? `; every paired ${X.version} − ${B.version} gap is within noise` : ""}.` : ""}`);
+
       function render() {
+        const W = Math.max(300, root.clientWidth || 760), narrow = W < 620;
         const svg = d3.select(root).select(".plot").html("").append("svg").attr("class", "gs-svg");
-        const W = root.clientWidth || 760, narrow = W < 560, ml = 40, mt = 40, H = narrow ? 300 : 340, mb = 26;
+        const ruler = svg.append("g").attr("opacity", 0);
+        const measure = (s, cls) => { const t = ruler.append("text").attr("class", cls).text(s); const w = t.node().getComputedTextLength(); t.remove(); return w; };
+        const wrap = (s, cls, w) => s.split(" ").reduce((ls, word) => {
+          const t = ls.length ? `${ls.at(-1)} ${word}` : word;
+          if (ls.length && measure(t, cls) <= w) ls[ls.length - 1] = t; else ls.push(word);
+          return ls;
+        }, []);
+        const hits = [];
+        const hit = (x, y, title, color, rows) => hits.push({ x, y, title, color, rows });
+
+        const vals = [...L, ...(X ? [X] : [])].flatMap((v) => [...keys.map((k) => get(v, k)?.C.mean), get(v, OP)?.C.mean]).filter((x) => x != null);
+        const lo = Math.min(-0.04, Math.floor((Math.min(...vals) - 0.015) * 50) / 50), hi = Math.ceil((Math.max(...vals) + 0.03) * 20) / 20;
+        let s = "", y0 = 18;
+        const head = "Hindsight capture C", sub = "% of the hindsight optimum's profit over idle";
+        if (measure(head, "hd") + 10 + measure(sub, "hd-s") <= W) s += T(0, y0, head, "hd") + T(measure(head, "hd") + 10, y0, sub, "hd-s");
+        else { s += T(0, y0, head, "hd") + T(0, y0 + 18, sub, "hd-s"); y0 += 18; }
+        if (narrow) {
+          let kx = 0, ky = y0 + 26;
+          for (const it of [...keys.map((k) => ({ k, label: name[k] })), { k: OP, label: OPNAME }]) {
+            const w = 29 + measure(it.label, "key");
+            if (kx > 0 && kx + w > W) { kx = 0; ky += 20; }
+            s += it.k === OP ? `<path class="op" d="M${r1(kx)},${ky - 4}H${r1(kx + 22)}"/>`
+              : `<path class="ln${it.k === "sol" ? " b" : ""}" d="M${r1(kx)},${ky - 4}H${r1(kx + 22)}" stroke="${COL[it.k]}"/><circle cx="${r1(kx + 11)}" cy="${ky - 4}" r="4" fill="${COL[it.k]}"/>`;
+            s += T(kx + 29, ky, it.label, "key");
+            kx += w + 16;
+          }
+          y0 = ky;
+        }
+        const top = y0 + (narrow ? 26 : 40), bottom = top + (narrow ? 230 : 280), y = lin(lo, hi, bottom, top);
+        const ticks = [];
+        for (let t = Math.ceil(lo * 10 - 1e-9) / 10; t <= hi + 1e-9; t = Math.round((t + 0.1) * 10) / 10) ticks.push(t);
+        const tickW = Math.max(...ticks.map((t) => measure(`${Math.round(t * 100)}%`, "tick")));
+        const left = tickW + 12;
+        const split = (t) => { const i = t.indexOf(" ("); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 1)]; };
+        const last = L.at(-1);
+        const ends = narrow ? [] : [...keys.map((k) => ({ c: get(last, k).C.mean, name: split(name[k]), b: k === "sol" })), ...(get(last, OP) ? [{ c: get(last, OP).C.mean, name: ["Real operator", "(bids replayed)"], op: true }] : [])];
+        const endW = ends.length ? Math.max(...ends.map((e) => measure(pct(e.c), "end-v") + 7 + Math.max(measure(e.name[0], e.b ? "end b" : "end"), measure(e.name[1], "end-q")))) + 12 : 0;
+        const checkW = X && !narrow ? Math.max(250, Math.min(300, W * 0.28)) : 0;
+        const R = W - checkW - endW - (checkW ? 28 : 0) - 6;
+        const pad = narrow ? 44 : 54;
+        const xs = L.map((_, i) => left + pad + ((R - left - 2 * pad) * i) / Math.max(1, L.length - 1));
+        for (const t of ticks) s += `<line x1="${r1(left)}" x2="${r1(R + (narrow ? 0 : 10))}" y1="${r1(y(t))}" y2="${r1(y(t))}" class="${t ? "grid" : "zero"}"/>` + T(left - 8, y(t) + 4, `${Math.round(t * 100)}%`, "tick", "end");
+
+        const gap = Math.min(9e9, ...xs.slice(1).map((x, i) => x - xs[i]));
+        const xlines = L.map((v) => (narrow ? wrap(v.name, "xn", Math.min(gap - 8, 140)) : [v.name]));
+        L.forEach((v, i) => {
+          s += T(xs[i], bottom + 21, v.version, "xv", "middle");
+          xlines[i].forEach((l, j) => (s += T(xs[i], bottom + 37 + j * 14, l, "xn", "middle")));
+          if (v.days_per_task > 1) s += T(xs[i], bottom + 37 + xlines[i].length * 14, `${v.days_per_task}-day windows`, "xn", "middle");
+        });
+
+        const series = keys.map((k) => ({ k, m: L.map((v) => get(v, k)) })).map((sr) => ({ ...sr, p: sr.m.map((m, i) => [xs[i], y(m.C.mean)]) }));
+        const opPts = L.map((v, i) => (get(v, OP) ? [xs[i], y(get(v, OP).C.mean)] : null)).filter(Boolean);
+        s += `<path class="op" d="${path(opPts)}"/>` + opPts.map(([x, yy]) => `<circle class="op-dot" cx="${r1(x)}" cy="${r1(yy)}" r="3"/>`).join("");
+        L.forEach((v, i) => { const r = get(v, OP); if (r) hit(xs[i], y(r.C.mean), `${OPNAME}, ${v.version}`, "var(--c-op)", [["C", pct(r.C.mean)], [`P a ${unit(v)}`, f.usd0(r.P.mean)]]); });
+        for (const sr of [...series].reverse()) {
+          s += `<path class="ln${sr.k === "sol" ? " b" : ""}" d="${path(sr.p)}" stroke="${COL[sr.k]}"/>`;
+          s += sr.p.map(([x, yy]) => `<circle class="mk" cx="${r1(x)}" cy="${r1(yy)}" r="${sr.k === "sol" ? 6 : 5}" fill="${COL[sr.k]}"/>`).join("");
+          sr.m.forEach((m, i) => hit(xs[i], y(m.C.mean), `${name[sr.k]}, ${L[i].version}`, COL[sr.k], [["C", `${pct(m.C.mean)} ${span(m.C.ci)}`], [`P a ${unit(L[i])}`, `${f.usd0(m.P.mean)} ${f.usdci(m.P.ci)}`]]));
+        }
+
+        const placed = [...ticks.map((t) => [left - 8 - tickW, y(t) - 7, left - 4, y(t) + 5]), ...series.flatMap((sr) => sr.p.map(([x, yy]) => [x - 7, yy - 7, x + 7, yy + 7])), ...opPts.map(([x, yy]) => [x - 4, yy - 4, x + 4, yy + 4])];
+        const samples = [];
+        for (const p of [...series.map((sr) => sr.p), opPts]) for (let i = 1; i < p.length; i++) {
+          const [ax, ay] = p[i - 1], [bx, by] = p[i], n = Math.ceil(Math.hypot(bx - ax, by - ay) / 3);
+          for (let j = 0; j <= n; j++) samples.push([ax + ((bx - ax) * j) / n, ay + ((by - ay) * j) / n]);
+        }
+        const cost = (b) => samples.filter(([px, py]) => px > b[0] - 2 && px < b[2] + 2 && py > b[1] - 2 && py < b[3] + 2).length
+          + placed.reduce((a, o) => { const ov = Math.max(0, Math.min(b[2], o[2]) - Math.max(b[0], o[0])) * Math.max(0, Math.min(b[3], o[3]) - Math.max(b[1], o[1])); return a + (ov ? 40 + ov : 0); }, 0)
+          + (b[0] < 0 || b[2] > (narrow ? W : R + 8) || b[1] < top - 22 || b[3] > bottom + 6 ? 500 : 0);
+        for (const sr of series) sr.p.forEach(([x, yy], i) => {
+          if (!narrow && i === L.length - 1) return;
+          const text = pct(sr.m[i].C.mean), cls = sr.k === "sol" ? "val b" : "val", w = measure(text, cls), h = sr.k === "sol" ? 14 : 13, g = (sr.k === "sol" ? 6 : 5) + 4;
+          const nb = [sr.p[i - 1]?.[1], sr.p[i + 1]?.[1]].filter((q) => q != null);
+          const pref = nb.every((q) => q > yy) ? 0 : nb.every((q) => q < yy) ? 1 : -1;
+          const best = [["middle", 0, -g], ["middle", 0, g + h - 2], ["start", g + 2, h / 2 - 2], ["end", -g - 2, h / 2 - 2], ["start", g - 2, -g + 1], ["end", -g + 2, -g + 1], ["start", g - 2, g + h - 3], ["end", -g + 2, g + h - 3]].map(([a, dx, dy], j) => {
+            const tx = x + dx, ty = yy + dy, bx = a === "middle" ? tx - w / 2 : a === "start" ? tx : tx - w;
+            const b = [bx, ty - h * 0.8, bx + w, ty + h * 0.2];
+            return { a, tx, ty, b, sc: cost(b) + (j === pref ? 0 : j < 2 ? 0.7 : 1.4 + j * 0.15) };
+          }).reduce((m, c) => (c.sc < m.sc ? c : m));
+          placed.push(best.b);
+          s += T(best.tx, best.ty, text, cls, best.a);
+        });
+
+        if (ends.length) {
+          const ex = R + 18, items = ends.map((e) => ({ ...e, y: y(e.c) + 4 })).sort((a, b) => a.y - b.y);
+          for (let i = 1; i < items.length; i++) if (items[i].y - items[i - 1].y < 30) items[i].y = items[i - 1].y + 30;
+          const over = items.at(-1).y - (bottom + 8);
+          if (over > 0) items.forEach((it) => (it.y -= over));
+          for (const it of items) {
+            const vw = measure(pct(it.c), "end-v");
+            s += T(ex, it.y, pct(it.c), `end-v${it.op ? " op-t" : ""}`) + T(ex + vw + 7, it.y, it.name[0], `end${it.b ? " b" : ""}${it.op ? " op-t" : ""}`);
+            if (it.name[1]) s += T(ex + vw + 7, it.y + 14, it.name[1], "end-q");
+          }
+        }
+
+        let H = bottom + 37 + 14 * Math.max(...L.map((v, i) => xlines[i].length + (v.days_per_task > 1 ? 1 : 0)));
+        if (X) {
+          const x0 = narrow ? 0 : W - checkW, x1 = W;
+          if (!narrow) s += `<line x1="${r1(x0 - 14)}" x2="${r1(x0 - 14)}" y1="${r1(top - 30)}" y2="${r1(bottom + 46)}" class="sep"/>`;
+          const ttop = narrow ? H + 40 : top - 18;
+          const subl = wrap(`${B.version}'s ${X.n_tasks} ${unit(X)}s again, each day-ahead market re-cleared with the desk's own offers`, "ck-s", x1 - x0 - 4);
+          s += T(x0, ttop, X.label, "ck");
+          subl.forEach((l, j) => (s += T(x0, ttop + 16 + j * 14, l, "ck-s")));
+          const ptop = ttop + 16 + subl.length * 14 + 20, pbot = narrow ? ptop + 150 : bottom;
+          const cvals = [B, X].flatMap((v) => [...keys.map((k) => get(v, k).C.mean), get(v, OP)?.C.mean ?? 0]);
+          const yc = narrow ? lin(Math.min(0, ...cvals) - 0.01, Math.max(...cvals) + 0.01, pbot, ptop) : y;
+          const lw = Math.max(...keys.map((k) => measure(pct(get(B, k).C.mean), "val b"))) + 14;
+          const rw = Math.max(...keys.map((k) => measure(`${pct(get(X, k).C.mean)} ${SHORT[k]}`, "val b"))) + 16;
+          const xa = x0 + lw, xb = Math.min(x1 - rw, xa + (narrow ? 170 : 130));
+          if (narrow) s += `<line x1="${r1(x0)}" x2="${r1(x1)}" y1="${r1(yc(0))}" y2="${r1(yc(0))}" class="zero"/>` + T(x0, yc(0) - 5, "0%", "tick");
+          const ob = get(B, OP), ox = get(X, OP);
+          if (ob && ox) {
+            s += `<path class="op" d="M${r1(xa)},${r1(yc(ob.C.mean))}L${r1(xb)},${r1(yc(ox.C.mean))}"/><circle class="op-dot" cx="${r1(xa)}" cy="${r1(yc(ob.C.mean))}" r="3"/><circle class="op-dot" cx="${r1(xb)}" cy="${r1(yc(ox.C.mean))}" r="3"/>`;
+            hit(xa, yc(ob.C.mean), `${OPNAME}, ${B.version}`, "var(--c-op)", [["C", pct(ob.C.mean)], [`P a ${unit(B)}`, f.usd0(ob.P.mean)]]);
+            hit(xb, yc(ox.C.mean), `${OPNAME}, ${X.label}`, "var(--c-op)", [["C", pct(ox.C.mean)], [`P a ${unit(X)}`, f.usd0(ox.P.mean)]]);
+          }
+          for (const k of [...keys].reverse()) {
+            const a = get(B, k), b = get(X, k), vs = X.versus.models[k];
+            s += `<path class="ln${k === "sol" ? " b" : ""}" d="M${r1(xa)},${r1(yc(a.C.mean))}L${r1(xb)},${r1(yc(b.C.mean))}" stroke="${COL[k]}"/>`;
+            s += [[xa, a], [xb, b]].map(([x, m]) => `<circle class="mk" cx="${r1(x)}" cy="${r1(yc(m.C.mean))}" r="${k === "sol" ? 6 : 5}" fill="${COL[k]}"/>`).join("");
+            hit(xa, yc(a.C.mean), `${name[k]}, ${B.version}`, COL[k], [["C", `${pct(a.C.mean)} ${span(a.C.ci)}`], [`P a ${unit(B)}`, f.usd0(a.P.mean)]]);
+            hit(xb, yc(b.C.mean), `${name[k]}, ${X.label}`, COL[k], [["C", `${pct(b.C.mean)} ${span(b.C.ci)}`], [`P a ${unit(X)}`, f.usd0(b.P.mean)], ...(vs ? [[`${X.version} − ${B.version}, paired`, `${pts(vs.C.mean, true)} pts ${span(vs.C.ci)}`]] : [])]);
+          }
+          const dodge = (its) => { its.sort((p, q) => p.y - q.y); for (let i = 1; i < its.length; i++) if (its[i].y - its[i - 1].y < 15) its[i].y = its[i - 1].y + 15; return its; };
+          for (const it of dodge(keys.map((k) => ({ k, y: yc(get(B, k).C.mean) + 4 })))) s += T(xa - 11, it.y, pct(get(B, it.k).C.mean), it.k === "sol" ? "val b" : "val", "end");
+          for (const it of dodge(keys.map((k) => ({ k, y: yc(get(X, k).C.mean) + 4 })))) s += `<text x="${r1(xb + 11)}" y="${r1(it.y)}" class="${it.k === "sol" ? "val b" : "val"}">${esc(pct(get(X, it.k).C.mean))}<tspan class="ck-s" dx="5">${esc(SHORT[it.k])}</tspan></text>`;
+          s += T(xa, pbot + 21, B.version, "xv", "middle") + T(xb, pbot + 21, X.version, "xv", "middle");
+          s += T(xa, pbot + 37, "as run", "xn", "middle") + T(xb, pbot + 37, "re-cleared", "xn", "middle");
+          if (narrow) H = pbot + 44;
+        }
+        H = Math.ceil(H + 6);
         svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
-        const xb = d3.scaleBand().domain(D.versions.map((v) => v.version)).range([ml, W - 8]).paddingInner(0.12).paddingOuter(0.04);
-        const all = D.versions.flatMap((v) => SERIES.map((s) => get(v, s.key)).filter(Boolean).flatMap((r) => r.C.ci));
-        const y = d3.scaleLinear().domain([Math.min(-0.05, d3.min(all)), Math.max(0.65, d3.max(all))]).nice().range([H - mb, mt]);
-        y.ticks(6).forEach((t) => {
-          svg.append("line").attr("x1", ml).attr("x2", W - 8).attr("y1", y(t)).attr("y2", y(t)).style("stroke", t === 0 ? "var(--muted-color)" : "var(--grid-color)").style("stroke-dasharray", t === 0 ? "3 3" : null);
-          svg.append("text").attr("class", "sub").attr("x", ml - 6).attr("y", y(t) + 4).attr("text-anchor", "end").text(f.n(t, 1));
-        });
-        svg.append("text").attr("class", "sub").attr("x", ml - 6).attr("y", mt - 26).attr("text-anchor", "start").text("C, the share of hindsight captured");
-        D.versions.forEach((v) => {
-          const x0 = xb(v.version), bw = xb.bandwidth();
-          svg.append("rect").attr("class", "band").attr("x", x0).attr("y", mt - 4).attr("width", bw).attr("height", H - mb - mt + 4).attr("rx", 6);
-          svg.append("text").attr("class", "vname").attr("x", x0 + bw / 2).attr("y", H - 8).attr("text-anchor", "middle").text(narrow ? v.version : `${v.version} · ${v.name}`);
-          if (v.days_per_task > 1) svg.append("text").attr("class", "vsub").attr("x", x0 + bw / 2).attr("y", mt + 10).attr("text-anchor", "middle").text(`${v.days_per_task}-day windows`);
-          const n = SERIES.length;
-          SERIES.forEach((s, i) => {
-            const r = get(v, s.key);
-            if (!r) return;
-            const cx = x0 + bw * (0.12 + (0.76 * i) / (n - 1));
-            svg.append("line").attr("x1", cx).attr("x2", cx).attr("y1", y(r.C.ci[0])).attr("y2", y(r.C.ci[1])).style("stroke", s.color).style("stroke-width", s.ref ? 1.4 : 2);
-            const m = svg.append("circle").attr("cx", cx).attr("cy", y(r.C.mean)).attr("r", s.ref ? 4.5 : 5.5).style("fill", s.ref ? "var(--page-bg)" : s.color).style("stroke", s.color).style("stroke-width", 2).style("cursor", "pointer");
-            m.on("mousemove", (ev) => tip.show((el) => {
-              K.t.title(el, `${names[s.key]}, ${v.version}`, s.color);
-              K.t.row(el, "C", `${f.c(r.C.mean)} ${f.cci(r.C.ci)}`);
-              K.t.row(el, `P a ${v.days_per_task > 1 ? `${v.days_per_task}-day window` : "battery-day"}`, f.usd0(r.P.mean));
-            }, ev)).on("mouseleave", () => tip.hide());
-          });
-        });
+        ruler.remove();
+        svg.node().insertAdjacentHTML("beforeend", s);
+        const show = (h) => (ev) => tip.show((el) => { K.t.title(el, h.title, h.color); h.rows.forEach(([a, b]) => K.t.row(el, a, b)); }, ev);
+        for (const h of hits) svg.append("circle").attr("class", "hit").attr("cx", h.x).attr("cy", h.y).attr("r", 11).on("mousemove", show(h)).on("click", show(h)).on("mouseleave", () => tip.hide());
       }
       render();
       K.watch(root, render);

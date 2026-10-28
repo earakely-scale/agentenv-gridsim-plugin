@@ -31,8 +31,9 @@ battery's trading desk through ERCOT's day-ahead market and real time. It submit
 bid/offer curves, the Current Operating Plan, from v3 reserve offers) on prices, forecasts, notices and alerts as each
 was posted, while AgentEnv's virtual clock stands still in a turn and runs between turns. Every day settles on the
 battery's ERCOT statement and is graded against the hindsight optimum and the battery's real operator, whose bids ERCOT
-discloses 60 days later. The article covers the desk, its clock and tools, the four versions v2 to v5 with GPT-6.1
-Sol, GPT-6 Luna and the untrained Qwen3-4B, what each version taught, the methods and the limitations.
+discloses 60 days later. The article covers the desk, its clock and tools, the ladder of versions v2 to v4 and the v5
+price-impact check, played by GPT-6.1 Sol, GPT-6 Luna and the untrained Qwen3-4B, what each taught, the methods and the
+limitations.
 
 - **Dataset:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv),
   every desk task, reference, grade, Episode JSON and run log under `results/desk-v2` to `results/desk-v5`.

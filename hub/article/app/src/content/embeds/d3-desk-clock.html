@@ -32,7 +32,7 @@
       const svg = d3.select(root).append("svg").attr("class", "gs-svg").attr("role", "img")
         .attr("aria-label", "The desk's clock: the agent's turn with the clock frozen, then the post-turn hook takes the earlier of the environment's next wake-up and the gateway's next time trigger, the clock runs to that minute while the market clears and settles, and the agent wakes with its reasons.");
       const note = d3.select(root).append("div").attr("class", "gs-note");
-      note.text(`Turn budgets, as pre-registered: ${D.versions.map((v) => `${v.version} ${v.budget.replace(/_/g, " ")}`).join("; ")}. A reminder set with set_reminder wakes the agent at its minute; a desk that wakes for everything runs out of turns.`);
+      note.text(`Turn budgets, as pre-registered: ${D.versions.map((v) => `${v.role === "check" ? `the ${v.version} check` : v.version} ${v.budget.replace(/_/g, " ")}`).join("; ")}. A reminder set with set_reminder wakes the agent at its minute; a desk that wakes for everything runs out of turns.`);
       const defs = svg.append("defs");
       defs.append("marker").attr("id", "gs-clock-arr").attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5).attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto-start-reverse")
         .append("path").attr("d", "M0,0L10,5L0,10z").style("fill", "var(--muted-color)");

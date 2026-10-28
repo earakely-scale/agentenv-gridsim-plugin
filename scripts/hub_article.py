@@ -122,8 +122,7 @@ def unit(v: dict) -> str:
 
 def facts(d: dict) -> dict:
     """Every number the prose states, formatted from desk.json; the chapters read them as {F.v2.m.sol.C} and so on."""
-    out = {"across": d["across"], "n_versions": str(len(d["versions"])),
-           "resamples": f"{d['versions'][0]['ci']['resamples']:,}"}
+    out = {"across": d["across"], "resamples": f"{d['versions'][0]['ci']['resamples']:,}"}
     for v in d["versions"]:
         f = {"name": v["name"], "n": str(v["n_tasks"]), "blocks": str(v["n_days"]), "block": v["block"],
              "unit": unit(v), "from": day(v["dates"][0]), "to": day(v["dates"][1]), "ref": v["ref"], "m": {}, "r": {},
@@ -353,8 +352,8 @@ def publish() -> str:
     ops = [CommitOperationAdd(path_in_repo=".gitattributes", path_or_fileobj=GITATTRIBUTES.encode())]
     ops += [CommitOperationAdd(path_in_repo=k, path_or_fileobj=str(p)) for k, p in files.items()]
     ops += [CommitOperationDelete(path_in_repo=k) for k in sorted(live - set(files) - {".gitattributes"})]
-    info = api.create_commit(SPACE, repo_type="space", operations=ops,
-                             commit_message="GridSimEnv Desk article: a real ERCOT battery's trading desk, v2 to v5")
+    info = api.create_commit(SPACE, repo_type="space", operations=ops, commit_message=(
+        "GridSimEnv Desk article: the ladder, v2 to v4, and the v5 price-impact check"))
     return info.commit_url
 
 

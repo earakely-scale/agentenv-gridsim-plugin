@@ -1,7 +1,7 @@
 import HtmlEmbed from "../../components/HtmlEmbed.astro";
 import F from "../assets/data/facts.json";
 
-## The ladder, v2 to v5
+## The ladder, v2 to v4
 
 Each version adds one kind of realism to the same desk, tools and grading. Each was pre-registered, piloted, frozen
 and then run once per model on real days at least 60 days old, at the same four real batteries.
@@ -71,25 +71,3 @@ P is summed over each window, and the CIs resample fronts.
   again from day-ahead sales bought back in real time, and the anchor {F.v4.sens.on.anchor}. Without Fern, Sol
   averages {F.v4.sens.without.sol} and Luna {F.v4.sens.without.luna} a window.
 - **Three markets, re-bid.** Both GPT models bid each day's DAM in turn and re-bid some as forecast vintages moved.
-
-### v5, The Market Floor
-
-Price impact: the agent's day-ahead offers re-clear the market against the day's real offers, disclosed 60 days
-later, on v3's battery-days. {F.v5.n} battery-days.
-
-<HtmlEmbed
-  src="d3-desk-version.html"
-  wide
-  config={{ version: "v5" }}
-  title="v5, The Market Floor: capture and dollars"
-  desc="As for v2, with the day-ahead market re-cleared against the day's real offers."
-/>
-
-- **One battery moves the price by cents.** Sol's own offers move the node's day-ahead price by {F.v5.impact.sol.sales}
-  per MWh on its sales, at most {F.v5.impact.sol.max} per MWh, worth {F.v5.impact.sol.revenue} a battery-day: a
-  100–150 MW battery is a price taker, as pre-registered.
-- **v5 against v3 is noise.** Paired on the same battery-days, Sol's P moves {F.v5.versus.sol.P} {F.v5.versus.sol.Pci}
-  and Luna's {F.v5.versus.luna.P} {F.v5.versus.luna.Pci}; every interval includes zero. Two runs of the same model
-  differ this much while the price moved by cents.
-- **Luna leads in this run.** Luna captures {F.v5.m.luna.C} and Sol {F.v5.m.sol.C}; paired, Sol minus Luna is
-  {F.v5.pair.sol_luna.C} {F.v5.pair.sol_luna.Cci}.

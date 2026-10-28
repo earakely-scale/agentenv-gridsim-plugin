@@ -1,0 +1,33 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import F from "../assets/data/facts.json";
+
+## The price-impact check, v5
+
+On the ladder the market clears the agent's curves at the node's real prices, as if one battery could not move them.
+v5 checks that assumption and is not a step on the ladder: the same {F.v5.n} battery-days as v3, with the same tools,
+grading and models, and each day-ahead market re-cleared after the agent's own curves join ERCOT's offer stack for
+that day, disclosed 60 days later. It was
+[pre-registered](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v5-desk.md) like
+the versions before it.
+
+<HtmlEmbed
+  src="d3-desk-check.html"
+  wide
+  title="v5 · price-impact check: what the desk's own offers did to the price, and v5 against v3"
+  desc="Above, how far each desk's own day-ahead offers moved the node's price, MWh-weighted over its awarded hours. Below, each model's v5 run against its v3 run on the same battery-days, paired, with 95% day-block CIs."
+/>
+
+- **One battery moves the price by cents.** GPT-6.1 Sol's own offers moved the node's day-ahead price by
+  {F.v5.impact.sol.sales} per MWh on its sales, at most {F.v5.impact.sol.max} per MWh in any hour, worth
+  {F.v5.impact.sol.revenue} a battery-day: a 100–150 MW battery is a price taker, as pre-registered.
+- **v5 reproduces v3.** Paired on the same battery-days, every v5 − v3 difference is within noise: Sol's P moves
+  {F.v5.versus.sol.P} {F.v5.versus.sol.Pci} a battery-day and Luna's {F.v5.versus.luna.P} {F.v5.versus.luna.Pci}, and
+  every interval, in P, C and R, includes zero. Two runs of the same model on the same days differ this much, while the
+  price moved by cents.
+- **A tie, not a new ranking.** Luna captures {F.v5.m.luna.C} and Sol {F.v5.m.sol.C}; paired, Sol minus Luna is
+  {F.v5.pair.sol_luna.C} {F.v5.pair.sol_luna.Cci}, as level as in v3.
+- **Where price impact would matter: a fleet desk.** A QSE trading a portfolio of batteries offers its whole fleet into
+  the same day-ahead market. That desk, not one more battery, is the next step for price impact to matter.
+
+The check's full board, where each desk's money came from and every replay are on the viewer's
+[v5 · price-impact check](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v5) page.
