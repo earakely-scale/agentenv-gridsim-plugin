@@ -1,7 +1,7 @@
 ---
-title: "GridSimEnv: running a grid battery on ERCOT's real prices"
-description: "An RL environment on the Texas grid's real day-ahead prices, graded exactly and in dollars: how frontier models bid, how a 4B open model learned to, and what the decisions are worth."
-seoImageAlt: "GridSimEnv: a dot map of Texas with ERCOT's 15 hubs and load zones, each with a battery that charges at midday and sells into the evening peak on 15 March 2025."
+title: "GridSimEnv Desk: a real ERCOT battery's trading desk as an RL environment"
+description: "An agent runs a real Texas grid battery's trading desk through the day-ahead market and real time, on ERCOT's own market objects and on prices, forecasts and notices as each was posted, graded in dollars against hindsight and the battery's real operator. Four versions, three models."
+seoImageAlt: "GridSimEnv Desk: a dot map of Texas with four anonymised batteries, in the Far West, North, Houston and South, charging and discharging through one real ERCOT operating day, 23 August 2026."
 authors:
   - name: "Edgar Arakelyan"
     url: "https://huggingface.co/earakely-scale"
@@ -16,11 +16,11 @@ links:
   - label: "Dataset"
     url: "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
     icon: "hf"
-  - label: "3D Space"
+  - label: "Viewer"
     url: "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
     icon: "hf"
 licence: >
-  Text and charts are licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>, unless noted otherwise. The prices are ERCOT's public data, used under ERCOT's terms and not relicensed (<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE" target="_blank" rel="noopener noreferrer">data/LICENSE</a>); GridSimEnv is not affiliated with or endorsed by ERCOT. The code is Apache-2.0.
+  Text and charts are licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>, unless noted otherwise. Prices, forecasts, notices and disclosures are ERCOT's public data, and weather alerts NWS's, used under their terms and not relicensed (<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE" target="_blank" rel="noopener noreferrer">data/LICENSE</a>); GridSimEnv is not affiliated with or endorsed by ERCOT. The code is Apache-2.0.
 seoThumbImage: "https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/og-image.jpg"
 tags:
   - reinforcement learning
@@ -31,10 +31,10 @@ tags:
   - battery storage
   - ERCOT
   - day-ahead market
-  - dynamic programming
-  - GRPO
-  - TRL
-  - Qwen3
+  - real-time market
+  - ancillary services
+  - agents
+  - tool use
   - AgentEnv
   - GridSimEnv
 template: "article"
@@ -47,23 +47,19 @@ showPdf: false
 */}
 
 import Introduction from "./chapters/introduction.mdx";
-import Environment from "./chapters/environment.mdx";
-import Impact from "./chapters/impact.mdx";
-import Data from "./chapters/data.mdx";
-import Eval from "./chapters/eval.mdx";
-import Training from "./chapters/training.mdx";
-import Worth from "./chapters/worth.mdx";
-import Live from "./chapters/live.mdx";
-import Desk from "./chapters/desk.mdx";
-import Ongoing from "./chapters/ongoing.mdx";
+import Time from "./chapters/time.mdx";
+import Tools from "./chapters/tools.mdx";
+import Operator from "./chapters/operator.mdx";
+import Ladder from "./chapters/ladder.mdx";
+import Across from "./chapters/across.mdx";
+import Methods from "./chapters/methods.mdx";
+import Limits from "./chapters/limits.mdx";
 
 <Introduction />
-<Environment />
-<Impact />
-<Data />
-<Eval />
-<Training />
-<Worth />
-<Live />
-<Desk />
-<Ongoing />
+<Time />
+<Tools />
+<Operator />
+<Ladder />
+<Across />
+<Methods />
+<Limits />

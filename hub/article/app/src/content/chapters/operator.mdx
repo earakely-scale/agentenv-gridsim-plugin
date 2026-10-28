@@ -1,0 +1,26 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import F from "../assets/data/facts.json";
+
+## The real operator as the benchmark
+
+Every desk battery-day has a real counterpart: the battery's own operator traded that day. ERCOT discloses every
+resource's day-ahead bids and offers, its real-time offer curves, base points, metered output and state of charge 60
+days after the operating day [@ercot_np3966; @ercot_np3965], and every evaluation day here is old enough for those
+disclosures to exist. The desk uses them twice.
+
+- **The operator's bids, replayed.** Its own curves run through the same clearing and settlement as the agent's, so
+  the two are compared on the same rules and prices.
+- **The operator, as settled.** Its actual awards and metered output, settled the same way.
+
+<HtmlEmbed
+  src="d3-desk-operator.html"
+  wide
+  title="Against the real operator: each model's P minus the operator's bids, version by version"
+  desc="Paired on the same battery and day, with 95% block-bootstrap CIs. Filled: the CI excludes zero."
+/>
+
+On single days, no model beats the operator's bids with a CI above zero. In v2 GPT-6.1 Sol averages
+{F.v2.m.sol.vsOp} {F.v2.m.sol.vsOpci} a battery-day against them, with a wide interval that one day drives (below). On
+v4's three-day weather fronts both GPT models are ahead: GPT-6.1 Sol by {F.v4.m.sol.vsOp} {F.v4.m.sol.vsOpci} a
+3-day window and GPT-6 Luna by {F.v4.m.luna.vsOp} {F.v4.m.luna.vsOpci}. The untrained Qwen3-4B is behind in v3, v4 and
+v5 with a CI below zero.

@@ -1,0 +1,87 @@
+<div class="gs-ver"></div>
+<style>
+  .gs-ver { font-size: 12.5px; --c-op: #8a6d3b; }
+  [data-theme="dark"] .gs-ver { --c-op: #c9a86a; }
+  .gs-ver svg { display: block; width: 100%; overflow: visible; }
+  .gs-ver table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .gs-ver th, .gs-ver td { padding: 6px 8px; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap; }
+  .gs-ver th { color: var(--muted-color); font-weight: 600; font-size: 11.5px; }
+  .gs-ver th:first-child, .gs-ver td:first-child { text-align: left; white-space: normal; }
+  .gs-ver td small { display: block; color: var(--muted-color); font-size: 11px; }
+  .gs-ver tr.ref td { color: var(--muted-color); }
+  .gs-ver .wrap { overflow-x: auto; }
+  .gs-ver .k { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .gs-ver table.narrow { table-layout: fixed; }
+  .gs-ver table.narrow th { white-space: normal; vertical-align: bottom; }
+  .gs-ver table.narrow th, .gs-ver table.narrow td { padding-left: 3px; padding-right: 3px; }
+  .gs-ver table.narrow th:first-child, .gs-ver table.narrow tr.v td:first-child { text-align: right; }
+  .gs-ver table.narrow tr.nm td { border-bottom: 0; padding-bottom: 0; }
+  .gs-ver table.narrow tr.v td { padding-top: 2px; }
+  .gs-ver table.narrow td small { font-size: 10.5px; white-space: nowrap; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-ver");
+    if (!root) return;
+    const want = K.config(root).version;
+    const f = K.fmt;
+    const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
+    const REFC = { anchor: "var(--text-color)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)", idle: "var(--c-rule)" };
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      const V = D.versions.find((v) => v.version === want);
+      if (!V) { root.textContent = `${want}: no results yet.`; return; }
+      const unit = V.days_per_task > 1 ? `${V.days_per_task}-day window` : "battery-day";
+      const blocks = V.block === "day" ? `${V.n_days} operating days` : `${V.n_days} ${V.block}s`;
+      root.innerHTML = '<div class="plot"></div><div class="wrap"></div><div class="gs-note"></div>';
+      const tip = K.tip(root);
+      const svg = d3.select(root).select(".plot").append("svg").attr("class", "gs-svg");
+      const rows = [...V.models.map((m) => ({ ...m, ref: false, color: COL[m.key] || "var(--c-base)" })),
+        ...V.references.filter((r) => r.key !== "hind" && (r.key !== "idle" || Math.abs(r.P.mean) >= 0.5)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
+      const dots = rows.filter((r) => r.key !== "idle");
+      const hind = V.references.find((r) => r.key === "hind");
+      const defects = [V.defects, V.deviations, V.idle].filter(Boolean).map((s) => s.replace(/`/g, "")).join(" ");
+      d3.select(root).select(".gs-note").text(`Hindsight capture C for each model and reference with its 95% ${V.block}-block bootstrap CI over ${blocks}; idle is 0 and the hindsight optimum 1 by definition (it earns ${f.usd0(hind.P.mean)} a ${unit}). Below, P a ${unit} and each model's paired gaps. ${V.n_tasks} ${unit}s at ${V.sites.length} real batteries, ${V.version}'s pre-registered settings. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.${defects ? ` ${defects}` : ""}`);
+      function render() {
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 700, narrow = W < 560;
+        const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + dots.length * rh + 30;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const lo = Math.min(0, ...dots.map((r) => r.C.ci[0])), hi = Math.max(1, ...dots.map((r) => r.C.ci[1]));
+        const x = d3.scaleLinear().domain([lo - 0.02, hi + 0.02]).range([lw + 8, W - 50]);
+        x.ticks(narrow ? 4 : 8).forEach((t) => {
+          svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", t0 - 6).attr("y2", H - 22).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", x(t)).attr("y", H - 8).attr("text-anchor", "middle").attr("class", "sub").text(f.n(t, 1));
+        });
+        [[0, "idle", "start", 4], [1, "hindsight optimum", "end", -4]].forEach(([v, l, a, dx]) => {
+          svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", t0 - 10).attr("y2", H - 22).style("stroke", "var(--muted-color)").style("stroke-dasharray", v ? "4 3" : null);
+          svg.append("text").attr("x", x(v) + dx).attr("y", t0 - 14).attr("text-anchor", a).attr("class", "sub").text(l);
+        });
+        dots.forEach((r, i) => {
+          const y = t0 + i * rh + (narrow ? 26 : rh / 2);
+          svg.append("text").attr("class", `lab halo${r.ref ? "" : " b"}`).attr("x", narrow ? 8 : lw).attr("y", narrow ? y - 12 : y + 4).attr("text-anchor", narrow ? "start" : "end").text(r.name);
+          svg.append("line").attr("x1", x(r.C.ci[0])).attr("x2", x(r.C.ci[1])).attr("y1", y).attr("y2", y).style("stroke", r.color).style("stroke-width", 2);
+          const c = svg.append("circle").attr("cx", x(r.C.mean)).attr("cy", y).attr("r", r.ref ? 5 : 6).style("fill", r.ref ? "var(--page-bg)" : r.color).style("stroke", r.color).style("stroke-width", 2).style("cursor", "pointer");
+          svg.append("text").attr("class", `val halo${r.ref ? "" : " b"}`).attr("x", Math.max(x(r.C.ci[1]), x(r.C.mean) + 6) + 8).attr("y", y + 4).text(f.c(r.C.mean));
+          c.on("mousemove", (ev) => tip.show((el) => {
+            K.t.title(el, r.ref ? r.name : `${r.name}${r.effort ? `, ${r.effort} effort` : ""}`, r.color);
+            K.t.row(el, "C", `${f.c(r.C.mean)} ${f.cci(r.C.ci)}`);
+            K.t.row(el, `P a ${unit}`, `${f.usd0(r.P.mean)} ${f.usdci(r.P.ci)}`);
+            if (!r.ref) K.t.row(el, "P − anchor", `${f.usd0(r.P_minus_anchor.mean, true)} ${f.usdci(r.P_minus_anchor.ci, true)}`);
+          }, ev)).on("mouseleave", () => tip.hide());
+        });
+        const ci = narrow ? (c, s) => `[${f.usdk(c[0], s).replace("$", "")}, ${f.usdk(c[1], s).replace("$", "")}]` : f.usdci;
+        const cell = (v, s) => (v == null || v.mean == null ? "<td>–</td>" : `<td>${f.usd0(v.mean, s)}<small>${ci(v.ci, s)}</small></td>`);
+        const vals = (r) => r.ref ? `${cell(r.P)}<td>–</td><td>–</td>` : `${cell(r.P)}${cell(r.P_minus_operator_replay, true)}${cell(r.P_minus_anchor, true)}`;
+        const name = (r) => `<i class="k" style="background:${r.color}"></i>${r.ref ? r.name : `<b>${r.name}</b>`}`;
+        const cols = `<th>P a ${unit}</th><th>P − the operator's bids</th><th>P − anchor</th>`;
+        d3.select(root).select(".wrap").html(narrow
+          ? `<table class="narrow"><tr>${cols}</tr>${rows.map((r) => `<tr class="nm${r.ref ? " ref" : ""}"><td colspan="3">${name(r)}</td></tr><tr class="v${r.ref ? " ref" : ""}">${vals(r)}</tr>`).join("")}</table>`
+          : `<table><tr><th>Desk</th>${cols}</tr>${rows.map((r) => `<tr${r.ref ? ' class="ref"' : ""}><td>${name(r)}</td>${vals(r)}</tr>`).join("")}</table>`);
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

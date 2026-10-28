@@ -1,0 +1,58 @@
+<div class="gs-oper"></div>
+<style>
+  .gs-oper { font-size: 12.5px; }
+  .gs-oper .panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px 22px; }
+  .gs-oper .panel h4 { margin: 0; font-size: 13px; font-weight: 650; color: var(--text-color); }
+  .gs-oper .panel .u { font-size: 11.5px; color: var(--muted-color); margin: 1px 0 4px; }
+  .gs-oper svg { display: block; width: 100%; overflow: visible; }
+  .gs-oper .ref { font-size: 11.5px; color: var(--muted-color); margin-top: 2px; line-height: 1.4; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-oper");
+    if (!root) return;
+    const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      root.innerHTML = '<div class="panels"></div><div class="gs-note"></div>';
+      const f = K.fmt;
+      function render() {
+        const wrap = d3.select(root).select(".panels").html("");
+        D.versions.forEach((V) => {
+          const unit = V.days_per_task > 1 ? `${V.days_per_task}-day window` : "battery-day";
+          const refs = Object.fromEntries(V.references.map((r) => [r.key, r]));
+          const p = wrap.append("div").attr("class", "panel");
+          p.append("h4").text(`${V.version} · ${V.name}`);
+          p.append("div").attr("class", "u").text(`P − the operator's bids, $ a ${unit}, ${V.n_tasks} ${unit}s`);
+          const W = p.node().clientWidth || 340, rh = 30, top = 6, ml = 92, H = top + V.models.length * rh + 24;
+          const svg = p.append("svg").attr("class", "gs-svg").attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+          const ext = V.models.flatMap((m) => m.P_minus_operator_replay.ci);
+          const lo = Math.min(0, ...ext), hi = Math.max(0, ...ext), pad = (hi - lo) * 0.06;
+          const x = d3.scaleLinear().domain([lo - pad, hi + pad]).range([ml, W - 8]);
+          x.ticks(4).forEach((t) => {
+            svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", top).attr("y2", H - 20).style("stroke", "var(--grid-color)");
+            svg.append("text").attr("class", "sub").attr("x", x(t)).attr("y", H - 6).attr("text-anchor", "middle").text(f.usdk(t, true).replace("+$0", "$0"));
+          });
+          svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", top - 4).attr("y2", H - 20).style("stroke", "var(--muted-color)").style("stroke-dasharray", "3 3");
+          const tip = K.tip(p.node());
+          V.models.forEach((m, i) => {
+            const g = m.P_minus_operator_replay, y = top + i * rh + rh / 2, c = COL[m.key] || "var(--c-base)";
+            svg.append("text").attr("class", "lab b").attr("x", ml - 8).attr("y", y + 4).attr("text-anchor", "end").text(m.name.replace(" (untrained)", ""));
+            svg.append("line").attr("x1", x(g.ci[0])).attr("x2", x(g.ci[1])).attr("y1", y).attr("y2", y).style("stroke", c).style("stroke-width", 2);
+            const dot = svg.append("circle").attr("cx", x(g.mean)).attr("cy", y).attr("r", 5.5).style("fill", g.ci[0] > 0 || g.ci[1] < 0 ? c : "var(--page-bg)").style("stroke", c).style("stroke-width", 2);
+            dot.on("mousemove", (ev) => tip.show((el) => {
+              K.t.title(el, m.name, c);
+              K.t.row(el, "P − the operator's bids", `${f.usd0(g.mean, true)} ${f.usdci(g.ci, true)}`);
+              K.t.row(el, `its P a ${unit}`, f.usd0(m.P.mean));
+            }, ev)).on("mouseleave", () => tip.hide());
+          });
+          p.append("div").attr("class", "ref").text(`The operator's bids, replayed: ${f.usd0(refs.operator_replay.P.mean)} a ${unit}; its awards and metered output, settled: ${f.usd0(refs.operator_actual.P.mean)}.`);
+        });
+        d3.select(root).select(".gs-note").text("Each model's P minus the real operator's on the same battery and day, paired, with its 95% block-bootstrap CI (days; in v4, weather fronts). A filled dot: the CI excludes zero. The operator's bids are its own curves from ERCOT's 60-day disclosures, replayed through the desk's clearing and settlement.");
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

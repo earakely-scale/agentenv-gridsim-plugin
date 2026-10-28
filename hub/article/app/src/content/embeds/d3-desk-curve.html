@@ -1,0 +1,96 @@
+<div class="gs-curve"></div>
+<style>
+  .gs-curve { font-size: 12.5px; }
+  .gs-curve svg { display: block; width: 100%; overflow: visible; }
+  .gs-curve .lead { font-size: 13.5px; line-height: 1.55; color: var(--text-color); margin: 0 0 10px; min-height: 3em; }
+  .gs-curve .lead b { font-weight: 650; }
+  .gs-curve .strip { cursor: pointer; }
+  .gs-curve .strip rect.hit { fill: transparent; }
+  .gs-curve .strip .sel { fill: none; stroke: var(--text-color); stroke-width: 1.4; }
+  .gs-curve .curve { fill: none; stroke: var(--text-color); stroke-width: 2; stroke-linejoin: round; }
+  .gs-curve .pt { fill: var(--page-bg); stroke: var(--text-color); stroke-width: 1.6; }
+  .gs-curve .price { stroke: var(--c-discharge); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .gs-curve .award { fill: var(--c-sol); stroke: var(--page-bg); stroke-width: 2; }
+  .gs-curve .zone { fill-opacity: 0.07; }
+  .gs-curve .zl { fill: var(--muted-color); font-size: 11px; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-curve");
+    if (!root) return;
+    K.whenD3(() => K.data("curve.json").then((C) => {
+      const d3 = window.d3;
+      let hr = C.hour;
+      root.innerHTML = '<p class="lead"></p><div class="plot"></div><div class="gs-note"></div>';
+      const svg = d3.select(root).select(".plot").append("svg").attr("class", "gs-svg");
+      const mw = (x) => `${Math.round(Math.abs(x) * 10) / 10} MW`;
+      const usd2 = (x) => `${x < 0 ? "−" : ""}$${Math.abs(x).toFixed(2)}`;
+      const he = (h) => `HE${String(h + 1).padStart(2, "0")}`;
+      const span = (h) => `${String(h).padStart(2, "0")}:00–${String(h + 1).padStart(2, "0")}:00`;
+      const submitted = (() => { const t = C.submitted, m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}${t < 0 ? " the day before" : ""}`; })();
+      d3.select(root).select(".gs-note").text(`${C.model}'s accepted day-ahead curves for ${C.site}, submitted at ${submitted} for the operating day ${new Date(`${C.date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}. The DAM clears each hour at the node's real day-ahead price; the award is where the curve meets that price, within the battery's limits. Pick an hour on the strip: its bar is the award, charging below the line, discharging above.`);
+      function lead() {
+        const c = C.curves[hr], p = C.spp[hr], a = C.award[hr];
+        const buy = c.filter((q) => q[0] < 0), sell = c.filter((q) => q[0] > 0);
+        const bits = [];
+        if (buy.length) bits.push(`bids to buy up to ${mw(Math.min(...buy.map((q) => q[0])))} at ${usd2(Math.min(...buy.map((q) => q[1])))}/MWh or less`);
+        if (sell.length) bits.push(`offers to sell up to ${mw(Math.max(...sell.map((q) => q[0])))} at ${usd2(Math.max(...sell.map((q) => q[1])))}/MWh or more`);
+        const did = Math.abs(a) < 0.05 ? "no award" : a < 0 ? `an award to charge <b>${mw(a)}</b>` : `an award to discharge <b>${mw(a)}</b>`;
+        d3.select(root).select(".lead").html(`<b>${he(hr)}, ${span(hr)}:</b> a curve of ${c.length} points that ${bits.join(" and ")}. The day-ahead market cleared at <b>${usd2(p)}/MWh</b> at the node, so the battery got ${did}.`);
+      }
+      function render() {
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 700, narrow = W < 560;
+        const top = 8, sh = narrow ? 46 : 54, gap = 40, ch = narrow ? 230 : 280, H = top + sh + gap + ch + 34;
+        const ml = narrow ? 44 : 56, mr = 14;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const xb = d3.scaleBand().domain(d3.range(24)).range([ml, W - mr]).padding(0.18);
+        const amax = Math.max(1, ...C.award.map(Math.abs));
+        const yb = d3.scaleLinear().domain([-amax, amax]).range([top + sh, top]);
+        const strip = svg.append("g").attr("class", "strip");
+        strip.append("line").attr("x1", ml).attr("x2", W - mr).attr("y1", yb(0)).attr("y2", yb(0)).style("stroke", "var(--grid-color)");
+        strip.append("text").attr("class", "sub").attr("x", ml - 6).attr("y", top + 9).attr("text-anchor", "end").text("sell");
+        strip.append("text").attr("class", "sub").attr("x", ml - 6).attr("y", top + sh).attr("text-anchor", "end").text("buy");
+        d3.range(24).forEach((h) => {
+          const a = C.award[h], y0 = yb(0), y1 = yb(a);
+          strip.append("rect").attr("x", xb(h)).attr("y", Math.min(y0, y1)).attr("width", xb.bandwidth()).attr("height", Math.max(1, Math.abs(y1 - y0)))
+            .style("fill", a < 0 ? "var(--c-charge)" : "var(--c-discharge)").style("fill-opacity", h === hr ? 1 : 0.55);
+          if (h % (narrow ? 6 : 3) === 0 || h === 23) strip.append("text").attr("class", "sub").attr("x", xb(h) + xb.bandwidth() / 2).attr("y", top + sh + 14).attr("text-anchor", "middle").text(he(h));
+          strip.append("rect").attr("class", "hit").attr("x", xb(h) - 1).attr("y", top).attr("width", xb.step()).attr("height", sh + 16)
+            .on("click", () => { hr = h; lead(); render(); });
+        });
+        strip.append("rect").attr("class", "sel").attr("x", xb(hr) - 2).attr("y", top - 2).attr("width", xb.bandwidth() + 4).attr("height", sh + 4).attr("rx", 3);
+        const c = C.curves[hr], p = C.spp[hr], a = C.award[hr];
+        const y0c = top + sh + gap;
+        const prices = [...c.map((q) => q[1]), p];
+        const lo = Math.min(...prices), hi = Math.max(...prices), pad = Math.max(2, (hi - lo) * 0.25);
+        const x = d3.scaleLinear().domain([C.p_min, C.p_max]).range([ml, W - mr]);
+        const y = d3.scaleLinear().domain([lo - pad, hi + pad]).nice().range([y0c + ch, y0c]);
+        svg.append("rect").attr("class", "zone").attr("x", x(C.p_min)).attr("y", y0c).attr("width", x(0) - x(C.p_min)).attr("height", ch).style("fill", "var(--c-charge)");
+        svg.append("rect").attr("class", "zone").attr("x", x(0)).attr("y", y0c).attr("width", x(C.p_max) - x(0)).attr("height", ch).style("fill", "var(--c-discharge)");
+        svg.append("text").attr("class", "zl").attr("x", x(C.p_min) + 6).attr("y", y0c + 14).text("charge: buy");
+        svg.append("text").attr("class", "zl").attr("x", x(C.p_max) - 6).attr("y", y0c + 14).attr("text-anchor", "end").text("discharge: sell");
+        const ax = svg.append("g").attr("class", "ax");
+        y.ticks(5).forEach((t) => {
+          ax.append("line").attr("x1", ml).attr("x2", W - mr).attr("y1", y(t)).attr("y2", y(t)).style("stroke", "var(--grid-color)");
+          ax.append("text").attr("x", ml - 6).attr("y", y(t) + 4).attr("text-anchor", "end").text(`$${t}`);
+        });
+        x.ticks(narrow ? 4 : 8).forEach((t) => ax.append("text").attr("x", x(t)).attr("y", y0c + ch + 16).attr("text-anchor", "middle").text(`${t > 0 ? "+" : t < 0 ? "−" : ""}${Math.abs(t)}`));
+        ax.append("text").attr("x", W - mr).attr("y", y0c + ch + 30).attr("text-anchor", "end").text("MW, charging (−) to discharging (+)");
+        ax.append("text").attr("x", ml).attr("y", y0c - 6).attr("text-anchor", "start").text("$/MWh");
+        svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", y0c).attr("y2", y0c + ch).style("stroke", "var(--muted-color)").style("stroke-opacity", 0.5);
+        svg.append("line").attr("class", "price").attr("x1", ml).attr("x2", W - mr).attr("y1", y(p)).attr("y2", y(p));
+        svg.append("text").attr("class", "val halo").attr("x", W - mr).attr("y", y(p) - 6).attr("text-anchor", "end").text(`DAM price ${usd2(p)}`);
+        svg.append("path").attr("class", "curve").attr("d", d3.line().x((q) => x(q[0])).y((q) => y(q[1]))(c));
+        c.forEach((q) => svg.append("circle").attr("class", "pt").attr("cx", x(q[0])).attr("cy", y(q[1])).attr("r", 3.5));
+        svg.append("line").attr("x1", x(a)).attr("x2", x(a)).attr("y1", y(p)).attr("y2", y0c + ch).style("stroke", "var(--c-sol)").style("stroke-dasharray", "2 3");
+        svg.append("circle").attr("class", "award").attr("cx", x(a)).attr("cy", y(p)).attr("r", 6.5);
+        svg.append("text").attr("class", "val halo b").attr("x", x(a) + (a < 0 ? 10 : -10)).attr("y", y(p) + 18).attr("text-anchor", a < 0 ? "start" : "end").style("font-weight", 650).text(Math.abs(a) < 0.05 ? "no award" : `award ${a < 0 ? "−" : "+"}${mw(a)}`);
+      }
+      lead();
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

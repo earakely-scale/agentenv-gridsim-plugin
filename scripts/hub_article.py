@@ -1,14 +1,13 @@
-"""The GridSimEnv article: a research-article Space built with tfrere's research-article-template (Astro, MDX chapters,
-D3 embeds) under hub/article. Its charts read results/overview/results.json (scripts/hub_results.py) and data this
-script derives from committed task packs and episodes, every schedule re-graded with gridsim_core.
+"""The GridSimEnv desk article: a research-article Space built with tfrere's research-article-template (Astro, MDX
+chapters, D3 embeds) under hub/article. Its charts read results/overview/desk.json (scripts/hub_desk.py) and the
+desk's committed episodes and grades; the prose states no number of its own: it reads them from facts.json, which this
+script formats from desk.json under the same rules as the dataset card and the viewer Space.
 
-    .venv/bin/python scripts/hub_article.py               # the article's data, the numbers check and the leak scan
-    .venv/bin/python scripts/hub_article.py --build       # then npm ci (once) and npm run build in hub/article/app
-    .venv/bin/python scripts/hub_article.py --publish     # then upload hub/article to the Space
+    .venv/bin/python scripts/hub_article.py --desk-repo DIR             # the data, the numbers check, the scans
+    .venv/bin/python scripts/hub_article.py --desk-repo DIR --build     # then npm ci (once) and npm run build
+    .venv/bin/python scripts/hub_article.py --desk-repo DIR --publish   # then upload hub/article to the Space
 
-The film and the stills are recorded with scripts/record.py (--media re-records them into build/article/); the banner
-reads ERCOT's prices for every settlement point from the parsed DAM cache (scripts/build_pack.py), and keeps the
-committed banner.json when the cache is absent.
+DIR is a checkout of the desk (results/desk-v<N>/, data/desk/); the repository itself once the desk is on main.
 """
 
 import argparse
@@ -16,59 +15,27 @@ import gzip
 import importlib.util
 import json
 import re
-import shutil
 import subprocess
-import sys
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-
-from gridsim_core.advantage import hour_advantages, q_value, value_table  # noqa: E402
-from gridsim_core.dp import dp_schedule  # noqa: E402
-from gridsim_core.grade import grade  # noqa: E402
-from gridsim_core.physics import simulate  # noqa: E402
-from gridsim_core.task import battery_of, index_pack, load_pack, make_battery, make_task  # noqa: E402
-
 ARTICLE = ROOT / "hub" / "article"
 APP = ARTICLE / "app"
 DATA = APP / "src" / "content" / "assets" / "data"
-PUBLIC = APP / "public"
-MEDIA = ROOT / "build" / "article"
+CHAPTERS = APP / "src" / "content" / "chapters"
 SPACE = "earakely-scale/GridSimEnv"
-RESULTS = ROOT / "results" / "overview" / "results.json"
+DESK = ROOT / "results" / "overview" / "desk.json"
 ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json"
-BANNER_DATE = "2025-03-15"
-POINTS = {  # region, name; the map draws each region at a representative city, its points side by side
-    "HB_WEST": ("west", "West hub"), "LZ_WEST": ("west", "West load zone"), "HB_PAN": ("panhandle", "Panhandle hub"),
-    "HB_NORTH": ("north", "North hub"), "LZ_NORTH": ("north", "North load zone"),
-    "LZ_RAYBN": ("north", "Rayburn load zone"), "HB_HOUSTON": ("houston", "Houston hub"),
-    "LZ_HOUSTON": ("houston", "Houston load zone"), "HB_SOUTH": ("south", "South hub"),
-    "LZ_SOUTH": ("south", "South load zone"), "LZ_CPS": ("south", "CPS Energy load zone"),
-    "LZ_AEN": ("central", "Austin Energy load zone"), "LZ_LCRA": ("central", "LCRA load zone"),
-    "HB_HUBAVG": ("average", "Hub average"), "HB_BUSAVG": ("average", "Bus average"),
-}
-REGIONS = {"west": ("West Texas", -102.1, 31.9), "panhandle": ("Panhandle", -101.8, 35.2),
-           "north": ("North Texas", -96.9, 32.8), "houston": ("Houston", -95.4, 29.8),
-           "south": ("South Texas", -98.5, 28.6), "central": ("Austin", -97.7, 30.3)}
-ANATOMY = [  # (task id, tier, the story the article tells about it)
-    ("dam-v1-2025-03-12-LZ_WEST-1h-c", "foresight",
-     "Prices dip below zero at midday. The greedy rule pairs the wrong hours; the trained 4B matches the optimum."),
-    ("dam-v1-2025-07-16-HB_HOUSTON-2h-e", "foresight",
-     "Two round trips and an end obligation. The warm start bought into a full battery; after run 3 it does not."),
-    ("dam-v1-2025-03-18-HB_WEST-4h-i", "foresight",
-     "A deep negative trough. The trained 4B still overfills: the day stops there, and it keeps $1,673 of $2,205."),
-    ("dam-v1-2026-10-19-HB_NORTH-2h-u", "blind",
-     "The day's shape changed overnight. Yesterday's plan captures 0.74; the trained 4B's forecast-then-plan, 1.00."),
-    ("dam-v1-2026-10-18-LZ_WEST-1h-e", "blind",
-     "Night prices are high and midday is almost free. Yesterday's plan earns $489; the optimum $2,750."),
-    ("dam-v1-2026-10-21-HB_NORTH-2h-t", "blind",
-     "The trained 4B sells before it has charged and breaks the day; GPT-6.1 Sol does not."),
-]
-ADVANTAGE_TASK = "dam-v1-2025-07-16-HB_HOUSTON-2h-e"
+STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json")
+HERO = ("v2", "2026-08-23", "sol")
+CURVE = ("v2", "desk-v2-2026-08-23-S02", "sol", 18)
+REGIONS = {"Far West": (-102.4, 31.3), "North": (-97.0, 32.9), "Houston": (-95.4, 29.8), "South": (-98.3, 28.2)}
+CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%"}
+NUMBER = re.compile(r"[−+-]?⁠?\\?\$[\d,]+(?:\.\d+)?k?|[−+-]?\d+\.\d+¢|[−+-]?\b\d+\.\d{2,}\b|\b\d+(?:\.\d+)?%")
 LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]|ocp-apim|"
                   r"b2clogin|ercot-api|\bhf_[A-Za-z0-9]{30,}|\b(?:10|172|192)\.\d+\.\d+\.\d+\b|"
                   r"gridsim/adapters|\bi-0[0-9a-f]{8,}|object storage \(`", re.I)
@@ -76,223 +43,180 @@ LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--media", action="store_true", help="Re-record the film and the stills with scripts/record.py.")
+    ap.add_argument("--desk-repo", type=Path, default=ROOT,
+                    help="A checkout of the desk: its results and episodes feed the charts, its packs name the real "
+                         "sites and operators the article must not.")
     ap.add_argument("--build", action="store_true", help="npm ci (once) and npm run build in hub/article/app.")
-    ap.add_argument("--publish", action="store_true", help="Upload hub/article and the media to the Space.")
-    ap.add_argument("--link", action="store_true",
-                    help="Link the article from the dataset card and from the viewer Space's card and pages.")
-    ap.add_argument("--desk-repo", type=Path,
-                    help="A checkout of the desk branch: its packs name the real sites and operators that the article "
-                         "must not, once it carries the desk.")
+    ap.add_argument("--publish", action="store_true", help="Upload hub/article to the Space.")
     args = ap.parse_args()
-    if args.media:
-        record_media()
-    res = json.loads(RESULTS.read_text())
+    desk = json.loads(DESK.read_text())
+    if not (args.desk_repo / "results" / "desk-v2" / "summary.json").is_file():
+        raise SystemExit(f"{args.desk_repo} holds no desk results: pass --desk-repo")
     DATA.mkdir(parents=True, exist_ok=True)
-    out = {"results.json": res, "anatomy.json": anatomy(), "advantage.json": advantage(),
-           "timeline.json": timeline()}
-    if (b := banner()) is not None:
-        out["banner.json"] = b
-    if (desk := RESULTS.with_name("desk.json")).is_file():
-        out["desk.json"] = json.loads(desk.read_text())
-    else:
-        (DATA / "desk.json").unlink(missing_ok=True)
+    out = {"desk.json": desk, "facts.json": facts(desk), "banner.json": hero(args.desk_repo, desk),
+           "curve.json": curve(args.desk_repo, desk)}
+    for name in STALE:
+        (DATA / name).unlink(missing_ok=True)
     for name, obj in out.items():
         (DATA / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
         print(f"{name:16} {(DATA / name).stat().st_size / 1e3:7.1f} kB")
-    copy_media()
-    check_numbers(res)
+    check_prose(out["facts.json"])
     leaks(files_to_publish())
-    if "desk.json" in out:
-        if args.desk_repo is None:
-            raise SystemExit("the article carries the desk: pass --desk-repo to check it for site and operator names")
-        spec = importlib.util.spec_from_file_location("hub_desk", ROOT / "scripts" / "hub_desk.py")
-        hk = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(hk)
-        hk.anonymous({k: p.read_bytes() for k, p in files_to_publish().items() if p.suffix in TEXT},
-                     hk.names(args.desk_repo))
+    hk = module("hub_desk", "scripts/hub_desk.py")
+    hk.anonymous({k: p.read_bytes() for k, p in files_to_publish().items() if p.suffix in TEXT},
+                 hk.names(args.desk_repo))
     if args.build or args.publish:
         build()
+        check_rendered(out["facts.json"])
     if args.publish:
         print("space:", publish())
-    if args.link:
-        link()
 
 
-def regrade(t: dict, actions, tier: str) -> dict:
-    """A schedule's grade, path and error kind as the article shows it; None actions is no valid submission."""
-    if actions is None:
-        return {"valid": False, "score": 0.0, "profit": None, "kind": "no valid schedule"}
-    g = grade(t, actions, tier)
-    if not g.get("submitted"):
-        return {"valid": False, "score": 0.0, "profit": None, "kind": "no valid schedule"}
-    sim = simulate(t, actions)
-    kind = ("all idle" if not any(actions) else
-            {"soc_above_N": "overfill", "soc_below_0": "sell before charge", "rate": "rate",
-             "cycle_cap": "cycle cap"}.get(g["violation"], g["violation"]) if g["violation"] else
-            "end short" if g["end_shortfall_units"] else "ok")
-    return {"valid": True, "actions": [int(a) for a in actions], "executed": sim["executed"], "soc": sim["soc_path"],
-            "cash": [round(float(x), 2) for x in np.cumsum(sim["cashflow"])], "penalty": round(sim["penalty_usd"], 2),
-            "profit": round(g["profit"], 2), "score": g["r_opt"] if tier == "blind" else g["reward"],
-            "reward": g["reward"], "kind": kind, "truncated_at": g["truncated_at"]}
+def module(name: str, rel: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / rel)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def jsonl(path: Path) -> dict:
-    with gzip.open(path, "rt") if path.suffix == ".gz" else open(path) as f:
-        return {r["task_id"]: r for r in map(json.loads, filter(str.strip, f))}
+def h(x: float, nd: int = 3, sign: bool = False) -> str:
+    """Half-up on the stored decimal, a true minus sign, as the dataset card and the desk page print C."""
+    q = abs(Decimal(str(x))).quantize(Decimal(1).scaleb(-nd), ROUND_HALF_UP)
+    return f"{'−' if x < 0 and q else '+' if sign else ''}{q}"
 
 
-def eval_run(path: str, pack: str | None = None) -> dict:
-    ev = json.loads((ROOT / path).read_text())
-    run = next(r for r in ev["runs"] if r["decoding"] == "sampled" and (pack is None or r.get("pack") == pack))
-    return {t["task_id"]: t for t in run["per_task"]}
+def ci(c: list[float], nd: int = 3, sign: bool = False) -> str:
+    return f"[{h(c[0], nd, sign)}, {h(c[1], nd, sign)}]"
 
 
-def episode_texts(path: str, ids: set) -> dict:
-    out = {}
-    with gzip.open(ROOT / path, "rt") as f:
-        for line in f:
-            if line.strip():
-                e = json.loads(line)
-                if e["task_id"] in ids:
-                    out[e["task_id"]] = e["messages"][-1]["content"].split("<tool_call>")[0].strip()
+def usd(x: float, sign: bool = False) -> str:
+    """Whole dollars as the results READMEs print them, a word joiner keeping the sign on the amount."""
+    v = f"{abs(x):,.0f}"
+    s = "" if v == "0" else "−" if x < 0 else "+" if sign else ""
+    return f"{s}⁠${v}" if s else f"${v}"
+
+
+def usd_ci(c: list[float], sign: bool = False) -> str:
+    return f"[{usd(c[0], sign)}, {usd(c[1], sign)}]"
+
+
+def cents(x: float) -> str:
+    return f"{'−' if x < 0 else '+' if x > 0 else ''}{abs(x) * 100:.1f}¢"
+
+
+def day(iso: str) -> str:
+    return f"{date.fromisoformat(iso):%-d %B %Y}"
+
+
+def span(iso: str, n: int) -> str:
+    a = date.fromisoformat(iso)
+    b = date.fromordinal(a.toordinal() + n - 1)
+    return day(iso) if n == 1 else f"{a:%-d} to {b:%-d %B %Y}" if a.month == b.month else f"{a:%-d %B} to {b:%-d %B %Y}"
+
+
+def unit(v: dict) -> str:
+    return "battery-day" if v["days_per_task"] == 1 else f"{v['days_per_task']}-day window"
+
+
+def facts(d: dict) -> dict:
+    """Every number the prose states, formatted from desk.json; the chapters read them as {F.v2.m.sol.C} and so on."""
+    out = {"across": d["across"], "n_versions": str(len(d["versions"])),
+           "resamples": f"{d['versions'][0]['ci']['resamples']:,}"}
+    for v in d["versions"]:
+        f = {"name": v["name"], "n": str(v["n_tasks"]), "blocks": str(v["n_days"]), "block": v["block"],
+             "unit": unit(v), "from": day(v["dates"][0]), "to": day(v["dates"][1]), "ref": v["ref"], "m": {}, "r": {},
+             "pair": {}}
+        for m in v["models"]:
+            f["m"][m["key"]] = {
+                "name": m["name"], "C": h(m["C"]["mean"]), "Cci": ci(m["C"]["ci"]), "P": usd(m["P"]["mean"]),
+                "Pci": usd_ci(m["P"]["ci"]), "R": h(m["R"]["mean"], 2),
+                "vsOp": usd(m["P_minus_operator_replay"]["mean"], True),
+                "vsOpci": usd_ci(m["P_minus_operator_replay"]["ci"], True),
+                "vsA": usd(m["P_minus_anchor"]["mean"], True), "vsAci": usd_ci(m["P_minus_anchor"]["ci"], True),
+                "valid": f"{100 * m['valid']:.0f}%"}
+        for r in v["references"]:
+            f["r"][r["key"]] = {"C": h(r["C"]["mean"]), "P": usd(r["P"]["mean"])}
+        for p in v["paired"]:
+            if "C" in p:
+                f["pair"][f"{p['a']}_{p['b']}"] = {"C": h(p["C"]["mean"], 3, True), "Cci": ci(p["C"]["ci"], 3, True)}
+        sv = v.get("sensitivity") or {}
+        w = sv.get("without") or sv.get("derived")
+        if w and sv.get("carried"):
+            per = sv["per_day_mean_P"][w["days"][0]]
+            f["sens"] = {"day": day(w["days"][0]), "span": span(w["days"][0], v["days_per_task"]),
+                         "n": str(w["n_tasks"]),
+                         "on": {x: usd(y) for x, y in {**per["models"], **per["references"]}.items() if y is not None},
+                         "without": {x: usd(b["P"]["mean"]) for g in ("models", "references")
+                                     for x, b in w["means"][g].items()}}
+        if any(m.get("ancillary") for m in v["models"]):
+            f["as"] = {m["key"]: {"awards": str(m["ancillary"]["episodes_with_awards"]),
+                                  "lines": usd(m["lines"].get("dam_as_capacity", 0.0)
+                                               + m["lines"].get("rt_as_imbalance", 0.0), True),
+                                  "refused": str(sum(m["ancillary"]["rejected_codes_total"].values())),
+                                  "shape": str(m["ancillary"]["rejected_codes_total"].get("ASO-02", 0))}
+                       for m in v["models"] if m.get("ancillary")}
+        if pi := v.get("price_impact"):
+            f["impact"] = {k: {"sales": cents(x["sales_mwh_weighted_usd_per_mwh"]),
+                               "revenue": usd(x["revenue_effect_usd_per_episode"], True),
+                               "max": f"${x['max_abs_usd_per_mwh']:.2f}"} for k, x in pi.items()}
+        if vs := v.get("versus"):
+            f["versus"] = {k: {"P": usd(b["P"]["mean"], True), "Pci": usd_ci(b["P"]["ci"], True)}
+                           for k, b in vs["models"].items()}
+        out[v["version"]] = f
     return out
 
 
-def sol_board() -> dict:
-    """GPT-6.1 Sol's one-call (oneshot) runs of the v1 board, as the cost-matched contest reads them."""
-    out = {}
-    for d in ("results/runs/v1-board-sol-oneshot", "results/runs/v1-board-sol-oneshot-amend"):
-        for f in sorted((ROOT / d).glob("*.json")):
-            e = json.loads(f.read_text())
-            out[e["task_id"]] = {"actions": e["final_schedule"], "usd": e["usage"]["usd"]}
-    return out
+def hero(repo: Path, d: dict) -> dict:
+    """One real desk day at all four batteries: GPT-6.1 Sol's v2 episodes on HERO's day, each battery's node prices,
+    state of charge and metered output every 15 minutes, its wake-ups and its settled P from grades.jsonl.gz."""
+    key, iso, model = HERO
+    folder = repo / "results" / f"desk-{key}"
+    with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
+        grades = {g["task_id"]: g for g in map(json.loads, filter(str.strip, f)) if g["model"] == model}
+    sites = []
+    for tid, g in sorted(grades.items()):
+        if g["date"] != iso:
+            continue
+        ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
+        rt, dam = ep["rt"][iso], ep["dam"][iso]
+        card = ep["site"]["card"]
+        sites.append({"task": tid, "name": card["name"], "region": card["region"], "size": card["size"],
+                      "e_max": ep["site"]["e_max_mwh"], "p_max": ep["site"]["hsl_mw"],
+                      "rt": [round(x, 2) for x in rt["spp"]], "dam": [round(x, 2) for x in dam["spp"]],
+                      "soc": [round(x, 2) for x in rt["soc_mwh"][::3]],
+                      "mw": [round(float(np.mean(rt["metered_mw"][i:i + 3])), 1) for i in range(0, 288, 3)],
+                      "wakes": [w["t"] for w in ep["wakes"] if w.get("turn") is not None and 0 <= w["t"] < 1440],
+                      "p": round(g["p"], 2), "p_operator_replay": g["p_operator_replay"]})
+    if len(sites) != 4:
+        raise SystemExit(f"hero: {len(sites)} {model} episodes on {iso} in {folder}, expected 4")
+    v = next(x for x in d["versions"] if x["version"] == key)
+    old = DATA / "banner.json"
+    prev = json.loads(old.read_text()) if old.is_file() else {}
+    return {"version": key, "name": v["name"], "date": iso,
+            "model": next(m["name"] for m in v["models"] if m["key"] == model),
+            "regions": {k: {"lon": x, "lat": y} for k, (x, y) in REGIONS.items()},
+            "texas": prev.get("texas") or texas(), "sites": sites,
+            "source": "ERCOT's node prices as the episodes recorded them; Texas: U.S. Census Bureau via us-atlas"}
 
 
-def anatomy() -> dict:
-    """Real battery-days, each with the DP optimum and every model's schedule on it, re-graded."""
-    ev = index_pack("ercot-dam-v1-eval")
-    fresh = {t["task_id"]: t for t in load_pack("ercot-dam-v1-fresh-2026-10-blind")}
-    ids = {i for i, _, _ in ANATOMY}
-    fore = {"base": eval_run("results/train/4b/eval_base.json"),
-            "sft": eval_run("results/train/4b-dpa/eval_step0.json"),
-            "final": eval_run("results/train/4b-dpa/eval_trained.json"), "sol": sol_board(),
-            "luna-high": jsonl(ROOT / "results/cost-matched/luna/luna-foresight-eval2025-high.jsonl.gz")}
-    blind = {"base": eval_run("results/train/4b-blind/eval_step0_base.json", "fresh"),
-             "final": eval_run("results/train/4b-blind/eval_final.json", "fresh"),
-             "sol": jsonl(ROOT / "results/train/4b-blind/sol/sol-ercot-dam-v1-fresh-2026-10-blind.jsonl.gz"),
-             "luna-high": jsonl(ROOT / "results/cost-matched/luna/luna-blind-fresh-high.jsonl.gz"),
-             "beam-max": jsonl(ROOT / "results/beam-agent/beam/beam-blind-fresh-max.jsonl.gz")}
-    texts = {"foresight": episode_texts("results/train/4b-dpa/episodes/ckpt-0300-sampled.jsonl.gz", ids),
-             "blind": episode_texts("results/train/4b-blind/episodes/final-fresh-sampled.jsonl.gz", ids)}
-    labels = {"base": ("Qwen3-4B, untrained", "base"), "sft": ("Qwen3-4B, SFT-10k warm start", "qwen-sft"),
-              "sol": ("GPT-6.1 Sol", "sol"), "luna-high": ("GPT-6 Luna, high", "luna"),
-              "beam-max": ("Beam-1.0, max", "beam")}
-    days = []
-    for tid, tier, story in ANATOMY:
-        t = ev[tid] if tier == "foresight" else fresh[tid]
-        f = t["refs"]["foresight"]
-        models = []
-        src = fore if tier == "foresight" else blind
-        for key in (("base", "sft", "final", "luna-high", "sol") if tier == "foresight" else
-                    ("base", "final", "luna-high", "beam-max", "sol")):
-            r = src[key].get(tid)
-            if r is None:
-                continue
-            label, color = labels.get(key, (f"Qwen3-4B, trained ({'run 3' if tier == 'foresight' else 'run 4'})",
-                                            "qwen"))
-            g = regrade(t, r.get("actions"), tier)
-            if "c" in r and g["valid"]:
-                assert abs(g["score"] - r["c"]) < 1e-6, (tid, key)
-            m = {"key": key, "label": label, "color": color, **g}
-            if r.get("forecast"):
-                m["forecast"] = [round(float(x), 1) for x in r["forecast"]]
-            if key == "final" and tid in texts[tier]:
-                m["text"] = texts[tier][tid]
-            models.append(m)
-        rules = [("greedy", "greedy rule", t["refs"]["foresight"]["baselines"]["greedy"]["schedule"])]
-        if tier == "blind":
-            rules = [("persistence-dp", "persistence-DP", t["refs"]["blind"]["persist"])]
-        for key, label, sched in rules:
-            models.append({"key": key, "label": label, "color": "rule", **regrade(t, sched, tier)})
-        opt = regrade(t, f["opt"], tier)
-        b = t["battery"]
-        days.append({"id": tid, "tier": tier, "story": story, "date": t["date"], "point": t["settlement_point"],
-                     "name": POINTS[t["settlement_point"]][1], "battery": {k: b[k] for k in (
-                         "archetype", "p_dis_mw", "energy_mwh", "unit_mwh", "soc_levels", "k_dis", "k_ch", "eta",
-                         "c_deg", "cycle_cap_units", "s0", "s_end_min")},
-                     "prices": [round(p, 2) for p in t["prices"]],
-                     "prev_day": [round(p, 2) for p in t["blind"]["dam_prev_day"]] if tier == "blind" else None,
-                     "p_opt": round(f["p_opt"], 2), "p_idle": round(f["p_idle"], 2),
-                     "p_anchor": round(t["refs"]["blind"]["p_anchor"], 2) if tier == "blind" else None,
-                     "opt": opt, "models": models})
-    return {"days": days}
-
-
-def advantage() -> dict:
-    """One held-out completion before and after run 3, credited hour by hour with the DP's exact advantage; at each
-    visited state, the advantage of every action the hour allows."""
-    t = index_pack("ercot-dam-v1-eval")[ADVANTAGE_TASK]
-    b, p = battery_of(t), t["prices"]
-    v = value_table(b, p)
-    f = t["refs"]["foresight"]
-    variants = []
-    for key, label, path in (("sft", "Qwen3-4B after SFT-10k (run 3, step 0)",
-                              "results/train/4b-dpa/episodes/step-0000-sampled.jsonl.gz"),
-                             ("final", "after 300 steps of run 3",
-                              "results/train/4b-dpa/episodes/ckpt-0300-sampled.jsonl.gz")):
-        with gzip.open(ROOT / path, "rt") as fh:
-            e = next(x for x in map(json.loads, filter(str.strip, fh)) if x["task_id"] == ADVANTAGE_TASK)
-        acts = e["final_schedule"]
-        ha = hour_advantages(t, acts)
-        g = grade(t, acts)
-        assert abs(g["reward"] - e["reward"]) < 1e-6
-        s, d, q = b.s0, 0, []
-        for h, a in enumerate(acts):
-            if ha["truncated_at"] is not None and h > ha["truncated_at"]:
-                q.append(None)
-                continue
-            base = float(v[h, s, d])
-            q.append({"s": s, "d": d, "adv": {str(x): round((q_value(b, p, v, h, s, d, x) - base) * ha["scale"], 5)
-                                              for x in range(-b.k_ch, b.k_dis + 1)}})
-            if ha["truncated_at"] == h:
-                continue
-            s, d = s - a, d + max(a, 0)
-        sim = simulate(t, acts)
-        variants.append({"key": key, "label": label, "reward": g["reward"], "profit": round(g["profit"], 2),
-                         "actions": acts, "soc": sim["soc_path"], "truncated_at": ha["truncated_at"],
-                         "violation": g["violation"], "adv": [round(x, 5) for x in ha["adv"]],
-                         "sign": [round(x, 5) for x in ha["sign"]], "digit": [round(x, 5) for x in ha["digit"]],
-                         "opt": ha["opt"], "q": q,
-                         "text": e["messages"][-1]["content"].split("<tool_call>")[0].strip()})
-    bat = t["battery"]
-    return {"id": ADVANTAGE_TASK, "date": t["date"], "point": t["settlement_point"],
-            "name": POINTS[t["settlement_point"]][1], "prices": [round(x, 2) for x in p],
-            "battery": {k: bat[k] for k in ("p_dis_mw", "energy_mwh", "unit_mwh", "soc_levels", "k_dis", "k_ch", "eta",
-                                            "c_deg", "cycle_cap_units", "s0", "s_end_min")},
-            "p_opt": round(f["p_opt"], 2), "p_idle": round(f["p_idle"], 2), "opt": f["opt"],
-            "opt_soc": simulate(t, f["opt"])["soc_path"], "variants": variants}
-
-
-def timeline() -> dict:
-    """Which days train, which are held out, and when: each pack's dates and counts from its manifest."""
-    packs = []
-    for name, split, role in (("ercot-dam-v1-train", "train", "train"),
-                              ("ercot-dam-v1-eval-iid", "eval_iid", "held out (every 10th day of 2014–2024)"),
-                              ("ercot-dam-v1-eval", "eval_2025", "held out"),
-                              ("ercot-dam-v1-rtcb", "rtcb", "held out, after RTC+B"),
-                              ("ercot-dam-v1-fresh-2026-10", "fresh", "ERCOT's newest days")):
-        m = json.loads((ROOT / "data" / name / "manifest.json").read_text())
-        n_blind = m.get("count_blind")
-        if name == "ercot-dam-v1-fresh-2026-10":
-            n_blind = json.loads((ROOT / "data/ercot-dam-v1-fresh-2026-10-blind/manifest.json").read_text()).get(
-                "count", n_blind)
-        packs.append({"pack": name, "split": split, "role": role, "from": m["date_range"][0],
-                      "to": m["date_range"][1], "n": m["count"], "n_blind": n_blind})
-    return {"packs": packs, "rtcb": "2025-12-05", "live_first_seal": "2026-10-29",
-            "showcase": [["2021-02-10", "2021-02-22", "Uri"], ["2022-12-22", "2022-12-24", "Elliott"],
-                         ["2023-08-01", "2023-08-31", "August 2023"], ["2023-09-06", "2023-09-06", "6 Sep 2023"],
-                         ["2024-01-13", "2024-01-17", "Heather"]]}
+def curve(repo: Path, d: dict) -> dict:
+    """The day-ahead energy bid/offer curves one episode submitted, the node's real day-ahead price and the award each
+    cleared at, for the chapter on ERCOT's objects."""
+    key, task, model, hour = CURVE
+    folder = repo / "results" / f"desk-{key}"
+    with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
+        g = next(x for x in map(json.loads, filter(str.strip, f)) if x["model"] == model and x["task_id"] == task)
+    ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
+    iso = ep["dates"][0]
+    dam = ep["dam"][iso]
+    card = ep["site"]["card"]
+    sub = next(s for s in ep["submissions"] if s["tool"] == "submit_dam_offers" and s["accepted"])
+    v = next(x for x in d["versions"] if x["version"] == key)
+    return {"version": key, "task": task, "date": iso, "site": f"{card['name']} ({card['region']}, {card['size']})",
+            "model": next(m["name"] for m in v["models"] if m["key"] == model), "submitted": sub["t"],
+            "hour": hour, "curves": dam["curves"], "spp": dam["spp"],
+            "award": [round(x, 2) for x in dam["award_mw"]], "p_min": ep["site"]["lsl_mw"],
+            "p_max": ep["site"]["hsl_mw"]}
 
 
 def texas() -> list:
@@ -327,182 +251,58 @@ def simplify(pts: np.ndarray, tol: float) -> np.ndarray:
         a, b = pts[i], pts[j]
         ab, rest = b - a, pts[i + 1:j] - a
         n = np.hypot(*ab)
-        d = np.hypot(rest[:, 0], rest[:, 1]) if n < 1e-9 else np.abs(ab[0] * rest[:, 1] - ab[1] * rest[:, 0]) / n
-        k = int(np.argmax(d))
-        if d[k] > tol:
+        dist = np.hypot(rest[:, 0], rest[:, 1]) if n < 1e-9 else np.abs(ab[0] * rest[:, 1] - ab[1] * rest[:, 0]) / n
+        k = int(np.argmax(dist))
+        if dist[k] > tol:
             keep[i + 1 + k] = True
             stack += [(i, i + 1 + k), (i + 1 + k, j)]
     return pts[keep]
 
 
-def banner() -> dict | None:
-    """One real day at all 15 settlement points: ERCOT's day-ahead prices on BANNER_DATE and the exact DP schedule of
-    one 100 MW, 2-hour battery at each, for the hero map."""
-    cache = sorted((ROOT / "cache" / "parsed").glob("dam-*.json.gz"))
-    if not cache:
-        print("banner: no parsed DAM cache (scripts/build_pack.py); keeping the committed banner.json")
-        return None
-    dam = json.loads(gzip.open(cache[-1], "rt").read())["dam"]
-    bat = make_battery(100.0, 200.0, 2, eta=0.85, c_deg=0.0, cycles=1.5, s0=0, s_end_min=0, archetype="banner")
-    pts = []
-    for pid, (region, name) in POINTS.items():
-        v = dam[f"{BANNER_DATE}|{pid}"]
-        prices = v["prices"] if isinstance(v, dict) else v
-        t = make_task(prices, bat, date=BANNER_DATE, point=pid)
-        acts = dp_schedule(battery_of(t), prices)
-        sim = simulate(t, acts)
-        pts.append({"id": pid, "name": name, "region": region, "kind": "hub" if pid.startswith("HB_") else "load zone",
-                    "prices": [round(p, 2) for p in prices], "actions": acts, "soc": sim["soc_path"],
-                    "profit": round(sim["profit_usd"], 2)})
-    return {"date": BANNER_DATE, "battery": {k: bat[k] for k in ("p_dis_mw", "energy_mwh", "unit_mwh", "soc_levels",
-                                                                  "eta", "cycle_cap_units")},
-            "regions": {k: {"name": n, "lon": x, "lat": y} for k, (n, x, y) in REGIONS.items()},
-            "texas": texas(), "points": pts,
-            "source": "ERCOT DAM settlement point prices (NP4-180-ER); Texas outline: U.S. Census Bureau via us-atlas"}
+def leaves(f: dict, path: str = "F") -> dict[str, str]:
+    out = {}
+    for k, x in f.items():
+        if isinstance(x, dict):
+            out |= leaves(x, f"{path}.{k}")
+        else:
+            out[f"{path}.{k}"] = x
+    return out
 
 
-def record_media() -> None:
-    """The film (the trained 4B, run 4, blind on 2026-10-19 at HB_NORTH) and the stills, recorded headless."""
-    ep = MEDIA / "episodes"
-    ep.mkdir(parents=True, exist_ok=True)
-    picks = {"dam-v1-2026-10-19-HB_NORTH-2h-u", "dam-v1-2026-10-21-LZ_HOUSTON-4h-x", "dam-v1-2026-10-19-HB_PAN-2h-l"}
-    with gzip.open(ROOT / "results/train/4b-blind/episodes/final-fresh-sampled.jsonl.gz", "rt") as f:
-        for e in map(json.loads, filter(str.strip, f)):
-            if e["task_id"] in picks:
-                (ep / f"run4-{e['task_id']}.json").write_text(json.dumps(e))
-    sol = ROOT / "results/runs/v1-board-sol-full/dam-v1-2025-03-15-HB_WEST-1h-t-openai-gpt-6.1-sol-r1.json"
-    py, rec = sys.executable, str(ROOT / "scripts" / "record.py")
-    weather = [str(ROOT / "scripts" / "weather.py"), "HB_NORTH", "2026-10-19", "LZ_HOUSTON", "2026-10-21",
-               "HB_PAN", "2026-10-19", "HB_WEST", "2025-03-15"]
-    subprocess.run([py, *weather], check=True)
-    film = MEDIA / "media" / "run4-north-2026-10-19-1080.mp4"
-    subprocess.run([py, rec, "--episode", str(ep / "run4-dam-v1-2026-10-19-HB_NORTH-2h-u.json"), "--out", str(film),
-                    "--seconds", "40", "--size", "1920x1080"], check=True)
-    web = MEDIA / "media" / "gridsim-run4-north-2026-10-19.mp4"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(film), "-vf", "scale=1600:900:flags=lanczos", "-c:v",
-                    "libx264", "-preset", "slow", "-crf", "26", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-                    "-an", str(web)], check=True)
-    poster = MEDIA / "media" / "poster.jpg"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "37", "-i", str(film), "-frames:v", "1", "-q:v", "3",
-                    str(poster)], check=True)
-    stills = [(sol, 12.5, "establish", "gridsim-west-noon"), (sol, 20.6, "establish", "gridsim-west-night"),
-              (ep / "run4-dam-v1-2026-10-21-LZ_HOUSTON-4h-x.json", 18.6, "city", "gridsim-houston-sunset"),
-              (ep / "run4-dam-v1-2026-10-19-HB_PAN-2h-l.json", 18.4, "city", "gridsim-panhandle-wind")]
-    (MEDIA / "img").mkdir(parents=True, exist_ok=True)
-    for episode, t, shot, name in stills:
-        png = MEDIA / "stills" / f"{name}.png"
-        subprocess.run([py, rec, "--episode", str(episode), "--still", str(png), "--t", str(t), "--size",
-                        "1600x900", "--extra", f"ui=0&shot={shot}"], check=True)
-        subprocess.run(["cwebp", "-quiet", "-q", "82", str(png), "-o", str(MEDIA / "img" / f"{name}.webp")],
-                       check=True)
-    subprocess.run(["cwebp", "-quiet", "-q", "84", "-resize", "1600", "0", str(poster), "-o",
-                    str(MEDIA / "img" / "gridsim-run4-poster.webp")], check=True)
+FACT = re.compile(r"\{(F(?:\.[A-Za-z0-9_]+)+)\}")
 
 
-def copy_media() -> None:
-    """The stills (small, committed under app/public/img) and the film (uploaded to the Space, not committed)."""
-    for src, dst, pattern in ((MEDIA / "img", PUBLIC / "img", "gridsim-*.webp"),
-                              (MEDIA / "media", PUBLIC / "media", "gridsim-*.mp4")):
-        for f in sorted(src.glob(pattern)):
-            dst.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, dst / f.name)
-
-
-def h(x: float, nd: int = 3, sign: bool = False) -> str:
-    """Half-up, a true minus sign, as the results READMEs print."""
-    q = Decimal(str(x)).quantize(Decimal(1).scaleb(-nd), ROUND_HALF_UP)
-    return (f"{q:+}" if sign else f"{q}").replace("-", "−")
-
-
-def ci(c, nd: int = 3, sign: bool = True) -> str:
-    return f"[{h(c[0], nd, sign)}, {h(c[1], nd, sign)}]"
-
-
-def neg(g: dict) -> dict:
-    return {"mean": -g["mean"], "ci": [-g["ci"][1], -g["ci"][0]]}
-
-
-def checks(r: dict) -> list[tuple[str, str]]:
-    """(chapter, text): every number the prose states that results.json holds, formatted from results.json."""
-    fr = {p["key"]: p for p in r["frontier"]["points"]}
-    lb = {p["key"]: {x["key"]: x for x in p["rows"]} | {f"ref:{b['key']}": b for b in p["baselines"]}
-          for p in r["leaderboard"]["packs"]}
-    e, n = r["dollars"]["packs"]["eval2025"], r["dollars"]["packs"]["fresh"]
-    eg, ng = e["gaps"], n["gaps"]
-    lad = {x["key"]: x for x in e["ladder"]}
-    t, pl = r["training"]["curve"], r["training"]["planning"]
-    pe, pf = pl["eval2025"]["gaps"], pl["fresh"]["gaps"]
-    q4, inf = e["quartiles"][3], e["inference"]
-    pay = r["dollars"]["payback"]
-
-    def gap(g, nd=3):
-        return f"{h(g['mean'], nd, True)} {ci(g['ci'], nd)}"
-
-    def usd(x, nd=1):
-        return f"${h(x, nd)}"
-
-    def kyr(g, s=""):
-        m = g["yr"]["mean"]
-        return f"{'+' if m > 0 else '−'}{usd(abs(m))}k{s} {ci(g['yr']['ci'], 1)}"
-
-    lf, bf = lb["blind-fresh"], lb["blind-eval2025"]
-    sol_m, beam_m = fr["sol"]["final_minus"], fr["beam-max"]["final_minus"]
-    return [
-        ("eval.mdx", f"Sol captures {h(fr['sol']['mean'])} of"), ("eval.mdx", f"{h(bf['sol']['mean'])} on 2025"),
-        ("eval.mdx", f"captures {h(lf['ref:persistence-dp']['mean'])} and {h(bf['ref:persistence-dp']['mean'])}"),
-        ("eval.mdx", f"scores {h(lb['foresight-eval2025']['final']['mean'])} and "
-                     f"{h(lb['foresight-fresh']['final']['mean'])} at foresight and {h(bf['final']['mean'])} and "
-                     f"{h(lf['final']['mean'])} blind"),
-        ("eval.mdx", f"scores {h(lb['foresight-eval2025']['base']['mean'], 2)} at foresight"),
-        ("eval.mdx", f"and {h(bf['base']['mean'], 2)} and {h(lf['base']['mean'], 2)} blind, below doing nothing"),
-        ("eval.mdx", gap(fr["luna-high"]["final_minus"])), ("eval.mdx", gap(fr["luna-low"]["final_minus"])),
-        ("eval.mdx", f"captures {h(-sol_m['mean'])} more** {ci(neg(sol_m)['ci'])}"),
-        ("eval.mdx", f"captures {h(fr['beam-max']['mean'])}, ahead of the trained 4B ({gap(neg(beam_m))})"),
-        ("eval.mdx", f"for {usd(fr['beam-max']['usd'], 4)} a battery-day"),
-        ("eval.mdx", f"for {h(r['frontier']['ratios']['sol'], 0)} times the 4B's"),
-        ("worth.mdx", f"Training bought {kyr(eg['4b-sampled - base'])}".replace("k [", "k per MW-year** [")),
-        ("worth.mdx", kyr(ng["4b-sampled - base"])),
-        ("worth.mdx", f"from −{usd(-lad['base']['yr']['mean'])}k"),
-        ("worth.mdx", f"to {usd(lad['4b-sampled']['yr']['mean'])}k"),
-        ("worth.mdx", f"about {usd(eg['4b-sampled - base']['per_100mw_yr'] / 1000)}M a year"),
-        ("worth.mdx", f"{kyr(eg['4b-sampled - persistence-dp'])} per MW-year on 2025"),
-        ("worth.mdx", f"{kyr(ng['4b-sampled - persistence-dp'])} on the newest"),
-        ("worth.mdx", f"by {kyr(eg['sol - persistence-dp'])}".replace("k [", "k** [")),
-        ("worth.mdx", kyr(ng["sol - persistence-dp"])),
-        ("worth.mdx", f"about {usd(eg['sol - persistence-dp']['per_100mw_yr'], 0)}k a year"),
-        ("worth.mdx", f"falls {usd(q4['shortfall']['mean'])} short"),
-        ("worth.mdx", f"recovers {usd(q4['sol']['mean'])} of it {ci(q4['sol']['ci'], 1)}"),
-        ("worth.mdx", f"{round(100 * e['top_days']['sol_share_from_top'])}% of its net gain over persistence-DP on "
-                      f"2025 comes from its best {e['top_days']['k']} days"),
-        ("worth.mdx", f"Sol costs {usd(inf['models']['sol']['usd_per_battery_yr'], 2)} of inference"),
-        ("worth.mdx", f"extra {usd(inf['sol_over_4b']['extra_inference_usd_per_battery_yr'], 2)} a year"),
-        ("worth.mdx", f"buys {usd(inf['sol_over_4b']['decision_gap_k_usd_per_100mw_yr'], 0)}k a year"),
-        ("training.mdx", f"rose {gap(t['run3_gain'])}**, to {h(t['run3'][-1]['sampled']['mean'])}"),
-        ("training.mdx", f"gained {gap(t['run1']['gain'])} in {t['run1']['end']['step']} steps"),
-        ("training.mdx", f"moved {gap(t['run2']['gain'])} in {t['run2']['end']['step']} steps"),
-        ("training.mdx", f"miss by {usd(pl['mae']['final'], 2)}/MWh"),
-        ("training.mdx", f"forecaster's {usd(pl['mae']['teacher'], 2)}"),
-        ("training.mdx", f"yesterday's prices' {usd(pl['mae']['persistence'], 2)}"),
-        ("training.mdx", f"{h(pl['eval2025']['dp_own']['mean'])} against Sol's {h(pl['eval2025']['sol']['mean'])} on "
-                         f"2025 ({gap(pe['dp_own_minus_sol'])}"),
-        ("training.mdx", f"Only {round(100 * pl['eval2025']['exact_dp_share'])}% of its schedules"),
-        ("training.mdx", f"{gap(pe['final_minus_sol'])} on 2025 and {gap(pf['final_minus_sol'])} on the newest"),
-        ("training.mdx", f"{gap(pe['final_minus_sft'])} on 2025 and {gap(pf['final_minus_sft'])} on the newest"),
-        ("training.mdx", f"About {usd(r['training']['gpu_usd_total'], 0)} of GPU"),
-        ("training.mdx", f"after about {round(pay['run 4']['battery_days'], -3):,.0f} battery-days, run 3's after "
-                         f"about {round(pay['run 3']['battery_days'], -3):,.0f}"),
-        ("environment.mdx", f"captures {h(fr['final']['mean'])} of hindsight on average"),
-    ]
-
-
-def check_numbers(res: dict) -> None:
-    """Every number the prose states from results.json, against results.json."""
-    chapters = {p.name: re.sub(r"\s+", " ", p.read_text().replace("\\$", "$"))
-                for p in (APP / "src" / "content" / "chapters").glob("*.mdx")}
-    bad = [f"{c}: {text!r}" for c, text in checks(res) if text not in chapters.get(c, "")]
+def check_prose(f: dict) -> None:
+    """The chapters state no number of their own: every amount, capture, cent or share in the prose outside code is a
+    {F.…} expression read from facts.json, or one of the contract's constants; every expression names a fact."""
+    known = leaves(f)
+    bad, used = [], set()
+    for p in sorted(CHAPTERS.glob("*.mdx")):
+        text = re.sub(r"```.*?```", "", p.read_text(), flags=re.S)
+        text = re.sub(r"<HtmlEmbed.*?/>", "", text, flags=re.S)
+        for e in FACT.findall(text):
+            used.add(e)
+            if e not in known:
+                bad.append(f"{p.name}: {{{e}}} names no fact")
+        prose = re.sub(r"\{[^{}]*\}|`[^`]*`|^import .*$", "", text, flags=re.M | re.S)
+        for n in NUMBER.findall(prose):
+            if n.replace("\\", "").replace("⁠", "") not in CONSTANT:
+                bad.append(f"{p.name}: {n!r} is written into the prose; read it from facts.json")
     if bad:
-        raise SystemExit("numbers check failed, not in the prose:\n  " + "\n  ".join(bad))
-    print(f"numbers check: {len(checks(res))} stated numbers match results.json")
+        raise SystemExit("numbers check failed:\n  " + "\n  ".join(bad))
+    print(f"numbers check: {len(used)} stated numbers read from facts.json, formatted from desk.json; none written in")
+
+
+def check_rendered(f: dict) -> None:
+    """After the build: every fact the prose names appears on the page as facts.json formats it."""
+    html = (APP / "dist" / "index.html").read_text()
+    text = re.sub(r"<[^>]+>", "", html).replace("&#36;", "$").replace("&amp;", "&").replace("&#39;", "'")
+    known = leaves(f)
+    used = {e for p in CHAPTERS.glob("*.mdx") for e in FACT.findall(p.read_text())}
+    missing = [f"{e} = {known[e]!r}" for e in sorted(used) if known[e] not in text]
+    if missing:
+        raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
+    print(f"rendered check: all {len(used)} facts on the page as formatted")
 
 
 def files_to_publish() -> dict[str, Path]:
@@ -538,7 +338,7 @@ GITATTRIBUTES = "".join(f"*.{x} filter=lfs diff=lfs merge=lfs -text\n" for x in 
 
 
 def publish() -> str:
-    """Create the Docker Space if needed and make its files exactly hub/article's (with the film and stills)."""
+    """Create the Docker Space if needed and make its files exactly hub/article's."""
     from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
     api = HfApi()
     api.create_repo(SPACE, repo_type="space", space_sdk="docker", exist_ok=True)
@@ -548,40 +348,8 @@ def publish() -> str:
     ops += [CommitOperationAdd(path_in_repo=k, path_or_fileobj=str(p)) for k, p in files.items()]
     ops += [CommitOperationDelete(path_in_repo=k) for k in sorted(live - set(files) - {".gitattributes"})]
     info = api.create_commit(SPACE, repo_type="space", operations=ops,
-                             commit_message="GridSimEnv article: running a grid battery on ERCOT's real prices")
+                             commit_message="GridSimEnv Desk article: a real ERCOT battery's trading desk, v2 to v5")
     return info.commit_url
-
-
-ARTICLE_URL = f"https://huggingface.co/spaces/{SPACE}"
-SPACE_PAR = (f"**[The article]({ARTICLE_URL}):** GridSimEnv, running a grid battery on ERCOT's real prices: the "
-             "environment, how\nfrontier models bid, how a 4B open model was trained on its exact grader, and what the "
-             "decisions are worth in dollars.\n\n")
-
-
-def link() -> None:
-    """The article in the dataset card's links (hub/dataset/README.md, built as hub_dataset builds it) and in the viewer
-    Space's card and pages. The dataset's card must lose nothing the live card has; nothing else is touched."""
-    from huggingface_hub import CommitOperationAdd, HfApi
-    spec = importlib.util.spec_from_file_location("hub_results", ROOT / "scripts" / "hub_results.py")
-    hr = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hr)
-    hd = hr.module("hub_dataset", "scripts/hub_dataset.py")
-    card, live_card = hd.card_only(ROOT / "results"), hr.live_file("dataset", "README.md")
-    if hr.card_diff(card, live_card):
-        raise SystemExit("the built card drops lines of the live card; rebuild the dataset with hub_results.py first")
-    readme = hr.live_file("space", "README.md")
-    if ARTICLE_URL + ")" not in readme:
-        anchor = readme.index("**[What training bought, in dollars]")
-        readme = readme[:anchor] + SPACE_PAR + readme[anchor:]
-    space = {"README.md": readme.encode(), **{n: (hr.WEB / n).read_bytes() for n in ("index.html", "results.html",
-                                                                                     "board.html")}}
-    hr.leaks({"README.md": card.encode()} | {f"space/{k}": v for k, v in space.items()})
-    api = HfApi()
-    for repo_type, files, msg in (("dataset", {"README.md": card.encode()}, "Card: link the article"),
-                                  ("space", space, "Link the article from the viewer's pages and card")):
-        ops = [CommitOperationAdd(path_in_repo=k, path_or_fileobj=v) for k, v in files.items()]
-        info = api.create_commit(hr.HF, repo_type=repo_type, operations=ops, commit_message=msg)
-        print(f"{repo_type}:", info.commit_url)
 
 
 if __name__ == "__main__":

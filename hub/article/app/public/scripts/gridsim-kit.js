@@ -118,6 +118,25 @@
     k: (x, d = 1) => (x == null ? "–" : (x < 0 ? "−$" : "$") + Math.abs(x).toFixed(d) + "k"),
     pct: (x, d = 0) => (x == null ? "–" : (100 * x).toFixed(d) + "%"),
     int: (x) => (x == null ? "–" : Math.round(x).toLocaleString("en-US")),
+    c: (x, d = 3, sign = false) => {
+      if (x == null) return "–";
+      const [i, f = ""] = Math.abs(x).toString().split(".");
+      if (/e/.test(i + f)) return minus(Number(x).toFixed(d));
+      const v = BigInt(i + f.slice(0, d).padEnd(d, "0")) + (f[d] >= "5" ? 1n : 0n), t = v.toString().padStart(d + 1, "0");
+      return `${x < 0 && v ? "−" : sign && v ? "+" : ""}${t.slice(0, t.length - d)}${d ? `.${t.slice(-d)}` : ""}`;
+    },
+    cci: (c, d = 3, sign = false) => (c ? `[${fmt.c(c[0], d, sign)}, ${fmt.c(c[1], d, sign)}]` : ""),
+    usd0: (x, sign = false) => {
+      if (x == null) return "–";
+      const a = Math.abs(x), f = Math.floor(a), r = a - f, w = r > 0.5 || (r === 0.5 && f % 2 === 1) ? f + 1 : f;
+      return `${!w ? "" : x < 0 ? "−\u2060" : sign ? "+\u2060" : ""}$${w.toLocaleString("en-US")}`;
+    },
+    usdci: (c, sign = false) => (c ? `[${fmt.usd0(c[0], sign)}, ${fmt.usd0(c[1], sign)}]` : ""),
+    usdk: (x, sign = false) => {
+      const a = Math.abs(x), v = a >= 99950 ? `${Math.round(a / 1e3)}k` : a >= 999.5 ? `${fmt.c(a / 1e3, 1)}k` : `${Math.round(a)}`;
+      return `${v === "0" ? "" : x < 0 ? "−" : sign ? "+" : ""}$${v}`;
+    },
+    cents: (x) => `${x < 0 ? "−" : x > 0 ? "+" : ""}${(Math.abs(x) * 100).toFixed(1)}¢`,
     he: (h) => `HE${String(h + 1).padStart(2, "0")}`,
     hour: (h) => { const x = h % 24; return x === 0 ? "midnight" : x === 12 ? "noon" : x < 12 ? `${x} am` : `${x - 12} pm`; },
   };

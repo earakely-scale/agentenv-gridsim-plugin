@@ -1,0 +1,35 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+
+## How time works
+
+A desk's day has a clock that does not wait. The desk's clock is AgentEnv's virtual clock, and it stands still while
+the agent works. There is no `advance` tool: to wait, the agent ends its turn. A post-turn hook then asks the
+environment for its next wake-up and the gateway for its next time trigger, moves the clock to the earlier of the two,
+and the environment runs the market forward to that minute: the DAM clears at the node's real day-ahead price, each
+5-minute dispatch run (SCED) clears the curve in force at the node's real price within the battery's limits
+[@ercot_np6788], and each 15-minute interval settles. Then the agent wakes, with the reasons.
+
+<HtmlEmbed
+  src="d3-desk-clock.html"
+  wide
+  frameless
+  title="The desk's clock: frozen in a turn, running between turns"
+/>
+
+- **Wake-ups are the market's.** The start; the DAM results at the minute ERCOT posted them; the adjustment period
+  at 18:00 the day before; shift checkpoints at 00:00, 06:00, 12:00 and 18:00; every ERCOT notice, NWS warning or
+  watch, forced outage and, from v3, reserve deployment at its real minute; and any reminder the agent set with
+  `set_reminder`.
+- **Information as published.** A 5-minute price is visible a minute after its interval and a 15-minute settlement
+  price two minutes after; DAM prices, forecast vintages and notices at their posting time. The real operator's bids
+  stay hidden until ERCOT discloses them, 60 days later.
+- **The turn budget is the scarce resource.** A desk that wakes for everything runs out of turns before the evening
+  peak. The runs here play the same environment in process; its tests check that the in-process path and AgentEnv's
+  gateway give byte-identical tool outputs and wake-ups.
+
+<HtmlEmbed
+  src="d3-desk-day.html"
+  wide
+  title="A real desk day: the clock runs between turns and stops at every wake-up"
+  desc="One real v2 episode, from 06:00 the day before to midnight on the operating day. Each mark is one wake: a market milestone, a notice, alert or outage, or a reminder the agent set; filled where the desk submitted something, sized by its tool calls. Hover a mark for what woke the agent and what it did."
+/>

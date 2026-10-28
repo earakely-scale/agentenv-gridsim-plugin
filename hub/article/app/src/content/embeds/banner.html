@@ -1,29 +1,31 @@
-<div class="gs-banner" role="img" aria-label="A dot map of Texas with ERCOT's hubs and load zones. Through one real day, 15 March 2025, each point's day-ahead price colours the map and a 100 MW battery at each point charges in the cheap midday hours, when West Texas prices fall below zero, and sells into the evening peak near $100 per MWh."></div>
+<div class="gs-banner" role="img" aria-label="A dot map of Texas with the desk's four real ERCOT batteries, anonymised by region: Battery S01 in the Far West, S03 in the North, S02 in Houston and S04 in the South. Through one real operating day, 23 August 2026, each node's real-time price colours its part of the map, each battery charges and discharges as its desk traded it, and a ring marks every minute the desk woke."></div>
 <style>
-  .gs-banner { position: relative; width: 100%; height: 100%; min-height: 300px; font-size: 12px; color: var(--text-color); user-select: none; }
+  .gs-banner { position: relative; width: 100%; height: 100%; min-height: 300px; font-size: 12px; color: var(--text-color); user-select: none; --s1: #8a63c9; --s2: #d9820b; --s3: #2a8fb8; --s4: #c2455a; }
+  [data-theme="dark"] .gs-banner { --s1: #a988e0; --s2: #f0a03a; --s3: #4cb3dc; --s4: #e56f80; }
   .gs-banner svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .gs-banner .tx { fill: none; stroke: var(--border-color); stroke-width: 1; }
   .gs-banner .dot { transition: fill 0.25s linear, fill-opacity 0.25s linear; }
-  .gs-banner .bat-body { fill: var(--page-bg); stroke: var(--text-color); stroke-opacity: 0.55; stroke-width: 1; }
-  .gs-banner .bat-nub { fill: var(--text-color); fill-opacity: 0.55; }
+  .gs-banner .bat-body { fill: var(--page-bg); stroke-width: 1.2; }
+  .gs-banner .bat-nub { fill: var(--text-color); fill-opacity: 0.6; }
   .gs-banner .bat-fill { fill: var(--c-soc); }
   .gs-banner .glow { fill: none; stroke-width: 2; opacity: 0; transition: opacity 0.2s; }
-  .gs-banner .pid { fill: var(--muted-color); font-size: 9.5px; letter-spacing: 0.02em; }
+  .gs-banner .ring { fill: none; stroke-width: 1.6; }
+  .gs-banner .name { fill: var(--text-color); font-size: 12px; font-weight: 650; }
+  .gs-banner .size { fill: var(--muted-color); font-size: 10.5px; }
   .gs-banner .px { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .gs-banner .reg { fill: var(--text-color); font-size: 11px; font-weight: 600; }
   .gs-banner .halo { paint-order: stroke; stroke: var(--page-bg); stroke-width: 3px; stroke-linejoin: round; }
   .gs-banner .panel-t { fill: var(--text-color); font-size: 11.5px; font-weight: 600; }
   .gs-banner .panel-s { fill: var(--muted-color); font-size: 10.5px; }
   .gs-banner .ax { fill: var(--muted-color); font-size: 9.5px; font-variant-numeric: tabular-nums; }
   .gs-banner .gl { stroke: var(--grid-color); stroke-width: 1; }
-  .gs-banner .zero { stroke: var(--muted-color); stroke-opacity: 0.5; stroke-width: 1; }
-  .gs-banner .pl { fill: none; stroke-width: 1.2; stroke-linejoin: round; }
+  .gs-banner .pl { fill: none; stroke-width: 1.3; stroke-linejoin: round; }
   .gs-banner .cur { stroke: var(--text-color); stroke-width: 1; stroke-opacity: 0.7; }
-  .gs-banner .clock { fill: var(--text-color); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .gs-banner .clock { fill: var(--text-color); font-size: 26px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
   .gs-banner .clock-s { fill: var(--muted-color); font-size: 11px; }
-  .gs-banner .cash { fill: var(--text-color); font-size: 18px; font-weight: 700; }
+  .gs-banner .status { font-size: 11px; font-weight: 600; }
+  .gs-banner .settled { fill: var(--text-color); font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .gs-banner .corner { fill: none; stroke: var(--muted-color); stroke-opacity: 0.6; stroke-width: 1; }
-  .gs-banner .socs rect.bg { fill: none; stroke: var(--border-color); }
+  .gs-banner .socs rect.bg { fill: none; }
   .gs-banner .play { position: absolute; right: 6px; bottom: 4px; z-index: 2; appearance: none; border: 1px solid var(--border-color); background: var(--page-bg); color: var(--muted-color); border-radius: 6px; font: inherit; font-size: 11px; padding: 3px 8px; cursor: pointer; }
   .gs-banner .play:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 </style>
@@ -33,7 +35,7 @@
     const root = K.mount("gs-banner");
     if (!root) return;
     const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const DAY = 16000, HOLD = 2200;
+    const DAY = 20000, HOLD = 3200;
 
     K.whenD3(() => K.data("banner.json").then((B) => {
       const d3 = window.d3;
@@ -43,178 +45,170 @@
       btn.type = "button";
       root.appendChild(btn);
       const tx = { type: "Feature", geometry: { type: "Polygon", coordinates: [B.texas] } };
-      const pts = B.points;
-      const byRegion = d3.group(pts.filter((p) => p.region !== "average"), (p) => p.region);
-      const avg = pts.filter((p) => p.region === "average");
-      const pmin = -10, pmax = 110;
-      let layout = null, t0 = performance.now(), paused = reduce, pausedAt = 20.5, visible = true;
-      let dots = null, particles = [], lastHour = -1, lastSpawn = 0;
+      const S = B.sites.map((s, i) => ({ ...s, i, color: `var(--s${i + 1})`, short: s.name.replace("Battery ", "") }));
+      const dayLabel = new Date(`${B.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+      let layout = null, t0 = performance.now(), paused = reduce, pausedAt = 19.6, visible = true;
+      let dots = null, particles = [], lastQ = -1, lastSpawn = 0, rings = [], lastH = 0;
 
-      const priceColor = (p) => (p < 0 ? "var(--c-neg)" : p > 45 ? "var(--c-discharge)" : "var(--muted-color)");
-      const priceOpacity = (p) => (p < 0 ? 0.55 + Math.min(0.4, -p / 6) : p > 45 ? 0.25 + 0.6 * Math.min(1, (p - 45) / 60) : 0.18 + 0.12 * (p / 45));
-      const money = (x, big) => { const r = Math.round(x); return (r < 0 ? "−$" : "$") + Math.abs(r).toLocaleString("en-US"); };
+      const priceColor = (p) => (p < 0 ? "var(--c-neg)" : p > 60 ? "var(--c-discharge)" : "var(--muted-color)");
+      const priceOpacity = (p) => (p < 0 ? 0.7 : p > 60 ? 0.3 + 0.6 * Math.min(1, Math.log(p / 60) / Math.log(10)) : 0.16 + 0.14 * Math.max(0, p / 60));
+      const usd = K.fmt.usd0;
+      const hhmm = (h) => { const x = Math.min(1439, Math.round(h * 60)); return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
       const tip = K.tip(root);
       let hover = null, lastEv = null;
       const showTip = (ev) => {
         if (ev) lastEv = ev;
         if (!hover || !lastEv) return;
-        const hi = Math.max(0, lastHour), p = hover.p, a = p.actions[hi];
+        const s = hover, q = Math.max(0, Math.min(95, lastQ));
         tip.show((el) => {
-          K.t.title(el, `${p.id}: ${p.name}`);
-          K.t.row(el, `price at HE${String(hi + 1).padStart(2, "0")}`, `${money(p.prices[hi])}/MWh`);
-          const u = B.battery.unit_mwh;
-          K.t.row(el, "the battery", a < 0 ? `charging ${-a * u} MW` : a > 0 ? `selling ${a * u} MW` : "idle");
-          K.t.row(el, "state of charge", `${p.soc[hi + 1] * u} of ${B.battery.energy_mwh} MWh`);
-          K.t.row(el, "the day's profit", money(p.profit));
+          K.t.title(el, `${s.name}, ${s.region}`, s.color);
+          K.t.row(el, "size", s.size);
+          K.t.row(el, `real-time price at ${hhmm(q / 4)}`, `${usd(s.rt[q])}/MWh`);
+          const mw = s.mw[q];
+          K.t.row(el, "the battery", Math.abs(mw) < 1 ? "idle" : mw < 0 ? `charging ${Math.round(-mw)} MW` : `discharging ${Math.round(mw)} MW`);
+          K.t.row(el, "state of charge", `${Math.round(s.soc[q + 1])} of ${Math.round(s.e_max)} MWh`);
+          K.t.row(el, "the day, settled", usd(s.p));
+          K.t.row(el, "its operator's bids, replayed", usd(s.p_operator_replay));
         }, lastEv);
       };
-      const fmtTime = (h) => { const m = Math.floor((h % 1) * 60), hh = Math.floor(h) % 24; const ap = hh < 12 ? "am" : "pm"; const x = hh % 12 === 0 ? 12 : hh % 12; return `${x}:${String(m).padStart(2, "0")} ${ap}`; };
 
       function build() {
         const W = root.clientWidth;
         const narrow = W < 640;
-        root.style.height = narrow ? `${Math.round(W * 0.8 + 178)}px` : "100%";
+        root.style.height = narrow ? `${Math.round(W * 0.8 + 208)}px` : "100%";
         btn.style.top = narrow ? "0" : "";
         btn.style.bottom = narrow ? "auto" : "";
         const H = root.clientHeight;
         if (!W || !H) return;
         svg.selectAll("*").remove();
         particles = [];
+        rings = [];
         const mapBox = narrow ? { x: 0, y: 4, w: W, h: W * 0.8 } : { x: W * 0.27, y: 4, w: W * 0.46, h: H - 8 };
         const proj = d3.geoConicConformal().parallels([27.5, 35]).rotate([100, 0]).fitExtent([[mapBox.x + 8, mapBox.y + 8], [mapBox.x + mapBox.w - 8, mapBox.y + mapBox.h - 8]], tx);
-        const path = d3.geoPath(proj);
         const g = svg.append("g");
-        g.append("path").attr("class", "tx").attr("d", path(tx));
+        g.append("path").attr("class", "tx").attr("d", d3.geoPath(proj)(tx));
         const step = Math.max(6, Math.round(Math.min(mapBox.w, mapBox.h) / 52));
-        const regionXY = new Map(Object.entries(B.regions).map(([k, r]) => [k, proj([r.lon, r.lat])]));
+        S.forEach((s) => { const r = B.regions[s.region]; [s.x, s.y] = proj([r.lon, r.lat]); });
         const cells = [];
         for (let y = mapBox.y + step / 2; y < mapBox.y + mapBox.h; y += step) {
           for (let x = mapBox.x + step / 2; x < mapBox.x + mapBox.w; x += step) {
             const ll = proj.invert([x, y]);
-            if (ll && d3.geoContains(tx, ll)) {
-              let best = null, bd = 1e9;
-              regionXY.forEach((xy, k) => { const dd = (xy[0] - x) ** 2 + (xy[1] - y) ** 2; if (dd < bd) { bd = dd; best = k; } });
-              cells.push({ x, y, region: best });
-            }
+            if (ll && d3.geoContains(tx, ll)) cells.push({ x, y, s: d3.least(S, (s) => (s.x - x) ** 2 + (s.y - y) ** 2) });
           }
         }
-        const regionPrice = {};
-        byRegion.forEach((list, k) => (regionPrice[k] = list[0]));
         dots = g.append("g").selectAll("circle").data(cells).join("circle").attr("class", "dot")
           .attr("cx", (c) => c.x).attr("cy", (c) => c.y).attr("r", Math.max(1.1, step * 0.2));
-        const bats = [];
-        const bw = narrow ? 15 : 20, bh = narrow ? 8 : 10, gap = narrow ? 21 : 36;
-        byRegion.forEach((list, k) => {
-          const [cx, cy] = regionXY.get(k);
-          const n = list.length;
-          g.append("text").attr("class", "reg halo").attr("x", cx).attr("y", cy - (narrow ? 12 : 24)).attr("text-anchor", "middle").style("font-size", narrow ? "10px" : null).text(B.regions[k].name);
-          list.forEach((p, i) => bats.push({ p, x: cx + (i - (n - 1) / 2) * gap, y: cy - 8 }));
-        });
-        if (!narrow) {
-          const ax = mapBox.x + mapBox.w * 0.12, ay = mapBox.y + mapBox.h * 0.9;
-          g.append("text").attr("class", "reg halo").attr("x", ax + gap / 2).attr("y", ay - 22).attr("text-anchor", "middle").text("System averages");
-          avg.forEach((p, i) => bats.push({ p, x: ax + i * gap, y: ay - 8 }));
-        }
-        const bg = g.append("g");
-        bats.forEach((b) => {
-          const gg = bg.append("g").attr("transform", `translate(${b.x - bw / 2},${b.y})`);
-          b.glow = gg.append("rect").attr("class", "glow").attr("x", -3).attr("y", -3).attr("width", bw + 6).attr("height", bh + 6).attr("rx", 4);
-          gg.append("rect").attr("class", "bat-body").attr("width", bw).attr("height", bh).attr("rx", 2);
+        const bw = narrow ? 18 : 24, bh = narrow ? 9 : 12;
+        const rg = g.append("g"), pg = g.append("g"), bg = g.append("g");
+        S.forEach((s) => {
+          const gg = bg.append("g").attr("transform", `translate(${s.x - bw / 2},${s.y - bh / 2})`);
+          s.glow = gg.append("rect").attr("class", "glow").attr("x", -3).attr("y", -3).attr("width", bw + 6).attr("height", bh + 6).attr("rx", 4);
+          gg.append("rect").attr("class", "bat-body").attr("width", bw).attr("height", bh).attr("rx", 2).style("stroke", s.color);
           gg.append("rect").attr("class", "bat-nub").attr("x", bw).attr("y", bh / 2 - 2).attr("width", 2).attr("height", 4).attr("rx", 0.5);
-          b.fill = gg.append("rect").attr("class", "bat-fill").attr("x", 1.5).attr("y", 1.5).attr("height", bh - 3).attr("rx", 1);
-          gg.append("rect").attr("x", -6).attr("y", -16).attr("width", bw + 12).attr("height", bh + 22).style("fill", "transparent")
-            .on("pointerenter", (ev) => { hover = b; showTip(ev); }).on("pointermove", (ev) => showTip(ev)).on("pointerleave", () => { hover = null; tip.hide(); });
-          b.px = gg.append("text").attr("class", "px halo").attr("x", bw / 2).attr("y", -5).attr("text-anchor", "middle").style("display", narrow ? "none" : null);
-          b.bw = bw;
+          s.fill = gg.append("rect").attr("class", "bat-fill").attr("x", 1.5).attr("y", 1.5).attr("height", bh - 3).attr("rx", 1);
+          gg.append("text").attr("class", "name halo").attr("x", bw / 2).attr("y", -9).attr("text-anchor", "middle").style("font-size", narrow ? "10.5px" : null)
+            .text(narrow ? s.short : `${s.short} · ${s.region}`);
+          if (!narrow) gg.append("text").attr("class", "size halo").attr("x", bw / 2).attr("y", bh + 14).attr("text-anchor", "middle").text(s.size);
+          s.px = gg.append("text").attr("class", "px halo").attr("x", bw / 2).attr("y", bh + (narrow ? 13 : 28)).attr("text-anchor", "middle");
+          s.settle = gg.append("text").attr("class", "settled halo").attr("x", bw / 2).attr("y", bh + (narrow ? 13 : 28)).attr("text-anchor", "middle");
+          gg.append("rect").attr("x", -18).attr("y", -24).attr("width", bw + 36).attr("height", bh + 58).style("fill", "transparent")
+            .on("pointerenter", (ev) => { hover = s; showTip(ev); }).on("pointermove", (ev) => showTip(ev)).on("pointerleave", () => { hover = null; tip.hide(); });
         });
-        const pg = g.append("g");
-        const lp = narrow ? { x: 34, y: mapBox.y + mapBox.h + 58, w: W - 42, h: 58 } : { x: 34, y: H * 0.24, w: W * 0.22 - 30, h: H * 0.46 };
+        const lp = narrow ? { x: 40, y: mapBox.y + mapBox.h + 86, w: W - 52, h: 72 } : { x: 40, y: H * 0.22, w: W * 0.22 - 36, h: H * 0.46 };
         const xs = d3.scaleLinear().domain([0, 24]).range([lp.x, lp.x + lp.w]);
-        const ys = d3.scaleLinear().domain([pmin, pmax]).range([lp.y + lp.h, lp.y]);
+        const ys = d3.scaleLog().domain([15, 650]).range([lp.y + lp.h, lp.y]).clamp(true);
         const lpG = svg.append("g");
-        if (!narrow) {
-          lpG.append("text").attr("class", "panel-t").attr("x", lp.x - 26).attr("y", lp.y - 30).text("Day-ahead prices");
-          lpG.append("text").attr("class", "panel-s").attr("x", lp.x - 26).attr("y", lp.y - 16).text(`15 points · ${d3.timeFormat("%-d %B %Y")(new Date(B.date + "T12:00:00"))}`);
-        }
-        [0, 50, 100].forEach((v) => {
-          lpG.append("line").attr("class", v === 0 ? "zero" : "gl").attr("x1", lp.x).attr("x2", lp.x + lp.w).attr("y1", ys(v)).attr("y2", ys(v));
+        lpG.append("text").attr("class", "panel-t").attr("x", lp.x - 34).attr("y", lp.y - (narrow ? 26 : 30)).text("Real-time price at each node");
+        lpG.append("text").attr("class", "panel-s").attr("x", lp.x - 34).attr("y", lp.y - (narrow ? 13 : 16)).text(`$/MWh every 15 minutes, ${dayLabel}`);
+        [25, 50, 100, 250, 500].forEach((v) => {
+          lpG.append("line").attr("class", "gl").attr("x1", lp.x).attr("x2", lp.x + lp.w).attr("y1", ys(v)).attr("y2", ys(v));
           lpG.append("text").attr("class", "ax").attr("x", lp.x - 4).attr("y", ys(v) + 3).attr("text-anchor", "end").text(`$${v}`);
         });
-        [0, 6, 12, 18, 24].forEach((h) => lpG.append("text").attr("class", "ax").attr("x", xs(h)).attr("y", lp.y + lp.h + 12).attr("text-anchor", "middle").text(h === 12 ? "noon" : `${h}h`));
-        const line = d3.line().x((d, i) => xs(i + 0.5)).y((d) => ys(Math.max(pmin, Math.min(pmax, d)))).curve(d3.curveMonotoneX);
-        pts.forEach((p) => lpG.append("path").attr("class", "pl").attr("d", line(p.prices))
-          .style("stroke", p.region === "west" ? "var(--c-neg)" : p.region === "houston" ? "var(--c-discharge)" : "var(--muted-color)")
-          .style("stroke-opacity", p.region === "west" || p.region === "houston" ? 0.95 : 0.35));
-        const leg = [["var(--c-neg)", "West Texas, below $0 at midday"], ["var(--c-discharge)", "Houston"], ["var(--muted-color)", "the other points"]];
-        leg.forEach(([c, t], i) => {
-          const y = narrow ? lp.y + lp.h + 30 : lp.y + lp.h + 30 + i * 14, x = narrow ? 2 + i * ((W - 4) / 3) : lp.x - 26;
-          lpG.append("line").attr("x1", x).attr("x2", x + 12).attr("y1", y - 3.5).attr("y2", y - 3.5).style("stroke", c).style("stroke-width", 2);
-          lpG.append("text").attr("class", "panel-s").attr("x", x + 17).attr("y", y).text(narrow ? t.replace(", below $0 at midday", "") : t);
+        [0, 6, 12, 18, 24].forEach((hr) => lpG.append("text").attr("class", "ax").attr("x", xs(hr)).attr("y", lp.y + lp.h + 12).attr("text-anchor", hr === 24 ? "end" : hr === 0 ? "start" : "middle").text(`${String(hr).padStart(2, "0")}:00`));
+        const line = d3.line().x((d, i) => xs((i + 0.5) / 4)).y((d) => ys(d)).curve(d3.curveMonotoneX);
+        S.forEach((s) => lpG.append("path").attr("class", "pl").attr("d", line(s.rt)).style("stroke", s.color).style("stroke-opacity", 0.9));
+        S.forEach((s, i) => {
+          const y = narrow ? lp.y + lp.h + 30 : lp.y + lp.h + 32 + i * 14, x = narrow ? lp.x - 34 + i * ((W - 8) / 4) : lp.x - 34;
+          lpG.append("line").attr("x1", x).attr("x2", x + 12).attr("y1", y - 3.5).attr("y2", y - 3.5).style("stroke", s.color).style("stroke-width", 2);
+          lpG.append("text").attr("class", "panel-s").attr("x", x + 17).attr("y", y).text(narrow ? s.short : `${s.short} · ${s.region}`);
         });
         const cur = lpG.append("line").attr("class", "cur").attr("y1", lp.y - 4).attr("y2", lp.y + lp.h);
-        const rp = narrow ? { x: 2, y: mapBox.y + mapBox.h + 16 } : { x: W * 0.75 + 4, y: H * 0.24 };
-        const rg = svg.append("g");
-        const clock = rg.append("text").attr("class", "clock").attr("x", rp.x).attr("y", rp.y + (narrow ? 0 : 6)).style("font-size", narrow ? "20px" : null);
-        const clockS = rg.append("text").attr("class", "clock-s").attr("x", rp.x).attr("y", rp.y + (narrow ? 17 : 24));
-        let cash = null;
+        const rp = narrow ? { x: 2, y: mapBox.y + mapBox.h + 18 } : { x: W * 0.765, y: H * 0.2 };
+        const cg = svg.append("g");
+        const clock = cg.append("text").attr("class", "clock").attr("x", rp.x).attr("y", rp.y + (narrow ? 0 : 6)).style("font-size", narrow ? "20px" : null);
+        const clockS = cg.append("text").attr("class", "clock-s").attr("x", rp.x).attr("y", rp.y + (narrow ? 15 : 24));
+        const status = cg.append("text").attr("class", "status").attr("x", narrow ? W - 2 : rp.x).attr("y", narrow ? rp.y : rp.y + 46).attr("text-anchor", narrow ? "end" : "start");
         const socs = [];
         if (!narrow) {
-          rg.append("text").attr("class", "panel-s").attr("x", rp.x).attr("y", rp.y + 62).text("15 batteries, 100 MW / 200 MWh each");
-          cash = rg.append("text").attr("class", "cash").attr("x", rp.x).attr("y", rp.y + 86);
-          rg.append("text").attr("class", "panel-s").attr("x", rp.x).attr("y", rp.y + 102).text("cash so far, each on its exact DP schedule");
-          const sg = rg.append("g").attr("class", "socs").attr("transform", `translate(${rp.x},${rp.y + 122})`);
-          const cw = Math.max(5, Math.min(11, (W * 0.22 - 20) / 15 - 3));
-          pts.forEach((p, i) => {
-            sg.append("rect").attr("class", "bg").attr("x", i * (cw + 3)).attr("y", 0).attr("width", cw).attr("height", 28).attr("rx", 2);
-            socs.push({ p, r: sg.append("rect").attr("x", i * (cw + 3) + 1).attr("width", cw - 2).attr("rx", 1) });
+          cg.append("text").attr("class", "panel-s").attr("x", rp.x).attr("y", rp.y + 82).text(`${B.model}'s desk, four batteries`);
+          const sg = cg.append("g").attr("class", "socs").attr("transform", `translate(${rp.x},${rp.y + 98})`);
+          const cw = Math.max(16, Math.min(34, (W * 0.2 - 20) / 4 - 8));
+          S.forEach((s, i) => {
+            sg.append("rect").attr("class", "bg").attr("x", i * (cw + 8)).attr("y", 0).attr("width", cw).attr("height", 54).attr("rx", 3).style("stroke", s.color);
+            socs.push({ s, r: sg.append("rect").attr("x", i * (cw + 8) + 2).attr("width", cw - 4).attr("rx", 2) });
+            sg.append("text").attr("class", "panel-s").attr("x", i * (cw + 8) + cw / 2).attr("y", 68).attr("text-anchor", "middle").text(s.short);
           });
-          sg.append("text").attr("class", "panel-s").attr("x", 0).attr("y", 44).text("state of charge, each point");
-        } else {
-          cash = rg.append("text").attr("class", "panel-s").attr("x", W - 2).attr("y", rp.y).attr("text-anchor", "end");
+          sg.append("text").attr("class", "panel-s").attr("x", 0).attr("y", 86).text("state of charge, each battery");
+          sg.append("text").attr("class", "panel-s").attr("x", 0).attr("y", 102).text("a ring: the desk wakes at that minute");
         }
         const fr = svg.append("g").style("display", narrow ? "none" : null);
         [[mapBox.x + 2, mapBox.y + 2, 1, 1], [mapBox.x + mapBox.w - 2, mapBox.y + 2, -1, 1], [mapBox.x + 2, mapBox.y + mapBox.h - 2, 1, -1], [mapBox.x + mapBox.w - 2, mapBox.y + mapBox.h - 2, -1, -1]]
           .forEach(([x, y, sx, sy]) => fr.append("path").attr("class", "corner").attr("d", `M${x},${y + 8 * sy}V${y}H${x + 8 * sx}`));
-        layout = { bats, cur, xs, clock, clockS, cash, socs, pg, regionPrice, narrow };
-        lastHour = -1;
+        layout = { cur, xs, clock, clockS, status, socs, pg, rg, bw, bh, narrow, end: null };
+        lastQ = -1;
       }
 
       function frame(now) {
         if (!layout) return;
         const T = DAY + HOLD;
-        let h;
-        if (paused) h = pausedAt;
-        else { const e = (now - t0) % T; h = e < DAY ? (e / DAY) * 24 : 24 - 1e-6; }
-        const hi = Math.min(23, Math.floor(h));
+        let hNow, end = false;
+        if (paused) hNow = pausedAt;
+        else { const e = (now - t0) % T; end = e >= DAY; hNow = end ? 24 : (e / DAY) * 24; }
         const L = layout;
-        L.cur.attr("x1", L.xs(h)).attr("x2", L.xs(h));
-        L.clock.text(fmtTime(h));
-        const prices = B.points.map((p) => p.prices[hi]);
-        const lo = d3.min(prices), hiP = d3.max(prices);
-        L.clockS.text(`HE${String(hi + 1).padStart(2, "0")} · ${money(lo)} to ${money(hiP)}/MWh across Texas`);
-        if (hi !== lastHour) {
-          lastHour = hi;
-          dots.style("fill", (c) => priceColor(L.regionPrice[c.region].prices[hi])).style("fill-opacity", (c) => priceOpacity(L.regionPrice[c.region].prices[hi]));
-          L.bats.forEach((b) => {
-            const a = b.p.actions[hi], s = b.p.soc[hi + 1], n = B.battery.soc_levels;
-            b.fill.attr("width", Math.max(0, (b.bw - 3) * (s / n)));
-            b.glow.style("stroke", a < 0 ? "var(--c-charge)" : a > 0 ? "var(--c-discharge)" : "transparent").style("opacity", a ? 0.9 : 0);
-            const pr = b.p.prices[hi];
-            b.px.text(money(pr)).style("fill", pr < -0.5 ? "var(--c-neg)" : pr > 45 ? "var(--c-discharge)" : "var(--muted-color)");
-          });
-          let total = 0;
-          B.points.forEach((p) => { for (let k = 0; k <= hi; k++) { const a = p.actions[k]; total += a > 0 ? a * B.battery.unit_mwh * p.prices[k] : a * B.battery.unit_mwh / B.battery.eta * p.prices[k]; } });
-          if (L.cash) L.cash.text(L.narrow ? `15 batteries: ${money(total, true)} so far` : money(total, true));
-          if (hover) showTip();
-          L.socs.forEach((s) => { const lv = s.p.soc[hi + 1] / B.battery.soc_levels, a = s.p.actions[hi]; s.r.attr("y", 1 + 26 * (1 - lv)).attr("height", 26 * lv).style("fill", a < 0 ? "var(--c-charge)" : a > 0 ? "var(--c-discharge)" : "var(--c-soc)"); });
+        if (hNow < lastH) { rings.forEach((r) => r.el.remove()); rings = []; }
+        L.cur.attr("x1", L.xs(hNow)).attr("x2", L.xs(hNow));
+        L.clock.text(end ? "24:00" : hhmm(hNow));
+        L.clockS.text(`${dayLabel} · ${end ? "the day settles" : "the operating day"}`);
+        const q = Math.min(95, Math.floor(hNow * 4));
+        if (!paused && !end) {
+          S.forEach((s) => s.wakes.forEach((t) => {
+            const th = t / 60;
+            if (th > lastH && th <= hNow) {
+              rings.push({ el: L.rg.append("circle").attr("class", "ring").attr("cx", s.x).attr("cy", s.y).style("stroke", s.color), t: now });
+              L.status.text(`the desk wakes at ${s.short}, ${hhmm(th)}`).style("fill", s.color);
+            }
+          }));
         }
-        if (!paused && now - lastSpawn > 90) {
+        lastH = hNow;
+        rings = rings.filter((r) => {
+          const k = (now - r.t) / 1400;
+          if (k >= 1) { r.el.remove(); return false; }
+          r.el.attr("r", 8 + 26 * k).style("opacity", 1 - k);
+          return true;
+        });
+        if (q !== lastQ || end !== L.end) {
+          lastQ = q;
+          L.end = end;
+          dots.style("fill", (c) => priceColor(c.s.rt[q])).style("fill-opacity", (c) => priceOpacity(c.s.rt[q]));
+          S.forEach((s) => {
+            const mw = s.mw[q], soc = end ? s.soc[96] : s.soc[q + 1];
+            s.fill.attr("width", Math.max(0, (L.bw - 3) * (soc / s.e_max)));
+            s.glow.style("stroke", mw < -1 ? "var(--c-charge)" : mw > 1 ? "var(--c-discharge)" : "transparent").style("opacity", Math.abs(mw) > 1 && !end ? 0.9 : 0);
+            const pr = s.rt[q];
+            s.px.text(end ? "" : `${usd(pr)}/MWh`).style("fill", pr > 60 ? "var(--c-discharge)" : "var(--muted-color)");
+            s.settle.text(end ? `settled ${usd(s.p)}` : "");
+          });
+          if (end) L.status.text("every 15-minute interval settled").style("fill", "var(--muted-color)");
+          L.socs.forEach((o) => { const lv = (end ? o.s.soc[96] : o.s.soc[q + 1]) / o.s.e_max, mw = o.s.mw[q]; o.r.attr("y", 2 + 50 * (1 - lv)).attr("height", 50 * lv).style("fill", mw < -1 && !end ? "var(--c-charge)" : mw > 1 && !end ? "var(--c-discharge)" : "var(--c-soc)"); });
+          if (hover) showTip();
+        }
+        if (!paused && !end && now - lastSpawn > 90) {
           lastSpawn = now;
-          L.bats.forEach((b) => {
-            const a = b.p.actions[hi];
-            if (!a || Math.random() > 0.55) return;
-            const ang = Math.random() * Math.PI * 2, r0 = 30 + Math.random() * 16, out = a > 0;
-            const p = { x0: b.x + (out ? 0 : Math.cos(ang) * r0), y0: b.y + 5 + (out ? 0 : Math.sin(ang) * r0), x1: b.x + (out ? Math.cos(ang) * r0 : 0), y1: b.y + 5 + (out ? Math.sin(ang) * r0 : 0), t: now, life: 900 };
+          S.forEach((s) => {
+            const mw = s.mw[q];
+            if (Math.abs(mw) < 1 || Math.random() > 0.6) return;
+            const ang = Math.random() * Math.PI * 2, r0 = 30 + Math.random() * 18, out = mw > 0;
+            const p = { x0: s.x + (out ? 0 : Math.cos(ang) * r0), y0: s.y + (out ? 0 : Math.sin(ang) * r0), x1: s.x + (out ? Math.cos(ang) * r0 : 0), y1: s.y + (out ? Math.sin(ang) * r0 : 0), t: now, life: 900 };
             p.el = L.pg.append("circle").attr("r", 1.8).style("fill", out ? "var(--c-discharge)" : "var(--c-charge)");
             particles.push(p);
           });
@@ -231,14 +225,14 @@
       const loop = (now) => { if (visible) frame(now); requestAnimationFrame(loop); };
       const setBtn = () => { btn.textContent = paused ? "▶ Play the day" : "❚❚ Pause"; btn.setAttribute("aria-label", paused ? "Play the animation" : "Pause the animation"); };
       btn.addEventListener("click", () => {
-        if (paused) { t0 = performance.now() - (pausedAt / 24) * DAY; paused = false; }
-        else { const e = (performance.now() - t0) % (DAY + HOLD); pausedAt = e < DAY ? (e / DAY) * 24 : 23.99; paused = true; lastHour = -1; }
+        if (paused) { t0 = performance.now() - (pausedAt / 24) * DAY; lastH = pausedAt; paused = false; }
+        else { const e = (performance.now() - t0) % (DAY + HOLD); pausedAt = e < DAY ? (e / DAY) * 24 : 23.99; paused = true; lastQ = -1; }
         setBtn();
       });
       setBtn();
       build();
       if (window.IntersectionObserver) new IntersectionObserver((es) => es.forEach((e) => (visible = e.isIntersecting)), { threshold: 0 }).observe(root);
-      K.watch(root, () => { build(); lastHour = -1; });
+      K.watch(root, () => { build(); lastQ = -1; });
       requestAnimationFrame(loop);
     }).catch((e) => { root.textContent = "The banner's data did not load: " + e.message; }));
   })();

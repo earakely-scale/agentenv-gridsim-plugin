@@ -1,0 +1,67 @@
+<div class="gs-across"></div>
+<style>
+  .gs-across { font-size: 12.5px; --c-op: #8a6d3b; }
+  [data-theme="dark"] .gs-across { --c-op: #c9a86a; }
+  .gs-across svg { display: block; width: 100%; overflow: visible; }
+  .gs-across .lead { font-size: 13.5px; line-height: 1.55; margin: 0 0 8px; color: var(--text-color); }
+  .gs-across .vname { fill: var(--text-color); font-size: 12px; font-weight: 650; }
+  .gs-across .vsub { fill: var(--muted-color); font-size: 11px; }
+  .gs-across .band { fill: var(--grid-color); fill-opacity: 0.35; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-across");
+    if (!root) return;
+    const f = K.fmt;
+    const SERIES = [
+      { key: "sol", color: "var(--c-sol)" }, { key: "luna", color: "var(--c-luna)" }, { key: "qwen", color: "var(--c-qwen)" },
+      { key: "anchor", ref: true, color: "var(--text-color)" }, { key: "operator_replay", ref: true, color: "var(--c-op)" },
+    ];
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      root.innerHTML = '<div class="plot"></div><div class="gs-legend"></div><div class="gs-note"></div>';
+      const tip = K.tip(root);
+      const names = {};
+      D.versions.forEach((v) => { v.models.forEach((m) => (names[m.key] = m.name)); v.references.forEach((r) => (names[r.key] = r.short)); });
+      const leg = d3.select(root).select(".gs-legend");
+      SERIES.forEach((s) => { const sp = leg.append("span"); sp.append("i").style("background", s.ref ? "transparent" : s.color).style("border", `2px solid ${s.color}`).style("box-sizing", "border-box"); sp.append("span").text(names[s.key] || s.key); });
+      d3.select(root).select(".gs-note").text("Hindsight capture C with its 95% block-bootstrap CI, version by version: idle is 0 and the hindsight optimum 1 by definition, so versions compare on one scale even where P does not (v4's tasks are 3-day windows). Hollow marks: the anchor and the real operator's bids, replayed.");
+      const get = (v, k) => v.models.find((m) => m.key === k) || v.references.find((r) => r.key === k);
+      function render() {
+        const svg = d3.select(root).select(".plot").html("").append("svg").attr("class", "gs-svg");
+        const W = root.clientWidth || 760, narrow = W < 560, ml = 40, mt = 40, H = narrow ? 300 : 340, mb = 26;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const xb = d3.scaleBand().domain(D.versions.map((v) => v.version)).range([ml, W - 8]).paddingInner(0.12).paddingOuter(0.04);
+        const all = D.versions.flatMap((v) => SERIES.map((s) => get(v, s.key)).filter(Boolean).flatMap((r) => r.C.ci));
+        const y = d3.scaleLinear().domain([Math.min(-0.05, d3.min(all)), Math.max(0.65, d3.max(all))]).nice().range([H - mb, mt]);
+        y.ticks(6).forEach((t) => {
+          svg.append("line").attr("x1", ml).attr("x2", W - 8).attr("y1", y(t)).attr("y2", y(t)).style("stroke", t === 0 ? "var(--muted-color)" : "var(--grid-color)").style("stroke-dasharray", t === 0 ? "3 3" : null);
+          svg.append("text").attr("class", "sub").attr("x", ml - 6).attr("y", y(t) + 4).attr("text-anchor", "end").text(f.n(t, 1));
+        });
+        svg.append("text").attr("class", "sub").attr("x", ml - 6).attr("y", mt - 26).attr("text-anchor", "start").text("C, the share of hindsight captured");
+        D.versions.forEach((v) => {
+          const x0 = xb(v.version), bw = xb.bandwidth();
+          svg.append("rect").attr("class", "band").attr("x", x0).attr("y", mt - 4).attr("width", bw).attr("height", H - mb - mt + 4).attr("rx", 6);
+          svg.append("text").attr("class", "vname").attr("x", x0 + bw / 2).attr("y", H - 8).attr("text-anchor", "middle").text(narrow ? v.version : `${v.version} · ${v.name}`);
+          if (v.days_per_task > 1) svg.append("text").attr("class", "vsub").attr("x", x0 + bw / 2).attr("y", mt + 10).attr("text-anchor", "middle").text(`${v.days_per_task}-day windows`);
+          const n = SERIES.length;
+          SERIES.forEach((s, i) => {
+            const r = get(v, s.key);
+            if (!r) return;
+            const cx = x0 + bw * (0.12 + (0.76 * i) / (n - 1));
+            svg.append("line").attr("x1", cx).attr("x2", cx).attr("y1", y(r.C.ci[0])).attr("y2", y(r.C.ci[1])).style("stroke", s.color).style("stroke-width", s.ref ? 1.4 : 2);
+            const m = svg.append("circle").attr("cx", cx).attr("cy", y(r.C.mean)).attr("r", s.ref ? 4.5 : 5.5).style("fill", s.ref ? "var(--page-bg)" : s.color).style("stroke", s.color).style("stroke-width", 2).style("cursor", "pointer");
+            m.on("mousemove", (ev) => tip.show((el) => {
+              K.t.title(el, `${names[s.key]}, ${v.version}`, s.color);
+              K.t.row(el, "C", `${f.c(r.C.mean)} ${f.cci(r.C.ci)}`);
+              K.t.row(el, `P a ${v.days_per_task > 1 ? `${v.days_per_task}-day window` : "battery-day"}`, f.usd0(r.P.mean));
+            }, ev)).on("mouseleave", () => tip.hide());
+          });
+        });
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>
