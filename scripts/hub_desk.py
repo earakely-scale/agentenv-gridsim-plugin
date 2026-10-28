@@ -13,6 +13,7 @@ import gzip
 import importlib.util
 import io
 import json
+import math
 import posixpath
 import re
 import shutil
@@ -34,7 +35,7 @@ PAGE = {"desk.html": "desk/results.html", "results.js": "desk/results.js", "resu
         "base.css": "desk/base.css",
         **{f"fonts/{f}": f"desk/fonts/{f}" for f in ("plex-sans.woff2", "plex-mono-500.woff2", "plex-mono-600.woff2")}}
 CHARTS = ROOT / "hub" / "desk-charts"
-CARD_CHARTS = {"width": 600, "phone": {"width": 350, "media": "(max-width: 480px)"}, "tasks_axis": [-0.4, 1.0]}
+CARD_CHARTS = {"width": 600, "lead": 660, "phone": {"width": 350, "media": "(max-width: 480px)"}}
 LADDER = (
     ("v2", "The Live Grid", "energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS "
      "alerts and the battery's outages at their real minutes",
@@ -180,7 +181,10 @@ def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple
         files |= fs
     ladder = [{"version": k, "name": n, "adds": a, "does": d, "status": "results" if any(
         v["version"] == k for v in versions) else "next"} for k, n, a, d in LADDER]
-    return {"schema": "gridsim.desk.hub/v1", "ladder": ladder, "versions": versions, "charts": CARD_CHARTS}, files
+    c = [x for v in versions for d in v["days"] for x in d["C"].values()]
+    scale = [round(math.floor((min(c) - 0.02) / 0.2) * 0.2, 6), round(math.ceil((max(c) + 0.04) / 0.2) * 0.2, 6)]
+    return {"schema": "gridsim.desk.hub/v1", "ladder": ladder, "versions": versions,
+            "charts": CARD_CHARTS | {"days_scale": scale}}, files
 
 
 def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -> tuple[dict, dict[str, bytes]]:
@@ -210,7 +214,8 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "idle": IDLE.get(key),
          "sensitivity": sensitivity(key, s, grades, folder.parent.parent, models[0]["key"]),
          "block": s.get("block_name") or "day",
-         "tasks": captures(grades, NAMED.get(key, {}), s.get("block_alias") or {}),
+         "tasks": (tasks := captures(grades, episodes, NAMED.get(key, {}), s.get("block_alias") or {})),
+         "days": days(tasks),
          "figures": {k: f"{rel}/figures/{f}" for k, f in (("bars", "p-bars.png"), ("bars_dark", "p-bars-dark.png"),
                                                          ("hero", "hero.png"), ("hero_dark", "hero-dark.png"))
                      if (folder / "figures" / f).is_file()},
@@ -232,16 +237,35 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
     return v, files
 
 
-def captures(grades: list[dict], named: dict[str, str], alias: dict[str, str]) -> list[dict]:
-    """Each task's hindsight capture C by model, as the grades give it, with the named event (NAMED) its day or window
-    falls in: the card's task-by-task charts."""
+def captures(grades: list[dict], episodes: dict[str, dict], named: dict[str, str], alias: dict[str, str]) -> list[dict]:
+    """Each task's hindsight capture C by model, as the grades give it, and of the real operator's replayed bids,
+    (P_ref - P_idle) / (P_hind - P_idle), with its first operating day, the block its bootstrap draws it in (its day,
+    or in v4 its front) and the named event (NAMED) that block is."""
     out = {}
     for g in sorted(grades, key=lambda g: (g["date"], g["site"])):
-        t = out.setdefault(g["task_id"], {"task_id": g["task_id"], "date": g["date"], "site": g["site"], "C": {}})
+        first = episodes[g["episode"]]["dates"][0]
+        block = alias.get(first, g["date"])
+        t = out.setdefault(g["task_id"], {"task_id": g["task_id"], "date": first, "block": block, "site": g["site"],
+                                          "C": {}})
         t["C"][g["model"]] = g["capture"]
-        if name := named.get(alias.get(g["date"], g["date"])):
+        if g["p_operator_replay"] is not None:
+            t["C"]["operator_replay"] = round((g["p_operator_replay"] - g["p_idle"]) / (g["p_hind"] - g["p_idle"]), 6)
+        if name := named.get(block):
             t["named"] = name
     return list(out.values())
+
+
+def days(tasks: list[dict]) -> list[dict]:
+    """Each block's mean C over its tasks (the card's day-by-day charts), by model and for the operator's bids."""
+    out = {}
+    for t in tasks:
+        b = out.setdefault(t["block"], {"block": t["block"], "n": 0, "C": {}} | (
+            {"named": t["named"]} if t.get("named") else {}))
+        b["n"] += 1
+        for k, c in t["C"].items():
+            b["C"].setdefault(k, []).append(c)
+    return [b | {"C": {k: round(sum(cs) / len(cs), 6) for k, cs in b["C"].items()}}
+            for b in sorted(out.values(), key=lambda b: b["block"])]
 
 
 SUBMIT = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "update_cop": "COP"}
@@ -566,7 +590,7 @@ def relink(text: str, rel: str, tag: str, folder: Path) -> str:
 
 def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
     """Each version's capture and dollars charts as the desk page draws them, 640 px wide at twice that, and the card's
-    own charts (hub/desk-charts: capture across versions and each version's task by task) as standalone SVG with the
+    own charts (hub/desk-charts: capture across versions and each version's day by day) as standalone SVG with the
     font embedded, which the card prints, at its width and in a phone layout, and the former also at twice its width
     as PNG; all bare on a transparent background in the light and dark themes, each theme's text halo the Hub page's
     colour."""

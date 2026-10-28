@@ -1,6 +1,6 @@
-:root { --halo: #ffffff; --dot: 0.78; --ref: 0.72; }
-:root[data-theme="dark"] { --halo: #0b0f19; --dot: 0.86; --ref: 0.75; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --dot: 0.86; --ref: 0.75; } }
+:root { --halo: #ffffff; --band: 0.075; --fern: rgba(20, 32, 43, 0.055); }
+:root[data-theme="dark"] { --halo: #0b0f19; --band: 0.13; --fern: rgba(214, 228, 240, 0.075); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --band: 0.13; --fern: rgba(214, 228, 240, 0.075); } }
 
 html, body { background: transparent; }
 body { margin: 0; padding: 12px; }
@@ -12,27 +12,41 @@ svg.chart { display: block; overflow: visible; font-family: var(--sans); }
 svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
 .grid { stroke: var(--line); stroke-width: 1; }
 .zero { stroke: var(--ink-3); stroke-width: 1.25; }
-.top { stroke: var(--ink-3); stroke-width: 1; }
 .lead { stroke: var(--ink-3); stroke-width: 1; fill: none; }
-.brk { stroke: var(--ink); stroke-width: 1.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.dot { fill-opacity: var(--dot); }
-.ref { stroke-opacity: var(--ref); }
-.key { fill: var(--ink-3); }
-.key-mean { stroke: var(--halo); stroke-width: 2; }
-.key-ci { stroke: var(--ink-3); stroke-width: 2.8; stroke-linecap: round; }
+.band { fill-opacity: var(--band); stroke: none; }
+.ln, .ln-s { fill: none; stroke-linejoin: round; stroke-linecap: round; stroke-width: 2.6; }
+.ln-s { stroke-width: 2.1; }
+.ln.ln-b { stroke-width: 3.4; }
+.ln-s.ln-b { stroke-width: 2.7; }
+.mk { stroke: var(--halo); stroke-width: 2; }
+.mk-s { stroke: var(--halo); stroke-width: 1.5; }
+.op { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
+.gap { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 1.5 3; stroke-linecap: round; }
+.fern { fill: var(--fern); }
 
+.t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
+.t-head-s { font-size: 13px; fill: var(--ink-3); }
 .t-tick { font-size: 13px; fill: var(--ink-3); }
-.t-axis { font-size: 14px; font-weight: 620; fill: var(--ink); }
-.t-axis-s { font-size: 13px; fill: var(--ink-3); }
-.t-leg { font-size: 14.5px; fill: var(--ink-2); }
-.t-leg.b { fill: var(--ink); font-weight: 600; }
+.t-val { font-size: 13px; font-weight: 600; fill: var(--ink-2); }
+.t-val.b { font-size: 14px; font-weight: 700; fill: var(--ink); }
+.t-end { font-size: 14px; font-weight: 560; fill: var(--ink-2); }
+.t-end.b { font-weight: 700; fill: var(--ink); }
+.t-end.op-t { font-weight: 500; fill: var(--ink-3); }
+.t-end-v { font-size: 14px; font-weight: 700; fill: var(--ink); }
+.t-end-v.op-t { font-weight: 600; fill: var(--ink-3); }
+.t-end-q { font-size: 12.5px; fill: var(--ink-3); }
+.t-key { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
+.t-key.b { font-weight: 700; fill: var(--ink); }
+.t-key.op-t { font-weight: 500; fill: var(--ink-3); }
+.t-call { font-size: 12.5px; fill: var(--ink-3); }
+.t-call.b { font-size: 13px; font-weight: 640; fill: var(--ink-2); }
 .t-ver { font-size: 16.5px; font-weight: 650; fill: var(--ink); }
 .t-name { font-size: 13.5px; fill: var(--ink-2); }
 .t-unit { font-size: 13px; fill: var(--ink-3); }
-.t-col { font-size: 14px; font-weight: 620; fill: var(--ink); }
-.t-ref { font-size: 13px; fill: var(--ink-2); }
-.t-ann { font-size: 13.5px; font-weight: 640; fill: var(--ink); }
-.t-ann-s { font-size: 13px; fill: var(--ink-2); }
-.t-out { font-size: 12.5px; font-weight: 600; fill: var(--ink-2); }
 .t-kv { font-size: 13.5px; font-weight: 650; fill: var(--ink); }
 .t-kd { font-size: 13.5px; fill: var(--ink-2); }
+.t-foot { font-size: 12.5px; fill: var(--ink-3); }
+.t-fern { font-size: 12.5px; font-weight: 650; fill: var(--ink-2); }
+.t-date { font-size: 12.5px; fill: var(--ink-3); }
+.t-date.b { font-weight: 650; fill: var(--ink-2); }

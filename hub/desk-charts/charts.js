@@ -1,14 +1,11 @@
 /** The dataset card's desk charts from desk.json (scripts/hub_desk.py): hindsight capture across versions, and each
- * version's capture task by task, each at the card's width and in a phone layout. Bare SVG on a transparent page in
- * the theme on <html>; hub_desk.py captures every [data-figure] at 2x and takes chartsSvg(), each chart as a
- * standalone SVG with its styles and font inlined, in light and dark. */
+ * version's capture day by day (front by front in v4), each at the card's width and in a phone layout. Bare SVG on a
+ * transparent page in the theme on <html>; hub_desk.py captures every [data-figure] at 2x and takes chartsSvg(), each
+ * chart as a standalone SVG with its styles and font inlined, in light and dark. */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
-const REFS = [
-  { key: "anchor", color: "var(--c-anchor)", dash: "6 4", w: 1.5, cap: "butt", label: "Anchor", short: "Anchor" },
-  { key: "operator_replay", color: "var(--c-op)", dash: "0.1 4.4", w: 2.4, cap: "round", label: "The operator's bids, replayed", short: "Operator's bids" },
-];
+const OP = { key: "operator_replay", label: "Real operator (bids replayed)", short: "Real operator" };
 const WORD = { 2: "two", 3: "three", 4: "four", 5: "five" };
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -20,13 +17,16 @@ const num = (x, n = 3) => {
   const s = v.toString().padStart(n + 1, "0");
   return minus(`${x < 0 && v ? "-" : ""}${s.slice(0, s.length - n)}${n ? `.${s.slice(-n)}` : ""}`);
 };
-const sgn = (x, n = 3) => (x > 0 ? `+${num(x, n)}` : num(x, n));
+const pts = (x, sign = false) => {
+  const k = Math.round(parseFloat(num(x, 3).replace("−", "-")) * 1000), a = Math.abs(k);
+  return `${k < 0 ? "−" : sign && k > 0 ? "+" : ""}${Math.floor(a / 10)}.${a % 10}`;
+};
+const pct = (x) => `${pts(x)}%`;
 const f1 = (v) => Math.round(v * 10) / 10;
 const lin = (d0, d1, r0, r1) => (v) => r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
 const T = (x, y, s, cls, a = "start") => `<text x="${f1(x)}" y="${f1(y)}" class="${cls}"${a === "start" ? "" : ` text-anchor="${a}"`}>${esc(s)}</text>`;
 const L_ = (x1, y1, x2, y2, cls) => `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" class="${cls}"/>`;
-const refLine = (r, x1, x2, y) => `<line class="ref" x1="${f1(x1)}" y1="${f1(y)}" x2="${f1(x2)}" y2="${f1(y)}" stroke="${r.color}" stroke-width="${r.w}" stroke-dasharray="${r.dash}" stroke-linecap="${r.cap}"/>`;
-const steps = (lo, hi, step) => { const out = []; for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6)); return out; };
+const path = (p) => p.map(([x, y], i) => `${i ? "L" : "M"}${f1(x)},${f1(y)}`).join("");
 
 const ruler = document.getElementById("ruler");
 const measure = (s, cls) => {
@@ -54,71 +54,174 @@ const pair = (v, a, b) => {
   return q && { mean: -q.C.mean, ci: [-q.C.ci[1], -q.C.ci[0]] };
 };
 const unitLines = (v) => (v.days_per_task > 1 ? [`${v.n_tasks} ${WORD[v.days_per_task] || v.days_per_task}-day windows`, `over ${v.n_days} ${v.block}s`] : [`${v.n_tasks} battery-days`]);
+const fmtDay = (iso, o) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { ...o, timeZone: "UTC" });
+const plusDays = (iso, n) => { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const span = (v, iso, year) => {
+  const o = { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}) };
+  if (v.days_per_task === 1) return fmtDay(iso, o);
+  const b = plusDays(iso, v.days_per_task - 1);
+  return `${fmtDay(iso, { day: "numeric", ...(iso.slice(5, 7) === b.slice(5, 7) ? {} : { month: "short" }) })}–${fmtDay(b, o)}`;
+};
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
-function legend(groups, width) {
-  let s = "", y = 14;
-  for (const items of groups) {
-    let x = 0;
-    for (const it of items) {
-      const cls = `t-leg${it.bold ? " b" : ""}`, sw = it.dot ? 11 : 26, w = sw + 7 + measure(it.label, cls);
-      if (x > 0 && x + w > width) (x = 0), (y += 22);
-      s += it.dot ? `<circle cx="${x + 5.5}" cy="${y - 4.6}" r="5.5" fill="${it.color}"/>` : refLine(it, x, x + sw, y - 4.6);
-      s += T(x + sw + 7, y, it.label, cls);
-      x += w + 20;
-    }
-    y += 22;
+function header(head, sub, W, y0 = 17) {
+  const hx = measure(head, "t-head") + 8;
+  if (hx + measure(sub, "t-head-s") <= W) return [T(0, y0, head, "t-head") + T(hx, y0, sub, "t-head-s"), y0];
+  return [T(0, y0, head, "t-head") + T(0, y0 + 19, sub, "t-head-s"), y0 + 19];
+}
+
+function dodge(items, lo, hi, gap) {
+  const cl = [...items].sort((a, b) => a.y - b.y).map((it) => ({ items: [it], top: it.y - it.h / 2, h: it.h }));
+  const fit = (c) => {
+    const mid = c.items.reduce((s, x) => s + x.y, 0) / c.items.length;
+    c.top = Math.min(Math.max(mid - c.h / 2, lo), hi - c.h);
+  };
+  for (let i = 1; i < cl.length;) {
+    if (cl[i].top < cl[i - 1].top + cl[i - 1].h + gap) {
+      const items = [...cl[i - 1].items, ...cl[i].items];
+      const c = { items, h: items.reduce((s, x) => s + x.h, 0) + gap * (items.length - 1) };
+      fit(c);
+      cl.splice(i - 1, 2, c);
+      i = Math.max(1, i - 1);
+    } else i++;
   }
-  return [s, y - 22];
+  return cl.flatMap((c) => {
+    let y = c.top;
+    return c.items.map((it) => { const ly = y + it.h / 2; y += it.h + gap; return { ...it, ly }; });
+  });
+}
+
+function sample(lines) {
+  const out = [];
+  for (const p of lines) {
+    for (let i = 1; i < p.length; i++) {
+      const [x0, y0] = p[i - 1], [x1, y1] = p[i], n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 2);
+      for (let k = 0; k <= n; k++) out.push([x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n]);
+    }
+  }
+  return out;
+}
+
+function place(labels, obstacles, bounds) {
+  const boxes = [...obstacles.boxes], dots = obstacles.dots, done = [];
+  const hit = (b) => dots.filter(([x, y]) => x > b[0] - 2 && x < b[2] + 2 && y > b[1] - 2 && y < b[3] + 2).length
+    + 6 * boxes.reduce((s, o) => s + Math.max(0, Math.min(b[2], o[2]) - Math.max(b[0], o[0])) * Math.max(0, Math.min(b[3], o[3]) - Math.max(b[1], o[1])) / 40, 0)
+    + (b[0] < bounds[0] || b[2] > bounds[2] || b[1] < bounds[1] || b[3] > bounds[3] ? 400 : 0);
+  for (const l of labels) {
+    const w = measure(l.text, l.cls), h = l.size, g = l.r + 4;
+    const cands = [["middle", 0, -g], ["middle", 0, g + h], ["start", g + 1, h / 2 - 1], ["end", -g - 1, h / 2 - 1], ["start", g - 3, -g + 2], ["end", -g + 3, -g + 2], ["start", g - 3, g + h - 2], ["end", -g + 3, g + h - 2]]
+      .map(([a, dx, dy], i) => {
+        const x = l.x + dx, y = l.y + dy, x0 = a === "middle" ? x - w / 2 : a === "start" ? x : x - w;
+        const b = [x0, y - h * 0.78, x0 + w, y + h * 0.22], cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+        const own = Math.hypot(cx - l.x, cy - l.y), near = Math.min(1e9, ...(l.others || []).map(([ox, oy]) => Math.hypot(cx - ox, cy - oy)));
+        return { a, x, y, b, score: hit(b) + (near < own - 2 ? 4 + (own - near) / 3 : 0) + (l.prefer === i ? 0 : i === 0 ? 0.6 : i === 1 ? 0.9 : 1.5 + i * 0.2) };
+      });
+    const best = cands.reduce((m, c) => (c.score < m.score ? c : m));
+    boxes.push(best.b);
+    done.push({ ...l, ...best });
+  }
+  return done;
+}
+
+function key(items, W, y0) {
+  let s = "", x = 0, y = y0;
+  for (const it of items) {
+    const w = 22 + 7 + measure(it.label, it.cls);
+    if (x > 0 && x + w > W) (x = 0), (y += 21);
+    s += it.op ? `<path class="op" d="M${f1(x)},${f1(y - 4.5)}H${f1(x + 22)}"/>`
+      : `<path class="ln-s" d="M${f1(x)},${f1(y - 4.5)}H${f1(x + 22)}" stroke="${it.color}"/><circle cx="${f1(x + 11)}" cy="${f1(y - 4.5)}" r="4" fill="${it.color}" class="mk-s"/>`;
+    s += T(x + 29, y, it.label, it.cls);
+    x += w + 16;
+  }
+  return [s, y];
+}
+
+function ticks(lo, hi, step, cls) {
+  const out = [];
+  for (let t = Math.ceil(lo / step - 1e-9) * step; t <= hi + 1e-9; t += step) {
+    const tt = +t.toFixed(6);
+    out.push({ t: tt, label: `${minus(String(Math.round(tt * 100)))}%` });
+  }
+  return out.map((k) => ({ ...k, w: measure(k.label, cls) }));
 }
 
 function across(D, W, narrow) {
-  const V = D.versions, L = narrow ? 32 : 38, R = W - 2, cw = (R - L) / V.length, off = cw * (narrow ? 0.22 : 0.2);
+  W = narrow ? W : D.charts.lead;
+  const V = D.versions, n = V.length, keys = ORDER.filter((k) => V.some((v) => model(v, k)));
   const names = Object.fromEntries(V.flatMap((v) => v.models.map((m) => [m.key, m.name])));
-  const keys = ORDER.filter((k) => names[k]);
-  let [s, y] = legend([keys.map((k) => ({ dot: true, color: COL[k], label: names[k], bold: true })), REFS], W);
-  y += 30;
-  const head = "Hindsight capture C", sub = "mean and 95% CI · idle is 0, the hindsight optimum 1", hx = measure(head, "t-axis") + 8;
-  s += T(0, y, head, "t-axis");
-  if (hx + measure(sub, "t-axis-s") <= W) s += T(hx, y, sub, "t-axis-s");
-  else s += T(0, (y += 18), sub, "t-axis-s");
-  const top = y + 18, PH = narrow ? 260 : 236;
-  const vals = V.flatMap((v) => [...v.models.flatMap((m) => m.C.ci), ...REFS.map((r) => ref(v, r.key)?.C.mean).filter((x) => x != null)]);
-  const lo = Math.min(-0.1, Math.floor((Math.min(...vals) - 0.03) * 10) / 10), hi = Math.max(0.6, Math.ceil((Math.max(...vals) + 0.035) * 20) / 20);
-  const yv = lin(lo, hi, top + PH, top), bottom = top + PH;
-  for (const t of steps(lo, hi, 0.2)) {
-    s += L_(L, yv(t), R, yv(t), t ? "grid" : "zero") + T(L - 8, yv(t) + 4.3, t ? num(t, 1) : "0", "t-tick", "end");
+  let [s, y] = header("Hindsight capture C", "% of the hindsight optimum's profit over idle", W);
+  if (narrow) {
+    const [k, ky] = key([...keys.map((k) => ({ color: COL[k], label: names[k], cls: k === "sol" ? "t-key b" : "t-key" })), { op: true, label: OP.label, cls: "t-key op-t" }], W, y + 26);
+    s += k;
+    y = ky;
   }
-  let labels = "", ann = "", marks = "", maxY = bottom;
+  const last = V[n - 1], split = (t) => { const i = t.indexOf(" ("); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 1)]; };
+  const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: model(last, k).C.mean, val: pct(model(last, k).C.mean), bold: k === "sol", name: split(names[k]) })),
+    ...(ref(last, OP.key) ? [{ key: OP.key, c: ref(last, OP.key).C.mean, val: pct(ref(last, OP.key).C.mean), op: true, name: split(OP.label) }] : [])];
+  const vw = Math.max(0, ...ends.map((e) => (e.val ? measure(e.val, "t-end-v") : 0))) + 7;
+  const ew = ends.length ? vw + Math.max(...ends.map((e) => Math.max(measure(e.name[0], e.bold ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) : 0;
+  const vals = V.flatMap((v) => [...v.models.flatMap((m) => [m.C.mean, ...m.C.ci]), ref(v, OP.key)?.C.mean ?? 0]);
+  const lo = Math.min(-0.04, Math.floor((Math.min(...vals) - 0.015) * 50) / 50), hi = Math.ceil((Math.max(...vals) + 0.03) * 20) / 20;
+  const tk = ticks(0, hi, 0.2, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14;
+  const R = W - (ends.length ? ew + 30 : 10), pad = narrow ? 30 : 40, xs = V.map((_, i) => L + pad + ((R - L - 2 * pad) * i) / (n - 1));
+  const top = y + (narrow ? 22 : 24), PH = narrow ? 260 : 272, bottom = top + PH, yv = lin(lo, hi, bottom, top);
+  const tickBoxes = [];
+  for (const k of tk) {
+    s += L_(L, yv(k.t), R + 6, yv(k.t), k.t ? "grid" : "zero") + T(L - 8, yv(k.t) + 4.5, k.label, "t-tick", "end");
+    tickBoxes.push([L - 8 - k.w, yv(k.t) - 6, L - 6, yv(k.t) + 6]);
+  }
+  let bands = "", lines = "", marks = "", labels = "";
+  const series = keys.map((k) => ({ key: k, m: V.map((v) => model(v, k)) })).map((sr) => ({ ...sr, pts: sr.m.map((m, i) => [xs[i], yv(m.C.mean)]) }));
+  for (const sr of series) {
+    const up = sr.m.map((m, i) => [xs[i], yv(m.C.ci[1])]), dn = sr.m.map((m, i) => [xs[i], yv(m.C.ci[0])]).reverse();
+    bands += `<path class="band" d="${path([...up, ...dn])}Z" fill="${COL[sr.key]}"/>`;
+  }
+  const opPts = V.map((v, i) => (ref(v, OP.key) ? [xs[i], yv(ref(v, OP.key).C.mean)] : null)).filter(Boolean);
+  lines += `<path class="op" d="${path(opPts)}"/>` + opPts.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>`).join("");
+  for (const sr of [...series].reverse()) {
+    lines += `<path class="ln${sr.key === "sol" ? " ln-b" : ""}" d="${path(sr.pts)}" stroke="${COL[sr.key]}"/>`;
+    marks += sr.pts.map(([x, y]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${sr.key === "sol" ? 6 : 5}" fill="${COL[sr.key]}" class="mk"/>`).join("");
+  }
+  const dots = sample([...series.map((sr) => sr.pts), opPts, [[L, yv(0)], [R + 6, yv(0)]]]);
+  const obstacles = { boxes: [...tickBoxes, ...series.flatMap((sr) => sr.pts.map(([x, y]) => [x - 7, y - 7, x + 7, y + 7]))], dots };
+  const want = series.flatMap((sr) => sr.pts.slice(0, narrow ? n : n - 1).map(([x, y], i) => {
+    const pv = sr.pts[i - 1]?.[1], nx = sr.pts[i + 1]?.[1], valley = (pv ?? -1e9) < y && (nx ?? -1e9) < y, peak = (pv ?? 1e9) > y && (nx ?? 1e9) > y;
+    return { key: sr.key, i, x, y, r: sr.key === "sol" ? 6 : 5, text: pct(sr.m[i].C.mean), cls: sr.key === "sol" ? "t-val b" : "t-val", size: sr.key === "sol" ? 14 : 13,
+      prefer: i === 0 ? 3 : i === n - 1 ? 2 : peak ? 0 : valley ? 1 : undefined, others: [...series.filter((o) => o.key !== sr.key).map((o) => o.pts[i]), ...(opPts[i] ? [opPts[i]] : [])] };
+  }));
+  const placed = place(want, obstacles, [0, top - 24, W - 2, bottom + 20]);
+  for (const p of placed) labels += T(p.x, p.y, p.text, p.cls, p.a);
+  const gi = V.findIndex((v) => { const g = pair(v, "sol", "luna"); return g && (g.ci[0] > 0 || g.ci[1] < 0); });
+  if (gi >= 0) {
+    const g = pair(V[gi], "sol", "luna"), sp = placed.find((p) => p.key === "sol" && p.i === gi);
+    const t1 = `Sol − Luna ${pts(g.mean, true)} pts`, t2 = `95% CI [${pts(g.ci[0])}, ${pts(g.ci[1])}]`, cw = Math.max(measure(t1, "t-call b"), measure(t2, "t-call"));
+    const base = sp ? sp.b[1] : series[0].pts[gi][1] - 12;
+    const cands = [[xs[gi], base - 24, "middle"], [xs[gi] + 10, base - 24, "start"], [xs[gi] - 10, base - 24, "end"]].map(([x, y, a]) => {
+      const x0 = a === "start" ? x : a === "end" ? x - cw : x - cw / 2, b = [x0, y - 12, x0 + cw, y + 20];
+      const over = dots.filter(([px, py]) => px > b[0] - 3 && px < b[2] + 3 && py > b[1] - 3 && py < b[3] + 3).length + (x0 < 0 || x0 + cw > W - 2 ? 500 : 0);
+      return { x, y, a, over };
+    });
+    const c = cands.reduce((m, k) => (k.over < m.over ? k : m));
+    labels += T(c.x, c.y, t1, "t-call b", c.a) + T(c.x, c.y + 16, t2, "t-call", c.a);
+  }
+  const ex = xs[n - 1] + 26;
+  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c) + (e.name[1] ? 7 : 0), h: e.name[1] ? 31 : 16 })), top - 10, bottom + 30, 3)) {
+    const y0 = e.ly - (e.name[1] ? 7 : 0), at = yv(e.c);
+    labels += `<path class="lead" d="M${f1(xs[n - 1] + 9)},${f1(at)}L${f1(ex - 5)},${f1(y0 - 4.5)}"/>`;
+    labels += (e.val ? T(ex + vw - 7, y0, e.val, e.op ? "t-end-v op-t" : "t-end-v", "end") : "") + T(ex + vw, y0, e.name[0], e.op ? "t-end op-t" : e.bold ? "t-end b" : "t-end");
+    if (e.name[1]) labels += T(ex + vw, y0 + 15, e.name[1], "t-end-q");
+  }
+  let maxY = bottom, xl = "";
+  const cw = (R - L - 2 * pad) / (n - 1);
   V.forEach((v, i) => {
-    const cx = L + cw * (i + 0.5), xs = Object.fromEntries(keys.map((k, j) => [k, cx + (j - (keys.length - 1) / 2) * off]));
-    for (const r of REFS) {
-      const x = ref(v, r.key);
-      if (x) s += refLine(r, cx - cw * 0.39, cx + cw * 0.39, yv(x.C.mean));
-    }
-    for (const k of keys) {
-      const m = model(v, k);
-      if (!m) continue;
-      marks += `<line x1="${f1(xs[k])}" x2="${f1(xs[k])}" y1="${f1(yv(m.C.ci[0]))}" y2="${f1(yv(m.C.ci[1]))}" stroke="${COL[k]}" stroke-width="2.6" stroke-linecap="round"/>`;
-      marks += `<circle cx="${f1(xs[k])}" cy="${f1(yv(m.C.mean))}" r="5.6" fill="${COL[k]}" stroke="var(--halo)" stroke-width="2"/>`;
-    }
-    let ly = bottom + 24;
-    labels += T(cx, ly, v.version, "t-ver", "middle");
+    let ly = bottom + 26;
+    xl += T(xs[i], ly, v.version, "t-ver", "middle");
     if (!narrow) {
-      for (const line of wrap(v.name, "t-name", cw - 10)) labels += T(cx, (ly += 17), line, "t-name", "middle");
+      for (const line of wrap(v.name, "t-name", cw - 8)) xl += T(xs[i], (ly += 17), line, "t-name", "middle");
       ly += 2;
-      for (const line of unitLines(v).flatMap((x) => wrap(x, "t-unit", cw + 10))) labels += T(cx, (ly += 16), line, "t-unit", "middle");
+      xl += T(xs[i], (ly += 16), unitLines(v)[0], "t-unit", "middle");
     }
     maxY = Math.max(maxY, ly);
-    const p = pair(v, "sol", "luna"), a = model(v, "sol"), b = model(v, "luna");
-    if (p && a && b && (p.ci[0] > 0 || p.ci[1] < 0)) {
-      const t1 = `Sol − Luna ${sgn(p.mean, 2)}`, t2 = `95% CI [${num(p.ci[0], 2)}, ${num(p.ci[1], 2)}]`;
-      const tw = Math.max(measure(t1, "t-ann"), measure(t2, "t-ann-s")), ya = yv(a.C.mean), yb = yv(b.C.mean), up = Math.min(ya, yb);
-      const bx = narrow ? cx + cw * 0.42 : Math.min(cx + cw * 0.44, W - 9 - tw);
-      ann += `<path class="lead" stroke-dasharray="2 2.5" d="M${f1(xs.sol + 8)},${f1(ya)}H${f1(bx - 1)}M${f1(xs.luna + 8)},${f1(yb)}H${f1(bx - 1)}"/>`;
-      ann += `<path class="brk" d="M${f1(bx - 4)},${f1(ya)}H${f1(bx)}V${f1(yb)}H${f1(bx - 4)}"/>`;
-      ann += narrow ? T(R, up - 27, t1, "t-ann", "end") + T(R, up - 10, t2, "t-ann-s", "end")
-        : T(bx + 7, up + 4, t1, "t-ann") + T(bx + 7, up + 21, t2, "t-ann-s");
-    }
   });
   if (narrow) {
     maxY += 12;
@@ -126,135 +229,71 @@ function across(D, W, narrow) {
     for (const v of V) {
       wrap(`${v.name} · ${unitLines(v).join(" ")}`, "t-kd", W - vx).forEach((line, i) => {
         maxY += i ? 17 : 21;
-        labels += (i ? "" : T(0, maxY, v.version, "t-kv")) + T(vx, maxY, line, "t-kd");
+        xl += (i ? "" : T(0, maxY, v.version, "t-kv")) + T(vx, maxY, line, "t-kd");
       });
     }
   }
-  s += marks + ann + labels;
-  return svg(W, maxY + 8, s, "Hindsight capture by model and version");
+  const multi = V.filter((v) => v.block !== "day").map((v) => `${v.version} by ${v.block}`);
+  maxY += 10;
+  for (const line of wrap(`Shaded: 95% day-block bootstrap CIs${multi.length ? `; ${multi.join(", ")}` : ""}.`, "t-foot", W)) xl += T(0, (maxY += 17), line, "t-foot");
+  s += bands + lines + marks + labels + xl;
+  return svg(W, maxY + 6, s, "Hindsight capture by model and version");
 }
 
-function place(ys, d) {
-  const idx = ys.map((_, i) => i).sort((a, b) => ys[a] - ys[b]), xs = new Array(ys.length), done = [];
-  const free = (x, y) => done.every((j) => (xs[j] - x) ** 2 + (ys[j] - y) ** 2 >= d * d - 1e-6);
-  for (const i of idx) {
-    const y = ys[i], c = [0];
-    for (const j of done) {
-      const dy = Math.abs(ys[j] - y);
-      if (dy < d) {
-        const dx = Math.sqrt(d * d - dy * dy) + 1e-6;
-        c.push(xs[j] + dx, xs[j] - dx);
-      }
-    }
-    c.sort((a, b) => Math.abs(a) - Math.abs(b) || b - a);
-    let x = c.find((x) => free(x, y));
-    for (let k = 1; x === undefined; k++) x = [k * 0.5, -k * 0.5].find((x) => free(x, y));
-    xs[i] = x;
-    done.push(i);
+function daily(v, D, W, narrow, scale) {
+  const days = v.days, n = days.length, multi = v.days_per_task > 1, keys = ORDER.filter((k) => model(v, k));
+  let [s, y] = header(multi ? "Hindsight capture C, front by front" : "Hindsight capture C, day by day", `mean of the ${days[0].n} sites, %`, W);
+  if (narrow) {
+    const [k, ky] = key([...keys.map((k) => ({ color: COL[k], label: model(v, k).name, cls: k === "sol" ? "t-key b" : "t-key" })), { op: true, label: OP.short, cls: "t-key op-t" }], W, y + 24);
+    s += k;
+    y = ky;
   }
-  return xs;
-}
-
-function swarm(ys, r, maxHalf) {
-  let d = 2 * r + 0.9, xs = place(ys, d);
-  for (let k = 0; k < 8; k++) {
-    const half = Math.max(0, ...xs.map(Math.abs)) + r;
-    if (half <= maxHalf) break;
-    d *= Math.max(0.5, (maxHalf - r) / (half - r));
-    xs = place(ys, d);
+  const ends = narrow ? [] : [...keys.map((k) => ({ key: k, c: days[n - 1].C[k], text: model(v, k).name, bold: k === "sol" })), { key: OP.key, c: days[n - 1].C[OP.key], text: OP.short, op: true }]
+    .filter((e) => e.c != null).map((e) => ({ ...e, lines: [e.text] }));
+  const ew = ends.length ? Math.max(...ends.map((e) => measure(e.text, e.bold ? "t-end b" : "t-end"))) : 0;
+  const [lo, hi] = scale, tk = ticks(lo, hi, 0.2, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14;
+  const R = W - (ends.length ? ew + 30 : 10), pad = narrow ? 24 : n > 5 ? 24 : 36;
+  const xs = days.map((_, i) => L + pad + ((R - L - 2 * pad) * i) / Math.max(1, n - 1));
+  const top = y + 36, PH = narrow ? 240 : 240, bottom = top + PH, yv = lin(lo, hi, bottom, top);
+  const fern = days.findIndex((d) => d.named), half = Math.min(xs[1] - xs[0], narrow ? 44 : 64) / 2;
+  let back = "", bandRight = 0;
+  if (fern >= 0) {
+    const x0 = Math.max(L + 1, xs[fern] - half), x1 = (bandRight = Math.min(R + 6, xs[fern] + half));
+    back += `<rect class="fern" x="${f1(x0)}" y="${f1(top - 8)}" width="${f1(x1 - x0)}" height="${f1(bottom - top + 8)}" rx="4"/>`;
+    const t = cap(days[fern].named), tw = measure(t, "t-fern"), cx = Math.min(Math.max((x0 + x1) / 2, tw / 2), W - tw / 2);
+    back += T(cx, top - 14, t, "t-fern", "middle");
   }
-  return xs;
-}
-
-function dodge(items, lo, hi) {
-  const out = [...items].sort((a, b) => a.y - b.y).map((x) => ({ ...x, ly: x.y }));
-  const gap = (a, b) => (a.h + b.h) / 2 + 2;
-  for (let i = 1; i < out.length; i++) out[i].ly = Math.max(out[i].ly, out[i - 1].ly + gap(out[i - 1], out[i]));
-  for (let i = out.length - 1; i >= 0; i--) {
-    if (i === out.length - 1) out[i].ly = Math.min(out[i].ly, hi);
-    else out[i].ly = Math.min(out[i].ly, out[i + 1].ly - gap(out[i], out[i + 1]));
-    out[i].ly = Math.max(out[i].ly, lo);
+  for (const k of tk) back += L_(L, yv(k.t), R + 6, yv(k.t), k.t ? "grid" : "zero") + T(L - 8, yv(k.t) + 4.5, k.label, "t-tick", "end");
+  let lines = "", marks = "", labels = "";
+  const opPts = days.map((d, i) => (d.C[OP.key] != null ? [xs[i], yv(d.C[OP.key])] : null)).filter(Boolean);
+  lines += `<path class="op" d="${path(opPts)}"/>` + opPts.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="2.6"/>`).join("");
+  for (const k of [...keys].reverse()) {
+    const p = days.map((d, i) => [xs[i], yv(d.C[k])]);
+    lines += `<path class="ln-s${k === "sol" ? " ln-b" : ""}" d="${path(p)}" stroke="${COL[k]}"/>`;
+    marks += p.map(([x, y]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="${k === "sol" ? 4.2 : 3.6}" fill="${COL[k]}" class="mk-s"/>`).join("");
   }
-  return out;
-}
-
-function key(v, r, W, narrow) {
-  const head = "Hindsight capture C", each = v.days_per_task > 1 ? `one ${WORD[v.days_per_task] || v.days_per_task}-day window` : "one battery-day";
-  let s = T(0, 17, head, "t-axis"), x = measure(head, "t-axis") + 18, y = 17;
-  if (narrow) (s += T(x - 10, 17, "· idle is 0, the hindsight optimum 1", "t-axis-s")), (x = 0), (y = 40);
-  s += `<circle cx="${f1(x + r)}" cy="${f1(y - 4.6)}" r="${r}" class="key"/>` + T(x + 2 * r + 7, y, each, "t-axis-s");
-  x += 2 * r + 7 + measure(each, "t-axis-s") + 18;
-  s += `<line x1="${f1(x + 6)}" x2="${f1(x + 6)}" y1="${f1(y - 15)}" y2="${f1(y + 6)}" class="key-ci"/><circle cx="${f1(x + 6)}" cy="${f1(y - 4.6)}" r="6" class="key key-mean"/>`;
-  s += T(x + 19, y, "mean, 95% CI", "t-axis-s");
-  if (!narrow) return [s, y];
-  x = 0;
-  y += 23;
-  for (const it of REFS) {
-    s += refLine(it, x, x + 26, y - 4.6) + T(x + 33, y, it.short, "t-axis-s");
-    x += 33 + measure(it.short, "t-axis-s") + 20;
+  if (fern >= 0) {
+    const k = keys.reduce((a, b) => (days[fern].C[b] > days[fern].C[a] ? b : a));
+    labels += T(Math.max(xs[fern] + 9, bandRight + 6), yv(days[fern].C[k]) + 4.5, pct(days[fern].C[k]), "t-val b");
   }
-  return [s, y];
-}
-
-function tasks(v, D, W, narrow) {
-  const [lo, hi] = D.charts.tasks_axis, L = narrow ? 34 : 38, PH = narrow ? 300 : 292, r = narrow ? 3.2 : 3.5, lane = 18;
-  const G = narrow ? 4 : Math.ceil(Math.max(...REFS.map((x) => measure(x.short, "t-ref")), measure("Idle", "t-ref"))) + 22, R = W - G;
-  let [s, ky] = key(v, r, W, narrow), marks = "", notes = "";
-  const top = ky + 29, ms = ORDER.map((k) => model(v, k)).filter(Boolean), cw = (R - L) / ms.length, yv = lin(lo, hi, top + PH, top), bottom = top + PH;
-  const pts = (k) => v.tasks.map((t) => ({ c: t.C[k], named: t.named })).filter((p) => p.c != null);
-  for (const t of steps(lo, hi, 0.2)) {
-    s += L_(L, yv(t), R, yv(t), t === 0 ? "zero" : t === hi ? "top" : "grid") + T(L - 8, yv(t) + 4.5, t ? num(t, 1) : "0", "t-tick", "end");
+  const ex = xs[n - 1] + 24;
+  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c), h: 15 })), top - 6, bottom + 12, 2)) {
+    labels += `<path class="lead" d="M${f1(xs[n - 1] + 7)},${f1(yv(e.c))}L${f1(ex - 5)},${f1(e.ly)}"/>`;
+    labels += T(ex, e.ly + 4.5, e.text, e.op ? "t-end op-t" : e.bold ? "t-end b" : "t-end");
   }
-  const gut = [{ y: yv(hi), text: "Hindsight optimum" }, { y: yv(0), text: "Idle" }];
-  for (const x of REFS) {
-    const rf = ref(v, x.key);
-    if (!rf) continue;
-    s += refLine(x, L, narrow ? R : R + 4, yv(rf.C.mean));
-    gut.push({ y: yv(rf.C.mean), text: x.short });
-  }
-  const lines = gut.map((g) => ({ ...g, lines: wrap(g.text, "t-ref", G - 14) })).map((g) => ({ ...g, h: g.lines.length * 15, y: g.y + (g.lines.length - 1) * 7.5 }));
-  for (const g of narrow ? [] : dodge(lines, top, bottom + lane)) {
-    const y0 = g.ly - (g.h - 15) / 2, at = g.y - (g.h - 15) / 2;
-    if (Math.abs(y0 - at) > 0.5) s += `<path class="lead" d="M${f1(R + 4)},${f1(at)}L${f1(R + 9)},${f1(y0)}"/>`;
-    g.lines.forEach((t, i) => (s += T(R + 12, y0 + 4.6 + i * 15, t, "t-ref")));
-  }
-  ms.forEach((m, j) => {
-    const cx = L + cw * (j + 0.5), sx = cx - (narrow ? 8 : 10), edge = cx + cw / 2 - (narrow ? 9 : 12);
-    const all = pts(m.key), inside = all.filter((p) => p.c >= lo && p.c <= hi), out = all.filter((p) => p.c < lo);
-    const xs = swarm(inside.map((p) => yv(p.c)), r, edge - 14 - sx);
-    const half = Math.max(0, ...xs.map(Math.abs)) + r, gx = Math.min(edge, sx + half + 13);
-    inside.forEach((p, i) => {
-      marks += p.named
-        ? `<circle cx="${f1(sx + xs[i])}" cy="${f1(yv(p.c))}" r="${r + 0.4}" fill="${COL[m.key]}" stroke="var(--ink)" stroke-width="1.6"/>`
-        : `<circle class="dot" cx="${f1(sx + xs[i])}" cy="${f1(yv(p.c))}" r="${r}" fill="${COL[m.key]}" stroke="var(--halo)" stroke-width="0.8"/>`;
-    });
-    out.sort((a, b) => a.c - b.c).forEach((p, i) => {
-      const x = sx - 4 + i * 40, yy = bottom + 6;
-      marks += `<path d="M${f1(x - 4.5)},${f1(yy)}H${f1(x + 4.5)}L${f1(x)},${f1(yy + 7)}Z" fill="${COL[m.key]}"/>`;
-      notes += T(x + 8, yy + 7.5, num(p.c, 2), "t-out");
-    });
-    marks += `<line x1="${f1(gx)}" x2="${f1(gx)}" y1="${f1(yv(m.C.ci[0]))}" y2="${f1(yv(m.C.ci[1]))}" stroke="${COL[m.key]}" stroke-width="2.8" stroke-linecap="round"/>`;
-    marks += `<circle cx="${f1(gx)}" cy="${f1(yv(m.C.mean))}" r="6" fill="${COL[m.key]}" stroke="var(--halo)" stroke-width="2"/>`;
-    let ly = bottom + lane + 22;
-    for (const line of wrap(m.name, "t-col", cw - 6)) (s += T(cx, ly, line, "t-col", "middle")), (ly += 17);
-    const fp = inside.map((p, i) => ({ ...p, x: sx + xs[i], y: yv(p.c) })).filter((p) => p.named);
-    if (j === 0 && fp.length) {
-      const ytop = Math.min(...fp.map((p) => p.y)), xr = Math.max(...fp.map((p) => p.x)) + r + 8, t = fp[0].named;
-      const day = v.tasks.find((x) => x.named).date, by = Math.max(ytop + 7, yv(hi) + 18);
-      notes += T(xr + 2, by, cap(t), "t-ann") + T(xr + 2, by + 17, dayLabel(v, day), "t-ann-s");
-    }
+  let xl = "";
+  const every = narrow && n > 6 ? 2 : 1;
+  days.forEach((d, i) => {
+    if (i % every && i !== fern) return;
+    const t = span(v, d.block, false), w = measure(t, "t-date"), x = Math.min(Math.max(xs[i], w / 2), W - w / 2);
+    xl += T(x, bottom + 22, t, i === fern ? "t-date b" : "t-date", "middle");
   });
-  s += marks + notes;
-  return svg(W, bottom + lane + 26 + 17 * 2, s, `Hindsight capture task by task, ${v.version}`);
-}
-
-const cap = (s) => s[0].toUpperCase() + s.slice(1);
-const fmtDay = (iso, o) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { ...o, timeZone: "UTC" });
-function dayLabel(v, iso) {
-  if (v.days_per_task === 1) return fmtDay(iso, { day: "numeric", month: "short", year: "numeric" });
-  const b = new Date(`${iso}T12:00:00Z`);
-  b.setUTCDate(b.getUTCDate() + v.days_per_task - 1);
-  return `${fmtDay(iso, { day: "numeric" })}–${fmtDay(b.toISOString().slice(0, 10), { day: "numeric", month: "short", year: "numeric" })}`;
+  const year = [...new Set(days.map((d) => d.block.slice(0, 4)))].join("–");
+  const foot = `${year} · each point: the mean of ${days[0].n} ${multi ? "three-day windows" : "battery-days"}, one per site`;
+  let fy = bottom + 26;
+  for (const line of wrap(foot, "t-foot", W)) xl += T(0, (fy += 18), line, "t-foot");
+  s += back + lines + marks + labels + xl;
+  return svg(W, fy + 8, s, `Hindsight capture by ${multi ? "front" : "day"}, ${v.version}`);
 }
 
 const PAINT = { fill: "", "fill-opacity": "1", stroke: "none", "stroke-width": "", "stroke-opacity": "1", "stroke-dasharray": "none", "stroke-linecap": "butt", "stroke-linejoin": "miter", "paint-order": "normal", opacity: "1" };
@@ -288,8 +327,8 @@ async function main() {
   const D = await (await fetch("./desk.json")).json();
   await document.fonts.load('600 13px "IBM Plex Sans"');
   await document.fonts.ready;
-  const sizes = [["", D.charts.width, false], ["-phone", D.charts.phone.width, true]];
-  const figs = sizes.flatMap(([sfx, W, narrow]) => [[`desk-across${sfx}`, across(D, W, narrow)], ...D.versions.map((v) => [`desk-${v.version}-tasks${sfx}`, tasks(v, D, W, narrow)])]);
+  const scale = D.charts.days_scale, sizes = [["", D.charts.width, false], ["-phone", D.charts.phone.width, true]];
+  const figs = sizes.flatMap(([sfx, W, narrow]) => [[`desk-across${sfx}`, across(D, W, narrow)], ...D.versions.map((v) => [`desk-${v.version}-days${sfx}`, daily(v, D, W, narrow, scale)])]);
   document.getElementById("figs").innerHTML = figs.map(([id, body]) => `<section class="fig" data-figure="${id}">${body}</section>`).join("");
   const font = await woff2();
   window.chartsSvg = () => Object.fromEntries([...document.querySelectorAll("[data-figure]")].map((e) => [e.dataset.figure, standalone(e.querySelector("svg"), font)]));
