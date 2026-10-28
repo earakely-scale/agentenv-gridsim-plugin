@@ -220,7 +220,8 @@ configs:
 An [AgentEnv](https://www.agentenvframework.com) environment built from ERCOT's public day-ahead market prices and
 EIA-860 battery records, with 21,250 battery-days, a public train split and no judge: every schedule is scored against
 a dynamic program that finds the best possible day. This dataset holds the battery-days and their references, the
-leaderboard and every schedule behind it, and the recorded runs. **[Read the
+leaderboard and every schedule behind it, and the recorded runs: the Dataset Viewer opens on the leaderboard, and the
+subset menu has the rest ([What's inside](#whats-inside)). **[Read the
 article](https://huggingface.co/spaces/earakely-scale/GridSimEnv)** for the environment, the models, the training and
 the dollars, with every figure interactive.
 
@@ -354,14 +355,14 @@ bundle published with a dataset. This dataset publishes none yet, so play the pa
 
 ## What's inside
 
-| Config | Splits (rows) | What it holds | Use it for |
-|---|---|---|---|
-| `leaderboard` (default) | `v1` (<!-- =leaderboard_rows -->) | Every model, reasoning effort and no-LLM baseline on the four evaluation packs: the score with its 95% CI, $ per battery-day, open or API weights, and whether it is on the cost frontier | comparing models; score against cost |
-| `eval_runs` | <!-- =eval_runs_rows --> | Every schedule behind the leaderboard, one row per model and battery-day: the 24 actions, the score, the kind of failure and the day's profit per MW, beside the optimum's and idle's | error analysis; the leaderboard and the dollars, recomputed |
-| `v1_tasks` | `train` (26,000), `eval_2025` (800), `eval_iid` (500), `rtcb` (452) | Each battery-day at each tier it plays: the battery, the 24 prices, the blind inputs, the one-call prompt and tool schema, the tags and the task as the env loads it | GRPO prompts; evaluating any model |
-| `v1_showcase` | `showcase` (1,461) | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind, in the same shape | demos and replays, never scoring |
-| `v1_references` | `train` (20,000), `eval_2025` (500), `eval_iid` (500), `rtcb` (250), `showcase` (761) | Per battery-day: the DP optimum and its schedule, idle, the LP bound, the clock, threshold, greedy and random schedules, and at the blind tier the persistence and ridge plans and the anchor | grading without the plugin; baselines |
-| `v1_episodes` | `eval_2025` (1,338), `rtcb` (250), `showcase` (10), `train` (7) | 1,605 recorded runs, each with every tool call and its output, the grade and the transcript as chat messages | transcripts for SFT and analysis; replays |
+| Config | What it holds |
+|---|---|
+| **`leaderboard`**<br>the default<br><!-- =leaderboard_rows --> rows | Every model, reasoning effort and no-LLM baseline on the four evaluation packs: the score with its 95% CI, $ per battery-day, open or API weights, and whether it is on the cost frontier. Split `v1`. *Use it to compare models, or to plot score against cost.* |
+| **`eval_runs`**<br><!-- =eval_runs_rows --> rows | Every schedule behind the leaderboard, one row per model and battery-day: the 24 actions, the score, the kind of failure and the day's profit per MW, beside the optimum's and idle's. Splits <!-- =eval_runs_splits -->. *Use it for error analysis, or to recompute the leaderboard and the dollars.* |
+| **`v1_tasks`**<br>27,752 rows | Each battery-day at each tier it plays: the battery, the 24 prices, the blind inputs, the one-call prompt and tool schema, the tags and the task as the env loads it. Splits `train` (26,000), `eval_2025` (800), `eval_iid` (500) and `rtcb` (452). *Use it for GRPO prompts, or to evaluate any model.* |
+| **`v1_showcase`**<br>1,461 rows | 761 battery-days of famous events (Winter Storm Uri, Elliott, August 2023, 6 September 2023, Heather), 700 of them also blind, in the same shape. Split `showcase`. *For demos and replays, never for scoring.* |
+| **`v1_references`**<br>22,011 rows | Per battery-day: the DP optimum and its schedule, idle, the LP bound, the clock, threshold, greedy and random schedules, and at the blind tier the persistence and ridge plans and the anchor. Splits `train` (20,000), `eval_2025` (500), `eval_iid` (500), `rtcb` (250) and `showcase` (761). *Use it to grade without the plugin, or for baselines.* |
+| **`v1_episodes`**<br>1,605 rows | Recorded runs, each with every tool call and its output, the grade and the transcript as chat messages. Splits `eval_2025` (1,338), `rtcb` (250), `showcase` (10) and `train` (7). *Use it for transcripts to fine-tune on or analyse, and for replays.* |
 
 - **The v1 splits are by date,** so 2025 and later never reach `train`: `train` is 2014 to 2024 (20,000 battery-days,
   6,000 of them also blind), `eval_2025` January to November 2025 (500, 300 also blind), `eval_iid` reserved dates of
@@ -380,11 +381,11 @@ bundle published with a dataset. This dataset publishes none yet, so play the pa
 <details>
 <summary><b>Every column</b> of every v1 table</summary>
 
-**Leaderboard** (`leaderboard`), one row per model and reasoning effort on each pack, and per no-LLM baseline:
+**Leaderboard** (`leaderboard`), one row per model and reasoning effort on each pack, best first, then the pack's
+no-LLM baselines:
 
-- `pack` (the evaluation pack, as `eval_runs` names its splits), `model` (GPT-6.1 Sol, GPT-6 Luna, Beam-1.0, Qwen3-4B
-  untrained or trained with its run, or a baseline), `effort` (the reasoning effort; empty for the 4Bs and the
-  baselines).
+- `model` (GPT-6.1 Sol, GPT-6 Luna, Beam-1.0, Qwen3-4B untrained or trained with its run, or a baseline) and `effort`
+  (the reasoning effort; empty for the 4Bs and the baselines).
 - `score`: the mean over the pack's battery-days of the share of the hindsight optimum captured, on the reward's scale
   (idle 0.2, the optimum 1.0, no valid schedule 0): `r_opt` at the blind tier, the reward R at foresight, where the
   two are equal (`metric` says which). `ci_low` and `ci_high`: its 95% interval, a day-block bootstrap with 10,000
@@ -392,9 +393,9 @@ bundle published with a dataset. This dataset publishes none yet, so play the pa
 - `usd_per_battery_day`: the inference cost of one battery-day. API models at their recorded token usage × list
   price, Beam-1.0 at its price on the Hugging Face router, the 4Bs at their logged batched-generation time on one GPU;
   empty where it was not measured.
-- `weights` (`open` or `API`), `frontier` (on `blind_fresh`, whether no cheaper model scores as much), `valid` (the
-  share of battery-days with a valid schedule), `battery_days`, `type` (`model` or `baseline`) and `source`, the
-  results folder that documents the run.
+- `pack` (the evaluation pack, as `eval_runs` names its splits), `weights` (`open` or `API`), `frontier` (on
+  `blind_fresh`, whether no cheaper model scores as much), `valid` (the share of battery-days with a valid schedule),
+  `battery_days`, `type` (`model` or `baseline`) and `source`, the results folder that documents the run.
 
 **Eval runs** (`eval_runs`), one row per model and battery-day, a split per pack:
 
@@ -455,24 +456,24 @@ and the build stops if any reward, profit or situation differs.
 <details>
 <summary><b>The preview configs</b>, v2 to v5</summary>
 
-| Config | Splits (rows) | What it holds |
-|---|---|---|
-| `v2_tasks` | `train` (15,189), `eval_2024` (1,128), `test_2025` (779), `rtcb` (386) | The Live Grid: each battery-day at each of its four tiers, with the bulletins its watches deliver |
-| `v2_showcase` | `showcase` (309) | 90 display-only days in the same shape |
-| `v2_references` | `train` (4,000), `eval_2024` (300), `test_2025` (200), `rtcb` (100), `showcase` (90) | idle, naive, hindsight, the LP bound and each tier's rolling anchor |
-| `v2_episodes` | `eval_2024` (40), `showcase` (1) | the registered pilot's runs |
-| `v3_tasks` | `train` (4,800), `eval` (600), `rtcb` (400) | Sun, Storage and Reserves: each site-day at the energy and reserves tiers |
-| `v3_showcase` | `showcase` (8) | 4 display-only site-days |
-| `v3_references` | `train` (2,400), `eval` (300), `rtcb` (200), `showcase` (4) | the anchor, hindsight, the LP bound, the one-shot optimum and the baselines |
-| `v3_episodes` | `train` (3), `eval` (53), `showcase` (15) | the rules-3.2 pilot and the reference runs |
-| `v4_tasks` | `train` (1,290), `eval` (60), `rtcb` (20) | Weather Front: three-day windows on forecasts as they were issued |
-| `v4_showcase` | `showcase` (4) | 4 display-only windows |
-| `v4_references` | `train` (1,290), `eval` (60), `rtcb` (20), `showcase` (4) | the rolling anchors, persistence, the naive gate rule, hindsight and the LP bound |
-| `v4_episodes` | `eval` (33), `showcase` (2) | the rules-4.1 pilot's runs |
-| `v5_tasks` | `train` (3,777), `eval` (289), `rtcb` (65) | The Market Floor: a battery seat in ERCOT's day-ahead market, cleared again from the day's real offers |
-| `v5_showcase` | `showcase` (6) | 6 display-only floors |
-| `v5_references` | `train` (3,777), `eval` (289), `rtcb` (65), `showcase` (6) | the anchor's forecast and self-schedule, the best responses and the baselines |
-| `v5_episodes` | `eval` (40), `showcase` (2) | the rules-5.1 pilot's runs |
+| Config | What it holds |
+|---|---|
+| **`v2_tasks`**<br>17,482 rows | The Live Grid: each battery-day at each of its four tiers, with the bulletins its watches deliver. Splits `train` (15,189), `eval_2024` (1,128), `test_2025` (779) and `rtcb` (386). |
+| **`v2_showcase`**<br>309 rows | 90 display-only days in the same shape. Split `showcase`. |
+| **`v2_references`**<br>4,690 rows | Idle, naive, hindsight, the LP bound and each tier's rolling anchor. Splits `train` (4,000), `eval_2024` (300), `test_2025` (200), `rtcb` (100) and `showcase` (90). |
+| **`v2_episodes`**<br>41 rows | The registered pilot's runs. Splits `eval_2024` (40) and `showcase` (1). |
+| **`v3_tasks`**<br>5,800 rows | Sun, Storage and Reserves: each site-day at the energy and reserves tiers. Splits `train` (4,800), `eval` (600) and `rtcb` (400). |
+| **`v3_showcase`**<br>8 rows | 4 display-only site-days. Split `showcase`. |
+| **`v3_references`**<br>2,904 rows | The anchor, hindsight, the LP bound, the one-shot optimum and the baselines. Splits `train` (2,400), `eval` (300), `rtcb` (200) and `showcase` (4). |
+| **`v3_episodes`**<br>71 rows | The rules-3.2 pilot and the reference runs. Splits `train` (3), `eval` (53) and `showcase` (15). |
+| **`v4_tasks`**<br>1,370 rows | Weather Front: three-day windows on forecasts as they were issued. Splits `train` (1,290), `eval` (60) and `rtcb` (20). |
+| **`v4_showcase`**<br>4 rows | 4 display-only windows. Split `showcase`. |
+| **`v4_references`**<br>1,374 rows | The rolling anchors, persistence, the naive gate rule, hindsight and the LP bound. Splits `train` (1,290), `eval` (60), `rtcb` (20) and `showcase` (4). |
+| **`v4_episodes`**<br>35 rows | The rules-4.1 pilot's runs. Splits `eval` (33) and `showcase` (2). |
+| **`v5_tasks`**<br>4,131 rows | The Market Floor: a battery seat in ERCOT's day-ahead market, cleared again from the day's real offers. Splits `train` (3,777), `eval` (289) and `rtcb` (65). |
+| **`v5_showcase`**<br>6 rows | 6 display-only floors. Split `showcase`. |
+| **`v5_references`**<br>4,137 rows | The anchor's forecast and self-schedule, the best responses and the baselines. Splits `train` (3,777), `eval` (289), `rtcb` (65) and `showcase` (6). |
+| **`v5_episodes`**<br>42 rows | The rules-5.1 pilot's runs. Splits `eval` (40) and `showcase` (2). |
 
 Each preview's section under [Versions](#versions) sets out its tables in full.
 
@@ -878,13 +879,13 @@ v1 is the release. Four previews extend it, each adding one kind of realism unde
 a pre-registered pilot of GPT-6.1 Sol and design decisions still open. They replay in the same viewer and have their
 own configs here.
 
-| Version | What it adds | What the agent does | Status |
-|---|---|---|---|
-| **v1, The Battery Desk** | exact battery physics on ERCOT's real day-ahead prices, at a foresight and a blind tier | writes 24 hourly actions in one call | the release, everything above |
-| **v2, The Live Grid** | time: day-ahead against real-time prices, with ERCOT and weather bulletins on a virtual clock | commits a day-ahead position, then re-plans its 15-minute dispatch at watches through the day | preview, one registered pilot |
-| **v3, Sun, Storage and Reserves** | a solar farm and the battery behind one meter, and five ERCOT reserve products | sells energy and reserves the day before and keeps the charge to cover them | preview, rules 3.2 pilot |
-| **v4, Weather Front** | three operating days on load, wind, solar and price forecasts as they were issued | bids each day-ahead market and re-plans as the weather turns | preview, rules 4.1 pilot |
-| **v5, The Market Floor** | price-making: offers re-clear the day-ahead market from ERCOT's real disclosed offers, against rival portfolios | offers curves for a battery portfolio and hedges | preview, rules 5.1 pilot |
+| Version | What it adds | What the agent does |
+|---|---|---|
+| **v1, The Battery Desk**<br>the release | exact battery physics on ERCOT's real day-ahead prices, at a foresight and a blind tier | writes 24 hourly actions in one call |
+| **v2, The Live Grid**<br>preview, one registered pilot | time: day-ahead against real-time prices, with ERCOT and weather bulletins on a virtual clock | commits a day-ahead position, then re-plans its 15-minute dispatch at watches through the day |
+| **v3, Sun, Storage and Reserves**<br>preview, rules 3.2 pilot | a solar farm and the battery behind one meter, and five ERCOT reserve products | sells energy and reserves the day before and keeps the charge to cover them |
+| **v4, Weather Front**<br>preview, rules 4.1 pilot | three operating days on load, wind, solar and price forecasts as they were issued | bids each day-ahead market and re-plans as the weather turns |
+| **v5, The Market Floor**<br>preview, rules 5.1 pilot | price-making: offers re-clear the day-ahead market from ERCOT's real disclosed offers, against rival portfolios | offers curves for a battery portfolio and hedges |
 
 In the v2 to v4 pilots, Sol captures less of hindsight than the rolling re-planner each version uses as its anchor, so
 those tiers have room to train in a way v1's foresight tier no longer does.

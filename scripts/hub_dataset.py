@@ -108,9 +108,9 @@ EPISODES = pa.schema([
 
 
 LEADERBOARD = pa.schema([
-    ("pack", STR), ("model", STR), ("effort", STR), ("score", F64), ("ci_low", F64), ("ci_high", F64),
-    ("usd_per_battery_day", F64), ("weights", STR), ("frontier", BOOL), ("valid", F64), ("battery_days", I64),
-    ("metric", STR), ("type", STR), ("source", STR),
+    ("model", STR), ("effort", STR), ("score", F64), ("ci_low", F64), ("ci_high", F64), ("usd_per_battery_day", F64),
+    ("pack", STR), ("weights", STR), ("frontier", BOOL), ("valid", F64), ("battery_days", I64), ("metric", STR),
+    ("type", STR), ("source", STR),
 ])
 EVAL_RUNS = pa.schema([
     ("model", STR), ("effort", STR), ("task_id", STR), ("score", F64), ("kind", STR), ("profit_usd_per_mw", F64),
@@ -367,8 +367,8 @@ BASELINE_SRC = {"persistence-dp": "results/blind-ceiling", "teacher-dp": "result
 
 
 def leaderboard_rows(r: dict) -> list[dict]:
-    """The leaderboard config: every model row of results.json's leaderboard and the baselines the article draws beside
-    them, pack by pack in ORDER, each pack best first."""
+    """The leaderboard config: every model row of results.json's leaderboard, best first, then the baselines the article
+    draws beside them, pack by pack in ORDER."""
     packs = {p["key"]: p for p in r["leaderboard"]["packs"]}
     front = {x["key"]: x["frontier"] for x in r["frontier"]["points"]}
     rows = []
@@ -383,7 +383,7 @@ def leaderboard_rows(r: dict) -> list[dict]:
                           "score": b["mean"], "ci_low": b["ci"][0], "ci_high": b["ci"][1], "usd_per_battery_day": None,
                           "frontier": None, "valid": None, "source": BASELINE_SRC.get(b["key"]) or BASELINE_SRC[key]}
                 for b in p["baselines"] if b["key"] in REFS]
-        rows += sorted(out, key=lambda x: -x["score"])
+        rows += sorted(out, key=lambda x: (x["type"] == "baseline", -x["score"]))
     return rows
 
 
@@ -417,8 +417,10 @@ def result_tables(r: dict, runs: dict[str, list[dict]]) -> dict[str, bytes]:
 def counts(r: dict) -> dict[str, str]:
     """The row counts the card's table of configs prints, from results.json."""
     packs = {p["key"]: p for p in r["leaderboard"]["packs"]}
-    runs = ", ".join(f"`{SPLIT[k]}` ({len(packs[k]['rows']) * packs[k]['n_tasks']:,})" for k in ORDER)
-    return {"leaderboard_rows": f"{len(leaderboard_rows(r)):,}", "eval_runs_rows": runs}
+    n = {k: len(packs[k]["rows"]) * packs[k]["n_tasks"] for k in ORDER}
+    splits = [f"`{SPLIT[k]}` ({n[k]:,})" for k in ORDER]
+    return {"leaderboard_rows": f"{len(leaderboard_rows(r)):,}", "eval_runs_rows": f"{sum(n.values()):,}",
+            "eval_runs_splits": f"{', '.join(splits[:-1])} and {splits[-1]}"}
 
 
 def packs_block(r: dict) -> str:
@@ -447,12 +449,16 @@ def run_line(x: dict) -> str:
             f"{ev(x['src'] + '/README.md', 'Evidence')} | {gpu(x['usd'])} |")
 
 
+def stacked(g: dict) -> str:
+    return f"{h(g['mean'], sign=True)}<br><small>{ci(g['ci'], sign=True)}</small>"
+
+
 def pack_line(x: dict) -> str:
     u, t, b, g = x["untrained"], x["trained"], x["baseline"], x["gaps"]
     before = "not run" if u is None else h(u["mean"], 2 if u["mean"] < 0.1 else 3)
-    return (f"| {x['label']}, {x['n_tasks']} | {before} → **{h(t['mean'])}** ({t['run']}) | {h(x['luna']['mean'])} | "
-            f"{h(x['sol']['mean'])} | {h(b['mean'])} {b['label']} | {gap(g['trained_minus_luna'])} | "
-            f"{gap(g['trained_minus_sol'])} |")
+    return (f"| {x['label']}<br><small>{x['n_tasks']} battery-days</small> | {before} → **{h(t['mean'])}**<br>"
+            f"<small>{t['run']}</small> | {h(x['luna']['mean'])} | {h(x['sol']['mean'])} | {h(b['mean'])}<br>"
+            f"<small>{b['label']}</small> | {stacked(g['trained_minus_luna'])} | {stacked(g['trained_minus_sol'])} |")
 
 
 def training_block(r: dict) -> str:
@@ -504,7 +510,7 @@ def training_block(r: dict) -> str:
         "score is `r_opt`, the hindsight optimum's share on the reward's scale (idle 0.2, hindsight 1.0; the "
         "cross-version C of [Grading](#grading) is (r_opt − 0.2)/0.8 wherever r_opt is above 0). At the foresight "
         "tier it equals R.", "",
-        "| Pack, battery-days | 4B, untrained → trained | GPT-6 Luna, high | GPT-6.1 Sol, high | Simple rule | "
+        "| Pack | 4B, untrained → trained | GPT-6 Luna, high | GPT-6.1 Sol, high | Simple rule | "
         "Trained − Luna [95% CI] | Trained − Sol [95% CI] |", "|---|---|---|---|---|---|---|",
         *map(pack_line, r["scores"]), "",
         f"About ${t['gpu_usd_total']:.0f} of GPU in all, from the first 1.7B arm to run 4; training called no API, "
@@ -557,6 +563,14 @@ def matrix(r: dict) -> list[str]:
             *(f"| {n} | " + " | ".join(cells[n].get(k, "–") for k in ORDER) + " |" for n in names)]
 
 
+INVALID = ("malformed", "truncated", "error")
+
+
+def holds(ok: bool, wording: str) -> None:
+    if not ok:
+        raise SystemExit(f"the card says {wording!r}, which results.json no longer supports; update the wording")
+
+
 def board_block(r: dict) -> str:
     f = r["frontier"]
     p, refs, ratio = {x["key"]: x for x in f["points"]}, f["refs"], f["ratios"]
@@ -564,11 +578,15 @@ def board_block(r: dict) -> str:
     sol = p["sol"]["final_minus"]
     lb = {x["key"]: x for x in r["leaderboard"]["packs"]}
     fresh = {x["key"]: x for x in lb["blind-fresh"]["rows"]}
-    rows = [x for x in leaderboard_rows(r) if x["pack"] == "blind_fresh"]
+    rows = sorted((x for x in leaderboard_rows(r) if x["pack"] == "blind_fresh"), key=lambda x: -x["score"])
     gaps = {(x["label"], x["effort"]): x["final_minus"] for x in f["points"] if "final_minus" in x}
-    k4, ks = fresh["final"]["kinds"], fresh["sol"]["kinds"]
-    broke = sum(v for k, v in k4.items() if k not in ("ok", "malformed", "truncated", "error"))
+    ks = fresh["sol"]["kinds"]
+    broke = {m: sum(v for k, v in fresh[m]["kinds"].items() if k not in ("ok", *INVALID)) for m in ("final", "sol")}
     fore = [lb[k]["rows"] for k in ("foresight-eval2025", "foresight-fresh")]
+    above = {x["key"] for x in lb["blind-fresh"]["rows"] if x["mean"] > refs["persistence_dp"]["mean"]}
+    holds(all(max(lb[k]["rows"], key=lambda x: x["mean"])["key"] == "sol" for k in ORDER), "Sol leads every pack")
+    holds(fresh["final"]["valid"] == 1 and broke["sol"] == 0, "the 4B always submits and Sol breaks no rule")
+    holds(above == {"sol", "beam-max"}, "only Sol and Beam at max effort score above persistence-DP")
     alt = ("Capture against cost per battery-day on a log scale, blind, the 331 newest battery-days. The frontier "
            f"runs through the untrained 4B ({h(p['base']['mean'])} at {usd(p['base']['usd'])}), the trained 4B "
            f"({h(p['final']['mean'])} at {usd(p['final']['usd'])}) and GPT-6.1 Sol ({h(p['sol']['mean'])} at "
@@ -596,7 +614,8 @@ def board_block(r: dict) -> str:
         "- **Two baselines use no LLM:** persistence-DP, the exact DP on yesterday's prices, captures "
         f"{h(refs['persistence_dp']['mean'])}, and run 4's teacher forecaster planned with the exact DP "
         f"{h(refs['teacher_dp']['mean'])}. On these days only Sol and Beam at max effort score above persistence-DP.",
-        f"- **How they fail.** The trained 4B always submits, and {broke} of its {lb['blind-fresh']['n_tasks']} "
+        f"- **How they fail.** The trained 4B always submits, and {broke['final']} of its "
+        f"{lb['blind-fresh']['n_tasks']} "
         "schedules break a rule; GPT-6.1 Sol keeps every rule but sends no parseable call on "
         f"{ks.get('malformed', 0)}. `eval_runs` names the failure of every schedule.",
         "- **Foresight is nearly solved at the top.** With the day's prices in view, Sol scores "
