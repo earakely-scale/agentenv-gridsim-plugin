@@ -1,5 +1,6 @@
 """Write data/desk/fixtures-env: the desk env's fixture pack (gridsim_core.desk.fixtures), which the env image carries
-for the gridsim-desk bundle's tasks and scripts/desk_e2e.py: a post-RTC+B outage day, a quiet one and a pre-RTC+B day.
+for the gridsim-desk bundle's tasks and scripts/desk_e2e.py: a post-RTC+B outage day, a quiet one, a pre-RTC+B day
+and a v3 day with reserves, deployments and co-located PV.
 
     python tests/env_desk/make_fixture_pack.py
 """
@@ -11,7 +12,8 @@ from pathlib import Path
 from gridsim_core.desk import fixtures
 
 OUT = Path(__file__).resolve().parents[2] / "data/desk/fixtures-env"
-DAYS = [{"seed": 3, "outage": True}, {"seed": 1}, {"date": "2025-08-14", "seed": 2}]
+DAYS = [{"seed": 3, "outage": True}, {"seed": 1}, {"date": "2025-08-14", "seed": 2},
+        {"seed": 4, "layer": "v3", "outage": True, "pv": True}]
 
 
 def main() -> None:

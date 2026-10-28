@@ -59,11 +59,11 @@ async def hidden(client, name, args=None):
     return json.loads((await client.call_tool(name, args or {})).content[0].text)
 
 
-@pytest.mark.parametrize("policy", ["anchor", "scripted"])
-async def test_gateway_server_matches_session(tmp_path, policy):
-    task, series = fixtures.make(seed=3, outage=True)
+@pytest.mark.parametrize(("policy", "layer"), [("anchor", "v2"), ("scripted", "v2"), ("anchor", "v3")])
+async def test_gateway_server_matches_session(tmp_path, policy, layer):
+    task, series = fixtures.make(seed=3, outage=True, layer=layer, pv=layer == "v3")
     b, turns, outs, wakes = script(task, series, policies.POLICIES[policy])
-    env = desk_env(env_name("v2", task["era"]))
+    env = desk_env(env_name(layer, task["era"]))
     started = env.load(task["task_id"], pack(tmp_path, task, series))
     got_outs, got_wakes = [], [text(started["start"])]
     async with Client(env.create_app()) as client:

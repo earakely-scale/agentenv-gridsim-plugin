@@ -13,7 +13,8 @@ reward R, with the hindsight capture C and the references in the result's metada
 
 The tasks play the env's fixture pack `fixtures-env` (synthetic days from `gridsim_core.desk.fixtures`, written by
 `tests/env_desk/make_fixture_pack.py`; not ERCOT data): `outage` (post-RTC+B, a derate in the afternoon), `quiet`
-(post-RTC+B) and `pre` (a pre-RTC+B day on `gridsim-desk-v2-pre`). They deploy the framework's default agent;
+(post-RTC+B), `pre` (a pre-RTC+B day on `gridsim-desk-v2-pre`) and `reserves` (v3 on `gridsim-desk-v3`: five AS
+products, deployments and co-located PV). They deploy the framework's default agent;
 `agent-env gridsim desk-tasks --agent <id>` writes them for another.
 
 `agent-env gridsim desk-tasks --pack <pack>` writes a bundle of a desk pack's tasks; `scripts/desk_e2e.py` plays one

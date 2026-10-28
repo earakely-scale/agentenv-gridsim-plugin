@@ -15,7 +15,7 @@ from gridsim_core.desk import load_series, load_tasks
 
 PACK = "fixtures-env"
 NAMES = {"outage": "desk-v2-2026-02-14-S00-f3", "quiet": "desk-v2-2026-02-14-S00-f1",
-         "pre": "desk-v2-2025-08-14-S00-f2"}
+         "pre": "desk-v2-2025-08-14-S00-f2", "reserves": "desk-v3-2026-02-14-S00-f4-pv"}
 
 
 def steps(name: str) -> list[dict]:
