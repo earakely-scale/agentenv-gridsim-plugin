@@ -24,3 +24,11 @@ agent's DAM sales (re-cleared minus real DAM price, MWh-weighted).
 
 ## Prior
 v5 ≈ v3 for every model: these ESRs are price takers at the positions models take.
+
+## Deviations
+1. Qwen3-4B's v5 tasks were queued to start after each host's v4 tasks and so began before the v5 pilot was checked;
+   the pilot passed (outcome in `v5-desk-pilot.md`).
+2. The same task-list error as v4: 2026-04-11 S01–S04 and 2026-04-24 S01–S02 were not queued and ran at 13:07 UTC on the
+   same frozen code; 2026-07-21 S03–S04 and 2026-08-22 S01–S04 ran on two hosts, and the planned host's runs are scored
+   under the same pre-set rule.
+3. Known env defect K1 as v3.

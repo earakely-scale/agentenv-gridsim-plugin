@@ -43,3 +43,9 @@ A "Sensitivity (post hoc)" section gives medians, per-day means and loss days.
 
 ## Prior
 AS adds revenue for every policy; Sol uses AS offers and beats Luna on C; Qwen3-4B rarely offers AS correctly.
+
+## Deviations
+1. Qwen3-4B ran on four identical vLLM hosts, 6 tasks each, as planned; all 24 tasks have exactly one run.
+2. Known env defect K1 (contract §10.4, found after the runs): an empty `as_offers` list was answered with a spurious
+   ASO-02 note; energy curves in the same call were accepted. Reported separately from real AS refusals; fixed on the
+   branch after the freeze.

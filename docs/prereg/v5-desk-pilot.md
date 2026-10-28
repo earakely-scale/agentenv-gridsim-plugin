@@ -17,3 +17,9 @@ barely moves ERCOT's DAM price. v5 results are expected to track v3 unless a mod
 GPT-6.1 Sol, as the v3 pilot (effort high, $5 an episode, lane $12, parallel 2). Pass when both episodes end normally,
 the DAM prices the agent sees after the close are the re-cleared ones (and equal the real price when its awards are
 zero), the statement sums to P, and the grade replays from the Episode JSON.
+
+## Outcome (appended after the run)
+Both episodes ended normally with no tool error. `desk-v5-2026-04-20-S01`: P −$6,983 (45 turns, $3.33); selling about
+70 MW in eight DAM hours lowered the re-cleared price by $0.02–0.14/MWh. `desk-v5-2026-08-14-S03`: P $10,416 (28 turns,
+$1.40); 30–110 MW sales lowered it by $0.01–0.06/MWh. In every hour without an award the price the agent saw equals the
+real DAM price; statements sum to P. Pass.

@@ -41,3 +41,10 @@ section gives medians, per-front means and loss windows.
 ## Prior
 Fern dominates P for every policy; Sol rebids the D1/D2 DAMs as vintages move and beats Luna on C; Qwen3-4B struggles
 to keep three DAMs and the COP straight over 100 turns.
+
+## Deviations
+1. Qwen3-4B task lists were set wrong by an operator error (a 1-indexed shell array): the four 2026-01-23 windows were
+   not queued, and 2026-05-08 S02–S04 and 2026-04-03 S04 were queued on two hosts. The missing four ran at 13:07 UTC on
+   the same frozen code and identical hosts. For the duplicated four, the run on the planned host is scored; the other
+   copies are excluded under a rule fixed before any duplicate was read, kept on disk and not reported.
+2. Known env defect K1 as v3.
