@@ -369,5 +369,41 @@
   "operator.sced.as_offer_updates": "NP3-965-ER 60d SCED Resource AS Offers, incl. proxy extension [simplified]",
   "operator.cop.as_capability": "NP3-991-EX COP All Updates",
   "market": "v5: NP3-966-ER 60-Day DAM Disclosure via market_stack.build_day, site resource carved out"
+ },
+ "refs": {
+  "n": 24,
+  "core_version": [
+   "desk-2.1"
+  ],
+  "anchor_setting": [
+   "{\"dam_position\": \"spread\", \"risk\": 1.5}"
+  ],
+  "floored": [
+   "desk-v5-2026-04-11-S01",
+   "desk-v5-2026-04-11-S02",
+   "desk-v5-2026-04-11-S03",
+   "desk-v5-2026-04-24-S04",
+   "desk-v5-2026-05-26-S01",
+   "desk-v5-2026-05-26-S02",
+   "desk-v5-2026-06-06-S01",
+   "desk-v5-2026-06-06-S02",
+   "desk-v5-2026-06-06-S03",
+   "desk-v5-2026-06-06-S04",
+   "desk-v5-2026-07-21-S04",
+   "desk-v5-2026-08-22-S01",
+   "desk-v5-2026-08-22-S04"
+  ],
+  "anchor_below_idle": [
+   "desk-v5-2026-04-11-S01",
+   "desk-v5-2026-04-11-S02",
+   "desk-v5-2026-04-11-S03",
+   "desk-v5-2026-04-24-S04",
+   "desk-v5-2026-05-26-S01",
+   "desk-v5-2026-05-26-S02",
+   "desk-v5-2026-06-06-S01",
+   "desk-v5-2026-06-06-S02",
+   "desk-v5-2026-07-21-S04",
+   "desk-v5-2026-08-22-S04"
+  ]
  }
 }

@@ -355,6 +355,14 @@ def merge_refs(pack: str, refs_path: str) -> int:
     with gzip.GzipFile(root / "tasks.jsonl.gz", "wb", mtime=0) as f:
         for t in tasks:
             f.write((json.dumps(t, separators=(",", ":")) + "\n").encode())
+    rs = [t["refs"] for t in tasks if t.get("refs")]
+    m = json.loads((root / "manifest.json").read_text())
+    m["refs"] = {"n": len(rs), "core_version": sorted({r.get("core_version") for r in rs}),
+                 "anchor_setting": sorted({json.dumps(r.get("anchor_setting"), sort_keys=True) for r in rs}),
+                 "floored": [t["task_id"] for t in tasks if (t.get("refs") or {}).get("floored")],
+                 "anchor_below_idle": [t["task_id"] for t in tasks
+                                       if t.get("refs") and t["refs"]["p_anchor"] < t["refs"]["p_idle"]]}
+    (root / "manifest.json").write_text(json.dumps(m, indent=1))
     return n
 
 
