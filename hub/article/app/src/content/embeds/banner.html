@@ -26,7 +26,11 @@
   .gs-banner .settled { fill: var(--text-color); font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .gs-banner .corner { fill: none; stroke: var(--muted-color); stroke-opacity: 0.6; stroke-width: 1; }
   .gs-banner .socs rect.bg { fill: none; }
-  .gs-banner .play { position: absolute; right: 6px; bottom: 4px; z-index: 2; appearance: none; border: 1px solid var(--border-color); background: var(--page-bg); color: var(--muted-color); border-radius: 6px; font: inherit; font-size: 11px; padding: 3px 8px; cursor: pointer; }
+  .gs-banner .ctl { position: absolute; right: 6px; bottom: 4px; z-index: 2; display: flex; gap: 6px; align-items: center; }
+  .gs-banner .replay { color: var(--primary-color); font-size: 11px; font-weight: 600; text-decoration: none; padding: 3px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--page-bg); white-space: nowrap; }
+  .gs-banner .replay:hover { border-color: var(--primary-color); }
+  .gs-banner .replay:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .gs-banner .play { appearance: none; border: 1px solid var(--border-color); background: var(--page-bg); color: var(--muted-color); border-radius: 6px; font: inherit; font-size: 11px; padding: 3px 8px; cursor: pointer; }
   .gs-banner .play:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 </style>
 <script>
@@ -40,10 +44,22 @@
     K.whenD3(() => K.data("banner.json").then((B) => {
       const d3 = window.d3;
       const svg = d3.select(root).append("svg").attr("aria-hidden", "true");
+      const ctl = document.createElement("div");
+      ctl.className = "ctl";
+      root.appendChild(ctl);
+      const R = B.sites.find((s) => s.task === B.replay.task);
+      const replay = document.createElement("a");
+      replay.className = "replay";
+      replay.href = B.replay.url;
+      replay.target = "_blank";
+      replay.rel = "noopener";
+      replay.textContent = `Replay ${R.name.replace("Battery ", "")} in 3D ↗`;
+      replay.title = `${B.model} at ${R.name}, ${R.region}, replayed in the viewer`;
+      ctl.appendChild(replay);
       const btn = document.createElement("button");
       btn.className = "play";
       btn.type = "button";
-      root.appendChild(btn);
+      ctl.appendChild(btn);
       const tx = { type: "Feature", geometry: { type: "Polygon", coordinates: [B.texas] } };
       const S = B.sites.map((s, i) => ({ ...s, i, color: `var(--s${i + 1})`, short: s.name.replace("Battery ", "") }));
       const dayLabel = new Date(`${B.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -77,8 +93,8 @@
         const W = root.clientWidth;
         const narrow = W < 640;
         root.style.height = narrow ? `${Math.round(W * 0.8 + 208)}px` : "100%";
-        btn.style.top = narrow ? "0" : "";
-        btn.style.bottom = narrow ? "auto" : "";
+        ctl.style.top = narrow ? "0" : "";
+        ctl.style.bottom = narrow ? "auto" : "";
         const H = root.clientHeight;
         if (!W || !H) return;
         svg.selectAll("*").remove();

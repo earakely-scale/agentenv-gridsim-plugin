@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"><img src="assets/gridsim-desk-hero.jpg" alt="GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026, at 01:19 on the third day: the node's day-ahead and 5-minute prices for the three days, the battery's state of charge and dispatch, and the tool calls of each wake-up, from ERCOT notices and a reserve deployment to the real-time offers it sent" width="100%"></a>
+<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04&t=2959"><img src="assets/gridsim-desk-hero.jpg" alt="GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026, at 01:19 on the third day: the node's day-ahead and 5-minute prices for the three days, the battery's state of charge and dispatch, and the tool calls of each wake-up, from ERCOT notices and a reserve deployment to the real-time offers it sent" width="100%"></a>
 
 <h1>GridSimEnv: trade a real ERCOT battery</h1>
 
@@ -96,6 +96,8 @@ desk's own offers move the day-ahead price by cents.
 Each version's numbers, with P in dollars, the paired gaps to the anchor and to the real operator, the statement lines
 and how each model traded, are on the [dataset card](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv)
 and in `results/desk-v<N>/`: its README, `summary.json`, `grades.jsonl.gz`, figures, raw runs and every Episode JSON.
+The viewer's results pages, [v2](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v2), [v3](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v3),
+[v4](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4) and [v5](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v5), list every task with a replay of each model's run.
 The results were committed under the tags `desk-v2-results`, `desk-v3-results`, `desk-v4-results` and
 `desk-v5-results`.
 

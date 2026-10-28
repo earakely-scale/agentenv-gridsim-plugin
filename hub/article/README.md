@@ -36,7 +36,7 @@ Sol, GPT-6 Luna and the untrained Qwen3-4B, what each version taught, the method
 
 - **Dataset:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv),
   every desk task, reference, grade, Episode JSON and run log under `results/desk-v2` to `results/desk-v5`.
-- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv), the desk's runs version by version.
+- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv), the desk's runs version by version: [the results](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4) and [the hero day's replay](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02).
 - **Code:** [agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin), a plugin for the
   [AgentEnv Framework](https://www.agentenvframework.com).
 

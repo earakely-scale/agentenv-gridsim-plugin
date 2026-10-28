@@ -30,8 +30,10 @@ uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor --out run
 
 `--policy model` with `--base-url` plays any model behind an OpenAI-compatible endpoint. Every battery-day, reference,
 grade and Episode JSON is in the [dataset](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv) under
-`results/desk-v2` to `results/desk-v5`, and the [viewer Space](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) replays
-the desk's runs version by version.
+`results/desk-v2` to `results/desk-v5`, and the viewer replays every run: its results pages for
+[v2](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v2), [v3](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v3),
+[v4](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4) and [v5](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v5) list each task with a replay of each
+model's run, and [GPT-6.1 Sol's day at Battery S02](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02), one of the four in the banner, replays in 3D.
 
 <small>GridSimEnv v1 (one-shot day-ahead schedule, training results) is archived at revision
 [fcf2a721](https://huggingface.co/spaces/earakely-scale/GridSimEnv/tree/fcf2a721790ca530f222c5206ae7df2d7a4becd0).</small>

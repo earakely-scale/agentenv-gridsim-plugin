@@ -860,6 +860,8 @@ def desk_results(v: dict) -> str:
         f'<img class="hidden dark:block" src="{fig}-dark.png" alt="{escape(capture_alt(v))}">', "",
         "<small>C with its 95% CI for each model, the anchor and the real operator; idle is 0 and the hindsight "
         "optimum 1 by definition.</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
+        f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the viewer lists every "
+        f"{unit(v)} with a replay of each model's run.", "",
         f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
         "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
         f"split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the plugin."])
@@ -1109,10 +1111,8 @@ def capture_alt(v: dict) -> str:
 
 
 def gif_block(gif: dict) -> str:
-    caption = re.sub(rf"\[Open the desk page\]\({re.escape(APP)}/desk\.html\?v=v\d\)",
-                     f"[Open the viewer]({VIEWER})", gif["caption"])
-    return "\n".join([f'<a href="{VIEWER}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
-                      "", f"<small>{caption}</small>"])
+    return "\n".join([f'<a href="{gif["link"]}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
+                      "", f"<small>{gif['caption']}</small>"])
 
 
 def usd0(x: float, sign: bool = False) -> str:

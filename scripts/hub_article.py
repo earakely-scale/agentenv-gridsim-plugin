@@ -32,6 +32,8 @@ DESK = ROOT / "results" / "overview" / "desk.json"
 ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json"
 STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json")
 HERO = ("v2", "2026-08-23", "sol")
+VIEWER = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
+REPLAY = "desk-v2-2026-08-23-S02"
 CURVE = ("v2", "desk-v2-2026-08-23-S02", "sol", 18)
 REGIONS = {"Far West": (-102.4, 31.3), "North": (-97.0, 32.9), "Houston": (-95.4, 29.8), "South": (-98.3, 28.2)}
 CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%"}
@@ -168,7 +170,8 @@ def facts(d: dict) -> dict:
 
 def hero(repo: Path, d: dict) -> dict:
     """One real desk day at all four batteries: GPT-6.1 Sol's v2 episodes on HERO's day, each battery's node prices,
-    state of charge and metered output every 15 minutes, its wake-ups and its settled P from grades.jsonl.gz."""
+    state of charge and metered output every 15 minutes, its wake-ups and its settled P from grades.jsonl.gz, and the
+    viewer's replay of REPLAY, the v2 hero."""
     key, iso, model = HERO
     folder = repo / "results" / f"desk-{key}"
     with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
@@ -189,6 +192,8 @@ def hero(repo: Path, d: dict) -> dict:
                       "p": round(g["p"], 2), "p_operator_replay": g["p_operator_replay"]})
     if len(sites) != 4:
         raise SystemExit(f"hero: {len(sites)} {model} episodes on {iso} in {folder}, expected 4")
+    if REPLAY not in {s["task"] for s in sites}:
+        raise SystemExit(f"hero: {REPLAY}, the replay the banner links, is not one of its four episodes")
     v = next(x for x in d["versions"] if x["version"] == key)
     old = DATA / "banner.json"
     prev = json.loads(old.read_text()) if old.is_file() else {}
@@ -196,6 +201,7 @@ def hero(repo: Path, d: dict) -> dict:
             "model": next(m["name"] for m in v["models"] if m["key"] == model),
             "regions": {k: {"lon": x, "lat": y} for k, (x, y) in REGIONS.items()},
             "texas": prev.get("texas") or texas(), "sites": sites,
+            "replay": {"task": REPLAY, "url": f"{VIEWER}/index.html?v={key}&m={model}&task={REPLAY}"},
             "source": "ERCOT's node prices as the episodes recorded them; Texas: U.S. Census Bureau via us-atlas"}
 
 

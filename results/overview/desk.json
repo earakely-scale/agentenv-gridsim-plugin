@@ -5858,9 +5858,9 @@
    "task_id": "desk-v2-2026-08-23-S02",
    "lead": false,
    "path": "assets/gridsim-desk-v2.gif",
-   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v2",
+   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02",
    "alt": "GPT-6.1 Sol at the desk of Battery S02 (Houston, 100 MW / 206 MWh) on 23 August 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-   "caption": "GridSimEnv Desk, v2, The Live Grid: GPT-6.1 Sol trades Battery S02 (Houston, 100 MW / 206 MWh), a real ERCOT battery, on 23 August 2026, beside its 125 tool calls. It bids the day-ahead market at 09:30 the day before, sends 10 sets of real-time curves and wakes 35 times, 13 for ERCOT notices, NWS alerts or outages and 15 for its own reminders. The battery settles at ⁠$48,662, hindsight capture C 0.347; the real operator's own bids, replayed, earn ⁠$34,022. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v2). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+   "caption": "GridSimEnv Desk, v2, The Live Grid: GPT-6.1 Sol trades Battery S02 (Houston, 100 MW / 206 MWh), a real ERCOT battery, on 23 August 2026, beside its 125 tool calls. It bids the day-ahead market at 09:30 the day before, sends 10 sets of real-time curves and wakes 35 times, 13 for ERCOT notices, NWS alerts or outages and 15 for its own reminders. The battery settles at ⁠$48,662, hindsight capture C 0.347; the real operator's own bids, replayed, earn ⁠$34,022. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
   },
   "v4": {
    "version": "v4",
@@ -5868,9 +5868,9 @@
    "task_id": "desk-v4-2026-05-08-S04",
    "lead": true,
    "path": "assets/gridsim-desk-hero.gif",
-   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4",
+   "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04",
    "alt": "GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-   "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+   "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
   }
  },
  "gif": {
@@ -5879,9 +5879,9 @@
   "task_id": "desk-v4-2026-05-08-S04",
   "lead": true,
   "path": "assets/gridsim-desk-hero.gif",
-  "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4",
+  "link": "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04",
   "alt": "GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026: the node's prices as they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, then the settled grade",
-  "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Open the desk page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html?v=v4). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
+  "caption": "GridSimEnv Desk, v4, Weather Front: GPT-6.1 Sol trades Battery S04 (South, 150 MW / 185 MWh), a real ERCOT battery, over 8 to 10 May 2026, beside its 186 tool calls. It bids three day-ahead markets, the first at 09:15 the day before, sends 45 sets of real-time curves and wakes 50 times, 19 for ERCOT notices, NWS alerts or outages and 14 for its own reminders. The battery settles at ⁠$24,767, hindsight capture C 0.221; the real operator's own bids, replayed, earn ⁠$1,496. [Replay it in the viewer](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04). Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT."
  },
  "story_version": "v2",
  "across": "Paired by task, GPT-6.1 Sol and GPT-6 Luna differ in C with a CI that excludes zero only in v4, on 3-day weather fronts (Sol ahead); in v2, v3 and v5 they are close. The untrained Qwen3-4B has the lowest C in every version."

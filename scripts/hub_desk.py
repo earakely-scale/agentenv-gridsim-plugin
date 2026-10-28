@@ -108,7 +108,7 @@ def main():
                     help="A desk GIF (scripts/hub_desk_hero.py) of the model's episode on TASK; one per version.")
     ap.add_argument("--gif-model", default="sol", help="The model whose episodes the GIFs film.")
     ap.add_argument("--lead", metavar="VERSION", help="The version whose GIF leads the card; else the first GIF opens "
-                                                     "the desk section. Every GIF plays on its version's desk page.")
+                                                     "the desk section. Every GIF links its episode's replay.")
     ap.add_argument("--publish", action="store_true", help="Upload to the dataset; the viewer Space publishes itself.")
     ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
     args = ap.parse_args()
@@ -254,20 +254,25 @@ def gif_info(v: dict, folder: Path, model: str, task: str, lead: bool) -> tuple[
     why += [f"{reasons['reminder']} for its own reminders"] if reasons["reminder"] else []
     acts += [f"wakes {len(ep['turns'])} times" + (f", {' and '.join(why)}" if why else "")]
     op = g.get("p_operator_replay")
+    link = replay(v["version"], model, task)
     caption = (f"GridSimEnv Desk, {v['version']}, {v['name']}: {name} trades {card['name']} ({card['region']}, "
                f"{card['size']}), a real ERCOT battery, {'on' if nd == 1 else 'over'} {day}, beside its {calls} tool "
                "calls. It "
                + ", ".join(acts[:-1]) + (" and " if len(acts) > 1 else "") + acts[-1]
                + f". The battery settles at {usd(g['p'])}, hindsight capture C "
                f"{g['capture']:.3f}" + (f"; the real operator's own bids, replayed, earn {usd(op)}" if op is not None
-                                         else "") + f". [Open the desk page]({APP}/desk.html?v={v['version']}). "
+                                         else "") + f". [Replay it in the viewer]({link}). "
                "Data: ERCOT and NWS, public; not affiliated with or endorsed by ERCOT.")
     alt = (f"{name} at the desk of {card['name']} ({card['region']}, {card['size']}) {'on' if nd == 1 else 'over'} "
            f"{day}: the node's prices as "
            "they post, the battery's state of charge and dispatch, and each wake-up's tool calls with their results, "
            "then the settled grade")
     return {"version": v["version"], "model": model, "task_id": task, "lead": lead, "path": GIF,
-            "link": f"{APP}/desk.html?v={v['version']}", "alt": alt, "caption": caption}, ep
+            "link": link, "alt": alt, "caption": caption}, ep
+
+
+def replay(version: str, model: str, task: str) -> str:
+    return f"{APP}/index.html?v={version}&m={model}&task={task}"
 
 
 def usd(x: float) -> str:
