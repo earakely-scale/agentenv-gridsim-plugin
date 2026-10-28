@@ -28,6 +28,7 @@ const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
 const pct = (x) => `${Math.round(100 * x)}%`;
 const link = (href, t) => `<a href="${href}" target="_blank" rel="noopener">${t}</a>`;
 const day = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const day_ = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 const TIPS = [];
 const tip = (html) => `data-tip="${TIPS.push(html) - 1}" tabindex="0"`;
@@ -76,6 +77,7 @@ function render(D) {
   $("kpis").innerHTML = kpis(V);
   $("main").innerHTML = [
     block("The board", `Each model played each battery-day once under pre-registered settings. C is the share of the hindsight optimum's profit over idle; P the battery's settled ERCOT statement a battery-day; R, second to C, the env's reward (idle 0.2, the anchor 1.0). Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days.`, board(V), `${V.version} · ${esc(V.name)}`),
+    sensitivity(V),
     capFig(V, W),
     usdFig(V, W),
     block("Where the money came from", "Each line of the settled statement, mean $ a battery-day. DAM energy settles at the node's day-ahead price, RT imbalance at its 15-minute real-time price; modelled lines are marked.", linesTable(V)),
@@ -94,7 +96,7 @@ function kpis(V) {
   return [
     tile(num(m.C.mean), "", `of the hindsight optimum captured: ${esc(m.name)}`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a battery-day. The anchor captures ${num(a.C.mean)}, the hindsight optimum 1 by definition.`),
     o.mean == null ? tile("–", "", "against the real operator", "No operator disclosure for these days.") :
-      tile(usd(o.mean, true), sign(o), "a battery-day against the real operator's bids", `${usdci(o.ci, true)}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a battery-day.`),
+      tile(usd(o.mean, true), sign(o), "a battery-day against the real operator's bids", `${usdci(o.ci, true)}${o.ci[0] <= 0 && o.ci[1] >= 0 ? ", a CI that includes zero" : ""}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a battery-day.`),
     tile(usd(g.mean, true), sign(g), "a battery-day against the anchor", `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of battery-days. The anchor is the desk's own optimiser on the same information; its DAM/RT spread positions pay off on scarcity days.`),
     tile(String(V.n_tasks), "", "real battery-days", `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${V.n_days} operating days, every one old enough for ERCOT to have disclosed the operators' bids.`),
   ].join("");
@@ -119,6 +121,20 @@ function frame(R, W) {
   const left = narrow ? 10 : 218, y = (i) => top + i * rh + (narrow ? 30 : rh / 2);
   const label = (r, i) => txt(narrow ? 10 : left - 8, narrow ? y(i) - 14 : y(i) + 4, esc(r.kind === "model" ? r.name : r.short || SHORT[r.key] || r.name), `t-lab${r.kind === "model" ? " b" : ""}`, narrow ? "start" : "end");
   return { narrow, top, H, left, y, label };
+}
+
+function sensitivity(V) {
+  const sv = V.sensitivity, w = sv && sv.without;
+  if (!w) return "";
+  const ms = Object.fromEntries(V.models.map((m) => [m.key, m])), name = (k) => (ms[k] ? ms[k].name : SHORT[k] || k);
+  const day = w.days.map(day_).join(" and "), all = Object.fromEntries([...V.models.map((m) => [m.key, m.P]), ...V.references.map((r) => [r.key, r.P])]);
+  const keys = [...Object.keys(w.means.models), ...Object.keys(w.means.references)];
+  const wo = { ...w.means.models, ...w.means.references }, med = { ...sv.median_P, ...sv.median_P_references }, per = sv.per_day_mean_P[w.days[0]];
+  const on = { ...per.models, ...per.references };
+  const rows = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}<span class="sub">${usdci(all[k].ci)}</span></td><td data-l="On ${day}">${on[k] == null ? "–" : usd(on[k])}</td><td data-l="Without it">${usd(wo[k].P.mean)}<span class="sub">${usdci(wo[k].P.ci)}</span></td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
+  const loss = Object.entries(sv.losses).map(([k, x]) => `${esc(name(k))} on ${x.tasks_p_below_0} (worst ${usd(x.worst_p)})`).join("; ");
+  return block("One day carries the means", `On ${day} the models and the anchor made most of their totals, from day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, and which ERCOT's DAM credit screening, not modelled here, would limit. Mean P a battery-day with and without that day, and the median over every battery-day. P below zero: ${loss}. A post-hoc check, not pre-registered.`,
+    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>All ${V.n_tasks}</th><th>On ${day}</th><th>Without it (${w.n_tasks})</th><th>Median, all</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Sensitivity");
 }
 
 function capFig(V, W) {

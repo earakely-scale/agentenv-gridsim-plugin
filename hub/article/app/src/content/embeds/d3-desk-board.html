@@ -24,6 +24,13 @@
     const REFC = { anchor: "var(--text-color)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)" };
     const usd = (x, s = false) => (x == null ? "–" : `${x < 0 ? "−" : s ? "+" : ""}$${Math.round(Math.abs(x)).toLocaleString("en-US")}`);
     const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
+    const sens = (V, top) => {
+      const w = V.sensitivity && V.sensitivity.without;
+      if (!w) return "";
+      const day = new Date(`${w.days[0]}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+      const m = w.means.models[top.key], o = w.means.references.operator_replay;
+      return ` <b>One day carries the means:</b> without ${day}, when day-ahead sales bought back in real time paid most, ${top.name} averages ${usd(m.P.mean)} ${usdci(m.P.ci)}${o ? ` against the operator's bids' ${usd(o.P.mean)}` : ""} (post hoc, not pre-registered).`;
+    };
     K.whenD3(() => K.data("desk.json").then((D) => {
       const d3 = window.d3;
       if (!D.versions.length) return;
@@ -45,7 +52,7 @@
           ...V.references.filter((r) => !["hind", "idle"].includes(r.key)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
         const top = V.models[0], g = top.P_minus_anchor, side = g.ci[0] > 0 ? "ahead of" : g.ci[1] < 0 ? "behind" : "level with";
         const o = top.P_minus_operator_replay;
-        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${f.n(top.C.mean)} of hindsight ${f.ci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${f.n(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.`);
+        d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${f.n(top.C.mean)} of hindsight ${f.ci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${f.n(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.${sens(V, top)}`);
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;
         const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + rows.length * rh + 30;
