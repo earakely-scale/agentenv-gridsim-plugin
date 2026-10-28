@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04&t=2959"><img src="assets/gridsim-desk-hero.jpg" alt="GPT-6.1 Sol at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026, at 01:19 on the third day: the node's day-ahead and 5-minute prices for the three days, the battery's state of charge and dispatch, and the tool calls of each wake-up, from ERCOT notices and a reserve deployment to the real-time offers it sent" width="100%"></a>
+<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v4&m=sol&task=desk-v4-2026-05-08-S04&t=2959"><img src="assets/gridsim-desk-hero.jpg" alt="GPT-6.1 Sol · effort high at the desk of Battery S04 (South, 150 MW / 185 MWh) over 8 to 10 May 2026, at 01:19 on the third day: the node's day-ahead and 5-minute prices for the three days, the battery's state of charge and dispatch, and the tool calls of each wake-up, from ERCOT notices and a reserve deployment to the real-time offers it sent" width="100%"></a>
 
 <h1>GridSimEnv: trade a real ERCOT battery</h1>
 
@@ -78,13 +78,14 @@ tasks = load_dataset(repo, "desk_tasks", split="v4")        # every task, its si
 
 The desk climbs a ladder of three versions on the same tools and grading: v2 trades energy at the battery's own node,
 v3 adds ERCOT's reserves and a co-located solar option, v4 three operating days across a weather front. Hindsight
-capture C with its 95% CI, each model playing each task once under pre-registered settings:
+capture C with its 95% CI, each model playing each task once at the pre-registered settings its label states (details
+under [The desk](#the-desk)):
 
 | Desk | v2, The Live Grid | v3, Sun, Storage and Reserves | v4, Weather Front |
 |---|---:|---:|---:|
-| GPT-6.1 Sol | 0.199 [0.033, 0.433] | 0.100 [−0.054, 0.266] | 0.346 [0.179, 0.592] |
-| GPT-6 Luna | 0.133 [0.097, 0.171] | 0.069 [0.028, 0.126] | 0.115 [0.073, 0.167] |
-| Qwen3-4B (untrained) | 0.005 [−0.035, 0.044] | −0.013 [−0.044, 0.013] | −0.007 [−0.021, 0.001] |
+| GPT-6.1 Sol · effort high | 0.199 [0.033, 0.433] | 0.100 [−0.054, 0.266] | 0.346 [0.179, 0.592] |
+| GPT-6 Luna · effort high | 0.133 [0.097, 0.171] | 0.069 [0.028, 0.126] | 0.115 [0.073, 0.167] |
+| Qwen3-4B (untrained) · thinking off | 0.005 [−0.035, 0.044] | −0.013 [−0.044, 0.013] | −0.007 [−0.021, 0.001] |
 | *Anchor* | 0.191 | 0.026 | 0.250 |
 | *The operator's bids, replayed* | 0.101 | 0.067 | 0.084 |
 
@@ -104,9 +105,9 @@ would make price impact matter is a fleet desk: a QSE trading a portfolio of bat
 
 | Desk | C, v3 | C, v5 check | v5 − v3, C | v5 − v3, P a battery-day |
 |---|---:|---:|---:|---:|
-| GPT-6.1 Sol | 0.100 | 0.081 | −0.020 [−0.070, +0.024] | −$2,030 [−$6,009, +$1,606] |
-| GPT-6 Luna | 0.069 | 0.088 | +0.020 [−0.011, +0.059] | +$5,919 [−$1,366, +$18,125] |
-| Qwen3-4B (untrained) | −0.013 | −0.004 | +0.009 [−0.023, +0.042] | +$459 [−$2,427, +$3,356] |
+| GPT-6.1 Sol · effort high | 0.100 | 0.081 | −0.020 [−0.070, +0.024] | −$2,030 [−$6,009, +$1,606] |
+| GPT-6 Luna · effort high | 0.069 | 0.088 | +0.020 [−0.011, +0.059] | +$5,919 [−$1,366, +$18,125] |
+| Qwen3-4B (untrained) · thinking off | −0.013 | −0.004 | +0.009 [−0.023, +0.042] | +$459 [−$2,427, +$3,356] |
 
 Each version's numbers, with P in dollars, the paired gaps to the anchor and to the real operator, the statement lines
 and how each model traded, are on the [dataset card](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv)
@@ -140,6 +141,15 @@ submissions.
 DAM/RT spread positions. The reward is R = clip(0.2 + 0.8 (P − P_idle) / max(P_anchor − P_idle, 0.1 (P_hind_phys −
 P_idle)), 0, 1): idle 0.2, the anchor 1.0, with a floor where the anchor barely beats idle. The anchor is the desk's
 own optimiser re-planning at every wake on the same information, its setting chosen blind on `desk-v2-tune`.
+
+**Models and settings.** One sampled run per model per task, with the same system prompt, the same 11 tools and the
+same turn budget.
+
+- **GPT-6.1 Sol · effort high** and **GPT-6 Luna · effort high** (`openai/gpt-6.1-sol`, `openai/gpt-6-luna`): reasoning
+  effort high, through the Responses API.
+- **Qwen3-4B (untrained) · thinking off** (`Qwen/Qwen3-4B`): thinking off, temperature 0.7, top_p 0.8; served by vLLM
+  0.29 in bf16 with a 32,768-token context and the hermes tool parser; prompts compacted to about 24k tokens, with up to
+  4,096 output tokens a call.
 
 **Methods.** Each version was pre-registered and its code frozen at a tag (`desk-v2-freeze` to `desk-v5-freeze`)
 before its first scored episode, piloted, then run once per model per task; `scripts/desk_report.py` re-grades every
