@@ -164,7 +164,11 @@ def behaviour(ep: dict) -> dict:
             "reminders": reminders, "cycles": sum(d.get("cycles", 0.0) for d in days),
             "discharged_mwh": sum(d.get("discharged_mwh", 0.0) for d in days),
             "cop_late": (ep.get("compliance") or {}).get("cop_late", 0), "wakes": len(ep.get("wakes", [])),
-            "ancillary": ancillary(ep)}
+            "ancillary": ancillary(ep),
+            "by_day": Counter(f"{s['tool'].split('_')[1]}:{s.get('day')}" for s in subs
+                              if s["accepted"] and not s.get("as") and s["tool"] != "update_cop"),
+            "day_lines": {f"D{j}": dict(ep["statement"]["days"][d]["lines"]) for j, d in enumerate(ep["dates"])
+                          if d in ep["statement"]["days"]}}
 
 
 AS_NAMES = {"RegUp": "regup", "RegDn": "regdn", "RRS-FFR": "rrsffr", "RRS-PFR": "rrspfr", "ECRS": "ecrs",
@@ -268,6 +272,10 @@ def model_block(run: dict, grades: dict, days: dict) -> dict:
         "cycles": round(float(np.mean([b["cycles"] for b in beh])), 3) if beh else None,
         "discharged_mwh": round(float(np.mean([b["discharged_mwh"] for b in beh])), 1) if beh else None,
         "cop_late": round(float(np.mean([b["cop_late"] for b in beh])), 2) if beh else None,
+        "submissions_by_day": mean_counter([b["by_day"] for b in beh]),
+        "day_lines": {dj: {k: round(float(np.mean([b["day_lines"].get(dj, {}).get(k, 0.0) for b in beh])), 2)
+                           for k in dict.fromkeys(k for b in beh for k in b["day_lines"].get(dj, {}))}
+                      for dj in dict.fromkeys(dj for b in beh for dj in b["day_lines"])},
         "ancillary": {"offers_accepted": mean_counter([x["accepted"] for x in anc]),
                       "rejected_codes_total": sum_counter([x["rejected_codes"] for x in anc]),
                       "empty_as_flagged_total": sum(x.get("empty_as_flagged", 0) for x in anc),
@@ -542,7 +550,10 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
         ax_p.set_ylabel("$/MWh", fontsize=9)
         span_x = 1440 * nd - t0 * k
         lanes: list[float] = []
+        keep = {x[0] for x in shown} if len(items) > 30 else {x[0] for x in items}
         for i, w, _, acted in items:
+            if i not in keep:
+                continue
             x = w["t"] * k if w["t"] < 0 else w["t"]
             level = next((j for j, v in enumerate(lanes) if x - v >= 0.017 * span_x), len(lanes))
             if level >= 4:
@@ -571,14 +582,17 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
         ax_d.fill_between(t5, 0, np.where(metered < 0, metered, 0), step="post", color=th["charge"], lw=0,
                           alpha=0.85, zorder=2, label="charge")
         ax_d.step(th_, np.append(award, award[-1]), where="post", color=th["ink"], lw=1.0, zorder=3, label="DAM award")
-        for mkt, key, n, tt in (("DAM", "dam", 24, th_), ("RT", "rt", 288, np.append(t5, t5[-1] + 5))):
-            aw = [i or {} for d in dates for i in (ep[key][d].get("as_award_mw") or [{}] * n)]
-            up = np.array([sum(v or 0.0 for k, v in i.items() if k != "regdn") for i in aw])
-            dn = np.array([-(i.get("regdn") or 0.0) for i in aw])
-            for y, lab, ls in ((up, "AS up", (0, (1.5, 1.5))), (dn, "RegDn", (0, (4, 1.5)))):
-                if y.any():
-                    ax_d.step(tt, np.append(y, y[-1]), where="post", color=th["muted"] if key == "dam" else th["ink"],
-                              lw=1.1, ls=ls, zorder=3, label=f"{lab} award ({mkt})")
+        aw = {}
+        for key, n in (("dam", 24), ("rt", 288)):
+            rows = [i or {} for d in dates for i in (ep[key][d].get("as_award_mw") or [{}] * n)]
+            up = np.array([sum(v or 0.0 for k, v in i.items() if k != "regdn") for i in rows])
+            dn = np.array([-(i.get("regdn") or 0.0) for i in rows])
+            aw[key] = (up, dn) if key == "dam" else (up.reshape(-1, 12).mean(1), dn.reshape(-1, 12).mean(1))
+        src = "RT" if aw["rt"][0].any() or aw["rt"][1].any() else "DAM"
+        for y, lab in zip(aw[src.lower()], ("AS up", "RegDn"), strict=True):
+            if y.any():
+                ax_d.fill_between(th_, 0, np.append(y, y[-1]), step="post", color=th["muted"], alpha=0.22, lw=0,
+                                  zorder=1, label=f"{lab} award ({src}, hourly)")
         ax_d.axhline(0, color=th["muted"], lw=0.6)
         ax_d.set_ylim(ep["site"]["lsl_mw"] * 1.1, ep["site"]["hsl_mw"] * 1.5)
         ax_d.set_ylabel("MW", fontsize=9)
@@ -716,6 +730,24 @@ def sensitivity(grades: dict, days: dict, union: dict, exclude: list[str]) -> di
     return out
 
 
+def days_md(ms: dict) -> str:
+    dj = list(dict.fromkeys(d for m in ms.values() for d in m.get("day_lines") or {}))
+    if len(dj) < 2:
+        return ""
+    sub = table(["model", *[f"DAM {d}" for d in dj], *[f"RT {d}" for d in dj]],
+                [[NAMES.get(k, k), *[f"{m['submissions_by_day'].get(f'dam:{d}', 0):.2f}" for d in dj],
+                  *[f"{m['submissions_by_day'].get(f'rt:{d}', 0):.2f}" for d in dj]] for k, m in ms.items()])
+    lines = list(dict.fromkeys(ln for m in ms.values() for d in dj for ln in m["day_lines"].get(d, {})))
+    head = ["line", *[f"{NAMES.get(k, k)} {d}" for k in ms for d in dj]]
+    body = [[ln, *[money_s(ms[k]["day_lines"].get(d, {}).get(ln, 0.0), signed=True) for k in ms for d in dj]]
+            for ln in lines if any(ms[k]["day_lines"].get(d, {}).get(ln) for k in ms for d in dj)]
+    body.append(["**P**", *[f"**{money_s(sum(ms[k]['day_lines'].get(d, {}).values()), signed=True)}**"
+                            for k in ms for d in dj]])
+    return "\n".join(["### By operating day of the window (mean per window)", "",
+                      "Accepted energy submissions per window, by the day they are for:", "", sub, "",
+                      "Statement lines by day:", "", table(head, body), "", ""])
+
+
 def as_md(ms: dict) -> str:
     rows = []
     for k, m in ms.items():
@@ -759,12 +791,13 @@ def sens_md(summary: dict) -> str:
                           fmt_ci(v["R"], digits=2) if "R" in v else "—", fmt_ci(v["C"], digits=2) if "C" in v else "—",
                           fmt_ci(v["C_phys"], digits=2) if "C_phys" in v else "—"]
                          for g in ("models", "references") for k, v in w["means"][g].items()])]
-    parts += ["", "Mean P per operating day:", "",
-              table(["day", *lm.values(), *lr.values()],
+    blk = summary.get("block_name", "day")
+    parts += ["", f"Mean P per {'operating day' if blk == 'day' else blk}:", "",
+              table([blk, *lm.values(), *lr.values()],
                     [[d, *["—" if v is None else money_s(v) for v in [*row["models"].values(),
                                                                      *row["references"].values()]]]
                      for d, row in sv["per_day_mean_P"].items()]),
-              "", table(["model", "tasks with P < 0", "days with mean P < 0", "worst task", "worst P"],
+              "", table(["model", "tasks with P < 0", f"{blk}s with mean P < 0", "worst task", "worst P"],
                         [[lm[k], str(v["tasks_p_below_0"]), str(v["days_mean_p_below_0"]), v["worst_task"],
                           money_s(v["worst_p"])] for k, v in sv["losses"].items()]), ""]
     return "\n".join(parts) + "\n"
@@ -819,9 +852,14 @@ def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
     attempts = ", ".join(f"{NAMES.get(k, k)} ${m['cost_usd']['total_all_attempts']:.2f} ({m['cost_usd']['attempts']})"
                          for k, m in ms.items())
     defects = "".join(f"- Known env defects (frozen for this version): {d}\n" for d in summary.get("defects") or [])
+    defects += "".join(f"- Deviation: {d}\n" for d in summary.get("deviations") or [])
+    if summary.get("block_alias"):
+        defects += ("- Bootstrap blocks: " + ", ".join(f"windows starting {k} count in block {v}"
+                                                     for k, v in summary["block_alias"].items()) + ".\n")
     pilot = ""
     if summary.get("pilot"):
-        pilot = "\n## Pilot\n\nThe pilot pack, graded as the runner wrote it (not in the tables above).\n\n" + table(
+        note = summary.get("pilot_note") or "The pilot pack, graded as the runner wrote it (not in the tables above)."
+        pilot = f"\n## Pilot\n\n{note}\n\n" + table(
             ["task", "policy", "R", "C", "P", "anchor", "operator replay", "turns", "$"],
             [[p["task_id"], p["tag"], f"{p['reward']:.2f}",
               "—" if p["capture"] is None else f"{p['capture']:.2f}".replace("-", "−"),
@@ -857,7 +895,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t5}
 
-{as_md(ms)}{sens_md(summary)}
+{days_md(ms)}{as_md(ms)}{sens_md(summary)}
 {fig}
 ## What the numbers say
 
@@ -894,6 +932,10 @@ def main() -> None:
     ap.add_argument("--hero", help="MODEL or MODEL:TASK_ID for the timeline (default: the best Sol episode by C)")
     ap.add_argument("--exclude-day", action="append", default=[], metavar="DATE",
                     help="post hoc: also report means without these operating days (Sensitivity section)")
+    ap.add_argument("--block-alias", action="append", default=[], metavar="DATE=BLOCK",
+                    help="bootstrap block for windows starting on DATE (e.g. two windows of one front)")
+    ap.add_argument("--deviation", action="append", default=[], help="a deviation from the prereg, under the method")
+    ap.add_argument("--pilot-note", help="a line printed above the pilot table")
     ap.add_argument("--defect", action="append", default=[], help="a known env defect, listed under the method")
     ap.add_argument("--notes", help="a file of README bullets (one per line) instead of the generated ones")
     ap.add_argument("--no-copy", action="store_true")
@@ -912,6 +954,7 @@ def main() -> None:
     refs_by = {t: x["refs"] for t, x in pack_tasks.items() if x.get("refs")}
     if a.refs:
         refs_by.update({x["task_id"]: x["refs"] for x in read_jsonl(Path(a.refs))})
+    blocks = dict(x.split("=", 1) for x in a.block_alias)
     grades, days, eps_any = {}, {}, {}
     regraded, diffs, unrefd = Counter(), [], Counter()
     for name, run in runs.items():
@@ -933,7 +976,7 @@ def main() -> None:
                     diffs.append({"model": name, "task_id": tid, "changed": d})
                 g = g2
             grades[name][tid] = g
-            days[tid] = days_of(tid, ep)
+            days[tid] = blocks.get(days_of(tid, ep), days_of(tid, ep))
             if ep:
                 eps_any.setdefault(tid, ep)
     union = {}
@@ -985,6 +1028,9 @@ def main() -> None:
         "ci": {"method": "day-block bootstrap, task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
         "models": models, "references": ref_block(union, days), "paired": pairs, "pilot": pilot or None,
         "sensitivity": sensitivity(grades, days, union, a.exclude_day), "defects": a.defect or None,
+        "deviations": a.deviation or None,
+        "block_name": "day" if max((len(e.get("dates", [])) for e in eps_any.values()), default=1) == 1 else "front",
+        "pilot_note": a.pilot_note, "block_alias": blocks or None,
         "regraded": {"applied": a.regrade, "refs": a.refs or ("pack task rows" if a.regrade else None),
                      "reward_changed": dict(regraded), "not_regraded": dict(unrefd), "diffs": diffs,
                      "anchor_settings": dict(Counter(json.dumps(x.get("anchor_setting"), sort_keys=True)
