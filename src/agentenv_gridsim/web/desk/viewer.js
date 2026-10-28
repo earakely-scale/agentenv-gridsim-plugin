@@ -88,7 +88,7 @@ async function open(key, { t = null, play = true, push = false } = {}) {
 
 function plate(T, E, model) {
   const v = C.versions.find((x) => x.version === T.version);
-  $("p-ver").textContent = `${T.version} ${v?.name || ""}`;
+  $("p-ver").textContent = v?.label || `${T.version} ${v?.name || ""}`;
   $("p-site").innerHTML = `${esc(T.site.name)}, ${esc(T.site.region)}<small>${esc(T.site.size)}</small>`;
   $("p-who").innerHTML = `<b>${esc(model)}</b> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
 }

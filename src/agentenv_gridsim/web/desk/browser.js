@@ -14,8 +14,8 @@ export function buildSheet(C, { onPick }) {
 
   function render() {
     const V = C.versions.find((x) => x.version === st.v) || C.versions[0];
-    $("vtabs").innerHTML = C.versions.map((x) => `<button type="button" role="tab" aria-selected="${x === V}" data-v="${x.version}"><b>${x.version} ${esc(x.name)}</b><span>${x.tasks.length} ${x.days_per_task > 1 ? `${x.days_per_task}-day windows` : "battery-days"}</span></button>`).join("");
-    $("adds").innerHTML = `${esc(V.adds[0].toUpperCase() + V.adds.slice(1))}.`;
+    $("vtabs").innerHTML = C.versions.map((x) => `<button type="button" role="tab" aria-selected="${x === V}" data-v="${x.version}"${x.role === "check" ? ' class="check"' : ""}><b>${esc(x.label || `${x.version} ${x.name}`)}</b><span>${x.role === "check" ? `${x.check_of}'s ${x.tasks.length} battery-days, re-cleared` : `${x.tasks.length} ${x.days_per_task > 1 ? `${x.days_per_task}-day windows` : "battery-days"}`}</span></button>`).join("");
+    $("adds").innerHTML = V.role === "check" ? `A price-impact check, not a step on the ladder: ${V.check_of}'s battery-days again, each day-ahead market re-cleared with the desk's own offers in ERCOT's offer stack for the day.` : `${esc(V.adds[0].toUpperCase() + V.adds.slice(1))}.`;
     const picks = C.featured.filter((f) => C.episodes[f.key]);
     $("ctl").innerHTML = `<div class="seg" role="group" aria-label="Model">${MODELS.filter(([k]) => V.models.includes(k)).map(([k, l]) => `<button type="button" data-m="${k}" aria-pressed="${k === st.m}">${l}</button>`).join("")}</div>
       <span class="hint">Cells: C, the share of the hindsight optimum's profit over idle, and P, the settled ERCOT statement.</span>`;
@@ -36,7 +36,7 @@ export function buildSheet(C, { onPick }) {
     };
     $("grid").innerHTML = `<div class="picks">${picks.map((f) => {
       const e = C.episodes[f.key], t = C.tasks[e.task];
-      return `<button type="button" class="pick" data-k="${f.key}" aria-current="${f.key === st.key}"><span class="pv">${e.version}</span><b>${esc(f.why)}</b><span>${esc(t.name)}, ${esc(t.region)}, ${label2(t)}; ${esc(MODELS.find(([k]) => k === e.model)[1])}</span></button>`;
+      return `<button type="button" class="pick" data-k="${f.key}" aria-current="${f.key === st.key}"><span class="pv">${e.version}${C.versions.find((x) => x.version === e.version)?.role === "check" ? " check" : ""}</span><b>${esc(f.why)}</b><span>${esc(t.name)}, ${esc(t.region)}, ${label2(t)}; ${esc(MODELS.find(([k]) => k === e.model)[1])}</span></button>`;
     }).join("")}</div>
       <table class="eps"><thead><tr><th></th>${sites.map((s) => `<th scope="col">${esc(s.name)}<small>${esc(s.region)}, ${esc(s.size)}</small></th>`).join("")}</tr></thead><tbody>${days.map(row).join("")}</tbody></table>`;
   }

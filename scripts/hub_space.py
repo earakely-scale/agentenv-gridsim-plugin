@@ -50,7 +50,7 @@ FEATURED = (("desk-v4-2026-05-08-S04.sol", "Three days of spring thunderstorms i
             ("desk-v2-2026-01-25-S03.sol", "Winter storm Fern in North Texas"),
             ("desk-v3-2026-07-21-S02.sol", "Reserves and 60 MW of solar through a Houston heat wave"),
             ("desk-v4-2026-01-23-S01.sol", "Fern over three days in the Far West"),
-            ("desk-v5-2026-07-21-S02.sol", "The same heat-wave day, its DAM offers moving the price"))
+            ("desk-v5-2026-07-21-S02.sol", "The price-impact check: that heat-wave day, its DAM re-cleared"))
 D9 = re.compile(r"CROSSETT|CLO_ESR|WIG_ESS|WFTANK|\bJupiter\b|\bMEA\b|\bHabitat\b|\bTenaska\b|\b[A-Z0-9]+_RN\b|"
                 r"\b[A-Z0-9]+_ESR\w*\b|\b[A-Z0-9]+_ESS\w*\b")
 PRODUCTS = ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")
@@ -80,7 +80,7 @@ def main() -> int:
     (data / "catalog.json").write_text(dumps(cat))
     (out / "desk.json").write_text(dumps(desk))
     site(out)
-    (out / "README.md").write_text(readme(cat))
+    (out / "README.md").write_text(readme(cat, desk))
     scan(out)
     files = [p for p in out.rglob("*") if p.is_file()]
     print(f"{len(files)} files, {sum(p.stat().st_size for p in files) / 1e6:.1f} MB, {len(cat['episodes'])} "
@@ -118,7 +118,8 @@ def version(key: str, desk: dict, data: Path, cat: dict) -> dict:
             (data / "ep" / f"{name}.json").write_text(dumps(ev))
             cat["episodes"][name] = row
         print(f"{key} {task_id}")
-    return {"version": key, "name": v["name"], "adds": v["adds"], "does": v["does"], "pack": pack,
+    return {"version": key, "name": v["name"], "role": v["role"], **{k: v[k] for k in ("label", "check_of") if k in v},
+            "adds": v["adds"], "does": v["does"], "pack": pack,
             "days_per_task": v["days_per_task"], "block": v.get("block", "day"), "budget": v["budget"],
             "models": [m["key"] for m in v["models"]], "sites": v["sites"], "tasks": tasks,
             "names": (v.get("sensitivity") or {}).get("names") or {}}
@@ -752,11 +753,18 @@ def resolve(spec: str, f: Path) -> Path | None:
     raise SystemExit(f"{f}: cannot resolve import {spec!r}")
 
 
-def readme(cat: dict) -> str:
+def readme(cat: dict, desk: dict) -> str:
     count = {v["version"]: sum(1 for e in cat["episodes"].values() if e["version"] == v["version"])
              for v in cat["versions"]}
     ladder = "\n".join(f"- **{v['version']}, {v['name']}:** {v['adds']} ({count[v['version']]} replays)."
-                       for v in cat["versions"])
+                       for v in cat["versions"] if v["role"] == "ladder")
+    checks = "\n\n".join(
+        f"Apart from the ladder, **{v['label']}** plays {v['check_of']}'s battery-days again with each day-ahead "
+        "market re-cleared against the desk's own offers in ERCOT's disclosed offer stack "
+        f"([results]({APP}/results.html?v={v['version']}), {count[v['version']]} replays). For one 100–150 MW "
+        f"battery the price moves by cents, and every paired {v['version']} − {v['check_of']} gap is within noise; a "
+        "fleet desk, a QSE trading a portfolio of batteries, is where price impact would matter."
+        for v in cat["versions"] if v["role"] == "check")
     lead = cat["featured"][0]["key"]
     task, model = lead.rsplit(".", 1)
     return f"""---
@@ -788,7 +796,13 @@ stops at each of the agent's turns.
 untrained Qwen3-4B, version by version. Each is set against the anchor, the hindsight optimum and the battery's real
 operator.
 
+The ladder adds one kind of realism a version:
+
 {ladder}
+
+{checks}
+
+**The headline.** {desk['across']}
 
 There are {len(cat['episodes'])} replays: every model on every task of each version's eval pack. Each replay is a
 recorded episode (`gridsim.desk.episode/v1`) converted for the viewer, and nothing here calls a model. The running
@@ -798,7 +812,8 @@ statement is the desk's shadow settlement, recomputed from the episode and check
 
 - One episode: `index.html?v=v4&m={model}&task={task}`. Add `&t=` for a moment, in minutes from the first operating
   day's midnight (CPT).
-- One version's results: `results.html?v=v4`. `desk.html` is the same page.
+- One version's results: `results.html?v=v4`; the price-impact check's, `results.html?v=v5`. `desk.html` is the
+  same page.
 - The episodes, tasks and results are in the dataset [earakely-scale/GridSimEnv-AgentEnv]({DATASET}).
 - The write-up is the article Space [earakely-scale/GridSimEnv]({ARTICLE}).
 - The environment and this viewer are in [agentenv-gridsim-plugin]({REPO}).
@@ -855,7 +870,8 @@ def publish(out: Path) -> str:
     ops = [CommitOperationDelete(path_in_repo=f) for f in stale] + [
         CommitOperationAdd(path_in_repo=f, path_or_fileobj=str(out / f)) for f in files]
     info = api.create_commit(SPACE, repo_type="space", operations=ops, commit_message=(
-        "The desk viewer: every v2-v5 episode on the battery site in 3D beside the desk, and the results"))
+        "The desk viewer: the ladder v2 to v4 and the v5 price-impact check, every episode in 3D beside the desk, and "
+        "the results"))
     return f"{info.commit_url} ({len(files)} files, {len(stale)} removed)"
 
 
