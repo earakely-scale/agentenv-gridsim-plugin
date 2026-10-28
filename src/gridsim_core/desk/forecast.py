@@ -1,0 +1,156 @@
+"""The desk price forecast hook (contract 8.4): P10/P50/P90 vintages of DAM and RT SPP, as issued, never ahead of now.
+
+`SeriesForecaster` reads the data lane's `desk_forecast` vintages; `NaiveForecaster` is the labelled fallback built only
+from posted prices. Both give dense views on the episode grid (DAM hourly, RT 15-minute) through `views`."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Protocol
+
+from gridsim_core.desk import clock
+from gridsim_core.desk.data import Series, Vintage
+
+QS = ("p10", "p50", "p90")
+MIN_SPREAD = 5.0
+
+
+@dataclass
+class View:
+    """One market's P10/P50/P90 on the episode grid; `posted[i]` marks slots that are real posted prices."""
+
+    market: str
+    step_min: int
+    p10: list[float]
+    p50: list[float]
+    p90: list[float]
+    posted: list[bool]
+    issued_at: int | None
+    model: str
+
+    def q(self, name: str) -> list[float]:
+        return getattr(self, name)
+
+
+class DeskForecaster(Protocol):
+    name: str
+
+    def vintage(self, market: str, now: int) -> Vintage | None: ...
+
+
+def _latest(vs: list[Vintage], market: str, now: int) -> Vintage | None:
+    best = None
+    for v in vs:
+        if v.kind == market and v.issued_at <= now:
+            best = v
+    return best
+
+
+def _hist_days(ser: Series, now: int) -> list[list[float]]:
+    days = [ser.history_dam[d] for d in sorted(ser.history_dam)]
+    return days + [ser.dam_spp[24 * j:24 * j + 24] for j in range(ser.days) if ser.dam_posted[j] <= now]
+
+
+def naive_dam(ser: Series, now: int) -> tuple[list[float], list[float]]:
+    """(P50, spread) per hour of day from posted DAM days only: the latest posted day and the mean absolute deviation."""
+    days = _hist_days(ser, now)
+    if not days:
+        return [40.0] * 24, [20.0] * 24
+    p50 = list(days[-1])
+    spread = [max(sum(abs(d[h] - p50[h]) for d in days) / len(days), MIN_SPREAD) for h in range(24)]
+    return p50, spread
+
+
+def naive_basis(ser: Series) -> list[float]:
+    """Mean |RT SPP - DAM SPP| per hour of day over history days that have both."""
+    out = [0.0] * 24
+    pairs = [(ser.history_dam[d], ser.history_rt[d]) for d in ser.history_rt if d in ser.history_dam]
+    for dam, rt in pairs:
+        for i, p in enumerate(rt):
+            out[i // 4] += abs(p - dam[i // 4]) / 4 / len(pairs)
+    return [max(x, MIN_SPREAD) for x in out]
+
+
+class SeriesForecaster:
+    name = "series"
+
+    def __init__(self, ser: Series):
+        self.ser = ser
+
+    def vintage(self, market: str, now: int) -> Vintage | None:
+        return _latest(self.ser.desk_forecast, market, now)
+
+
+class NaiveForecaster:
+    """Fallback desk forecast, labelled `naive`: no vintages, computed on demand from posted data."""
+
+    name = "naive"
+
+    def __init__(self, ser: Series):
+        self.ser = ser
+
+    def vintage(self, market: str, now: int) -> Vintage | None:
+        return None
+
+
+def forecaster_for(ser: Series) -> DeskForecaster:
+    return SeriesForecaster(ser) if ser.desk_forecast else NaiveForecaster(ser)
+
+
+def _fill(v: Vintage | None, slots: int, step: int, base: list[list[float]]) -> tuple[list[list[float]], list[bool]]:
+    """Overlay a vintage on per-slot base quantiles; returns the three paths and which slots the vintage covered."""
+    out = [list(b) for b in base]
+    covered = [False] * slots
+    if v is None:
+        return out, covered
+    for i in range(slots):
+        t = i * step
+        j = int((t - v.start) // v.step_min)
+        if 0 <= j and all(j < len(v.values.get(q, [])) for q in QS):
+            for n, q in enumerate(QS):
+                out[n][i] = float(v.values[q][j])
+            covered[i] = True
+    return out, covered
+
+
+def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
+    """The desk's DAM (hourly) and RT (15-minute) views at `now`: posted prices where posted, else the forecast."""
+    H, NI = 24 * ser.days, 96 * ser.days
+    p50, spread = naive_dam(ser, now)
+    base = [[p50[h % 24] - spread[h % 24] for h in range(H)], [p50[h % 24] for h in range(H)],
+            [p50[h % 24] + spread[h % 24] for h in range(H)]]
+    vd = fc.vintage("dam", now)
+    dam, _ = _fill(vd, H, 60, base)
+    posted = [False] * H
+    for j in range(ser.days):
+        if ser.dam_posted[j] <= now:
+            for h in range(24 * j, 24 * j + 24):
+                for q in dam:
+                    q[h] = ser.dam_spp[h]
+                posted[h] = True
+    basis = naive_basis(ser)
+    rbase = [[dam[1][i // 4] - basis[(i // 4) % 24] for i in range(NI)], [dam[1][i // 4] for i in range(NI)],
+             [dam[1][i // 4] + basis[(i // 4) % 24] for i in range(NI)]]
+    vr = fc.vintage("rt", now)
+    rt, _ = _fill(vr, NI, 15, rbase)
+    rposted = [False] * NI
+    for i in range(NI):
+        if 15 * i + 15 + 2 <= now:
+            for q in rt:
+                q[i] = ser.rt_spp[i]
+            rposted[i] = True
+    for q in (dam, rt):
+        for i in range(len(q[0])):
+            lo, mid, hi = sorted((q[0][i], q[1][i], q[2][i]))
+            q[0][i], q[1][i], q[2][i] = lo, mid, hi
+    name = fc.name if fc.name != "series" else (vd.model if vd else vr.model if vr else "series")
+    return {"dam": View("dam", 60, *dam, posted, vd.issued_at if vd else None, name if vd else "naive"),
+            "rt": View("rt", 15, *rt, rposted, vr.issued_at if vr else None, name if vr else "naive")}
+
+
+def label(fc_model: str) -> str:
+    return "modelled desk forecast" + (" (naive fallback: posted prices only)" if fc_model == "naive" else "")
+
+
+def issued_label(v: View, d0: str) -> str | None:
+    return clock.label(v.issued_at, d0) if v.issued_at is not None else None
