@@ -529,13 +529,13 @@ def operator_pre(site: dict, day: dt.date) -> tuple[dict, dict]:
     f, r = A.query("np3-966-er/60_dam_gen_res_data", {"resourceName": pre["gen"], "deliveryDateFrom": str(day),
                                                       "deliveryDateTo": str(day)})
     gen = {int(x["hourEnding"]): x for x in pd.DataFrame(r, columns=f).to_dict("records")}
-    f, r = A.query("np3-966-er/60_dam_energy_bids", {"settlementPoint": site["settlement_point"],
+    f, r = A.query("np3-966-er/60_dam_energy_bids", {"settlementPointName": site["settlement_point"],
                                                      "deliveryDateFrom": str(day), "deliveryDateTo": str(day)})
     bids = pd.DataFrame(r, columns=f)
     qse = site.get("qse_pre")
     if not bids.empty and "qseName" in bids:
         bids = bids[bids["qseName"] == qse]
-    f, r = A.query("np3-966-er/60_dam_energy_bid_awards", {"settlementPoint": site["settlement_point"],
+    f, r = A.query("np3-966-er/60_dam_energy_bid_awards", {"settlementPointName": site["settlement_point"],
                                                            "deliveryDateFrom": str(day), "deliveryDateTo": str(day)})
     bid_aw = pd.DataFrame(r, columns=f)
     if not bid_aw.empty and "qseName" in bid_aw:
@@ -644,7 +644,7 @@ def soc0(site: dict, d0: dt.date) -> tuple[float | None, str]:
 # ---------------------------------------------------------------- desk forecast
 
 def desk_forecast(site: dict, days: list[dt.date]) -> list[dict]:
-    p = DESK / "forecast" / "vintages" / f"{site['settlement_point']}_{days[0]}.json.gz"
+    p = A.RAW / "forecast" / "vintages" / f"{site['settlement_point']}_{days[0]}.json.gz"
     if not p.exists():
         return []
     return json.loads(gzip.decompress(p.read_bytes()))
