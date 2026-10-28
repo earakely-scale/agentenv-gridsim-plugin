@@ -8,7 +8,7 @@
 
 <a href="https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-Results%2C%20runs%20%26%20tasks-4F46E5?style=for-the-badge&labelColor=1a1a1a" alt="Dataset" height="32"></a>
 <a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/%F0%9F%93%96%20Article-A%20live%20ERCOT%20battery%20desk-0e7d56?style=for-the-badge&labelColor=1a1a1a" alt="The article" height="32"></a>
-<a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/desk.html"><img src="https://img.shields.io/badge/%F0%9F%93%88%20Desk%20page-Every%20version%2C%20line%20by%20line-2a78d6?style=for-the-badge&labelColor=1a1a1a" alt="The desk page" height="32"></a>
+<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Space-Every%20run%2C%20version%20by%20version-FFD21E?style=for-the-badge&labelColor=1a1a1a" alt="The viewer Space" height="32"></a>
 <a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>
 <a href="NOTICE"><img src="https://img.shields.io/badge/license-Apache--2.0%20%C2%B7%20data%20ERCOT%20terms-blue?style=for-the-badge&labelColor=1a1a1a" alt="Licence: code Apache-2.0, data under ERCOT's terms" height="32"></a>
 

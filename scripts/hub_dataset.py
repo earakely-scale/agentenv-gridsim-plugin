@@ -69,6 +69,7 @@ PACK_FILES = ("stats.md", "ridge-v1.json")
 TOLERANCE = 1e-6
 DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
+VIEWER = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
 ELSEWHERE = ("v2_", "v3_", "v4_", "v5_", "desk_")
 RESULTS = "overview/results.json"
 DESK = "overview/desk.json"
@@ -76,9 +77,9 @@ BADGES = (
     '<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/'
     '%F0%9F%93%96%20Article-A%20live%20ERCOT%20battery%20desk-0e7d56?style=for-the-badge&labelColor=1a1a1a" '
     'alt="The article: a live ERCOT battery desk" height="32"></a>',
-    f'<a href="{APP}/desk.html"><img src="https://img.shields.io/badge/%F0%9F%93%88%20Desk%20page-Every%20version'
-    '%2C%20line%20by%20line-2a78d6?style=for-the-badge&labelColor=1a1a1a" alt="The desk page: every version, line by '
-    'line" height="32"></a>',
+    f'<a href="{VIEWER}"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Space-Every%20run%2C%20version%20by'
+    '%20version-FFD21E?style=for-the-badge&labelColor=1a1a1a" alt="The viewer Space: every run, version by version" '
+    'height="32"></a>',
     '<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-'
     'agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" '
     'height="32"></a>',
@@ -1106,8 +1107,10 @@ def capture_alt(v: dict) -> str:
 
 
 def gif_block(gif: dict) -> str:
-    return "\n".join([f'<a href="{gif["link"]}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
-                      "", f"<small>{gif['caption']}</small>"])
+    caption = re.sub(rf"\[Open the desk page\]\({re.escape(APP)}/desk\.html\?v=v\d\)",
+                     f"[Open the viewer]({VIEWER})", gif["caption"])
+    return "\n".join([f'<a href="{VIEWER}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
+                      "", f"<small>{caption}</small>"])
 
 
 def usd0(x: float, sign: bool = False) -> str:
