@@ -25,8 +25,14 @@ def idle(s: Session, wake: dict) -> None:
         s.call("submit_dam_offers", {"day": f"D{j}", "curves": [curve]})
 
 
-RISK = 1.25
-DAM_POSITION = "spread"
+SETTINGS = {"v2": {"risk": 1.25, "dam_position": "spread"}, "v3": {"risk": 1.5, "dam_position": "spread"}}
+DEFAULT = {"risk": 0.5, "dam_position": "physical"}
+OVERRIDE: dict | None = None
+
+
+def setting(layer: str) -> dict:
+    """The anchor's (risk, DAM basis) for a layer, chosen on its tune pack (contract 9.3); OVERRIDE is for sweeps."""
+    return dict(OVERRIDE or SETTINGS.get(layer, DEFAULT))
 
 
 def _submit_groups(s: Session, tool: str, groups: list[dict], as_groups: list[dict] | None = None) -> None:
@@ -49,7 +55,9 @@ def anchor(s: Session, wake: dict) -> None:
     """At every wake-up but reminders: optimise on the desk forecast and submit what it proposes (contract 9.2)."""
     if wake["reasons"] == ["reminder"]:
         return
-    out = s.call("optimize", {"price_view": "desk", "risk": RISK, "constraints": {"dam_position": DAM_POSITION}})
+    st = setting(s.layer)
+    out = s.call("optimize", {"price_view": "desk", "risk": st["risk"],
+                              "constraints": {"dam_position": st["dam_position"]}})
     if "error" in out:
         return
     _submit_groups(s, "submit_dam_offers", out["dam_curves"], out.get("dam_as_offers"))

@@ -239,7 +239,7 @@ def build_refs(task: dict, series) -> dict:
     return {"p_idle": idle.result["total"], "p_anchor": anc.result["total"], "p_hind": hind["p_hind"],
             "p_hind_phys": hind["p_hind_phys"], "p_hind_rt_only": hind["p_hind_rt_only"],
             "p_hind_tied": hind["p_hind_tied"], "floored": floored,
-            "anchor_setting": {"risk": policies.RISK, "dam_position": policies.DAM_POSITION},
+            "anchor_setting": policies.setting(task.get("layer", "v2")),
             "p_operator_replay": rep["p"] if rep else None, "p_operator_actual": act["p"] if act else None,
             "anchor": {"statement": anc.result, "turns": len(anc.turns)},
             "hind": {"dam_mw": hind["dam_mw"], "rt_mw_15": hind["rt_mw_15"]},
@@ -253,7 +253,7 @@ def _policy(task: dict, ser: Series, name: str) -> Session:
 def refs_for(task: dict, series) -> dict:
     ser = _ser(task, series)
     r = task.get("refs")
-    setting = {"risk": policies.RISK, "dam_position": policies.DAM_POSITION}
+    setting = policies.setting(task.get("layer", "v2"))
     if (r and r.get("series_sha") == series_sha(ser.raw) and r.get("core_version") == CORE_VERSION
             and r.get("anchor_setting") == setting):
         return r

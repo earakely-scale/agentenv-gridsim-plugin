@@ -532,6 +532,27 @@ the operators' own −$2,766. Refs at this setting: tune 9 of 12 floored, pilot 
 with P_anchor < 0); the eval anchor's total ($3.79M) exceeds the physical hindsight ($2.03M) because the spread basis
 wins large DAM/RT spreads on the scarcity days, so R on those days rewards matching a spread position.
 
+**v3 (same procedure, the v3 layer played on the same `desk-v2-tune` days, AS included):**
+
+| risk | DAM basis | total anchor P ($, 12 days) | worst single day ($) |
+|---|---|---|---|
+| 0.5 | physical | 10,283 | -14,920 |
+| 0.5 | spread | 25,089 | -47,761 |
+| 0.75 | physical | 24,577 | -4,712 |
+| 0.75 | spread | 37,316 | -31,686 |
+| 1.0 | physical | 33,117 | -1,789 |
+| 1.0 | spread | 49,943 | -17,282 |
+| 1.25 | physical | 37,244 | -1,578 |
+| 1.25 | spread | 62,500 | -1,826 |
+| 1.5 | physical | 39,648 | -1,077 |
+| 1.5 | spread | 67,526 | -1,323 |
+| 2.0 | physical | 32,545 | -853 |
+| 2.0 | spread | 54,845 | -1,133 |
+
+**Chosen for v3: risk 1.5, DAM basis "spread"** (runner-up 1.25/spread $62,500, 7.4% below; worst day −$1,323).
+Settings live per layer in `policies.SETTINGS` (`policies.setting(layer)`); a layer without a tuned entry uses risk
+0.5 / physical until its tune pick (v4, v5 on their own tune packs).
+
 ### 10.1 v3 "Sun, Storage and Reserves" as built (`gridsim_core.desk.ancillary`; desk-research.md sections cited)
 
 **Series fields (DATA, in addition to 1.4):** `as_plan` {date: {product: [24]}} (AS Plan MW, optional; proxy floor),
