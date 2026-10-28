@@ -25,29 +25,35 @@ def idle(s: Session, wake: dict) -> None:
         s.call("submit_dam_offers", {"day": f"D{j}", "curves": [curve]})
 
 
-def _submit_groups(s: Session, tool: str, groups: list[dict]) -> None:
-    by_day: dict[str, list[dict]] = {}
+RISK = 0.5
+
+
+def _submit_groups(s: Session, tool: str, groups: list[dict], as_groups: list[dict] | None = None) -> None:
+    by_day: dict[str, dict] = {}
     for g in groups:
         c = {"hours": g["hours"]}
         if s.rtcb:
             c["points"] = g["points"]
         else:
             c.update(g["points"])
-        by_day.setdefault(g["day"], []).append(c)
-    for day, curves in by_day.items():
-        s.call(tool, {"day": day, "curves": curves})
+        by_day.setdefault(g["day"], {}).setdefault("curves", []).append(c)
+    for g in as_groups or []:
+        by_day.setdefault(g["day"], {}).setdefault("as_offers", []).append(
+            {"hours": g["hours"], "product": g["product"], "mw": g["mw"], "price": g["price"]})
+    for day, args in by_day.items():
+        s.call(tool, {"day": day, **args})
 
 
 def anchor(s: Session, wake: dict) -> None:
     """At every wake-up but reminders: optimise on the desk forecast and submit what it proposes (contract 9.2)."""
     if wake["reasons"] == ["reminder"]:
         return
-    out = s.call("optimize", {"price_view": "desk", "risk": 0.5})
+    out = s.call("optimize", {"price_view": "desk", "risk": RISK})
     if "error" in out:
         return
-    _submit_groups(s, "submit_dam_offers", out["dam_curves"])
+    _submit_groups(s, "submit_dam_offers", out["dam_curves"], out.get("dam_as_offers"))
     rt = [g for g in out["rt_curves"] if s.now >= s.engine.adj_open(24 * int(g["day"][1:]))]
-    _submit_groups(s, "submit_rt_offers", rt)
+    _submit_groups(s, "submit_rt_offers", rt, out.get("rt_as_offers"))
     for row in out["cop"]:
         s.call("update_cop", {"day": row["day"], "rows": [{"hours": row["hours"], "hbsoc_mwh": row["hbsoc_mwh"]}]})
 

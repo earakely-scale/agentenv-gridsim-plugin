@@ -59,6 +59,7 @@ class Vintage:
     step_min: int
     values: dict
     model: str = ""
+    product: str = ""
 
 
 @dataclass
@@ -87,6 +88,17 @@ class Series:
     deployments: list[dict]
     operator: dict
     raw: dict = field(repr=False, default_factory=dict)
+    dam_mcpc: dict = field(default_factory=dict)
+    rt_mcpc: dict = field(default_factory=dict)
+    rt_mcpc_15: dict = field(default_factory=dict)
+    asdc: dict = field(default_factory=dict)
+    as_plan: dict = field(default_factory=dict)
+    reg_up: list = field(default_factory=list)
+    reg_dn: list = field(default_factory=list)
+    reg_source: str = "none"
+    pv: list = field(default_factory=list)
+    history_mcpc: dict = field(default_factory=dict)
+    history_rt_mcpc: dict = field(default_factory=dict)
 
     @property
     def days(self) -> int:
@@ -116,7 +128,7 @@ def _vintages(rows, d0: str, kind_key: str = "kind") -> list[Vintage]:
         vals = {k: r[k] for k in ("values", "p10", "p50", "p90") if k in r}
         out.append(Vintage(r.get(kind_key) or r.get("market") or "", int(round(clock.to_minutes(r["issued_at"], d0))),
                            int(round(clock.to_minutes(r["start"], d0))), int(r.get("step_min", 60)), vals,
-                           r.get("model", "")))
+                           r.get("model", ""), r.get("product", "")))
     return sorted(out, key=lambda v: (v.kind, v.issued_at))
 
 
@@ -131,6 +143,41 @@ def _timed(rows, d0: str, *keys) -> list[dict]:
     return sorted(out, key=lambda r: r.get(f"t_{keys[0]}", 0))
 
 
+def _by_product(block: dict, dates: list[str], n: int) -> dict[str, list]:
+    """{product: flat list over `dates`} for products present on every date (missing values become None)."""
+    if not block or not all(d in block for d in dates):
+        return {}
+    keys = set.intersection(*(set(block[d]) for d in dates))
+    out = {}
+    for k in PRODUCTS:
+        if k in keys:
+            vals = []
+            for d in dates:
+                v = block[d][k]
+                vals += list(v) if v is not None and len(v) == n else [None] * n
+            out[k] = vals
+    return out
+
+
+def _ancillary(ser: Series, series: dict, dates: list[str], hist: list[str]) -> None:
+    ser.dam_mcpc = {k: [float(x or 0.0) for x in v] for k, v in _by_product(series.get("dam_mcpc"), dates, 24).items()}
+    ser.rt_mcpc = {k: [float(x or 0.0) for x in v] for k, v in _by_product(series.get("rt_mcpc"), dates, 288).items()}
+    ser.rt_mcpc_15 = {k: [float(x or 0.0) for x in v]
+                      for k, v in _by_product(series.get("rt_mcpc_15"), dates, 96).items()}
+    ser.asdc = _by_product(series.get("asdc"), dates, 24)
+    ser.as_plan = _by_product(series.get("as_plan"), dates, 24)
+    reg = series.get("reg_deploy") or {}
+    if all(d in reg for d in dates):
+        ser.reg_up = [float(x) for d in dates for x in reg[d]["up"]]
+        ser.reg_dn = [float(x) for d in dates for x in reg[d]["dn"]]
+        ser.reg_source = reg[dates[0]].get("source", "measured")
+    pv = series.get("pv") or {}
+    if all(d in pv for d in dates):
+        ser.pv = [float(x or 0.0) for d in dates for x in pv[d]]
+    ser.history_mcpc = {d: series["dam_mcpc"][d] for d in hist if d in (series.get("dam_mcpc") or {})}
+    ser.history_rt_mcpc = {d: series["rt_mcpc_15"][d] for d in hist if d in (series.get("rt_mcpc_15") or {})}
+
+
 def build(task: dict, series: dict) -> Series:
     d0, dates = series["d0"], task["dates"]
     if d0 != dates[0]:
@@ -141,7 +188,7 @@ def build(task: dict, series: dict) -> Series:
     hist = [d for d in series.get("history_days", []) if d not in dates]
     dam_hub = series.get("dam_spp_hub") or {}
     rt_hub = series.get("rt_spp_hub") or {}
-    return Series(
+    ser = Series(
         d0=d0, dates=list(dates),
         dam_spp=_flat(series["dam_spp"], dates, 24, "dam_spp"),
         dam_spp_hub=_flat(dam_hub, dates, 24, "dam_spp_hub") if all(d in dam_hub for d in dates) else [],
@@ -164,3 +211,5 @@ def build(task: dict, series: dict) -> Series:
         operator=series.get("operator") or {},
         raw=series,
     )
+    _ancillary(ser, series, list(dates), hist)
+    return ser

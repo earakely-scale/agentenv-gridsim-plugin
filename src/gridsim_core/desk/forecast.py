@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from gridsim_core.desk import clock
+from gridsim_core.desk.ancillary import RT_DA_RATIO
 from gridsim_core.desk.data import Series, Vintage
 
 QS = ("p10", "p50", "p90")
@@ -154,3 +155,64 @@ def label(fc_model: str) -> str:
 
 def issued_label(v: View, d0: str) -> str | None:
     return clock.label(v.issued_at, d0) if v.issued_at is not None else None
+
+
+def _latest_as(ser: Series, market: str, product: str, now: int) -> Vintage | None:
+    best = None
+    for v in ser.desk_forecast:
+        if v.kind == market and v.product == product and v.issued_at <= now:
+            best = v
+    return best
+
+
+def as_views(ser: Series, fc: DeskForecaster, now: int, rtcb: bool) -> dict:
+    """The desk's AS price views at `now` per price key, on the hourly episode grid: DAM MCPC (posted where posted,
+    else the desk vintage, else the latest posted day +-50%, labelled naive) and post-RTC+B RT MCPC (the desk vintage,
+    else the DAM view times the history RT/DA ratio, else IMM 2025's ratio; desk-research.md §7)."""
+    H = 24 * ser.days
+    posted_days = [ser.history_mcpc[d] for d in sorted(ser.history_mcpc)]
+    posted_days += [{k: v[24 * j:24 * j + 24] for k, v in ser.dam_mcpc.items()} for j in range(ser.days)
+                    if ser.dam_posted[j] <= now and ser.dam_mcpc]
+    keys = list(ser.dam_mcpc) or (list(posted_days[-1]) if posted_days else [])
+    out = {}
+    for market in ("dam", "rt"):
+        q = {"p10": {}, "p50": {}, "p90": {}}
+        model = "naive"
+        for k in keys:
+            if market == "dam":
+                base = (posted_days[-1].get(k) if posted_days else None) or [0.0] * 24
+                p50 = [float(base[h % 24] or 0.0) for h in range(H)]
+                lo, hi = [x * 0.5 for x in p50], [x * 1.5 for x in p50]
+                v = _latest_as(ser, "as_dam", k, now)
+            else:
+                ratio = _rt_ratio(ser, k)
+                p50 = [x * ratio for x in out["dam"]["p50"][k]]
+                lo, hi = [x * 0.3 for x in p50], [x * 3.0 for x in p50]
+                v = _latest_as(ser, "as_rt", k, now)
+            if v is not None:
+                model = v.model or "series"
+                for i in range(H):
+                    jj = int((60 * i - v.start) // v.step_min)
+                    if 0 <= jj < len(v.values.get("p50", [])):
+                        lo[i], p50[i], hi[i] = (float(v.values[n][jj]) for n in QS)
+            if market == "dam":
+                for j in range(ser.days):
+                    if ser.dam_posted[j] <= now and k in ser.dam_mcpc:
+                        for h in range(24 * j, 24 * j + 24):
+                            lo[h] = p50[h] = hi[h] = ser.dam_mcpc[k][h]
+            q["p10"][k], q["p50"][k], q["p90"][k] = lo, p50, hi
+        out[market] = {"market": f"as_{market}", "model": model, **q}
+    if not rtcb:
+        out["rt"] = {"market": "as_rt", "model": "none", "p10": {k: [0.0] * H for k in keys},
+                     "p50": {k: [0.0] * H for k in keys}, "p90": {k: [0.0] * H for k in keys}}
+    return out
+
+
+def _rt_ratio(ser: Series, key: str) -> float:
+    pairs = [(sum(ser.history_mcpc[d][key]) / 24, sum(ser.history_rt_mcpc[d][key]) / 96)
+             for d in ser.history_rt_mcpc if d in ser.history_mcpc and key in ser.history_mcpc[d]
+             and key in ser.history_rt_mcpc[d]]
+    da = sum(a for a, _ in pairs)
+    if pairs and da > 0:
+        return sum(b for _, b in pairs) / da
+    return RT_DA_RATIO.get(key, 0.3)

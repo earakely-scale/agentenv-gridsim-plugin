@@ -34,18 +34,34 @@ def _fn(name: str, desc: str, props: dict, required: list[str] | None = None) ->
                                                             "required": required or []}}}
 
 
+def _as_offers(rtcb: bool, market: str) -> dict:
+    cap = 5000 if market == "dam" or not rtcb else 2000
+    return {"type": "array", "description": (
+        "AS offers per product and hour: {hours, product, blocks: [[mw, $/MW/h], ...]} (up to 5 blocks, the same each "
+        "hour; [] cancels) or {hours, product, mw: [...], price: [...]} (one block per hour; 0 MW cancels). Products: "
+        f"regup, regdn, rrspfr, rrsffr, ecrs, nspin; price $0..${cap:,}/MW/h; min 0.1 MW; RRS-PFR <= 20% of the range."),
+        "items": {"type": "object", "properties": {
+            "hours": _HOURS, "product": {"type": "string", "enum": ["regup", "regdn", "rrspfr", "rrsffr", "ecrs",
+                                                                    "nspin"]},
+            "blocks": {"type": "array", "items": {"type": "array", "items": {"type": "number"}}},
+            "mw": {"type": "array", "items": {"type": "number"}},
+            "price": {"type": "array", "items": {"type": "number"}}}, "required": ["hours", "product"]}}
+
+
 def tool_specs(layer: str = "v2", rtcb: bool = True) -> list[dict]:
     curve_desc = ("one ESR Energy Bid/Offer Curve per hour" if rtcb else
                   "per hour a Gen Resource offer ('offer') and/or a charging bid ('bid')")
     specs = [
         _fn("get_prices", "Posted prices only (ERCOT public reports): DAM SPP hourly, RT SPP 15-min, SCED LMP 5-min, "
             "at your node or your hub.",
-            {"market": {"type": "string", "enum": ["dam", "rt", "sced"] + (["as_dam", "as_rt"] if layer != "v2" else [])},
+            {"market": {"type": "string", "enum": ["dam", "rt", "sced"] + (["as_dam", "as_rt", "asdc"]
+                                                                          if layer != "v2" else [])},
              "point": {"type": "string", "enum": ["node", "hub"]}, "day": _DAY, "start": _TIME, "end": _TIME,
              "step": {"type": "string", "enum": ["5m", "15m", "1h"]}}),
         _fn("get_forecasts", "As-issued forecasts: the desk price forecast (P10/P50/P90, modelled), ERCOT load, wind, "
             "solar and net load, outage capacity, NWS alerts.",
-            {"kind": {"type": "string", "enum": ["price", "load", "wind", "solar", "net_load", "outages", "weather"]},
+            {"kind": {"type": "string", "enum": ["price", "load", "wind", "solar", "net_load", "outages", "weather"]
+                      + (["as_price", "pv"] if layer != "v2" else [])},
              "market": {"type": "string", "enum": ["dam", "rt"]}, "day": _DAY,
              "vintage": {"type": "string", "description": '"latest" or a past time to read an earlier issue'},
              "step": {"type": "string", "enum": ["15m", "1h"]}}),
@@ -85,6 +101,18 @@ def tool_specs(layer: str = "v2", rtcb: bool = True) -> list[dict]:
         _fn("set_reminder", "Wake yourself at a time (5-minute grid). Ending your turn waits until the next event.",
             {"at": _TIME, "note": {"type": "string"}}, ["at"]),
     ]
+    if layer != "v2":
+        for sp in specs:
+            f = sp["function"]
+            if f["name"] in ("submit_dam_offers", "submit_rt_offers"):
+                market = "dam" if f["name"] == "submit_dam_offers" else "rt"
+                f["parameters"]["properties"]["as_offers"] = _as_offers(rtcb, market)
+                f["parameters"]["required"] = []
+                f["description"] += " AS offers ride in as_offers" + (
+                    "." if rtcb or market == "dam" else " (DAM only before RTC+B).")
+            if f["name"] == "update_cop" and rtcb:
+                f["parameters"]["properties"]["rows"]["items"]["properties"]["as_capability"] = {
+                    "type": "object", "description": "AS capability MW per product; SCED awards no more"}
     return copy.deepcopy(specs)
 
 

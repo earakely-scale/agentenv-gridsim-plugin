@@ -497,6 +497,78 @@ cycles, SPD MWh, cop_late, cost and tokens.
 
 ---
 
+### 10.1 v3 "Sun, Storage and Reserves" as built (`gridsim_core.desk.ancillary`; desk-research.md sections cited)
+
+**Series fields (DATA, in addition to 1.4):** `as_plan` {date: {product: [24]}} (AS Plan MW, optional; proxy floor),
+`reg_deploy` {date: {"up": [24], "dn": [24], "source": "measured|modelled"}} (fleet deployed fraction of Reg awards,
+from `data/hybrid/reg_deploy` via `hybrid_inputs.reg_hourly`), `deployments` (data/hybrid/deployments shape:
+product rrs|ecrs|nspin, start, end, frac or null = 1), `pv` {date: [288]} and `forecasts` kind `pv` (modelled),
+`desk_forecast` markets `as_dam` / `as_rt` with a `product` key, and the operator's AS: `dam[date].as_offers`
+{product: [24 x blocks]}, `dam[date].as_awards`, `sced[date].as_awards`, `sced[date].as_offer_updates`
+[{t, product, blocks}], `cop[date].as_capability`. Operator product keys rrspfr/rrsffr (rrs_pfr/rrs_ffr accepted).
+
+**Products.** regup, regdn, rrspfr, rrsffr, ecrs, nspin (price keys regup, regdn, rrs, ecrs, nspin). ESRs offer no UFR,
+off-line reserves or ECRS-MD (§2c, "RTC+B DAM Changes" slide 10); ECRS exists from 2023-06-10. RRS-PFR at most 20% of
+(HSL − LSL) (§4a, ESR training slide 13).
+
+**AS offers** (`as_offers` on `submit_dam_offers` / `submit_rt_offers`): per hour and product, 1..5 blocks [mw, $/MW/h]
+(`blocks`, the same each hour) or one block per hour (`mw` + `price` lists). Codes: ASO-01 product, ASO-02 shape, ASO-03
+block < 0.1 MW, ASO-04 price outside [0, cap] (DAM: DASWCAP $5,000 post / SWCAP pre; RT: RTSWCAP $2,000), ASO-05 MW
+above the range or the PFR share, ASO-06 window (DAM before its close; RT post-RTC+B from 18:00 D-1 to the hour's end; no
+RT AS market before RTC+B), ASO-07 hours (§3, P§4.4.7.2.1). An accepted DAM AS offer is also the RT offer until an RT
+offer replaces it ("Market Submission Changes" slide 2).
+
+**DAM clearing.** Per hour, energy and AS are co-cleared price-taker against the node DASPP and the DAM MCPCs: the LP
+maximises the offers' surplus with energy + up-AS ≤ HSL and energy − RegDn ≥ LSL (COP limits; P§3.18, P§4.5.1(4)(c)(iii));
+the DAM ignores SoC (§2b, §4a). With no AS offers the energy award is exactly 5.2's.
+
+**RT, post-RTC+B.** Every 5-minute SCED co-clears energy and AS against the node LMP and the RT MCPC (per SCED, NP6-332)
+with the offers in force per product: RT, else DAM, else ERCOT's linked proxy offer (MW = HSL − LSL, PFR 20%; price
+min($2,000, ASDC at 95% of the AS Plan) − $0.01, or the highest submitted price if higher; $1,999.99 without an AS Plan,
+**[simplified]**) (§2d, P§6.5.7.3(5)). Constraints: headroom as in the DAM; COP `as_capability` caps; SoC: Σ up awards ×
+duration + 5-min discharge ≤ (SoC − MinSOC)·η, RegDn × duration + 5-min charge ≤ (MaxSOC − SoC)/η, durations Reg 0.5 h,
+RRS 0.5 h, FFR 0.25 h, ECRS 1 h, Non-Spin 4 h (NPRR1282, §4a). The exact SCED SoC algebra is not public; this is our
+form **[modelled]**.
+
+**RT, pre-RTC+B.** No RT AS market: the DAM AS awards are the hour's physical responsibility (§2d). SCED holds the
+headroom and, from 2024-06-27 (NPRR1186), SoC for responsibility × the time left in the hour (FFR 0.25 h) (§4a);
+qualification durations (Reg/RRS 1 h, ECRS 2 h, Non-Spin 4 h; D11) are what the prompt states. Responsibility that
+headroom or SoC cannot hold is recorded per interval as `as_short`.
+
+**Deployments.** Regulation: each interval the battery moves RegUp × f_up − RegDn × f_dn MW, with the hour's fleet
+fractions from `reg_deploy` (measured from 2023-10-12, else the labelled fallback; without the series 0.17/0.20,
+**[modelled]**); part of the set point, so no deviation charge. RRS/ECRS/Non-Spin: during a deployment event the award
+of that product × frac is added to the base point (ECRS energy is in the base point, P§6.5.7.6.2.4(6)); delivery that
+SoC or limits cut is recorded as `deploy_short` (post: compliance only, P§8.1.1.4; pre: in failure-to-provide).
+
+**Settlement (7) additions.** `dam_as_capacity` = Σ DAM MCPC × DAM award (P§4.6.4.1); post `rt_as_imbalance` = Σ_i
+RT MCPC_15 × (mean RT award − DAM award)/4 (P§6.7.2.2-6.7.2.6, §4c); pre `failure_to_provide` = −Σ_h DAM MCPC × mean
+shortfall MW (pre-P§6.7.3 without the ORDC price term AVGRTASIP, **[simplified]**); post `capacity_short` = per hour,
+short MW = (Σ up awards × duration × 0.5 − (DRUC HBSOC − MinSOC)·η)/(weighted duration), charged at the awards'
+mean DAM MCPC (P§5.7.4.1, NPRR1236; deployment factor 0.5 from the ERCOT training example, **[simplified]**);
+`pv_energy` = Σ RT SPP × PV MW / 4 (**[modelled]**). Scarcity post-RTC+B is in the posted MCPCs and LMPs (ASDCs inside
+SCED, §5); `get_prices(market="asdc")` shows the posted curves.
+
+**PV site option.** `site.pv` {mw_ac, poi_mw}: PV output from `pv` (curtailed when the LMP < 0), battery limits
+min(HSL, POI − PV) and max(LSL, −POI − PV); PV sells at the RT SPP; `get_forecasts(kind="pv")` gives the as-issued
+modelled forecast. Everything PV is **[modelled]**.
+
+**Optimiser.** The 8.1 LP adds per-interval RT awards r_p (post) and DAM AS positions R_p per open hour (post:
+financial, revenue DAM MCPC × R + RT MCPC × (r − R); pre: physical, r = R), the headroom and SoC rows above, expected
+regulation energy in the SoC balance (mean fractions; hindsight uses the real ones), the DAM joint limits, the
+capacity-short test as a constraint (DAM positions and posted awards backed by the planned SoC at each hour start,
+deployment factor 0.5) and slack at $500/MW/h for posted pre-RTC+B responsibilities SoC cannot hold. AS price views:
+`get_forecasts(kind="as_price")` — the desk `as_dam`/`as_rt` vintages, else the latest posted DAM MCPC day ±50% and the
+history RT/DA ratio (IMM 2025 ratios when no history; §7), labelled. Proposals: `dam_as_offers` / `rt_as_offers` as
+one item per product and day with the P50 plan's MW at half the lowest scenario MCPC; `as_plan_mw` for the next 24 h.
+
+**References.** idle (0 MW curve, no AS offers: ERCOT's proxies may clear, so P_idle can be > 0 post-RTC+B), the anchor
+(also submits the AS proposals), the hindsight optimum (real MCPCs, reg fractions and deployments; DRUC HBSOC = its own
+SoC path), the operator replay (its DAM and RT AS offers too) and the operator's actual (its disclosed AS awards; their
+deployments are inside its telemetry). PV is not in the operator rows.
+
+Budgets v3: 48 turns, 14 calls per turn. `optimize` output in v3 is about 4–5k characters.
+
 ## 11. Episode JSON (`gridsim.desk.episode/v1`)
 
 ```json

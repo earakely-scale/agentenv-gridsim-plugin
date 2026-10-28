@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import dataclasses
 
+from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
+from gridsim_core.desk import forecast as fcm
 from gridsim_core.desk.curves import reduce
 from gridsim_core.desk.engine import PER_H, Engine, idle_end_soc
 from gridsim_core.desk.optimize import Plan, Problem, end_penalty, hour_curves, solve
@@ -23,7 +25,23 @@ def visible_awards(e: Engine, now: int) -> list[float | None]:
     return [e.dam_award[H] if e.ser.dam_posted[H // 24] <= now else None for H in range(e.H)]
 
 
-def problem(e: Engine, now: int, dam: list[float], rt5: list[float], constraints: dict | None = None) -> Problem:
+def pv_view(e: Engine, now: int) -> list[float]:
+    """Expected PV MW per 5-minute interval from the latest PV forecast issued by `now` (modelled)."""
+    if e.site.pv_mw <= 0:
+        return []
+    vs = [v for v in e.ser.forecasts if v.kind == "pv" and v.issued_at <= now]
+    if not vs:
+        return []
+    v, out = vs[-1], []
+    vals = v.values["values"]
+    for k in range(e.K):
+        i = int((5 * k - v.start) // v.step_min)
+        out.append(float(vals[i] or 0.0) if 0 <= i < len(vals) else 0.0)
+    return out
+
+
+def problem(e: Engine, now: int, dam: list[float], rt5: list[float], constraints: dict | None = None,
+            as_q: dict | None = None) -> Problem:
     c = constraints or {}
     site = e.site
     if c.get("max_cycles") is not None:
@@ -48,9 +66,19 @@ def problem(e: Engine, now: int, dam: list[float], rt5: list[float], constraints
     pen = end_penalty(e.site, dam[e.H - 24:e.H])
     if c.get("end_soc_mwh") is not None:
         target, pen = float(c["end_soc_mwh"]), pen * END_PEN_HARD
-    return Problem(site, e.ser.days, k0, soc, list(dam), list(rt5), dam_open,
-                   [a or 0.0 for a in awards], hsl, lsl, list(e.cop["min_soc"]), list(e.cop["max_soc"]), done,
-                   target, pen)
+    p = Problem(site, e.ser.days, k0, soc, list(dam), list(rt5), dam_open,
+                [a or 0.0 for a in awards], hsl, lsl, list(e.cop["min_soc"]), list(e.cop["max_soc"]), done,
+                target, pen)
+    if e.ancillary:
+        p.products, p.rtcb, p.soc_rule = tuple(e.products), e.rtcb, e.soc_rule
+        p.as_dam = (as_q or {}).get("dam", {})
+        p.as_rt = (as_q or {}).get("rt", {})
+        p.as_fixed = [dict(e.dam_as[H]) if e.ser.dam_posted[H // 24] <= now else {} for H in range(e.H)]
+        p.as_cap = [dict(x) for x in e.cop["as_cap"]]
+        p.pv, p.poi = pv_view(e, now), e.site.poi_mw
+    elif e.site.pv_mw > 0:
+        p.pv, p.poi = pv_view(e, now), e.site.poi_mw
+    return p
 
 
 def _expand(values, per_day: int, days: int, name: str) -> list[float]:
@@ -113,6 +141,21 @@ def _group(curves: dict[int, list], d0: str) -> list[dict]:
              "points": g["points"]} for g in out]
 
 
+def _group_as(offers: dict[int, dict], d0: str) -> list[dict]:
+    """One item per product and day: {"day", "product", "hours", "mw": [...], "price": [...]} (one block per hour)."""
+    out = []
+    for pr in asv.PRODUCTS:
+        by_day: dict[int, list] = {}
+        for H in sorted(offers):
+            bl = offers[H].get(pr)
+            if bl:
+                by_day.setdefault(H // 24, []).append((H % 24 + 1, bl[0]))
+        for day, rows in by_day.items():
+            out.append({"day": f"D{day}", "product": pr, "hours": [h for h, _ in rows],
+                        "mw": [b[0] for _, b in rows], "price": [b[1] for _, b in rows]})
+    return out
+
+
 def to_pre(points: list[list[float]]) -> dict:
     """An EB/OC as the pre-RTC+B combo: Gen Resource offer (MW >= 0) and charging bid (MW >= 0 consumed)."""
     zeros = [p for q, p in points if q == 0]
@@ -130,13 +173,19 @@ def to_pre(points: list[list[float]]) -> dict:
 
 
 def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0.5,
-            constraints: dict | None = None) -> dict:
+            constraints: dict | None = None, fc=None) -> dict:
     c = constraints or {}
     risk = min(max(float(risk), 0.0), 1.0)
     scen = scenarios_from(price_view, e, views)
+    asv_views = fcm.as_views(e.ser, fc, now, e.rtcb) if e.ancillary and fc is not None else None
     plans: list[tuple[str, float, Plan]] = []
     for name, w, dam, rt5 in scen:
-        plans.append((name, w, solve(problem(e, now, dam, rt5, c))))
+        as_q = None
+        if asv_views is not None:
+            q = name if name in ("p10", "p50", "p90") else "p50"
+            as_q = {"dam": asv_views["dam"][q],
+                    "rt": {k: [v[i // PER_H] for i in range(e.K)] for k, v in asv_views["rt"][q].items()}}
+        plans.append((name, w, solve(problem(e, now, dam, rt5, c, as_q))))
     base = next((p for n, _, p in plans if n == "p50"), plans[len(plans) // 2][2])
     d0, k0 = e.ser.d0, base.k0
     hours = c.get("hours")
@@ -162,6 +211,23 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
             rt_curves[H] = hour_curves(e.site, lams, risk)
         if 60 * H - 60 > now and k0 < PER_H * H:
             cop.append({"hour": H, "hbsoc_mwh": round(base.soc_at(PER_H * H), 1)})
+    dam_as, rt_as = {}, {}
+    if asv_views is not None:
+        for H in range(first_h, e.H):
+            if not keep(H):
+                continue
+            for pr in e.products:
+                pk = asv.PRICE_KEY[pr]
+                if e.dam_close(H // 24) > now:
+                    mw = base.R.get((pr, H), 0.0)
+                    if mw >= asv.MIN_BLOCK_MW:
+                        price = min(asv_views["dam"][q][pk][H] for q in ("p10", "p50", "p90"))
+                        dam_as.setdefault(H, {})[pr] = [[round(mw, 1), round(max(0.5 * price, 0.0), 1)]]
+                if e.rtcb and 60 * (H + 1) > now and H < first_h + RT_HOURS and now >= e.adj_open(H):
+                    mw = base.hourly_as(pr, H)
+                    if mw >= asv.MIN_BLOCK_MW:
+                        price = min(asv_views["rt"][q][pk][H] for q in ("p10", "p50", "p90"))
+                        rt_as.setdefault(H, {})[pr] = [[round(mw, 1), round(max(0.5 * price, 0.0), 1)]]
     if not e.rtcb:
         dam_curves = {H: to_pre(v) for H, v in dam_curves.items()}
         rt_curves = {H: to_pre(v) for H, v in rt_curves.items()}
@@ -177,7 +243,15 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
         else:
             cop_rows.append({"_day": H // 24, "_hours": [H % 24 + 1], "hbsoc_mwh": [row["hbsoc_mwh"]]})
     projected = {n: round(p.objective, 0) for n, _, p in plans}
+    out_as = {}
+    if asv_views is not None:
+        out_as = {"dam_as_offers": _group_as(dam_as, d0), "rt_as_offers": _group_as(rt_as, d0) if e.rtcb else [],
+                  "as_plan_mw": {asv.NAMES[pr]: [round(base.hourly_as(pr, H), 1)
+                                                 for H in range(first_h, min(first_h + 24, e.H))]
+                                 for pr in e.products if any(base.hourly_as(pr, H) > 0.05
+                                                             for H in range(first_h, min(first_h + 24, e.H)))}}
     return {
+        **out_as,
         "dam_curves": _group(dam_curves, d0),
         "rt_curves": _group(rt_curves, d0),
         "cop": [{"day": f"D{r['_day']}", "hours": clock.hours_label(r["_hours"]), "hbsoc_mwh": r["hbsoc_mwh"]}

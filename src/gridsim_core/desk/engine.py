@@ -6,8 +6,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
-from gridsim_core.desk.curves import FLOOR, caps, clear, clear_any
+from gridsim_core.desk.curves import FLOOR, caps, clear_any
 from gridsim_core.desk.data import Series
 
 PER_H = 12
@@ -29,6 +30,8 @@ class Site:
     deg: float
     warranty: float
     soc0: float
+    pv_mw: float = 0.0
+    poi_mw: float | None = None
 
     @property
     def eta(self) -> float:
@@ -50,7 +53,8 @@ def site_of(task: dict) -> Site:
     return Site(s["site_id"], hsl, float(s["lsl_mw"]), float(s["e_max_mwh"]), float(s.get("e_min_mwh", 0.0)),
                 float(s.get("ramp_mw_per_min") or hsl / 5.0), float(s["rte"]), float(s.get("standby_loss_pct_per_h", 0.0)),
                 float(s.get("deg_usd_per_mwh", 10.0)), float(s.get("warranty_cycles_per_day", 1.5)),
-                float(s["soc0_mwh"]))
+                float(s["soc0_mwh"]), float((s.get("pv") or {}).get("mw_ac", 0.0)),
+                (s.get("pv") or {}).get("poi_mw"))
 
 
 def idle_end_soc(site: Site, intervals: int) -> float:
@@ -72,21 +76,33 @@ def proxy_curve(site: Site, rt_cap: float) -> list[list[float]]:
 
 
 class Engine:
-    """State of one battery on the desk; time only moves forward through `advance`."""
+    """State of one battery on the desk; time only moves forward through `advance`. With `ancillary` (v3+) the DAM
+    and SCED co-clear energy and the five AS products, AS deployments move energy, and PV shares the POI."""
 
-    def __init__(self, site: Site, ser: Series, rtcb: bool):
-        self.site, self.ser, self.rtcb = site, ser, rtcb
+    def __init__(self, site: Site, ser: Series, rtcb: bool, ancillary: bool = False):
+        self.site, self.ser, self.rtcb, self.ancillary = site, ser, rtcb, ancillary
         n = ser.days
         self.H, self.K = 24 * n, 288 * n
         self.caps = caps(ser.d0, rtcb)
+        self.products = asv.products_on(ser.d0) if ancillary else ()
+        self.dur = asv.durations(rtcb)
+        self.soc_rule = rtcb or asv.soc_rule_pre(ser.d0)
         self.dam_curve: list = [None] * self.H
         self.rt: list[list] = [[] for _ in range(self.H)]
         self.rt_bid: list[list] = [[] for _ in range(self.H)]
+        self.dam_as_offer: list[dict] = [{} for _ in range(self.H)]
+        self.rt_as_offer: list[list] = [[] for _ in range(self.H)]
         self.cop = {"status": ["ON"] * self.H, "hsl": [site.hsl] * self.H, "lsl": [site.lsl] * self.H,
-                    "hbsoc": [site.soc0] * self.H, "min_soc": [site.e_min] * self.H, "max_soc": [site.e_max] * self.H}
+                    "hbsoc": [site.soc0] * self.H, "min_soc": [site.e_min] * self.H, "max_soc": [site.e_max] * self.H,
+                    "as_cap": [{} for _ in range(self.H)]}
         self.cop_touched = [False] * self.H
         self.druc: list[dict | None] = [None] * n
         self.dam_award: list[float | None] = [None] * self.H
+        self.dam_as: list[dict] = [{} for _ in range(self.H)]
+        self.rt_as: list[dict] = [{} for _ in range(self.K)]
+        self.as_short: list[dict] = [{} for _ in range(self.K)]
+        self.deploy_short = [0.0] * self.K
+        self.pv = [0.0] * self.K
         self.bp = [0.0] * self.K
         self.metered = [0.0] * self.K
         self.soc = [site.soc0] + [0.0] * self.K
@@ -106,6 +122,10 @@ class Engine:
     def dam_cleared(self, day: int) -> bool:
         return self.dam_award[24 * day] is not None
 
+    @property
+    def range_mw(self) -> float:
+        return self.site.hsl - self.site.lsl
+
     def curve_at(self, H: int, t: int):
         """(curve, source) in force for SCED at time t in hour H."""
         if self.rtcb:
@@ -122,6 +142,25 @@ class Engine:
         bid = bids[-1] if bids else base.get("bid")
         src = "rt" if offers or bids else "dam" if base else "none"
         return {"offer": offer, "bid": bid}, src
+
+    def as_offers_at(self, H: int, t: int) -> tuple[dict, dict]:
+        """Post-RTC+B RT AS offers in force per product (RT, else DAM, else ERCOT's proxy) and their sources."""
+        merged, src = {}, {}
+        for p in self.products:
+            v = [o[p] for tt, o in self.rt_as_offer[H] if tt <= t and p in o]
+            if v:
+                merged[p], src[p] = v[-1], "rt"
+            elif p in self.dam_as_offer[H]:
+                merged[p], src[p] = self.dam_as_offer[H][p], "dam"
+        highest = max((pr for bl in merged.values() for _, pr in bl), default=None)
+        for p in self.products:
+            if p not in merged:
+                pk = asv.PRICE_KEY[p]
+                asdc = (self.ser.asdc.get(pk) or [None] * self.H)[H]
+                plan = (self.ser.as_plan.get(pk) or [None] * self.H)[H]
+                mw = asv.PFR_SHARE * self.range_mw if p == "rrspfr" else self.range_mw
+                merged[p], src[p] = [[mw, asv.proxy_offer(mw, asdc, plan, highest)[0][1]]], "proxy"
+        return merged, src
 
     def event_limits(self, t: float) -> tuple[float, float, dict | None]:
         hsl, lsl, ev = self.site.hsl, self.site.lsl, None
@@ -144,37 +183,122 @@ class Engine:
             self.k += 1
         self.t = t
 
+    def _caps(self, H: int, rt: bool) -> dict:
+        out = {"rrspfr": asv.PFR_SHARE * self.range_mw}
+        if rt:
+            for p, v in self.cop["as_cap"][H].items():
+                out[p] = min(out.get(p, v), v)
+        return out
+
     def clear_dam(self, day: int) -> None:
         for H in range(24 * day, 24 * day + 24):
             c = self.dam_curve[H]
-            mw = 0.0 if c is None else clear_any(c, self.ser.dam_spp[H])
-            self.dam_award[H] = round(min(max(mw, self.cop["lsl"][H]), self.cop["hsl"][H]), 6) + 0.0
+            offers = {p: b for p, b in self.dam_as_offer[H].items() if p in self.products}
+            hi, lo = self.cop["hsl"][H], self.cop["lsl"][H]
+            if offers:
+                mcpc = {k: v[H] for k, v in self.ser.dam_mcpc.items()}
+                curve = c if c is not None else ([[0.0, FLOOR], [0.0, self.caps["dam"]]] if self.rtcb else {})
+                mw, aw = asv.co_clear(curve, self.rtcb, self.ser.dam_spp[H], offers, mcpc, hi, lo, self._caps(H, False))
+                self.dam_as[H] = aw
+            else:
+                mw = 0.0 if c is None else clear_any(c, self.ser.dam_spp[H])
+            self.dam_award[H] = round(min(max(mw, lo), hi), 6) + 0.0
+
+    def reg_fraction(self, H: int) -> tuple[float, float]:
+        if self.ser.reg_up:
+            return self.ser.reg_up[H], self.ser.reg_dn[H]
+        return asv.REG_MEAN["up"], asv.REG_MEAN["dn"]
+
+    def deployed(self, t0: float, awards: dict) -> float:
+        """MW of RRS/ECRS/Non-Spin deployed in [t0, t0 + 5) from the interval's awards (time-weighted)."""
+        out = 0.0
+        for d in self.ser.deployments:
+            a, b = max(d["t_start"], t0), min(d.get("t_end", t0 + 5), t0 + 5)
+            if b <= a:
+                continue
+            prods = ("rrspfr", "rrsffr") if d["product"] == "rrs" else (d["product"],)
+            frac = 1.0 if d.get("frac") is None else float(d["frac"])
+            out += sum(awards.get(p, 0.0) for p in prods) * frac * (b - a) / 5.0
+        return out
 
     def sced(self, k: int) -> None:
         s, t0, H = self.site, 5 * k, k // PER_H
         curve, src = self.curve_at(H, t0)
-        lmp = self.ser.rt_lmp[k]
-        x = clear(curve, lmp) if self.rtcb else clear_any(curve, lmp)
+        price = self.ser.rt_lmp[k]
         ehsl, elsl, _ = self.event_limits(t0)
         soc = self.soc[k]
-        lo_soc = min(0.0, -PER_H * (self.cop["max_soc"][H] - drift(s, soc)) / s.eta)
-        hi_soc = max(0.0, s.eta * PER_H * (drift(s, soc) - self.cop["min_soc"][H]))
         hi = min(ehsl, self.cop["hsl"][H])
         lo = max(elsl, self.cop["lsl"][H])
+        pv = 0.0
+        if self.ser.pv and s.pv_mw > 0:
+            pv = 0.0 if price < 0 else min(self.ser.pv[k], s.pv_mw)
+            if s.poi_mw is not None:
+                hi = min(hi, s.poi_mw - pv)
+                lo = max(lo, -s.poi_mw - pv)
+        self.pv[k] = pv
+        e_up = (drift(s, soc) - self.cop["min_soc"][H]) * s.eta
+        e_dn = (self.cop["max_soc"][H] - drift(s, soc)) / s.eta
+        idle = self.cop["status"][H] in IDLE_STATUSES
+        awards: dict = {}
+        if self.ancillary and self.rtcb and not idle:
+            offers, _ = self.as_offers_at(H, t0)
+            mcpc = {pk: v[k] for pk, v in self.ser.rt_mcpc.items()}
+            x, awards = asv.co_clear(curve, True, price, offers, mcpc, hi, lo, self._caps(H, True), e_up, e_dn,
+                                     self.dur)
+        else:
+            x = clear_any(curve, price)
+            if self.ancillary and not self.rtcb and not idle:
+                awards = dict(self.dam_as[H])
+        up_sum = sum(awards.get(p, 0.0) for p in asv.UP)
+        dn_sum = awards.get("regdn", 0.0)
+        if awards and not self.rtcb:
+            m_in = t0 - 60 * H
+            need_up = sum(awards.get(p, 0.0) * asv.remaining_hour_duration(p, m_in) for p in asv.UP)
+            need_dn = dn_sum * asv.remaining_hour_duration("regdn", m_in)
+            f_up = 1.0 if up_sum <= 1e-9 else min(1.0, max(hi, 0.0) / up_sum)
+            f_dn = 1.0 if dn_sum <= 1e-9 else min(1.0, max(-lo, 0.0) / dn_sum)
+            if self.soc_rule:
+                if need_up > 1e-9:
+                    f_up = min(f_up, max(e_up, 0.0) / need_up)
+                if need_dn > 1e-9:
+                    f_dn = min(f_dn, max(e_dn, 0.0) / need_dn)
+                e_up -= min(need_up, max(e_up, 0.0))
+                e_dn -= min(need_dn, max(e_dn, 0.0))
+            short = {p: awards[p] * (1 - (f_dn if p == "regdn" else f_up)) for p in awards}
+            self.as_short[k] = {p: round(v, 6) for p, v in short.items() if v > 1e-6}
+        elif awards:
+            e_up -= sum(awards.get(p, 0.0) * self.dur[p] for p in asv.UP)
+            e_dn -= dn_sum * self.dur["regdn"]
+        if awards:
+            hi, lo = max(hi - up_sum, min(hi, 0.0)), min(lo + dn_sum, max(lo, 0.0))
+        hi_soc = max(0.0, PER_H * e_up)
+        lo_soc = min(0.0, -PER_H * e_dn)
         prev = self.bp[k - 1] if k else 0.0
         bp = min(max(x, prev - 5 * s.ramp), prev + 5 * s.ramp)
-        bp = min(max(bp, lo), hi)
+        bp = min(max(bp, min(lo, hi)), max(hi, lo))
         bp = min(max(bp, lo_soc), hi_soc)
-        if self.cop["status"][H] in IDLE_STATUSES:
+        if idle:
             bp, src = 0.0, "status"
+        if self.rtcb:
+            self.rt_as[k] = awards
         m = bp
+        if awards:
+            fu, fd = self.reg_fraction(H)
+            reg = awards.get("regup", 0.0) * fu - awards.get("regdn", 0.0) * fd
+            dep = self.deployed(t0, awards)
+            bp += dep + reg
+            m = bp
         for e in self.ser.unit_events:
             if t0 < e["t_start"] < t0 + 5:
                 f = (t0 + 5 - e["t_start"]) / 5.0
-                m = bp * (1 - f) + min(max(bp, float(e.get("lsl_mw", 0.0))), float(e.get("hsl_mw", 0.0))) * f
-        m = min(max(m, lo_soc), hi_soc)
-        self.bp[k], self.metered[k], self.source[k] = round(bp, 6) + 0.0, round(m, 6) + 0.0, src
-        self.soc[k + 1] = next_soc(s, soc, m)
+                m = m * (1 - f) + min(max(m, float(e.get("lsl_mw", 0.0))), float(e.get("hsl_mw", 0.0))) * f
+        ceil_hi = max(0.0, s.eta * PER_H * (drift(s, soc) - self.cop["min_soc"][H]))
+        floor_lo = min(0.0, -PER_H * (self.cop["max_soc"][H] - drift(s, soc)) / s.eta)
+        m2 = min(max(m, floor_lo, min(elsl, 0.0)), ceil_hi, max(ehsl, 0.0))
+        if awards:
+            self.deploy_short[k] = round(max(m - m2, 0.0) if m > 0 else max(m2 - m, 0.0), 6)
+        self.bp[k], self.metered[k], self.source[k] = round(bp, 6) + 0.0, round(m2, 6) + 0.0, src
+        self.soc[k + 1] = next_soc(s, soc, m2)
 
     def soc_at(self, t: float) -> float:
         return self.soc[min(max(int(t // 5), 0), self.K)]

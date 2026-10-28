@@ -16,7 +16,7 @@ from gridsim_core.desk import fixtures, policies  # noqa: E402
 class FakeAgent(desk_run.ModelAgent):
     """A model that checks its position once per turn; every call costs a fixed amount."""
 
-    COST = 0.01
+    COST = 0.02
 
     def __init__(self, a, preset, lane_spent, system, tools, budget=None):
         self.max_usd, self.max_tokens, self.price = a.max_usd, None, (0.0, 0.0, 0.0)

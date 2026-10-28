@@ -36,7 +36,7 @@ def _dam_shape(rng, scale: float = 1.0) -> list[float]:
 
 def make(date: str = "2026-02-14", seed: int = 0, days: int = 1, layer: str = "v2", outage: bool = False,
          notices: bool = True, desk_forecast: bool = True, operator: bool = True, spike: bool = True,
-         site: dict | None = None) -> tuple[dict, dict]:
+         site: dict | None = None, pv: bool = False) -> tuple[dict, dict]:
     rng = np.random.default_rng(seed)
     d0 = date
     dates = [(dt.date.fromisoformat(d0) + dt.timedelta(days=j)).isoformat() for j in range(days)]
@@ -119,15 +119,70 @@ def make(date: str = "2026-02-14", seed: int = 0, days: int = 1, layer: str = "v
     if outage:
         series["unit_events"] = [{"kind": "derate", "start": _iso(842, d0), "end": _iso(960, d0), "hsl_mw": 50.0,
                                   "lsl_mw": -50.0, "source": "fixture"}]
-    task = {"task_id": f"desk-{layer}-{d0}-S00-f{seed}", "schema": "gridsim.desk.task/v1", "desk_version": "2.0",
+    if layer != "v2":
+        _ancillary(series, hist, dates, d0, rng, pv)
+    site = dict(site or SITE)
+    if pv:
+        site["pv"] = {"mw_ac": 50.0, "poi_mw": 100.0, "profile": "modelled", "source": "fixture"}
+    task = {"task_id": f"desk-{layer}-{d0}-S00-f{seed}{'-pv' if pv else ''}", "schema": "gridsim.desk.task/v1", "desk_version": "2.0",
             "pack": "fixtures", "split": "fixture", "layer": layer, "era": era_of(dates), "dates": dates,
-            "site": dict(site or SITE), "series": "", "operator_ok": operator, "tags": {"fixture": True}}
+            "site": site, "series": "", "operator_ok": operator, "tags": {"fixture": True}}
     series["task_id"] = task["task_id"]
     task["series"] = f"series/{task['task_id']}.json.gz"
     if operator:
         series["operator"] = _operator(task, series)
     task["series_sha"] = series_sha(series)
     return task, series
+
+
+AS_BASE = {"regup": 4.0, "regdn": 2.0, "rrs": 3.0, "ecrs": 3.5, "nspin": 4.0}
+AS_PLAN = {"regup": 350.0, "regdn": 350.0, "rrs": 3000.0, "ecrs": 1500.0, "nspin": 2500.0}
+
+
+def _ancillary(series: dict, hist: list[str], dates: list[str], d0: str, rng, pv: bool) -> None:
+    keys = [k for k in AS_BASE if k != "ecrs" or dt.date.fromisoformat(d0) >= dt.date(2023, 6, 10)]
+    rtcb = dt.date.fromisoformat(d0) >= dt.date(2025, 12, 5)
+    series["dam_mcpc"], series["rt_mcpc"], series["rt_mcpc_15"], series["asdc"], series["as_plan"] = {}, {}, {}, {}, {}
+    series["reg_deploy"] = {}
+    for d in hist + dates:
+        day = {}
+        for k in keys:
+            day[k] = [round(max(AS_BASE[k] * (1 + 2.5 * math.exp(-((h - 19) ** 2) / 5)) + rng.normal(0, 0.5), 0.1), 2)
+                      for h in range(24)]
+        series["dam_mcpc"][d] = day
+        if rtcb or d in dates:
+            rt5 = {}
+            for k in keys:
+                v = [round(max(day[k][i // 12] * 0.35 * (1 + rng.normal(0, 0.3)), 0.0), 2) for i in range(288)]
+                if d in dates and k == "rrs":
+                    v[12 * 18 + 5] = 180.0
+                rt5[k] = v
+            if rtcb:
+                series["rt_mcpc"][d] = rt5
+                series["rt_mcpc_15"][d] = {k: [round(sum(v[3 * i:3 * i + 3]) / 3, 2) for i in range(96)]
+                                           for k, v in rt5.items()}
+        if d in dates:
+            series["asdc"][d] = {k: [[[0.0, 5000.0], [0.5 * AS_PLAN[k], 300.0], [AS_PLAN[k], 25.0],
+                                      [1.5 * AS_PLAN[k], 0.0]]] * 24 for k in keys}
+            series["as_plan"][d] = {k: [AS_PLAN[k]] * 24 for k in keys}
+            series["reg_deploy"][d] = {"up": [round(0.1 + 0.1 * rng.random(), 3) for _ in range(24)],
+                                       "dn": [round(0.12 + 0.1 * rng.random(), 3) for _ in range(24)],
+                                       "source": "modelled"}
+    series["deployments"] = [
+        {"event_id": "FIX-DEP-1", "product": "rrs", "start": _iso(432, d0), "end": _iso(436, d0), "frac": None,
+         "summary": "ERCOT deployed Responsive Reserve (fixture)."},
+        {"event_id": "FIX-DEP-2", "product": "ecrs", "start": _iso(1120, d0), "end": _iso(1150, d0), "frac": 1.0,
+         "summary": "ERCOT deployed ECRS (fixture)."}]
+    if pv:
+        series["pv"] = {d: [round(max(0.0, 50 * math.sin((k / 288 - 0.29) / 0.46 * math.pi)), 2)
+                            if 0.29 <= k / 288 <= 0.75 else 0.0 for k in range(288)] for d in dates}
+        end = clock.DAY * len(dates)
+        series["forecasts"] += [{"kind": "pv", "issued_at": _iso(t + 55, d0), "start": _iso(t // 60 * 60, d0),
+                                 "step_min": 60, "model": "fixture PV (modelled)",
+                                 "values": [round(max(0.0, 50 * math.sin(((t // 60 + i) % 24 / 24 - 0.29) / 0.46
+                                                                         * math.pi)) if 0.29 <= (t // 60 + i) % 24 / 24
+                                                  <= 0.75 else 0.0, 1) for i in range((end - t // 60 * 60) // 60)]}
+                                for t in range(-1440, end, 180)]
 
 
 def _operator(task: dict, series: dict) -> dict:
@@ -137,9 +192,13 @@ def _operator(task: dict, series: dict) -> dict:
     rtcb = task["era"] == "rtcb"
     eboc = [[site.lsl, 15.0], [0.0, 22.0], [0.0, 55.0], [site.hsl, 80.0]]
     pre = {"offer": [[0.0, 55.0], [site.hsl, 80.0]], "bid": [[0.0, 22.0], [-site.lsl, 15.0]]}
-    e = Engine(site, ser, rtcb)
+    anc = task["layer"] != "v2"
+    e = Engine(site, ser, rtcb, ancillary=anc)
+    offers = {"regup": [[20.0, 2.0]], "rrsffr": [[10.0, 1.0]]}
     for H in range(e.H):
         e.dam_curve[H] = eboc if rtcb else pre
+        if anc:
+            e.dam_as_offer[H] = dict(offers)
     e.advance(ser.end)
     out = {"resource": task["site"]["resource"], "qse": "QFIX00", "dam": {}, "sced": {}, "cop": {}}
     for j, d in enumerate(ser.dates):
@@ -147,8 +206,15 @@ def _operator(task: dict, series: dict) -> dict:
         day = {"curves": [eboc] * 24 if rtcb else None, "award_mw": e.dam_award[hs], "spp": ser.dam_spp[hs]}
         if not rtcb:
             day["pre"] = {"offer": [pre["offer"]] * 24, "bid": [pre["bid"]] * 24}
+        if anc:
+            day["as_offers"] = {p: [offers[p]] * 24 for p in offers}
+            day["as_awards"] = {p: [e.dam_as[H].get(p, 0.0) for H in range(24 * j, 24 * j + 24)]
+                                for p in ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")}
         out["dam"][d] = day
         out["sced"][d] = {"curves": [], "base_point_mw": e.bp[ks], "telemetry_mw": e.metered[ks],
                           "soc_mwh": [round(x, 3) for x in e.soc[288 * j + 1:288 * j + 289]],
                           "hsl_mw": [site.hsl] * 288, "lsl_mw": [site.lsl] * 288, "status": ["ON"] * 288}
+        if anc and rtcb:
+            out["sced"][d]["as_awards"] = {p: [e.rt_as[k].get(p, 0.0) for k in range(288 * j, 288 * j + 288)]
+                                           for p in ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")}
     return out

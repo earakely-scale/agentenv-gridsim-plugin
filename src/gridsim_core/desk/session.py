@@ -8,6 +8,7 @@ import copy
 import json
 import math
 
+from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
 from gridsim_core.desk import forecast as fcm
 from gridsim_core.desk.curves import caps, check_eboc, check_side, clear_any
@@ -71,7 +72,7 @@ class Session:
         self.end = self.ser.end
         self.budget = dict(BUDGETS[self.layer], **(budgets or {}))
         self.fc = forecaster or fcm.forecaster_for(self.ser)
-        self.engine = Engine(self.site, self.ser, self.rtcb)
+        self.engine = Engine(self.site, self.ser, self.rtcb, ancillary=self.layer != "v2")
         self.caps = caps(self.d0, self.rtcb)
         self.target = idle_end_soc(self.site, self.engine.K)
         self.now = clock.START
@@ -189,7 +190,8 @@ class Session:
         self._collect(self.now, self.end)
         self.now = self.end
         e = self.engine
-        self.result = statement(self.site, self.ser, self.rtcb, e.dam_award, e.bp, e.metered, e.soc[-1], self.target)
+        self.result = statement(self.site, self.ser, self.rtcb, e.dam_award, e.bp, e.metered, e.soc[-1], self.target,
+                                self.ancillary_record())
         self.done = True
         return self.result
 
@@ -267,7 +269,7 @@ class Session:
     def _pnl_to_date(self) -> float:
         e = self.engine
         upto = max(int((self.now - 2) // 15), 0)
-        return partial(self.site, self.ser, self.rtcb, e.dam_award, e.bp, e.metered, upto)["total"] if self.now > 0 else 0.0
+        return partial(self.site, self.ser, self.rtcb, e.dam_award, e.bp, e.metered, upto, self.ancillary_record())["total"] if self.now > 0 else 0.0
 
     def _deadlines(self) -> list[dict]:
         out = []
@@ -356,10 +358,12 @@ class Session:
 
     def _t_get_prices(self, market: str = "rt", point: str = "node", day=None, start=None, end=None,
                       step: str | None = None) -> dict:
-        if market not in ("dam", "rt", "sced", "as_dam", "as_rt"):
-            return {"error": "args: market is one of dam, rt, sced, as_dam, as_rt"}
-        if market.startswith("as_"):
-            return {"error": "layer: ancillary service prices arrive with the v3 desk; this desk is energy only"}
+        if market not in ("dam", "rt", "sced", "as_dam", "as_rt", "asdc"):
+            return {"error": "args: market is one of dam, rt, sced, as_dam, as_rt, asdc"}
+        if market in ("as_dam", "as_rt", "asdc"):
+            if self.layer == "v2":
+                return {"error": "layer: ancillary service prices arrive with the v3 desk; this desk is energy only"}
+            return self._as_prices(market, day, start, end, step)
         if point not in ("node", "hub"):
             return {"error": "args: point is node or hub"}
         j, date = self._price_day(day)
@@ -416,6 +420,53 @@ class Session:
                 "start": clock.label(s, self.d0), "end": clock.label(e, self.d0),
                 "values": [_r(v) for v in agg], "stats": _stats(vals)}
 
+    def _as_prices(self, market: str, day, start, end, step) -> dict:
+        j, date = self._price_day(day)
+        if market == "as_dam":
+            if j is None:
+                block = self.ser.history_mcpc.get(date)
+                if block is None:
+                    return {"error": f"data: no DAM MCPCs on the desk for {date}"}
+                vals = {k: [_r(x) for x in v] for k, v in block.items()}
+            else:
+                if self.ser.dam_posted[j] > self.now:
+                    return {"error": f"not_posted: DAM MCPCs for {date} post at "
+                                     f"{clock.label(self.ser.dam_posted[j], self.d0)}"}
+                vals = {k: [_r(x) for x in v[24 * j:24 * j + 24]] for k, v in self.ser.dam_mcpc.items()}
+            return {"market": "as_dam", "unit": "$/MW/h", "date": date, "step": "1h", "start": "HE01", "mcpc": vals}
+        if market == "asdc":
+            if not self.rtcb:
+                return {"error": "rule: AS demand curves start with RTC+B (2025-12-05)"}
+            if j is None or not self.ser.asdc:
+                return {"error": f"data: no AS demand curves for {date}"}
+            posted = (self.ser.raw.get("posted") or {}).get("asdc", {}).get(date)
+            t_post = clock.to_minutes(posted, self.d0) if posted else j * clock.DAY + clock.START
+            if t_post > self.now:
+                return {"error": f"not_posted: ASDCs for {date} post at {clock.label(t_post, self.d0)}"}
+            h = min(max(self.now, 0) // 60, 24 * j + 23) % 24 if start is None else clock.parse_hours(start)[0] - 1
+            return {"market": "asdc", "unit": "MW, $/MW/h", "date": date, "hour": clock.he(h + 1),
+                    "curves": {k: v[24 * j + h] for k, v in self.ser.asdc.items() if v[24 * j + h]}}
+        if not self.rtcb:
+            return {"error": "rule: no real-time AS prices before RTC+B (scarcity was the ORDC adder in the RT SPP)"}
+        if j is None:
+            block = self.ser.history_rt_mcpc.get(date)
+            if block is None:
+                return {"error": f"data: no RT MCPCs on the desk for {date}"}
+            return {"market": "as_rt", "unit": "$/MW/h", "date": date, "step": "1h", "start": "00:00",
+                    "mcpc": {k: [_r(sum(v[i:i + 4]) / 4) for i in range(0, 96, 4)] for k, v in block.items()}}
+        s_, e_ = self._window(start, end, j, 2, 5)
+        e_ = min(e_, ((self.now - 1) // 5) * 5)
+        if e_ <= s_:
+            return {"market": "as_rt", "date": date, "mcpc": {}, "note": "no SCED intervals posted in that window yet"}
+        want = {"5m": 5, "15m": 15, "1h": 60}.get(step or "", 15)
+        g = want // 5
+        out = {}
+        for k, v in self.ser.rt_mcpc.items():
+            vals = [v[t // 5] for t in range(s_, e_, 5)]
+            out[k] = [_r(sum(vals[i:i + g]) / len(vals[i:i + g])) for i in range(0, len(vals), g)]
+        return {"market": "as_rt", "unit": "$/MW/h", "date": date, "step": f"{want}m",
+                "start": clock.label(s_, self.d0), "end": clock.label(e_, self.d0), "mcpc": out}
+
     def _t_get_forecasts(self, kind: str = "price", market: str = "dam", day=None, vintage="latest",
                          step: str | None = None) -> dict:
         at = self.now if vintage in (None, "latest") else clock.parse_time(vintage, self.d0, 0)
@@ -444,6 +495,25 @@ class Session:
                 res["posted_slots"] = sum(posted)
                 res["note"] = "slots already posted show the real price in all three quantiles"
             return res
+        if kind == "as_price":
+            if self.layer == "v2":
+                return {"error": "layer: ancillary service prices arrive with the v3 desk; this desk is energy only"}
+            v = fcm.as_views(self.ser, self.fc, at, self.rtcb)[market if market in ("dam", "rt") else "dam"]
+            sl = slice(24 * j, 24 * j + 24)
+            return {"kind": "as_price", "market": v["market"], "date": date, "step": "1h", "start": "HE01",
+                    "unit": "$/MW/h", "model": v["model"], "label": fcm.label(v["model"]),
+                    "p50": {k: [_r(x, 2) for x in q[sl]] for k, q in v["p50"].items()},
+                    "p10": {k: [_r(x, 2) for x in q[sl]] for k, q in v["p10"].items()},
+                    "p90": {k: [_r(x, 2) for x in q[sl]] for k, q in v["p90"].items()}}
+        if kind == "pv":
+            if self.site.pv_mw <= 0:
+                return {"error": "data: this site has no co-located PV"}
+            vs = [v for v in self.ser.forecasts if v.kind == "pv" and v.issued_at <= at]
+            if not vs:
+                return {"error": "data: no PV forecast issued yet"}
+            return {"kind": "pv", "date": date, "issued_at": clock.label(vs[-1].issued_at, self.d0),
+                    "model": vs[-1].model, "label": "modelled PV", "step": "1h", "start": "HE01", "unit": "MW",
+                    "values": self._vintage_day(vs[-1], j)}
         if kind in ("load", "wind", "solar", "outages"):
             pool = self.ser.outage_capacity if kind == "outages" else self.ser.forecasts
             vs = [v for v in pool if v.kind == kind and v.issued_at <= at]
@@ -469,7 +539,7 @@ class Session:
                                                     "expires": clock.label(n["t_expires"], self.d0)
                                                     if n.get("t_expires") is not None else None,
                                                     "headline": (n.get("headline") or "")[:160]} for n in alerts[-8:]]}
-        return {"error": "args: kind is price, load, wind, solar, net_load, outages or weather"}
+        return {"error": "args: kind is price, as_price, pv, load, wind, solar, net_load, outages or weather"}
 
     def _vintage_day(self, v, j: int) -> list:
         vals = v.values["values"]
@@ -531,7 +601,22 @@ class Session:
                 "curve_in_force": src, "cycles_today": _r(dis / s.usable, 3),
                 "rte": s.rte, "standby_loss_pct_per_h": s.loss_pct_h,
                 "deg_usd_per_mwh": s.deg, "warranty_cycles_per_day": s.warranty,
-                "params_label": "rte and standby loss calibrated from disclosures; degradation and warranty modelled"}
+                "params_label": "rte and standby loss calibrated from disclosures; degradation and warranty modelled",
+                **self._as_status(H, k)}
+
+    def _as_status(self, H: int, k: int) -> dict:
+        e = self.engine
+        if not e.ancillary:
+            return {}
+        out = {}
+        aw = e.rt_as[k - 1] if self.rtcb and k else e.dam_as[H] if self.now >= 0 else {}
+        out["as_awards_mw"] = {asv.NAMES[p]: _r(v, 1) for p, v in aw.items() if v}
+        if e.cop["as_cap"][H]:
+            out["as_capability_mw"] = {asv.NAMES[p]: v for p, v in e.cop["as_cap"][H].items()}
+        if self.site.pv_mw > 0:
+            out["pv_mw"] = _r(e.pv[k - 1], 1) if k else 0.0
+            out["pv_label"] = "co-located PV (modelled), POI limit shared"
+        return out
 
     def _t_get_position(self, day=None, detail: str = "summary") -> dict:
         e = self.engine
@@ -577,14 +662,44 @@ class Session:
         if detail == "hourly":
             cop.update({"hsl_mw": [_r(e.cop["hsl"][H], 1) for H in hs], "lsl_mw": [_r(e.cop["lsl"][H], 1) for H in hs]})
         out = {"date": self.ser.dates[j], "dam": dam, "rt": rt, "curves": groups, "cop": cop}
+        if e.ancillary:
+            out["as"] = self._as_position(j, posted, detail)
         if detail == "hourly":
             nxt = min(max(self.now, 0) // 60, e.H - 1)
             out["next_curves"] = {clock.he(H % 24 + 1): e.curve_at(H, max(self.now, 60 * H))[0]
                                   for H in range(max(nxt, 24 * j), min(nxt + 3, 24 * j + 24))}
         upto = max(int((self.now - 2) // 15), 0)
         if self.now > 0:
-            out["shadow_statement"] = partial(self.site, self.ser, self.rtcb, e.dam_award, e.bp, e.metered, upto)
+            out["shadow_statement"] = partial(self.site, self.ser, self.rtcb, e.dam_award, e.bp, e.metered, upto, self.ancillary_record())
             out["shadow_statement"]["label"] = "settled intervals so far; degradation modelled"
+        return out
+
+    def _as_position(self, j: int, posted: bool, detail: str) -> dict:
+        e = self.engine
+        hs = range(24 * j, 24 * j + 24)
+        out: dict = {}
+        if posted:
+            tot = {asv.NAMES[p]: _r(sum(e.dam_as[H].get(p, 0.0) for H in hs), 1) for p in e.products}
+            val = sum(e.dam_as[H].get(p, 0.0) * self.ser.dam_mcpc.get(asv.PRICE_KEY[p], [0.0] * e.H)[H]
+                      for H in hs for p in e.products)
+            out["dam_awards_mwh"] = {k: v for k, v in tot.items() if v}
+            out["dam_value_usd"] = _r(val, 0)
+            if detail == "hourly":
+                out["dam_award_mw"] = {asv.NAMES[p]: [_r(e.dam_as[H].get(p, 0.0), 1) for H in hs]
+                                       for p in e.products if any(e.dam_as[H].get(p) for H in hs)}
+        offered = {asv.NAMES[p]: sum(1 for H in hs if p in e.dam_as_offer[H]) for p in e.products}
+        out["dam_offers_hours"] = {k: v for k, v in offered.items() if v}
+        if self.rtcb and e.k > 288 * j:
+            k1 = min(e.k, 288 * j + 288)
+            ks = range(288 * j, k1)
+            out["rt_awards_mwh"] = {asv.NAMES[p]: _r(sum(e.rt_as[k].get(p, 0.0) for k in ks) / PER_H, 1)
+                                    for p in e.products if any(e.rt_as[k].get(p) for k in ks)}
+            if self.now >= 0 and 60 * (self.now // 60) // 60 < e.H:
+                _, src = e.as_offers_at(min(self.now // 60, e.H - 1), self.now)
+                out["rt_offers_in_force"] = {asv.NAMES[p]: v for p, v in src.items()}
+        if not self.rtcb:
+            short = sum(sum(x.values()) for x in e.as_short[288 * j:min(e.k, 288 * j + 288)]) / PER_H
+            out["responsibility_short_mwh"] = _r(short, 2)
         return out
 
     # ---- submissions -------------------------------------------------------------------------------------------
@@ -704,14 +819,85 @@ class Session:
         return out[:8]
 
     def _t_submit_dam_offers(self, curves=None, day=None, as_offers=None) -> dict:
-        if as_offers is not None and self.layer == "v2":
-            return {"error": "layer: AS offers arrive with the v3 desk; this desk is energy only"}
-        return self._submit("submit_dam_offers", day, curves, True)
+        return self._offers("submit_dam_offers", day, curves, as_offers, True)
 
     def _t_submit_rt_offers(self, curves=None, day=None, as_offers=None) -> dict:
+        return self._offers("submit_rt_offers", day, curves, as_offers, True)
+
+    def _offers(self, tool: str, day, curves, as_offers, apply: bool) -> dict:
         if as_offers is not None and self.layer == "v2":
             return {"error": "layer: AS offers arrive with the v3 desk; this desk is energy only"}
-        return self._submit("submit_rt_offers", day, curves, True)
+        if curves is None and as_offers is None:
+            return {"error": "args: give curves, as_offers or both"}
+        out = self._submit(tool, day, curves, apply) if curves is not None else {}
+        if as_offers is not None:
+            out.update(self._submit_as(tool, day, as_offers, apply))
+        return out
+
+    def _submit_as(self, tool: str, day, items, apply: bool) -> dict:
+        """AS offers per hour and product: [{"hours", "product", "blocks": [[mw, $/MW/h], ...]}] (the same blocks each
+        hour; [] cancels) or [{"hours", "product", "mw": [...], "price": [...]}] (one block per hour; 0 MW cancels)."""
+        e = self.engine
+        j = self._day(day if day is not None else (0 if self.now < 0 else None))
+        market = "dam" if tool == "submit_dam_offers" else "rt"
+        if market == "rt" and not self.rtcb:
+            return {"as_rejected": [{"hours": "all", "code": "ASO-06",
+                                     "text": "no real-time AS market before RTC+B: DAM awards are your responsibility"}]}
+        if not isinstance(items, list) or not items:
+            return {"as_rejected": [{"hours": None, "code": "ASO-02", "text": "as_offers is a list of objects"}]}
+        cap = self.caps[market]
+        accepted, rejected, changes = [], [], []
+        for it in items:
+            if not isinstance(it, dict):
+                rejected.append({"hours": None, "code": "ASO-02", "text": "each AS offer is an object"})
+                continue
+            try:
+                hours = clock.parse_hours(it.get("hours", "all"))
+            except clock.TimeError as ex:
+                rejected.append({"hours": it.get("hours"), "code": "ASO-07", "text": str(ex)})
+                continue
+            p = it.get("product")
+            per_hour = "mw" in it or "price" in it
+            if per_hour:
+                mw, pr = it.get("mw"), it.get("price")
+                if not isinstance(mw, list) or not isinstance(pr, list) or not len(mw) == len(pr) == len(hours):
+                    rejected.append({"hours": it.get("hours"), "code": "ASO-02",
+                                     "text": "mw and price must be lists with one value per hour"})
+                    continue
+            for n_h, h in enumerate(hours):
+                H = 24 * j + h - 1
+                blocks = ([] if not mw[n_h] else [[mw[n_h], pr[n_h]]]) if per_hour else it.get("blocks")
+                why = [] if blocks == [] and p in e.products else asv.check_as_offer(
+                    p, blocks, cap, e.range_mw, self.ser.dates[j])
+                if market == "dam" and e.dam_close(j) <= self.now:
+                    why = [{"code": "ASO-06", "text": f"the DAM for {self.ser.dates[j]} closed"}] + why
+                if market == "rt" and (self.now < e.adj_open(H) or self.now >= 60 * (H + 1)):
+                    why = [{"code": "ASO-06", "text": f"{clock.he(h)} is not open for RT AS offers"}] + why
+                if why:
+                    rejected.append({"hours": clock.he(h), "product": p, **why[0]})
+                    continue
+                accepted.append(f"{asv.NAMES[p]} {clock.he(h)}")
+                changes.append((H, p, [[float(a), float(b)] for a, b in blocks]))
+            mw = pr = None
+        if apply:
+            for H, p, bl in changes:
+                if market == "dam":
+                    if bl:
+                        e.dam_as_offer[H][p] = bl
+                    else:
+                        e.dam_as_offer[H].pop(p, None)
+                else:
+                    e.rt_as_offer[H].append((self.now, {p: bl}))
+            if changes:
+                self.valid = True
+                self.submissions.append({"t": self.now, "tool": tool, "day": f"D{j}", "as": True,
+                                         "hours": sorted({H % 24 + 1 for H, _, _ in changes}), "accepted": True,
+                                         "codes": sorted({r["code"] for r in rejected})})
+        by_p: dict[str, list[int]] = {}
+        for H, p, _ in changes:
+            by_p.setdefault(asv.NAMES[p], []).append(H % 24 + 1)
+        return {"as_accepted": {k: clock.hours_label(sorted(set(v))) for k, v in by_p.items()},
+                "as_rejected": self._compact_rejects(rejected)}
 
     def _cop_check(self, j: int, rows, apply: bool) -> dict:
         e, s = self.engine, self.site
@@ -720,6 +906,12 @@ class Session:
         new = {k: list(v) for k, v in e.cop.items()}
         accepted, rejected, touched = [], [], set()
         statuses = STATUSES_POST if self.rtcb else STATUSES_PRE
+        if any(isinstance(r, dict) and "as_capability" in r for r in rows):
+            if self.layer == "v2":
+                return {"error": "layer: AS capability arrives with the v3 desk; this desk is energy only"}
+            if not self.rtcb:
+                return {"error": "rule: before RTC+B the COP carries AS Resource Responsibility, which follows your "
+                                 "DAM AS awards here"}
         keys = {"status": "status", "hsl_mw": "hsl", "lsl_mw": "lsl", "hbsoc_mwh": "hbsoc",
                 "min_soc_mwh": "min_soc", "max_soc_mwh": "max_soc"}
         for row in rows:
@@ -731,7 +923,7 @@ class Session:
             except clock.TimeError as ex:
                 rejected.append({"hours": row.get("hours"), "code": "COP-00", "text": str(ex)})
                 continue
-            unknown = [k for k in row if k not in keys and k != "hours"]
+            unknown = [k for k in row if k not in keys and k not in ("hours", "as_capability")]
             if unknown:
                 rejected.append({"hours": row.get("hours"), "code": "COP-00",
                                  "text": f"unknown fields {unknown}" + ("; AS capability arrives with v3"
@@ -764,6 +956,17 @@ class Session:
                                 break
                             new[f][H] = float(v)
                 else:
+                    if "as_capability" in row:
+                        capd = row["as_capability"]
+                        bad_cap = (not isinstance(capd, dict) or any(
+                            p not in e.products or not isinstance(v, int | float) or isinstance(v, bool)
+                            or not 0 <= v <= e.range_mw + 1e-6 for p, v in capd.items()))
+                        if bad_cap:
+                            rejected.append({"hours": clock.he(h), "code": "COP-06",
+                                             "text": f"as_capability maps products {list(e.products)} to MW in "
+                                                     f"[0, {e.range_mw:g}]"})
+                            continue
+                        new["as_cap"][H] = dict(new["as_cap"][H], **{p: float(v) for p, v in capd.items()})
                     touched.add(H)
         bad: dict[int, dict] = {}
         for H in sorted(touched):
@@ -817,7 +1020,7 @@ class Session:
             out = self._cop_check(j, payload.get("rows"), False)
         elif kind in ("dam", "rt"):
             tool = "submit_dam_offers" if kind == "dam" else "submit_rt_offers"
-            out = self._submit(tool, payload.get("day"), payload.get("curves"), False)
+            out = self._offers(tool, payload.get("day"), payload.get("curves"), payload.get("as_offers"), False)
             if kind == "dam" and "error" not in out and out.get("accepted_hours"):
                 j = self._day(payload.get("day") if payload.get("day") is not None else (0 if self.now < 0 else None))
                 p50 = fcm.views(self.ser, self.fc, self.now)["dam"].p50
@@ -835,7 +1038,7 @@ class Session:
             return {"error": "args: kind is dam, rt or cop"}
         if "error" in out:
             return out
-        out["ok"] = not out["rejected"]
+        out["ok"] = not out.get("rejected") and not out.get("as_rejected")
         return out
 
     def _t_optimize(self, price_view="desk", risk: float = 0.5, constraints: dict | None = None) -> dict:
@@ -843,7 +1046,8 @@ class Session:
             return {"error": "args: risk is a number in [0, 1]"}
         if constraints is not None and not isinstance(constraints, dict):
             return {"error": "args: constraints is an object"}
-        out = propose(self.engine, self.now, fcm.views(self.ser, self.fc, self.now), price_view, risk, constraints)
+        out = propose(self.engine, self.now, fcm.views(self.ser, self.fc, self.now), price_view, risk, constraints,
+                      self.fc)
         out.pop("_plans", None)
         return out
 
@@ -863,6 +1067,13 @@ class Session:
 
     # ---- results -------------------------------------------------------------------------------------------------
 
+    def ancillary_record(self) -> dict | None:
+        e = self.engine
+        if not e.ancillary:
+            return None
+        return {"dam_as": e.dam_as, "rt_as": e.rt_as if self.rtcb else None, "short": e.as_short, "druc": e.druc,
+                "pv": e.pv if self.site.pv_mw > 0 else None}
+
     def compliance(self) -> dict:
         late = 0
         for ev in self.ser.unit_events:
@@ -871,7 +1082,10 @@ class Session:
                 continue
             if not any(t0 <= t <= t0 + COP_LATE_MIN for t in self.cop_updates):
                 late += 1
-        return {"cop_late": late}
+        out = {"cop_late": late}
+        if self.engine.ancillary:
+            out["deployment_short_mwh"] = round(sum(self.engine.deploy_short) / PER_H, 3)
+        return out
 
     def episode(self, policy: dict | None = None, usage: dict | None = None, grade: dict | None = None) -> dict:
         e = self.engine
@@ -880,9 +1094,16 @@ class Session:
             hs, ks = slice(24 * j, 24 * j + 24), slice(288 * j, 288 * j + 288)
             dam[d] = {"spp": self.ser.dam_spp[hs], "award_mw": e.dam_award[hs],
                       "curves": [e.dam_curve[H] for H in range(24 * j, 24 * j + 24)]}
+            if e.ancillary:
+                dam[d]["as_award_mw"] = e.dam_as[hs]
             rt[d] = {"lmp": self.ser.rt_lmp[ks], "spp": self.ser.rt_spp[96 * j:96 * j + 96],
                      "base_point_mw": e.bp[ks], "metered_mw": e.metered[ks],
                      "soc_mwh": [round(x, 3) for x in e.soc[288 * j:288 * j + 289]], "curve_source": e.source[ks]}
+            if e.ancillary:
+                rt[d]["as_award_mw"] = e.rt_as[ks] if self.rtcb else None
+                rt[d]["deploy_short_mw"] = e.deploy_short[ks]
+            if self.site.pv_mw > 0:
+                rt[d]["pv_mw"] = e.pv[ks]
         site = self.task["site"]
         return {"schema": EPISODE_SCHEMA, "task_id": self.task["task_id"], "layer": self.layer, "era": self.era,
                 "dates": self.ser.dates,
