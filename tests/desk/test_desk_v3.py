@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from gridsim_core.desk import Session, ancillary, fixtures, policies, refs, text
+from gridsim_core.desk import Session, ancillary, clock, fixtures, policies, refs, text
 from gridsim_core.desk.curves import clear
 
 POST, PRE = "2026-02-14", "2025-08-14"
@@ -115,3 +115,12 @@ def test_pv_site():
     for k in range(s.engine.K):
         assert s.engine.metered[k] + s.engine.pv[k] <= task["site"]["pv"]["poi_mw"] + 1e-6
     assert "pv_mw" in json.loads(text(s.episode()))["site"] or True
+
+
+def test_operator_replay_with_simultaneous_as_updates():
+    task, series = fixtures.make(POST, seed=1, layer="v3")
+    d = task["dates"][0]
+    t = clock.to_iso(300.3, d)
+    series["operator"]["sced"][d]["as_offer_updates"] = [{"t": t, "product": "regup", "blocks": [[10, 1.0]]},
+                                                         {"t": t, "product": "ecrs", "blocks": [[5, 2.0]]}]
+    assert refs.operator_replay(task, series)["p"] is not None

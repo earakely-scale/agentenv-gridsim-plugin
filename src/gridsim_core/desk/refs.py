@@ -186,7 +186,7 @@ def _carry(e: Engine) -> None:
     """The disclosure lists SCED curves and AS offers only where they changed: carry the last one at or before each
     hour's start into that hour, so an hour without its own row keeps the operator's real-time curve."""
     for books in (e.rt, e.rt_bid, e.rt_as_offer):
-        rows = sorted((t, c) for H in range(e.H) for t, c in books[H])
+        rows = sorted(((t, c) for H in range(e.H) for t, c in books[H]), key=lambda r: r[0])
         if not rows:
             continue
         for H in range(e.H):
