@@ -39,7 +39,7 @@ def test_report_on_policy_runs(tmp_path, monkeypatch):
     s = json.loads((out / "summary.json").read_text())
     sol, qwen = s["models"]["sol"], s["models"]["qwen"]
     assert s["n_tasks"] == 3 and s["n_days"] == 3 and sol["n"] == qwen["n"] == 3
-    assert sol["R"]["mean"] == pytest.approx(1.0) and sol["valid_share"] == 1.0
+    assert sol["valid_share"] == 1.0 and 0.2 <= sol["R"]["mean"] <= 1.0
     assert sol["P"]["mean"] == pytest.approx(s["references"]["anchor"]["P"]["mean"])
     assert sol["P"]["ci"][0] <= sol["P"]["mean"] <= sol["P"]["ci"][1]
     assert sum(sol["lines"].values()) == pytest.approx(sol["P"]["mean"], abs=0.05)

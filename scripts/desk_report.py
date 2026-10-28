@@ -598,6 +598,12 @@ def bullets(summary: dict) -> list[str]:
     return out[:5]
 
 
+def anchor_note(refs_by: dict, days: dict) -> list[str]:
+    c = Counter(f"risk {x['anchor_setting']['risk']}, DAM position {x['anchor_setting']['dam_position']}"
+                if x.get("anchor_setting") else "setting not recorded" for t, x in refs_by.items() if t in days)
+    return [k if len(c) == 1 else f"{k} ×{v}" for k, v in c.items()]
+
+
 def plural(n: int) -> str:
     return "" if n == 1 else "s"
 
@@ -715,6 +721,7 @@ def main() -> None:
     ap.add_argument("--run", action="append", required=True, metavar="NAME=DIR")
     ap.add_argument("--pilot", action="append", default=[], metavar="DIR")
     ap.add_argument("--regrade", action="store_true", help="grade every episode against the pack's frozen refs")
+    ap.add_argument("--refs", help="a refs.jsonl ({task_id, refs} per line) that overrides the pack's task refs")
     ap.add_argument("--hero", help="MODEL or MODEL:TASK_ID for the timeline (default: the best Sol episode by C)")
     ap.add_argument("--notes", help="a file of README bullets (one per line) instead of the generated ones")
     ap.add_argument("--no-copy", action="store_true")
@@ -730,17 +737,28 @@ def main() -> None:
         pack_tasks = {t["task_id"]: t for t in load_tasks(a.pack)}
     except (FileNotFoundError, OSError):
         pack_tasks = {}
+    refs_by = {t: x["refs"] for t, x in pack_tasks.items() if x.get("refs")}
+    if a.refs:
+        refs_by.update({x["task_id"]: x["refs"] for x in read_jsonl(Path(a.refs))})
     grades, days, eps_any = {}, {}, {}
-    regraded = Counter()
+    regraded, diffs, unrefd = Counter(), [], Counter()
     for name, run in runs.items():
         grades[name] = {}
         for tid, r in run["rows"].items():
             ep = run["episodes"].get(tid)
             g = r["grade"]
-            refs = (pack_tasks.get(tid) or {}).get("refs")
+            refs = refs_by.get(tid)
+            if a.regrade and not (refs and ep):
+                unrefd[name] += 1
             if a.regrade and refs and ep:
                 g2 = regrade(g, ep, refs)
                 regraded[name] += int(abs(g2["reward"] - g["reward"]) > 1e-6)
+                d = {k: (g.get(k), g2.get(k)) for k in ("reward", "capture", "capture_phys", "p", "p_anchor", "p_hind",
+                                                       "p_hind_phys", "floored")
+                     if (g.get(k) is None) != (g2.get(k) is None) or (g.get(k) is not None and abs(
+                         float(g[k]) - float(g2[k])) > (1e-3 if k in ("reward", "capture", "capture_phys") else 0.005))}
+                if d:
+                    diffs.append({"model": name, "task_id": tid, "changed": d})
                 g = g2
             grades[name][tid] = g
             days[tid] = days_of(tid, ep)
@@ -794,14 +812,20 @@ def main() -> None:
         "missing": {name: sorted(set(pack_tasks) - set(grades[name])) for name in runs} if pack_tasks else None,
         "ci": {"method": "day-block bootstrap, task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
         "models": models, "references": ref_block(union, days), "paired": pairs, "pilot": pilot or None,
-        "regraded": {"applied": a.regrade, "reward_changed": dict(regraded)},
+        "regraded": {"applied": a.regrade, "refs": a.refs or ("pack task rows" if a.regrade else None),
+                     "reward_changed": dict(regraded), "not_regraded": dict(unrefd), "diffs": diffs,
+                     "anchor_settings": dict(Counter(json.dumps(x.get("anchor_setting"), sort_keys=True)
+                                                     for t, x in refs_by.items() if t in days)),
+                     "core_versions": dict(Counter(x.get("core_version") for t, x in refs_by.items() if t in days))},
         "copies": copies,
         "method": {"sites": len({site_key(t) for t in union}),
                    "eras": sorted({e.get("era", "?") for e in eps_all}),
                    "core_versions": ", ".join(sorted({e.get("core_version", "?") for e in eps_all})),
                    "budget": ", ".join(f"{k} {v}" for k, v in (budget or {}).items()) or "the layer's",
-                   "grading": "R graded against the pack's frozen refs, replayed from each Episode JSON"
-                   if a.regrade else "grades as the runner wrote them (refs from the task row or recomputed)",
+                   "grading": f"every grade replayed from its Episode JSON against the frozen refs "
+                   f"({'`' + a.refs + '`' if a.refs else 'the pack task rows'}; anchor "
+                   f"{', '.join(anchor_note(refs_by, days))})" if a.regrade else
+                   "grades as the runner wrote them (refs from the task row or recomputed)",
                    "calls_note": (f"; per-call logs `runs/<model>/calls/*.jsonl.gz` (not copied for "
                                   f"{', '.join(skipped)}: over {CALLS_MAX_MB} MB)" if skipped else
                                   "; per-call logs `runs/<model>/calls/*.jsonl.gz`") if copies else "",
