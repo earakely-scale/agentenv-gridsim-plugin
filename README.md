@@ -141,7 +141,8 @@ end-of-day energy and capacity-short lines are modelled; the packs are small, wi
 | `scripts/desk_data_*.py` | the desk's packs, sites, calibration and forecasts from ERCOT's public reports |
 | `data/desk/` | the desk's packs (`tasks.jsonl.gz`, `manifest.json` and the series), the site registry and the calibration |
 | `results/desk-v2/` to `desk-v5/`, `results/desk-refs/` | each version's results and the frozen references they were graded against |
-| `scripts/hub_desk.py`, `hub_desk_hero.py`, `hub_dataset.py`, `hub_article.py`, `hub/` | the Hugging Face dataset and card, the desk GIFs, the article, and the viewer Space's desk page |
+| `scripts/hub_desk.py`, `hub_desk_hero.py`, `hub_dataset.py`, `hub_article.py`, `hub/` | the Hugging Face dataset and card, the desk GIFs and the article |
+| `scripts/hub_space.py`, `src/agentenv_gridsim/web/desk/` | the viewer Space: 3D replays of every desk run and the results pages |
 | `docs/CONTRACT-desk.md`, `docs/desk-data.md`, `docs/prereg/` | the desk's contract, its data pipeline and the pre-registrations |
 | `tests/desk/`, `tests/env_desk/` | the desk's offline tests and the AgentEnv parity tests |
 | everything else | v1 and the pre-desk previews ([v1](#v1)) |
