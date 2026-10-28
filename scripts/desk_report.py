@@ -170,6 +170,7 @@ def behaviour(ep: dict) -> dict:
 AS_NAMES = {"RegUp": "regup", "RegDn": "regdn", "RRS-FFR": "rrsffr", "RRS-PFR": "rrspfr", "ECRS": "ecrs",
             "Non-Spin": "nspin"}
 AS_LABEL = {v: k for k, v in AS_NAMES.items()}
+EMPTY_AS_TEXT = "as_offers is a list of objects"
 
 
 def ancillary(ep: dict) -> dict | None:
@@ -177,15 +178,23 @@ def ancillary(ep: dict) -> dict | None:
     d0 = ep["dates"][0]
     if "as_award_mw" not in ep["dam"].get(d0, {}) and "as_award_mw" not in ep["rt"].get(d0, {}):
         return None
-    acc, rej = Counter(), Counter()
+    acc, rej, empty = Counter(), Counter(), 0
     for t in ep["turns"]:
         for c in t["calls"]:
-            if c["tool"] not in ("submit_dam_offers", "submit_rt_offers") or not isinstance(c.get("result"), dict):
+            if c["tool"] not in ("submit_dam_offers", "submit_rt_offers", "check_submission") \
+                    or not isinstance(c.get("result"), dict):
+                continue
+            bad = c["result"].get("as_rejected") or []
+            if (c.get("args") or {}).get("as_offers") == [] and any(
+                    isinstance(x, dict) and x.get("code") == "ASO-02" and x.get("text") == EMPTY_AS_TEXT for x in bad):
+                empty += 1
+                bad = [x for x in bad if not (isinstance(x, dict) and x.get("text") == EMPTY_AS_TEXT)]
+            if c["tool"] == "check_submission":
                 continue
             mkt = "dam" if c["tool"] == "submit_dam_offers" else "rt"
             for k in c["result"].get("as_accepted") or {}:
                 acc[f"{mkt}:{AS_NAMES.get(k, k)}"] += 1
-            for x in c["result"].get("as_rejected") or []:
+            for x in bad:
                 rej[x.get("code", "?") if isinstance(x, dict) else "?"] += 1
     dam, rt = Counter(), Counter()
     for d in ep["dates"]:
@@ -193,7 +202,8 @@ def ancillary(ep: dict) -> dict | None:
             dam.update({k: v for k, v in (h or {}).items() if v})
         for i in ep["rt"].get(d, {}).get("as_award_mw") or []:
             rt.update({k: v / 12 for k, v in (i or {}).items() if v})
-    return {"accepted": dict(acc), "rejected_codes": dict(rej), "dam_mwh": dict(dam), "rt_mwh": dict(rt)}
+    return {"accepted": dict(acc), "rejected_codes": dict(rej), "dam_mwh": dict(dam), "rt_mwh": dict(rt),
+            "empty_as_flagged": empty}
 
 
 def mean_counter(cs: list[dict]) -> dict:
@@ -260,6 +270,7 @@ def model_block(run: dict, grades: dict, days: dict) -> dict:
         "cop_late": round(float(np.mean([b["cop_late"] for b in beh])), 2) if beh else None,
         "ancillary": {"offers_accepted": mean_counter([x["accepted"] for x in anc]),
                       "rejected_codes_total": sum_counter([x["rejected_codes"] for x in anc]),
+                      "empty_as_flagged_total": sum(x.get("empty_as_flagged", 0) for x in anc),
                       "dam_award_mwh": mean_counter([x["dam_mwh"] for x in anc]),
                       "rt_award_mwh": mean_counter([x["rt_mwh"] for x in anc]),
                       "episodes_with_awards": sum(1 for x in anc if x["dam_mwh"] or x["rt_mwh"])}
@@ -719,7 +730,8 @@ def as_md(ms: dict) -> str:
                          f"{a['rt_award_mwh'].get(p, 0):,.1f}"])
         codes = ", ".join(f"{c} ×{v}" for c, v in list(a["rejected_codes_total"].items())[:4]) or "none"
         rows.append([NAMES.get(k, k), "all", "", "", "", f"{a['episodes_with_awards']}/{m['n']} episodes with an AS "
-                     f"award; AS rejections: {codes}"])
+                     f"award; AS offers refused: {codes}; empty `as_offers` list flagged (env defect, energy "
+                     f"unaffected): {a.get('empty_as_flagged_total', 0)} calls"])
     if not rows:
         return ""
     return "\n".join(["### Ancillary services (mean per episode)", "",
@@ -806,6 +818,7 @@ def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
                          for k, m in ms.items())
     attempts = ", ".join(f"{NAMES.get(k, k)} ${m['cost_usd']['total_all_attempts']:.2f} ({m['cost_usd']['attempts']})"
                          for k, m in ms.items())
+    defects = "".join(f"- Known env defects (frozen for this version): {d}\n" for d in summary.get("defects") or [])
     pilot = ""
     if summary.get("pilot"):
         pilot = "\n## Pilot\n\nThe pilot pack, graded as the runner wrote it (not in the tables above).\n\n" + table(
@@ -865,7 +878,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
   dispatch, the operator's disclosed curves replayed through our clearing, and the operator's disclosed awards and
   telemetry settled directly.
 - Cost is the runner's metered API cost of the scored attempts; all attempts (count): {attempts}.
-- Raw outputs: `runs/<model>/results.jsonl.gz`, `episodes/<model>/*.json.gz` (Episode JSON
+{defects}- Raw outputs: `runs/<model>/results.jsonl.gz`, `episodes/<model>/*.json.gz` (Episode JSON
   `gridsim.desk.episode/v1`){meth['calls_note']}. Core {meth['core_versions']}.
 """
 
@@ -881,6 +894,7 @@ def main() -> None:
     ap.add_argument("--hero", help="MODEL or MODEL:TASK_ID for the timeline (default: the best Sol episode by C)")
     ap.add_argument("--exclude-day", action="append", default=[], metavar="DATE",
                     help="post hoc: also report means without these operating days (Sensitivity section)")
+    ap.add_argument("--defect", action="append", default=[], help="a known env defect, listed under the method")
     ap.add_argument("--notes", help="a file of README bullets (one per line) instead of the generated ones")
     ap.add_argument("--no-copy", action="store_true")
     ap.add_argument("--out", required=True)
@@ -970,7 +984,7 @@ def main() -> None:
         "missing": {name: sorted(set(pack_tasks) - set(grades[name])) for name in runs} if pack_tasks else None,
         "ci": {"method": "day-block bootstrap, task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
         "models": models, "references": ref_block(union, days), "paired": pairs, "pilot": pilot or None,
-        "sensitivity": sensitivity(grades, days, union, a.exclude_day),
+        "sensitivity": sensitivity(grades, days, union, a.exclude_day), "defects": a.defect or None,
         "regraded": {"applied": a.regrade, "refs": a.refs or ("pack task rows" if a.regrade else None),
                      "reward_changed": dict(regraded), "not_regraded": dict(unrefd), "diffs": diffs,
                      "anchor_settings": dict(Counter(json.dumps(x.get("anchor_setting"), sort_keys=True)

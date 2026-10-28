@@ -70,20 +70,20 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 | GPT-6.1 Sol | RRS-PFR | 0.00 | 0.58 | 0.0 | 0.0 |
 | GPT-6.1 Sol | ECRS | 0.17 | 2.42 | 9.0 | 25.0 |
 | GPT-6.1 Sol | Non-Spin | 0.21 | 3.88 | 43.9 | 54.6 |
-| GPT-6.1 Sol | all |  |  |  | 24/24 episodes with an AS award; AS rejections: ASO-02 ×80 |
+| GPT-6.1 Sol | all |  |  |  | 24/24 episodes with an AS award; AS offers refused: ASO-02 ×24; empty `as_offers` list flagged (env defect, energy unaffected): 56 calls |
 | GPT-6 Luna | RegUp | 0.12 | 1.12 | 0.0 | 0.0 |
 | GPT-6 Luna | RegDn | 0.00 | 0.54 | 0.0 | 0.0 |
 | GPT-6 Luna | RRS-FFR | 0.00 | 0.54 | 0.0 | 0.0 |
 | GPT-6 Luna | RRS-PFR | 0.00 | 0.54 | 0.0 | 0.0 |
 | GPT-6 Luna | ECRS | 0.00 | 0.54 | 0.0 | 0.1 |
 | GPT-6 Luna | Non-Spin | 0.00 | 0.75 | 0.0 | 1.1 |
-| GPT-6 Luna | all |  |  |  | 6/24 episodes with an AS award; AS rejections: ASO-02 ×208 |
+| GPT-6 Luna | all |  |  |  | 6/24 episodes with an AS award; AS offers refused: ASO-02 ×111; empty `as_offers` list flagged (env defect, energy unaffected): 97 calls |
 | Qwen3-4B (base) | RegUp | 0.17 | 0.42 | 50.2 | 82.2 |
 | Qwen3-4B (base) | RegDn | 0.33 | 0.42 | 768.7 | 312.9 |
 | Qwen3-4B (base) | RRS-FFR | 0.08 | 0.33 | 60.5 | 20.2 |
 | Qwen3-4B (base) | ECRS | 0.08 | 0.25 | 5.0 | 10.3 |
 | Qwen3-4B (base) | Non-Spin | 0.29 | 0.25 | 40.3 | 20.6 |
-| Qwen3-4B (base) | all |  |  |  | 17/24 episodes with an AS award; AS rejections: ASO-02 ×36, ASO-06 ×15 |
+| Qwen3-4B (base) | all |  |  |  | 17/24 episodes with an AS award; AS offers refused: ASO-06 ×15, ASO-02 ×4; empty `as_offers` list flagged (env defect, energy unaffected): 32 calls |
 
 ## Sensitivity (post hoc, not pre-registered)
 
@@ -117,7 +117,7 @@ Mean P per operating day:
 
 - Sol and Luna are level: mean P $10,513 [−$3,566, $25,808] and $11,088 [$6,214, $17,463] per battery-day (Sol − Luna −$575 [−$10,087, +$8,917]), against the anchor's $11,936, idle's $6,276 (idle earns through ERCOT's proxy AS offers and the PV option) and the operator replay's $17,434.
 - One day weighs heavily on Sol: 2026-07-21 (day mean $41,142) is 65% of the sum of its six day means; without it Sol's mean P is $4,387, Luna's $8,156 and the anchor's $10,041. Sol has 7 loss tasks (worst −$44,564 on 2026-04-24-S04), Luna 3 (worst −$34,051), Qwen3-4B 4 (worst −$7,120).
-- Sol trades reserves and spreads: AS awards in 24 of 24 episodes and $3,417 per battery-day from the AS lines (DAM capacity $1,948, RT imbalance $1,469), and DAM energy +$46,812 against RT imbalance −$42,933 (DA/RT spread positions; DAM credit screening is not modelled). Luna's AS offers are mostly refused for their shape (ASO-02, 208 times), with awards in 6 of 24 episodes and $21 of AS revenue.
+- Sol trades reserves and spreads: AS awards in 24 of 24 episodes and $3,417 per battery-day from the AS lines (DAM capacity $1,948, RT imbalance $1,469), and DAM energy +$46,812 against RT imbalance −$42,933 (DA/RT spread positions; DAM credit screening is not modelled). Luna's AS offers fail the shape check 111 times (ASO-02: mw and price need one value per hour; Sol 24), with AS awards in 6 of 24 episodes and $21 of AS revenue.
 - C_phys is ill-conditioned on this pack: where the physical hindsight optimum barely beats idle (2026-04-11-S04: $147 above idle) the ratio explodes, so its means swing widely; the medians are Sol 0.11, Luna 0.12, Qwen3-4B 0.00.
 - Qwen3-4B (base, thinking off) submits a valid offer on 13 of 24 tasks (54%); R 0.20 [0.08, 0.31], C −0.013 [−0.044, 0.013], mean P $5,997, below idle, since its invalid episodes still earn through ERCOT's proxy AS offers and PV (mean $7,021); its most common rejection is EBOC-06, a submission outside its window (37 times).
 
@@ -145,5 +145,6 @@ The pilot pack, graded as the runner wrote it (not in the tables above).
   dispatch, the operator's disclosed curves replayed through our clearing, and the operator's disclosed awards and
   telemetry settled directly.
 - Cost is the runner's metered API cost of the scored attempts; all attempts (count): GPT-6.1 Sol $41.70 (24), GPT-6 Luna $3.52 (24), Qwen3-4B (base) $0.00 (24).
+- Known env defects (frozen for this version): an empty `as_offers` list is answered with a spurious ASO-02 note ("as_offers is a list of objects"); energy curves in the same call are accepted; fixed after the v3/v5 freeze. The AS table counts these calls separately and leaves them out of the refusals.
 - Raw outputs: `runs/<model>/results.jsonl.gz`, `episodes/<model>/*.json.gz` (Episode JSON
   `gridsim.desk.episode/v1`); per-call logs `runs/<model>/calls/*.jsonl.gz`. Core desk-2.1.

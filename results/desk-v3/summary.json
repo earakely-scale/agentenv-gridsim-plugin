@@ -2,7 +2,7 @@
  "schema": "gridsim.desk.report/v1",
  "layer": "v3",
  "pack": "desk-v3-eval",
- "generated": "2026-10-28T13:03:59Z",
+ "generated": "2026-10-28T13:07:29Z",
  "n_tasks": 24,
  "n_days": 6,
  "missing": {
@@ -162,8 +162,9 @@
      "dam:ecrs": 0.167
     },
     "rejected_codes_total": {
-     "ASO-02": 80
+     "ASO-02": 24
     },
+    "empty_as_flagged_total": 56,
     "dam_award_mwh": {
      "regdn": 663.646,
      "rrsffr": 202.917,
@@ -335,8 +336,9 @@
      "dam:regup": 0.125
     },
     "rejected_codes_total": {
-     "ASO-02": 208
+     "ASO-02": 111
     },
+    "empty_as_flagged_total": 97,
     "dam_award_mwh": {},
     "rt_award_mwh": {
      "nspin": 1.112,
@@ -501,9 +503,10 @@
      "dam:ecrs": 0.083
     },
     "rejected_codes_total": {
-     "ASO-02": 36,
-     "ASO-06": 15
+     "ASO-06": 15,
+     "ASO-02": 4
     },
+    "empty_as_flagged_total": 32,
     "dam_award_mwh": {
      "regdn": 768.704,
      "rrsffr": 60.483,
@@ -1023,6 +1026,9 @@
    }
   }
  },
+ "defects": [
+  "an empty `as_offers` list is answered with a spurious ASO-02 note (\"as_offers is a list of objects\"); energy curves in the same call are accepted; fixed after the v3/v5 freeze. The AS table counts these calls separately and leaves them out of the refusals."
+ ],
  "regraded": {
   "applied": true,
   "refs": "pack task rows",

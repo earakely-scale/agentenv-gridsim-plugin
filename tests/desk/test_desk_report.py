@@ -85,3 +85,17 @@ def test_grades_rows_reproduce_summary(tmp_path, monkeypatch):
         assert sum(r["floored"] for r in mine) == m["floored"]
         assert all(r["episode"] == f"episodes/{name}/{r['task_id']}.{r['tag']}.json.gz" for r in mine)
         assert all(sum(r["lines"].values()) == pytest.approx(r["p"], abs=0.05) for r in mine)
+
+
+def test_empty_as_offers_flag_is_not_a_refusal():
+    empty = {"code": "ASO-02", "text": desk_report.EMPTY_AS_TEXT}
+    shape = {"code": "ASO-02", "text": "mw and price must be lists with one value per hour"}
+    ep = {"dates": ["2026-05-26"], "dam": {"2026-05-26": {"as_award_mw": [{}] * 24}},
+          "rt": {"2026-05-26": {"as_award_mw": [{"regup": 12.0}] * 288}},
+          "turns": [{"calls": [
+              {"tool": "submit_rt_offers", "args": {"as_offers": []}, "result": {"as_rejected": [empty]}},
+              {"tool": "submit_rt_offers", "args": {"as_offers": [{"product": "regup"}]},
+               "result": {"as_accepted": {"RegUp": "HE01"}, "as_rejected": [shape]}}]}]}
+    a = desk_report.ancillary(ep)
+    assert a["empty_as_flagged"] == 1 and a["rejected_codes"] == {"ASO-02": 1}
+    assert a["accepted"] == {"rt:regup": 1} and a["rt_mwh"]["regup"] == pytest.approx(288.0)
