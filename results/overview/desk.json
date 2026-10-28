@@ -1479,7 +1479,8 @@
    },
    "rows": {
     "leaderboard": 9,
-    "runs": 96
+    "runs": 96,
+    "tasks": 46
    }
   },
   {
@@ -2838,7 +2839,8 @@
    },
    "rows": {
     "leaderboard": 9,
-    "runs": 72
+    "runs": 72,
+    "tasks": 26
    }
   },
   {
@@ -4409,7 +4411,8 @@
    },
    "rows": {
     "leaderboard": 9,
-    "runs": 48
+    "runs": 48,
+    "tasks": 17
    }
   },
   {
@@ -5843,7 +5846,8 @@
    },
    "rows": {
     "leaderboard": 9,
-    "runs": 72
+    "runs": 72,
+    "tasks": 26
    }
   }
  ],
