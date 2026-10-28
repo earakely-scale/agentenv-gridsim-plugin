@@ -69,37 +69,54 @@ The results, every run and every task are on the Hub:
 from datasets import load_dataset
 
 repo = "earakely-scale/GridSimEnv-AgentEnv"
-board = load_dataset(repo, "desk_leaderboard", split="v5")  # each model and reference, with CIs
-runs = load_dataset(repo, "desk_runs", split="v5")          # each model's every task
-tasks = load_dataset(repo, "desk_tasks", split="v5")        # every task, its site card and references
+board = load_dataset(repo, "desk_leaderboard", split="v4")  # each model and reference, with CIs
+runs = load_dataset(repo, "desk_runs", split="v4")          # each model's every task
+tasks = load_dataset(repo, "desk_tasks", split="v4")        # every task, its site card and references
 ```
 
 ## Results
 
-Hindsight capture C with its 95% CI, each model playing each task once under pre-registered settings:
+The desk climbs a ladder of three versions on the same tools and grading: v2 trades energy at the battery's own node,
+v3 adds ERCOT's reserves and a co-located solar option, v4 three operating days across a weather front. Hindsight
+capture C with its 95% CI, each model playing each task once under pre-registered settings:
 
-| Desk | v2, The Live Grid | v3, Sun, Storage and Reserves | v4, Weather Front | v5, The Market Floor |
+| Desk | v2, The Live Grid | v3, Sun, Storage and Reserves | v4, Weather Front |
+|---|---:|---:|---:|
+| GPT-6.1 Sol | 0.199 [0.033, 0.433] | 0.100 [−0.054, 0.266] | 0.346 [0.179, 0.592] |
+| GPT-6 Luna | 0.133 [0.097, 0.171] | 0.069 [0.028, 0.126] | 0.115 [0.073, 0.167] |
+| Qwen3-4B (untrained) | 0.005 [−0.035, 0.044] | −0.013 [−0.044, 0.013] | −0.007 [−0.021, 0.001] |
+| *Anchor* | 0.191 | 0.026 | 0.250 |
+| *The operator's bids, replayed* | 0.101 | 0.067 | 0.084 |
+
+Paired by task, GPT-6.1 Sol and GPT-6 Luna are within noise on single days (v2, v3) and Sol is clearly ahead on 3-day
+weather fronts (v4: +23.1 pts of hindsight capture, 95% CI [9.0, 48.0]). The untrained Qwen3-4B has the lowest capture
+throughout. One day in v2 (25 January 2026) and one front in v4 (winter storm Fern) carry more than half of GPT-6.1
+Sol's, GPT-6 Luna's and the anchor's total P; Sol and Luna made theirs from day-ahead sales bought back in real time,
+which the DAM allows because it ignores state of charge and which ERCOT's credit screening, not modelled here, would
+limit.
+
+**The price-impact check, v5.** v5 is a check, not a fourth step: v3's 24 battery-days again, with each day-ahead
+market re-cleared after the agent's own curves join ERCOT's disclosed offer stack for that day. For one 100–150 MW
+battery the impact is cents: GPT-6.1 Sol's own offers moved the day-ahead price −16.9¢/MWh on its sales, at most
+$1.35/MWh in any hour, about −$110 a battery-day. Every paired v5 − v3 difference is within noise, and GPT-6 Luna's
+0.088 against Sol's 0.081 (Sol − Luna −0.008 [−0.119, +0.106]) is a statistical tie, not a new ranking. The step that
+would make price impact matter is a fleet desk: a QSE trading a portfolio of batteries.
+
+| Desk | C, v3 | C, v5 check | v5 − v3, C | v5 − v3, P a battery-day |
 |---|---:|---:|---:|---:|
-| GPT-6.1 Sol | 0.199 [0.033, 0.433] | 0.100 [−0.054, 0.266] | 0.346 [0.179, 0.592] | 0.081 [−0.058, 0.235] |
-| GPT-6 Luna | 0.133 [0.097, 0.171] | 0.069 [0.028, 0.126] | 0.115 [0.073, 0.167] | 0.088 [0.045, 0.145] |
-| Qwen3-4B (untrained) | 0.005 [−0.035, 0.044] | −0.013 [−0.044, 0.013] | −0.007 [−0.021, 0.001] | −0.004 [−0.021, 0.009] |
-| *Anchor* | 0.191 | 0.026 | 0.250 | 0.026 |
-| *The operator's bids, replayed* | 0.101 | 0.067 | 0.084 | 0.067 |
-
-Paired by task, GPT-6.1 Sol and GPT-6 Luna differ in C with a CI that excludes zero only in v4, on 3-day weather fronts
-(Sol ahead); in v2, v3 and v5 they are close. The untrained Qwen3-4B has the lowest C in every version. One day in
-v2 (25 January 2026) and one front in v4 (winter storm Fern) carry more than half of GPT-6.1 Sol's, GPT-6 Luna's and
-the anchor's total P; Sol and Luna made theirs from day-ahead sales bought back in real time, which the DAM allows
-because it ignores state of charge and which ERCOT's credit screening, not modelled here, would limit. In v5 the
-desk's own offers move the day-ahead price by cents.
+| GPT-6.1 Sol | 0.100 | 0.081 | −0.020 [−0.070, +0.024] | −$2,030 [−$6,009, +$1,606] |
+| GPT-6 Luna | 0.069 | 0.088 | +0.020 [−0.011, +0.059] | +$5,919 [−$1,366, +$18,125] |
+| Qwen3-4B (untrained) | −0.013 | −0.004 | +0.009 [−0.023, +0.042] | +$459 [−$2,427, +$3,356] |
 
 Each version's numbers, with P in dollars, the paired gaps to the anchor and to the real operator, the statement lines
 and how each model traded, are on the [dataset card](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv)
 and in `results/desk-v<N>/`: its README, `summary.json`, `grades.jsonl.gz`, figures, raw runs and every Episode JSON.
-The viewer's results pages, [v2](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v2), [v3](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v3),
-[v4](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4) and [v5](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v5), list every task with a replay of each model's run.
-The results were committed under the tags `desk-v2-results`, `desk-v3-results`, `desk-v4-results` and
-`desk-v5-results`.
+The viewer's results pages for [v2](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v2),
+[v3](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v3) and
+[v4](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4), and for the
+[v5 price-impact check](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v5), list every task
+with a replay of each model's run. The results were committed under the tags `desk-v2-results`, `desk-v3-results`,
+`desk-v4-results` and `desk-v5-results`.
 
 ## The desk
 
@@ -108,7 +125,10 @@ The results were committed under the tags `desk-v2-results`, `desk-v3-results`, 
 | v2, The Live Grid | energy only: the DAM and real time at a real battery's own node, with ERCOT notices, NWS alerts and the battery's outages at their real minutes | `desk-v2-eval`, 32 battery-days | [`docs/prereg/v2-desk.md`](docs/prereg/v2-desk.md) |
 | v3, Sun, Storage and Reserves | ERCOT's five ancillary services in the DAM and real time, with state-of-charge duration rules, deployments and capacity-short charges; a co-located solar option (modelled) | `desk-v3-eval`, 24 battery-days | [`docs/prereg/v3-desk.md`](docs/prereg/v3-desk.md) |
 | v4, Weather Front | three operating days across a weather front, on ERCOT's forecasts as each was issued | `desk-v4-eval`, 16 3-day windows | [`docs/prereg/v4-desk.md`](docs/prereg/v4-desk.md) |
-| v5, The Market Floor | price impact: its DAM offers re-clear the day-ahead market against the day's real offers, disclosed 60 days later | `desk-v5-eval`, 24 battery-days | [`docs/prereg/v5-desk.md`](docs/prereg/v5-desk.md) |
+
+Beside the ladder, **v5 · price-impact check** (pre-registered as v5, The Market Floor) replays v3's battery-days with
+each day-ahead market re-cleared against the day's real offers, disclosed 60 days later, and the agent's own:
+`desk-v5-eval`, 24 battery-days, [`docs/prereg/v5-desk.md`](docs/prereg/v5-desk.md).
 
 **Eleven tools.** `get_prices`, `get_forecasts`, `get_grid_conditions` (ERCOT's public reports), `get_asset_status`
 (plant telemetry), `get_position` (the desk's book), `submit_dam_offers`, `submit_rt_offers`, `update_cop` and
@@ -126,9 +146,10 @@ before its first scored episode, piloted, then run once per model per task; `scr
 Episode JSON against frozen references, and deviations are logged in the pre-registration. The full rules are in
 [`docs/CONTRACT-desk.md`](docs/CONTRACT-desk.md), the data pipeline in [`docs/desk-data.md`](docs/desk-data.md).
 
-**Limitations.** DAM credit screening is not modelled; a known env defect (K1) in v3 to v5 gave an empty `as_offers`
-list a spurious ASO-02 note, with the energy curves accepted; the co-located solar profile, degradation, warranty,
-end-of-day energy and capacity-short lines are modelled; the packs are small, with one run per model per task.
+**Limitations.** DAM credit screening is not modelled; a known env defect (K1) in v3, v4 and the v5 check gave an
+empty `as_offers` list a spurious ASO-02 note, with the energy curves accepted; the co-located solar profile,
+degradation, warranty, end-of-day energy and capacity-short lines are modelled; the packs are small, with one run per
+model per task.
 
 ## Repository layout
 
