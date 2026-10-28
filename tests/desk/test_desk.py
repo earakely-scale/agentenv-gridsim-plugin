@@ -326,3 +326,60 @@ def test_reward_floor():
     assert floored and r == pytest.approx(0.6)
     assert refs.desk_reward(10000.0, 0.0, 10000.0, 50000.0) == (pytest.approx(1.0), False)
     assert refs.desk_reward(0.0, 0.0, 0.0, 0.0) == (1.0, False)
+
+
+def _labels(obj, out):
+    if isinstance(obj, dict):
+        for v in obj.values():
+            _labels(v, out)
+    elif isinstance(obj, list):
+        for v in obj:
+            _labels(v, out)
+    elif isinstance(obj, str) and clock._LABEL.match(obj):
+        out.append(obj)
+
+
+def test_every_shown_time_is_accepted_back(post):
+    s = policies.run(*post, "anchor")
+    shown = []
+    _labels(s.wakes, shown)
+    for t in s.turns:
+        _labels(t["wake"], shown)
+        for c in t["calls"]:
+            _labels(c["result"], shown)
+    _labels(s.events, shown)
+    assert len(shown) > 50
+    d0 = post[0]["dates"][0]
+    for v in set(shown):
+        assert clock.label(clock.parse_time(v, d0), d0) == v
+    with pytest.raises(clock.TimeError):
+        clock.parse_time("Mon 02-14 09:00", d0)
+    r = Session(*post)
+    r.start()
+    assert r.call("set_reminder", {"at": "Fri 02-13 09:30"})["at"] == "Fri 02-13 09:30"
+    assert r.call("set_reminder", {"at": "02-14 07:00"})["at"] == "Sat 02-14 07:00"
+
+
+@pytest.mark.parametrize("now,hour", [(270, "HE07"), (630, "HE13"), (1160, "HE22")])
+def test_deadline_names_the_next_open_freeze(post, now, hour):
+    s = Session(*post)
+    s.start()
+    s.advance_to(now)
+    cop = next(d for d in s._deadlines() if d["what"].startswith("COP"))
+    assert hour in cop["what"] and clock.parse_time(cop["at"], s.d0) > now
+
+
+def test_hourly_load_posts_after_the_hour():
+    task, series = fixtures.make(POST, seed=1, notices=False)
+    d0 = task["dates"][0]
+    hourly = [series["system"][d0]["load_mw"][12 * h] for h in range(24)]
+    series["system"][d0]["load_mw"] = [hourly[k // 12] for k in range(288)]
+    future = copy.deepcopy(series)
+    future["system"][d0]["load_mw"] = [x if k < 12 * 11 else x + 9999 for k, x in enumerate(
+        future["system"][d0]["load_mw"])]
+    a, b = Session(task, series), Session(task, future)
+    for s in (a, b):
+        s.start()
+        s.advance_to(11 * 60 + 30)
+    ga, gb = a.call("get_grid_conditions"), b.call("get_grid_conditions")
+    assert ga == gb and ga["load_mw"]["step"] == "1h" and ga["load_mw"]["last_hour"].startswith("HE11")

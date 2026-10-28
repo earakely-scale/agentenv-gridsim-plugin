@@ -73,7 +73,10 @@ wake-up; your submitted curves and COP stay in force meanwhile. You have {turns}
 Tools: get_prices, get_forecasts (the desk price forecasts are modelled P10/P50/P90), get_grid_conditions,
 get_asset_status, get_position, submit_dam_offers, submit_rt_offers, update_cop, check_submission, optimize (a
 co-optimiser that only sees the price view you give it; "desk" = the desk forecast) and set_reminder. Hours are HE01..HE24
-(hour ending). Only data already published is visible. Keep each turn short and end it when you are done."""
+(hour ending). Days: "D-1" is the day you start on (you trade the D0 DAM on it), "D0" is the operating day{later}.
+Times are accepted as shown ("Sun 04-26 09:00" or "04-26 09:00"), as "D-1 09:30" / "D0 14:35", or ISO.
+5-minute SCED LMPs are shown for your node; hubs and load zones as 15-minute RT SPPs.
+Only data already published is visible. Keep each turn short and end it when you are done."""
 
 
 def system_prompt(task: dict | Session, layer: str | None = None, budgets: dict | None = None) -> str:
@@ -97,4 +100,5 @@ def system_prompt(task: dict | Session, layer: str | None = None, budgets: dict 
                         rte=site.rte, d0=clock.day_label(0, d0), soc0=site.soc0, start=clock.label(clock.START, d0),
                         end=clock.label(clock.DAY * days, d0), deg=site.deg, cyc=site.warranty,
                         target=idle_end_soc(site, 288 * days), rules=rules, turns=budget["max_turns"],
-                        calls=budget["calls_per_turn"])
+                        calls=budget["calls_per_turn"],
+                        later="" if days == 1 else f" and D1..D{days - 1} the operating days after it")

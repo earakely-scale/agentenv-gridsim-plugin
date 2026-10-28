@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import copy
 
-_TIME = {"type": "string", "description": 'a time: "D0 14:35", "D-1 10:00", "14:35" (on the day) or ISO'}
-_DAY = {"type": "string", "description": '"D0", "D1", "D-1" (history) or an ISO date; default the day in progress'}
+_TIME = {"type": "string", "description": 'a time as shown ("Sun 04-26 09:00" or "04-26 09:00"), or "D0 14:35", '
+                                          '"D-1 10:00", "14:35" (on the day) or ISO'}
+_DAY = {"type": "string", "description": '"D0" (the operating day), "D-1" (the day you start on), "D1", "D2" (v4) '
+                                         'or an ISO date; default the day in progress'}
 _HOURS = {"description": 'operating hours: "HE07-HE10", "HE07", "all", or a list like [7, 8]',
           "anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "integer"}}]}
 _POINTS = {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},

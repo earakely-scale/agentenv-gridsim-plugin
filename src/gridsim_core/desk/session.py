@@ -40,6 +40,7 @@ MAX_VALUES = 96
 NOTICE_CHARS = 300
 NOTE_CHARS = 120
 COP_LATE_MIN = 60
+HOURLY_LAG = 1
 
 
 def text(obj) -> str:
@@ -587,10 +588,21 @@ class Session:
             if sysd:
                 rows.append((t, sysd, k))
         if rows:
-            for key in ("prc_mw", "lambda", "load_mw", "wind_mw", "solar_mw"):
+            for key in ("prc_mw", "lambda", "wind_mw", "solar_mw"):
                 vals = [r[1][key][r[2]] for r in rows if key in r[1] and r[1][key][r[2]] is not None]
                 if vals:
                     out[key] = {"last": _r(vals[-1], 1), "min": _r(min(vals), 1), "max": _r(max(vals), 1)}
+            hours = {}
+            for t, sysd, k in rows:
+                h_end = (t // 60 + 1) * 60
+                if h_end + HOURLY_LAG <= self.now and sysd.get("load_mw") and sysd["load_mw"][k] is not None:
+                    hours[t // 60] = sysd["load_mw"][k]
+            if hours:
+                vals = [hours[h] for h in sorted(hours)]
+                last = max(hours)
+                out["load_mw"] = {"last": _r(vals[-1], 1), "min": _r(min(vals), 1), "max": _r(max(vals), 1),
+                                  "step": "1h", "last_hour": f"{clock.he(last % 24 + 1)} "
+                                                             f"{clock.day_label(last // 24, self.d0)}"}
             kind = rows[-1][1].get("prc_kind")
             if "prc_mw" in out and kind:
                 out["prc_mw"]["kind"] = "real" if kind == "real" else "proxy (modelled from public SCED fields)"

@@ -19,6 +19,7 @@ SCED = 5
 _REL = re.compile(r"^D(-?\d+)\s+(\d{1,2}):(\d{2})$")
 _HHMM = re.compile(r"^(\d{1,2}):(\d{2})$")
 _HE = re.compile(r"^HE\s*(\d{1,2})$", re.I)
+_LABEL = re.compile(r"^(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+)?(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})$", re.I)
 _HE_RANGE = re.compile(r"^HE\s*(\d{1,2})\s*-\s*(?:HE)?\s*(\d{1,2})$", re.I)
 
 
@@ -59,7 +60,8 @@ def date_of(day: int, d0: str) -> str:
 
 
 def parse_time(value, d0: str, day: int = 0) -> int:
-    """A minute from D0 00:00 for "D-1 10:00", "14:35" (on `day`), an ISO timestamp, "HE07" (its start) or a number."""
+    """A minute from D0 00:00 for "Sun 04-26 09:00" or "04-26 09:00" (as shown), "D-1 10:00", "14:35" (on `day`), an
+    ISO timestamp, "HE07" (its start) or a number."""
     if isinstance(value, int | float) and not isinstance(value, bool):
         return int(value)
     if not isinstance(value, str) or not value.strip():
@@ -69,6 +71,8 @@ def parse_time(value, d0: str, day: int = 0) -> int:
         return int(m[1]) * DAY + int(m[2]) * 60 + int(m[3])
     if m := _HHMM.match(v):
         return day * DAY + int(m[1]) * 60 + int(m[2])
+    if m := _LABEL.match(v):
+        return _from_label(m, d0)
     if m := _HE.match(v):
         h = int(m[1])
         if not 1 <= h <= 24:
@@ -78,6 +82,23 @@ def parse_time(value, d0: str, day: int = 0) -> int:
         return int(round(to_minutes(v, d0)))
     except ValueError as e:
         raise TimeError(f"time {value!r} not understood") from e
+
+
+def _from_label(m: re.Match, d0: str) -> int:
+    """A minute for "Sun 04-26 09:00" or "04-26 09:00", the form the desk shows: the year nearest D0; a weekday that
+    does not match the date is an error."""
+    base = dt.date.fromisoformat(d0)
+    try:
+        cands = [dt.date(y, int(m[2]), int(m[3])) for y in (base.year - 1, base.year, base.year + 1)]
+    except ValueError as e:
+        raise TimeError(f"date {m[2]}-{m[3]} not understood") from e
+    day = min(cands, key=lambda d: abs((d - base).days))
+    if m[1] and day.strftime("%a").lower() != m[1].lower():
+        raise TimeError(f"{m[2]}-{m[3]} is a {day.strftime('%a')}, not a {m[1]}")
+    hh, mm = int(m[4]), int(m[5])
+    if hh > 24 or mm > 59:
+        raise TimeError(f"time {hh}:{mm:02d} not understood")
+    return (day - base).days * DAY + hh * 60 + mm
 
 
 def parse_day(value, d0: str, days: int, default: int) -> int:
