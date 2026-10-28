@@ -5,8 +5,8 @@ The agent is played through the framework's Episode API (an in-process ProxyAgen
 through the gateway as an agent's do, by:
 
 - a core policy (anchor, scripted or idle), $0: gridsim_core.desk.policies, its calls sent through the turn's tools;
-- llm: a model on LiteLLM's OpenAI-compatible endpoint (LITELLM_BASE_URL, LITELLM_API_KEY), its history kept across
-  turns, stopped at --max-cost.
+- llm: a model through scripts/desk_run.py's ModelAgent (path B''s model loop: preset, route, prompts, transcript and
+  spend cap), its credentials read in process as desk_run.py reads them (--gateway-env, --ssm-param).
 
 The first turn also sets a reminder (--reminder), which must wake the agent with the reason reminder. A shadow
 Session (path B') plays the same calls in process in lockstep. It fails unless every tool output and every
@@ -16,19 +16,22 @@ after the market ran to the end, and the verifier's reward equals the shadow's S
 
 Run it from the checkout after `agent-env gridsim setup`, with the dev extra installed:
 
-    python scripts/desk_e2e.py --pack PACK --task ID [--policy anchor|scripted|idle|llm] [--model ID]
-        [--out report.json]
+    python scripts/desk_e2e.py --pack PACK --task ID [--policy anchor|scripted|idle] [--out report.json]
+    python scripts/desk_e2e.py --pack PACK --task ID --policy llm --preset luna --gateway-env FILE --ssm-param NAME
+        [--max-usd 1]
 """
 
 import argparse
 import asyncio
 import json
-import os
 import sys
 import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import desk_run  # noqa: E402
 from agent_env.bundle.run import prepare_bundle
 from agent_env.store.routing import namespace_routing
 from agent_env.task import EpisodeSpec
@@ -38,8 +41,6 @@ from agentenv_gridsim.sweep import context
 from gridsim_core.desk import Session, grade, load_series, load_task, policies, system_prompt, text, tool_specs
 from gridsim_core.desk.clock import parse_time
 
-LUNA = "openai/gpt-6-luna"
-PRICE = {LUNA: (0.10, 0.50)}
 TURN_SECONDS = 1800
 
 
@@ -73,45 +74,38 @@ async def play_policy(policy, shadow: Shadow, wake: dict) -> str:
     return f"done at {wake['now']}"
 
 
-class LLM:
-    def __init__(self, model: str, system: str, tools: list, max_cost: float):
-        from openai import AsyncOpenAI
-        self.client = AsyncOpenAI(base_url=os.environ["LITELLM_BASE_URL"], api_key=os.environ["LITELLM_API_KEY"],
-                                  timeout=900)
-        self.model, self.max_cost, self.cost, self.usage = model, max_cost, 0.0, {"input": 0, "output": 0}
-        self.messages = [{"role": "system", "content": system}]
-        self.tools = [{"type": "function", "function": {"name": t.name, "description": t.description,
-                                                        "parameters": t.inputSchema}} for t in tools]
+class Model:
+    """The B' runner's model agent (scripts/desk_run.py ModelAgent: the same routes, prompts and transcript), its
+    tool calls sent through the turn's tools instead of to a Session; past its spend cap it ends every turn at once."""
 
-    async def turn(self, shadow: Shadow, prompt: str, calls_per_turn: int) -> str:
-        self.messages.append({"role": "user", "content": prompt})
-        for _ in range(calls_per_turn + 2):
-            if self.cost > self.max_cost:
-                raise RuntimeError(f"cost cap: ${self.cost:.4f} spent")
-            r = await self.client.chat.completions.create(model=self.model, messages=self.messages, tools=self.tools,
-                                                          reasoning_effort="high", max_completion_tokens=8192)
-            u = r.usage
-            self.usage["input"] += u.prompt_tokens
-            self.usage["output"] += u.completion_tokens
-            p_in, p_out = PRICE.get(self.model, (2.0, 10.0))
-            self.cost += (u.prompt_tokens * p_in + u.completion_tokens * p_out) / 1e6
-            msg = r.choices[0].message
-            self.messages.append(msg.model_dump(exclude_none=True))
-            if not msg.tool_calls:
-                return msg.content or ""
-            for c in msg.tool_calls:
-                try:
-                    args = json.loads(c.function.arguments or "{}")
-                    out = await shadow.call_async(c.function.name, args) if isinstance(args, dict) else \
-                        text({"error": "args: arguments must be an object"})
-                except json.JSONDecodeError as e:
-                    out = text({"error": f"args: not JSON: {e}"})
-                self.messages.append({"role": "tool", "tool_call_id": c.id, "content": out})
-        return "(tool rounds exhausted)"
+    def __init__(self, a, system: str, specs: list[dict]):
+        self.agent = desk_run.ModelAgent(a, desk_run.MODELS[a.preset], 0.0, system, specs)
+        self.capped: str | None = None
+
+    async def turn(self, shadow: Shadow, prompt: str, calls_per_turn: int) -> str | None:
+        if self.capped:
+            return None
+        self.agent.user(prompt)
+        reply = None
+        try:
+            for _ in range(calls_per_turn + 3):
+                reply, calls = await asyncio.to_thread(self.agent.step, lambda row: None)
+                if not calls:
+                    break
+                for call_id, name, raw in calls:
+                    try:
+                        args = json.loads(raw)
+                    except json.JSONDecodeError:
+                        out = text({"error": "args: arguments are not valid JSON"})
+                    else:
+                        out = await shadow.call_async(name, args)
+                    self.agent.result(call_id, out)
+        except desk_run.SpendCap as e:
+            self.capped = str(e)
+        return reply
 
 
-async def run(bundle: Path, name: str, task: dict, series: dict, policy: str, model: str, max_cost: float,
-              reminder: str | None) -> dict:
+async def run(bundle: Path, name: str, task: dict, series: dict, policy: str, model, reminder: str | None) -> dict:
     report = {"problems": [], "calls": 0, "wakes": []}
     shadow_session = Session(task, series)
     shadow = Shadow(shadow_session, asyncio.get_running_loop(), report)
@@ -143,9 +137,11 @@ async def run(bundle: Path, name: str, task: dict, series: dict, policy: str, mo
                     shadow.__dict__["_tools"] = tools
                     if k == 0 and reminder:
                         await shadow.call_async("set_reminder", {"at": reminder, "note": "desk_e2e reminder"})
-                    if policy == "llm":
-                        system = turn.system_prompt or system_prompt(shadow_session)
-                        llm = llm or LLM(model, system, tools.list(), max_cost)
+                    if model is not None:
+                        if turn.system_prompt != system_prompt(shadow_session):
+                            report["problems"].append(f"turn {k}: the system prompt is not core's")
+                        llm = llm or Model(model, system_prompt(shadow_session),
+                                           tool_specs(shadow_session.layer, shadow_session.rtcb))
                         reply = await llm.turn(shadow, turn.prompt, shadow_session.budget["calls_per_turn"])
                     else:
                         reply = await play_policy(policies.POLICIES[policy], shadow, wake)
@@ -181,7 +177,7 @@ async def run(bundle: Path, name: str, task: dict, series: dict, policy: str, mo
         report["problems"].append("the env's Episode JSON differs from the shadow's")
     report.update({"instance": episode.id, "scores": scores, "reward": g["reward"], "grade": g,
                    "hook": hooks, "seconds": round(time.monotonic() - started, 1),
-                   "usage": llm and {"model": model, **llm.usage, "cost_usd": round(llm.cost, 4)}})
+                   "usage": llm and {"model": llm.agent.model, **llm.agent.usage, "capped": llm.capped}})
     return report
 
 
@@ -190,17 +186,25 @@ def main() -> None:
     parser.add_argument("--pack", required=True, help="the desk pack (a name under data/desk/ or a folder)")
     parser.add_argument("--task", required=True, help="the task id")
     parser.add_argument("--policy", choices=[*policies.POLICIES, "llm"], default="anchor")
-    parser.add_argument("--model", default=LUNA, help="llm: the LiteLLM model id")
-    parser.add_argument("--max-cost", type=float, default=1.0, help="llm: stop past this many USD")
+    parser.add_argument("--preset", default="luna", help="llm: a scripts/desk_run.py model preset")
+    parser.add_argument("--gateway-env", help="llm: a file with a LITELLM_BASE_URL= line (as desk_run.py)")
+    parser.add_argument("--ssm-param", help="llm: the AWS SSM parameter holding the API key (as desk_run.py)")
+    parser.add_argument("--max-usd", type=float, default=1.0, help="llm: the episode's spend cap")
     parser.add_argument("--reminder", default="D0 14:35", help="a reminder the first turn sets ('' for none)")
     parser.add_argument("--image-pack", help="the pack's name inside the env image, when --pack is a folder")
     parser.add_argument("--out", type=Path, help="write the report here")
     args = parser.parse_args()
+    model = None
+    if args.policy == "llm":
+        model = argparse.Namespace(preset=args.preset, base_url=None, gateway_env=args.gateway_env,
+                                   ssm_param=args.ssm_param, aws_profile=None, aws_region=None, model=None, price=None,
+                                   effort=None, max_usd=args.max_usd, lane_cap_usd=None, max_tokens=None,
+                                   timeout=600.0)
     task = load_task(args.pack, args.task)
     series = load_series(args.pack, task)
     with tempfile.TemporaryDirectory() as tmp:
         desk_tasks.generate(args.pack, Path(tmp), task_ids=[args.task], image_pack=args.image_pack)
-        report = asyncio.run(run(Path(tmp), args.task, task, series, args.policy, args.model, args.max_cost,
+        report = asyncio.run(run(Path(tmp), args.task, task, series, args.policy, model,
                                  args.reminder or None))
     if args.out:
         args.out.write_text(json.dumps(report, indent=1, default=str) + "\n")
