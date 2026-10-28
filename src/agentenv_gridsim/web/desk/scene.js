@@ -50,8 +50,8 @@ export function sceneOf(T, E) {
     firstNeg: hours.findIndex((x) => x.neg && x.pvAvail > 1), prices: hours.map((x) => x.price),
     watches: E.wakes.map(([t, why], index) => ({ index, t: t / 60, notices: why.filter((r) => ["notice", "nws", "outage", "deployment"].includes(r)) })),
     wx, front: frontOf(wx), cold: !!wx && Math.min(...wx.temp) < 1.5, frostAt: (t) => sample(frost, t), snowAt: (t) => sample(snow, t), hubAt: () => null,
-    shotFill: (plant) => (plant ? ["establish", "high", "solar", "establish", "array", "high"] : ["establish", "high", "establish", "line", "high", "sub"]),
-    shotNight: ["high", "establish", "high", "line"],
+    shotFill: (plant) => (plant ? ["establish", "solar", "high", "array", "establish", "high"] : ["establish", "high", "establish", "high", "line"]),
+    shotNight: ["high", "establish", "high", "line"], eventShot: "high",
   };
   d.at = (t) => {
     const tt = clamp(t, 0, H - 1e-6), k = Math.floor(tt * 12), u = tt * 12 - k, h = Math.floor(tt);

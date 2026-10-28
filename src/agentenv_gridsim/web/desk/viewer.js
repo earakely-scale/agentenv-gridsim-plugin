@@ -120,13 +120,29 @@ function step(dt) {
 }
 
 let last = performance.now();
+const fps = { n: 0, s: 0 };
 function loop(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   S.wall += dt;
   step(dt);
   draw(dt);
+  adapt(dt);
   requestAnimationFrame(loop);
+}
+
+/** One step down on a slow machine: after four seconds under 40 frames a second, render at a pixel ratio of 1. */
+function adapt(dt) {
+  if (!stage || document.hidden || fps.done || !$("boot").classList.contains("gone")) return;
+  fps.n++;
+  fps.s += dt;
+  if (fps.s < 4) return;
+  fps.done = true;
+  if (fps.n / fps.s < 40 && stage.renderer.getPixelRatio() > 1) {
+    stage.renderer.setPixelRatio(1);
+    stage.composer.setPixelRatio(1);
+    stage.resize();
+  }
 }
 
 function draw(dt) {
@@ -228,9 +244,10 @@ function weather(f) {
   const chips = [];
   const sky = f.w?.plain ? describe(f.w) : "";
   if (sky) chips.push(`<span>${esc(sky)}</span>`);
-  if (D.front && Math.abs(t / 60 - D.front.t) < 2) chips.push(`<span class="alert">Cold front: ${Math.round((D.front.from - D.front.to) * 1.8)} °F colder within hours</span>`);
+  if (D.front && Math.abs(t / 60 - D.front.t) < 2) chips.push(`<span class="alert">Cold front: ${Math.round(D.front.drop * 1.8)} °F colder in 3 hours</span>`);
   if (M.pv && D.frostAt(t / 60) > 0.5) chips.push('<span class="alert">Ice on the panels</span>');
-  for (const a of M.alertsAt(t).slice(0, small() ? 2 : 4)) chips.push(`<span class="alert ${a.kind}" title="${a.kind === "nws" ? "NWS" : "ERCOT"}, issued ${esc(when(M.d0, a.issued, t))}">${a.kind === "nws" ? "NWS " : "ERCOT "}${esc(a.title)}</span>`);
+  const seen = new Set(), alerts = M.alertsAt(t).filter((a) => !seen.has(a.kind + a.title) && seen.add(a.kind + a.title));
+  for (const a of alerts.slice(0, small() ? 2 : 4)) chips.push(`<span class="alert ${a.kind}" title="${a.kind === "nws" ? "NWS" : "ERCOT"}, issued ${esc(when(M.d0, a.issued, t))}">${a.kind === "nws" ? "NWS " : "ERCOT "}${esc(a.title)}</span>`);
   for (const a of M.eventsAt(t)) chips.push(`<span class="alert ${a.kind}">${esc(a.title)}</span>`);
   const html = chips.join("");
   if ($("wx").dataset.html !== html) ($("wx").dataset.html = html), ($("wx").innerHTML = html);

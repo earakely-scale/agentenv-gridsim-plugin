@@ -29,7 +29,7 @@ export function buildCharts(M, host, { compare = false } = {}) {
   host.replaceChildren(svg);
   const legend = document.createElement("div");
   legend.className = "legend";
-  legend.innerHTML = `<span><i class="k dam"></i>Node DAM</span><span><i class="k sced"></i>SCED, 5-min</span><span><i class="k fc"></i>Desk forecast <small>modelled</small></span>${M.v5 ? '<span><i class="k real"></i>DAM without its offers</span>' : ""}`;
+  legend.innerHTML = `<span><i class="k dam"></i>Node DAM</span><span><i class="k sced"></i>SCED, 5-min</span><span><i class="k fc"></i>Desk forecast <small>modelled</small></span>${M.v5 ? '<span><i class="k real"></i>DAM without its offers</span>' : ""}<span class="cmp"><i class="k anc"></i>Anchor</span>${T.ghost?.actual ? '<span class="cmp"><i class="k opr"></i>Operator, metered SoC</span>' : ""}`;
   host.prepend(legend);
   const tip = document.createElement("div");
   tip.className = "ctip";
@@ -325,6 +325,8 @@ export function buildCharts(M, host, { compare = false } = {}) {
     setCompare(on) {
       st.compare = on;
       st.W = 0;
+      legend.classList.toggle("cmp-on", on);
+      update(st.t ?? t0);
     },
   };
 }

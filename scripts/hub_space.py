@@ -17,6 +17,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -842,13 +844,15 @@ def module(name: str, rel: str):
 
 
 def publish(out: Path) -> str:
-    from huggingface_hub import HfApi
-
-    info = HfApi().upload_folder(repo_id=SPACE, repo_type="space", folder_path=str(out),
-                                 delete_patterns=["*", "**/*"], commit_message="The desk viewer: every v2-v5 episode "
-                                                                              "in 3D beside the trader's desk, and "
-                                                                              "the results")
-    return getattr(info, "commit_url", str(info))
+    """One commit: the build's files, and every other file in the Space deleted except its .gitattributes."""
+    api = HfApi()
+    files = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
+    stale = sorted(set(api.list_repo_files(SPACE, repo_type="space")) - set(files) - {".gitattributes"})
+    ops = [CommitOperationDelete(path_in_repo=f) for f in stale] + [
+        CommitOperationAdd(path_in_repo=f, path_or_fileobj=str(out / f)) for f in files]
+    info = api.create_commit(SPACE, repo_type="space", operations=ops, commit_message=(
+        "The desk viewer: every v2-v5 episode on the battery site in 3D beside the desk, and the results"))
+    return f"{info.commit_url} ({len(files)} files, {len(stale)} removed)"
 
 
 if __name__ == "__main__":

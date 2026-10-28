@@ -23,7 +23,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
   for (const w of d.watches || []) {
     if (w.index === 0 || !w.notices.length) continue;
     const m = hourAt(w.t).mode;
-    claim(w.t - 0.05, w.t + 1.2, m === "discharge" || m === "charge" ? "ramp" : d.region.city.lights >= 0.85 ? "city" : "establish");
+    claim(w.t - 0.05, w.t + 1.2, m === "discharge" || m === "charge" ? "ramp" : d.eventShot || (d.region.city.lights >= 0.85 ? "city" : "establish"));
   }
   const negH = d.hours.find((x) => x.neg && x.action < 0)?.h ?? d.firstNeg;
   if (negH >= 0) claim(negH - 0.1, negH + 1.9, "neg");

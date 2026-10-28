@@ -40,9 +40,9 @@ export function buildPanel(M, { model }) {
   const items = M.turns.map((x) => {
     const j = Math.floor(x.t / 1440);
     if (heads.at(-1)?.j !== j) {
-      const h = document.createElement("h4");
-      h.className = "dayhead later";
-      h.innerHTML = `${esc(dayLong(M.d0, x.t))}<small>${j < 0 ? "the day before: bidding" : M.n > 1 ? `operating day ${j + 1} of ${M.n}` : "the operating day"}</small>`;
+      const h = document.createElement("section");
+      h.className = "day later";
+      h.innerHTML = `<h4 class="dayhead">${esc(dayLong(M.d0, x.t))}<small>${j < 0 ? "the day before: bidding" : M.n > 1 ? `operating day ${j + 1} of ${M.n}` : "the operating day"}</small></h4>`;
       feed.append(h);
       heads.push({ h, j, first: x.t });
     }
@@ -61,14 +61,14 @@ export function buildPanel(M, { model }) {
       a.querySelector(".th").setAttribute("aria-expanded", open);
       a.dataset.user = "1";
     });
-    feed.append(a);
+    heads.at(-1).h.append(a);
     return { a, calls: [...a.querySelectorAll(".call")], q: a.querySelector(".q"), x };
   });
   const endcard = document.createElement("section");
   endcard.className = "endcard later";
   endcard.innerHTML = statement(M, model);
   feed.append(endcard);
-  let userScroll = 0;
+  let userScroll = -Infinity;
   feed.addEventListener("wheel", () => (userScroll = performance.now()), { passive: true });
   feed.addEventListener("touchmove", () => (userScroll = performance.now()), { passive: true });
   $("foot").innerHTML = footer(M);
@@ -121,14 +121,20 @@ export function buildPanel(M, { model }) {
     set("feed-count", `${n} of ${items.length} turns, ${items.slice(0, n).reduce((a, it) => a + it.x.calls.length, 0)} calls`);
     if (cur !== live) {
       live = cur;
-      const it = items[cur];
-      if (it && performance.now() - userScroll > 5000) it.a.scrollIntoView({ block: hold ? "start" : "nearest", behavior: S.playing ? "smooth" : "auto" });
+      if (items[cur]) reveal(items[cur].a, !!hold, S.playing);
     }
-    if (S.t >= M.t1 && endcard.dataset.shown !== "1" && performance.now() - userScroll > 5000) {
+    if (S.t >= M.t1 && endcard.dataset.shown !== "1") {
       endcard.dataset.shown = "1";
-      endcard.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      reveal(endcard, false, true);
     }
     if (S.t < M.t1) endcard.dataset.shown = "";
+  }
+
+  function reveal(el, start, smooth) {
+    if (performance.now() - userScroll < 5000 || getComputedStyle(feed).overflowY === "visible") return;
+    const top = el.offsetTop - 6, bottom = el.offsetTop + el.offsetHeight, h = feed.clientHeight;
+    if (!start && top >= feed.scrollTop && bottom <= feed.scrollTop + h) return;
+    feed.scrollTo({ top: start || bottom - top > h ? top : bottom - h + 8, behavior: smooth ? "smooth" : "auto" });
   }
 
   function head(t, S) {
