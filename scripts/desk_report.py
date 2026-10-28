@@ -23,7 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from gridsim_core.desk import fixtures  # noqa: E402
+from gridsim_core.desk import fixtures, policies  # noqa: E402
 from gridsim_core.desk.data import load_series, load_tasks  # noqa: E402
 from gridsim_core.desk.refs import denominator  # noqa: E402
 from gridsim_core.grade import reward_value, stretch_value  # noqa: E402
@@ -324,6 +324,54 @@ def series_for(pack: str, tid: str, layer: str, ep: dict) -> dict | None:
     return series if task["task_id"] == tid else None
 
 
+def impact_rows(ep: dict, series: dict) -> list[tuple[float, float]]:
+    """(awarded DAM MW, seen − real node DAM price) per awarded hour of an episode."""
+    out = []
+    for d in ep["dates"]:
+        real = (series.get("dam_spp") or {}).get(d)
+        if not real:
+            continue
+        for a, seen, x in zip(ep["dam"][d]["award_mw"], ep["dam"][d]["spp"], real, strict=False):
+            if a and seen is not None and x is not None:
+                out.append((float(a), float(seen) - float(x)))
+    return out
+
+
+def impact_block(rows: list[tuple[float, float]], n_eps: int) -> dict:
+    sell = [(a, d) for a, d in rows if a > 0]
+    buy = [(a, d) for a, d in rows if a < 0]
+
+    def wmean(xs):
+        w = sum(abs(a) for a, _ in xs)
+        return round(sum(abs(a) * d for a, d in xs) / w, 4) if w else None
+
+    return {"sales_mwh_weighted_usd_per_mwh": wmean(sell), "purchases_mwh_weighted_usd_per_mwh": wmean(buy),
+            "sales_mwh_per_episode": round(sum(a for a, _ in sell) / max(1, n_eps), 1),
+            "purchases_mwh_per_episode": round(-sum(a for a, _ in buy) / max(1, n_eps), 1),
+            "revenue_effect_usd_per_episode": round(sum(a * d for a, d in rows) / max(1, n_eps), 2),
+            "max_abs_usd_per_mwh": round(max((abs(d) for _, d in rows), default=0.0), 4),
+            "awarded_hours": len(rows), "hours_moved_over_1c": sum(abs(d) > 0.01 for _, d in rows)}
+
+
+def price_impact(runs: dict, pack: str, layer: str) -> dict:
+    """Re-cleared minus real node DAM price over each policy's awarded DAM hours (v5), the anchor replayed."""
+    out, cache = {}, {}
+    tasks = {t["task_id"]: t for t in load_tasks(pack)}
+    for name, run in runs.items():
+        rows = []
+        for tid, ep in run["episodes"].items():
+            if tid not in tasks:
+                continue
+            cache.setdefault(tid, load_series(pack, tasks[tid]))
+            rows += impact_rows(ep, cache[tid])
+        out[name] = impact_block(rows, len(run["episodes"]))
+    rows = []
+    for tid, ser in cache.items():
+        rows += impact_rows(policies.run(tasks[tid], ser, "anchor", layer=layer).episode(), ser)
+    out["anchor"] = impact_block(rows, len(cache))
+    return out
+
+
 def date_span(dates: list[str]) -> str:
     a, b = dt.date.fromisoformat(dates[0]), dt.date.fromisoformat(dates[-1])
     return a.strftime("%a %d %b %Y") if a == b else f"{a.strftime('%a %d')} – {b.strftime('%a %d %b %Y')}"
@@ -523,7 +571,7 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
     with plt.rc_context(theme_rc(th)):
         fig = plt.figure(figsize=(14, 7.6))
         gs = fig.add_gridspec(3, 2, width_ratios=[3.1, 1.25], height_ratios=[1.25, 1.0, 0.8], hspace=0.12,
-                              wspace=0.04, left=0.06, right=0.99, top=0.80, bottom=0.08)
+                              wspace=0.1, left=0.06, right=0.99, top=0.80, bottom=0.08)
         ax_p, ax_s, ax_d = (fig.add_subplot(gs[i, 0]) for i in range(3))
         ax_t = fig.add_subplot(gs[:, 1])
         ax_t.axis("off")
@@ -550,6 +598,20 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
                           textcoords="offset points", fontsize=8, color=th["muted"], va="top")
         ax_p.set_ylim(bot, top)
         ax_p.set_ylabel("$/MWh", fontsize=9)
+        if series and series.get("dam_spp") and all(d in series["dam_spp"] for d in dates):
+            real = np.concatenate([[np.nan if x is None else x for x in series["dam_spp"][d]] for d in dates])
+            dlt = (dam - real) * 100
+            if np.nanmax(np.abs(dlt)) > 1e-6:
+                ax_i = ax_p.twinx()
+                ax_i.bar(th_[:-1] + 30, np.nan_to_num(dlt), width=50, color=accent, alpha=0.55, zorder=1,
+                         label="re-cleared − real DAM price (¢/MWh, right)")
+                lim = float(np.nanmax(np.abs(dlt))) * 2.4
+                ax_i.set_ylim(-lim, lim)
+                ax_i.set_ylabel("¢/MWh", fontsize=9)
+                ax_i.tick_params(length=0, labelsize=8.5, colors=th["muted"])
+                for sp in ax_i.spines.values():
+                    sp.set_visible(False)
+                ax_i.legend(loc="upper right", fontsize=8.5, frameon=False, bbox_to_anchor=(1, 0.99))
         span_x = 1440 * nd - t0 * k
         lanes: list[float] = []
         keep = {x[0] for x in shown} if len(items) > 30 else {x[0] for x in items}
@@ -806,6 +868,60 @@ def sens_md(summary: dict) -> str:
     return "\n".join(parts) + "\n"
 
 
+def versus(spec: str, grades: dict, days: dict) -> dict:
+    label, _, d = spec.partition("=")
+    rows = [json.loads(x) for x in gzip.open(Path(d) / "grades.jsonl.gz", "rt")]
+
+    def key(tid: str) -> str:
+        return re.sub(r"^desk-v\d+-", "", tid)
+
+    prev = {(r["model"], key(r["task_id"])): r for r in rows}
+    out = {}
+    for m, gs in grades.items():
+        ts = [t for t in sorted(gs) if (m, key(t)) in prev]
+        dd = [days[t] for t in ts]
+        b = {"n": len(ts), "P": paired([gs[t]["p"] for t in ts], [prev[(m, key(t))]["p"] for t in ts], dd),
+             "R": paired([gs[t]["reward"] for t in ts], [prev[(m, key(t))]["reward"] for t in ts], dd)}
+        cc = [t for t in ts if gs[t]["capture"] is not None and prev[(m, key(t))]["capture"] is not None]
+        b["C"] = paired([gs[t]["capture"] for t in cc], [prev[(m, key(t))]["capture"] for t in cc],
+                        [days[t] for t in cc])
+        out[m] = b
+    return {"label": label, "source": d, "models": out}
+
+
+def versus_md(summary: dict) -> str:
+    v = summary.get("versus")
+    if not v:
+        return ""
+    lay = summary["layer"]
+    return "\n".join([f"### Paired {lay} − {v['label']} (same battery-days, same model)", "",
+                      table(["model", "n", "Δ P", "Δ R", "Δ C", f"{lay} ahead (tasks)"],
+                            [[NAMES.get(k, k), str(b["n"]), fmt_ci(b["P"], money=True, signed=True),
+                              fmt_ci(b["R"], signed=True, digits=2), fmt_ci(b["C"], signed=True, digits=2),
+                              pct(b["P"].get("ahead"))] for k, b in v["models"].items()]), "", ""])
+
+
+def impact_md(summary: dict) -> str:
+    im = summary.get("price_impact")
+    if not im:
+        return ""
+
+    def c(v):
+        return "—" if v is None else f"{v * 100:+.2f}¢".replace("-", "−")
+
+    return "\n".join(["### DAM price impact (re-cleared minus real node DAM price, awarded hours)", "",
+                      table(["policy", "sales MWh / episode", "price move on sales ($/MWh, MWh-weighted)",
+                             "purchases MWh / episode", "price move on purchases", "largest |move|",
+                             "revenue effect $ / episode", "awarded hours moved > 1¢"],
+                            [[NAMES.get(k, k) if k != "anchor" else "anchor (information-matched)",
+                              f"{b['sales_mwh_per_episode']:,.1f}", c(b["sales_mwh_weighted_usd_per_mwh"]),
+                              f"{b['purchases_mwh_per_episode']:,.1f}", c(b["purchases_mwh_weighted_usd_per_mwh"]),
+                              f"{b['max_abs_usd_per_mwh'] * 100:.2f}¢",
+                              money_s(b["revenue_effect_usd_per_episode"], signed=True),
+                              f"{b['hours_moved_over_1c']}/{b['awarded_hours']}"] for k, b in im.items()]),
+                      "", ""])
+
+
 def plural(n: int) -> str:
     return "" if n == 1 else "s"
 
@@ -901,7 +1017,7 @@ earns less (contract §9.1). Brackets are 95% {blk}-block CIs.
 
 {t5}
 
-{days_md(ms)}{as_md(ms)}{sens_md(summary)}
+{versus_md(summary)}{impact_md(summary)}{days_md(ms)}{as_md(ms)}{sens_md(summary)}
 {fig}
 ## What the numbers say
 
@@ -942,6 +1058,9 @@ def main() -> None:
                     help="bootstrap block for windows starting on DATE (e.g. two windows of one front)")
     ap.add_argument("--deviation", action="append", default=[], help="a deviation from the prereg, under the method")
     ap.add_argument("--pilot-note", help="a line printed above the pilot table")
+    ap.add_argument("--compare", metavar="LABEL=DIR",
+                    help="a previous results folder on the same battery-days: paired (this − that) per model")
+    ap.add_argument("--price-impact", action="store_true", help="v5: re-cleared minus real DAM price per policy")
     ap.add_argument("--defect", action="append", default=[], help="a known env defect, listed under the method")
     ap.add_argument("--notes", help="a file of README bullets (one per line) instead of the generated ones")
     ap.add_argument("--no-copy", action="store_true")
@@ -1059,6 +1178,10 @@ def main() -> None:
                                   "; per-call logs `runs/<model>/calls/*.jsonl.gz`") if copies else "",
                    "calls_mb": calls_mb},
     }
+    if a.compare:
+        summary["versus"] = versus(a.compare, grades, days)
+    if a.price_impact:
+        summary["price_impact"] = price_impact(runs, a.pack, a.layer)
     hero = pick_hero(summary, runs, grades, a.hero)
     if hero:
         name, tid = hero
