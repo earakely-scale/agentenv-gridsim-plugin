@@ -49,6 +49,9 @@ from June 2024, the state of charge to cover them for the rest of the hour (FFR 
 RegUp/RegDn 1 h, ECRS 2 h, Non-Spin 4 h. Responsibility you cannot hold is charged as failure-to-provide at the DAM
 MCPC. Regulation moves energy every interval; RRS, ECRS and Non-Spin deployments arrive as events."""
 
+IMPACT = """Your DAM offers are re-cleared against the rest of the market's day-ahead offers: what you sell lowers the DAM
+price you are paid and what you buy raises it, more steeply at high prices. Real-time prices are not affected."""
+
 PV = """Your site also has {pv:g} MW of co-located solar (modelled) behind a {poi:g} MW point of interconnection: solar sells
 at the real-time price (curtailed below $0), and battery discharge plus solar cannot exceed the POI."""
 
@@ -85,6 +88,8 @@ def system_prompt(task: dict | Session, layer: str | None = None, budgets: dict 
     rules = POST if rtcb else PRE.format(cap=caps(d0, rtcb)["dam"])
     if layer != "v2":
         rules += "\n\n" + (AS_POST if rtcb else AS_PRE)
+    if layer == "v5":
+        rules += "\n\n" + IMPACT
     if site.pv_mw > 0:
         rules += "\n\n" + PV.format(pv=site.pv_mw, poi=site.poi_mw or site.hsl)
     return BRIEF.format(name=card.get("name", "the battery"), region=card.get("region", "Texas"),

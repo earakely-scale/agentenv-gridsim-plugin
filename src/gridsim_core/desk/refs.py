@@ -3,6 +3,8 @@ operator replay and the operator's own outcome, all settled by the one statement
 
 from __future__ import annotations
 
+import dataclasses
+
 from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
 from gridsim_core.desk.data import Series, build, era_of, series_sha
@@ -20,6 +22,17 @@ def _ser(task: dict, series) -> Series:
 
 def _rtcb(task: dict) -> bool:
     return (task.get("era") or era_of(task["dates"])) == "rtcb"
+
+
+def _recleared(e: Engine, positions: list[float]) -> Series:
+    """v5: the series with each DAM hour priced by the re-clear with `positions` self-scheduled (else unchanged)."""
+    if not e.stacks:
+        return e.ser
+    dam = list(e.ser.dam_spp)
+    for j, st in e.stacks.items():
+        for h in range(24):
+            dam[24 * j + h] = st.self_schedule(h, positions[24 * j + h])
+    return dataclasses.replace(e.ser, dam_spp=dam)
 
 
 def _anc(task: dict) -> bool:
@@ -46,7 +59,7 @@ def hindsight(task: dict, series) -> dict:
     """The rules-bound optimum on real prices (all DAM hours open at D-1 06:00, unit events, regulation and AS
     deployments known), and the same with the DAM energy position tied to physical dispatch."""
     ser, site, rtcb, anc = _ser(task, series), site_of(task), _rtcb(task), _anc(task)
-    e = Engine(site, ser, rtcb, ancillary=anc)
+    e = Engine(site, ser, rtcb, ancillary=anc, impact=task.get("layer") == "v5")
     K, H = e.K, e.H
     hsl, lsl = [], []
     for h in range(H):
@@ -97,8 +110,8 @@ def hindsight(task: dict, series) -> dict:
                      "druc": druc, "pv": p.pv or None}
     elif p.pv:
         ancillary = {"dam_as": [{} for _ in range(H)], "rt_as": None, "short": None, "druc": None, "pv": p.pv}
-    full = statement(site, ser, rtcb, q, metered, metered, soc, target, ancillary)
-    st_phys = statement(site, ser, rtcb, phys, metered, metered, soc, target, ancillary)
+    full = statement(site, _recleared(e, q), rtcb, q, metered, metered, soc, target, ancillary)
+    st_phys = statement(site, _recleared(e, phys), rtcb, phys, metered, metered, soc, target, ancillary)
     return {"p_hind": full["total"], "p_hind_phys": st_phys["total"], "lp_objective": round(plan.objective, 2),
             "dam_mw": [round(x, 3) for x in q], "rt_mw_15": [round(sum(metered[3 * i:3 * i + 3]) / 3, 3)
                                                              for i in range(K // 3)],
@@ -111,7 +124,7 @@ def operator_replay(task: dict, series) -> dict | None:
     op = ser.operator
     if not op or not op.get("dam") or not all(d in op["dam"] for d in ser.dates):
         return None
-    e = Engine(site, ser, rtcb, ancillary=anc)
+    e = Engine(site, ser, rtcb, ancillary=anc, impact=task.get("layer") == "v5")
     for j, d in enumerate(ser.dates):
         day = op["dam"][d]
         for h in range(24):
@@ -150,7 +163,7 @@ def operator_replay(task: dict, series) -> dict | None:
     target = idle_end_soc(site, e.K)
     rec = {"dam_as": e.dam_as, "rt_as": e.rt_as if rtcb else None, "short": e.as_short, "druc": e.druc,
            "pv": e.pv if site.pv_mw > 0 else None} if anc else None
-    st = statement(site, ser, rtcb, e.dam_award, e.bp, e.metered, e.soc[-1], target, rec)
+    st = statement(site, e.ser, rtcb, e.dam_award, e.bp, e.metered, e.soc[-1], target, rec)
     return {"p": st["total"], "dam_award_mw": e.dam_award, "statement": st}
 
 

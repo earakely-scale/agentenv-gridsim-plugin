@@ -590,6 +590,27 @@ Budgets v3: 48 turns, 14 calls per turn. `optimize` output in v3 is about 4–5k
 - **References.** The hindsight LP spans all three days with every DAM open at D-1 06:00; the anchor re-optimises at
   every non-reminder wake over the rest of the window.
 
+### 10.3 v5 "The Market Floor" as built (`gridsim_core.desk.impact`)
+
+- **Series field (DATA):** `market` {date: day row} in the previews' `data/market/days` shape (NP3-966-ER, parser
+  `966-v1`): `background.supply`/`background.demand` per hour (every other resource's offers and bids, **the site's own
+  resource carved out**), `lambda_usd`, `hub_dam_usd`, `replay.lambda_usd` (the copper-plate re-clear of every real
+  offer). `pool` may be empty.
+- **Re-clear.** At each day's DAM close, every hour's EB/OC (or pre-RTC+B offer and bid) is cut into price blocks
+  (the 5.1 curve, four steps per linear piece) and cleared with `market_auction.clear_hour` against the hour's book
+  (`market_auction.book` over `market_stack.hour_curves`, prices lifted by the real hub DAM − replay λ, so the book
+  with the operator's own offer reproduces the real hub price). The battery's node DAM price is λ' + (real node DASPP −
+  real hub DAM): the basis is held at its real value **[simplified]**. Without the battery's curve the re-clear posts the
+  real price. The posted node price, the award and the settlement all use λ'; the agent sees the re-cleared price.
+- **AS stays price-taker** at the real DAM MCPC: the co-clear (10.1) runs at the re-cleared energy price. **RT stays
+  price-taker.** No market-power mitigation is applied **[simplified]**.
+- **References under the same re-clear:** idle and the anchor play through it; the hindsight optimum is the
+  price-taker plan with its DAM positions (and the dispatch-tied ones for `hind_phys`) self-scheduled into the re-clear
+  and settled at the resulting prices (an approximation of the price-making optimum); the operator replay re-clears the
+  operator's disclosed curves; the operator's actual stays at the real prices.
+- The agent has no view of the stack (the day's offers are disclosed 60 days later); the prompt states that its DAM
+  offers move the price.
+
 ## 11. Episode JSON (`gridsim.desk.episode/v1`)
 
 ```json

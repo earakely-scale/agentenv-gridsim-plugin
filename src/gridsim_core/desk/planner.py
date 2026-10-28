@@ -15,6 +15,7 @@ from gridsim_core.desk.optimize import Plan, Problem, end_penalty, hour_curves, 
 WEIGHTS = {"p10": 0.25, "p50": 0.5, "p90": 0.25}
 END_PEN_HARD = 10.0
 RT_HOURS = 12
+MAX_RISK = 2.0
 
 
 class ViewError(ValueError):
@@ -173,9 +174,12 @@ def to_pre(points: list[list[float]]) -> dict:
 
 
 def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0.5,
-            constraints: dict | None = None, fc=None) -> dict:
+            constraints: dict | None = None, fc=None, dam_basis: str | None = None) -> dict:
     c = constraints or {}
-    risk = min(max(float(risk), 0.0), 1.0)
+    risk = min(max(float(risk), 0.0), MAX_RISK)
+    dam_basis = dam_basis or c.get("dam_position", "physical")
+    if dam_basis not in ("physical", "spread"):
+        raise ViewError('constraints.dam_position is "physical" (DAM backed by the planned dispatch) or "spread"')
     scen = scenarios_from(price_view, e, views)
     asv_views = fcm.as_views(e.ser, fc, now, e.rtcb) if e.ancillary and fc is not None else None
     plans: list[tuple[str, float, Plan]] = []
@@ -204,7 +208,7 @@ def propose(e: Engine, now: int, views: dict, price_view="desk", risk: float = 0
         if not lams:
             continue
         if e.dam_close(H // 24) > now:
-            nets = [p.q.get(H, p.hourly_net(H)) for _, _, p in plans]
+            nets = [p.hourly_net(H) if dam_basis == "physical" else p.q.get(H, p.hourly_net(H)) for _, _, p in plans]
             dam_curves[H] = hour_curves(e.site, lams, risk, dis_cap=max(max(nets), 0.0),
                                         ch_cap=min(min(nets), 0.0))
         if 60 * (H + 1) > now and H < first_h + RT_HOURS and now >= e.adj_open(H):

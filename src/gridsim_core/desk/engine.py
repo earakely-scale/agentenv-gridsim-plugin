@@ -3,6 +3,7 @@ LMP and the battery physics (contract sections 4-6). The Session, the references
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
 from gridsim_core.desk.curves import FLOOR, caps, clear_any
 from gridsim_core.desk.data import Series
+from gridsim_core.desk.impact import Stack
 
 PER_H = 12
 STATUSES_POST = ("ON", "ONOS", "ONTEST", "ONEMR", "ONHOLD", "OUT")
@@ -79,8 +81,17 @@ class Engine:
     """State of one battery on the desk; time only moves forward through `advance`. With `ancillary` (v3+) the DAM
     and SCED co-clear energy and the five AS products, AS deployments move energy, and PV shares the POI."""
 
-    def __init__(self, site: Site, ser: Series, rtcb: bool, ancillary: bool = False):
+    def __init__(self, site: Site, ser: Series, rtcb: bool, ancillary: bool = False, impact: bool = False):
+        if impact:
+            ser = dataclasses.replace(ser, dam_spp=list(ser.dam_spp))
         self.site, self.ser, self.rtcb, self.ancillary = site, ser, rtcb, ancillary
+        self.real_dam = list(ser.dam_spp)
+        self.stacks: dict[int, Stack] = {}
+        if impact:
+            lo, hi = caps(ser.d0, rtcb)["floor"], caps(ser.d0, rtcb)["dam"]
+            for j, d in enumerate(ser.dates):
+                if d in ser.market:
+                    self.stacks[j] = Stack(ser.market[d], ser.dam_spp[24 * j:24 * j + 24], lo, hi)
         n = ser.days
         self.H, self.K = 24 * n, 288 * n
         self.caps = caps(ser.d0, rtcb)
@@ -191,8 +202,11 @@ class Engine:
         return out
 
     def clear_dam(self, day: int) -> None:
+        stack = self.stacks.get(day)
         for H in range(24 * day, 24 * day + 24):
             c = self.dam_curve[H]
+            if stack is not None:
+                self.ser.dam_spp[H], _ = stack.clear(H - 24 * day, c, self.rtcb)
             offers = {p: b for p, b in self.dam_as_offer[H].items() if p in self.products}
             hi, lo = self.cop["hsl"][H], self.cop["lsl"][H]
             if offers:

@@ -71,8 +71,9 @@ class Session:
         self.days = self.ser.days
         self.end = self.ser.end
         self.budget = dict(BUDGETS[self.layer], **(budgets or {}))
+        self.engine = Engine(self.site, self.ser, self.rtcb, ancillary=self.layer != "v2", impact=self.layer == "v5")
+        self.ser = self.engine.ser
         self.fc = forecaster or fcm.forecaster_for(self.ser)
-        self.engine = Engine(self.site, self.ser, self.rtcb, ancillary=self.layer != "v2")
         self.caps = caps(self.d0, self.rtcb)
         self.target = idle_end_soc(self.site, self.engine.K)
         self.now = clock.START

@@ -122,6 +122,8 @@ def make(date: str = "2026-02-14", seed: int = 0, days: int = 1, layer: str = "v
                                   "lsl_mw": -50.0, "source": "fixture"}]
     if layer != "v2":
         _ancillary(series, hist, dates, d0, rng, pv)
+    if layer == "v5":
+        series["market"] = {d: _market_day(d, dam_hub[d]) for d in dates}
     site = dict(site or SITE)
     if pv:
         site["pv"] = {"mw_ac": 50.0, "poi_mw": 100.0, "profile": "modelled", "source": "fixture"}
@@ -184,6 +186,26 @@ def _ancillary(series: dict, hist: list[str], dates: list[str], d0: str, rng, pv
                                                                          * math.pi)) if 0.29 <= (t // 60 + i) % 24 / 24
                                                   <= 0.75 else 0.0, 1) for i in range((end - t // 60 * 60) // 60)]}
                                 for t in range(-1440, end, 180)]
+
+
+def _market_day(date: str, hub: list[float]) -> dict:
+    """An invented day-ahead stack that clears at the fixture's hub price: inelastic demand of 50 GW and a supply curve
+    whose slope falls as the price rises (about $0.5/MWh per 100 MW at $20, $4 at $150)."""
+    supply, demand = [], []
+    load = 50_000.0
+    for p_h in hub:
+        k = 4000.0 / max(p_h, 5.0)
+        prices = sorted({-250.0, 5000.0} | {round(p_h + d, 2) for d in (-60, -30, -10, -3, -1, 0, 1, 3, 10, 30, 100, 300)
+                                              if -250 < p_h + d < 5000})
+        pts, last = [], 0.0
+        for pr in prices:
+            mw = max(load + k * (pr - p_h), 0.0)
+            last = max(last, mw)
+            pts.append([round(last, 2), pr])
+        supply.append(pts)
+        demand.append([[load, 5000.0]])
+    return {"date": date, "lambda_usd": list(hub), "hub_dam_usd": list(hub), "replay": {"lambda_usd": list(hub)},
+            "background": {"supply": supply, "demand": demand}, "pool": {}}
 
 
 def _operator(task: dict, series: dict) -> dict:

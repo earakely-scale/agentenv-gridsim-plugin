@@ -95,9 +95,13 @@ def tool_specs(layer: str = "v2", rtcb: bool = True) -> list[dict]:
                 "dam": {"type": "array", "items": {"type": "number"}, "description": "24 hourly $/MWh per day"},
                 "rt": {"type": "array", "items": {"type": "number"}, "description": "24 hourly or 96 15-min per day"},
                 "scenarios": {"type": "array", "items": {"type": "object"}}}}]},
-             "risk": {"type": "number", "description": "0 = act on the median only, 1 = widen curves to the scenario range"},
+             "risk": {"type": "number", "description": "0 = act on the median only, 1 = widen curves to the scenario "
+                                                       "range, up to 2"},
              "constraints": {"type": "object", "properties": {
-                 "end_soc_mwh": {"type": "number"}, "max_cycles": {"type": "number"}, "hours": _HOURS, "day": _DAY}}}),
+                 "end_soc_mwh": {"type": "number"}, "max_cycles": {"type": "number"}, "hours": _HOURS, "day": _DAY,
+                 "dam_position": {"type": "string", "enum": ["physical", "spread"],
+                                  "description": "physical (default): DAM curves capped at the planned dispatch; "
+                                                 "spread: also take the forecast DAM/RT spread"}}}}),
         _fn("set_reminder", "Wake yourself at a time (5-minute grid). Ending your turn waits until the next event.",
             {"at": _TIME, "note": {"type": "string"}}, ["at"]),
     ]

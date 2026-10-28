@@ -99,6 +99,7 @@ class Series:
     pv: list = field(default_factory=list)
     history_mcpc: dict = field(default_factory=dict)
     history_rt_mcpc: dict = field(default_factory=dict)
+    market: dict = field(default_factory=dict)
 
     @property
     def days(self) -> int:
@@ -176,6 +177,7 @@ def _ancillary(ser: Series, series: dict, dates: list[str], hist: list[str]) -> 
         ser.pv = [float(x or 0.0) for d in dates for x in pv[d]]
     ser.history_mcpc = {d: series["dam_mcpc"][d] for d in hist if d in (series.get("dam_mcpc") or {})}
     ser.history_rt_mcpc = {d: series["rt_mcpc_15"][d] for d in hist if d in (series.get("rt_mcpc_15") or {})}
+    ser.market = {d: series["market"][d] for d in dates if d in (series.get("market") or {})}
 
 
 def build(task: dict, series: dict) -> Series:

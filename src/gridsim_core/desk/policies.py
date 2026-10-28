@@ -26,6 +26,7 @@ def idle(s: Session, wake: dict) -> None:
 
 
 RISK = 0.5
+DAM_POSITION = "physical"
 
 
 def _submit_groups(s: Session, tool: str, groups: list[dict], as_groups: list[dict] | None = None) -> None:
@@ -48,7 +49,7 @@ def anchor(s: Session, wake: dict) -> None:
     """At every wake-up but reminders: optimise on the desk forecast and submit what it proposes (contract 9.2)."""
     if wake["reasons"] == ["reminder"]:
         return
-    out = s.call("optimize", {"price_view": "desk", "risk": RISK})
+    out = s.call("optimize", {"price_view": "desk", "risk": RISK, "constraints": {"dam_position": DAM_POSITION}})
     if "error" in out:
         return
     _submit_groups(s, "submit_dam_offers", out["dam_curves"], out.get("dam_as_offers"))
