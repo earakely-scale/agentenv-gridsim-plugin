@@ -19,6 +19,7 @@
    "sced_fill": 1,
    "sced_rows": 895,
    "soc_null": 0,
+   "as_offer_hours": 211,
    "unit_events": 0,
    "notices": 3,
    "nws": 0,
@@ -26,7 +27,7 @@
    "desk_forecast_vintages": 93
   }
  },
- "built_utc": "2026-10-28T08:32:26Z",
+ "built_utc": "2026-10-28T09:08:54Z",
  "builder": "scripts/desk_data_build.py",
  "sources": {
   "dam_spp": "NP4-190-CD",
@@ -49,6 +50,41 @@
   "operator.dam": "NP3-966-ER",
   "operator.sced": "NP3-965-ER",
   "operator.cop": "NP3-991-EX",
-  "desk_forecast": "data/desk/forecast (desk-qr-v1)"
+  "desk_forecast": "data/desk/forecast (desk-qr-v1)",
+  "as_plan": "NP4-33-CD DAM AS Plan, latest posting <= D-1 06:00 [data]",
+  "reg_deploy": "data/hybrid/reg_deploy (60-day SCED storage-fleet regulation) else the fitted fallback [modelled]",
+  "deployments": "data/hybrid/deployments.jsonl (ERCOT notices) [data]",
+  "rt_lmp_hub": "NP6-788-CD at the site's hub [data]",
+  "pv": "MODELLED PV: NP4-745-CD regional actual / (share x EIA-860M capacity) x ILR, NP4-738-CD shape",
+  "forecasts.pv": "MODELLED from NP4-745-CD regional STPPF vintages",
+  "operator.dam.as_offers": "NP3-966-ER 60d DAM ESR (pre: Gen Resource) AS Offers, per product [simplified]",
+  "operator.sced.as_offer_updates": "NP3-965-ER 60d SCED Resource AS Offers, incl. proxy extension [simplified]",
+  "operator.cop.as_capability": "NP3-991-EX COP All Updates",
+  "market": "v5: NP3-966-ER 60-Day DAM Disclosure via market_stack.build_day, site resource carved out"
+ },
+ "refs_report": {
+  "pack": "desk-v4-pilot",
+  "tasks": 1,
+  "floored": 0,
+  "floored_tasks": [],
+  "c_undefined": 0,
+  "c_undefined_tasks": [],
+  "anchor_setting": {
+   "risk": 1.5,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
+ },
+ "refs": {
+  "n": 1,
+  "core_version": [
+   "desk-2.1"
+  ],
+  "anchor_setting": [
+   "{\"dam_position\": \"spread\", \"risk\": 1.5}"
+  ],
+  "floored": [],
+  "c_undefined": [],
+  "anchor_below_idle": []
  }
 }

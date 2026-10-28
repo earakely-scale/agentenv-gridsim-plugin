@@ -61,7 +61,7 @@ PACKS = {
     "desk-v4-pilot": {"split": "pilot", "layer": "v4", "n_days": 3, "tasks": [("2026-02-03", "S01")]},
     "desk-v4-eval": {"split": "eval", "layer": "v4", "n_days": 3,
                      "tasks": [(d, s) for d in ("2026-01-23", "2026-03-16", "2026-04-17", "2026-05-08")
-                               for s in SITES]},
+                               for s in SITES if (d, s) != ("2026-04-17", "S04")] + [("2026-04-03", "S04")]},
     "desk-v2-pre": {"split": "train", "layer": "v2",
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }

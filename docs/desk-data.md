@@ -349,3 +349,55 @@ The first row is exact by construction (core lifts the book by the hub offset). 
 impact: a 100–150 MW battery moves the ERCOT DAM price by cents, rarely by more than $0.25. The last row is the part of
 the price the copper-plate auction does not model (congestion, losses, AS co-optimisation); 04-24's scarcity hours
 dominate its tail. The offset absorbs it.
+
+## 12. v4 "Weather Front" packs (`desk-v4-pilot`, `desk-v4-eval`)
+
+**Windows.** Three consecutive operating days, D0..D2 (`n_days: 3`; task `dates` holds all three). Fronts were
+picked from the v4 forecast store's HRRR 2-m temperatures: the daily mean of DFW, IAH, AUS, SAT and MAF analyses, and
+the largest day-on-day swings between 2025-12-20 and 2026-08-25. Each window keeps D-7..D2 clear of DST.
+
+| Window | Front | Why |
+|---|---|---|
+| 2026-02-03..05 (pilot, S01) | 02-02 +13°F then 02-04 −8.7°F | after the AS erratum window; negative West prices (197 negative 5-min intervals at CROSSETT) |
+| 2026-01-23..25 | Winter Storm Fern arctic front, 01-24 −23.8°F | 202(c) orders, Transmission Emergency 01-25; inside the AS-offer erratum window (operator AS replay unreliable) |
+| 2026-03-16..18 | spring cold front, 03-16 −24.4°F, rebound +10.6°F on 03-18 | hub RT max $221 on the front day |
+| 2026-04-17..19 | April front, 04-18 −14°F | hub RT min −$12.8 behind the front |
+| 2026-05-08..10 | warm front 05-09 +8.7°F, then 34 severe-thunderstorm watch/warning entries across the six regions on 05-10 | 7 operational notices on 05-09 |
+
+`desk-v4-eval` runs all four eval fronts at S01–S04: 16 windows, 48 battery-days.
+
+**Per-window data**
+- `dam_spp`, `dam_mcpc`: D-7..D2.
+- RT and system series: D-1..D2.
+- Per operating day: `posted.dam` (real posting minute), `posted.asdc` and `asdc`.
+- Operator: DAM/SCED/COP for each operating day. `soc0` is the last disclosed SoC on D-1.
+
+**ERCOT forecasts**
+- Every hourly posting from D-1 00:00 to D2 23:59, pulled straight from the API (the store keeps only 72 h): NP3-565-CD
+  in-use model system total, NP4-732-CD system STWPF, NP4-737-CD system STPPF.
+- Values run from the posting's hour to D2 24:00. That is 96 postings per kind.
+
+**Desk forecast** (`desk_data_forecast.py --v4 PACK...`)
+- **DAM:** one vintage per operating day, issued at that day's D-1 06:00. Same DAM model as v2.
+- **RT:** hourly vintages from D-1 06:00 to D2 23:00, each to D2 24:00 (90 vintages). They come from an RT model
+  trained on 3-day spans (issue times every 6 h, horizons up to 90 h).
+- **Refits and bands:** monthly refits; bands widened by the previous month's out-of-sample errors on the same span.
+- **Pinball by month** ($/MWh, all nodes, every window starting in the month):
+
+| Month | DAM | RT (3-day horizons) | coverage DAM / RT |
+|---|---|---|---|
+| 2026-01 | 14.96 | 9.78 | 0.76 / 0.76 |
+| 2026-02 | 2.94 | 3.49 | 0.69 / 0.83 |
+| 2026-03 | 3.19 | 6.19 | 0.79 / 0.78 |
+| 2026-04 | 4.02 | 6.81 | 0.71 / 0.81 |
+| 2026-05 | 2.87 | 3.90 | 0.77 / 0.87 |
+
+The RT model's ERCOT-forecast features come from the store (72 h). Beyond 72 h ahead they are missing (LightGBM
+handles the gap; ridge and MLP impute it), so the second and third days lean on price history.
+
+**References** (desk-2.1, anchor risk 1.5 / spread, core ≥ acff0cd)
+- **How they were built:** `desk_run.py --refs-only --manifest`, merged into `tasks.jsonl.gz` with
+  `desk_data_v3.py PACK refs.jsonl`.
+- **Floored windows:** pilot 0 of 1; eval 4 of 16, the four 2026-03-16 windows, where the anchor loses or barely gains.
+- **Window swap:** 2026-04-17 S04 was replaced by 2026-04-03..05 S04, because WFTANK was on a forced outage from 04-10
+  to 04-20 (NP1-346-ER). The 04-17 front is kept at S01–S03.
