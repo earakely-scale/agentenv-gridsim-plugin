@@ -17,6 +17,7 @@ from gridsim_core.desk.clock import START, to_utc
 pytestmark = pytest.mark.anyio
 
 CLOCK = "urn:agentenv:clock/v1"
+TRIGGERS = "urn:agentenv:triggers/v1"
 HOOK = files("agentenv_gridsim.bundles") / "gridsim-desk/artifacts/gridsim-desk-hook/hook.py"
 
 
@@ -30,15 +31,18 @@ def hook_module():
 class Env:
     env_id = "gridsim-desk-v2"
 
-    def __init__(self, client, t0):
-        self.client, self.time, self.roles = client, t0, []
+    def __init__(self, client, t0, trigger_at=None):
+        self.client, self.time, self.roles, self.trigger_at = client, t0, [], trigger_at
 
     def supports(self, extension, method):
-        return extension == CLOCK
+        return extension == CLOCK or extension == TRIGGERS and self.trigger_at is not None
 
     async def invoke(self, extension, method, params=None):
+        if extension == TRIGGERS:
+            due = self.trigger_at if self.trigger_at > self.time else None
+            return {"next_event_at": due, "triggers": [{"status": "fired" if due is None else "armed"}]}
         if method == "advance":
-            assert params["virtual_time"] > self.time
+            assert params["virtual_time"] >= self.time
             self.time = params["virtual_time"]
         return {"armed": True, "virtual_time": self.time}
 
@@ -90,3 +94,21 @@ async def test_hook_wakes_as_end_turn(tmp_path, cut):
         if cut is None:
             episode = json.loads((await client.call_tool("episode", {})).content[0].text)
             assert episode == json.loads(text(shadow.episode()))
+
+
+async def test_an_earlier_gateway_trigger_wakes_the_agent_at_its_minute(tmp_path):
+    hook = hook_module()
+    task, series = fixtures.make(seed=1)
+    d0 = task["dates"][0]
+    shadow = Session(task, series)
+    shadow.start()
+    env = desk_env(env_name("v2", task["era"]))
+    env.load(task["task_id"], pack(tmp_path, task, series))
+    async with Client(env.create_app()) as client:
+        gateway = Env(client, to_utc(START, d0), trigger_at=to_utc(-1000, d0).replace(":00Z", ":30Z"))
+        turn = Turn(gateway, 1, False, "first")
+        answer = await hook.post_turn(turn, {})
+    shadow.close_turn("first")
+    assert answer == {"message": text(shadow.advance_to(-999))}
+    assert (turn.records[-1]["minute"], turn.records[-1]["reasons"]) == (-999, ["gateway"])
+    assert gateway.time == to_utc(-999, d0)
