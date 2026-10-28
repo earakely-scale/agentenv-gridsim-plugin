@@ -70,7 +70,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 ### DAM price impact (re-cleared minus real node DAM price, awarded hours)
 
-| policy | sales MWh / episode | price move on sales ($/MWh, MWh-weighted) | purchases MWh / episode | price move on purchases | largest |move| | revenue effect $ / episode | awarded hours moved > 1¢ |
+| policy | sales MWh / episode | price move on sales ($/MWh, MWh-weighted) | purchases MWh / episode | price move on purchases | largest move (absolute) | revenue effect $ / episode | awarded hours moved > 1¢ |
 |---|---|---|---|---|---|---|---|
 | GPT-6.1 Sol | 622.0 | −16.92¢ | 70.6 | +7.41¢ | 135.07¢ | −$110 | 219/262 |
 | GPT-6 Luna | 70.6 | −23.18¢ | 124.0 | +4.13¢ | 79.31¢ | −$21 | 66/154 |

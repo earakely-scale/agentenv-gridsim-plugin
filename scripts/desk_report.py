@@ -911,7 +911,7 @@ def impact_md(summary: dict) -> str:
 
     return "\n".join(["### DAM price impact (re-cleared minus real node DAM price, awarded hours)", "",
                       table(["policy", "sales MWh / episode", "price move on sales ($/MWh, MWh-weighted)",
-                             "purchases MWh / episode", "price move on purchases", "largest |move|",
+                             "purchases MWh / episode", "price move on purchases", "largest move (absolute)",
                              "revenue effect $ / episode", "awarded hours moved > 1¢"],
                             [[NAMES.get(k, k) if k != "anchor" else "anchor (information-matched)",
                               f"{b['sales_mwh_per_episode']:,.1f}", c(b["sales_mwh_weighted_usd_per_mwh"]),
