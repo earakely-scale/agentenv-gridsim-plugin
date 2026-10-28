@@ -832,7 +832,7 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
     site.pop("county", None)
     s = json.dumps(ser, separators=(",", ":"), allow_nan=False)
     task = {"task_id": tid, "schema": "gridsim.desk.task/v1", "desk_version": "2.0", "pack": pack,
-            "split": spec["split"], "layer": spec["layer"], "era": era, "dates": [d0], "site": site,
+            "split": spec["split"], "layer": spec["layer"], "era": era, "dates": [str(d) for d in days], "site": site,
             "series": f"series/{tid}.json.gz", "series_sha": hashlib.sha256(s.encode()).hexdigest(),
             "operator_ok": bool(ok),
             "tags": {"season": season, "day_kind": kind, "notices": n_not, "max_rt_lmp": max(lmps),
