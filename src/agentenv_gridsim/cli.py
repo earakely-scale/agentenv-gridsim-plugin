@@ -16,6 +16,8 @@ from gridsim_core.hybrid import HYBRID_ENV
 from gridsim_core.live import LIVE_ENV
 from gridsim_core.market import MARKET_ENV
 
+from .desk import DESK_ENVS
+from .desk_tasks import desk_tasks_command
 from .episodes import episodes_command
 from .record import record_command
 from .sweep import sweep_group
@@ -93,8 +95,8 @@ def _register_agent(root: str, build_platform: str) -> None:
 @click.option("--agent", is_flag=True, help="Also build the gridsim-llm agent for the same platform and register it.")
 def setup(build_platform: str | None, source: Path | None, agent: bool):
     """Build the env image and register it as the MCP server env `gridsim` on the `server` provider and as
-    `gridsim-live`, `gridsim-hybrid`, `gridsim-forecast` and `gridsim-market` on the `gateway` provider; with --agent,
-    the gridsim-llm agent too."""
+    `gridsim-live`, `gridsim-hybrid`, `gridsim-forecast`, `gridsim-market` and the gridsim-desk envs (one per layer and
+    era) on the `gateway` provider; with --agent, the gridsim-llm agent too."""
     root = _checkout(source)
     build_platform = build_platform or _docker_platform()
     click.echo(f"Building {IMAGE} for {build_platform} from {root}")
@@ -105,7 +107,7 @@ def setup(build_platform: str | None, source: Path | None, agent: bool):
                                        description="GridSim env: the battery-desk MCP server and the ERCOT DAM packs")
     env = MCPServerEnv.put(id=ENV, docker_image_artifact=artifact, environment_name=ENV, env_provider_type="server")
     click.echo(f"Registered env {env.id!r} version {env.version} (image {artifact.image_name})")
-    for name in (LIVE_ENV, HYBRID_ENV, FORECAST_ENV, MARKET_ENV):
+    for name in (LIVE_ENV, HYBRID_ENV, FORECAST_ENV, MARKET_ENV, *DESK_ENVS):
         live = MCPServerEnv.put(id=name, docker_image_artifact=artifact, environment_name=name,
                                 env_provider_type="gateway")
         click.echo(f"Registered env {live.id!r} version {live.version} (image {artifact.image_name})")
@@ -119,3 +121,4 @@ gridsim.add_command(sweep_group)
 gridsim.add_command(episodes_command)
 gridsim.add_command(view_command)
 gridsim.add_command(record_command)
+gridsim.add_command(desk_tasks_command)

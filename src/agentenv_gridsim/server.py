@@ -28,6 +28,7 @@ from gridsim_core.parse import parse_actions
 from gridsim_core.prompt import situation_text, tool_schemas
 from gridsim_core.task import TIERS, data_root
 
+from .desk import DESK_ENVS, desk_env
 from .forecast import FORECAST_PACK_NAMES, GridSimForecastEnv
 from .hybrid import HYBRID_PACK_NAMES, GridSimHybridEnv
 from .live import LIVE_PACK_NAMES, GridSimLiveEnv
@@ -212,7 +213,8 @@ class Episode(Middleware):
 
 def main() -> None:
     name = os.environ.get("ENVIRONMENT_NAME")
-    env = (GridSimLiveEnv(TaskIndex(pack_dirs(LIVE_PACK_NAMES))) if name == LIVE_ENV
+    env = (desk_env(name) if name in DESK_ENVS
+           else GridSimLiveEnv(TaskIndex(pack_dirs(LIVE_PACK_NAMES))) if name == LIVE_ENV
            else GridSimHybridEnv(TaskIndex(pack_dirs(HYBRID_PACK_NAMES))) if name == HYBRID_ENV
            else GridSimForecastEnv(TaskIndex(pack_dirs(FORECAST_PACK_NAMES))) if name == FORECAST_ENV
            else GridSimMarketEnv(TaskIndex(pack_dirs(MARKET_PACK_NAMES))) if name == MARKET_ENV else GridSimEnv())
