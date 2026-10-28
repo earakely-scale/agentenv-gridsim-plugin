@@ -106,6 +106,13 @@ class Engine:
         self.cop = {"status": ["ON"] * self.H, "hsl": [site.hsl] * self.H, "lsl": [site.lsl] * self.H,
                     "hbsoc": [site.soc0] * self.H, "min_soc": [site.e_min] * self.H, "max_soc": [site.e_max] * self.H,
                     "as_cap": [{} for _ in range(self.H)]}
+        for ev in ser.unit_events:
+            if ev["t_start"] <= clock.START:
+                end = ev.get("t_end_planned", ev.get("t_end", math.inf))
+                for H in range(self.H):
+                    if 60 * H < end:
+                        self.cop["hsl"][H] = min(self.cop["hsl"][H], float(ev.get("hsl_mw", 0.0)))
+                        self.cop["lsl"][H] = max(self.cop["lsl"][H], float(ev.get("lsl_mw", 0.0)))
         self.cop_touched = [False] * self.H
         self.druc: list[dict | None] = [None] * n
         self.dam_award: list[float | None] = [None] * self.H

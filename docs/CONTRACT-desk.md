@@ -467,7 +467,10 @@ hour's mean absolute deviation over the posted history days (minimum $5).
   grade; `desk_run --refs-only` prints the floored tasks and writes them to `refs-report.json` (and, with
   `--manifest`, to the pack's manifest). The floor only guards the denominator; the anchor's settings come from the
   tune pack (9.3).
-- `C = (P − P_idle)/(P_hind − P_idle)` (hindsight capture, reported; the board headline as in v2–v5).
+- `C = (P − P_idle)/(P_hind − P_idle)` (hindsight capture, reported; the board headline as in v2–v5); undefined
+  (`c_undefined`) when P_hind − P_idle ≤ $1.
+- An outage that started before the episode is in the initial COP (HSL/LSL through its planned end), as the QSE would
+  have updated it (P§3.9.1(2)).
 - Training stretch S (`grade.stretch_value`) as v2–v5.
 
 ### 9.2 References (all settled by the same clearing, physics and settlement code)
@@ -477,6 +480,7 @@ hour's mean absolute deviation over the posted history days (minimum $5).
 | `idle` | submits a 0 MW curve for every hour at `start` and nothing else. P_idle = 0 by construction (the end target is the idle path) |
 | `anchor` (information-matched) | at every wake-up except reminders (milestones, notices, outages, deployments), calls `optimize(price_view="desk", risk=0.5)` and submits its DAM curves (while the DAM is open), RT curves (once the adjustment period opens) and COP. The same desk forecast vintages the agent can read |
 | `hind` | the 8.1 LP with the real DASPP and the real RT SPP (the settlement price; each 15-min value on its three SCED intervals), all DAM hours open at start, unit events known; its net dispatch is then run through the physics (net MW, SoC-clipped) and settled: the rules-bound optimum (includes DA/RT spread positions within [LSL, HSL]) |
+| `hind` bounds | its DAM positions are bounded by the nameplate [LSL, HSL] — what the DAM accepts from any agent, whose COP limits may be raised to nameplate — while its dispatch obeys the realised unit events; so `p_hind` ≥ every feasible policy, and `build_refs` asserts P_hind ≥ max(P_idle, P_anchor, P_operator_replay) − $1. A task with P_hind − P_idle ≤ $1 is `c_undefined` (C is None and excluded from C means; `--refs-only` reports the count) |
 | `hind_phys` | the physical optimum without DAM/RT spread positions: max of the LP with no DAM energy position (pure RT) and the LP with q_h = n_h (DAM position = its own dispatch), each executed and settled on its own (`p_hind_rt_only`, `p_hind_tied`) |
 | `operator_replay` | the operator's disclosed DAM curves and SCED curves (1.5) through our clearing, physics and settlement from soc0 |
 | `operator_actual` | the operator's disclosed DAM awards and telemetered output settled directly (their own SoC path) |

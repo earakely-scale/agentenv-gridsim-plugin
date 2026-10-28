@@ -47,3 +47,18 @@ def test_v4_grades(front):
     assert r["p_hind"] >= r["p_anchor"] > r["p_idle"]
     assert refs.grade(policies.run(*front, "idle"), r)["reward"] == pytest.approx(0.2)
     assert refs.grade(policies.run(*front, "anchor"), r)["reward"] == pytest.approx(1.0)
+
+
+def test_outage_before_the_window_is_in_the_initial_cop():
+    task, series = fixtures.make("2026-02-14", seed=3, layer="v4", days=3, notices=False)
+    d0 = task["dates"][0]
+    series["unit_events"] = [{"kind": "forced_outage", "start": clock.to_iso(-5000, d0), "end": clock.to_iso(5000, d0),
+                              "end_planned": clock.to_iso(1500, d0), "hsl_mw": 0.0, "lsl_mw": 0.0, "source": "t"}]
+    s = Session(task, series)
+    s.start()
+    c = [{"hours": "all", "points": [[-100, -250], [100, -250]]}]
+    for day in ("D0", "D1"):
+        s.call("submit_dam_offers", {"day": day, "curves": c})
+    s.finish()
+    assert all(s.engine.dam_award[H] == 0 for H in range(24))
+    assert s.engine.dam_award[30] == pytest.approx(100)

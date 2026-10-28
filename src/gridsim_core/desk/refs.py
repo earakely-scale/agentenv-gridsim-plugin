@@ -73,11 +73,13 @@ def hindsight(task: dict, series) -> dict:
         lsl.append(ls)
     rt5 = [ser.rt_spp[k // 3] for k in range(K)]
     target = idle_end_soc(site, K)
+    dam_hsl, dam_lsl = [site.hsl] * H, [site.lsl] * H
 
     def problem(dam_open: bool, tied: bool) -> Problem:
         p = Problem(site, ser.days, 0, site.soc0, list(ser.dam_spp), rt5, [dam_open] * H, [0.0] * H, hsl, lsl,
                     [site.e_min] * H, [site.e_max] * H, 0.0, target, end_penalty(site, ser.dam_spp[H - 24:H]))
         p.dam_tied = tied
+        p.dam_hsl, p.dam_lsl = dam_hsl, dam_lsl
         if anc:
             p.products, p.rtcb, p.soc_rule = tuple(e.products), rtcb, e.soc_rule
             p.as_dam = dict(ser.dam_mcpc)
@@ -109,7 +111,7 @@ def hindsight(task: dict, series) -> dict:
             metered.append(float(m))
             soc = next_soc(site, soc, m)
             socs.append(soc)
-        q = [min(max(plan.q.get(h, 0.0), lsl[h]), hsl[h]) for h in range(H)]
+        q = [min(max(plan.q.get(h, 0.0), dam_lsl[h]), dam_hsl[h]) for h in range(H)]
         ancillary = None
         if anc:
             druc = [{"hbsoc": [socs[288 * j + PER_H * h] for h in range(24)], "min_soc": [site.e_min] * 24}
@@ -236,14 +238,22 @@ def build_refs(task: dict, series) -> dict:
     rep = operator_replay(task, ser)
     act = operator_actual(task, ser)
     floored = denominator(idle.result["total"], anc.result["total"], hind["p_hind_phys"])[1]
+    best = max([idle.result["total"], anc.result["total"]] + ([rep["p"]] if rep else []))
+    if hind["p_hind"] < best - HIND_TOL:
+        raise AssertionError(f"{task['task_id']}: p_hind {hind['p_hind']:.2f} below a feasible policy's {best:.2f}")
     return {"p_idle": idle.result["total"], "p_anchor": anc.result["total"], "p_hind": hind["p_hind"],
             "p_hind_phys": hind["p_hind_phys"], "p_hind_rt_only": hind["p_hind_rt_only"],
             "p_hind_tied": hind["p_hind_tied"], "floored": floored,
+            "c_undefined": hind["p_hind"] - idle.result["total"] <= C_MIN,
             "anchor_setting": policies.setting(task.get("layer", "v2")),
             "p_operator_replay": rep["p"] if rep else None, "p_operator_actual": act["p"] if act else None,
             "anchor": {"statement": anc.result, "turns": len(anc.turns)},
             "hind": {"dam_mw": hind["dam_mw"], "rt_mw_15": hind["rt_mw_15"]},
             "core_version": CORE_VERSION, "series_sha": series_sha(ser.raw)}
+
+
+HIND_TOL = 1.0
+C_MIN = 1.0
 
 
 def _policy(task: dict, ser: Series, name: str) -> Session:
@@ -288,8 +298,9 @@ def grade(session: Session, refs: dict | None = None) -> dict:
     reward = reward_value(p, p_idle, eff) if valid else 0.0
     den = p_hind - p_idle
     out = {"valid": valid, "reward": reward, "p": p, "p_idle": p_idle, "p_anchor": p_anchor, "p_hind": p_hind,
-           "p_hind_phys": r.get("p_hind_phys"), "capture": round((p - p_idle) / den, 6) if den > 1e-9 else None,
-           "anchor_capture": round((p_anchor - p_idle) / den, 6) if den > 1e-9 else None,
+           "p_hind_phys": r.get("p_hind_phys"), "capture": round((p - p_idle) / den, 6) if den > C_MIN else None,
+           "anchor_capture": round((p_anchor - p_idle) / den, 6) if den > C_MIN else None,
+           "c_undefined": den <= C_MIN,
            "capture_phys": _cap(p, p_idle, r.get("p_hind_phys")),
            "anchor_capture_phys": _cap(p_anchor, p_idle, r.get("p_hind_phys")),
            "beats_anchor": p > p_anchor + 1e-9, "floored": floored, "p_reward_scale": round(eff, 2),
@@ -301,6 +312,6 @@ def grade(session: Session, refs: dict | None = None) -> dict:
 
 
 def _cap(p: float, p_idle: float, p_hind: float | None) -> float | None:
-    if p_hind is None or p_hind - p_idle <= 1e-9:
+    if p_hind is None or p_hind - p_idle <= C_MIN:
         return None
     return round((p - p_idle) / (p_hind - p_idle), 6)

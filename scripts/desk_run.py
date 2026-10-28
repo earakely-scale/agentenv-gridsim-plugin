@@ -486,11 +486,13 @@ def refs_only(a, out: Path) -> None:
             print(r["task_id"], {k: r["refs"][k] for k in ("p_idle", "p_anchor", "p_hind", "p_hind_phys",
                                                            "p_operator_replay", "floored")}, flush=True)
     floored = sorted(r["task_id"] for r in rows if r["refs"]["floored"])
+    c_undef = sorted(r["task_id"] for r in rows if r["refs"].get("c_undefined"))
     report = {"pack": a.pack, "tasks": len(rows), "floored": len(floored), "floored_tasks": floored,
+              "c_undefined": len(c_undef), "c_undefined_tasks": c_undef,
               "anchor_setting": rows[0]["refs"]["anchor_setting"] if rows else None,
               "core_version": rows[0]["refs"]["core_version"] if rows else None}
     (out / "refs-report.json").write_text(json.dumps(report, indent=1))
-    print(f"floored: {len(floored)} of {len(rows)} {floored}", flush=True)
+    print(f"floored: {len(floored)} of {len(rows)} {floored}; C undefined: {len(c_undef)} {c_undef}", flush=True)
     if a.manifest and a.pack:
         mp = pack_dir(a.pack) / "manifest.json"
         man = json.loads(mp.read_text()) if mp.exists() else {}

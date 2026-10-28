@@ -59,6 +59,8 @@ class Problem:
     pv: list = field(default_factory=list)
     poi: float | None = None
     dam_tied: bool = False
+    dam_hsl: list = field(default_factory=list)
+    dam_lsl: list = field(default_factory=list)
 
 
 @dataclass
@@ -163,7 +165,8 @@ def solve(p: Problem) -> Plan:
     for H, j in qi.items():
         rt_mean = float(np.mean(rt_all[PER_H * H:PER_H * (H + 1)]))
         cost[j] = p.dam[H] - rt_mean
-        lo[j], hi[j] = min(p.lsl[H], 0.0), max(p.hsl[H], 0.0)
+        lo[j] = min((p.dam_lsl or p.lsl)[H], 0.0)
+        hi[j] = max((p.dam_hsl or p.hsl)[H], 0.0)
         cost[j + 1] = cost[j + 2] = -EPS_TIE
         if p.dam_tied:
             hi[j + 1] = hi[j + 2] = 0.0
@@ -294,14 +297,14 @@ def solve(p: Problem) -> Plan:
     if prods:
         for H, j in qi.items():
             up = [(Ri[(pr, H)], 1.0) for pr in prods if pr != "regdn" and (pr, H) in Ri]
-            add([(j, 1.0)] + up, -np.inf, max(p.hsl[H], 0.0))
+            add([(j, 1.0)] + up, -np.inf, max((p.dam_hsl or p.hsl)[H], 0.0))
             k_start = PER_H * H - p.k0
             if p.rtcb and up and k_start >= 1:
                 add([(S + k_start - 1, eta)] + [(Ri[(pr, H)], -DURATION_POST[pr] * DEPLOY_FACTOR)
                                                 for pr in prods if pr != "regdn" and (pr, H) in Ri],
                     float(cop_lo[k_start - 1]) * eta, np.inf)
             if ("regdn", H) in Ri:
-                add([(j, 1.0), (Ri[("regdn", H)], -1.0)], min(p.lsl[H], 0.0), np.inf)
+                add([(j, 1.0), (Ri[("regdn", H)], -1.0)], min((p.dam_lsl or p.lsl)[H], 0.0), np.inf)
     if prods and p.rtcb and p.as_fixed:
         for H in range(first_h + 1, nH):
             need = sum(mw * DURATION_POST[pr] * DEPLOY_FACTOR for pr, mw in p.as_fixed[H].items() if pr != "regdn")
