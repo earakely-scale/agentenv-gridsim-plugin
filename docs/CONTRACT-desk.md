@@ -550,7 +550,7 @@ wins large DAM/RT spreads on the scarcity days, so R on those days rewards match
 | 2.0 | spread | 54,845 | -1,133 |
 
 **Chosen for v3: risk 1.5, DAM basis "spread"** (runner-up 1.25/spread $62,500, 7.4% below; worst day −$1,323).
-The tune days carry real DAM/RT MCPCs and ASDCs but no deployment series (`deployments` empty, no `reg_deploy`, so
+The tune days carry real DAM/RT MCPCs and ASDCs but no deployment series (`deployments` empty, no `reg_deploy` and no `as_plan`, so proxy AS offers sit at $1,999.99 and
 regulation energy uses the labelled 0.17/0.20 fractions): the v3 pick is made without deployments. The tune days are
 disjoint from every v3 eval day.
 
