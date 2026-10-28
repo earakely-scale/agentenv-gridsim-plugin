@@ -13,6 +13,13 @@
   .gs-deskb tr.ref td { color: var(--muted-color); }
   .gs-deskb .wrap { overflow-x: auto; }
   .gs-deskb .k { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+  .gs-deskb table.narrow { table-layout: fixed; }
+  .gs-deskb table.narrow th { white-space: normal; vertical-align: bottom; }
+  .gs-deskb table.narrow th, .gs-deskb table.narrow td { padding-left: 3px; padding-right: 3px; }
+  .gs-deskb table.narrow td small { font-size: 10.5px; white-space: nowrap; }
+  .gs-deskb table.narrow th:first-child, .gs-deskb table.narrow tr.v td:first-child { text-align: right; }
+  .gs-deskb table.narrow tr.nm td { border-bottom: 0; padding-bottom: 0; }
+  .gs-deskb table.narrow tr.v td { padding-top: 2px; }
 </style>
 <script>
   (() => {
@@ -24,6 +31,8 @@
     const REFC = { anchor: "var(--text-color)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)" };
     const usd = (x, s = false) => (x == null ? "–" : `${x < 0 ? "−" : s ? "+" : ""}$${Math.round(Math.abs(x)).toLocaleString("en-US")}`);
     const usdci = (c, s = false) => `[${usd(c[0], s)}, ${usd(c[1], s)}]`;
+    const usdk = (x, s = false) => { const a = Math.abs(x); return `${x < 0 ? "−" : s ? "+" : ""}${a >= 1e5 ? Math.round(a / 1e3) + "k" : a >= 1e3 ? (a / 1e3).toFixed(1) + "k" : Math.round(a)}`; };
+    const cik = (c, s = false) => `[${usdk(c[0], s)}, ${usdk(c[1], s)}]`;
     const sens = (V, top) => {
       const w = V.sensitivity && V.sensitivity.without;
       if (!w) return "";
@@ -81,10 +90,15 @@
           }, ev);
           c.on("mousemove", show).on("mouseleave", () => tip.hide());
         });
-        const head = "<tr><th>Desk</th><th>P a battery-day</th><th>P − the operator's bids</th><th>P − anchor</th></tr>";
-        const body = rows.map((r) => r.ref ? `<tr class="ref"><td><i class="k" style="background:${r.color}"></i>${r.name}</td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>–</td><td>–</td></tr>`
-          : `<tr><td><i class="k" style="background:${r.color}"></i><b>${r.name}</b></td><td>${usd(r.P.mean)}<small>${usdci(r.P.ci)}</small></td><td>${r.P_minus_operator_replay.mean == null ? "–" : `${usd(r.P_minus_operator_replay.mean, true)}<small>${usdci(r.P_minus_operator_replay.ci, true)}</small>`}</td><td>${usd(r.P_minus_anchor.mean, true)}<small>${usdci(r.P_minus_anchor.ci, true)}</small></td></tr>`).join("");
-        d3.select(root).select(".wrap").html(`<table>${head}${body}</table>`);
+        const ci = narrow ? cik : usdci;
+        const cell = (v, s) => (v == null || v.mean == null ? "<td>–</td>" : `<td>${usd(v.mean, s)}<small>${ci(v.ci, s)}</small></td>`);
+        const vals = (r) => r.ref ? `${cell(r.P)}<td>–</td><td>–</td>` : `${cell(r.P)}${cell(r.P_minus_operator_replay, true)}${cell(r.P_minus_anchor, true)}`;
+        const name = (r) => `<i class="k" style="background:${r.color}"></i>${r.ref ? r.name : `<b>${r.name}</b>`}`;
+        const cols = "<th>P a battery-day</th><th>P − the operator's bids</th><th>P − anchor</th>";
+        const table = narrow
+          ? `<table class="narrow"><tr>${cols}</tr>${rows.map((r) => `<tr class="nm${r.ref ? " ref" : ""}"><td colspan="3">${name(r)}</td></tr><tr class="v${r.ref ? " ref" : ""}">${vals(r)}</tr>`).join("")}</table>`
+          : `<table><tr><th>Desk</th>${cols}</tr>${rows.map((r) => `<tr${r.ref ? ' class="ref"' : ""}><td>${name(r)}</td>${vals(r)}</tr>`).join("")}</table>`;
+        d3.select(root).select(".wrap").html(table);
         d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a battery-day. Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.`);
       }
       render();
