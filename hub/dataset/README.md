@@ -409,10 +409,11 @@ no-LLM baselines:
   `profit_usd_per_mw`, `optimum_usd_per_mw` and `idle_usd_per_mw`, the run's, the hindsight optimum's and idle's
   profit per MW of battery power. On the blind packs, the mean of `profit_usd_per_mw` × 365 is the dollars of
   [What it's worth](#what-its-worth).
-- `actions` (the 24 submitted integers; empty with no valid schedule), `forecast` (run 4's written 24-hour price
-  forecast, $/MWh), `prices` (the day's 24 day-ahead prices the schedule settles at; the blind tier never shows them),
-  `usd` (the inference cost: per call for API models, the batch's GPU time spread over its battery-days for the 4Bs),
-  `output_tokens` and `source`.
+- `actions` (the 24 submitted integers; empty with no valid schedule), `forecast` (at the blind tier, the 24-hour
+  price forecast the reply wrote before its schedule, in $/MWh, when it wrote one: every run-4 reply does), `prices`
+  (the day's 24 day-ahead prices the schedule settles at; the blind tier never shows them),
+  `usd` (the inference cost: per call for API models, the batch's GPU time spread over its battery-days for the 4Bs;
+  empty where it was not measured), `output_tokens` and `source`.
 
 **Tasks** (`v1_tasks`, `v1_showcase`), one row per battery-day and tier:
 
