@@ -301,7 +301,7 @@ function checkKpis(V, B) {
   return [
     tile(`${cents(r.sales_mwh_weighted_usd_per_mwh)}<small>/MWh</small>`, `${esc(nm(lead))}'s own offers moved the price on its sales`, `The re-cleared minus the real node price, weighted by the ${Math.round(r.sales_mwh_per_episode)} MWh it sold a ${unit(V)}; ${cents(r.purchases_mwh_weighted_usd_per_mwh)} on the ${Math.round(r.purchases_mwh_per_episode)} MWh it bought.`),
     tile(`$${pi[top].max_abs_usd_per_mwh.toFixed(2)}<small>/MWh</small>`, "the largest move in any hour", `${esc(nm(top))}'s; ${pi[top].hours_moved_over_1c} of its ${pi[top].awarded_hours} awarded hours moved by more than 1¢.`),
-    tile(usd(r.revenue_effect_usd_per_episode, true), `a ${unit(V)}: what the moves did to ${esc(nm(lead))}`, `Its day-ahead revenue at the re-cleared prices, against ${usd(m.P.mean)} of P a ${unit(V)}. One 100–150 MW battery is a price taker.`),
+    tile(usd(r.revenue_effect_usd_per_episode, true), `a ${unit(V)}: what the moves did to ${esc(nm(lead))}`, `The change in its day-ahead revenue at the re-cleared prices, against ${usd(m.P.mean)} of P a ${unit(V)}. One 100–150 MW battery is a price taker.`),
     tile(noise(V) ? "Within noise" : "Mixed", `every paired ${V.version} − ${B.version} gap`, `In P, C and R, for all ${Object.keys(V.versus.models).length} models.${tie ? ` ${esc(nm("sol"))} − ${esc(nm("luna"))} in C is ${sgn(tie.mean)} ${sci(tie.ci)}${tie.ci[0] <= 0 && tie.ci[1] >= 0 ? ", a statistical tie" : ""}.` : ""}`),
   ].join("");
 }
