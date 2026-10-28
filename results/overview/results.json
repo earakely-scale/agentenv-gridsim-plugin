@@ -2458,6 +2458,869 @@
    }
   }
  },
+ "leaderboard": {
+  "harness": "the one-call path-B prompt, identical for every model (blind: with the forecast paragraph)",
+  "ci": "day-block bootstrap, 10,000 resamples of days",
+  "packs": [
+   {
+    "key": "foresight-eval2025",
+    "tier": "foresight",
+    "label": "Foresight, held-out 2025",
+    "when": "6 Jan–26 Nov 2025",
+    "n_tasks": 200,
+    "n_days": 157,
+    "metric": "R",
+    "rows": [
+     {
+      "key": "final",
+      "label": "Qwen3-4B, trained (run 3)",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.8849,
+      "ci": [
+       0.8563,
+       0.9114
+      ],
+      "n": 200,
+      "days": 157,
+      "valid": 0.995,
+      "feasible": 0.895,
+      "kinds": {
+       "cycle_cap": 2,
+       "end_short": 5,
+       "ok": 174,
+       "overfill": 12,
+       "rate": 1,
+       "sell_before_charge": 5,
+       "truncated": 1
+      },
+      "usd": 0.00013254,
+      "tokens": 368.0,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "sol",
+      "label": "GPT-6.1 Sol",
+      "family": "sol",
+      "effort": "high",
+      "open": false,
+      "mean": 0.9999,
+      "ci": [
+       0.9997,
+       1.0
+      ],
+      "n": 200,
+      "days": 157,
+      "valid": 1.0,
+      "feasible": 1.0,
+      "kinds": {
+       "ok": 200
+      },
+      "usd": 0.0119746,
+      "tokens": 1021.0,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-high",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "high",
+      "open": false,
+      "mean": 0.9132,
+      "ci": [
+       0.8806,
+       0.9417
+      ],
+      "n": 200,
+      "days": 157,
+      "valid": 0.965,
+      "feasible": 0.96,
+      "kinds": {
+       "ok": 192,
+       "sell_before_charge": 1,
+       "truncated": 7
+      },
+      "usd": 0.00288056,
+      "tokens": 5584.6,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-low",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "low",
+      "open": false,
+      "mean": 0.7681,
+      "ci": [
+       0.7263,
+       0.8072
+      ],
+      "n": 200,
+      "days": 157,
+      "valid": 0.995,
+      "feasible": 0.865,
+      "kinds": {
+       "all_idle": 1,
+       "cycle_cap": 1,
+       "end_short": 5,
+       "malformed": 1,
+       "ok": 167,
+       "overfill": 15,
+       "sell_before_charge": 10
+      },
+      "usd": 0.00060378,
+      "tokens": 1031.0,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "base",
+      "label": "Qwen3-4B, untrained",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.0605,
+      "ci": [
+       0.048,
+       0.0736
+      ],
+      "n": 200,
+      "days": 157,
+      "valid": 0.355,
+      "feasible": 0.265,
+      "kinds": {
+       "all_idle": 53,
+       "malformed": 33,
+       "sell_before_charge": 18,
+       "truncated": 96
+      },
+      "usd": null,
+      "tokens": 403.5,
+      "src": "results/train/4b/eval_base.json"
+     }
+    ],
+    "baselines": [
+     {
+      "key": "greedy",
+      "label": "greedy rule",
+      "mean": 0.764,
+      "ci": [
+       0.719,
+       0.8076
+      ],
+      "n": 200,
+      "days": 157
+     },
+     {
+      "key": "threshold",
+      "label": "threshold rule",
+      "mean": 0.6371,
+      "ci": [
+       0.5993,
+       0.6727
+      ],
+      "n": 200,
+      "days": 157
+     },
+     {
+      "key": "clock",
+      "label": "clock rule",
+      "mean": 0.4979,
+      "ci": [
+       0.4565,
+       0.5402
+      ],
+      "n": 200,
+      "days": 157
+     },
+     {
+      "key": "idle",
+      "label": "idle, the battery does nothing",
+      "mean": 0.2,
+      "ci": [
+       0.2,
+       0.2
+      ]
+     }
+    ]
+   },
+   {
+    "key": "foresight-fresh",
+    "tier": "foresight",
+    "label": "Foresight, newest days",
+    "when": "18–27 Oct 2026",
+    "n_tasks": 362,
+    "n_days": 10,
+    "metric": "R",
+    "rows": [
+     {
+      "key": "final",
+      "label": "Qwen3-4B, trained (run 3)",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.8551,
+      "ci": [
+       0.8393,
+       0.8719
+      ],
+      "n": 362,
+      "days": 10,
+      "valid": 0.9945,
+      "feasible": 0.9033,
+      "kinds": {
+       "cycle_cap": 3,
+       "end_short": 5,
+       "ok": 322,
+       "overfill": 22,
+       "rate": 1,
+       "sell_before_charge": 7,
+       "truncated": 2
+      },
+      "usd": 0.00013971,
+      "tokens": 367.1,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "sol",
+      "label": "GPT-6.1 Sol",
+      "family": "sol",
+      "effort": "high",
+      "open": false,
+      "mean": 1.0,
+      "ci": [
+       1.0,
+       1.0
+      ],
+      "n": 362,
+      "days": 10,
+      "valid": 1.0,
+      "feasible": 1.0,
+      "kinds": {
+       "ok": 362
+      },
+      "usd": 0.01027282,
+      "tokens": 850.8,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-high",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "high",
+      "open": false,
+      "mean": 0.9576,
+      "ci": [
+       0.9452,
+       0.9699
+      ],
+      "n": 362,
+      "days": 10,
+      "valid": 0.9945,
+      "feasible": 0.9862,
+      "kinds": {
+       "cycle_cap": 1,
+       "end_short": 1,
+       "ok": 356,
+       "overfill": 1,
+       "sell_before_charge": 1,
+       "truncated": 2
+      },
+      "usd": 0.00236936,
+      "tokens": 4562.2,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-low",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "low",
+      "open": false,
+      "mean": 0.7965,
+      "ci": [
+       0.7644,
+       0.829
+      ],
+      "n": 362,
+      "days": 10,
+      "valid": 0.9945,
+      "feasible": 0.8729,
+      "kinds": {
+       "all_idle": 1,
+       "cycle_cap": 5,
+       "end_short": 8,
+       "malformed": 2,
+       "ok": 307,
+       "overfill": 23,
+       "rate": 1,
+       "sell_before_charge": 15
+      },
+      "usd": 0.00058481,
+      "tokens": 993.1,
+      "src": "results/cost-matched"
+     }
+    ],
+    "baselines": [
+     {
+      "key": "greedy",
+      "label": "greedy rule",
+      "mean": 0.7162,
+      "ci": [
+       0.5907,
+       0.8214
+      ],
+      "n": 362,
+      "days": 10
+     },
+     {
+      "key": "threshold",
+      "label": "threshold rule",
+      "mean": 0.7402,
+      "ci": [
+       0.6636,
+       0.8047
+      ],
+      "n": 362,
+      "days": 10
+     },
+     {
+      "key": "clock",
+      "label": "clock rule",
+      "mean": 0.5273,
+      "ci": [
+       0.3947,
+       0.6516
+      ],
+      "n": 362,
+      "days": 10
+     },
+     {
+      "key": "idle",
+      "label": "idle, the battery does nothing",
+      "mean": 0.2,
+      "ci": [
+       0.2,
+       0.2
+      ]
+     }
+    ]
+   },
+   {
+    "key": "blind-eval2025",
+    "tier": "blind",
+    "label": "Blind, held-out 2025",
+    "when": "6 Jan–30 Nov 2025",
+    "n_tasks": 300,
+    "n_days": 191,
+    "metric": "r_opt",
+    "rows": [
+     {
+      "key": "final",
+      "label": "Qwen3-4B, trained (run 4)",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.828,
+      "ci": [
+       0.8007,
+       0.8529
+      ],
+      "n": 300,
+      "days": 191,
+      "valid": 1.0,
+      "feasible": 0.9,
+      "kinds": {
+       "cycle_cap": 2,
+       "end_short": 5,
+       "ok": 265,
+       "overfill": 7,
+       "rate": 4,
+       "sell_before_charge": 17
+      },
+      "usd": 0.00047927,
+      "tokens": 420.3,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "sol",
+      "label": "GPT-6.1 Sol",
+      "family": "sol",
+      "effort": "high",
+      "open": false,
+      "mean": 0.9031,
+      "ci": [
+       0.8833,
+       0.9211
+      ],
+      "n": 300,
+      "days": 191,
+      "valid": 0.99,
+      "feasible": 0.99,
+      "kinds": {
+       "malformed": 3,
+       "ok": 297
+      },
+      "usd": 0.01580406,
+      "tokens": 1211.3,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-high",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "high",
+      "open": false,
+      "mean": 0.8289,
+      "ci": [
+       0.8059,
+       0.8502
+      ],
+      "n": 300,
+      "days": 191,
+      "valid": 0.99,
+      "feasible": 0.98,
+      "kinds": {
+       "end_short": 1,
+       "malformed": 3,
+       "ok": 293,
+       "overfill": 2,
+       "sell_before_charge": 1
+      },
+      "usd": 0.00202048,
+      "tokens": 3671.8,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-low",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "low",
+      "open": false,
+      "mean": 0.6821,
+      "ci": [
+       0.6509,
+       0.7128
+      ],
+      "n": 300,
+      "days": 191,
+      "valid": 0.9967,
+      "feasible": 0.85,
+      "kinds": {
+       "cycle_cap": 1,
+       "end_short": 5,
+       "malformed": 1,
+       "ok": 250,
+       "overfill": 35,
+       "rate": 2,
+       "sell_before_charge": 6
+      },
+      "usd": 0.00052594,
+      "tokens": 682.8,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "base",
+      "label": "Qwen3-4B, untrained",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.1639,
+      "ci": [
+       0.1537,
+       0.1741
+      ],
+      "n": 300,
+      "days": 191,
+      "valid": 1.0,
+      "feasible": 0.6133,
+      "kinds": {
+       "all_idle": 184,
+       "overfill": 4,
+       "rate": 9,
+       "sell_before_charge": 103
+      },
+      "usd": 0.00036648,
+      "tokens": 300.9,
+      "src": "results/train/4b-blind/eval_step0_base.json"
+     }
+    ],
+    "baselines": [
+     {
+      "key": "persistence-dp",
+      "label": "persistence-DP, the exact DP on yesterday's prices",
+      "mean": 0.882,
+      "ci": [
+       0.8601,
+       0.9015
+      ],
+      "n": 300,
+      "days": 191
+     },
+     {
+      "key": "ridge-dp",
+      "label": "ridge-DP, the exact DP on a ridge forecast",
+      "mean": 0.7988,
+      "ci": [
+       0.7711,
+       0.8249
+      ],
+      "n": 300,
+      "days": 191
+     },
+     {
+      "key": "anchor",
+      "label": "blind anchor, the better of the two picked in hindsight",
+      "mean": 0.9204,
+      "ci": [
+       0.906,
+       0.9335
+      ],
+      "n": 300,
+      "days": 191
+     },
+     {
+      "key": "teacher-dp",
+      "label": "a tuned forecaster with the exact DP (run 4's teacher)",
+      "mean": 0.9119,
+      "ci": [
+       0.8953,
+       0.9271
+      ]
+     },
+     {
+      "key": "idle",
+      "label": "idle, the battery does nothing",
+      "mean": 0.2,
+      "ci": [
+       0.2,
+       0.2
+      ]
+     }
+    ]
+   },
+   {
+    "key": "blind-fresh",
+    "tier": "blind",
+    "label": "Blind, newest days",
+    "when": "18–27 Oct 2026",
+    "n_tasks": 331,
+    "n_days": 10,
+    "metric": "r_opt",
+    "rows": [
+     {
+      "key": "final",
+      "label": "Qwen3-4B, trained (run 4)",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.8408,
+      "ci": [
+       0.7934,
+       0.8733
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 1.0,
+      "feasible": 0.9184,
+      "kinds": {
+       "cycle_cap": 11,
+       "end_short": 6,
+       "ok": 298,
+       "overfill": 3,
+       "rate": 1,
+       "sell_before_charge": 12
+      },
+      "usd": 0.00047429,
+      "tokens": 428.7,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "sol",
+      "label": "GPT-6.1 Sol",
+      "family": "sol",
+      "effort": "high",
+      "open": false,
+      "mean": 0.9128,
+      "ci": [
+       0.8638,
+       0.9491
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 0.9909,
+      "feasible": 0.9909,
+      "kinds": {
+       "malformed": 3,
+       "ok": 328
+      },
+      "usd": 0.01584677,
+      "tokens": 1215.6,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-high",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "high",
+      "open": false,
+      "mean": 0.8362,
+      "ci": [
+       0.7998,
+       0.8612
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 0.9879,
+      "feasible": 0.9849,
+      "kinds": {
+       "malformed": 4,
+       "ok": 326,
+       "overfill": 1
+      },
+      "usd": 0.00201278,
+      "tokens": 3656.5,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "luna-low",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "low",
+      "open": false,
+      "mean": 0.6902,
+      "ci": [
+       0.6566,
+       0.7228
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 0.9819,
+      "feasible": 0.8369,
+      "kinds": {
+       "cycle_cap": 3,
+       "end_short": 9,
+       "malformed": 6,
+       "ok": 268,
+       "overfill": 40,
+       "rate": 2,
+       "sell_before_charge": 3
+      },
+      "usd": 0.0005235,
+      "tokens": 677.9,
+      "src": "results/cost-matched"
+     },
+     {
+      "key": "base",
+      "label": "Qwen3-4B, untrained",
+      "family": "qwen",
+      "effort": null,
+      "open": true,
+      "mean": 0.1713,
+      "ci": [
+       0.1489,
+       0.1932
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 1.0,
+      "feasible": 0.4743,
+      "kinds": {
+       "all_idle": 156,
+       "end_short": 1,
+       "overfill": 1,
+       "rate": 21,
+       "sell_before_charge": 152
+      },
+      "usd": 0.00032721,
+      "tokens": 299.4,
+      "src": "results/train/4b-blind/eval_step0_base.json"
+     },
+     {
+      "key": "luna-medium",
+      "label": "GPT-6 Luna",
+      "family": "luna",
+      "effort": "medium",
+      "open": false,
+      "mean": 0.7996,
+      "ci": [
+       0.7618,
+       0.8321
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 0.9789,
+      "feasible": 0.9668,
+      "kinds": {
+       "end_short": 1,
+       "malformed": 7,
+       "ok": 319,
+       "overfill": 3,
+       "sell_before_charge": 1
+      },
+      "usd": 0.00118647,
+      "tokens": 2003.9,
+      "src": "results/cost-matched/luna/luna-blind-fresh-medium.jsonl.gz"
+     },
+     {
+      "key": "beam-low",
+      "label": "Beam-1.0",
+      "family": "beam",
+      "effort": "low",
+      "open": true,
+      "mean": 0.7589,
+      "ci": [
+       0.7255,
+       0.786
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 0.997,
+      "feasible": 0.9335,
+      "kinds": {
+       "all_idle": 1,
+       "end_short": 1,
+       "malformed": 1,
+       "ok": 307,
+       "overfill": 16,
+       "rate": 4,
+       "sell_before_charge": 1
+      },
+      "usd": 0.0056355,
+      "tokens": 3947.0,
+      "src": "results/beam-agent/beam/beam-blind-fresh-low.jsonl.gz"
+     },
+     {
+      "key": "beam-medium",
+      "label": "Beam-1.0",
+      "family": "beam",
+      "effort": "medium",
+      "open": true,
+      "mean": 0.8287,
+      "ci": [
+       0.808,
+       0.8484
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 1.0,
+      "feasible": 0.9819,
+      "kinds": {
+       "cycle_cap": 1,
+       "end_short": 1,
+       "ok": 324,
+       "overfill": 4,
+       "rate": 1
+      },
+      "usd": 0.0115398,
+      "tokens": 8867.2,
+      "src": "results/beam-agent/beam/beam-blind-fresh-medium.jsonl.gz"
+     },
+     {
+      "key": "beam-high",
+      "label": "Beam-1.0",
+      "family": "beam",
+      "effort": "high",
+      "open": true,
+      "mean": 0.8612,
+      "ci": [
+       0.8286,
+       0.8859
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 1.0,
+      "feasible": 0.9909,
+      "kinds": {
+       "cycle_cap": 1,
+       "ok": 328,
+       "overfill": 1,
+       "sell_before_charge": 1
+      },
+      "usd": 0.02031762,
+      "tokens": 16181.7,
+      "src": "results/beam-agent/beam/beam-blind-fresh-high.jsonl.gz"
+     },
+     {
+      "key": "beam-max",
+      "label": "Beam-1.0",
+      "family": "beam",
+      "effort": "max",
+      "open": true,
+      "mean": 0.8902,
+      "ci": [
+       0.8593,
+       0.913
+      ],
+      "n": 331,
+      "days": 10,
+      "valid": 0.994,
+      "feasible": 0.994,
+      "kinds": {
+       "malformed": 1,
+       "ok": 329,
+       "truncated": 1
+      },
+      "usd": 0.03304527,
+      "tokens": 26788.1,
+      "src": "results/beam-agent/beam/beam-blind-fresh-max.jsonl.gz"
+     }
+    ],
+    "baselines": [
+     {
+      "key": "persistence-dp",
+      "label": "persistence-DP, the exact DP on yesterday's prices",
+      "mean": 0.871,
+      "ci": [
+       0.7868,
+       0.9355
+      ],
+      "n": 331,
+      "days": 10
+     },
+     {
+      "key": "ridge-dp",
+      "label": "ridge-DP, the exact DP on a ridge forecast",
+      "mean": 0.8851,
+      "ci": [
+       0.8317,
+       0.9287
+      ],
+      "n": 331,
+      "days": 10
+     },
+     {
+      "key": "anchor",
+      "label": "blind anchor, the better of the two picked in hindsight",
+      "mean": 0.9192,
+      "ci": [
+       0.8623,
+       0.96
+      ],
+      "n": 331,
+      "days": 10
+     },
+     {
+      "key": "teacher-dp",
+      "label": "a tuned forecaster with the exact DP (run 4's teacher)",
+      "mean": 0.9196,
+      "ci": [
+       0.893,
+       0.9438
+      ]
+     },
+     {
+      "key": "idle",
+      "label": "idle, the battery does nothing",
+      "mean": 0.2,
+      "ci": [
+       0.2,
+       0.2
+      ]
+     }
+    ]
+   }
+  ]
+ },
  "glance": [
   {
    "key": "capture",
@@ -2510,22 +3373,33 @@
   "results/beam-agent/beam/beam-blind-fresh-max.jsonl.gz": "92f179c4bc7c",
   "results/beam-agent/beam/beam-blind-fresh-medium.jsonl.gz": "e3347402581e",
   "results/blind-ceiling/summary.json": "f92ec85f4f5c",
+  "results/cost-matched/luna/luna-blind-eval2025-high.jsonl.gz": "d0ddec74221a",
+  "results/cost-matched/luna/luna-blind-eval2025-low.jsonl.gz": "20b2f0003a1e",
   "results/cost-matched/luna/luna-blind-fresh-high.jsonl.gz": "9ff886077201",
   "results/cost-matched/luna/luna-blind-fresh-low.jsonl.gz": "edf32ad18bc0",
   "results/cost-matched/luna/luna-blind-fresh-medium.jsonl.gz": "e570f9d68daa",
+  "results/cost-matched/luna/luna-foresight-eval2025-high.jsonl.gz": "7ee32c1dd5a2",
+  "results/cost-matched/luna/luna-foresight-eval2025-low.jsonl.gz": "77cd123b11b8",
+  "results/cost-matched/luna/luna-foresight-fresh-high.jsonl.gz": "cd027a6de4fe",
+  "results/cost-matched/luna/luna-foresight-fresh-low.jsonl.gz": "b0f477e384fb",
   "results/cost-matched/summary.json": "4d5c9123f9d2",
   "results/economics/summary.json": "f3ccf2a6e01b",
+  "results/fresh/2026-10/eval_run3.json": "233bfed360dd",
+  "results/fresh/2026-10/eval_sol.jsonl.gz": "955a419cba58",
   "results/fresh/2026-10/summary.json": "c68ac2439b2c",
   "results/train/4b-blind/README.md": "ac2de57075ed",
   "results/train/4b-blind/eval_final.json": "a17279ba2d94",
   "results/train/4b-blind/eval_step0_base.json": "8dbd3b43cb78",
+  "results/train/4b-blind/sol/sol-ercot-dam-v1-eval.jsonl.gz": "091c81089181",
   "results/train/4b-blind/sol/sol-ercot-dam-v1-fresh-2026-10-blind.jsonl.gz": "ec81fc940abf",
   "results/train/4b-blind/summary.json": "9ae641de0335",
   "results/train/4b-dpa/README.md": "a1ef41ac644b",
+  "results/train/4b-dpa/eval_trained.json": "dce11f9d135c",
   "results/train/4b-dpa/summary.json": "0893131a7bd1",
   "results/train/4b-v2/README.md": "f95cc068f419",
   "results/train/4b-v2/summary.json": "cac743dbc053",
   "results/train/4b/README.md": "13914e8dfeca",
+  "results/train/4b/eval_base.json": "2d7ac037dbcf",
   "results/train/4b/summary.json": "17d4b9e73cf4",
   "results/train/arm2/summary.json": "a576274f3686",
   "results/train/arm2c/README.md": "e8a642812940",

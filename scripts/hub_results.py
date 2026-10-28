@@ -31,6 +31,8 @@ import numpy as np
 from agentenv_hf.scan import known_values, scan
 from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
 
+from gridsim_core.grade import reward_value
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -226,6 +228,114 @@ def scores() -> list[dict]:
                          "trained_minus_sol": gap(g["4b-sampled - sol"])}})
     same(out[-1]["trained"]["mean"], fr["run3-sampled"]["mean"], "run 3 fresh R")
     return out
+
+
+RC = module("report_cost", f"{CM}/scripts/report_cost.py")
+PACK_NAMES = {"blind-fresh": ("Blind, newest days", "18–27 Oct 2026"),
+              "blind-eval2025": ("Blind, held-out 2025", "6 Jan–30 Nov 2025"),
+              "foresight-eval2025": ("Foresight, held-out 2025", "6 Jan–26 Nov 2025"),
+              "foresight-fresh": ("Foresight, newest days", "18–27 Oct 2026")}
+CONTEST_ROWS = {"4b-sampled": ("final", "qwen", None, True), "sol": ("sol", "sol", "high", False),
+                "luna-high": ("luna-high", "luna", "high", False), "luna-low": ("luna-low", "luna", "low", False)}
+# The leaderboard's rows beyond the cost-matched contest's own. To add a model, commit its per-task records (one JSON
+# line per task: task_id, actions, c or reward, usd, usage) under the one-call harness, add a line, and rerun.
+UNTRAINED = ("Qwen3-4B, untrained", "qwen", None, True)
+BOARD_ROWS = [
+    ("blind-fresh", "base", *UNTRAINED, (f"{TB}/eval_step0_base.json", "fresh")),
+    ("blind-eval2025", "base", *UNTRAINED, (f"{TB}/eval_step0_base.json", "eval2025")),
+    ("foresight-eval2025", "base", *UNTRAINED, ("results/train/4b/eval_base.json", None)),
+    ("blind-fresh", "luna-medium", "GPT-6 Luna", "luna", "medium", False,
+     f"{CM}/luna/luna-blind-fresh-medium.jsonl.gz"),
+    *[("blind-fresh", f"beam-{e}", "Beam-1.0", "beam", e, True, f"beam-blind-fresh-{e}.jsonl.gz") for e in EFFORTS],
+]
+INVALID = ("malformed", "truncated", "error")
+
+
+def board_row(key: str, label: str, family: str, effort: str | None, open_: bool, m: dict, days, usd, tokens,
+              src: str) -> dict:
+    kinds = {str(k): int(v) for k, v in zip(*np.unique(m["kind"][m["ran"]], return_counts=True), strict=True)}
+    n = int(m["ran"].sum())
+    return {"key": key, "label": label, "family": family, "effort": effort, "open": open_,
+            **RB.boot(m["score"], days), "valid": r4(sum(v for k, v in kinds.items() if k not in INVALID) / n),
+            "feasible": r4(m["feasible"].mean()),
+            "kinds": kinds, "usd": None if usd is None else round(float(usd), 8),
+            "tokens": None if tokens is None else round(float(tokens), 1), "src": src}
+
+
+def leaderboard(beam_dir: Path, front: dict) -> dict:
+    """Every model and effort run under the one-call harness, re-graded on each pack from its records, with the error
+    kind of every schedule, beside the baselines: the cost-matched contest's rows, then BOARD_ROWS."""
+    cm, s4 = load(f"{CM}/summary.json")["packs"], load(f"{TB}/summary.json")["packs"]
+    ceil = load("results/blind-ceiling/summary.json")["registered"]["packs"]
+    packs = []
+    for key, p in RC.PACKS.items():
+        tasks, tier = RC.tasks_of(key), p["tier"]
+        days = np.array([t["date"] for t in tasks])
+        sk = "c" if tier == "blind" else "reward"
+        run = "run 4" if tier == "blind" else "run 3"
+        rows = []
+        for rel in (p["fourb"][0], p.get("sol"), *(f"{CM}/luna/luna-{key}-{e}.jsonl.gz" for e in ("high", "low"))):
+            if rel and (ROOT / rel).is_file():
+                READ.setdefault(rel, hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()[:12])
+        for name, m in RC.models_for(key, tasks).items():
+            if name in CONTEST_ROWS:
+                rk, family, effort, open_ = CONTEST_ROWS[name]
+                label = {"qwen": f"Qwen3-4B, trained ({run})", "sol": "GPT-6.1 Sol", "luna": "GPT-6 Luna"}[family]
+                rows.append(board_row(rk, label, family, effort, open_, m, days, m["usd_task"], m["out_tokens"], CM))
+                same(rows[-1]["mean"], cm[key]["models"][name]["score"]["mean"], f"{key} {name}")
+        for pk, rk, label, family, effort, open_, src in BOARD_ROWS:
+            if pk != key:
+                continue
+            if isinstance(src, tuple):
+                ev = load(src[0])
+                r = next(r for r in ev["runs"]
+                         if r["decoding"] == "sampled" and (src[1] is None or r["pack"] == src[1]))
+                recs, rel = {t["task_id"]: t for t in r["per_task"]}, src[0]
+                usd = r["wall_s"] * p["rate"] / 3600 / len(tasks) if tier == "blind" else None
+                tokens = float(np.mean([t["len"] for t in r["per_task"]]))
+            else:
+                path = beam_dir / src if src.startswith("beam-") else ROOT / src
+                if not path.is_file():
+                    continue
+                recs, rel = records(path), path.relative_to(ROOT).as_posix()
+                if not all(t["task_id"] in recs for t in tasks):
+                    continue
+                usd = float(np.mean([recs[t["task_id"]]["usd"] for t in tasks]))
+                tokens = float(np.mean([recs[t["task_id"]]["usage"]["output"] for t in tasks]))
+            m = RC.regrade(tasks, tier, recs, sk)
+            rows.append(board_row(rk, label, family, effort, open_, m, days, usd, tokens, rel))
+        if tier == "blind":
+            pk = "fresh" if key == "blind-fresh" else "eval2025"
+            refs = []
+            for rk, label, field in (
+                    ("persistence-dp", "persistence-DP, the exact DP on yesterday's prices", "p_persist"),
+                    ("ridge-dp", "ridge-DP, the exact DP on a ridge forecast", "p_ridge"),
+                    ("anchor", "blind anchor, the better of the two picked in hindsight", "p_anchor")):
+                x = [reward_value(t["refs"]["blind"][field], t["refs"]["foresight"]["p_idle"],
+                                  t["refs"]["foresight"]["p_opt"]) for t in tasks]
+                refs.append({"key": rk, "label": label, **RB.boot(x, days)})
+            same(refs[0]["mean"], ceil[pk]["methods"]["persist_point"]["c"]["mean"], f"{key} persistence-DP")
+            refs.append({"key": "teacher-dp", "label": "a tuned forecaster with the exact DP (run 4's teacher)",
+                         **level(s4[pk]["models"]["teacher"]["c"])})
+        else:
+            refs = [{"key": k, "label": f"{k} rule", **RB.boot([t["refs"]["foresight"]["baselines"][k]["reward"]
+                                                              for t in tasks], days)}
+                    for k in ("greedy", "threshold", "clock")]
+        refs.append({"key": "idle", "label": "idle, the battery does nothing", "mean": 0.2, "ci": [0.2, 0.2]})
+        by = {r["key"]: r for r in rows}
+        if key == "blind-fresh":
+            fp = {q["key"]: q for q in front["points"]}
+            for r in rows:
+                same(r["mean"], fp[r["key"]]["mean"], f"{key} {r['key']}")
+                same(r["usd"], fp[r["key"]]["usd"], f"{key} {r['key']} $ per task", 5e-8)
+        if "base" in by and tier == "blind":
+            same(by["base"]["mean"], s4["fresh" if key == "blind-fresh" else "eval2025"]["models"]["base-sampled"]["c"]
+                 ["mean"], f"{key} untrained")
+        packs.append({"key": key, "tier": tier, "label": PACK_NAMES[key][0], "when": PACK_NAMES[key][1],
+                      "n_tasks": len(tasks), "n_days": int(len(np.unique(days))),
+                      "metric": "r_opt" if tier == "blind" else "R", "rows": rows, "baselines": refs})
+    return {"harness": "the one-call path-B prompt, identical for every model (blind: with the forecast paragraph)",
+            "ci": "day-block bootstrap, 10,000 resamples of days", "packs": packs}
 
 
 def dollars() -> dict:
@@ -434,6 +544,7 @@ def build(beam_dir: Path) -> dict:
     READ.clear()
     res = {"schema": "gridsim.results/v1", "title": "What training bought, in dollars",
            "frontier": frontier(beam_dir), "scores": scores(), "dollars": dollars(), "training": training()}
+    res["leaderboard"] = leaderboard(beam_dir, res["frontier"])
     res["glance"] = glance(res)
     res["live"] = {"prereg": "docs/prereg/v1-live-board.md", "first_seal": "2026-10-29", "page": f"{APP}/board.html",
                    "on_demand": True}
