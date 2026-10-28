@@ -104,6 +104,8 @@ class Session:
                 items.append({"t": j * clock.DAY + c, "reason": "checkpoint", "wakes": True})
         for n in self.ser.notices:
             t = n["t_issued_at"]
+            if t < clock.START - clock.DAY:
+                continue
             items.append({"t": max(t, clock.START), "reason": "notice", "wakes": t > clock.START, "notice": n,
                           "id": n.get("event_id")})
         for n in self.ser.nws:
@@ -199,10 +201,6 @@ class Session:
         for t in sorted(self.reminders):
             if t0 < t <= t1:
                 out.append({"t": clock.label(t, self.d0), "kind": "reminder", "text": self.reminders.pop(t)})
-        if self.turn < 0:
-            for n in self.ser.notices:
-                if n["t_issued_at"] < clock.START and n["t_issued_at"] >= clock.START - clock.DAY:
-                    out.append(self._notice_event(n, board=True))
         for ev in out:
             self.events.append(dict(ev, t_min=self.now if "t_min" not in ev else ev["t_min"]))
         return out
@@ -217,7 +215,7 @@ class Session:
     def _event(self, i: dict) -> dict | None:
         r, t = i["reason"], clock.label(i["t"], self.d0)
         if r == "notice":
-            return self._notice_event(i["notice"])
+            return self._notice_event(i["notice"], board=i["notice"]["t_issued_at"] < clock.START)
         if r == "nws":
             n = i["nws"]
             return {"t": t, "kind": "weather", "event": n.get("event"), "severity": n.get("severity"),

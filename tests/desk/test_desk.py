@@ -148,6 +148,8 @@ def test_windows_and_budgets(post):
     s = Session(*post)
     w = s.start()
     assert w["reasons"] == ["start"] and w["budget"]["turns_left"] == 39
+    board = [e for e in w["events"] if e["kind"] == "notice"]
+    assert len(board) == 1 and board[0]["board"]
     assert "not_posted" in s.call("get_prices", {"market": "dam"})["error"]
     assert s.call("get_prices", {"market": "dam", "day": "D-1"})["values"]
     rt = s.call("submit_rt_offers", {"curves": [{"hours": "HE10", "points": [[0, 10], [10, 20]]}]})
@@ -234,3 +236,28 @@ def test_tool_specs_and_output_sizes(post):
         for c in t["calls"]:
             if c["tool"] != "optimize":
                 assert len(json.dumps(c["result"])) < 4000, c["tool"]
+
+
+def test_gateway_path_matches_turn_path(post):
+    a = policies.run(*post, "anchor")
+    s = Session(*post)
+    w = s.start()
+    while w is not None:
+        policies.anchor(s, w)
+        s._close_turn(None)
+        nxt = s.call("next_wakeup", {}, role="hook")
+        w = s.advance_to(nxt["at"]) if nxt["at"] is not None else None
+    s.finish()
+    assert s.result == a.result
+    assert [x["reasons"] for x in s.wakes] == [x["reasons"] for x in a.wakes]
+
+
+def test_replay_is_deterministic(post):
+    a = policies.run(*post, "scripted")
+    b = Session(*post)
+    b.start()
+    for t in a.turns:
+        for c in t["calls"]:
+            b.call(c["tool"], c["args"])
+        b.end_turn(t["text"])
+    assert b.done and b.result == a.result
