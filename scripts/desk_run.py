@@ -68,6 +68,10 @@ def api_key(a) -> str:
     return r.stdout.strip()
 
 
+def budgets(a) -> dict | None:
+    return {"max_turns": a.max_turns} if a.max_turns else None
+
+
 def tasks_from(a) -> list[tuple[dict, dict]]:
     if a.fixture:
         out = []
@@ -170,7 +174,7 @@ def run_model(task, series, a, preset, out: Path, tag: str, lane_spent: float) -
     ck = out / "ckpt" / f"{tid}.{tag}.json"
     calls_log = out / "calls" / f"{tid}.{tag}.jsonl"
     agent = ModelAgent(a, preset, lane_spent)
-    s = Session(task, series, layer=a.layer)
+    s = Session(task, series, layer=a.layer, budgets=budgets(a))
     tools = tool_specs(s.layer, s.rtcb)
     messages = [{"role": "system", "content": system_prompt(s)}]
     turn_starts: list[int] = []
@@ -243,6 +247,7 @@ def main() -> None:
     ap.add_argument("--max-usd", type=float, default=5.0, help="per-episode spend cap")
     ap.add_argument("--lane-cap-usd", type=float, help="cap on the total spend recorded in <out>/results.jsonl")
     ap.add_argument("--max-tokens", type=int)
+    ap.add_argument("--max-turns", type=int, help="override the layer's turn budget (smoke runs)")
     ap.add_argument("--timeout", type=float, default=600.0)
     ap.add_argument("--tag")
     ap.add_argument("--out", required=True)
@@ -264,7 +269,8 @@ def main() -> None:
             s, usage, status = run_model(task, series, a, preset, out, tag, ledger(out))
             pol = {"kind": "model", "model": a.model or preset["model"], "effort": a.effort or preset.get("effort")}
         else:
-            s, usage, status = policies.run(task, series, a.policy, layer=a.layer), {"cost_usd": 0.0}, "ok"
+            s = policies.run(task, series, a.policy, layer=a.layer, budgets=budgets(a))
+            usage, status = {"cost_usd": 0.0}, "ok"
             pol = {"kind": a.policy}
         g = refs.grade(s, r)
         usage = dict(usage, turns=len(s.turns), calls=sum(len(t["calls"]) for t in s.turns),

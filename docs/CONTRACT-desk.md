@@ -86,7 +86,7 @@ disclosures (1.4 `operator`) are complete for every operating day.
   high percentile of telemetered HSL/LSL over the calibration window). `e_max_mwh` / `e_min_mwh` are nameplate
   MaxSOC / MinSOC (disclosure maximum MaxSOC, else EIA-860). `ramp_mw_per_min` is the normal ramp rate (default
   `hsl_mw / 5` when no disclosure gives it). **[data]**
-- `rte` (round-trip, AC to AC) and `standby_loss_pct_per_h` (percent of current SoC lost per hour) are calibrated by
+- `rte` (round-trip, AC to AC) and `standby_loss_pct_per_h` (percent of the energy above nameplate MinSOC lost per hour) are calibrated by
   the data lane from SoC vs telemetered output in the 60-day SCED disclosure; `calibration` records how. Core splits
   RTE symmetrically: η_c = η_d = √rte. **[modelled]** (estimated from data)
 - `deg_usd_per_mwh` (per MWh discharged) and `warranty_cycles_per_day` (equivalent full cycles, discharged MWh /
@@ -314,7 +314,8 @@ the discharging range (P§4.4.9.7(7)). Self-schedule = a curve priced at the flo
 | `LRB-05` | the RT charging bid for HE T is frozen once T's adjustment period ends (T−60) |
 | `GOC-05` | MW ≤ hsl_mw; bid MW ≤ −lsl_mw |
 
-**[simplified]** With no RT load bid, the DAM bid carries into RT; with none at all the battery does not charge (no
+The offer and the bid belong to two Resources, so a frozen bid in an RT item that also carries an offer rejects only
+the bid (`LRB-05`) and accepts the offer. **[simplified]** With no RT load bid, the DAM bid carries into RT; with none at all the battery does not charge (no
 VOLL proxy). With no RT gen offer the DAM offer carries; with none the battery does not discharge.
 
 ### 4.3 COP (P§3.9.1) **[rule]**
@@ -351,17 +352,19 @@ is `offer(p) − bid(p)` with `bid(p) = max{q : bid_price(q) ≥ p}` (0 when non
 ### 5.2 DAM (hourly)
 
 At `dam_close` each hour h of the operating day clears at the node DASPP_h: award `a_h = clip(q_h(DASPP_h), LSL_h,
-HSL_h)` with COP limits; status OUT/ONHOLD hours and hours with no curve award 0. The DAM ignores SoC (Battery Overview
-slide 23) **[rule]**. Results are visible at `posted.dam` (default 13:30).
+HSL_h)` with the COP limits at the close; hours with no curve award 0. The DAM ignores SoC (Battery Overview slide 23)
+and COP status for EB/OCs (P§4.4.9.7(3)) **[rule]**. Results are visible at `posted.dam` (default 13:30).
 
 ### 5.3 RT (5-minute SCED)
 
 For each 5-minute interval k of an operating day, SCED runs at the interval start with the curve in force then
 (submissions at time t apply to intervals starting at or after t):
 1. desired `x = q_h(k)(LMP_k)` (the real node LMP of interval k);
-2. physical limits: `HDL = min(HSL_tel, BP_{k−1} + 5·ramp, η_d·(SoC − MinSOC)·12)`,
-   `LDL = max(LSL_tel, BP_{k−1} − 5·ramp, −(MaxSOC − SoC)·12/η_c)` (P§6.5.7.2(4)-(5) with SoC, P§6.5.7.3(1));
-3. base point `BP_k = clip(x, LDL, HDL)`; status OUT/ONHOLD → 0.
+2. limits: ramp `BP_{k−1} ± 5·ramp` (soft: an outage overrides it), telemetered `[LSL, HSL]` = the unit-event limits
+   intersected with the hour's COP HSL/LSL, and SoC `[−12·(MaxSOC − drift(SoC))/η_c, 12·η_d·(drift(SoC) − MinSOC)]`
+   with the hour's COP MinSOC/MaxSOC (P§6.5.7.2(4)-(5), P§6.5.7.3(1)); the QSE is taken to telemeter its COP limits
+   (C-D9) **[simplified]**;
+3. base point `BP_k` = x clipped to the ramp window, then to [LSL, HSL], then to the SoC window; status OUT/ONHOLD → 0.
 
 Telemetry = base point (perfect set-point following) except during a unit event that starts inside the interval, when
 the metered MW is the time-weighted mix (the deviation then settles under 7.3). **[simplified]** LMP_k is the real
@@ -371,8 +374,9 @@ posted price (price-taker; D6).
 
 ## 6. Physics (5-minute)
 
-- `SoC_{k+1} = SoC_k·(1 − ℓ)^(1/12) + (η_c·c_k − d_k/η_d)/12` with `c_k = max(−m_k, 0)`, `d_k = max(m_k, 0)` from metered
-  MW m_k, ℓ = standby_loss_pct_per_h/100. η_c = η_d = √rte. **[modelled]** (calibrated)
+- `SoC_{k+1} = drift(SoC_k) + (η_c·c_k − d_k/η_d)/12` with `drift(S) = e_min + (S − e_min)·(1 − ℓ)^(1/12)`,
+  `c_k = max(−m_k, 0)`, `d_k = max(m_k, 0)` from metered MW m_k, ℓ = standby_loss_pct_per_h/100 (standby losses apply to
+  the energy above nameplate MinSOC, so an idle battery never drifts below it). η_c = η_d = √rte. **[modelled]**
 - MinSOC ≤ SoC ≤ MaxSOC always holds (SCED limits in 5.3 guarantee it; asserted).
 - Unit events: forced outage sets HSL = LSL = 0 for [start, end); a derate sets HSL/LSL to the event's values. **[data]**
 - Ramp: |BP_k − BP_{k−1}| ≤ 5·ramp_mw_per_min.
@@ -428,8 +432,9 @@ DA/RT spread.
 
 Water value λ_k = dual of the SoC balance at k. For hour h with scenario duals λ_h^s (hour mean) and the risk band
 `lo = λ^P50 − risk·(λ^P50 − min_s λ^s)`, `hi = λ^P50 + risk·(max_s λ^s − λ^P50)`:
-- RT curve: `[(LSL, η_c·lo), (0, η_c·hi), (0, hi/η_d + deg), (HSL, max(hi, lo)/η_d + deg + 1)]`, made monotone and
-  reduced (no more than two equal neighbours).
+- RT curve: `[(LSL, η_c·lo), (0, η_c·hi), (0, lo/η_d + deg), (HSL, hi/η_d + deg)]`, prices clipped to [−250, 2000],
+  made monotone and reduced (no more than two equal neighbours); λ^P50 is the median scenario's value. Charging is
+  linear in price between η_c·lo and η_c·hi, discharging between lo/η_d + deg and hi/η_d + deg.
 - DAM curve: the same prices with MW capped to the scenario envelope of the planned hourly net (`max_s n_h^s` for
   discharge, `min_s n_h^s` for charge), so the DAM is not oversold beyond the plan.
 - COP: HBSOC = planned SoC at each hour start; status ON; limits unchanged.
@@ -465,7 +470,7 @@ hour's mean absolute deviation over the posted history days (minimum $5).
 |---|---|
 | `idle` | submits a 0 MW curve for every hour at `start` and nothing else. P_idle = 0 by construction (the end target is the idle path) |
 | `anchor` (information-matched) | at every wake-up except reminders (milestones, notices, outages, deployments), calls `optimize(price_view="desk", risk=0.5)` and submits its DAM curves (while the DAM is open), RT curves (once the adjustment period opens) and COP. The same desk forecast vintages the agent can read |
-| `hind` | the 8.1 LP with the real DASPP and real 5-min LMP (RT SPP for settlement), all DAM hours open at start: the rules-bound optimum (includes DA/RT spread positions within [LSL, HSL]) |
+| `hind` | the 8.1 LP with the real DASPP and the real RT SPP (the settlement price; each 15-min value on its three SCED intervals), all DAM hours open at start, unit events known; its net dispatch is then run through the physics (net MW, SoC-clipped) and settled: the rules-bound optimum (includes DA/RT spread positions within [LSL, HSL]) |
 | `hind_phys` | as `hind` with q_h = n_h (DAM position = physical plan) |
 | `operator_replay` | the operator's disclosed DAM curves and SCED curves (1.5) through our clearing, physics and settlement from soc0 |
 | `operator_actual` | the operator's disclosed DAM awards and telemetered output settled directly (their own SoC path) |
@@ -530,7 +535,12 @@ TOOL_SPECS                                 # the 11 tools' JSON schemas (OpenAI 
 ```
 
 Policies for runs and references: `desk.policies.idle`, `desk.policies.anchor`, `desk.policies.scripted` (a fixed-rule
-desk: charges at the night trough, discharges at the evening peak, through the same tools).
+desk: self-schedules the cheapest desk-P50 hours to charge and the dearest to discharge, through the same tools);
+`desk.policies.run(task, series, "anchor")` plays a whole episode. `desk.prompt.system_prompt(session)` is the brief
+every path gives the agent; `desk.tools.tool_specs(layer, rtcb)` the era's schemas (pre-RTC+B curves take
+`offer`/`bid`). `scripts/desk_run.py` is the in-process runner (path B'): `--policy model --preset sol|luna|qwen` or
+`--policy anchor|idle|scripted`, `--pack`/`--fixture`, per-episode `--max-usd`, `--lane-cap-usd`, resumable from
+`<out>/ckpt`, writing `<out>/episodes/*.json` and `<out>/results.jsonl`.
 
 ---
 
@@ -546,3 +556,6 @@ desk: charges at the night trough, discharges at the evening peak, through the s
 | C-D6 | WSL charging priced at the node RT SPP (the WSL bus price is not public at the bus) |
 | C-D7 | Budgets v2: 40 turns, 12 calls per turn, 8 pending reminders |
 | C-D8 | The hindsight optimum is the rules-bound optimum (DA/RT spread positions included); `hind_phys` reported beside it |
+| C-D9 | SCED uses the hour's COP HSL/LSL and MinSOC/MaxSOC as the telemetered limits (intersected with unit events) |
+| C-D10 | The anchor's risk is 0.5 (fixture sweep: 0 to 0.5 similar, 0.75+ unstable); revisit on the first real pack |
+| C-D11 | COP-03 checks each touched hour against both neighbours as they will stand (frozen neighbours included), with standby loss and 0.01 MWh slack |
