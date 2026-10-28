@@ -13,8 +13,9 @@ from desk_util import local_stores  # noqa: F401
 from agentenv_gridsim import desk_tasks
 from gridsim_core.desk import load_series, load_tasks
 
-PACK = "fixtures-env"
-NAMES = {"outage": "desk-v2-2026-02-14-S00-f3", "quiet": "desk-v2-2026-02-14-S00-f1",
+PACKS = {"fixtures-env": ["outage", "quiet", "pre", "reserves"], "desk-v2-pilot": ["pilot-0427", "pilot-0817"]}
+NAMES = {"pilot-0427": "desk-v2-2026-04-27-S01", "pilot-0817": "desk-v2-2026-08-17-S03",
+         "outage": "desk-v2-2026-02-14-S00-f3", "quiet": "desk-v2-2026-02-14-S00-f1",
          "pre": "desk-v2-2025-08-14-S00-f2", "reserves": "desk-v3-2026-02-14-S00-f4-pv"}
 
 
@@ -33,9 +34,9 @@ def test_the_bundle_installs_its_tasks_hook_and_verifier():
 
 @pytest.mark.parametrize("name", NAMES)
 def test_each_task_is_what_desk_tasks_writes(name):
-    rows = {r["task_id"]: r for r in load_tasks(PACK)}
-    task = rows[NAMES[name]]
-    assert steps(name) == desk_tasks.steps(task, load_series(PACK, task), PACK)
+    pack = next(p for p, names in PACKS.items() if name in names)
+    task = {r["task_id"]: r for r in load_tasks(pack)}[NAMES[name]]
+    assert steps(name) == desk_tasks.steps(task, load_series(pack, task), pack)
     registry = get_task_step_registry()
     built = [registry[s["type"]].from_dict(s) for s in steps(name)]
     assert [s.type for s in built] == ["deploy_env", "apply_server_config", "modify_env_tool_access",
