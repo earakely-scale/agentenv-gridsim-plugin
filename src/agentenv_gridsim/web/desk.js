@@ -107,7 +107,7 @@ function board(V) {
   const head = ["Desk", "C", "P a battery-day", "P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"];
   const cell = (l, v, sub = "") => `<td data-l="${l}">${v}${sub ? `<span class="sub">${sub}</span>` : ""}</td>`;
   const na = (l) => `<td class="na" data-l="${l}">–</td>`;
-  const who = (r) => `<span class="who"><i style="background:${r.color}"></i><span>${r.kind === "model" ? `<b>${esc(r.name)}</b>` : esc(r.name)}${r.effort ? `<span class="sub">${esc(r.effort)} effort</span>` : r.weights === "open" ? `<span class="sub">untrained, open weights</span>` : ""}</span></span>`;
+  const who = (r) => `<span class="who"><i style="background:${r.color}"></i><span>${r.kind === "model" ? `<b>${esc(r.name)}</b>` : esc(r.name)}${r.effort ? `<span class="sub">${esc(r.effort)} effort</span>` : r.weights === "open" ? `<span class="sub">open weights</span>` : ""}</span></span>`;
   const op = (r) => (r.P_minus_operator_replay.mean == null ? cell("P − operator's bids", "–") : cell("P − operator's bids", usd(r.P_minus_operator_replay.mean, true), usdci(r.P_minus_operator_replay.ci, true)));
   const body = rows(V).map((r) => r.kind === "model"
     ? `<tr><td>${who(r)}</td>${cell("C", `<b>${num(r.C.mean)}</b>`, ci(r.C.ci))}${cell("P a battery-day", usd(r.P.mean), usdci(r.P.ci))}${op(r)}${cell("P − anchor", usd(r.P_minus_anchor.mean, true), usdci(r.P_minus_anchor.ci, true))}${cell("R", num(r.R.mean, 2), ci(r.R.ci, 2))}${cell("Beats anchor", pct(r.beats_anchor))}${cell("$ a run", r.weights === "open" || r.usd_per_episode == null ? "–" : `$${r.usd_per_episode.toFixed(2)}`)}</tr>`
