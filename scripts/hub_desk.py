@@ -108,6 +108,8 @@ def main():
     card = hd.card_only(args.results)
     ds = files | figs | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
     hr.leaks({k: v for k, v in ds.items() if k != GIF} | {f"space/{k}": v for k, v in sp.items()})
+    anonymous({k: v for k, v in ds.items() if k != GIF} | {f"space/{k}": v for k, v in sp.items()},
+              names(args.desk.parent))
     dataset = BUILD / "dataset"
     shutil.rmtree(dataset, ignore_errors=True)
     for k, v in ds.items():
@@ -398,6 +400,41 @@ def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
                     out[f"assets/figures/{path.name}"] = path.read_bytes()
             page.call("Emulation.setDefaultBackgroundColorOverride")
     return out
+
+
+BRANDS = ("Jupiter", "Habitat", "Tenaska", "Callisto", "Wigeon", "Wolf Tank")
+
+
+def names(repo: Path) -> list[str]:
+    """The desk's real resources, nodes, QSEs and plants (design decision D9 keeps them off every public surface): from
+    every desk pack's site records and the ESR registry's rows for those sites, with the operators' brand names."""
+    sites = {}
+    for f in (repo / "data/desk").glob("*/tasks.jsonl.gz"):
+        with gzip.open(f, "rt") as g:
+            for t in map(json.loads, filter(str.strip, g)):
+                sites[t["site"]["resource"]] = t["site"]
+    reg = {r["resource_name"]: r for r in pq.read_table(repo / "data/desk/sites.parquet").to_pylist()}
+    out = set(BRANDS)
+    for res, site in sites.items():
+        if res.startswith("FIXTURE"):
+            continue
+        r = reg.get(res, {})
+        out |= {res, site["settlement_point"], *(site.get("resource_pre") or {}).values(), res.split("_")[0]}
+        out |= {r.get(k) for k in ("qse", "dme", "pre_qse", "cdr_name", "pre_gen_resource", "pre_load_resource")}
+    return sorted(x for x in out if x)
+
+
+def anonymous(files: dict[str, bytes], terms: list[str]) -> None:
+    pat = re.compile("|".join(rf"\b{re.escape(t)}\b" for t in sorted(terms, key=len, reverse=True)), re.I)
+    for path, content in files.items():
+        if path.endswith(".png"):
+            continue
+        text = (json.dumps(pq.read_table(io.BytesIO(content)).to_pylist(), ensure_ascii=False, default=str)
+                if path.endswith(".parquet") else gzip.decompress(content).decode() if path.endswith(".gz")
+                else content.decode())
+        if hit := pat.search(text):
+            raise SystemExit(f"{path} names {hit[0]!r}, a real site or operator; nothing was published")
+    print(f"anonymity: {len(files)} files clean of {len(terms)} real site and operator names")
 
 
 def module(name: str, rel: str):
