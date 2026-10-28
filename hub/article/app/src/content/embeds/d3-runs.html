@@ -1,0 +1,65 @@
+<div class="gs-runs"></div>
+<style>
+  .gs-runs { font-size: 13px; }
+  .gs-runs table { width: 100%; border-collapse: collapse; }
+  .gs-runs th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--muted-color); padding: 6px 8px; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+  .gs-runs td { padding: 9px 8px; border-bottom: 1px solid var(--border-color); vertical-align: top; line-height: 1.45; color: var(--text-color); }
+  .gs-runs td.run b { display: block; font-weight: 650; }
+  .gs-runs td.run span { color: var(--muted-color); font-size: 12px; }
+  .gs-runs .tag { display: inline-block; margin-top: 4px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.02em; padding: 1px 7px; border-radius: 999px; background: var(--surface-bg); border: 1px solid var(--border-color); color: var(--muted-color); white-space: nowrap; }
+  .gs-runs .tag.reg { border-color: var(--c-qwen); color: var(--text-color); }
+  .gs-runs td.res { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .gs-runs td.why { color: var(--muted-color); font-size: 12.5px; }
+  .gs-runs td.why a { font-size: 12px; }
+  .gs-runs td.usd { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gs-runs tr.hi td { background: var(--band); }
+  .gs-runs .total { margin-top: 8px; font-size: 12.5px; color: var(--muted-color); }
+  @media (max-width: 720px) {
+    .gs-runs thead { display: none; }
+    .gs-runs table, .gs-runs tbody, .gs-runs tr, .gs-runs td { display: block; width: 100%; box-sizing: border-box; }
+    .gs-runs tr { padding: 10px 0; border-bottom: 1px solid var(--border-color); }
+    .gs-runs td { border: none; padding: 2px 4px; }
+    .gs-runs td[data-l]::before { content: attr(data-l); display: block; font-size: 10.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted-color); margin-top: 4px; }
+    .gs-runs td.usd { text-align: left; }
+  }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-runs");
+    if (!root) return;
+    const DS = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/blob/main/";
+    K.data("results.json").then((R) => {
+      const T = R.training;
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const hr = document.createElement("tr");
+      ["Run", "What changed", "Held-out", "What it taught", "GPU"].forEach((h) => { const th = document.createElement("th"); th.textContent = h; hr.appendChild(th); });
+      thead.appendChild(hr);
+      const tbody = document.createElement("tbody");
+      T.runs.forEach((r) => {
+        const tr = document.createElement("tr");
+        if (r.key === "run3" || r.key === "run4") tr.className = "hi";
+        const td = (cls, label) => { const c = document.createElement("td"); c.className = cls; if (label) c.dataset.l = label; tr.appendChild(c); return c; };
+        const a = td("run");
+        const b = document.createElement("b"); b.textContent = r.label;
+        const s = document.createElement("span"); s.textContent = r.model;
+        const tag = document.createElement("span"); tag.className = "tag" + (r.registered ? " reg" : ""); tag.textContent = r.registered ? "pre-registered" : "exploratory";
+        a.append(b, s, document.createElement("br"), tag);
+        td("what", "What changed").textContent = r.change;
+        td("res", "Held-out").textContent = r.result;
+        const why = td("why", "What it taught");
+        why.appendChild(document.createTextNode(r.lesson + " "));
+        const link = document.createElement("a"); link.href = `${DS}${r.src}/README.md`; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = "Evidence";
+        why.appendChild(link);
+        td("usd", "GPU").textContent = r.usd == null ? "–" : `$${r.usd % 1 ? r.usd.toFixed(2) : r.usd}`;
+        tbody.appendChild(tr);
+      });
+      table.append(thead, tbody);
+      root.appendChild(table);
+      const tot = document.createElement("div"); tot.className = "total";
+      tot.textContent = `About $${Math.round(T.gpu_usd_total)} of GPU in all, from the first 1.7B arm to run 4. Training called no API. Held-out is reward R on 200 foresight days of 2025 for runs 1 to 3 (500 unseen days of 2014–2024 for the confirmation) and blind capture on 300 days of 2025 for run 4.`;
+      root.appendChild(tot);
+    }).catch((e) => { root.textContent = e.message; });
+  })();
+</script>

@@ -1,0 +1,16 @@
+GridSimEnv article
+
+Text and charts: Creative Commons Attribution 4.0 International (CC BY 4.0),
+https://creativecommons.org/licenses/by/4.0/
+
+The site is built from the research-article-template by Thibaud Frere
+(https://huggingface.co/spaces/tfrere/research-article-template), Copyright (c) 2024 Thibaud Frere, licensed under
+CC BY 4.0. Changes made: the template's demo content was removed; the chapters, figures, data, styles (colours, chart
+tokens), the hero's link buttons, the merged bibliography and the Docker build are GridSimEnv's own. The template
+does not endorse this article.
+
+Data: the prices are ERCOT's public data (report NP4-180-ER), used under section 5 of ERCOT's Website User Agreement
+and not relicensed by this file or by CC BY; see
+https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE. GridSimEnv is not affiliated with
+or endorsed by ERCOT. Battery sizes: U.S. Energy Information Administration, Form EIA-860 (public domain). The Texas
+outline: U.S. Census Bureau cartographic boundaries via us-atlas (ISC). Third-party libraries keep their own licences.

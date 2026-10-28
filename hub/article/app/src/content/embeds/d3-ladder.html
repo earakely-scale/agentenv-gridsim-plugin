@@ -1,0 +1,104 @@
+<div class="gs-ladder"></div>
+<style>
+  .gs-ladder { font-size: 12.5px; }
+  .gs-ladder svg { display: block; width: 100%; overflow: visible; }
+  .gs-ladder .rl { fill: var(--text-color); font-size: 12.5px; }
+  .gs-ladder .rl.b { font-weight: 650; }
+  .gs-ladder .rv { fill: var(--text-color); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .gs-ladder .ci { stroke: var(--text-color); stroke-opacity: 0.5; stroke-width: 1.2; }
+  .gs-ladder .zero { stroke: var(--text-color); stroke-opacity: 0.6; }
+  .gs-ladder .up { stroke: var(--c-qwen); stroke-width: 2; fill: none; }
+  .gs-ladder .upt { fill: var(--text-color); font-size: 12px; font-weight: 650; }
+  .gs-ladder .band { fill: var(--band); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-ladder");
+    if (!root) return;
+    const f = K.fmt;
+    K.whenD3(() => K.data("results.json").then((R) => {
+      const d3 = window.d3;
+      const D = R.dollars.packs;
+      let pk = "eval2025";
+      root.innerHTML = '<div class="gs-chips"><span class="gs-lab">Days</span></div><div class="plot"></div><div class="gs-legend"></div>';
+      const chips = root.querySelector(".gs-chips"), plot = root.querySelector(".plot"), leg = root.querySelector(".gs-legend");
+      const tip = K.tip(root);
+      const svg = d3.select(plot).append("svg").attr("class", "gs-svg");
+      [["eval2025", D.eval2025], ["fresh", D.fresh]].forEach(([k, p]) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "gs-chip"; b.dataset.k = k;
+        const s = document.createElement("b"); s.textContent = p.label; b.append(s, document.createTextNode(` ${p.n_tasks}`));
+        b.addEventListener("click", () => { pk = k; render(); }); chips.appendChild(b);
+      });
+      const style = (r) => {
+        if (r.kind === "reference") return { c: "var(--text-color)", outline: true };
+        if (r.kind === "baseline") return { c: r.key === "idle" ? "var(--c-ref)" : "var(--c-rule)" };
+        if (r.key === "base") return { c: "var(--c-base)" };
+        if (r.key.startsWith("4b") || r.key === "sft") return { c: "var(--c-qwen)", op: r.key === "sft" ? 0.5 : 0.9 };
+        if (r.key.startsWith("luna")) return { c: "var(--c-luna)", op: r.key === "luna-high" ? 0.9 : 0.55 };
+        if (r.key === "sol") return { c: "var(--c-sol)" };
+        return { c: "var(--c-rule)" };
+      };
+      const NAME = { optimum: "the hindsight optimum", sol: "GPT-6.1 Sol", "persistence-dp": "persistence-DP, yesterday's prices", "luna-high": "GPT-6 Luna, high",
+        "luna-medium": "GPT-6 Luna, medium", "4b-sampled": "Qwen3-4B, trained (run 4)", sft: "Qwen3-4B, SFT only", "ridge-dp": "ridge-DP, a ridge forecast",
+        "greedy-d1": "greedy rule on yesterday's prices", "luna-low": "GPT-6 Luna, low", "threshold-d1": "threshold rule on yesterday's prices",
+        idle: "idle, the battery does nothing", base: "Qwen3-4B, untrained" };
+      function render() {
+        chips.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === pk)));
+        const P = D[pk];
+        const rows = P.ladder.slice().sort((a, b) => b.yr.mean - a.yr.mean);
+        const W = plot.clientWidth || 640;
+        const narrow = W < 560;
+        const lw = narrow ? 0 : 236, rh = narrow ? 40 : 27, top = 8;
+        const lo = Math.min(-5, d3.min(rows, (r) => r.yr.ci[0])), hi = d3.max(rows, (r) => r.yr.ci[1]);
+        const x = d3.scaleLinear().domain([Math.floor(lo / 5) * 5, Math.ceil(hi / 5) * 5]).range([lw + 10, W - 58]);
+        const H = top + rows.length * rh + 26;
+        svg.selectAll("*").remove();
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        x.ticks(6).forEach((v) => {
+          svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", top).attr("y2", H - 22).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", x(v)).attr("y", H - 6).attr("text-anchor", "middle").style("fill", "var(--muted-color)").style("font-size", "11px").text(`${v < 0 ? "−" : ""}$${Math.abs(v)}k`);
+        });
+        svg.append("line").attr("class", "zero").attr("x1", x(0)).attr("x2", x(0)).attr("y1", top).attr("y2", H - 22);
+        const yOf = {};
+        rows.forEach((r, i) => {
+          const y = top + i * rh + (narrow ? 16 : 0);
+          yOf[r.key] = y;
+          const s = style(r);
+          if (r.key === "4b-sampled") svg.append("rect").attr("class", "band").attr("x", 0).attr("y", y - (narrow ? 18 : 4)).attr("width", W).attr("height", narrow ? rh : rh - 2).attr("rx", 4);
+          svg.append("text").attr("class", "rl halo" + (r.key === "4b-sampled" || r.key === "base" ? " b" : "")).attr("x", narrow ? x.range()[0] : lw).attr("y", y + (narrow ? -4 : 12)).attr("text-anchor", narrow ? "start" : "end").text(NAME[r.key] || r.label);
+          const x0 = x(Math.min(0, r.yr.mean)), x1 = x(Math.max(0, r.yr.mean));
+          svg.append("rect").attr("x", x0).attr("y", y + 2).attr("width", Math.max(1.5, x1 - x0)).attr("height", 12).attr("rx", 3)
+            .style("fill", s.outline ? "none" : s.c).style("fill-opacity", s.op || 0.85).style("stroke", s.outline ? s.c : "none").style("stroke-dasharray", s.outline ? "3 2" : null).style("stroke-width", 1.4);
+          svg.append("line").attr("class", "ci").attr("x1", x(r.yr.ci[0])).attr("x2", x(r.yr.ci[1])).attr("y1", y + 8).attr("y2", y + 8);
+          svg.append("text").attr("class", "rv").attr("x", r.yr.mean >= 0 ? x(Math.max(r.yr.mean, r.yr.ci[1])) + 7 : x(0) + 7).attr("y", y + 12).attr("text-anchor", "start").text(f.k(r.yr.mean));
+          svg.append("rect").attr("x", 0).attr("y", y - (narrow ? 16 : 4)).attr("width", W).attr("height", rh).style("fill", "transparent")
+            .on("pointerenter pointermove", (ev) => tip.show((el) => {
+              K.t.title(el, NAME[r.key] || r.label, s.c);
+              K.t.row(el, "per MW of power, a year", `${f.k(r.yr.mean)} [${f.k(r.yr.ci[0])}, ${f.k(r.yr.ci[1])}]`);
+              K.t.row(el, "per MW, a day", f.usd(r.day.mean, 2));
+              K.t.row(el, "a 100 MW battery, a year", `${r.per_100mw_yr < 0 ? "−" : ""}$${(Math.abs(r.per_100mw_yr) / 1000).toFixed(2)}M`);
+              if (r.inference != null) K.t.row(el, "inference per battery-day", f.usd(r.inference));
+              if (r.valid != null) K.t.row(el, "valid schedules", f.pct(r.valid, 1));
+            }, ev)).on("pointerleave", () => tip.hide());
+        });
+        const g = P.gaps["4b-sampled - base"];
+        if (!narrow && g && yOf.base != null && yOf["4b-sampled"] != null) {
+          const a = rows.find((r) => r.key === "base"), b = rows.find((r) => r.key === "4b-sampled");
+          const xr = W - 22;
+          svg.append("path").attr("class", "up").attr("d", `M${x(a.yr.ci[1]) + 52},${yOf.base + 8}H${xr}V${yOf["4b-sampled"] + 8}H${x(b.yr.ci[1]) + 52}`);
+          if (!narrow) svg.append("text").attr("class", "upt halo").attr("x", xr - 6).attr("y", (yOf.base + yOf["4b-sampled"]) / 2 + 12).attr("text-anchor", "end").text(`training: +$${g.yr.mean.toFixed(1)}k`);
+        }
+        leg.replaceChildren();
+        const item = (cls, st, text) => { const sp = document.createElement("span"); const i = document.createElement("i"); i.className = cls; Object.assign(i.style, st); sp.append(i, document.createTextNode(text)); leg.appendChild(sp); };
+        item("bar", { background: "transparent", border: "1px dashed var(--text-color)" }, "hindsight, the most any schedule could earn");
+        item("bar", { background: "var(--c-sol)" }, "GPT-6.1 Sol");
+        item("bar", { background: "var(--c-luna)" }, "GPT-6 Luna");
+        item("bar", { background: "var(--c-qwen)" }, "Qwen3-4B");
+        item("bar", { background: "var(--c-rule)" }, "rules, no LLM");
+      }
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = e.message; }));
+  })();
+</script>

@@ -1,0 +1,87 @@
+<div class="gs-plan"></div>
+<style>
+  .gs-plan { font-size: 12.5px; }
+  .gs-plan svg { display: block; width: 100%; overflow: visible; }
+  .gs-plan .rl { fill: var(--text-color); font-size: 12.5px; }
+  .gs-plan .rl.b { font-weight: 650; }
+  .gs-plan .rs { fill: var(--muted-color); font-size: 11px; }
+  .gs-plan .rv { fill: var(--text-color); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .gs-plan .ci { stroke: var(--text-color); stroke-opacity: 0.5; stroke-width: 1.2; }
+  .gs-plan .gapl { stroke: var(--c-bad); stroke-width: 1.5; }
+  .gs-plan .gapt { fill: var(--c-bad); font-size: 11.5px; font-weight: 650; }
+  .gs-plan .mae { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 10px; font-size: 12.5px; color: var(--muted-color); }
+  .gs-plan .mae b { color: var(--text-color); font-variant-numeric: tabular-nums; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-plan");
+    if (!root) return;
+    const f = K.fmt;
+    K.whenD3(() => K.data("results.json").then((R) => {
+      const d3 = window.d3;
+      const Pl = R.training.planning;
+      let pk = "eval2025";
+      root.innerHTML = '<div class="gs-chips"><span class="gs-lab">Days</span></div><div class="plot"></div><div class="mae"></div>';
+      const chips = root.querySelector(".gs-chips"), plot = root.querySelector(".plot"), mae = root.querySelector(".mae");
+      const tip = K.tip(root);
+      const svg = d3.select(plot).append("svg").attr("class", "gs-svg");
+      [["eval2025", "Blind, held-out 2025", 300], ["fresh", "Blind, newest days", 331]].forEach(([k, l, n]) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "gs-chip"; b.dataset.k = k;
+        const s = document.createElement("b"); s.textContent = l; b.append(s, document.createTextNode(` ${n}`));
+        b.addEventListener("click", () => { pk = k; render(); }); chips.appendChild(b);
+      });
+      const ROWS = [
+        ["untrained", "Qwen3-4B, untrained", "var(--c-base)", "dot"],
+        ["sft", "after SFT on forecast-then-plan", "var(--c-qwen)", "dot", 0.55],
+        ["final", "after RL (run 4, the registered final)", "var(--c-qwen)", "dot"],
+        ["dp_own", "its own written forecast, planned by the exact DP", "var(--c-qwen)", "ring"],
+        ["sol", "GPT-6.1 Sol, same prompt", "var(--c-sol)", "dia"],
+        ["teacher", "the teacher forecaster, planned by the exact DP", "var(--text-color)", "bar"],
+      ];
+      function render() {
+        chips.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === pk)));
+        const P = Pl[pk];
+        const W = plot.clientWidth || 640;
+        const narrow = W < 560;
+        const lw = narrow ? 0 : 300, rh = narrow ? 42 : 30, top = 10;
+        const x = d3.scaleLinear().domain([0, 1]).range([lw + 10, W - 50]);
+        const H = top + ROWS.length * rh + 26;
+        svg.selectAll("*").remove();
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        [0, 0.2, 0.4, 0.6, 0.8, 1].forEach((v) => {
+          svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", top).attr("y2", H - 22).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", x(v)).attr("y", H - 6).attr("text-anchor", "middle").style("fill", "var(--muted-color)").style("font-size", "11px").text(v === 0.2 ? "0.2 idle" : v);
+        });
+        const yOf = {};
+        ROWS.forEach(([k, l, c, shape, op], i) => {
+          const v = P[k];
+          const y = top + i * rh + (narrow ? 16 : 0);
+          yOf[k] = y + 9;
+          svg.append("text").attr("class", "rl" + (k === "final" || k === "dp_own" ? " b" : "")).attr("x", narrow ? x(0) : lw).attr("y", y + (narrow ? -4 : 13)).attr("text-anchor", narrow ? "start" : "end").text(l);
+          svg.append("rect").attr("x", x(0)).attr("y", y + 3).attr("width", x(v.mean) - x(0)).attr("height", 12).attr("rx", 3).style("fill", shape === "ring" ? "none" : c).style("fill-opacity", op || 0.85)
+            .style("stroke", shape === "ring" ? c : "none").style("stroke-width", 1.6).style("stroke-dasharray", shape === "ring" ? "3 2" : null);
+          svg.append("line").attr("class", "ci").attr("x1", x(v.ci[0])).attr("x2", x(v.ci[1])).attr("y1", y + 9).attr("y2", y + 9);
+          svg.append("text").attr("class", "rv").attr("x", x(Math.max(v.ci[1], v.mean)) + 7).attr("y", y + 13).text(f.n(v.mean));
+          svg.append("rect").attr("x", 0).attr("y", y - (narrow ? 16 : 4)).attr("width", W).attr("height", rh).style("fill", "transparent")
+            .on("pointerenter pointermove", (ev) => tip.show((el) => { K.t.title(el, l, c); K.t.row(el, "hindsight capture", `${f.n(v.mean)} ${f.ci(v.ci)}`); }, ev)).on("pointerleave", () => tip.hide());
+        });
+        // the planning loss: its own schedule against the DP on its own forecast
+        const g = P.gaps.final_minus_dp_own;
+        const xa = x(P.final.mean), xb = x(P.dp_own.mean), ym = (yOf.final + yOf.dp_own) / 2;
+        svg.append("path").attr("class", "gapl").style("fill", "none").attr("d", `M${xa},${yOf.final + 7}V${ym}H${xb}V${yOf.dp_own - 7}`);
+        const pl = document.createElement("span");
+        const pb = document.createElement("b"); pb.style.color = "var(--c-bad)"; pb.textContent = `${f.s(g.mean)} ${f.ci(g.ci, 3, true)}`;
+        pl.append(document.createTextNode("Planning loss, its own schedules against the DP on its own forecasts: "), pb);
+        const m = Pl.mae;
+        mae.replaceChildren(pl);
+        const add = (label, v) => { const s = document.createElement("span"); s.append(document.createTextNode(label + " ")); const b = document.createElement("b"); b.textContent = `$${v.toFixed(2)}/MWh`; s.appendChild(b); mae.appendChild(s); };
+        add("Forecast error (MAE, all hours, 2025): the trained 4B", m.final);
+        add("the teacher", m.teacher);
+        add("yesterday's prices", m.persistence);
+      }
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = e.message; }));
+  })();
+</script>

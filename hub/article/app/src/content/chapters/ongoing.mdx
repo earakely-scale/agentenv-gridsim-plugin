@@ -1,0 +1,66 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+
+## Ongoing work
+
+v1 is the release. Four previews extend it, each adding one kind of realism under the same reward contract, each with
+a pre-registered pilot of GPT-6.1 Sol and design decisions still open. They replay in the same viewer and live in the
+dataset beside v1.
+
+| Preview | What it adds | What the agent does |
+|---|---|---|
+| **v2, The Live Grid** | time: day-ahead against real-time prices, with ERCOT and weather bulletins on a virtual clock | commits a day-ahead position, then re-plans its 15-minute dispatch at watches through the day |
+| **v3, Sun, Storage and Reserves** | a solar farm and the battery behind one meter, and five ERCOT reserve products | sells energy and reserves the day before and keeps the charge to cover them |
+| **v4, Weather Front** | three operating days on load, wind, solar and price forecasts as they were issued | bids each day-ahead market and re-plans as the weather turns |
+| **v5, The Market Floor** | price-making: offers re-clear the day-ahead market from ERCOT's real disclosed offers, against rival portfolios | offers curves for a battery portfolio and hedges |
+
+In the v2 to v4 pilots, Sol captures less of hindsight than the rolling re-planner each version uses as its anchor
+([the previews on the dataset card](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv#v2-preview-the-live-grid)),
+so those tiers have room to train in a way v1's foresight tier no longer does.
+
+The next steps for v1 itself:
+
+- **More model families on the board.** The leaderboard is built from committed records, so a new model needs only its
+  records and one line in the build.
+- **An informed blind tier.** On the plain blind tier the best forecaster planned with the exact DP only draws level
+  with Sol. Given ERCOT's own load, wind and solar forecasts for the day, as posted before the market closed, the same
+  approach reaches 0.939 on 2025, +0.022 [+0.010, +0.035] above blind Sol, in an exploratory check
+  ([results/blind-ceiling](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/blob/main/results/blind-ceiling/README.md)).
+  An informed tier gives every model those inputs.
+- **Beam fine-tuning (planned).** Beam-1.0 is open-weights and at its maximum effort is level with Sol within the
+  interval; the next training run applies the exact-advantage recipe to it.
+- **A planner in the loop**, and DAgger-style credit toward the solver's action, for the planning gap the blind 4B
+  showed.
+
+### Use it
+
+GridSimEnv is a plugin for the [AgentEnv Framework](https://www.agentenvframework.com), Scale AI's open-source
+framework for RL environments. It needs Docker, uv and git; the first check needs no model key.
+
+```bash
+uv tool install agentenv-framework --with \
+  "agentenv-gridsim @ git+https://github.com/earakely-scale/agentenv-gridsim-plugin"
+agent-env gridsim setup --agent     # build the env and the agent images
+agent-env run gridsim --task smoke  # a fixture day, its optimum: passed
+```
+
+Every battery-day, its references and every published run are in the
+[dataset](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv); the `train` split is a TRL dataset as it
+stands, and `gridsim_core.trl.reward_fn` is its reward:
+
+```python
+# pip install datasets "agentenv-gridsim @ git+https://github.com/
+#     earakely-scale/agentenv-gridsim-plugin"
+from datasets import load_dataset
+from gridsim_core.trl import reward_fn
+
+day = load_dataset("earakely-scale/GridSimEnv-AgentEnv", "v1_tasks",
+                   split="eval_2025")[0]
+print(day["prompt"][-1]["content"][:300])  # the situation the env sends
+idle = str([0] * 24)                       # do nothing all day
+print(reward_fn([day["prompt"]], [idle], task=[day["task"]],
+                tier=[day["tier"]]))       # [0.2]
+```
+
+The environment, the grader, the viewer and every script behind this article are in
+[agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin); the article itself is rebuilt
+from `results/overview/results.json` by `scripts/hub_article.py`.

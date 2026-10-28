@@ -1,0 +1,109 @@
+<div class="gs-front"></div>
+<style>
+  .gs-front { font-size: 12px; }
+  .gs-front svg { display: block; width: 100%; overflow: visible; }
+  .gs-front .fam { fill: none; stroke-width: 1.6; stroke-opacity: 0.7; }
+  .gs-front .front { fill: none; stroke: var(--text-color); stroke-opacity: 0.45; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .gs-front .ref { stroke-width: 1.2; stroke-dasharray: 3 3; }
+  .gs-front .lab { fill: var(--text-color); font-size: 11.5px; }
+  .gs-front .lab.b { font-weight: 650; }
+  .gs-front .sub { fill: var(--muted-color); font-size: 11px; }
+  .gs-front .arrow { stroke: var(--c-qwen); stroke-width: 2; fill: none; }
+  .gs-front .axt { fill: var(--muted-color); font-size: 11px; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-front");
+    if (!root) return;
+    const f = K.fmt;
+    K.whenD3(() => K.data("results.json").then((R) => {
+      const d3 = window.d3;
+      const F = R.frontier;
+      const tip = K.tip(root);
+      const svg = d3.select(root).append("svg").attr("class", "gs-svg");
+      root.insertAdjacentHTML("beforeend", '<div class="gs-legend"></div>');
+      const leg = root.querySelector(".gs-legend");
+      const pts = F.points;
+      const by = Object.fromEntries(pts.map((p) => [p.key, p]));
+      // label offsets (dx, dy, anchor) per point, so labels clear the marks; narrow screens label fewer points
+      const OFF = { base: [8, 4, "start"], final: [-9, -9, "end"], sol: [9, 4, "start"], "luna-low": [8, 12, "start"], "luna-medium": [-8, 13, "end"],
+        "luna-high": [-8, -9, "end"], "beam-low": [8, 13, "start"], "beam-medium": [8, 13, "start"], "beam-high": [8, 12, "start"], "beam-max": [8, -7, "start"] };
+      function render() {
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 680;
+        const narrow = W < 560;
+        const ml = 46, mr = narrow ? 14 : 96, mt = 16, mb = 42;
+        const H = Math.round(Math.min(560, Math.max(380, W * 0.68)));
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const x = d3.scaleLog().domain([0.0002, 0.05]).range([ml, W - mr]);
+        const y = d3.scaleLinear().domain([0.1, 0.97]).range([H - mb, mt]);
+        [0.2, 0.4, 0.6, 0.8].forEach((v) => {
+          svg.append("line").attr("x1", ml).attr("x2", W - mr).attr("y1", y(v)).attr("y2", y(v)).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("class", "axt").attr("x", ml - 6).attr("y", y(v) + 3.5).attr("text-anchor", "end").text(v === 0.2 ? "0.2 idle" : v.toFixed(1));
+        });
+        [0.0003, 0.001, 0.003, 0.01, 0.03].forEach((v) => {
+          svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", mt).attr("y2", H - mb).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("class", "axt").attr("x", x(v)).attr("y", H - mb + 15).attr("text-anchor", "middle").text(v < 0.001 ? `$${v.toFixed(4)}` : `$${v}`);
+        });
+        svg.append("text").attr("class", "axt").attr("x", (ml + W - mr) / 2).attr("y", H - 6).attr("text-anchor", "middle").text("cost per battery-day, log scale");
+        svg.append("text").attr("class", "axt").attr("transform", `translate(12,${(mt + H - mb) / 2}) rotate(-90)`).attr("text-anchor", "middle").text("hindsight capture");
+        // references with no LLM
+        [["persistence_dp", "persistence-DP", "var(--c-rule)"], ["teacher_dp", "forecaster + exact DP", "var(--text-color)"]].forEach(([k, l, c], i) => {
+          const v = F.refs[k].mean;
+          svg.append("line").attr("class", "ref").attr("x1", ml).attr("x2", W - mr).attr("y1", y(v)).attr("y2", y(v)).style("stroke", c).style("stroke-opacity", 0.6);
+          if (!narrow) svg.append("text").attr("class", "sub halo").attr("x", x(0.0042)).attr("y", y(v) - 5).attr("text-anchor", "middle").text(`${l} ${f.n(v)}`);
+        });
+        // the frontier: each point no cheaper point matches
+        const fr = pts.filter((p) => p.frontier).sort((a, b) => a.usd - b.usd);
+        svg.append("path").attr("class", "front").attr("d", d3.line().x((p) => x(p.usd)).y((p) => y(p.mean))(fr));
+        // effort curves
+        ["luna", "beam"].forEach((fam) => {
+          const c = pts.filter((p) => p.family === fam).sort((a, b) => a.usd - b.usd);
+          svg.append("path").attr("class", "fam").style("stroke", K.colorOf(c[0])).attr("d", d3.line().x((p) => x(p.usd)).y((p) => y(p.mean))(c));
+        });
+        // training: untrained to trained
+        const b0 = by.base, b1 = by.final;
+        svg.append("defs").append("marker").attr("id", "gs-front-ah").attr("viewBox", "0 0 8 8").attr("refX", 6).attr("refY", 4).attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto")
+          .append("path").attr("d", "M0,0L8,4L0,8Z").style("fill", "var(--c-qwen)");
+        svg.append("path").attr("class", "arrow").attr("marker-end", "url(#gs-front-ah)").attr("d", `M${x(b0.usd) + 3},${y(b0.mean) - 8}L${x(b1.usd) - 1},${y(b1.mean) + 10}`);
+        svg.append("text").attr("class", "sub halo").attr("x", (x(b0.usd) + x(b1.usd)) / 2 + 8).attr("y", (y(b0.mean) + y(b1.mean)) / 2).text("training");
+        // CIs, marks, labels
+        pts.forEach((p) => {
+          const color = K.colorOf(p);
+          svg.append("line").attr("x1", x(p.usd)).attr("x2", x(p.usd)).attr("y1", y(p.ci[0])).attr("y2", y(p.ci[1])).style("stroke", color).style("stroke-opacity", 0.55).style("stroke-width", 1.5);
+          K.symbol(svg, K.shapeOf(p), x(p.usd), y(p.mean), p.key === "final" ? 5.5 : 4.5, color).style("stroke", "var(--page-bg)").style("stroke-width", 1.5);
+          const OFF_N = { base: [8, 4, "start"], final: [10, -9, "start"], sol: [-9, -9, "end"] };
+          const [dx, dy, anc] = (narrow ? OFF_N[p.key] : OFF[p.key]) || [8, 4, "start"];
+          const short = { base: "Qwen3-4B, untrained", final: "Qwen3-4B, trained", sol: "GPT-6.1 Sol", "luna-low": "Luna low", "luna-medium": "Luna medium", "luna-high": "GPT-6 Luna high", "beam-low": "Beam low", "beam-medium": "Beam medium", "beam-high": "Beam high", "beam-max": "Beam-1.0 max" }[p.key] || p.label;
+          if (!narrow || ["base", "final", "sol"].includes(p.key)) {
+            svg.append("text").attr("class", "lab halo" + (p.key === "final" ? " b" : "")).attr("x", x(p.usd) + dx).attr("y", y(p.mean) + dy).attr("text-anchor", anc).text(short);
+          }
+          svg.append("circle").attr("cx", x(p.usd)).attr("cy", y(p.mean)).attr("r", 13).style("fill", "transparent")
+            .on("pointerenter pointermove", (ev) => tip.show((el) => {
+              K.t.title(el, K.labelOf(p), color);
+              K.t.row(el, "hindsight capture", `${f.n(p.mean)} ${f.ci(p.ci)}`);
+              K.t.row(el, "cost per battery-day", f.usd(p.usd));
+              K.t.row(el, "output tokens", f.int(p.tokens));
+              K.t.row(el, "weights", p.open ? "open" : "API");
+              if (p.final_minus) K.t.row(el, "trained 4B − this", `${f.s(p.final_minus.mean)} ${f.ci(p.final_minus.ci, 3, true)}`);
+              K.t.note(el, p.frontier ? "On the frontier: no cheaper point captures as much." : "Off the frontier: a cheaper point captures more.");
+            }, ev)).on("pointerleave", () => tip.hide());
+        });
+        leg.replaceChildren();
+        const item = (cls, style, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.className = cls; Object.assign(i.style, style); s.append(i, document.createTextNode(text)); leg.appendChild(s); };
+        item("", { background: "var(--c-qwen)" }, "Qwen3-4B, open, one L40S");
+        item("", { background: "var(--c-beam)" }, "Beam-1.0, open, efforts low → max");
+        item("dia", { background: "var(--c-luna)" }, "GPT-6 Luna, API, efforts low → high");
+        item("dia", { background: "var(--c-sol)" }, "GPT-6.1 Sol, API");
+        item("dash", { borderColor: "var(--text-color)", opacity: 0.6 }, "the frontier");
+        if (narrow) {
+          item("dash", { borderColor: "var(--text-color)", borderTopStyle: "dotted" }, `forecaster + exact DP ${f.n(F.refs.teacher_dp.mean)}`);
+          item("dash", { borderColor: "var(--c-rule)", borderTopStyle: "dotted" }, `persistence-DP ${f.n(F.refs.persistence_dp.mean)}`);
+        }
+      }
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = e.message; }));
+  })();
+</script>

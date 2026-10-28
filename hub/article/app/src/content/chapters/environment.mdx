@@ -1,0 +1,118 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+
+## The environment
+
+An episode is one **battery-day**: one battery at one settlement point on one date. The agent gets a situation with the
+battery's power, energy, efficiency and limits, its starting charge and the charge it must end with, and the prices.
+It answers with one call, `submit_schedule`, carrying 24 integers, the first for the hour ending 1 am (HE01) and the
+last for the hour ending midnight (HE24). A positive number sells that many units of energy in the hour, a negative one
+buys, zero idles.
+
+<HtmlEmbed
+  src="d3-anatomy.html"
+  wide
+  title="Every schedule is graded against the exact optimum of its own day"
+  desc="Six real battery-days from the held-out sets: three at the foresight tier in 2025, three at the blind tier on ERCOT's newest days. Pick a day and a schedule. The dashed outlines are the dynamic program's optimum, the solid bars what the model submitted; hover an hour for its price, both actions and the charge."
+/>
+
+The battery moves energy in whole units and holds between zero and a fixed number of them. Five rules govern a
+schedule:
+
+1. Each hour, the action stays within the battery's power: it can buy at most `k_ch` units and sell at most `k_dis`.
+2. The state of charge stays between empty and full after every hour.
+3. The units sold over the day stay within a cycle cap.
+4. At the first hour that breaks rule 1, 2 or 3, that hour and every later hour execute as idle. The hours before still
+   settle.
+5. After the last hour the battery must hold at least its end-of-day obligation. Each missing unit is bought back at
+   the day's highest price, or \$50/MWh if that is higher.
+
+Selling a unit delivers its energy; buying one draws a little more, because the battery's round-trip losses fall on
+the buy side. Each unit sold also costs a flat degradation charge, from \$0 to \$8 per MWh. A negative price pays the
+battery to buy. The batteries are archetypes, not real sites: 1, 2 and 4-hour designs from 7.5 to 225 MW, sized from
+the ERCOT fleet in EIA-860.
+
+### Two tiers
+
+The same battery-day plays at two tiers, which differ in what the agent knows.
+
+| | Foresight | Blind |
+|---|---|---|
+| The agent sees | the day's 24 prices | the prices of the day before and of the 7 days before, at the same point |
+| It tests | planning: turning known prices into the best feasible schedule | forecasting and planning, as a real desk bids the day before |
+| Scored against | the exact optimum on the day's prices | the better of two forecast-driven references (below) |
+| Solved? | GPT-6.1 Sol scores 0.9999 on 500 held-out days | no model reaches hindsight |
+
+At the foresight tier the problem has a known answer, which is what makes it a clean place to measure and to train
+planning. At the blind tier the agent has to guess the day from its history, so even a perfect planner leaves money on
+the table.
+
+### The grade
+
+A schedule's profit **P** settles under the rules above at the day's real prices. It is scored against the profit of
+doing nothing, **P**<sub>idle</sub>, and an anchor, **P**<sub>anchor</sub>:
+
+$$
+R = \operatorname{clip}\!\left(0.2 + 0.8\,\frac{P - P_{\text{idle}}}{P_{\text{anchor}} - P_{\text{idle}}},\ 0,\ 1\right)
+$$
+
+- Doing nothing scores 0.2, the anchor 1.0, and a reply with no valid schedule 0. There is no format credit and no
+  judge: the same function grades in the environment, in its verifier and in training.
+- **At the foresight tier the anchor is the optimum**, P<sub>opt</sub>, which the dynamic program finds over every
+  state of charge, every count of units sold and every action.
+- **At the blind tier the anchor is max(persistence-DP, ridge-DP)**: the exact optimum on yesterday's prices, or on a
+  ridge regression's forecast of the day, whichever earned more on the actual day. Because it picks the better of two
+  in hindsight, it is an oracle no desk could run.
+- **The blind results in this article report hindsight capture**, written *r*<sub>opt</sub>: the same formula with
+  the optimum as the anchor, so idle is 0.2 and the hindsight optimum 1.0 on one scale for every model.
+
+### How a schedule fails
+
+Because the optimum and the rules are exact, every mistake can be named. Each graded schedule gets one kind:
+
+- **Overfill:** a buy that would take the charge above full.
+- **Sell before charge:** a sale from an empty battery.
+- **Rate, cycle cap:** an hour beyond the battery's power, or a sale beyond the day's cycle cap.
+- **End short:** a feasible day that ends below the obligation, so the shortfall is bought back at the peak.
+- **All idle:** 24 zeros, which scores exactly 0.2.
+- **No valid schedule:** no parseable call, or a reply cut off while thinking, which scores 0.
+
+### Replayed in 3D
+
+Recorded runs replay in the [GridSimEnv viewer](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv) as a
+battery yard in the settlement point's region, under that day's real sun and the weather observed at the region's
+airport [@iem_asos]. Cyan pulses run into the yard while it charges, amber pulses run out while it sells.
+
+<HtmlEmbed
+  src="gridsim-video.html"
+  wide
+  frameless
+  config={{ src: "/media/gridsim-run4-north-2026-10-19.mp4", poster: "/img/gridsim-run4-poster.webp", autoplay: true, label: "A recorded run of the trained Qwen3-4B on 19 October 2026 at ERCOT's North hub, replayed in the 3D viewer." }}
+  title="The trained 4B bids blind on a day it never saw, and matches hindsight"
+  desc="A recorded run, replayed in the viewer: Qwen3-4B after training (run 4) on 19 October 2026 at the North hub, a 225 MW, 2-hour battery, bidding from the week before. It writes a forecast and a plan, then sells at 7 am, buys at the midday low and sells into the evening, $10,024 against the optimum's $10,027. Yesterday's plan would have made $6,749. It was a good day for the 4B, not a typical one: over the 331 newest battery-days it captures 0.841 of hindsight on average."
+/>
+
+<HtmlEmbed
+  src="gridsim-gallery.html"
+  wide
+  frameless
+  desc="Stills from the viewer, without its panels. The scene is procedural; the prices, the schedules and the weather are real."
+/>
+
+### Try it
+
+The viewer is a static Space that holds replays only: GPT-6.1 Sol's 1,550 runs of the v1 board, the Qwen3-1.7B
+training checkpoints, the reference schedules and the v2–v5 previews. Every replay was graded again when the Space was
+built.
+
+<HtmlEmbed
+  src="gridsim-space.html"
+  wide
+  frameless
+  config={{ views: [
+    { label: "The featured day", path: "index.html?episode=runs/dam-v1-2025-03-15-HB_WEST-1h-t-zgptiln6.json", note: "GPT-6.1 Sol on 15 March 2025 at the West hub: six hours below $0/MWh at midday, then $102 at 8 pm. Space plays, the arrows step an hour." },
+    { label: "Every run", path: "index.html", note: "Filter by model, tier and region; every replay opens with its plain-English card and the expert charts behind Charts." },
+    { label: "The race", path: "index.html?race=runs/race.json", note: "Four policies on one held-out day, side by side: the 1.7B base, the 4B after SFT, the 4B of run 2 and GPT-6.1 Sol." }
+  ], openLabel: "Open the Space ↗", openHref: "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv", title: "The GridSimEnv viewer" }}
+  title="The GridSimEnv viewer, live"
+  desc="The viewer Space, embedded. Pick a view; the controls and keys are the Space's own."
+/>

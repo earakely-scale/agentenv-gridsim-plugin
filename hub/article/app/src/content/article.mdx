@@ -1,0 +1,67 @@
+---
+title: "GridSimEnv: running a grid battery on ERCOT's real prices"
+description: "An RL environment on the Texas grid's real day-ahead prices, graded exactly and in dollars: how frontier models bid, how a 4B open model learned to, and what the decisions are worth."
+seoImageAlt: "GridSimEnv: a dot map of Texas with ERCOT's 15 hubs and load zones, each with a battery that charges at midday and sells into the evening peak on 15 March 2025."
+authors:
+  - name: "Edgar Arakelyan"
+    url: "https://huggingface.co/earakely-scale"
+    affiliations: [1]
+affiliations:
+  - name: "Scale AI"
+published: "October 28, 2026"
+links:
+  - label: "GitHub"
+    url: "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+    icon: "github"
+  - label: "Dataset"
+    url: "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
+    icon: "hf"
+  - label: "3D Space"
+    url: "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
+    icon: "hf"
+licence: >
+  Text and charts are licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>, unless noted otherwise. The prices are ERCOT's public data, used under ERCOT's terms and not relicensed (<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE" target="_blank" rel="noopener noreferrer">data/LICENSE</a>); GridSimEnv is not affiliated with or endorsed by ERCOT. The code is Apache-2.0.
+seoThumbImage: "https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/og-image.jpg"
+tags:
+  - reinforcement learning
+  - RL environments
+  - simulation
+  - energy
+  - electricity markets
+  - battery storage
+  - ERCOT
+  - day-ahead market
+  - dynamic programming
+  - GRPO
+  - TRL
+  - Qwen3
+  - AgentEnv
+  - GridSimEnv
+template: "article"
+tableOfContentsAutoCollapse: true
+showPdf: false
+---
+
+{/*
+  The import list is the chapter registry: the order of the elements below is the running order.
+*/}
+
+import Introduction from "./chapters/introduction.mdx";
+import Environment from "./chapters/environment.mdx";
+import Impact from "./chapters/impact.mdx";
+import Data from "./chapters/data.mdx";
+import Eval from "./chapters/eval.mdx";
+import Training from "./chapters/training.mdx";
+import Worth from "./chapters/worth.mdx";
+import Live from "./chapters/live.mdx";
+import Ongoing from "./chapters/ongoing.mdx";
+
+<Introduction />
+<Environment />
+<Impact />
+<Data />
+<Eval />
+<Training />
+<Worth />
+<Live />
+<Ongoing />

@@ -1,0 +1,56 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import Note from "../../components/Note.astro";
+
+<Note variant="neutral" title="Work in progress">
+GridSimEnv is an early, open environment. The models, numbers and conclusions here will change as more runs land.
+Every result links to the folder that holds its evidence, and the charts are rebuilt from those files.
+</Note>
+
+<Note variant="info" title="Update, 28 October 2026">
+Two things are new. **The live sealed board:** before ERCOT's day-ahead market closes, GPT-6.1 Sol, GPT-6 Luna, the
+trained 4B and three rules each seal a schedule for 45 batteries, and the schedules settle when ERCOT posts the prices;
+the first seal is for 29 October 2026 ([the live board](#the-live-board)). **The Beam sweep:** Beam-1.0, an open-weights
+model, now bids blind at four reasoning efforts. It sits off the score-against-cost frontier at every one of them
+([score against cost](#score-against-cost)).
+</Note>
+
+## A battery desk on the Texas grid
+
+Every morning, Texas's grid operator, ERCOT, runs a day-ahead market. By 10 am, sellers and buyers send offers for each
+hour of the next day, and the market posts an hourly price at every hub and load zone [@ercot2025dam]. A grid battery makes money by
+buying power when it is cheap, at night or at a sunny midday when solar pushes prices toward zero and sometimes below,
+and selling it back into the evening peak. Somebody has to decide, the day before, when.
+
+GridSimEnv turns that decision into an RL environment. In v1, **The Battery Desk**, an agent runs one battery at one of
+ERCOT's 7 trading hubs or 8 load zones for one day. It reads the battery and the day's 24 hourly prices, or only the
+days before, and submits 24 integers: how many units of energy to buy or sell in each hour. The schedule settles at
+that day's real prices and is graded exactly.
+
+Three things make it a good environment to train on.
+
+- **Real records.** The prices are ERCOT's own, every hourly day-ahead price at 15 settlement points from 2014 to
+  2026, and the batteries are sized from the Texas fleet in the U.S. Energy Information Administration's Form EIA-860.
+  There are 21,250 battery-days, with 2025 held out.
+- **An exact optimum.** A dynamic program finds the best possible schedule for any day in under a millisecond. Every
+  schedule gets an exact grade with no judge, and, as the training chapter shows, every hour of every schedule gets
+  exact credit.
+- **Dollars.** The grade is a share of real money. Every result converts to dollars per megawatt of battery a year, at
+  the prices the market actually cleared.
+
+<HtmlEmbed
+  src="d3-pipeline.html"
+  wide
+  frameless
+  title="From ERCOT's records to a trained model"
+  desc="The environment's loop. The prices are a real day, 25 February 2025 at the Austin Energy load zone: the exact optimum buys in the first hour and mid-afternoon (cyan) and sells into the $49.57 morning and $49.59 evening peaks (amber), $9,570 for a 150 MW battery."
+/>
+
+This article walks through the environment, how frontier models do on it, how a 4-billion-parameter open model was
+trained on it, and what the decisions are worth. In short:
+
+<HtmlEmbed
+  src="d3-glance.html"
+  frameless
+  title="The results in four numbers"
+  desc="Each number is computed from the committed results by the article's build, with the folder that holds its evidence."
+/>

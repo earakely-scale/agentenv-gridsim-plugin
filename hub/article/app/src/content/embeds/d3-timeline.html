@@ -1,0 +1,105 @@
+<div class="gs-time"></div>
+<style>
+  .gs-time { font-size: 12px; }
+  .gs-time svg { display: block; width: 100%; overflow: visible; }
+  .gs-time .lane-l { fill: var(--text-color); font-size: 12px; font-weight: 600; }
+  .gs-time .lane-s { fill: var(--muted-color); font-size: 11px; }
+  .gs-time .bar { rx: 3; }
+  .gs-time .tick text { fill: var(--muted-color); font-size: 11px; }
+  .gs-time .tick line { stroke: var(--grid-color); }
+  .gs-time .brk { stroke: var(--muted-color); stroke-opacity: 0.6; stroke-dasharray: 2 3; }
+  .gs-time .mark { stroke: var(--text-color); stroke-opacity: 0.55; stroke-width: 1; }
+  .gs-time .mark-t { fill: var(--text-color); font-size: 11px; }
+  .gs-time .show { fill: var(--text-color); fill-opacity: 0.55; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-time");
+    if (!root) return;
+    const f = K.fmt;
+    K.whenD3(() => K.data("timeline.json").then((T) => {
+      const d3 = window.d3;
+      const tip = K.tip(root);
+      const svg = d3.select(root).append("svg").attr("class", "gs-svg");
+      const day = (s) => new Date(s + "T12:00:00");
+      const LANES = [
+        { key: "train", label: "Train", color: "var(--c-qwen)", op: 0.75 },
+        { key: "eval_iid", label: "Held out, every 10th day", color: "var(--c-sol)", op: 0.9, dots: true },
+        { key: "eval_2025", label: "Held out, 2025", color: "var(--c-sol)", op: 0.85 },
+        { key: "rtcb", label: "Held out, after RTC+B", color: "var(--c-sol)", op: 0.6 },
+        { key: "fresh", label: "ERCOT's newest days", color: "var(--c-luna)", op: 0.85 },
+        { key: "live", label: "Live board, sealed", color: "var(--c-discharge)", op: 0.9 },
+      ];
+      const by = Object.fromEntries(T.packs.map((p) => [p.split, p]));
+      function render() {
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 700;
+        const narrow = W < 560;
+        const lw = narrow ? 0 : 168, top = narrow ? 8 : 20, lh = narrow ? 50 : 34, ml = lw + 8, mr = 16;
+        const H = top + LANES.length * lh + 34;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        // a piecewise scale: 2014–2024 on 55% of the width, 2025 onward on the rest
+        const a = day("2014-01-01"), b = day("2025-01-01"), c = day("2026-12-01");
+        const xb = ml + (W - ml - mr) * 0.55;
+        const x = (dt) => { const t = +dt; return t <= +b ? ml + ((t - a) / (b - a)) * (xb - ml) : xb + ((t - b) / (c - b)) * (W - mr - xb); };
+        const axisY = top + LANES.length * lh + 6;
+        (narrow ? [2014, 2018, 2022] : [2014, 2016, 2018, 2020, 2022]).forEach((y) => {
+          const xx = x(day(`${y}-01-01`));
+          svg.append("line").attr("x1", xx).attr("x2", xx).attr("y1", top - 6).attr("y2", axisY).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", xx).attr("y", axisY + 14).attr("text-anchor", "middle").style("fill", "var(--muted-color)").style("font-size", "11px").text(y);
+        });
+        (narrow ? [["2025-01-01", "2025"], ["2026-01-01", "2026"]] : [["2025-01-01", "2025"], ["2025-07-01", "Jul"], ["2026-01-01", "2026"], ["2026-07-01", "Jul"]]).forEach(([s, l]) => {
+          const xx = x(day(s));
+          svg.append("line").attr("x1", xx).attr("x2", xx).attr("y1", top - 6).attr("y2", axisY).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", xx).attr("y", axisY + 14).attr("text-anchor", "middle").style("fill", "var(--muted-color)").style("font-size", "11px").text(l);
+        });
+        svg.append("line").attr("class", "brk").attr("x1", xb).attr("x2", xb).attr("y1", top - 12).attr("y2", axisY);
+        if (!narrow) svg.append("text").attr("x", xb + 4).attr("y", top - 10).style("fill", "var(--muted-color)").style("font-size", "10.5px").text("scale changes: the held-out years, stretched");
+        const rx = x(day(T.rtcb));
+        svg.append("line").attr("class", "mark").attr("x1", rx).attr("x2", rx).attr("y1", top + 3 * lh - 4).attr("y2", axisY);
+        LANES.forEach((L, i) => {
+          const y = top + i * lh + (narrow ? 16 : 0);
+          const p = by[L.key];
+          if (narrow) svg.append("text").attr("class", "lane-l").attr("x", 0).attr("y", y - 4).text(L.label);
+          else svg.append("text").attr("class", "lane-l").attr("x", 0).attr("y", y + 12).text(L.label);
+          let x0, x1, note;
+          if (L.key === "live") { x0 = x(day(T.live_first_seal)); x1 = W - mr; note = `from ${d3.timeFormat("%-d %b %Y")(day(T.live_first_seal))}, sealed before the prices exist`; }
+          else { x0 = x(day(p.from)); x1 = Math.max(x0 + 3, x(day(p.to))); note = `${f.int(p.n)} battery-days${p.n_blind ? `, ${f.int(p.n_blind)} also blind` : ""}`; }
+          const g = svg.append("g");
+          if (L.dots) {
+            for (let t = +day(p.from); t <= +day(p.to); t += 10 * 864e5) g.append("rect").attr("x", x(new Date(t))).attr("y", y + 3).attr("width", 1).attr("height", 12).style("fill", L.color).style("opacity", 0.5);
+          } else {
+            g.append("rect").attr("x", x0).attr("y", y + 2).attr("width", x1 - x0).attr("height", 14).attr("rx", 3).style("fill", L.color).style("fill-opacity", L.op);
+          }
+          const est = note.length * 6.1;
+          const right = x1 + 6 + est < W - 2;
+          if (L.key === "train" || L.key === "eval_iid") L.text = { x: x(day("2015-03-01")), anchor: "start", t: L.key === "eval_iid" ? `${note}, 2014–2024` : note };
+          else L.text = { x: right ? x1 + 6 : x0 - 6, anchor: right ? "start" : "end", t: note };
+          L.y = y;
+          g.append("rect").attr("x", Math.min(x0, x1) - 4).attr("y", y - 4).attr("width", Math.max(16, x1 - x0 + 8)).attr("height", 24).style("fill", "transparent")
+            .on("pointerenter pointermove", (ev) => tip.show((el) => {
+              K.t.title(el, L.label, L.color);
+              if (L.key === "live") { K.t.row(el, "first seal", T.live_first_seal); K.t.note(el, "Schedules are committed before ERCOT's day-ahead market closes, then settled at the prices it posts."); return; }
+              K.t.row(el, "pack", p.pack);
+              K.t.row(el, "dates", `${p.from} to ${p.to}`);
+              K.t.row(el, "battery-days", f.int(p.n));
+              if (p.n_blind) K.t.row(el, "of them at the blind tier", f.int(p.n_blind));
+            }, ev)).on("pointerleave", () => tip.hide());
+          if (L.key === "train") {
+            T.showcase.forEach(([s, e, name]) => {
+              const sx = x(day(s)), ex = Math.max(sx + 2, x(day(e)));
+              svg.append("rect").attr("class", "show").attr("x", sx).attr("y", y + 2).attr("width", ex - sx).attr("height", 14).style("fill", "var(--page-bg)")
+                .on("pointerenter pointermove", (ev) => tip.show((el) => { K.t.title(el, `${name}: display only`); K.t.note(el, "Famous days (storms, scarcity) are kept out of every split and appear only in the showcase pack, so no score rests on them."); }, ev)).on("pointerleave", () => tip.hide());
+            });
+          }
+        });
+        LANES.forEach((L) => svg.append("text").attr("class", "lane-s halo").attr("x", L.text.x).attr("y", L.y + 13).attr("text-anchor", L.text.anchor)
+          .style("fill", L.key === "train" ? "var(--text-color)" : null).style("font-weight", L.key === "train" ? 600 : null).text(L.text.t));
+        if (!narrow) svg.append("text").attr("class", "mark-t halo").attr("x", rx - 4).attr("y", top + 3 * lh - 6).attr("text-anchor", "end").text("RTC+B, 5 Dec 2025");
+      }
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = e.message; }));
+  })();
+</script>

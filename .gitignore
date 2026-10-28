@@ -13,3 +13,7 @@ build/
 results/bundles/
 results/videos/
 results/films/
+hub/article/app/node_modules/
+hub/article/app/dist/
+hub/article/app/.astro/
+hub/article/app/public/media/

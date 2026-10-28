@@ -1,0 +1,40 @@
+<div class="gs-glance"></div>
+<style>
+  .gs-glance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; }
+  .gs-glance .tile { border-top: 1px solid var(--border-color); padding-top: 10px; display: flex; flex-direction: column; gap: 3px; }
+  .gs-glance .v { font-size: 27px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.15; color: var(--text-color); }
+  .gs-glance .tile:first-child .v { color: var(--primary-color); }
+  .gs-glance .l { font-size: 14px; font-weight: 600; line-height: 1.35; color: var(--text-color); }
+  .gs-glance .x { font-size: 13px; line-height: 1.5; color: var(--muted-color); }
+  .gs-glance .src { margin-top: 4px; font-size: 12px; }
+  .gs-glance .src a { color: var(--muted-color) !important; background: none !important; border-bottom: 1px solid var(--border-color) !important; }
+  @media (max-width: 620px) { .gs-glance { grid-template-columns: minmax(0, 1fr); } .gs-glance .v { font-size: 24px; } }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-glance");
+    if (!root) return;
+    const DS = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/blob/main/";
+    const NAME = { "results/train/4b-blind": "run 4", "results/cost-matched": "the cost-matched contest", "results/economics": "the economics",
+      "results/train/4b-dpa": "run 3", "results/train/4b-v2": "run 2" };
+    K.data("results.json").then((R) => {
+      R.glance.forEach((g) => {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        const v = document.createElement("div"); v.className = "v"; v.textContent = g.value;
+        const l = document.createElement("div"); l.className = "l"; l.textContent = g.label;
+        const x = document.createElement("div"); x.className = "x"; x.textContent = g.text;
+        const src = document.createElement("div"); src.className = "src";
+        src.appendChild(document.createTextNode("Evidence: "));
+        g.src.forEach((s, i) => {
+          if (i) src.appendChild(document.createTextNode(" · "));
+          const a = document.createElement("a"); a.href = `${DS}${s}/README.md`; a.target = "_blank"; a.rel = "noopener noreferrer";
+          a.textContent = NAME[s] || s; src.appendChild(a);
+        });
+        tile.append(v, l, x, src);
+        root.appendChild(tile);
+      });
+    }).catch((e) => { root.textContent = e.message; });
+  })();
+</script>

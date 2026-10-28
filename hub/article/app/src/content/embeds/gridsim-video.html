@@ -1,0 +1,22 @@
+<div class="gs-video"></div>
+<style>
+  .gs-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid var(--border-color); background: #11161b; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-video");
+    if (!root) return;
+    const cfg = K.config(root);
+    if (!cfg.src) return;
+    const v = document.createElement("video");
+    Object.assign(v, { src: cfg.src, controls: true, playsInline: true, preload: "none", muted: true, loop: true });
+    v.setAttribute("aria-label", cfg.label || "A recorded replay");
+    if (cfg.poster) v.poster = cfg.poster;
+    root.appendChild(v);
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (cfg.autoplay && !reduce && "IntersectionObserver" in window) {
+      new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause())), { threshold: 0.35 }).observe(v);
+    }
+  })();
+</script>

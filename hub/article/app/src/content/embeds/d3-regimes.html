@@ -1,0 +1,76 @@
+<div class="gs-reg"></div>
+<style>
+  .gs-reg { font-size: 12px; }
+  .gs-reg svg { display: block; width: 100%; overflow: visible; }
+  .gs-reg .ql { fill: var(--text-color); font-size: 12px; font-weight: 600; }
+  .gs-reg .qs { fill: var(--muted-color); font-size: 11px; }
+  .gs-reg .ci { stroke: var(--text-color); stroke-opacity: 0.5; stroke-width: 1.2; }
+  .gs-reg .zero { stroke: var(--text-color); stroke-opacity: 0.6; }
+  .gs-reg .room { fill: none; stroke: var(--text-color); stroke-opacity: 0.45; stroke-dasharray: 3 2; }
+  .gs-reg .v { fill: var(--text-color); font-size: 11px; font-variant-numeric: tabular-nums; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-reg");
+    if (!root) return;
+    const f = K.fmt;
+    K.whenD3(() => K.data("results.json").then((R) => {
+      const d3 = window.d3;
+      const Q = R.dollars.packs.eval2025.quartiles;
+      const tip = K.tip(root);
+      const svg = d3.select(root).append("svg").attr("class", "gs-svg");
+      root.insertAdjacentHTML("beforeend", '<div class="gs-legend"></div>');
+      const leg = root.querySelector(".gs-legend");
+      const M = [["sol", "GPT-6.1 Sol", "var(--c-sol)"], ["luna-high", "GPT-6 Luna, high", "var(--c-luna)"], ["4b-sampled", "Qwen3-4B, trained", "var(--c-qwen)"]];
+      function render() {
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 640;
+        const narrow = W < 560;
+        const ml = 46, mr = 10, mt = 46, mb = 34;
+        const H = narrow ? 360 : 330;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const x0 = d3.scaleBand().domain(Q.map((q) => q.q)).range([ml, W - mr]).paddingInner(0.22).paddingOuter(0.05);
+        const x1 = d3.scaleBand().domain(["room", ...M.map((m) => m[0])]).range([0, x0.bandwidth()]).paddingInner(0.18);
+        const lo = Math.min(-25, d3.min(Q, (q) => d3.min(M, (m) => q[m[0]].ci[0])));
+        const hi = d3.max(Q, (q) => q.shortfall.ci[1]);
+        const y = d3.scaleLinear().domain([lo, hi]).nice().range([H - mb, mt]);
+        y.ticks(6).forEach((v) => {
+          svg.append("line").attr("x1", ml).attr("x2", W - mr).attr("y1", y(v)).attr("y2", y(v)).style("stroke", "var(--grid-color)");
+          svg.append("text").attr("x", ml - 6).attr("y", y(v) + 3.5).attr("text-anchor", "end").style("fill", "var(--muted-color)").style("font-size", "11px").text(`${v < 0 ? "−" : v > 0 ? "+" : ""}$${Math.abs(v)}`);
+        });
+        svg.append("line").attr("class", "zero").attr("x1", ml).attr("x2", W - mr).attr("y1", y(0)).attr("y2", y(0));
+        svg.append("text").attr("x", 0).attr("y", 12).style("fill", "var(--muted-color)").style("font-size", "11px").text("$ per MW-day over persistence-DP");
+        const NAME = ["the day repeats yesterday", "", "", "the shape changes most"];
+        Q.forEach((q, i) => {
+          const gx = x0(q.q);
+          svg.append("text").attr("class", "ql").attr("x", gx + x0.bandwidth() / 2).attr("y", H - 16).attr("text-anchor", "middle").text(`Q${q.q}`);
+          svg.append("text").attr("class", "qs").attr("x", gx + x0.bandwidth() / 2).attr("y", H - 3).attr("text-anchor", "middle").text(narrow ? `${q.days} days` : `${q.days} days${NAME[i] ? ": " + NAME[i] : ""}`);
+          // the room persistence-DP leaves to the optimum
+          const rx = gx + x1("room");
+          svg.append("rect").attr("class", "room").attr("x", rx).attr("width", x1.bandwidth()).attr("y", y(q.shortfall.mean)).attr("height", y(0) - y(q.shortfall.mean)).attr("rx", 2);
+          if (!narrow || i === 3) svg.append("text").attr("class", "v halo").attr("x", rx + x1.bandwidth() / 2).attr("y", y(q.shortfall.mean) - 5).attr("text-anchor", "middle").text(`$${q.shortfall.mean.toFixed(1)}`);
+          M.forEach(([k, l, c]) => {
+            const g = q[k], bx = gx + x1(k);
+            svg.append("rect").attr("x", bx).attr("width", x1.bandwidth()).attr("y", Math.min(y(g.mean), y(0))).attr("height", Math.max(1.5, Math.abs(y(g.mean) - y(0)))).attr("rx", 2).style("fill", c).style("fill-opacity", 0.85);
+            svg.append("line").attr("class", "ci").attr("x1", bx + x1.bandwidth() / 2).attr("x2", bx + x1.bandwidth() / 2).attr("y1", y(g.ci[0])).attr("y2", y(g.ci[1]));
+            svg.append("rect").attr("x", bx - 2).attr("width", x1.bandwidth() + 4).attr("y", mt).attr("height", H - mb - mt).style("fill", "transparent")
+              .on("pointerenter pointermove", (ev) => tip.show((el) => {
+                K.t.title(el, `${l}, quartile ${q.q}`, c);
+                K.t.row(el, "gain over persistence-DP", `${f.usd(g.mean, 2)} ${f.ci(g.ci, 1)}`);
+                K.t.row(el, "battery-days ahead / level", `${f.pct(g.ahead)} / ${f.pct(g.level)}`);
+                K.t.row(el, "persistence-DP's shortfall", f.usd(q.shortfall.mean, 2));
+                K.t.row(el, "shape change, 1 − r", `${q.range[0].toFixed(3)} to ${q.range[1].toFixed(3)}`);
+              }, ev)).on("pointerleave", () => tip.hide());
+          });
+        });
+        leg.replaceChildren();
+        const item = (cls, st, text) => { const sp = document.createElement("span"); const i = document.createElement("i"); i.className = cls; Object.assign(i.style, st); sp.append(i, document.createTextNode(text)); leg.appendChild(sp); };
+        item("bar", { background: "transparent", border: "1px dashed var(--text-color)" }, "what persistence-DP leaves on the table");
+        M.forEach(([, l, c]) => item("bar", { background: c }, l));
+      }
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = e.message; }));
+  })();
+</script>

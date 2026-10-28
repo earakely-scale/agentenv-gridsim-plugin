@@ -1,0 +1,166 @@
+<div class="gs-adv"></div>
+<style>
+  .gs-adv { font-size: 12.5px; color: var(--text-color); }
+  .gs-adv .body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+  .gs-adv svg { display: block; width: 100%; overflow: visible; }
+  .gs-adv .ptitle { fill: var(--text-color); font-size: 11.5px; font-weight: 600; }
+  .gs-adv .pbar { fill: var(--muted-color); fill-opacity: 0.3; }
+  .gs-adv .ghost { fill: none; stroke: var(--text-color); stroke-opacity: 0.55; stroke-dasharray: 2 2; }
+  .gs-adv .act.buy { fill: var(--c-charge); }
+  .gs-adv .act.sell { fill: var(--c-discharge); }
+  .gs-adv .advb { fill: var(--c-bad); }
+  .gs-adv .dead { fill: var(--c-bad); fill-opacity: 0.07; }
+  .gs-adv .zero { stroke: var(--muted-color); stroke-opacity: 0.6; }
+  .gs-adv .hov { fill: var(--text-color); fill-opacity: 0.06; }
+  .gs-adv .side .sum { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .gs-adv .side .sl { font-size: 12px; color: var(--muted-color); margin-bottom: 8px; }
+  .gs-adv .side .qrow { margin: 10px 0 4px; font-size: 12px; color: var(--muted-color); }
+  .gs-adv .side pre { white-space: pre-wrap; font-size: 11px; line-height: 1.5; margin: 6px 0 0; padding: 8px 9px; border-radius: 6px; background: var(--code-bg); border: 1px solid var(--border-color); max-height: 240px; overflow: auto; }
+  .gs-adv .side pre mark { background: color-mix(in srgb, var(--c-bad) 22%, transparent); color: inherit; border-radius: 2px; }
+  .gs-adv .qbars { width: 100%; }
+  @media (max-width: 820px) { .gs-adv .body { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-adv");
+    if (!root) return;
+    const f = K.fmt;
+    K.whenD3(() => K.data("advantage.json").then((D) => {
+      const d3 = window.d3;
+      const u = D.battery.unit_mwh;
+      let vi = 0, hour = null;
+      root.innerHTML = `<div class="gs-chips"><span class="gs-lab">Completion</span></div>
+        <div class="body"><div class="plot"></div><div class="side"></div></div><div class="gs-legend"></div>`;
+      const chips = root.querySelector(".gs-chips"), plot = root.querySelector(".plot"), side = root.querySelector(".side"), leg = root.querySelector(".gs-legend");
+      const tip = K.tip(root);
+      const svg = d3.select(plot).append("svg").attr("class", "gs-svg");
+      D.variants.forEach((v, i) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "gs-chip";
+        const s = document.createElement("b"); s.textContent = `R ${f.n(v.reward)}`;
+        b.append(document.createTextNode(v.label + " "), s);
+        b.addEventListener("click", () => { vi = i; hour = null; render(); });
+        chips.appendChild(b);
+      });
+      const act = (a) => (a > 0 ? `sell ${a * u} MW` : a < 0 ? `buy ${-a * u} MW` : "idle");
+
+      function render() {
+        chips.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === vi)));
+        const V = D.variants[vi];
+        const W = plot.clientWidth || 600;
+        const ml = 46, mr = 8, top = 18, h1 = 58, h2 = 84, h3 = 96, gap = 30;
+        const H = top + h1 + gap + h2 + gap + h3 + 24;
+        svg.selectAll("*").remove();
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const x = d3.scaleBand().domain(d3.range(24)).range([ml, W - mr]).paddingInner(0.2);
+        const bw = Math.min(20, x.bandwidth()), xc = (h) => x(h) + x.bandwidth() / 2;
+        // prices
+        const y1 = d3.scaleLinear().domain([0, d3.max(D.prices)]).nice(3).range([top + h1, top]);
+        const nar = W < 520;
+        svg.append("text").attr("class", "ptitle").attr("x", ml).attr("y", top - 6).text(nar ? "Prices, $/MWh" : `Prices on ${d3.timeFormat("%-d %B %Y")(new Date(D.date + "T12:00:00"))}, ${D.name} ($/MWh)`);
+        y1.ticks(2).forEach((v) => svg.append("text").attr("x", ml - 6).attr("y", y1(v) + 3.5).attr("text-anchor", "end").style("fill", "var(--muted-color)").style("font-size", "11px").text(`$${v}`));
+        D.prices.forEach((p, h) => svg.append("rect").attr("class", "pbar").attr("x", xc(h) - bw / 2).attr("width", bw).attr("y", y1(p)).attr("height", y1(0) - y1(p)).attr("rx", 2));
+        // actions: the completion's, and the DP's best action at the state the completion reached
+        const t2 = top + h1 + gap, amax = Math.max(D.battery.k_dis, D.battery.k_ch) * u;
+        const y2 = d3.scaleLinear().domain([-amax, amax]).range([t2 + h2, t2]);
+        svg.append("text").attr("class", "ptitle").attr("x", ml).attr("y", t2 - 6).text(nar ? "Its action and the DP's best, MW" : "Its action, and the DP's best action from the state it reached (MW)");
+        [-amax, 0, amax].forEach((v) => {
+          svg.append("line").attr("class", v === 0 ? "zero" : "").style("stroke", v === 0 ? null : "var(--grid-color)").attr("x1", ml).attr("x2", W - mr).attr("y1", y2(v)).attr("y2", y2(v));
+          svg.append("text").attr("x", ml - 6).attr("y", y2(v) + 3.5).attr("text-anchor", "end").style("fill", "var(--muted-color)").style("font-size", "11px").text(v > 0 ? `+${v}` : v < 0 ? `−${-v}` : "0");
+        });
+        const cut = V.truncated_at;
+        if (cut != null) {
+          svg.append("rect").attr("class", "dead").attr("x", x(cut) - 2).attr("width", W - mr - x(cut) + 2).attr("y", t2 - 2).attr("height", h2 + gap + h3 + 4);
+          svg.append("text").attr("x", x(cut) + 4).attr("y", t2 + 11).style("fill", "var(--c-bad)").style("font-size", "11px").style("font-weight", "600").text(nar ? `${f.he(cut)}: the day stops` : `${f.he(cut)}: ${({ soc_above_N: "a buy into a full battery", soc_below_0: "a sale from an empty battery", rate: "beyond the battery's power", cycle_cap: "beyond the cycle cap" })[V.violation] || V.violation}. The rest of the day idles.`);
+        }
+        V.opt.forEach((a, h) => { if (a) svg.append("rect").attr("class", "ghost").attr("x", xc(h) - bw / 2 - 1).attr("width", bw + 2).attr("y", Math.min(y2(a * u), y2(0))).attr("height", Math.abs(y2(a * u) - y2(0))).attr("rx", 2); });
+        V.actions.forEach((a, h) => { if (a) svg.append("rect").attr("class", "act " + (a > 0 ? "sell" : "buy")).attr("x", xc(h) - bw / 2 + 2).attr("width", bw - 4).attr("y", Math.min(y2(a * u), y2(0))).attr("height", Math.abs(y2(a * u) - y2(0))).attr("rx", 2).style("opacity", cut != null && h > cut ? 0.3 : 1); });
+        // advantages
+        const t3 = t2 + h2 + gap;
+        const amin = Math.min(-0.05, d3.min(V.adv));
+        const y3 = d3.scaleLinear().domain([amin, 0]).range([t3 + h3, t3 + 8]);
+        svg.append("text").attr("class", "ptitle").attr("x", ml).attr("y", t3 - 6).text(nar ? "Exact advantage of each hour" : "Exact advantage of each hour, A = Q*(s, a) − V*(s), reward units");
+        svg.append("line").attr("class", "zero").attr("x1", ml).attr("x2", W - mr).attr("y1", y3(0)).attr("y2", y3(0));
+        y3.ticks(3).forEach((v) => svg.append("text").attr("x", ml - 6).attr("y", y3(v) + 3.5).attr("text-anchor", "end").style("fill", "var(--muted-color)").style("font-size", "11px").text(f.n(v, 2)));
+        V.adv.forEach((a, h) => {
+          if (Math.abs(a) < 1e-6) { svg.append("circle").attr("cx", xc(h)).attr("cy", y3(0)).attr("r", 1.6).style("fill", "var(--muted-color)").style("opacity", 0.5); return; }
+          svg.append("rect").attr("class", "advb").attr("x", xc(h) - bw / 2 + 1).attr("width", bw - 2).attr("y", y3(0)).attr("height", Math.max(1.5, y3(a) - y3(0))).attr("rx", 2);
+          const tall = y3(a) - y3(0) > 34;
+          svg.append("text").attr("class", tall ? "" : "halo").attr("x", tall ? xc(h) + bw / 2 + 4 : xc(h)).attr("y", tall ? y3(a) - 4 : Math.max(y3(a), y3(0) + 1.5) + 12)
+            .attr("text-anchor", tall ? "start" : "middle").style("fill", "var(--text-color)").style("font-size", "11px").style("font-weight", "600").text(f.n(a, 3));
+        });
+        [0, 6, 12, 18, 23].forEach((hh) => svg.append("text").attr("x", xc(hh)).attr("y", H - 4).attr("text-anchor", "middle").style("fill", "var(--muted-color)").style("font-size", "11px").text(f.he(hh)));
+        const hov = svg.append("rect").attr("class", "hov").attr("y", top - 2).attr("height", H - top - 18).attr("width", x.step()).style("display", "none");
+        d3.range(24).forEach((hh) => svg.append("rect").attr("x", x(hh) - (x.step() - x.bandwidth()) / 2).attr("width", x.step()).attr("y", top - 2).attr("height", H - top).style("fill", "transparent")
+          .on("pointerenter pointermove", (ev) => {
+            hov.style("display", null).attr("x", x(hh) - (x.step() - x.bandwidth()) / 2);
+            hour = hh; sidePanel();
+            tip.show((el) => {
+              K.t.title(el, `${f.he(hh)}, price ${f.usd(D.prices[hh], 2)}/MWh`);
+              const q = V.q[hh];
+              if (!q) { K.t.note(el, "After the broken hour nothing executes, so this hour gets no credit."); return; }
+              K.t.row(el, "charge before the hour", `${q.s * u} of ${D.battery.energy_mwh} MWh`);
+              K.t.row(el, "it wrote", act(V.actions[hh]));
+              K.t.row(el, "the DP's best from here", act(V.opt[hh]));
+              K.t.row(el, "advantage A", f.n(V.adv[hh], 4));
+              if (V.actions[hh] !== 0 || V.adv[hh]) K.t.row(el, "sign token / digit token", `${f.n(V.sign[hh], 4)} / ${f.n(V.digit[hh], 4)}`);
+            }, ev);
+          })
+          .on("pointerleave", () => { hov.style("display", "none"); tip.hide(); }));
+        leg.replaceChildren();
+        const item = (cls, style, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.className = cls; Object.assign(i.style, style); s.append(i, document.createTextNode(text)); leg.appendChild(s); };
+        item("bar", { background: "var(--c-discharge)" }, "sell");
+        item("bar", { background: "var(--c-charge)" }, "buy");
+        item("bar", { background: "transparent", border: "1px dashed var(--text-color)" }, "the DP's best action from the state reached");
+        item("bar", { background: "var(--c-bad)" }, "negative advantage");
+        sidePanel();
+      }
+
+      function sidePanel() {
+        const V = D.variants[vi];
+        side.replaceChildren();
+        const total = V.adv.reduce((a, b) => a + b, 0);
+        const sum = document.createElement("div"); sum.className = "sum"; sum.textContent = `Σ A = ${f.n(total, 3)}`;
+        const sl = document.createElement("div"); sl.className = "sl";
+        sl.textContent = `= R − 1 = ${f.n(V.reward, 3)} − 1. The hours carry the whole gap to the optimum, and only the hours that caused it carry any.`;
+        side.append(sum, sl);
+        const hh = hour != null ? hour : (V.truncated_at != null ? V.truncated_at : V.adv.indexOf(Math.min(...V.adv)));
+        const q = V.q[hh];
+        const qr = document.createElement("div"); qr.className = "qrow";
+        qr.textContent = q ? `At ${f.he(hh)} (charge ${q.s * u} of ${D.battery.energy_mwh} MWh), the advantage of every action it could write:` : `At ${f.he(hh)} the day has already stopped.`;
+        side.appendChild(qr);
+        if (q) {
+          const acts = Object.keys(q.adv).map(Number).sort((a, b) => a - b);
+          const w = 270, rh = 17, h = acts.length * rh + 4;
+          const qs = d3.select(side).append("svg").attr("class", "qbars").attr("viewBox", `0 0 ${w} ${h}`).attr("height", h);
+          const lo = Math.min(-0.05, d3.min(acts.map((a) => q.adv[a])));
+          const xq = d3.scaleLinear().domain([lo, 0]).range([92, w - 84]);
+          acts.forEach((a, i) => {
+            const v = q.adv[a], y = 2 + i * rh;
+            const chosen = a === V.actions[hh], best = a === V.opt[hh];
+            qs.append("text").attr("x", 0).attr("y", y + 12).style("font-size", "11px").style("fill", chosen ? "var(--text-color)" : "var(--muted-color)").style("font-weight", chosen ? 650 : 400)
+              .text(`${a > 0 ? "sell" : a < 0 ? "buy" : "idle"}${a ? ` ${Math.abs(a) * u} MW` : ""}`);
+            qs.append("rect").attr("x", xq(v)).attr("y", y + 4).attr("width", Math.max(1.5, xq(0) - xq(v))).attr("height", 10).attr("rx", 2)
+              .style("fill", best ? "var(--c-good)" : "var(--c-bad)").style("fill-opacity", chosen ? 0.95 : 0.4);
+            qs.append("text").attr("x", w).attr("y", y + 12).attr("text-anchor", "end").style("font-size", "11px").style("font-variant-numeric", "tabular-nums").style("fill", "var(--text-color)")
+              .text(`${f.n(v, 3)}${chosen ? " ← it" : best ? " ← best" : ""}`);
+          });
+        }
+        if (V.text) {
+          const pre = document.createElement("pre");
+          const he = f.he(hh);
+          V.text.split("\n").forEach((line, i, arr) => {
+            const parts = line.split(he);
+            parts.forEach((p, j) => { pre.appendChild(document.createTextNode(p)); if (j < parts.length - 1) { const m = document.createElement("mark"); m.textContent = he; pre.appendChild(m); } });
+            if (i < arr.length - 1) pre.appendChild(document.createTextNode("\n"));
+          });
+          const cap = document.createElement("div"); cap.className = "qrow"; cap.textContent = "What it wrote before its call:";
+          side.append(cap, pre);
+        }
+      }
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = e.message; }));
+  })();
+</script>

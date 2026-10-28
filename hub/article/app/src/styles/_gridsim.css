@@ -1,0 +1,85 @@
+/* GridSimEnv: one colour per model everywhere (as on the Space's results page), the battery's charge and discharge,
+   and the price scale. Embeds read these as CSS variables, so a theme switch needs no re-render. */
+:root {
+  --c-sol: #2a78d6;
+  --c-luna: #eb6834;
+  --c-qwen: #1baf7a;
+  --c-beam: #b03a8c;
+  --c-base: #6f6e69;
+  --c-rule: #a9a7a1;
+  --c-ref: #c9c7c0;
+  --c-charge: #0b9fc6;
+  --c-discharge: #d9820b;
+  --c-neg: #7c58b3;
+  --c-soc: #22b866;
+  --c-bad: #cf3e33;
+  --c-good: #1d9a57;
+  --band: rgba(27, 175, 122, 0.12);
+  --chip-bg: transparent;
+  --chip-on: rgba(27, 175, 122, 0.12);
+  --tip-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+}
+
+[data-theme="dark"] {
+  --c-sol: #3987e5;
+  --c-luna: #d95926;
+  --c-qwen: #199e70;
+  --c-beam: #d062ae;
+  --c-base: #b9b8b0;
+  --c-rule: #7d7c76;
+  --c-ref: #55544f;
+  --c-charge: #2fb8e0;
+  --c-discharge: #f0a03a;
+  --c-neg: #a586d8;
+  --c-soc: #2fcf7a;
+  --c-bad: #f0645a;
+  --c-good: #3cc47a;
+  --band: rgba(25, 158, 112, 0.2);
+  --chip-on: rgba(25, 158, 112, 0.2);
+  --tip-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Shared chart chrome for the GridSimEnv embeds (each embed scopes its own layout). */
+.gs-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 10px; }
+.gs-chips .gs-lab { font-size: 12px; color: var(--muted-color); margin-right: 4px; min-width: 44px; }
+.gs-chip { appearance: none; cursor: pointer; font: inherit; font-size: 12.5px; line-height: 1.2; padding: 5px 10px;
+  border-radius: 6px; border: 1px solid var(--border-color); background: var(--chip-bg); color: var(--muted-color);
+  display: inline-flex; align-items: center; gap: 6px; }
+.gs-chip b { font-weight: 600; color: var(--text-color); }
+.gs-chip[aria-pressed="true"] { color: var(--text-color); border-color: var(--text-color); background: var(--chip-on); }
+.gs-chip:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.gs-chip .k { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.gs-chip .k.dia { border-radius: 2px; transform: rotate(45deg) scale(0.82); }
+.gs-tip { position: absolute; top: 0; left: 0; z-index: 30; pointer-events: none; opacity: 0; max-width: 300px;
+  transform: translate(-9999px, -9999px); transition: opacity 0.1s ease; padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; line-height: 1.4; color: var(--text-color); background: var(--surface-bg);
+  border: 1px solid var(--border-color); box-shadow: var(--tip-shadow); }
+.gs-tip b { font-weight: 650; }
+.gs-tip .t { font-weight: 600; margin-bottom: 3px; }
+.gs-tip .row { display: flex; gap: 10px; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.gs-tip .row span:first-child { color: var(--muted-color); }
+.gs-tip .key { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 6px; }
+.gs-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted-color); margin-top: 8px; }
+.gs-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.gs-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.gs-legend i.dia { border-radius: 2px; transform: rotate(45deg) scale(0.82); }
+.gs-legend i.bar { width: 12px; height: 9px; border-radius: 2px; }
+.gs-legend i.line { width: 16px; height: 2px; border-radius: 1px; }
+.gs-legend i.dash { width: 16px; height: 0; border-top: 2px dashed; border-radius: 0; background: none !important; }
+.gs-note { font-size: 12px; color: var(--muted-color); line-height: 1.45; margin-top: 8px; }
+.gs-svg text { font-family: inherit; }
+.gs-svg .ax text { fill: var(--muted-color); font-size: 11px; font-variant-numeric: tabular-nums; }
+.gs-svg .ax line, .gs-svg .ax path { stroke: var(--grid-color); }
+.gs-svg .grid line { stroke: var(--grid-color); stroke-width: 1; }
+.gs-svg .lab { fill: var(--text-color); font-size: 12px; }
+.gs-svg .lab.b { font-weight: 600; }
+.gs-svg .sub { fill: var(--muted-color); font-size: 11px; }
+.gs-svg .val { fill: var(--text-color); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.gs-svg .halo { paint-order: stroke; stroke: var(--page-bg); stroke-width: 3px; stroke-linejoin: round; }
+.html-embed__card:not(.is-frameless) .gs-svg .halo { stroke: var(--surface-bg); }
+
+/* The template fades a wide embed's edges with a mask; once it is full-width on smaller screens, the mask only
+   clips the first letters of titles and captions. */
+@media (max-width: 1100px) {
+  .html-embed--wide { -webkit-mask: none; mask: none; }
+}

@@ -1,0 +1,41 @@
+<div class="gs-impact">
+  <div class="tile">
+    <div class="vrow"><span class="v">$29.4</span><span class="u">/kW in 2025</span>
+      <svg class="mini" viewBox="0 0 96 30" aria-hidden="true"><rect x="4" y="2" width="20" height="24" rx="2" class="b"/><rect x="38" y="19" width="20" height="7" rx="2" class="b"/><rect x="72" y="22.3" width="20" height="3.7" rx="2" class="b hi"/><text x="14" y="30" class="yr">2023</text><text x="48" y="30" class="yr">2024</text><text x="82" y="30" class="yr">2025</text></svg>
+    </div>
+    <div class="d">ERCOT battery revenue a kilowatt, a nowcast: about half of 2024's $56/kW and a sixth of 2023's $193/kW. It counts energy and ancillary services.</div>
+    <a class="src" href="https://modoenergy.com/research/why-were-ercot-battery-revenues-so-low-in-2025-weather-energy-arbitrage-builodout" target="_blank" rel="noopener noreferrer">Modo Energy, Feb 2026</a>
+  </div>
+  <div class="tile">
+    <div class="vrow"><span class="v">+57%</span><span class="u">net energy revenue, 2025</span>
+      <svg class="mini" viewBox="0 0 96 30" aria-hidden="true"><line x1="48" x2="48" y1="1" y2="27" class="axis"/><rect x="48" y="4" width="40" height="8" rx="2" class="b hi"/><rect x="21.4" y="16" width="26.6" height="8" rx="2" class="b"/><text x="92" y="11" class="yr" text-anchor="end">energy</text><text x="2" y="23" class="yr" text-anchor="start">AS</text></svg>
+    </div>
+    <div class="d">for ERCOT's batteries, after charging costs, while their ancillary-service revenue fell by more than 37%. The market monitor sees batteries shifting their business to energy arbitrage.</div>
+    <a class="src" href="https://www.potomaceconomics.com/wp-content/uploads/2026/06/2025-State-of-the-Market-Report-for-ERCOT.pdf" target="_blank" rel="noopener noreferrer">Independent Market Monitor for ERCOT, 2025 State of the Market</a>
+  </div>
+  <div class="tile">
+    <div class="vrow"><span class="v">21,537 MW</span></div>
+    <div class="d">of energy storage installed on the ERCOT grid as of October 2026. Its peak demand record is 91,155 MW (22 July 2026).</div>
+    <a class="src" href="https://www.ercot.com/files/docs/2022/02/08/ERCOT_Fact_Sheet.pdf" target="_blank" rel="noopener noreferrer">ERCOT fact sheet, Oct 2026</a>
+  </div>
+  <div class="tile">
+    <div class="vrow"><span class="v">5 Dec 2025</span></div>
+    <div class="d">ERCOT's real-time market moved to Real-Time Co-optimization plus Batteries (RTC+B). GridSimEnv holds out 250 battery-days after it as its own pack.</div>
+    <a class="src" href="https://www.ercot.com/services/comm/mkt_notices/M-F110525-04" target="_blank" rel="noopener noreferrer">ERCOT market notice M-F110525-04</a>
+  </div>
+</div>
+<style>
+  .gs-impact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 26px; }
+  .gs-impact .tile { border-top: 1px solid var(--border-color); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .gs-impact .vrow { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .gs-impact .v { font-size: 26px; font-weight: 700; letter-spacing: -0.015em; color: var(--text-color); line-height: 1.15; }
+  .gs-impact .u { font-size: 13px; color: var(--muted-color); }
+  .gs-impact .mini { width: 96px; height: 30px; margin-left: auto; align-self: center; overflow: visible; }
+  .gs-impact .mini .b { fill: var(--muted-color); fill-opacity: 0.35; }
+  .gs-impact .mini .b.hi { fill: var(--primary-color); fill-opacity: 0.9; }
+  .gs-impact .mini .axis { stroke: var(--muted-color); stroke-opacity: 0.6; }
+  .gs-impact .mini .yr { font-size: 7.5px; fill: var(--muted-color); text-anchor: middle; }
+  .gs-impact .d { font-size: 13px; line-height: 1.5; color: var(--text-color); }
+  .gs-impact a.src { margin-top: 4px; font-size: 12px; color: var(--muted-color) !important; background: none !important; border-bottom: 1px solid var(--border-color) !important; align-self: flex-start; }
+  @media (max-width: 620px) { .gs-impact { grid-template-columns: minmax(0, 1fr); } }
+</style>

@@ -197,10 +197,13 @@ configs:
 
 <p>An AgentEnv environment built from ERCOT's public day-ahead market prices and EIA-860 battery records, with 21,250 battery-days, a public train split and no judge: every schedule is scored against a dynamic program that finds the best possible day.</p>
 
+<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/%F0%9F%93%96%20Article-Running%20a%20grid%20battery-0e7d56?style=for-the-badge&labelColor=1a1a1a" alt="The article: GridSimEnv, running a grid battery on ERCOT's real prices" height="32"></a>
 <a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Space-Replays-FFD21E?style=for-the-badge&labelColor=1a1a1a" alt="Replays" height="32"></a>
 <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html"><img src="https://img.shields.io/badge/Results-What%20training%20bought-1baf7a?style=for-the-badge&labelColor=1a1a1a" alt="Results: what training bought, in dollars" height="32"></a>
 <a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" height="32"></a>
 <a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>
+
+<p><b>Read the article:</b> <a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv">GridSimEnv: running a grid battery on ERCOT's real prices</a>, the long-form write-up of the environment, the models, the training and the dollars, with every figure interactive.</p>
 
 </div>
 
