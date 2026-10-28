@@ -38,6 +38,7 @@ MODELS = {
     "sol": {"model": "openai/gpt-6.1-sol", "price": (2.0, 10.0, 0.10), "effort": "high", "route": "responses"},
     "luna": {"model": "openai/gpt-6-luna", "price": (0.10, 0.50, 0.01), "effort": "high", "route": "responses"},
     "qwen": {"model": "qwen3-4b", "price": (0.0, 0.0, 0.0), "effort": None, "thinking": False, "route": "chat",
+             "context": 32_768, "prompt_target": 24_000, "max_out": 4096, "keep_turns": 3,
              "sampling": {"temperature": 0.7, "top_p": 0.8}},
 }
 KEEP_TURNS = 4
@@ -51,6 +52,10 @@ CHARS_PER_TOKEN = 3
 
 
 class SpendCap(Exception):
+    pass
+
+
+class ContextOverflow(Exception):
     pass
 
 
@@ -180,6 +185,12 @@ class ModelAgent:
             self.items = [{"role": "system", "content": system}]
         self.turn_starts: list[int] = []
         self.compaction = COMPACTION.get(getattr(a, "layer", "v2"), (KEEP_TURNS, COMPACT_CHARS))
+        self.context = preset.get("context")
+        self.prompt_target = preset.get("prompt_target")
+        self.max_out = preset.get("max_out")
+        self.tok_per_char = 0.5
+        if self.prompt_target:
+            self.compaction = (preset.get("keep_turns", 3), self.prompt_target)
         self.usage = {"api_calls": 0, "input_tokens": 0, "output_tokens": 0, "cached_tokens": 0, "cost_usd": 0.0,
                       "latency_s": 0.0}
 
@@ -202,15 +213,35 @@ class ModelAgent:
         else:
             self.items.append({"role": "tool", "tool_call_id": call_id, "content": output})
 
-    def compact(self) -> None:
-        """Elide tool results older than the last KEEP_TURNS turns, all at once, so the cached prefix changes rarely."""
+    def chars(self) -> int:
+        return sum(len(json.dumps(m)) for m in self.items) + len(self.system) + len(json.dumps(self.tools))
+
+    def est_tokens(self) -> int:
+        return int(self.chars() * self.tok_per_char)
+
+    def _elide(self, upto: int, spare_last: int = 0) -> None:
+        key = "output" if self.route == "responses" else "content"
+        tools = [m for m in self.items[:upto] if m.get("type") == "function_call_output" or m.get("role") == "tool"]
+        for m in tools[:len(tools) - spare_last] if spare_last else tools:
+            if m[key] != ELIDED:
+                m[key] = ELIDED
+
+    def compact(self, hard: bool = False) -> None:
+        """Elide tool results older than the last `keep` turns, all at once, so the cached prefix changes rarely. With a
+        token budget (a small-context model) it measures in tokens and, if needed, also elides inside the kept turns
+        down to the last two tool results."""
         keep, limit = self.compaction
+        if self.prompt_target:
+            if not hard and self.est_tokens() < limit:
+                return
+            if len(self.turn_starts) > keep:
+                self._elide(self.turn_starts[-keep])
+            if hard or self.est_tokens() >= limit:
+                self._elide(len(self.items), spare_last=2)
+            return
         if sum(len(json.dumps(m)) for m in self.items) < limit or len(self.turn_starts) <= keep:
             return
-        key = "output" if self.route == "responses" else "content"
-        for m in self.items[:self.turn_starts[-keep]]:
-            if (m.get("type") == "function_call_output" or m.get("role") == "tool") and m[key] != ELIDED:
-                m[key] = ELIDED
+        self._elide(self.turn_starts[-keep])
 
     def _charge(self, inp: int, out: int, cached: int, dt: float) -> float:
         pin, pout, pcache = self.price
@@ -228,13 +259,29 @@ class ModelAgent:
         if self.usage["cost_usd"] >= self.max_usd:
             raise SpendCap(f"run cap ${self.max_usd} reached")
         self.compact()
-        worst = self.worst()
-        self.budget.reserve(worst)
-        try:
-            return self._step(log, worst)
-        except BaseException:
-            self.budget.settle(worst, 0.0)
-            raise
+        for attempt in range(2):
+            worst = self.worst()
+            self.budget.reserve(worst)
+            try:
+                return self._step(log, worst)
+            except openai.BadRequestError as e:
+                self.budget.settle(worst, 0.0)
+                if "context" not in str(e).lower() and "maximum" not in str(e).lower():
+                    raise
+                self.usage["context_errors"] = self.usage.get("context_errors", 0) + 1
+                if attempt:
+                    raise ContextOverflow(str(e)[:300]) from e
+                self.compact(hard=True)
+            except BaseException:
+                self.budget.settle(worst, 0.0)
+                raise
+        raise ContextOverflow("unreachable")
+
+    def out_tokens(self) -> int | None:
+        if not self.context:
+            return self.max_tokens
+        room = self.context - self.est_tokens() - 256
+        return max(256, min(self.max_tokens or self.max_out or 4096, room))
 
     def worst(self) -> float:
         pin, pout, _ = self.price
@@ -267,8 +314,9 @@ class ModelAgent:
         else:
             kw = {"model": self.model, "messages": self.items, "tools": self.tools, "tool_choice": "auto",
                   **self.sampling}
-            if self.max_tokens:
-                kw["max_completion_tokens"] = self.max_tokens
+            out_cap = self.out_tokens()
+            if out_cap:
+                kw["max_completion_tokens"] = out_cap
             if self.effort:
                 kw["reasoning_effort"] = self.effort
             if self.thinking is not None:
@@ -290,6 +338,8 @@ class ModelAgent:
             cached = (getattr(getattr(u, "prompt_tokens_details", None), "cached_tokens", 0) or 0) if u else 0
             finish = r.choices[0].finish_reason
         c = self._charge(inp, outp, cached, dt)
+        if inp:
+            self.tok_per_char = max(0.25, inp / max(self.chars(), 1))
         self.budget.settle(worst, c)
         log({"t": time.time(), "model": self.model, "route": self.route, "latency_s": round(dt, 2), "finish": finish,
              "input_tokens": inp, "output_tokens": outp, "cached_tokens": cached, "cost_usd": round(c, 6),
@@ -325,7 +375,12 @@ def run_model(task, series, a, preset, out: Path, tag: str, budget: Budget) -> t
             for _ in range(s.budget["calls_per_turn"] + 3):
                 if budget.stop.is_set():
                     raise Stopped("stop requested")
-                reply, calls = agent.step(log)
+                try:
+                    reply, calls = agent.step(log)
+                except ContextOverflow as e:
+                    reply = f"[error: context overflow, turn ended: {e}]"
+                    log({"t": time.time(), "error": "context_overflow", "detail": str(e)[:300]})
+                    break
                 if not calls:
                     break
                 for call_id, name, raw in calls:

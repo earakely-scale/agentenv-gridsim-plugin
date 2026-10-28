@@ -27,6 +27,7 @@ class FakeAgent(desk_run.ModelAgent):
                       "latency_s": 0.0}
         self.n = 0
         self.compaction = (desk_run.KEEP_TURNS, desk_run.COMPACT_CHARS)
+        self.prompt_target = self.context = self.max_out = None
 
     def worst(self) -> float:
         return self.COST
@@ -99,3 +100,34 @@ def test_stop_keeps_checkpoint_and_resumes(tmp_path, fake):
     assert 1 <= len(ck["turns"]) < full
     row = desk_run.episode(task, series, a, desk_run.MODELS["luna"], tmp_path, "fake", desk_run.Budget(None, 0.0))
     assert row["status"] == "ok" and row["usage"]["turns"] == full
+
+
+def test_small_context_compaction_and_overflow(tmp_path):
+    a = _args(tmp_path, preset="qwen", base_url="http://127.0.0.1:9/v1")
+    agent = desk_run.ModelAgent(a, desk_run.MODELS["qwen"], 0.0, "sys", [])
+    for t in range(8):
+        agent.user("wake " + "x" * 2000)
+        for i in range(10):
+            agent.items.append({"role": "assistant", "content": "", "tool_calls": []})
+            agent.result(f"c{t}{i}", "y" * 3000)
+    before = agent.est_tokens()
+    agent.compact()
+    assert before > 24_000 > agent.est_tokens()
+    assert agent.out_tokens() <= 32_768 - agent.est_tokens()
+
+    calls = {"n": 0}
+
+    def fail(log, worst):
+        calls["n"] += 1
+        raise desk_run.openai.BadRequestError("maximum context length is 32768 tokens", response=_Resp(), body=None)
+
+    agent._step = fail
+    with pytest.raises(desk_run.ContextOverflow):
+        agent.step(lambda r: None)
+    assert calls["n"] == 2 and agent.usage["context_errors"] == 2
+
+
+class _Resp:
+    status_code = 400
+    headers = {}
+    request = None
