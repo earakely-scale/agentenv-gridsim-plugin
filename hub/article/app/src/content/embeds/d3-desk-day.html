@@ -17,13 +17,13 @@
     if (!root) return;
     const MARKET = new Set(["start", "dam_results", "adjustment_open", "checkpoint", "end"]);
     const OWN = new Set(["reminder"]);
-    const NAME = { sol: "GPT-6.1 Sol", luna: "GPT-6 Luna", qwen: "Qwen3-4B, untrained" };
+    const NAME = { sol: "GPT-6.1 Sol", luna: "GPT-6 Luna", qwen: "Qwen3-4B (untrained)" };
     const kind = (w) => (w.reasons.some((r) => !MARKET.has(r) && !OWN.has(r)) ? "event" : w.reasons.some((r) => OWN.has(r)) ? "own" : "market");
     const COLOR = { market: "var(--text-color)", event: "var(--c-event)", own: "var(--c-own)" };
     const hhmm = (t) => { const m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
     K.whenD3(() => K.data("desk.json").then((D) => {
       const d3 = window.d3;
-      const V = D.versions[D.versions.length - 1];
+      const V = D.versions.find((v) => D.gif && v.version === D.gif.version) || D.versions[D.versions.length - 1];
       const S = V && V.story;
       if (!S) return;
       const tip = K.tip(root);

@@ -7,7 +7,10 @@ Every result links to the folder that holds its evidence, and the charts are reb
 </Note>
 
 <Note variant="info" title="Update, 28 October 2026">
-Two things are new. **The live sealed board:** before ERCOT's day-ahead market closes, GPT-6.1 Sol, GPT-6 Luna, the
+Three things are new. **The desk:** the agent now runs a real ERCOT battery's trading desk through the day-ahead
+market and real time, on ERCOT's own market objects and on prices and notices as they were posted, graded against the
+hindsight optimum and the real operator's own bids; its first results are in [the desk](#the-desk), and each version
+adds its own as its runs finish. **The live sealed board:** before ERCOT's day-ahead market closes, GPT-6.1 Sol, GPT-6 Luna, the
 trained 4B and three rules each seal a schedule for 45 batteries, and the schedules settle when ERCOT posts the prices;
 the first seal is for 29 October 2026 ([the live board](#the-live-board)). **The Beam sweep:** Beam-1.0, an open-weights
 model, now bids blind at four reasoning efforts. It sits off the score-against-cost frontier at every one of them

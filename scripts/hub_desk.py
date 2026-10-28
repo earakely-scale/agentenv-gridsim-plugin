@@ -41,10 +41,10 @@ LADDER = (
     ("v5", "The Market Floor", "price impact: its DAM offers re-clear the day-ahead market against the day's real "
      "offers, disclosed 60 days later", "offers into a market its own bids move"),
 )
-WHY = {"v2": ("when the node's day-ahead price ran far above real time",
-              "day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, "
-              "and which ERCOT's DAM credit screening, not modelled here, would limit")}
-MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B, untrained", "open")}
+WHY = {"v2": "when the node's day-ahead price ran far above real time"}
+IDLE = {"v3": "Idle, the battery offering nothing, still earns: through ERCOT's proxy AS offers and the "
+              "co-located solar (modelled)."}
+MODELS = {"sol": ("GPT-6.1 Sol", "API"), "luna": ("GPT-6 Luna", "API"), "qwen": ("Qwen3-4B (untrained)", "open")}
 REFS = (("anchor", "Anchor", "Anchor: the desk's optimiser at every wake, same information"),
         ("operator_replay", "The operator's bids, replayed", "The real operator's disclosed bids, replayed"),
         ("operator_actual", "The operator, as settled", "The real operator's awards and metered output, settled"),
@@ -87,13 +87,15 @@ def main():
     ap.add_argument("--gif", type=Path, help="The newest version's desk hero GIF (scripts/hub_desk_hero.py).")
     ap.add_argument("--gif-task", help="The task id of the episode the GIF films.")
     ap.add_argument("--gif-model", default="sol", help="The model whose episode the GIF films.")
+    ap.add_argument("--gif-version", help="The version whose episode the GIF films; the newest by default.")
     ap.add_argument("--lead", action="store_true", help="The desk GIF leads the card; else it opens the desk section.")
     ap.add_argument("--publish", action="store_true", help="Upload to the dataset and the Space.")
+    ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
-    desk, files = build(args.desk, refs)
+    desk, files = build(args.desk, refs, args.only)
     if args.gif:
-        v = desk["versions"][-1]
+        v = next(x for x in desk["versions"] if x["version"] == (args.gif_version or desk["versions"][-1]["version"]))
         desk["gif"], ep = gif_info(v, args.desk / f"desk-{v['version']}", args.gif_model, args.gif_task, args.lead)
         card = ep["site"]["card"]
         v["story"] = story(ep, {"model": args.gif_model, "label": f"{card['name']} ({card['region']}, {card['size']}), "
@@ -131,11 +133,11 @@ def main():
         print("space:", hr.publish("space", sp, f"The desk page: {done} results"))
 
 
-def build(desk_dir: Path, refs: dict[str, str]) -> tuple[dict, dict[str, bytes]]:
+def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple[dict, dict[str, bytes]]:
     versions, files = [], {}
     for key, name, adds, does in LADDER:
         folder = desk_dir / f"desk-{key}"
-        if not (folder / "summary.json").is_file():
+        if not (folder / "summary.json").is_file() or only and key not in only:
             continue
         if key not in refs:
             raise SystemExit(f"--ref {key}=TAG: the results tag that {folder} was committed under")
@@ -169,7 +171,9 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "days_per_task": max(len(e["dates"]) for e in episodes.values()),
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],
          "budget": s["method"]["budget"], "core": s["method"]["core_versions"], "ci": s["ci"], "models": models,
-         "references": refs, "paired": paired, "hero": s.get("hero"), "sensitivity": sensitivity(key, s, grades),
+         "references": refs, "paired": paired, "hero": s.get("hero"), "defects": defects(key, s),
+         "idle": IDLE.get(key),
+         "sensitivity": sensitivity(key, s, grades, folder.parent.parent),
          "figures": {k: f"{rel}/figures/{f}" for k, f in (("bars", "p-bars.png"), ("bars_dark", "p-bars-dark.png"),
                                                          ("hero", "hero.png"), ("hero_dark", "hero-dark.png"))
                      if (folder / "figures" / f).is_file()},
@@ -288,9 +292,10 @@ def check(s: dict, grades: list[dict]) -> None:
             raise Mismatch(f"{s['layer']} {k}: grades give {got}, summary.json {want}")
 
 
-def sensitivity(key: str, s: dict, grades: list[dict]) -> dict | None:
-    """The report's post-hoc check, with which models and references made more than half their total P on the days it
-    leaves out, and, where the day's statements were read, what paid."""
+def sensitivity(key: str, s: dict, grades: list[dict], repo: Path) -> dict | None:
+    """The report's post-hoc check, with the desks that made more than half their total P on the days it leaves out
+    and, of those, the ones whose statements show day-ahead sales bought back in real time there (the anchor's from the
+    frozen refs the grades were replayed against)."""
     sv = s.get("sensitivity")
     if not sv or not sv.get("without"):
         return sv
@@ -300,7 +305,33 @@ def sensitivity(key: str, s: dict, grades: list[dict]) -> dict | None:
         for k in ("anchor", "operator_replay", "operator_actual")}
     carried = [k for k, xs in p.items() if xs and (t := sum(x for _, x in xs)) > 0
                and sum(x for d, x in xs if d in days) > t / 2]
-    return sv | {"carried": carried} | (dict(zip(("why_short", "why"), WHY[key], strict=True)) if key in WHY else {})
+    lines = {k: [g["lines"] for g in grades if g["model"] == k and g["date"] in days] for k in s["models"]}
+    refs = repo / ((s.get("regraded") or {}).get("refs") or "-")
+    if refs.is_file():
+        with open(refs) as f:
+            lines["anchor"] = [day["lines"] for r in map(json.loads, filter(str.strip, f))
+                               for d, day in r["refs"]["anchor"]["statement"]["days"].items() if d in days]
+    sold = {k: (sum(x.get("dam_energy", 0.0) for x in xs), sum(x.get("rt_energy_imbalance", 0.0) for x in xs))
+            for k, xs in lines.items()}
+    return sv | {"carried": carried, "bought_back": [k for k in carried if k in sold and sold[k][0] > 0
+                                                     and sold[k][1] < -0.1 * sold[k][0]]} | (
+        {"why_short": WHY[key]} if key in WHY else {})
+
+
+KNOWN = (("empty `as_offers` list", "an empty `as_offers` list drew a spurious ASO-02 note while the energy curves in "
+                                    "the same call were accepted, so the reserve figures leave those calls out of the "
+                                    "refused offers"),)
+
+
+def defects(key: str, s: dict) -> str | None:
+    """The report's known env defects, in the words every surface uses; one this script has no words for stops it."""
+    out = []
+    for d in s.get("defects", []):
+        said = [t for k, t in KNOWN if k in d]
+        if not said:
+            raise Mismatch(f"desk-{key} lists an env defect the hub does not describe yet: {d}")
+        out += said
+    return f"Known env defect, frozen for {key} and fixed after it: {'; '.join(out)}." if out else None
 
 
 def model_row(k: str, m: dict) -> dict:
@@ -313,6 +344,7 @@ def model_row(k: str, m: dict) -> dict:
             "P_minus_operator_actual": m["P_minus_operator_actual"], "lines": m["lines"],
             "usd_per_episode": m["cost_usd"]["per_episode"], "usd_total": m["cost_usd"]["total_all_attempts"],
             "turns": m["turns"], "wakes": m["wakes"], "calls": m["calls"], "calls_by_tool": m["calls_by_tool"],
+            "ancillary": m.get("ancillary"),
             "accepted": m["submissions"]["accepted"], "rejected": m["submissions"]["rejected"],
             "rejected_codes": m["submissions"]["rejected_codes_total"], "reminders": m["reminders"],
             "cycles": m["cycles"], "tokens": m["tokens"]}

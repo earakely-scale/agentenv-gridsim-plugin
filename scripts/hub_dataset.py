@@ -794,7 +794,7 @@ def desk_results(v: dict) -> str:
     a, b = (f"{date.fromisoformat(x):%-d %B %Y}" for x in v["dates"])
     rows = [desk_row(m) for m in v["models"]] + [
         f"| *{r['short']}* | *{h(r['C']['mean'])}* | *{usdk(r['P']['mean'])}* |"
-        for r in v["references"] if r["key"] != "idle"]
+        for r in v["references"] if r["key"] != "idle" or abs(r["P"]["mean"]) >= 0.5]
     gaps = [f"| **{m['name']}** | "
             + ("–" if m["P_minus_operator_replay"]["mean"] is None else stacked_usd(m["P_minus_operator_replay"], True))
             + f" | {stacked_usd(m['P_minus_anchor'], True)} |" for m in v["models"]]
@@ -812,7 +812,9 @@ def desk_results(v: dict) -> str:
         "<small>The anchor is the desk's own optimiser, re-planning at every wake on the same information. The "
         "operator rows are the real operator's own bids on each battery-day, disclosed by ERCOT 60 days later and "
         "replayed through the same clearing and settlement, and its actual awards and metered output settled the same "
-        "way. Hindsight knows every price in advance. Brackets: day-block bootstrap 95% CIs.</small>", "",
+        "way. Hindsight knows every price in advance. " + (f"{v['idle']} " if v.get("idle") else "")
+        + "Brackets: day-block bootstrap 95% CIs.</small>", "",
+        *([f"<small>{v['defects']}</small>", ""] if v.get("defects") else []),
         f"**How much of the hindsight optimum each desk captured, {v['version']}**", "",
         f'<img class="dark:hidden" src="{fig}.png" alt="{escape(capture_alt(v))}">',
         f'<img class="hidden dark:block" src="{fig}-dark.png" alt="{escape(capture_alt(v))}">', "",
@@ -853,10 +855,9 @@ def desk_bullets(v: dict) -> list[str]:
     out = [f"**{top['name']} captures the most of hindsight:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
            f"{usd0(top['P']['mean'])} a {unit(v)}" + (", against " + " and ".join(
                f"{h(m['C']['mean'])} for {m['name']}" for m in others) if others else "") + "."
-           + (f" Paired by {unit(v)}, its C " + " and ".join(
-               f"{'leads' if d['mean'] >= 0 else 'trails'} {m['name']}'s by {gap(d)}"
-               + (", a CI that includes zero" if d["ci"][0] <= 0 <= d["ci"][1] else "") for m, d in leads)
-               + "." if leads else "")]
+           + (f" Paired by {unit(v)}, its lead in C: " + "; ".join(
+               f"{m['name']} {gap(d)}" + (", a CI that includes zero" if d["ci"][0] <= 0 <= d["ci"][1] else "")
+               for m, d in leads) + "." if leads else "")]
     if "operator_replay" in refs:
         op = refs["operator_replay"]["P"]["mean"]
         gaps = [f"{m['name']} {usd0(m['P_minus_operator_replay']['mean'], True)} "
@@ -871,11 +872,13 @@ def desk_bullets(v: dict) -> list[str]:
                    + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
                       "No model is ahead with a CI above zero.")
                    + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
-    out += sensitivity(v)
-    a = refs["anchor"]
-    out.append(f"**The anchor,** the desk's own optimiser on the same information, captures C {h(a['C']['mean'])} "
-               f"({usd0(a['P']['mean'])} a {unit(v)}), partly from DAM/RT spread positions that pay off on scarcity "
-               f"days; paired against it, a {unit(v)}: " + "; ".join(
+    out += sensitivity(v) + reserves(v)
+    a, spread = refs["anchor"], "anchor" in (v.get("sensitivity") or {}).get("bought_back", [])
+    out.append("**The anchor,** the desk's own optimiser on the same information, "
+               + ("" if spread else "free to take DAM/RT spread positions, ")
+               + f"captures C {h(a['C']['mean'])} ({usd0(a['P']['mean'])} a {unit(v)})"
+               + (", partly from DAM/RT spread positions that pay off on scarcity days" if spread else "")
+               + f"; paired against it, a {unit(v)}: " + "; ".join(
                    f"{m['name']} {usd0(m['P_minus_anchor']['mean'], True)} {usd0_ci(m['P_minus_anchor']['ci'], True)}"
                    for m in ms) + ".")
     paid = [f"{m['name']} ${m['usd_per_episode']:.2f}" for m in ms if m["weights"] != "open" and m["usd_per_episode"]]
@@ -907,7 +910,8 @@ def sensitivity(v: dict) -> list[str]:
                     if k in ms or k == "operator_replay")
     loss = "; ".join(f"{name(k)} on {x['tasks_p_below_0']} (worst {usd0(x['worst_p'])})"
                      for k, x in sv["losses"].items())
-    who, one = [name(k) for k in sv.get("carried", [])], len(days) == 1
+    who, bb = [name(k) for k in sv.get("carried", [])], [name(k) for k in sv.get("bought_back", [])]
+    one = len(days) == 1
     head = (("One day carries" if one else "A few days carry") + " the means" if who
             else f"Without {and_join(list(days.values()))}")
     when = (f"Mean P a {u} on {next(iter(on))}" + (f", {sv['why_short']}" if sv.get("why_short") else "")
@@ -915,16 +919,38 @@ def sensitivity(v: dict) -> list[str]:
                 f"on {d}, {x}" for d, x in on.items()) + ".")
     return [f"**{head}.** {when}"
             + (f" {and_join(who)} made more than half of {'its' if len(who) == 1 else 'their'} total P "
-               f"{'that day' if one else 'on those days'}" + (f", from {sv['why']}" if sv.get("why") else "") + "."
+               f"{'that day' if one else 'on those days'}" + ("" if not bb else f", from {BUYBACK}" if bb == who
+                                                              else f"; {and_join(bb)} from {BUYBACK}") + "."
                if who else "")
             + f" Without {'it' if one else 'them'} ({w['n_tasks']} {u}s): {wo}, against {wr}. Over every {u}, the "
             f"medians are {med}. P below zero: {loss}. A post-hoc check, not pre-registered."]
+
+
+AS_CODES = {"ASO-02": "the shape check", "ASO-06": "after the market window closed"}
+
+
+def reserves(v: dict) -> list[str]:
+    """What each model's reserve offers won and earned, and which ERCOT-style checks refused them (v3 on)."""
+    ms = [m for m in v["models"] if m.get("ancillary")]
+    if not ms:
+        return []
+    def one(m: dict) -> str:
+        a, rc = m["ancillary"], m["ancillary"]["rejected_codes_total"]
+        got = m["lines"].get("dam_as_capacity", 0.0) + m["lines"].get("rt_as_imbalance", 0.0)
+        why = "; ".join((f"{c} ×{k}" if len(rc) > 1 else c) + (f", {AS_CODES[c]}" if c in AS_CODES else "")
+                        for c, k in rc.items())
+        no = f", AS offers refused {sum(rc.values())} times ({why})" if rc else ""
+        return (f"{m['name']}: AS awards in {a['episodes_with_awards']} of {m['n']} {unit(v)}s, {usd0(got, True)} a "
+                f"{unit(v)} from the AS lines{no}")
+    return ["**Reserves.** " + "; ".join(one(m) for m in ms) + "."]
 
 
 def and_join(xs: list[str]) -> str:
     return xs[0] if len(xs) == 1 else f"{', '.join(xs[:-1])} and {xs[-1]}"
 
 
+BUYBACK = ("day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, and "
+           "which ERCOT's DAM credit screening, not modelled here, would limit")
 SHORTS = {"anchor": "the anchor", "operator_replay": "the operator's bids",
           "operator_actual": "the operator as settled"}
 

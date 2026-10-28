@@ -68,15 +68,16 @@
         const V = D.versions[vi];
         const refs = Object.fromEntries(V.references.map((r) => [r.key, r]));
         const rows = [...V.models.map((m) => ({ ...m, ref: false, color: COL[m.key] || "var(--c-base)" })),
-          ...V.references.filter((r) => !["hind", "idle"].includes(r.key)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
+          ...V.references.filter((r) => r.key !== "hind" && (r.key !== "idle" || Math.abs(r.P.mean) >= 0.5)).map((r) => ({ ...r, name: r.short, ref: true, color: REFC[r.key] || "var(--c-rule)" }))];
         const top = V.models[0], g = top.P_minus_anchor, side = g.ci[0] > 0 ? "ahead of" : g.ci[1] < 0 ? "behind" : "level with";
         const o = top.P_minus_operator_replay;
         d3.select(root).select(".summary").html(`<b>${V.version}, ${V.name}:</b> ${V.n_tasks} battery-days at ${V.sites.length} real batteries. <b>${top.name}</b> captures ${hn(top.C.mean)} of hindsight ${hci(top.C.ci)}, ${usd(top.P.mean)} a battery-day${refs.operator_replay && o.mean != null ? `, ${usd(o.mean, true)} ${usdci(o.ci, true)} against the real operator's own bids, replayed (${usd(refs.operator_replay.P.mean)})` : ""}. The anchor, which can take DAM/RT spread positions, captures ${hn(refs.anchor.C.mean)}; ${top.name} is ${side} it in dollars.${sens(V, top)}`);
         svg.selectAll("*").remove();
         const W = root.clientWidth || 700, narrow = W < 560;
-        const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + rows.length * rh + 30;
+        const dots = rows.filter((r) => r.key !== "idle");
+        const lw = narrow ? 0 : 196, rh = narrow ? 42 : 30, t0 = 26, H = t0 + dots.length * rh + 30;
         svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
-        const lo = Math.min(0, ...rows.map((r) => r.C.ci[0])), hi = Math.max(1, ...rows.map((r) => r.C.ci[1]));
+        const lo = Math.min(0, ...dots.map((r) => r.C.ci[0])), hi = Math.max(1, ...dots.map((r) => r.C.ci[1]));
         const x = d3.scaleLinear().domain([lo - 0.02, hi + 0.02]).range([lw + 8, W - 50]);
         x.ticks(narrow ? 4 : 8).forEach((t) => {
           svg.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", t0 - 6).attr("y2", H - 22).style("stroke", "var(--grid-color)");
@@ -86,7 +87,7 @@
           svg.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", t0 - 10).attr("y2", H - 22).style("stroke", "var(--muted-color)").style("stroke-dasharray", v ? "4 3" : null);
           svg.append("text").attr("x", x(v) + dx).attr("y", t0 - 14).attr("text-anchor", a).attr("class", "sub").text(l);
         });
-        rows.forEach((r, i) => {
+        dots.forEach((r, i) => {
           const y = t0 + i * rh + (narrow ? 26 : rh / 2);
           svg.append("text").attr("class", `lab halo${r.ref ? "" : " b"}`).attr("x", narrow ? 8 : lw).attr("y", narrow ? y - 12 : y + 4).attr("text-anchor", narrow ? "start" : "end").text(r.name);
           svg.append("line").attr("x1", x(r.C.ci[0])).attr("x2", x(r.C.ci[1])).attr("y1", y).attr("y2", y).style("stroke", r.color).style("stroke-width", 2);
@@ -109,7 +110,7 @@
           ? `<table class="narrow"><tr>${cols}</tr>${rows.map((r) => `<tr class="nm${r.ref ? " ref" : ""}"><td colspan="3">${name(r)}</td></tr><tr class="v${r.ref ? " ref" : ""}">${vals(r)}</tr>`).join("")}</table>`
           : `<table><tr><th>Desk</th>${cols}</tr>${rows.map((r) => `<tr${r.ref ? ' class="ref"' : ""}><td>${name(r)}</td>${vals(r)}</tr>`).join("")}</table>`;
         d3.select(root).select(".wrap").html(table);
-        d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a battery-day. Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.`);
+        d3.select(root).select(".gs-note").text(`The hindsight optimum earns ${usd(refs.hind.P.mean)} a battery-day. Brackets: day-block bootstrap 95% CIs over ${V.n_days} operating days. Data: ${V.folder} in the dataset, code at the ${V.ref} tag.${V.defects ? ` ${V.defects.replace(/`/g, "")}` : ""}`);
       }
       render();
       K.watch(root, render);

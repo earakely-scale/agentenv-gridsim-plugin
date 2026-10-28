@@ -10,8 +10,8 @@ before to midnight on the operating day.
 - **Time moves on its own.** The clock stands still while the agent works. It wakes at the market's milestones, at
   each notice, outage and deployment at its real minute and at reminders it sets, and sees each price, forecast and
   report only once ERCOT posted it.
-- **Graded in dollars.** P is the battery's settled ERCOT statement; degradation, warranty and end-of-day energy are
-  modelled. The headline is C, the share of the hindsight optimum's profit over idle that the desk captures.
+- **Graded in dollars.** P is the battery's settled ERCOT statement; degradation, warranty, end-of-day energy and,
+  from v3, co-located solar and reserve capacity short are modelled. The headline is C, the share of the hindsight optimum's profit over idle that the desk captures.
 - **Against the real operator.** The battery's real operator, through its bids, which ERCOT discloses 60 days later,
   replayed through the same clearing and settlement, and through its actual awards and metered output, settled the
   same way.

@@ -7,7 +7,11 @@ const DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-Agent
 const REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin";
 const ARTICLE = "https://huggingface.co/spaces/earakely-scale/GridSimEnv";
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
-const REFC = { anchor: "var(--c-anchor)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)" };
+const REFC = { anchor: "var(--c-anchor)", operator_replay: "var(--c-op)", operator_actual: "var(--c-op)", hind_phys: "var(--c-rule)", idle: "var(--c-rule)" };
+const AS = { regup: "RegUp", regdn: "RegDn", rrsffr: "RRS-FFR", rrspfr: "RRS-PFR", ecrs: "ECRS", nspin: "Non-Spin" };
+const ASO = { "ASO-02": "the shape check", "ASO-06": "after the market window closed" };
+const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const BUYBACK = "day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, and which ERCOT's DAM credit screening, not modelled here, would limit";
 const INLINE = { anchor: "the anchor", operator_replay: "the operator's bids", operator_actual: "the operator as settled" };
 const SHORT = { anchor: "Anchor", operator_replay: "Operator's bids, replayed", operator_actual: "Operator, as settled", hind_phys: "Hindsight, DAM tied to dispatch", hind: "Hindsight optimum", idle: "Idle" };
 const LINE = { dam_energy: "DAM energy", rt_energy_imbalance: "RT imbalance", deviation: "Set-point deviation", load_allocated: "Load-allocated charges", dam_as_capacity: "DAM ancillary capacity", rt_as_imbalance: "RT ancillary imbalance", as_only_buyback: "Ancillary buy-back", capacity_short: "Capacity short", failure_to_provide: "Failure to provide", pv_energy: "Solar energy", degradation: "Degradation", warranty_overage: "Warranty overage", end_soc_shortfall: "End-of-day energy" };
@@ -50,7 +54,7 @@ function ticks(d0, d1, n) {
 }
 
 function rows(V) {
-  const refs = V.references.filter((r) => !["hind", "idle"].includes(r.key));
+  const refs = V.references.filter((r) => r.key !== "hind" && (r.key !== "idle" || Math.abs(r.P.mean) >= 0.5));
   return [...V.models.map((m) => ({ ...m, kind: "model", color: COL[m.key] || "var(--c-base)" })),
     ...refs.map((r) => ({ ...r, kind: "ref", color: REFC[r.key] || "var(--c-rule)" }))];
 }
@@ -84,6 +88,7 @@ function render(D) {
     capFig(V, W),
     usdFig(V, W),
     block("Where the money came from", `Each line of the settled statement, mean $ a ${unit(V)}. DAM energy settles at the node's day-ahead price, RT imbalance at its 15-minute real-time price; modelled lines are marked.`, linesTable(V)),
+    reserves(V),
     block("How each desk traded", `Means per ${unit(V)}: turns are wake-ups the model acted on, calls its tool calls, submissions the DAM curves, RT curves and COP updates it filed (rejections carry ERCOT-style codes).`, behaviour(V)),
     episode(V, D),
     how(),
@@ -100,7 +105,7 @@ function kpis(V) {
     tile(num(m.C.mean), "", `of the hindsight optimum captured: ${esc(m.name)}`, `C ${ci(m.C.ci)}; ${usd(m.P.mean)} a ${unit(V)}. The anchor captures ${num(a.C.mean)}, the hindsight optimum 1 by definition.`),
     o.mean == null ? tile("–", "", "against the real operator", "No operator disclosure for these days.") :
       tile(usd(o.mean, true), sign(o), `a ${unit(V)} against the real operator's bids`, `${usdci(o.ci, true)}${o.ci[0] <= 0 && o.ci[1] >= 0 ? ", a CI that includes zero" : ""}. Its bids, disclosed by ERCOT 60 days later and replayed through the same clearing and settlement, earn ${usd(refs.operator_replay.P.mean)} a ${unit(V)}.`),
-    tile(usd(g.mean, true), sign(g), `a ${unit(V)} against the anchor`, `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of ${unit(V)}s. The anchor is the desk's own optimiser on the same information; its DAM/RT spread positions pay off on scarcity days.`),
+    tile(usd(g.mean, true), sign(g), `a ${unit(V)} against the anchor`, `${usdci(g.ci, true)}; ahead on ${pct(m.beats_anchor)} of ${unit(V)}s. The anchor is the desk's own optimiser on the same information${((V.sensitivity || {}).bought_back || []).includes("anchor") ? "; its DAM/RT spread positions pay off on scarcity days" : ", free to take DAM/RT spread positions"}.`),
     tile(String(V.n_tasks), "", `real ${unit(V)}s`, `${V.sites.map((s) => `${esc(s.region)} ${esc(s.size)}`).join(" · ")}; ${V.n_days} operating days, every one old enough for ERCOT to have disclosed the operators' bids.`),
   ].join("");
 }
@@ -116,7 +121,7 @@ function board(V) {
     : `<tr class="ref"><td>${who(r)}</td>${cell("C", num(r.C.mean), ci(r.C.ci))}${cell(pa, usd(r.P.mean), usdci(r.P.ci))}${["P − operator's bids", "P − anchor", "R", "Beats anchor", "$ a run"].map(na).join("")}</tr>`).join("");
   const hind = V.references.find((r) => r.key === "hind");
   return `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr>${head.map((h, i) => `<th class="${i ? "" : "l"}">${h}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
-    <p class="note">The hindsight optimum earns ${usd(hind.P.mean)} a ${unit(V)} ${usdci(hind.P.ci)}: the best the rules allow with every price known in advance, DAM/RT spread positions included. The operator rows use the real operator's own disclosed bids and awards on each ${unit(V)}, settled by the same code.</p>`;
+    <p class="note">The hindsight optimum earns ${usd(hind.P.mean)} a ${unit(V)} ${usdci(hind.P.ci)}: the best the rules allow with every price known in advance, DAM/RT spread positions included. The operator rows use the real operator's own disclosed bids and awards on each ${unit(V)}, settled by the same code.${V.idle ? ` ${esc(V.idle)}` : ""}</p>`;
 }
 
 function frame(R, W) {
@@ -137,14 +142,15 @@ function sensitivity(V) {
   const per = w.days.map((d) => ({ ...sv.per_day_mean_P[d].models, ...sv.per_day_mean_P[d].references }));
   const rows = keys.map((k) => `<tr class="${ms[k] ? "" : "ref"}"><td>${ms[k] ? `<b>${esc(name(k))}</b>` : esc(name(k))}</td><td data-l="All ${V.n_tasks}">${usd(all[k].mean)}<span class="sub">${usdci(all[k].ci)}</span></td>${per.map((on, i) => `<td data-l="On ${day_(w.days[i])}">${on[k] == null ? "–" : usd(on[k])}</td>`).join("")}<td data-l="Without ${one ? "it" : "them"}">${usd(wo[k].P.mean)}<span class="sub">${usdci(wo[k].P.ci)}</span></td><td data-l="Median, all">${med[k] == null ? "–" : usd(med[k])}</td></tr>`).join("");
   const loss = Object.entries(sv.losses).map(([k, x]) => `${esc(name(k))} on ${x.tasks_p_below_0} (worst ${usd(x.worst_p)})`).join("; ");
-  const who = (sv.carried || []).map(said);
-  const lead = who.length ? `On ${day}${sv.why_short ? `, ${esc(sv.why_short)}` : ""}, ${esc(and(who))} made more than half of ${who.length > 1 ? "their" : "its"} total P${sv.why ? `, from ${esc(sv.why)}` : ""}. ` : "";
+  const who = (sv.carried || []).map(said), bb = (sv.bought_back || []).map(said);
+  const from = !bb.length ? "" : bb.length === who.length ? `, from ${BUYBACK}` : `; ${and(bb)} from ${BUYBACK}`;
+  const lead = who.length ? `On ${day}${sv.why_short ? `, ${esc(sv.why_short)}` : ""}, ${esc(and(who))} made more than half of ${who.length > 1 ? "their" : "its"} total P${esc(from)}. ` : "";
   return block(who.length ? `${one ? "One day carries" : "A few days carry"} the means` : `Without ${day}`, `${lead}Mean P a ${unit(V)} with and without ${one ? "that day" : "those days"}, and the median over every ${unit(V)}. P below zero: ${loss}. A post-hoc check, not pre-registered.`,
     `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>All ${V.n_tasks}</th>${w.days.map((d) => `<th>On ${day_(d)}</th>`).join("")}<th>Without ${one ? "it" : "them"} (${w.n_tasks})</th><th>Median, all</th></tr></thead><tbody>${rows}</tbody></table></div>`, "Sensitivity");
 }
 
 function capFig(V, W) {
-  const R = rows(V), lo = Math.min(0, ...R.map((r) => r.C.ci[0])), hi = Math.max(1, ...R.map((r) => r.C.ci[1]));
+  const R = rows(V).filter((r) => r.key !== "idle"), lo = Math.min(0, ...R.map((r) => r.C.ci[0])), hi = Math.max(1, ...R.map((r) => r.C.ci[1]));
   const F = frame(R, W), x = lin(lo - 0.02, hi + 0.02, F.left, W - 56);
   let s = ticks(lo, hi, F.narrow ? 4 : 8).map((t) => `<g class="grid">${line(x(t), F.top - 6, x(t), F.H - 26, "", 1)}</g>${txt(x(t), F.H - 10, num(t, 1), "t-ax", "middle")}`).join("");
   s += line(x(0), F.top - 10, x(0), F.H - 26, "var(--text-muted)", 1) + txt(x(0) + 4, F.top - 14, "idle", "t-ann");
@@ -186,6 +192,20 @@ function linesTable(V) {
   return `<div class="table-scroll"><table class="grid stack lines"><thead>${head}</thead><tbody>${body}${total}</tbody></table></div>`;
 }
 
+function reserves(V) {
+  const ms = V.models.filter((m) => m.ancillary);
+  if (!ms.length) return "";
+  const mwh = (o) => Object.values(o).reduce((a, b) => a + b, 0), f = (v) => (!v ? "0" : v >= 9.95 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1));
+  const parts = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${AS[k] || k} ${f(v)}`).join(", ");
+  const body = ms.map((m) => {
+    const a = m.ancillary, rc = Object.entries(a.rejected_codes_total), got = (m.lines.dam_as_capacity || 0) + (m.lines.rt_as_imbalance || 0);
+    const refused = rc.length ? `${rc.reduce((x, [, k]) => x + k, 0)}<span class="sub">${rc.map(([c, k]) => `${esc(c)} ×${k}${ASO[c] ? `, ${ASO[c]}` : ""}`).join("; ")}</span>` : "–";
+    return `<tr><td><span class="who"><i style="background:${COL[m.key] || "var(--c-base)"}"></i><b>${esc(m.name)}</b></span></td><td data-l="AS awards">${a.episodes_with_awards} of ${m.n}</td><td data-l="From the AS lines">${usd(got, true)}</td><td data-l="DAM award MWh">${f(mwh(a.dam_award_mwh))}<span class="sub">${parts(a.dam_award_mwh)}</span></td><td data-l="RT award MWh">${f(mwh(a.rt_award_mwh))}<span class="sub">${parts(a.rt_award_mwh)}</span></td><td class="full" data-l="AS offers refused">${refused}</td></tr>`;
+  }).join("");
+  return block("Reserves: what each desk's AS offers won", `Means per ${unit(V)}. AS awards counts the ${unit(V)}s with any ancillary-service award; the AS lines are DAM capacity and RT imbalance; award MWh by product, DAM and real time.`,
+    `<div class="table-scroll"><table class="grid stack wrapcells"><thead><tr><th class="l">Desk</th><th>AS awards</th><th>From the AS lines</th><th>DAM award MWh</th><th>RT award MWh</th><th>AS offers refused</th></tr></thead><tbody>${body}</tbody></table></div>${V.defects ? `<p class="note">${md(V.defects)}</p>` : ""}`, "Reserves");
+}
+
 function behaviour(V) {
   const head = ["Desk", "Turns", "Wakes", "Calls", "Most-used tools", "Submissions accepted / rejected", "Rejection codes", "Reminders", "Cycles"];
   const body = V.models.map((m) => {
@@ -222,7 +242,7 @@ function sources(V) {
     <div><h3>On the dataset</h3><ul><li>${link(t(V.folder), `<code>${V.folder}</code>`)}</li><li>${link(b(`${V.folder}/README.md`), "README")} · ${link(b(`${V.folder}/summary.json`), "summary.json")} · ${link(b(`${V.folder}/grades.jsonl.gz`), "grades")}</li><li>configs <code>desk_leaderboard</code> and <code>desk_runs</code>, split <code>${V.version}</code></li></ul></div>
     <div><h3>On GitHub, tag <code>${esc(V.ref)}</code></h3><ul><li>${link(V.github, "the result folder")}</li><li>${link(`${REPO}/blob/${V.ref}/docs/prereg/${V.version}-desk.md`, "the pre-registration")}</li><li>${link(`${REPO}/blob/${V.ref}/docs/CONTRACT-desk.md`, "the desk contract")}</li></ul></div>
     <div><h3>Settings</h3><ul><li>${esc(V.budget)}</li><li>core ${esc(V.core)}, ${esc(V.eras.join(", "))} rules</li><li>${esc(V.ci.method)}, ${V.ci.resamples.toLocaleString("en-US")} resamples</li></ul></div></div>
-    <p class="note">Prices, notices and disclosures: ERCOT's public reports; weather alerts: NWS. Not affiliated with or endorsed by ERCOT.</p>`);
+    ${V.defects ? `<p class="note">${md(V.defects)}</p>` : ""}<p class="note">Prices, notices and disclosures: ERCOT's public reports; weather alerts: NWS. Not affiliated with or endorsed by ERCOT.</p>`);
 }
 
 function tips() {
