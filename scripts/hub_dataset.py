@@ -864,6 +864,7 @@ def desk_bullets(v: dict) -> list[str]:
                    + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
                       "No model is ahead with a CI above zero.")
                    + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
+    out += sensitivity(v)
     a = refs["anchor"]
     out.append(f"**The anchor,** the desk's own optimiser on the same information, captures C {h(a['C']['mean'])} "
                f"({usd0(a['P']['mean'])} a {unit(v)}), partly from DAM/RT spread positions that pay off on scarcity "
@@ -876,6 +877,36 @@ def desk_bullets(v: dict) -> list[str]:
         out.append(f"**A {unit(v)}'s inference** costs {' and '.join(paid)} at list prices"
                    + (f"; {' and '.join(local)} runs on one GPU." if local else "."))
     return out
+
+
+def sensitivity(v: dict) -> list[str]:
+    """The report's post-hoc check when one day carries the means: what that day earned, the means without it, the
+    medians over every battery-day and each model's losing days."""
+    sv = v.get("sensitivity") or {}
+    w = sv.get("without")
+    if not w:
+        return []
+    ms, u = {m["key"]: m for m in v["models"]}, unit(v)
+    days = [f"{date.fromisoformat(d):%-d %B %Y}" for d in w["days"]]
+    day = sv["per_day_mean_P"][w["days"][0]]
+    name = lambda k: ms[k]["name"] if k in ms else SHORTS.get(k, k)  # noqa: E731
+    on = "; ".join(f"{name(k)} {usd0(x)}" for k, x in {**day["models"], **day["references"]}.items())
+    wo = "; ".join(f"{name(k)} {usd0(b['P']['mean'])} {usd0_ci(b['P']['ci'])}" for k, b in w["means"]["models"].items())
+    wr = " and ".join(f"{name(k)} {usd0(b['P']['mean'])}" for k, b in w["means"]["references"].items()
+                      if k in ("operator_replay", "anchor"))
+    med = "; ".join(f"{name(k)} {usd0(x)}" for k, x in {**sv["median_P"], **sv["median_P_references"]}.items()
+                    if k in ms or k == "operator_replay")
+    loss = "; ".join(f"{name(k)} on {x['tasks_p_below_0']} (worst {usd0(x['worst_p'])})"
+                     for k, x in sv["losses"].items())
+    return [f"**One day carries the means.** On {' and '.join(days)}, mean P a {u} was {on}: day-ahead sales "
+            "bought back in real time, positions the DAM allows because it ignores state of charge, and which ERCOT's "
+            "DAM credit screening, not modelled here, would limit. Without "
+            f"{'it' if len(days) == 1 else 'them'} ({w['n_tasks']} {u}s): {wo}, against {wr}. Over every {u}, the "
+            f"medians are {med}. P below zero: {loss}. A post-hoc check, not pre-registered."]
+
+
+SHORTS = {"anchor": "the anchor", "operator_replay": "the operator's bids",
+          "operator_actual": "the operator as settled"}
 
 
 def capture_alt(v: dict) -> str:

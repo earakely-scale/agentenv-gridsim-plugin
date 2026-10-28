@@ -163,7 +163,7 @@ def version(key: str, name: str, adds: str, does: str, folder: Path, tag: str) -
          "days_per_task": max(len(e["dates"]) for e in episodes.values()),
          "sites": [{"name": n, "region": r, "size": z} for n, r, z in sites], "eras": s["method"]["eras"],
          "budget": s["method"]["budget"], "core": s["method"]["core_versions"], "ci": s["ci"], "models": models,
-         "references": refs, "paired": paired, "hero": s.get("hero"),
+         "references": refs, "paired": paired, "hero": s.get("hero"), "sensitivity": s.get("sensitivity"),
          "figures": {k: f"{rel}/figures/{f}" for k, f in (("bars", "p-bars.png"), ("bars_dark", "p-bars-dark.png"),
                                                          ("hero", "hero.png"), ("hero_dark", "hero-dark.png"))
                      if (folder / "figures" / f).is_file()},
