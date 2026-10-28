@@ -12,7 +12,7 @@ from gridsim_core.desk import ancillary as asv
 from gridsim_core.desk import clock
 from gridsim_core.desk import forecast as fcm
 from gridsim_core.desk.curves import caps, check_eboc, check_side, clear_any
-from gridsim_core.desk.data import Series, build, era_of, series_sha
+from gridsim_core.desk.data import Series, build, era_of, posted_part, series_sha
 from gridsim_core.desk.engine import (
     IDLE_STATUSES,
     PER_H,
@@ -390,6 +390,10 @@ class Session:
             if vals is None:
                 return {"error": f"data: no {market} prices on the desk for {date}"}
             base_step = 15 if market == "rt" else 5
+            vals = posted_part(vals, date, self.d0, base_step, 2 if market == "rt" else 1, self.now)
+            if not vals:
+                return {"market": market, "point": point, "date": date, "values": [],
+                        "note": "no intervals of that day posted yet"}
             want = {"5m": 5, "15m": 15, "1h": 60}.get(step or "", 60)
             want = max(want, base_step)
             agg = [sum(vals[i:i + want // base_step]) / (want // base_step) for i in range(0, len(vals), want // base_step)]
@@ -453,8 +457,10 @@ class Session:
             block = self.ser.history_rt_mcpc.get(date)
             if block is None:
                 return {"error": f"data: no RT MCPCs on the desk for {date}"}
+            block = {k: posted_part(v, date, self.d0, 15, 2, self.now) for k, v in block.items()}
             return {"market": "as_rt", "unit": "$/MW/h", "date": date, "step": "1h", "start": "00:00",
-                    "mcpc": {k: [_r(sum(v[i:i + 4]) / 4) for i in range(0, 96, 4)] for k, v in block.items()}}
+                    "mcpc": {k: [_r(sum(v[i:i + 4]) / len(v[i:i + 4])) for i in range(0, len(v), 4)]
+                             for k, v in block.items()}}
         s_, e_ = self._window(start, end, j, 2, 5)
         e_ = min(e_, ((self.now - 1) // 5) * 5)
         if e_ <= s_:
@@ -585,7 +591,7 @@ class Session:
         e, s = self.engine, self.site
         t = max(self.now, 0)
         H = min(t // 60, e.H - 1)
-        hsl, lsl, ev = e.event_limits(t)
+        hsl, lsl, ev = e.event_limits(self.now)
         k = e.k
         last = [{"t": clock.label(5 * i, self.d0), "bp_mw": _r(e.bp[i], 1)} for i in range(max(k - 6, 0), k)]
         curve, src = e.curve_at(H, max(self.now, 0)) if self.now >= 0 else (None, "n/a before the operating day")

@@ -113,6 +113,13 @@ class Series:
         return self.dam_posted[day]
 
 
+def posted_part(values: list, date: str, d0: str, step: int, lag: int, now: float) -> list:
+    """The prefix of a history day's interval series already posted at `now` (interval end + lag minutes)."""
+    dd = (dt.date.fromisoformat(date) - dt.date.fromisoformat(d0)).days * clock.DAY
+    n = max(0, min(len(values), int((now - lag - dd) // step)))
+    return list(values[:n])
+
+
 def _flat(block: dict, dates: list[str], n: int, key: str) -> list[float]:
     out = []
     for d in dates:

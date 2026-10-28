@@ -268,3 +268,31 @@ def test_prompt_and_text(post, pre):
     assert "RTC+B" in p and "FIXTURE" not in p and p == system_prompt(Session(*post))
     assert "combo model" in system_prompt(pre[0])
     assert text({"a": "é", "b": [1, 2]}) == '{"a":"é","b":[1,2]}'
+
+
+def test_no_lookahead_into_the_day_before(post):
+    task, series = post
+    dm1 = clock.date_of(-1, task["dates"][0])
+    future = copy.deepcopy(series)
+    future["rt_spp"][dm1] = future["rt_spp"][dm1][:24] + [x + 900 for x in future["rt_spp"][dm1][24:]]
+    future["rt_lmp"][dm1] = future["rt_lmp"][dm1][:72] + [x + 900 for x in future["rt_lmp"][dm1][72:]]
+    a, b = Session(task, series), Session(task, future)
+    for s in (a, b):
+        s.start()
+    for args in ({"market": "rt", "day": "D-1", "step": "15m"}, {"market": "sced", "day": "D-1", "step": "5m"}):
+        ra, rb = a.call("get_prices", args), b.call("get_prices", args)
+        assert ra == rb and len(ra["values"]) < (96 if args["market"] == "rt" else 288)
+    assert a.call("optimize", {}) == b.call("optimize", {})
+
+
+def test_unit_event_hidden_until_it_starts():
+    task, series = fixtures.make(POST, seed=4, notices=False)
+    d0 = task["dates"][0]
+    series["unit_events"] = [{"kind": "forced_outage", "start": clock.to_iso(-240, d0), "end": clock.to_iso(600, d0),
+                              "hsl_mw": 0.0, "lsl_mw": 0.0, "source": "t"}]
+    clean = fixtures.make(POST, seed=4, notices=False)[1]
+    a, b = Session(task, series), Session(task, clean)
+    for s in (a, b):
+        s.start()
+    assert a.call("get_asset_status") == b.call("get_asset_status")
+    assert a.call("optimize", {}) == b.call("optimize", {})

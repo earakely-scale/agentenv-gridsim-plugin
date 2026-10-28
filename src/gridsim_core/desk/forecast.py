@@ -10,7 +10,7 @@ from typing import Protocol
 
 from gridsim_core.desk import clock
 from gridsim_core.desk.ancillary import RT_DA_RATIO
-from gridsim_core.desk.data import Series, Vintage
+from gridsim_core.desk.data import Series, Vintage, posted_part
 
 QS = ("p10", "p50", "p90")
 MIN_SPREAD = 5.0
@@ -62,14 +62,17 @@ def naive_dam(ser: Series, now: int) -> tuple[list[float], list[float]]:
     return p50, spread
 
 
-def naive_basis(ser: Series) -> list[float]:
-    """Mean |RT SPP - DAM SPP| per hour of day over history days that have both."""
-    out = [0.0] * 24
-    pairs = [(ser.history_dam[d], ser.history_rt[d]) for d in ser.history_rt if d in ser.history_dam]
-    for dam, rt in pairs:
-        for i, p in enumerate(rt):
-            out[i // 4] += abs(p - dam[i // 4]) / 4 / len(pairs)
-    return [max(x, MIN_SPREAD) for x in out]
+def naive_basis(ser: Series, now: float) -> list[float]:
+    """Mean |RT SPP - DAM SPP| per hour of day over the posted intervals of history days that have both."""
+    sums, counts = [0.0] * 24, [0] * 24
+    for d in ser.history_rt:
+        if d not in ser.history_dam:
+            continue
+        dam = ser.history_dam[d]
+        for i, p in enumerate(posted_part(ser.history_rt[d], d, ser.d0, 15, 2, now)):
+            sums[i // 4] += abs(p - dam[i // 4])
+            counts[i // 4] += 1
+    return [max(sums[h] / counts[h] if counts[h] else MIN_SPREAD, MIN_SPREAD) for h in range(24)]
 
 
 class SeriesForecaster:
@@ -141,7 +144,7 @@ def views(ser: Series, fc: DeskForecaster, now: int) -> dict[str, View]:
                 for q in dam:
                     q[h] = ser.dam_spp[h]
                 posted[h] = True
-    basis = naive_basis(ser)
+    basis = naive_basis(ser, now)
     rbase = [[dam[1][i // 4] - basis[(i // 4) % 24] for i in range(NI)], [dam[1][i // 4] for i in range(NI)],
              [dam[1][i // 4] + basis[(i // 4) % 24] for i in range(NI)]]
     vr = fc.vintage("rt", now)
@@ -199,7 +202,7 @@ def as_views(ser: Series, fc: DeskForecaster, now: int, rtcb: bool) -> dict:
                 lo, hi = [x * 0.5 for x in p50], [x * 1.5 for x in p50]
                 v = _latest_as(ser, "as_dam", k, now)
             else:
-                ratio = _rt_ratio(ser, k)
+                ratio = _rt_ratio(ser, k, now)
                 p50 = [x * ratio for x in out["dam"]["p50"][k]]
                 lo, hi = [x * 0.3 for x in p50], [x * 3.0 for x in p50]
                 v = _latest_as(ser, "as_rt", k, now)
@@ -222,10 +225,14 @@ def as_views(ser: Series, fc: DeskForecaster, now: int, rtcb: bool) -> dict:
     return out
 
 
-def _rt_ratio(ser: Series, key: str) -> float:
-    pairs = [(sum(ser.history_mcpc[d][key]) / 24, sum(ser.history_rt_mcpc[d][key]) / 96)
-             for d in ser.history_rt_mcpc if d in ser.history_mcpc and key in ser.history_mcpc[d]
-             and key in ser.history_rt_mcpc[d]]
+def _rt_ratio(ser: Series, key: str, now: float) -> float:
+    pairs = []
+    for d in ser.history_rt_mcpc:
+        if d in ser.history_mcpc and key in ser.history_mcpc[d] and key in ser.history_rt_mcpc[d]:
+            rt = posted_part(ser.history_rt_mcpc[d][key], d, ser.d0, 15, 2, now)
+            if rt:
+                da = ser.history_mcpc[d][key][:len(rt) // 4 or 1]
+                pairs.append((sum(da) / len(da), sum(rt) / len(rt)))
     da = sum(a for a, _ in pairs)
     if pairs and da > 0:
         return sum(b for _, b in pairs) / da

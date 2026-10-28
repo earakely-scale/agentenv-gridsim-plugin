@@ -52,7 +52,7 @@ def problem(e: Engine, now: int, dam: list[float], rt5: list[float], constraints
     awards = visible_awards(e, now)
     dam_open = [e.dam_close(H // 24) > now for H in range(e.H)]
     hsl, lsl = list(e.cop["hsl"]), list(e.cop["lsl"])
-    ehsl, elsl, ev = e.event_limits(max(now, 0))
+    ehsl, elsl, ev = e.event_limits(now)
     if ev is not None:
         end = ev.get("t_end", float("inf"))
         for H in range(e.H):
