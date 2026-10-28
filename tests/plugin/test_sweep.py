@@ -154,10 +154,18 @@ def test_the_report_writes_the_card_and_the_board_with_the_pack_baselines_and_an
     assert sum(g["n"] for g in fore["by_archetype"].values()) == 2
     assert fore["errors"]["all_idle"] == 1 and fore["ci95"][0] <= fore["mean"] <= fore["ci95"][1]
     assert (bl["tier"], bl["bundle"], bl["beats_anchor"]) == ("blind", "oneshot", 0.0) and "prereg" not in bl
+    assert (fore["capture"]["mean"], fore["anchor_capture"], fore["delta"]["mean"], fore["r_one"]) == (
+        0.5, 1.0, -0.5, 0.5)
+    f, b = blind["refs"]["foresight"], blind["refs"]["blind"]
+    c = (b["p_persist"] - f["p_idle"]) / (f["p_opt"] - f["p_idle"])
+    assert (bl["capture"]["mean"], bl["anchor_capture"]) == (
+        round(c, 6), round((b["p_anchor"] - f["p_idle"]) / (f["p_opt"] - f["p_idle"]), 6))
+    assert bl["refs"]["persistence_dp"]["delta"]["mean"] == 0.0 and card["grading"]["scale"] == sweep.SCALE
     assert [s["name"] for s in card["sweeps"]] == ["s", "b", "s-amend"] and card["sweeps"][2]["amends"] == "s"
     board = Path("results/board.md").read_text()
     assert board.startswith("# GridSim v1 board")
-    assert "| amended | GPT-6.1 Sol | fixtures | foresight | full | 2/2 |" in board
+    assert ("| amended | GPT-6.1 Sol | fixtures | foresight | full | 2/2 | 0.500 (0.000 to 1.000) | 1.000 | "
+            "-0.500 (-1.000 to +0.000) | 0.600 (0.200 to 1.000) | 0.500 |") in board
     assert "| pre-registered | GPT-6.1 Sol | fixtures | foresight | full | 1/2 |" in board
     assert "| pre-registered | GPT-6.1 Sol | fixtures | blind | oneshot | 1/1 |" in board
     assert f"| s | {T2['task_id']} | 1 | 1 | cost_cap ($0.0400) | s-amend | scored {idle2:.4f} |" in board

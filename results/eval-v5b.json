@@ -1,0 +1,608 @@
+{
+  "env": "gridsim-market",
+  "version": "v5",
+  "market_version": "5.1",
+  "contract_version": "1.0",
+  "authors": [
+    {
+      "name": "Edgar Arakelyan",
+      "github": "earakely-scale",
+      "affiliation": "Scale AI"
+    },
+    {
+      "name": "Adithya S Kolavi",
+      "github": "adithya-s-k",
+      "affiliation": "Hugging Face"
+    }
+  ],
+  "framework": "agentenv",
+  "tasks": {
+    "split": "eval",
+    "n": 30,
+    "unit": "market floors",
+    "packs": [
+      "gridsim-market-eval"
+    ],
+    "op_days": 24,
+    "peak": 12,
+    "source": "ERCOT NP3-966-ER 60-day DAM disclosure re-cleared on one node; NP4-523-CD lambda; HB_HUBAVG DAM/RT; EIA-930, EIA-923",
+    "flags": [
+      "as: truncated",
+      "calibration: hub_offset",
+      "copper_plate: True",
+      "costs: modelled",
+      "forecast: eia930",
+      "stack: real"
+    ]
+  },
+  "harness": {
+    "agent": "gridsim-llm",
+    "env": "gridsim-market",
+    "tools": [
+      "get_situation",
+      "get_forecast",
+      "get_disclosure",
+      "get_private_costs",
+      "check_offer",
+      "submit_offer",
+      "get_award",
+      "check_schedule",
+      "commit_schedule",
+      "advance",
+      "propose_contract",
+      "respond_contract",
+      "message_agent",
+      "get_time"
+    ],
+    "max_turns": {
+      "floor-sprint": 6,
+      "floor-day": 36
+    },
+    "planning_calls_per_watch": 3,
+    "data_calls_per_watch": 6,
+    "max_tokens": {
+      "floor-sprint": 16384,
+      "floor-day": 16384
+    },
+    "effort": "high",
+    "bidders": "scripted on their real offers",
+    "path": "A: every step ran through AgentEnv (gateway env, triggers, virtual clock)"
+  },
+  "grading": {
+    "scale": {
+      "headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the anchor's C and delta = C - C_anchor with its paired 95% CI",
+      "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+      "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+      "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a board",
+      "decision": "docs/REWARD-SCALES.md"
+    },
+    "headline": "compliant_capture",
+    "compliant_capture": "0.5 clip(C, 0, 1) + 0.5 clip(welfare_ratio, 0, 1), C against BR_rt",
+    "hindsight": "BR_rt (p_br_rt): the DA-clear best response with deviations settled at realised RT, the clairvoyant bound of the same settlement; BR_A stays the DA-only row",
+    "reference": "the disclosure best-responder, information-matched at D-1 09:00",
+    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no valid submit_offer scores 0",
+    "compliant": "0.5 R + 0.5 clip(welfare_ratio, 0, 1), the env's compliant row",
+    "peak": "floors with >= 2 hours where seat A's full sale moves the hub price by >= $5, their own column",
+    "boards": {
+      "public": "the headline score beside the anchor's and the paired delta, and the peak column",
+      "research": "C against BR_rt with the anchor's C and the paired delta, R against the disclosure anchor, regret, C against BR_A, the price-making gain over the price-taker, eps, conduct"
+    },
+    "capture_vs_br": "(P-P_idle)/(BR_A-P_idle), the DA-only row (BR_A is not a bound)",
+    "weight_0": [
+      "audit",
+      "hindsight_capture",
+      "regret",
+      "compliant or reward",
+      "eps_nash",
+      "welfare",
+      "price_making_gain",
+      "contract (floor-day)",
+      "conduct",
+      "rank",
+      "fidelity"
+    ],
+    "audit": "weight 0; a failed audit makes the run unscored",
+    "judge": false
+  },
+  "baselines": {
+    "floor-day": {
+      "tier": "floor-day",
+      "n": 10,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "max_withhold": null,
+      "price_taker": null,
+      "replay_A": null,
+      "played": {
+        "reward": {
+          "idle": 0.2,
+          "anchor": 1.0,
+          "max_withhold": 0.8083,
+          "price_taker": 0.9798,
+          "replay_A": 0.8095
+        },
+        "compliant": {
+          "idle": 0.1037,
+          "anchor": 0.791,
+          "max_withhold": 0.6987,
+          "price_taker": 0.7807,
+          "replay_A": 0.6993
+        },
+        "capture": {
+          "idle": 0.0,
+          "anchor": 0.445728,
+          "max_withhold": 0.379409,
+          "price_taker": 0.437569,
+          "replay_A": 0.380163
+        },
+        "compliant_capture": {
+          "idle": 0.003681,
+          "anchor": 0.51389,
+          "max_withhold": 0.484228,
+          "price_taker": 0.509636,
+          "replay_A": 0.484605
+        }
+      },
+      "peak": {
+        "n": 6,
+        "reward": {
+          "idle": 0.2,
+          "anchor": 1.0,
+          "max_withhold": 0.6805,
+          "price_taker": 0.9792,
+          "replay_A": 0.6825
+        },
+        "compliant": {
+          "idle": 0.1061,
+          "anchor": 0.8093,
+          "max_withhold": 0.6508,
+          "price_taker": 0.7978,
+          "replay_A": 0.6518
+        },
+        "capture": {
+          "idle": 0.0,
+          "anchor": 0.510317,
+          "max_withhold": 0.308309,
+          "price_taker": 0.50339,
+          "replay_A": 0.309565
+        },
+        "compliant_capture": {
+          "idle": 0.006135,
+          "anchor": 0.564467,
+          "max_withhold": 0.464661,
+          "price_taker": 0.559841,
+          "replay_A": 0.465289
+        }
+      },
+      "anchor_capture": 0.445728,
+      "anchor_capture_vs_br": 0.994613,
+      "impact_hours": 2.7
+    },
+    "floor-sprint": {
+      "tier": "floor-sprint",
+      "n": 30,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "max_withhold": 0.1933,
+      "price_taker": 0.9304,
+      "replay_A": 0.1732,
+      "played": {
+        "reward": {
+          "idle": 0.2,
+          "anchor": 1.0,
+          "max_withhold": 0.1933,
+          "price_taker": 0.9304,
+          "replay_A": 0.1732
+        },
+        "compliant": {
+          "idle": 0.106,
+          "anchor": 0.7003,
+          "max_withhold": 0.1032,
+          "price_taker": 0.6577,
+          "replay_A": 0.1061
+        },
+        "capture": {
+          "idle": 0.0,
+          "anchor": 0.419296,
+          "max_withhold": -0.014832,
+          "price_taker": 0.39732,
+          "replay_A": -0.019991
+        },
+        "compliant_capture": {
+          "idle": 0.00599,
+          "anchor": 0.409916,
+          "max_withhold": 0.006576,
+          "price_taker": 0.391107,
+          "replay_A": 0.019491
+        }
+      },
+      "peak": {
+        "n": 12,
+        "reward": {
+          "idle": 0.2,
+          "anchor": 1.0,
+          "max_withhold": 0.1833,
+          "price_taker": 0.9065,
+          "replay_A": 0.1929
+        },
+        "compliant": {
+          "idle": 0.1098,
+          "anchor": 0.7208,
+          "max_withhold": 0.1029,
+          "price_taker": 0.6599,
+          "replay_A": 0.1111
+        },
+        "capture": {
+          "idle": 0.0,
+          "anchor": 0.493781,
+          "max_withhold": -0.03708,
+          "price_taker": 0.455083,
+          "replay_A": -0.003594
+        },
+        "compliant_capture": {
+          "idle": 0.009794,
+          "anchor": 0.467693,
+          "max_withhold": 0.01126,
+          "price_taker": 0.434216,
+          "replay_A": 0.014682
+        }
+      },
+      "anchor_capture": 0.419296,
+      "anchor_capture_vs_br": 0.68325,
+      "impact_hours": 1.47
+    }
+  },
+  "models": [
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "pack": "gridsim-market-eval",
+      "tier": "floor-sprint",
+      "bundle": "live",
+      "scoring": "compliant_capture",
+      "sweep_scoring": "reward",
+      "effort": "high",
+      "runs": 30,
+      "planned": 30,
+      "tasks": 30,
+      "mean": 0.3085,
+      "ci95": [
+        0.2307,
+        0.3887
+      ],
+      "anchor_headline": 0.409916,
+      "headline_delta": {
+        "mean": -0.101458,
+        "ci95": [
+          -0.163985,
+          -0.042504
+        ]
+      },
+      "peak": {
+        "n": 12,
+        "mean": 0.3754,
+        "ci95": [
+          0.2708,
+          0.4941
+        ]
+      },
+      "capture": {
+        "mean": 0.296449,
+        "ci95": [
+          0.116135,
+          0.468123
+        ]
+      },
+      "anchor_capture": 0.419296,
+      "delta": {
+        "mean": -0.122846,
+        "ci95": [
+          -0.279222,
+          0.023849
+        ]
+      },
+      "r_one": 0.4,
+      "below_idle": 7,
+      "refs": {
+        "price_taker": {
+          "n": 30,
+          "capture": 0.39732,
+          "delta": {
+            "mean": -0.10087,
+            "ci95": [
+              -0.26818,
+              0.056192
+            ]
+          }
+        },
+        "max_withhold": {
+          "n": 30,
+          "capture": -0.014832,
+          "delta": {
+            "mean": 0.311281,
+            "ci95": [
+              0.124183,
+              0.490839
+            ]
+          }
+        },
+        "replay_A": {
+          "n": 30,
+          "capture": -0.019991,
+          "delta": {
+            "mean": 0.31644,
+            "ci95": [
+              0.136685,
+              0.483265
+            ]
+          }
+        }
+      },
+      "reward": {
+        "mean": 0.6959,
+        "ci95": [
+          0.5452,
+          0.8342
+        ]
+      },
+      "reward_peak": {
+        "mean": 0.887,
+        "ci95": [
+          0.7137,
+          0.996
+        ]
+      },
+      "compliant_reward": {
+        "mean": 0.4575,
+        "ci95": [
+          0.3624,
+          0.5471
+        ]
+      },
+      "compliant_capture": {
+        "mean": 0.3085,
+        "ci95": [
+          0.2307,
+          0.3887
+        ]
+      },
+      "capture_vs_br": 0.4283,
+      "regret_norm": 0.5717,
+      "regret_usd": 24589.21,
+      "price_making_gain_usd_per_mw_day": 26.13,
+      "eps_a": 0.4495,
+      "beats_anchor": 0.4,
+      "valid": 1.0,
+      "eps_nash": 1.0,
+      "welfare_ratio": 0.1742,
+      "dwl_usd": 403310.02,
+      "rank": 3.77,
+      "mitigated_hours": 0.0,
+      "withholding_index": 0.1688,
+      "contracts": 0.0,
+      "contract_value_usd": null,
+      "errors": {
+        "no_submit": 0,
+        "refused": 0,
+        "idle": 0,
+        "mitigated": 0,
+        "clipped": 24,
+        "end_short": 3,
+        "no_schedule": 0,
+        "price_talk": 0
+      },
+      "planning_calls": 3.0,
+      "data_calls": 6.0,
+      "commits": 0.0,
+      "refusals": 0.0,
+      "finished_by_agent": 1.0,
+      "turns": 5.5,
+      "usd_per_episode": 0.0558,
+      "spend_usd": 2.7966,
+      "unknown_spend_attempts": 0
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "pack": "gridsim-market-eval",
+      "tier": "floor-day",
+      "bundle": "live",
+      "scoring": "compliant_capture",
+      "sweep_scoring": "reward",
+      "effort": "high",
+      "runs": 10,
+      "planned": 10,
+      "tasks": 10,
+      "mean": 0.5526,
+      "ci95": [
+        0.4528,
+        0.6502
+      ],
+      "anchor_headline": 0.51389,
+      "headline_delta": {
+        "mean": 0.038759,
+        "ci95": [
+          -0.027255,
+          0.103695
+        ]
+      },
+      "peak": {
+        "n": 6,
+        "mean": 0.6393,
+        "ci95": [
+          0.573,
+          0.7111
+        ]
+      },
+      "capture": {
+        "mean": 0.5662,
+        "ci95": [
+          0.398932,
+          0.734534
+        ]
+      },
+      "anchor_capture": 0.445728,
+      "delta": {
+        "mean": 0.120471,
+        "ci95": [
+          -0.013827,
+          0.247964
+        ]
+      },
+      "r_one": 0.7,
+      "below_idle": 0,
+      "refs": {
+        "price_taker": {
+          "n": 10,
+          "capture": 0.437569,
+          "delta": {
+            "mean": 0.128631,
+            "ci95": [
+              -0.005378,
+              0.260265
+            ]
+          }
+        },
+        "max_withhold": {
+          "n": 10,
+          "capture": 0.379409,
+          "delta": {
+            "mean": 0.186791,
+            "ci95": [
+              -0.029936,
+              0.407006
+            ]
+          }
+        },
+        "replay_A": {
+          "n": 10,
+          "capture": 0.380163,
+          "delta": {
+            "mean": 0.186037,
+            "ci95": [
+              -0.030894,
+              0.407194
+            ]
+          }
+        }
+      },
+      "reward": {
+        "mean": 0.8966,
+        "ci95": [
+          0.7755,
+          1.0
+        ]
+      },
+      "reward_peak": {
+        "mean": 0.9395,
+        "ci95": [
+          0.8185,
+          1.0
+        ]
+      },
+      "compliant_reward": {
+        "mean": 0.7179,
+        "ci95": [
+          0.6623,
+          0.7669
+        ]
+      },
+      "compliant_capture": {
+        "mean": 0.5526,
+        "ci95": [
+          0.4528,
+          0.6502
+        ]
+      },
+      "capture_vs_br": 1.4196,
+      "regret_norm": -0.4196,
+      "regret_usd": -155858.52,
+      "price_making_gain_usd_per_mw_day": null,
+      "eps_a": 0.7213,
+      "beats_anchor": 0.7,
+      "valid": 1.0,
+      "eps_nash": 1.0,
+      "welfare_ratio": 0.5391,
+      "dwl_usd": 320888.24,
+      "rank": 4.0,
+      "mitigated_hours": 0.0,
+      "withholding_index": 0.0521,
+      "contracts": 0.0,
+      "contract_value_usd": 0.0,
+      "errors": {
+        "no_submit": 0,
+        "refused": 0,
+        "idle": 0,
+        "mitigated": 0,
+        "clipped": 0,
+        "end_short": 0,
+        "no_schedule": 0,
+        "price_talk": 0
+      },
+      "planning_calls": 9.4,
+      "data_calls": 9.6,
+      "commits": 1.9,
+      "refusals": 0.0,
+      "finished_by_agent": 1.0,
+      "turns": 25.2,
+      "usd_per_episode": 0.1304,
+      "spend_usd": 3.1595,
+      "unknown_spend_attempts": 0
+    }
+  ],
+  "errors": {
+    "taxonomy": [
+      "no_submit",
+      "refused",
+      "idle",
+      "mitigated",
+      "clipped",
+      "end_short",
+      "no_schedule",
+      "price_talk"
+    ],
+    "meaning": {
+      "no_submit": "no valid submit_offer (scores 0)",
+      "refused": "a refused offer or schedule",
+      "idle": "a valid offer with no blocks",
+      "mitigated": "an hour of seat A mitigated",
+      "clipped": "delivery clipped off the awards",
+      "end_short": "SoC at 24:00 below s_end_min",
+      "no_schedule": "floor-day: no accepted commit_schedule",
+      "price_talk": "a message flagged for price talk"
+    }
+  },
+  "sweeps": [
+    {
+      "name": "v5b-pilot-sol",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 30,
+      "k": 1,
+      "episode_cap_usd": 0.4,
+      "tier": "floor-sprint",
+      "bundle": "live",
+      "pack": "gridsim-market-eval",
+      "env": "gridsim-market"
+    },
+    {
+      "name": "v5b-pilot-sol-day",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 10,
+      "k": 1,
+      "episode_cap_usd": 2.0,
+      "tier": "floor-day",
+      "bundle": "live",
+      "pack": "gridsim-market-eval",
+      "env": "gridsim-market"
+    }
+  ],
+  "links": {
+    "runs": "hf dataset",
+    "replays": "hf space",
+    "code": "github"
+  }
+}

@@ -18,7 +18,7 @@ import build_pack as bp
 import ceiling as cl
 
 from gridsim_core.dp import dp_schedule
-from gridsim_core.forecast import forecast_line, parse_forecast, written
+from gridsim_core.forecast_line import forecast_line, parse_forecast, written
 from gridsim_core.task import battery_of, load_pack
 
 SEED, N_HOLD_DATES, PER_DATE = 0, 100, 2

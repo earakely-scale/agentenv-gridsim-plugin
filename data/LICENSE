@@ -150,15 +150,18 @@ archived by the Iowa Environmental Mesonet (IEM), Iowa State University, https:/
 observations are U.S. Government (NWS/FAA) data in the public domain; the IEM asks for attribution, given here. They
 are fetched into cache/weather and are not in data/ or the Hugging Face dataset.
 
-4. ERCOT data obtained through ERCOT's Public API (v4 and v5 previews)
+4. ERCOT data obtained through ERCOT's Public API (v3, v4 and v5 previews)
 
-The v4 forecast store carries ERCOT's posted forecasts as issued: NP3-565-CD (Seven-Day Load Forecast by Model and
-Weather Zone), NP4-732-CD and NP4-742-CD (wind power production, system-wide and regional) and NP4-745-CD (solar power
-production by geographical region). The v5 market days are derived from NP3-966-ER (60-Day DAM Disclosure Reports) and
-NP4-523-CD (DAM System Lambda). They were obtained through ERCOT's Public API (https://apiexplorer.ercot.com/) and are
-used under ERCOT's terms for that API and the Website User Agreement quoted above. The v5 days are aggregated: offer
-curves are cut to at most 64 blocks an hour and every resource and QSE is replaced by an anonymised id; the disclosure
-files themselves are not redistributed. Source: ERCOT. ERCOT does not endorse this work and is not affiliated with it.
+The v3 regulation drift (data/hybrid/reg_deploy.jsonl.gz) is derived from NP3-965-ER (60-Day SCED Disclosure Reports):
+each operating day is reduced to the storage fleet's regulation deployment as a share of its awards, by hour; no
+resource is named and the disclosure files are not redistributed. The v4 forecast store carries ERCOT's posted forecasts
+as issued: NP3-565-CD (Seven-Day Load Forecast by Model and Weather Zone), NP4-732-CD and NP4-742-CD (wind power
+production, system-wide and regional) and NP4-745-CD (solar power production by geographical region). The v5 market days
+are derived from NP3-966-ER (60-Day DAM Disclosure Reports) and NP4-523-CD (DAM System Lambda). They were obtained
+through ERCOT's Public API (https://apiexplorer.ercot.com/) and are used under ERCOT's terms for that API and the
+Website User Agreement quoted above. The v5 days are aggregated: offer curves are cut to at most 64 blocks an hour and
+every resource and QSE is replaced by an anonymised id; the disclosure files themselves are not redistributed. Source:
+ERCOT. ERCOT does not endorse this work and is not affiliated with it.
 
 5. NOAA HRRR and EIA-930: public domain
 

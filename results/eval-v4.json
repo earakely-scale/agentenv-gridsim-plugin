@@ -1,0 +1,479 @@
+{
+  "earlier_pilot": "rules 4.0, kept on record; the current v4 pilot (rules 4.1) is results/eval-v4b.json",
+  "env": "gridsim-forecast",
+  "version": "v4",
+  "forecast_version": "4.0",
+  "contract_version": "1.0",
+  "authors": [
+    {
+      "name": "Edgar Arakelyan",
+      "github": "earakely-scale",
+      "affiliation": "Scale AI"
+    },
+    {
+      "name": "Adithya S Kolavi",
+      "github": "adithya-s-k",
+      "affiliation": "Hugging Face"
+    }
+  ],
+  "framework": "agentenv",
+  "tasks": {
+    "split": "eval",
+    "n": 30,
+    "unit": "forecast windows",
+    "packs": [
+      "ercot-front-v4-eval"
+    ],
+    "labels": {
+      "front": 21,
+      "calm": 9
+    },
+    "sources": {
+      "ercot": 30
+    },
+    "source": "ERCOT DAM/RT SPPs and DAM AS MCPCs; NOAA HRRR runs as issued; NWS VTEC; ERCOT notices; EIA-930 DF; desk forecasts and the price guide modelled from them",
+    "selection": "the v4 filters (hindsight headroom, forecast value, anchor over idle) per kW",
+    "flags": [
+      "forecasts: desk (modelled from NOAA HRRR as issued)",
+      "load_official: EIA-930 DF",
+      "price_guide: modelled",
+      "pv_availability: proxy",
+      "reg_drift: seeded",
+      "rt_as: n/a",
+      "site: archetype"
+    ]
+  },
+  "harness": {
+    "agent": "gridsim-llm",
+    "env": "gridsim-forecast",
+    "tools": [
+      "get_situation",
+      "get_forecast",
+      "get_forecast_drift",
+      "check_schedule",
+      "commit_schedule",
+      "submit_dam",
+      "advance",
+      "get_time"
+    ],
+    "max_turns": {
+      "front": 122,
+      "front-lite": 72
+    },
+    "planning_calls_per_watch": 3,
+    "forecast_calls_per_watch": 6,
+    "dam_submits_per_gate": 3,
+    "max_tokens": 16384,
+    "effort": "high",
+    "path": "A: every step ran through AgentEnv (gateway env, triggers with deploy payloads, virtual clock)"
+  },
+  "grading": {
+    "scale": {
+      "headline": "hindsight capture C = (P - P_idle)/(P_hind - P_idle), unclipped, the mean over tasks, beside the anchor's C and delta = C - C_anchor with its paired 95% CI",
+      "second": "R on the anchor scale, a level and never differenced, with its R = 1 and beats-anchor shares",
+      "comparisons": "(P - P_ref)/(P_hind - P_idle) with its paired 95% CI",
+      "training": "S: R up to the anchor, then min(1.2, 1 + 0.2 (P - P_anchor)/(P_hind - P_anchor)); never on a board",
+      "decision": "docs/REWARD-SCALES.md"
+    },
+    "hindsight": "P_hind: v3's hindsight MILP over the window",
+    "reference": "the rolling MILP (HiGHS) played through the Session at every watch",
+    "reward": "clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1); no accepted hour in any submit_dam or commit_schedule scores 0",
+    "idle": "no DAM, the battery idle, PV exported at RT",
+    "anchor": {
+      "front": "P_roll on the desk's P50 guide",
+      "front-lite": "P_roll, battery only",
+      "freeze-6h": "P_roll under the 6 h freeze",
+      "blind": "P_blind on persistence"
+    },
+    "fields": {
+      "capture": "C (replaces r_hind)",
+      "anchor_capture": "the anchor's C",
+      "delta": "C - C_anchor, paired (the verifier's paired_vs_anchor)",
+      "mean": "R",
+      "r_one": "share of runs at R = 1",
+      "refs": "each reference's C and the paired gap"
+    },
+    "weight_0": [
+      "audit",
+      "r_hind",
+      "paired_vs_anchor",
+      "beats_anchor",
+      "r_roll3",
+      "forecast_value",
+      "dam_missed",
+      "baselines"
+    ],
+    "audit": "weight 0; a failed audit makes the run unscored",
+    "excused": "AS shortfall or end-SoC shortfall from drift or deployments after the hour froze",
+    "judge": false
+  },
+  "baselines": {
+    "front": {
+      "tier": "front",
+      "n": 20,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "capture": {
+        "naive": 0.280936,
+        "blind": 0.345998,
+        "roll": 0.476959,
+        "roll3": 0.475029
+      },
+      "naive": 0.6435,
+      "blind": 0.7203,
+      "roll": 1.0,
+      "roll3": 0.9757,
+      "anchor_capture": 0.476959
+    },
+    "front-lite": {
+      "tier": "front-lite",
+      "n": 10,
+      "idle": 0.2,
+      "anchor": 1.0,
+      "capture": {
+        "naive": 0.065467,
+        "blind": 0.484551,
+        "roll": 0.450172,
+        "roll3": 0.475712
+      },
+      "naive": 0.3514,
+      "blind": 0.9811,
+      "roll": 1.0,
+      "roll3": 0.9647,
+      "anchor_capture": 0.450172
+    }
+  },
+  "models": [
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "tier": "front",
+      "bundle": "live",
+      "effort": "high",
+      "runs": 20,
+      "planned": 20,
+      "tasks": 20,
+      "mean": 0.9088,
+      "ci95": [
+        0.8357,
+        0.9681
+      ],
+      "capture": {
+        "mean": 0.457859,
+        "ci95": [
+          0.361594,
+          0.553411
+        ]
+      },
+      "anchor_capture": 0.476959,
+      "delta": {
+        "mean": -0.0191,
+        "ci95": [
+          -0.056555,
+          0.017058
+        ]
+      },
+      "r": {
+        "mean": 0.9088,
+        "ci95": [
+          0.8357,
+          0.9681
+        ]
+      },
+      "r_one": 0.35,
+      "beats_anchor": 0.35,
+      "below_idle": 0,
+      "no_headroom": 0,
+      "refs": {
+        "naive": {
+          "n": 20,
+          "capture": 0.280936,
+          "delta": {
+            "mean": 0.176923,
+            "ci95": [
+              0.122779,
+              0.229523
+            ]
+          }
+        },
+        "blind": {
+          "n": 20,
+          "capture": 0.345998,
+          "delta": {
+            "mean": 0.111861,
+            "ci95": [
+              0.05888,
+              0.167688
+            ]
+          }
+        },
+        "roll": {
+          "n": 20,
+          "capture": 0.476959,
+          "delta": {
+            "mean": -0.0191,
+            "ci95": [
+              -0.056555,
+              0.017058
+            ]
+          }
+        },
+        "roll3": {
+          "n": 20,
+          "capture": 0.475029,
+          "delta": {
+            "mean": -0.017169,
+            "ci95": [
+              -0.059421,
+              0.020444
+            ]
+          }
+        }
+      },
+      "by_label": {
+        "front": {
+          "capture": 0.390268,
+          "delta": -0.018665,
+          "r": 0.8834
+        },
+        "calm": {
+          "capture": 0.615574,
+          "delta": -0.020113,
+          "r": 0.968
+        }
+      },
+      "by_source": {
+        "desk": null,
+        "ercot": 0.9088
+      },
+      "forecast_value": null,
+      "valid": 1.0,
+      "dam_missed": 0.0,
+      "dam_submits": 4.4,
+      "forecast_calls": 25.3,
+      "as_usd": 10831.91,
+      "ftp_mwh_charged": 8.043,
+      "ftp_mwh_excused": 28.899,
+      "refusals": 6.9,
+      "governor_hours": 1.75,
+      "errors": {
+        "no_commit": 0,
+        "dam_missed": 0,
+        "refused": 17,
+        "ftp_charged": 5,
+        "end_short": 1,
+        "governed": 11,
+        "no_replanning": 0,
+        "no_forecasts": 0,
+        "as_unused": 0
+      },
+      "planning_calls": 6.55,
+      "commits": 5.65,
+      "finished_by_agent": 1.0,
+      "turns": 62.3,
+      "tokens": {
+        "input": 3063142.5,
+        "output": 9538.2,
+        "cached": 2974689.3
+      },
+      "usd_per_episode": 0.5698,
+      "usd_max": 0.9753,
+      "spend_usd": 11.3952,
+      "unknown_spend_attempts": 0
+    },
+    {
+      "model": "openai/gpt-6.1-sol",
+      "trained": "base",
+      "tier": "front-lite",
+      "bundle": "live",
+      "effort": "high",
+      "runs": 10,
+      "planned": 10,
+      "tasks": 10,
+      "mean": 0.8826,
+      "ci95": [
+        0.7327,
+        0.9802
+      ],
+      "capture": {
+        "mean": 0.403554,
+        "ci95": [
+          0.288181,
+          0.512314
+        ]
+      },
+      "anchor_capture": 0.450172,
+      "delta": {
+        "mean": -0.046619,
+        "ci95": [
+          -0.098428,
+          -0.004943
+        ]
+      },
+      "r": {
+        "mean": 0.8826,
+        "ci95": [
+          0.7327,
+          0.9802
+        ]
+      },
+      "r_one": 0.5,
+      "beats_anchor": 0.4,
+      "below_idle": 0,
+      "no_headroom": 0,
+      "refs": {
+        "naive": {
+          "n": 10,
+          "capture": 0.065467,
+          "delta": {
+            "mean": 0.338086,
+            "ci95": [
+              0.227354,
+              0.46301
+            ]
+          }
+        },
+        "blind": {
+          "n": 10,
+          "capture": 0.484551,
+          "delta": {
+            "mean": -0.080998,
+            "ci95": [
+              -0.166718,
+              -0.015313
+            ]
+          }
+        },
+        "roll": {
+          "n": 10,
+          "capture": 0.450172,
+          "delta": {
+            "mean": -0.046619,
+            "ci95": [
+              -0.098428,
+              -0.004943
+            ]
+          }
+        },
+        "roll3": {
+          "n": 10,
+          "capture": 0.475712,
+          "delta": {
+            "mean": -0.072158,
+            "ci95": [
+              -0.175336,
+              0.001617
+            ]
+          }
+        }
+      },
+      "by_label": {
+        "front": {
+          "capture": 0.337765,
+          "delta": -0.061388,
+          "r": 0.8403
+        },
+        "calm": {
+          "capture": 0.557061,
+          "delta": -0.012157,
+          "r": 0.9812
+        }
+      },
+      "by_source": {
+        "desk": null,
+        "ercot": 0.8826
+      },
+      "forecast_value": null,
+      "valid": 1.0,
+      "dam_missed": 0.0,
+      "dam_submits": 2.4,
+      "forecast_calls": 17.2,
+      "as_usd": 0.0,
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "refusals": 29.1,
+      "governor_hours": 0.0,
+      "errors": {
+        "no_commit": 0,
+        "dam_missed": 0,
+        "refused": 8,
+        "ftp_charged": 0,
+        "end_short": 0,
+        "governed": 0,
+        "no_replanning": 0,
+        "no_forecasts": 0,
+        "as_unused": 0
+      },
+      "planning_calls": 4.3,
+      "commits": 3.8,
+      "finished_by_agent": 1.0,
+      "turns": 42.1,
+      "tokens": {
+        "input": 817728.2,
+        "output": 4801.5,
+        "cached": 784261.3
+      },
+      "usd_per_episode": 0.1934,
+      "usd_max": 0.2536,
+      "spend_usd": 1.9337,
+      "unknown_spend_attempts": 0
+    }
+  ],
+  "errors": {
+    "taxonomy": [
+      "no_commit",
+      "dam_missed",
+      "refused",
+      "ftp_charged",
+      "end_short",
+      "governed",
+      "no_replanning",
+      "no_forecasts",
+      "as_unused"
+    ],
+    "meaning": {
+      "no_commit": "no accepted hour in any submit_dam or commit_schedule (scores 0)",
+      "dam_missed": "a DAM gate without an accepted hour",
+      "refused": "a submit or commit with a refused hour",
+      "ftp_charged": "AS failure-to-provide charged",
+      "end_short": "SoC at the window end below s_end_min",
+      "governed": "the governor moved an hour",
+      "no_replanning": "no planning call after watch 0",
+      "no_forecasts": "no forecast call on a tier that serves them",
+      "as_unused": "no AS revenue on a tier that offers AS"
+    }
+  },
+  "sweeps": [
+    {
+      "name": "v4-pilot-sol",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 20,
+      "k": 1,
+      "episode_cap_usd": 2.62,
+      "tier": "front",
+      "bundle": "live",
+      "pack": "ercot-front-v4-eval",
+      "env": "gridsim-forecast"
+    },
+    {
+      "name": "v4-pilot-sol-lite",
+      "models": [
+        "openai/gpt-6.1-sol"
+      ],
+      "tasks": 10,
+      "k": 1,
+      "episode_cap_usd": 2.62,
+      "tier": "front-lite",
+      "bundle": "live",
+      "pack": "ercot-front-v4-eval",
+      "env": "gridsim-forecast"
+    }
+  ],
+  "links": {
+    "runs": "hf dataset",
+    "replays": "hf space",
+    "code": "github"
+  }
+}

@@ -1,0 +1,59 @@
+{
+ "pack": "ercot-front-v4-rtcb",
+ "forecast_version": "4.1",
+ "tasks": 20,
+ "dates": [
+  "2025-12-11",
+  "2026-09-08"
+ ],
+ "tiers": [
+  "front-lite",
+  "front",
+  "blind",
+  "freeze-6h"
+ ],
+ "sources": [
+  "ercot"
+ ],
+ "flags": {
+  "vintages": "as issued, from the forecast store v4-store@cb47cd9f (V4-P12, V4-P17)",
+  "site": "archetype",
+  "pv_availability": "proxy, system-wide cf",
+  "reg_drift": "seeded",
+  "rt_as": "not modelled (V4-P6)"
+ },
+ "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
+ "filters": {
+  "hind_headroom_low_drop_share": 0.15,
+  "roll_headroom_min_usd_per_kw": 0.1,
+  "roll_headroom_min_share": 0.05,
+  "hind_minus_roll_share": 0.08,
+  "roll_minus_blind_share": 0.05
+ },
+ "solver": 2,
+ "stats": {
+  "candidates": 387,
+  "candidate_labels": {
+   "calm": 165,
+   "front": 222
+  },
+  "hind_floor_usd_per_kw": 0.3738,
+  "eligible": 130,
+  "eligible_labels": {
+   "calm": 50,
+   "front": 80
+  },
+  "eligible_d1": {
+   "calm": 39,
+   "front": 55
+  },
+  "per_d1_per_label": 1,
+  "chosen": 20,
+  "front": 10,
+  "sources": {
+   "ercot": 20
+  },
+  "mean_ms": 4702.9
+ },
+ "store": "cache/forecast/store"
+}

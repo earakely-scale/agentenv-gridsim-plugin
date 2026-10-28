@@ -1,5 +1,6 @@
-"""FD-4333's fallback warm start: LoRA SFT on N DP-optimal schedules from the train split, each completion a short
-template rationale from the DP solution (no LLM text) then the submit_schedule tool call, on the same oneshot prompt.
+"""The training plan's fallback warm start: LoRA SFT on N DP-optimal schedules from the train split, each completion a
+short template rationale from the DP solution (no LLM text) then the submit_schedule tool call, on the same oneshot
+prompt.
 The adapter is merged into the base and saved, so GRPO adds a fresh LoRA on top and vLLM serves the merged weights.
 
 Env: MODEL, OUT (merged model dir), TRAIN_PACK, N_SFT, EPOCHS, LR, SEED."""

@@ -7,7 +7,7 @@ import re
 import statistics
 
 from gridsim_core.dp import dp_schedule
-from gridsim_core.forecast import parse_forecast
+from gridsim_core.forecast_line import parse_forecast
 from gridsim_core.grade import grade, reward_value
 from gridsim_core.parse import parse_actions
 from gridsim_core.physics import settle

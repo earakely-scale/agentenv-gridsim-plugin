@@ -67,7 +67,7 @@ def hf_engine():
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    from gridsim_core.forecast import forecast_line
+    from gridsim_core.forecast_line import forecast_line
 
     tok = AutoTokenizer.from_pretrained(MODEL)
     with gzip.open(os.environ["RL_POOL"], "rt") as f:

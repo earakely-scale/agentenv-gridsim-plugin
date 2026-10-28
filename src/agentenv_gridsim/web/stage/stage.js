@@ -8,7 +8,9 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { at } from "../data.js";
 import { buildBackdrop } from "./backdrop.js";
 import { buildDirector } from "./director.js";
+import { buildFront, coverOn, frostOn } from "./front.js";
 import { buildLine } from "./line.js";
+import { buildPlant, plantLayout, SOLAR, trackerAngle } from "./plant.js";
 import { buildSky } from "./sky.js";
 import { buildTerrain } from "./terrain.js";
 import { buildRain, lightningAt, snowCover, snowOn, weatherAt } from "./weather.js";
@@ -57,14 +59,16 @@ export class GridStage {
     this.site = new THREE.Group();
     this.site.rotation.y = this.yaw;
     const U = { uWet: { value: 0 } };
-    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed });
+    const hyb = !!d.hybrid && !d.lite;
+    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed, ...(hyb ? { bands: true } : {}) });
     const L = this.yard.layout;
-    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)) });
+    this.plantL = hyb ? plantLayout(d.site, L, this.yaw, seed) : null;
+    this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)), plant: this.plantL, yaw: this.yaw });
     const cams = this.director.spots.map(([x, z, r]) => {
       const v = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
       return [v.x, v.z, r];
     });
-    this.terrain = buildTerrain(region, { pad: L.pad, yaw: this.yaw, seed, cams });
+    this.terrain = buildTerrain(region, { pad: L.pad, yaw: this.yaw, seed, cams, ...(hyb ? { level: this.plantL.level, keepOut: this.plantL.keepOut } : {}) });
     this.terrain.U.uWet = U.uWet;
     this.U = U;
     scene.add(this.terrain.group);
@@ -75,21 +79,40 @@ export class GridStage {
     };
     this.line = buildLine({ deadEnd: this.yard.sub.deadEnd, heightLocal, km: 9, seed });
     this.site.add(this.yard.group, this.line.group);
+    if (hyb) {
+      this.plant = buildPlant(this.plantL, L, { site: d.site, U, heightAt: this.terrain.heightAt, sub: { lowX: L.sx - 13, deX: this.yard.sub.deadEnd.x } });
+      scene.add(this.plant.world);
+      this.site.add(this.plant.local);
+    }
     scene.add(this.site);
     const nearPj = [[L.cx + 30, -L.D / 2 - 190], [L.cx - L.W / 2 - 160, L.D / 2 + 260]].map(([x, z]) => {
       const v = toWorld(x, z);
       return [v.x, v.z];
-    });
+    }).filter(([x, z]) => !hyb || this.plantL.level(x, z) === 0);
     this.backdrop = buildBackdrop(region, this.terrain.heightAt, this.terrain.avoid, seed, { near: nearPj });
     scene.add(this.backdrop.group);
     this.rain = buildRain();
     scene.add(this.rain.mesh);
     U.uSnow = { value: 0 };
     const snowy = (d.weather?.obs || []).some((o) => (o.wx || []).some((c) => /SN|PL/.test(c))) || (d.weather?.obs || []).some((o) => (o.temp_c ?? 9) < -2);
-    if (snowy) this.scene.traverse((o) => {
+    if (snowy && !d.forecast) this.scene.traverse((o) => {
       const ms = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of ms) if (m?.isMeshStandardMaterial) snowOn(m, U);
     });
+    if (d.forecast) {
+      U.uFrost = { value: 0 };
+      U.uSnowD = { value: 0 };
+      U.uRime = { value: 0 };
+      if (hyb) for (const mesh of this.plant.panels) frostOn(mesh.material[2], U);
+      if (d.cold) this.scene.traverse((o) => {
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of ms) if (m?.isMeshStandardMaterial) coverOn(m, U, !m.userData.frost);
+      });
+      if (d.front) {
+        this.front = buildFront();
+        scene.add(this.front.mesh);
+      }
+    }
     this.#post();
     if (!this.manual) {
       this.controls = new OrbitControls(this.camera, renderer.domElement);
@@ -109,17 +132,22 @@ export class GridStage {
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.shimmer = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, uAmt: { value: 0 }, uH: { value: 0.5 }, uT: { value: 0 } },
+      uniforms: { tDiffuse: { value: null }, uAmt: { value: 0 }, uH: { value: 0.5 }, uT: { value: 0 }, uNight: { value: 0 } },
       vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
       fragmentShader: /* glsl */ `
         uniform sampler2D tDiffuse;
-        uniform float uAmt, uH, uT;
+        uniform float uAmt, uH, uT, uNight;
         varying vec2 vUv;
+        vec4 grade(vec4 c) {
+          if (any(isnan(c)) || any(isinf(c))) return vec4(0.0, 0.0, 0.0, 1.0);
+          float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+          c.rgb = mix(c.rgb, l * vec3(0.9, 0.97, 1.12), uNight * 0.32 * (1.0 - smoothstep(0.4, 3.0, l)));
+          return min(c, vec4(80.0));
+        }
         void main() {
           vec2 uv = vUv;
           if (uAmt <= 0.0) {
-            vec4 c0 = texture2D(tDiffuse, uv);
-            gl_FragColor = (any(isnan(c0)) || any(isinf(c0))) ? vec4(0.0, 0.0, 0.0, 1.0) : min(c0, vec4(80.0));
+            gl_FragColor = grade(texture2D(tDiffuse, uv));
             return;
           }
           float dy = (uv.y - uH) / 0.035;
@@ -127,8 +155,7 @@ export class GridStage {
           float n = sin(uv.y * 1100.0 + uT * 7.0) * 0.6 + sin(uv.y * 1900.0 - uT * 11.0 + uv.x * 35.0) * 0.4;
           uv.x += n * uAmt * band * 0.0011;
           uv.y += n * uAmt * band * 0.0005;
-          vec4 c = texture2D(tDiffuse, uv);
-          gl_FragColor = (any(isnan(c)) || any(isinf(c))) ? vec4(0.0, 0.0, 0.0, 1.0) : min(c, vec4(80.0));
+          gl_FragColor = grade(texture2D(tDiffuse, uv));
         }`,
     });
     this.composer.addPass(this.shimmer);
@@ -157,27 +184,52 @@ export class GridStage {
     const t0 = performance.now();
     this.renderer.info.reset();
     const { d } = this;
-    const tt = Math.max(0, Math.min(24, t));
-    const w = weatherAt(d.weather, tt);
+    const E = d.end ?? 24, v4 = !!d.forecast;
+    const tt = Math.max(0, Math.min(E, t));
+    const wt = v4 ? Math.max(d.t0, Math.min(E, t)) : tt;
+    const w = weatherAt(d.weather, wt);
+    if (v4) w.hubMs = d.hubAt(wt) ?? (w.windMs || 0) * 1.35;
     this.w = w;
-    const s = this.sky.update(tt, wall, w);
-    const x = at(d, Math.min(23.999, tt));
-    const mode = t >= 24 ? (d.trunc != null ? "grey" : "idle") : x.mode;
+    const pre = d.live && t < 0;
+    const clock = v4 ? wt : pre ? (-600 + ((t + 2) / 2) * 600) / 60 : tt;
+    const s = this.sky.update(clock, wall, w);
+    if (this.front) {
+      const f = d.front, lead = 4.5;
+      const shade = this.front.update({ p: (wt - (f.t - lead)) / lead, bearing: f.bearing, s, wall, reduced: this.reduced });
+      if (shade > 0) this.sky.sun.intensity *= 1 - 0.7 * shade;
+    }
+    const x = d.hybrid ? (pre ? d.pre(t) : d.at(tt)) : pre ? { ...at(d, 0), mode: "idle", mw: 0, soc: d.b.s0 } : at(d, Math.min(23.999, tt));
+    const mode = t >= E ? (d.trunc != null ? "grey" : "idle") : x.mode;
     const mw = mode === "charge" || mode === "discharge" ? Math.abs(x.mw) : 0;
     const pmax = mode === "charge" ? d.b.p_ch_mw : d.b.p_dis_mw;
     const wet = Math.min(1, w.rain * 0.9 + w.ts * 0.3 + (w.mist > 0.8 ? 0.2 : 0));
     this.U.uWet.value += (wet - this.U.uWet.value) * Math.min(1, dt * 0.6);
     if (this.manual && dt === 0) this.U.uWet.value = wet;
-    this.U.uSnow.value = snowCover(d.weather, tt);
+    this.U.uSnow.value = snowCover(d.weather, wt);
+    if (v4) {
+      this.U.uFrost.value = d.frostAt(wt);
+      this.U.uSnowD.value = d.snowAt(wt);
+      this.U.uRime.value = d.frostAt(wt);
+    }
     const windYaw = -((w.windDir ?? 180) + 90) * DEG - this.yaw;
-    this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights: 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind: { kt: w.windKt, yawLocal: windYaw + Math.PI } });
-    this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height: this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2)), day: s.day, reduced: this.reduced });
-    this.backdrop.update({ night: s.night, wall, dt, windMs: w.windMs, windDir: w.windDir, reduced: this.reduced });
+    const lights = 1 - Math.min(1, Math.max(0, (s.el + 3) / 5)), wind = { kt: w.windKt, yawLocal: windYaw + Math.PI };
+    const height = this.renderer.domElement.height / (2 * Math.tan((this.camera.fov * DEG) / 2));
+    if (d.hybrid) {
+      this.yard.update({ mode, mw, pmax, soc: x.socLevels, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind, floor: t >= E ? 0 : x.floor / d.E, head: t >= E ? 0 : x.head / d.E, draw: x.bands.some((z) => z.live) ? 1 : 0 });
+      const e = x.exp;
+      this.line.update({ dir: e > 1 ? 1 : e < -1 ? -1 : 0, load: Math.abs(e) / Math.max(1, d.L), color: e < 0 ? COLORS.charge : x.net > 0.5 ? COLORS.discharge : SOLAR, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
+      const sun = this.sky.sunAt(clock);
+      this.plant?.update({ tilt: trackerAngle(sun.el, sun.az), off: x.off, pv: x.pvUsed, net: x.net, exp: e, head: x.upMw, night: s.night, dt, height, fog: this.scene.fog.density, day: s.day, reduced: this.reduced });
+    } else {
+      this.yard.update({ mode, mw, pmax, soc: x.soc, night: s.night, lights, dt, wall, reduced: this.reduced, temp: w.temp ?? 25, wind });
+      this.line.update({ dir: mode === "discharge" ? 1 : mode === "charge" ? -1 : 0, load: mw / Math.max(1, pmax), color: x.neg && mode === "charge" ? "#7ff0ff" : COLORS[mode] || COLORS.idle, dt, fog: this.scene.fog.density, height, day: s.day, reduced: this.reduced });
+    }
+    this.backdrop.update({ night: s.night, wall, dt, windMs: v4 ? w.hubMs : w.windMs, windDir: w.windDir, reduced: this.reduced });
     const fl = lightningAt(wall, w.ts, this.reduced);
     this.sky.flash(fl ? fl.f * 0.9 : 0, fl?.dir);
     this.sky.hemi.intensity += fl ? fl.f * 1.5 : 0;
     if (this.directing || !this.controls) {
-      const p = this.director.pose(t, this.force, this.reduced);
+      const p = this.director.pose(t, this.force, this.reduced, this.drift);
       const wp = this.toWorld(p.pos.x, p.pos.z).setY(p.pos.y + this.terrain.heightAt(...this.#xz(p.pos)));
       const wl = this.toWorld(p.look.x, p.look.z).setY(p.look.y);
       this.camera.position.copy(wp);
@@ -191,6 +243,7 @@ export class GridStage {
     this.sky.focus(this.camera, this.controls?.target || this.camera.position.clone().add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(60)));
     const heat = this.reduced ? 0 : Math.min(1, Math.max(0, ((w.temp ?? 20) - 31) / 6)) * Math.min(1, Math.max(0, (s.el - 20) / 20)) * (1 - w.cover * 0.8) * (1 - w.rain);
     this.shimmer.uniforms.uAmt.value = 0;
+    this.shimmer.uniforms.uNight.value = s.night;
     if (heat > 0.02) {
       const f = this.camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize().multiplyScalar(20000).add(this.camera.position);
       f.y = this.camera.position.y * 0.98;

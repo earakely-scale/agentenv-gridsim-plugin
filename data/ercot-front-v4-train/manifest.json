@@ -1,0 +1,59 @@
+{
+ "pack": "ercot-front-v4-train",
+ "forecast_version": "4.1",
+ "tasks": 1290,
+ "dates": [
+  "2021-03-03",
+  "2024-12-28"
+ ],
+ "tiers": [
+  "front-lite",
+  "front",
+  "blind",
+  "freeze-6h"
+ ],
+ "sources": [
+  "desk"
+ ],
+ "flags": {
+  "vintages": "as issued, from the forecast store v4-store@cb47cd9f (V4-P12, V4-P17)",
+  "site": "archetype",
+  "pv_availability": "proxy, system-wide cf",
+  "reg_drift": "seeded",
+  "rt_as": "not modelled (V4-P6)"
+ },
+ "licence": "ERCOT data with attribution and no endorsement; NOAA and IEM with attribution; EIA public domain",
+ "filters": {
+  "hind_headroom_low_drop_share": 0.15,
+  "roll_headroom_min_usd_per_kw": 0.1,
+  "roll_headroom_min_share": 0.05,
+  "hind_minus_roll_share": 0.08,
+  "roll_minus_blind_share": 0.05
+ },
+ "solver": 2,
+ "stats": {
+  "candidates": 16666,
+  "candidate_labels": {
+   "front": 10222,
+   "calm": 6444
+  },
+  "hind_floor_usd_per_kw": 0.1875,
+  "eligible": 1883,
+  "eligible_labels": {
+   "calm": 522,
+   "front": 1361
+  },
+  "eligible_d1": {
+   "front": 449,
+   "calm": 212
+  },
+  "per_d1_per_label": 3,
+  "chosen": 1290,
+  "front": 900,
+  "sources": {
+   "desk": 1290
+  },
+  "mean_ms": 475.6
+ },
+ "store": "cache/forecast/store"
+}

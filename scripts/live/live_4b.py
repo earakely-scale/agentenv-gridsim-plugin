@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "results/train/4b-blind/scripts"))
 from pathb_blind import prompt_text, tool_call  # noqa: E402
 
-from gridsim_core.forecast import parse_forecast  # noqa: E402
+from gridsim_core.forecast_line import parse_forecast  # noqa: E402
 from gridsim_core.task import load_pack  # noqa: E402
 from gridsim_core.trl import extract_actions  # noqa: E402
 

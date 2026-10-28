@@ -5,7 +5,7 @@ from hypothesis import strategies as st
 
 from gridsim_core import baselines
 from gridsim_core.dp import solve_dp
-from gridsim_core.grade import grade, reward_value
+from gridsim_core.grade import grade, reward_value, stretch_value
 from gridsim_core.physics import simulate
 from gridsim_core.task import battery_of
 
@@ -53,6 +53,12 @@ def test_reward_value():
     assert reward_value(50, 0, 100) == 0.6
     assert reward_value(-1e9, 0, 100) == 0.0 and reward_value(1e9, 0, 100) == 1.0
     assert reward_value(0, 0, 0) == 1.0 and reward_value(-1, 0, 0) == 0.0
+
+
+def test_stretch_value_is_r_up_to_the_anchor_and_rises_to_1_2_at_hindsight():
+    assert [stretch_value(p, 0, 100, 200) for p in (-50, 50, 100)] == [reward_value(p, 0, 100) for p in (-50, 50, 100)]
+    assert [stretch_value(p, 0, 100, 200) for p in (150, 200, 400)] == [1.1, 1.2, 1.2]
+    assert stretch_value(150, 0, 100, 100) == stretch_value(150, 0, 100, None) == 1.0
 
 
 def test_idle_with_shortfall_is_still_0_2():

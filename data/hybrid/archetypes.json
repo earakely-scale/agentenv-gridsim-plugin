@@ -1,0 +1,728 @@
+{
+ "default": {
+  "id": "pv150-b100x2h",
+  "pv_mwac": 150,
+  "pv_mwdc": 195,
+  "ilr": 1.3,
+  "bess_mw": 100,
+  "bess_mwh": 200,
+  "poi_mw": 150,
+  "poi_variants_mw": [
+   150,
+   180
+  ],
+  "coupling": "ac",
+  "source": "the v3 plan's example (archetype)"
+ },
+ "fit": {
+  "sites": 22,
+  "in_archetype_window": 5,
+  "pv_mwac": {
+   "n": 22,
+   "p10": 98.68,
+   "median": 230.5,
+   "p90": 386.62,
+   "min": 5.0,
+   "max": 420.0
+  },
+  "ilr": {
+   "n": 22,
+   "p10": 1.219,
+   "median": 1.285,
+   "p90": 1.411,
+   "min": 1.18,
+   "max": 1.434
+  },
+  "bess_over_pv": {
+   "n": 22,
+   "p10": 0.114,
+   "median": 0.462,
+   "p90": 1.622,
+   "min": 0.055,
+   "max": 2.228
+  },
+  "duration_h": {
+   "n": 22,
+   "p10": 0.943,
+   "median": 1.52,
+   "p90": 2.445,
+   "min": 0.88,
+   "max": 4.24
+  },
+  "ilr_missing": 0,
+  "coupling_share": {
+   "independent": 0.682,
+   "ac": 0.318
+  },
+  "coupling_share_ac_vs_dc": 1.0,
+  "colocated_by": {
+   "same_plant": 16,
+   "nearby_named": 5,
+   "direct_support": 1
+  },
+  "regions": {
+   "west": 8,
+   "north": 8,
+   "central": 3,
+   "south": 2,
+   "houston": 1
+  }
+ },
+ "ilr_median": 1.28,
+ "archetypes": [
+  {
+   "id": "pv100-r40-1h",
+   "pv_mwac": 100,
+   "pv_mwdc": 128,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 50,
+   "bess_mwh": 50,
+   "poi_mw": 100,
+   "poi_variants_mw": [
+    100,
+    120
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv100-r40-2h",
+   "pv_mwac": 100,
+   "pv_mwdc": 128,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 50,
+   "bess_mwh": 100,
+   "poi_mw": 100,
+   "poi_variants_mw": [
+    100,
+    120
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv100-r67-1h",
+   "pv_mwac": 100,
+   "pv_mwdc": 128,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 75,
+   "bess_mwh": 75,
+   "poi_mw": 100,
+   "poi_variants_mw": [
+    100,
+    120
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv100-r67-2h",
+   "pv_mwac": 100,
+   "pv_mwdc": 128,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 75,
+   "bess_mwh": 150,
+   "poi_mw": 100,
+   "poi_variants_mw": [
+    100,
+    120
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv100-r80-1h",
+   "pv_mwac": 100,
+   "pv_mwdc": 128,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 75,
+   "bess_mwh": 75,
+   "poi_mw": 100,
+   "poi_variants_mw": [
+    100,
+    120
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv100-r80-2h",
+   "pv_mwac": 100,
+   "pv_mwdc": 128,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 75,
+   "bess_mwh": 150,
+   "poi_mw": 100,
+   "poi_variants_mw": [
+    100,
+    120
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv150-r40-1h",
+   "pv_mwac": 150,
+   "pv_mwdc": 192,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 50,
+   "bess_mwh": 50,
+   "poi_mw": 150,
+   "poi_variants_mw": [
+    150,
+    180
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv150-r40-2h",
+   "pv_mwac": 150,
+   "pv_mwdc": 192,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 50,
+   "bess_mwh": 100,
+   "poi_mw": 150,
+   "poi_variants_mw": [
+    150,
+    180
+   ],
+   "weight": 0.0882
+  },
+  {
+   "id": "pv150-r67-1h",
+   "pv_mwac": 150,
+   "pv_mwdc": 192,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 100,
+   "bess_mwh": 100,
+   "poi_mw": 150,
+   "poi_variants_mw": [
+    150,
+    180
+   ],
+   "weight": 0.0882
+  },
+  {
+   "id": "pv150-r67-2h",
+   "pv_mwac": 150,
+   "pv_mwdc": 192,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 100,
+   "bess_mwh": 200,
+   "poi_mw": 150,
+   "poi_variants_mw": [
+    150,
+    180
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv150-r80-1h",
+   "pv_mwac": 150,
+   "pv_mwdc": 192,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 125,
+   "bess_mwh": 125,
+   "poi_mw": 150,
+   "poi_variants_mw": [
+    150,
+    180
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv150-r80-2h",
+   "pv_mwac": 150,
+   "pv_mwdc": 192,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 125,
+   "bess_mwh": 250,
+   "poi_mw": 150,
+   "poi_variants_mw": [
+    150,
+    180
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv200-r40-1h",
+   "pv_mwac": 200,
+   "pv_mwdc": 256,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 75,
+   "bess_mwh": 75,
+   "poi_mw": 200,
+   "poi_variants_mw": [
+    200,
+    240
+   ],
+   "weight": 0.0882
+  },
+  {
+   "id": "pv200-r40-2h",
+   "pv_mwac": 200,
+   "pv_mwdc": 256,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 75,
+   "bess_mwh": 150,
+   "poi_mw": 200,
+   "poi_variants_mw": [
+    200,
+    240
+   ],
+   "weight": 0.0882
+  },
+  {
+   "id": "pv200-r67-1h",
+   "pv_mwac": 200,
+   "pv_mwdc": 256,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 125,
+   "bess_mwh": 125,
+   "poi_mw": 200,
+   "poi_variants_mw": [
+    200,
+    240
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv200-r67-2h",
+   "pv_mwac": 200,
+   "pv_mwdc": 256,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 125,
+   "bess_mwh": 250,
+   "poi_mw": 200,
+   "poi_variants_mw": [
+    200,
+    240
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv200-r80-1h",
+   "pv_mwac": 200,
+   "pv_mwdc": 256,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 150,
+   "bess_mwh": 150,
+   "poi_mw": 200,
+   "poi_variants_mw": [
+    200,
+    240
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv200-r80-2h",
+   "pv_mwac": 200,
+   "pv_mwdc": 256,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 150,
+   "bess_mwh": 300,
+   "poi_mw": 200,
+   "poi_variants_mw": [
+    200,
+    240
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv300-r40-1h",
+   "pv_mwac": 300,
+   "pv_mwdc": 384,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 125,
+   "bess_mwh": 125,
+   "poi_mw": 300,
+   "poi_variants_mw": [
+    300,
+    360
+   ],
+   "weight": 0.0882
+  },
+  {
+   "id": "pv300-r40-2h",
+   "pv_mwac": 300,
+   "pv_mwdc": 384,
+   "ilr": 1.28,
+   "bess_over_pv": 0.4,
+   "bess_mw": 125,
+   "bess_mwh": 250,
+   "poi_mw": 300,
+   "poi_variants_mw": [
+    300,
+    360
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv300-r67-1h",
+   "pv_mwac": 300,
+   "pv_mwdc": 384,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 200,
+   "bess_mwh": 200,
+   "poi_mw": 300,
+   "poi_variants_mw": [
+    300,
+    360
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv300-r67-2h",
+   "pv_mwac": 300,
+   "pv_mwdc": 384,
+   "ilr": 1.28,
+   "bess_over_pv": 0.67,
+   "bess_mw": 200,
+   "bess_mwh": 400,
+   "poi_mw": 300,
+   "poi_variants_mw": [
+    300,
+    360
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv300-r80-1h",
+   "pv_mwac": 300,
+   "pv_mwdc": 384,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 250,
+   "bess_mwh": 250,
+   "poi_mw": 300,
+   "poi_variants_mw": [
+    300,
+    360
+   ],
+   "weight": 0.0294
+  },
+  {
+   "id": "pv300-r80-2h",
+   "pv_mwac": 300,
+   "pv_mwdc": 384,
+   "ilr": 1.28,
+   "bess_over_pv": 0.8,
+   "bess_mw": 250,
+   "bess_mwh": 500,
+   "poi_mw": 300,
+   "poi_variants_mw": [
+    300,
+    360
+   ],
+   "weight": 0.0294
+  }
+ ],
+ "sites": [
+  {
+   "plant_code": 63255,
+   "pv_mwac": 420.0,
+   "pv_mwdc": 520.0,
+   "ilr": 1.238,
+   "bess_mw": 40.0,
+   "bess_mwh": 40.0,
+   "duration_h": 1.0,
+   "bess_over_pv": 0.095,
+   "coupling": "ac",
+   "colocated_by": "same_plant",
+   "region": "west"
+  },
+  {
+   "plant_code": 62561,
+   "pv_mwac": 400.0,
+   "pv_mwdc": 497.0,
+   "ilr": 1.242,
+   "bess_mw": 63.3,
+   "bess_mwh": 108.6,
+   "duration_h": 1.72,
+   "bess_over_pv": 0.158,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "west"
+  },
+  {
+   "plant_code": 66420,
+   "pv_mwac": 355.4,
+   "pv_mwdc": 431.0,
+   "ilr": 1.213,
+   "bess_mw": 262.5,
+   "bess_mwh": 250.0,
+   "duration_h": 0.95,
+   "bess_over_pv": 0.739,
+   "coupling": "ac",
+   "colocated_by": "same_plant",
+   "region": "central"
+  },
+  {
+   "plant_code": 65644,
+   "pv_mwac": 326.6,
+   "pv_mwdc": 412.9,
+   "ilr": 1.264,
+   "bess_mw": 160.0,
+   "bess_mwh": 320.0,
+   "duration_h": 2.0,
+   "bess_over_pv": 0.49,
+   "coupling": "ac",
+   "colocated_by": "same_plant",
+   "region": "west"
+  },
+  {
+   "plant_code": 65645,
+   "pv_mwac": 326.6,
+   "pv_mwdc": 415.2,
+   "ilr": 1.271,
+   "bess_mw": 160.0,
+   "bess_mwh": 320.0,
+   "duration_h": 2.0,
+   "bess_over_pv": 0.49,
+   "coupling": "ac",
+   "colocated_by": "same_plant",
+   "region": "west"
+  },
+  {
+   "plant_code": 66688,
+   "pv_mwac": 300.0,
+   "pv_mwdc": 394.0,
+   "ilr": 1.313,
+   "bess_mw": 103.6,
+   "bess_mwh": 100.0,
+   "duration_h": 0.97,
+   "bess_over_pv": 0.345,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 65271,
+   "pv_mwac": 275.0,
+   "pv_mwdc": 353.5,
+   "ilr": 1.285,
+   "bess_mw": 125.0,
+   "bess_mwh": 125.0,
+   "duration_h": 1.0,
+   "bess_over_pv": 0.455,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 67762,
+   "pv_mwac": 255.9,
+   "pv_mwdc": 326.0,
+   "ilr": 1.274,
+   "bess_mw": 72.2,
+   "bess_mwh": 115.0,
+   "duration_h": 1.59,
+   "bess_over_pv": 0.282,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 66821,
+   "pv_mwac": 250.0,
+   "pv_mwdc": 325.0,
+   "ilr": 1.3,
+   "bess_mw": 159.2,
+   "bess_mwh": 150.0,
+   "duration_h": 0.94,
+   "bess_over_pv": 0.637,
+   "coupling": "ac",
+   "colocated_by": "direct_support",
+   "region": "central"
+  },
+  {
+   "plant_code": 65303,
+   "pv_mwac": 250.0,
+   "pv_mwdc": 347.8,
+   "ilr": 1.391,
+   "bess_mw": 123.3,
+   "bess_mwh": 123.0,
+   "duration_h": 1.0,
+   "bess_over_pv": 0.493,
+   "coupling": "independent",
+   "colocated_by": "nearby_named",
+   "region": "north"
+  },
+  {
+   "plant_code": 66801,
+   "pv_mwac": 236.0,
+   "pv_mwdc": 300.0,
+   "ilr": 1.271,
+   "bess_mw": 72.0,
+   "bess_mwh": 115.0,
+   "duration_h": 1.6,
+   "bess_over_pv": 0.305,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 63905,
+   "pv_mwac": 225.0,
+   "pv_mwdc": 283.9,
+   "ilr": 1.262,
+   "bess_mw": 91.2,
+   "bess_mwh": 80.5,
+   "duration_h": 0.88,
+   "bess_over_pv": 0.405,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 66872,
+   "pv_mwac": 204.5,
+   "pv_mwdc": 262.8,
+   "ilr": 1.285,
+   "bess_mw": 100.0,
+   "bess_mwh": 158.3,
+   "duration_h": 1.58,
+   "bess_over_pv": 0.489,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 68145,
+   "pv_mwac": 195.0,
+   "pv_mwdc": 263.0,
+   "ilr": 1.349,
+   "bess_mw": 100.0,
+   "bess_mwh": 249.4,
+   "duration_h": 2.49,
+   "bess_over_pv": 0.513,
+   "coupling": "independent",
+   "colocated_by": "nearby_named",
+   "region": "west"
+  },
+  {
+   "plant_code": 60123,
+   "pv_mwac": 180.0,
+   "pv_mwdc": 234.0,
+   "ilr": 1.3,
+   "bess_mw": 9.9,
+   "bess_mwh": 42.0,
+   "duration_h": 4.24,
+   "bess_over_pv": 0.055,
+   "coupling": "ac",
+   "colocated_by": "same_plant",
+   "region": "west"
+  },
+  {
+   "plant_code": 66137,
+   "pv_mwac": 160.0,
+   "pv_mwdc": 208.0,
+   "ilr": 1.3,
+   "bess_mw": 40.4,
+   "bess_mwh": 80.0,
+   "duration_h": 1.98,
+   "bess_over_pv": 0.253,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "west"
+  },
+  {
+   "plant_code": 67284,
+   "pv_mwac": 150.5,
+   "pv_mwdc": 208.5,
+   "ilr": 1.385,
+   "bess_mw": 70.5,
+   "bess_mwh": 115.0,
+   "duration_h": 1.63,
+   "bess_over_pv": 0.468,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "south"
+  },
+  {
+   "plant_code": 67019,
+   "pv_mwac": 150.0,
+   "pv_mwdc": 198.0,
+   "ilr": 1.32,
+   "bess_mw": 100.0,
+   "bess_mwh": 100.0,
+   "duration_h": 1.0,
+   "bess_over_pv": 0.667,
+   "coupling": "ac",
+   "colocated_by": "same_plant",
+   "region": "central"
+  },
+  {
+   "plant_code": 60581,
+   "pv_mwac": 150.0,
+   "pv_mwdc": 213.0,
+   "ilr": 1.42,
+   "bess_mw": 24.8,
+   "bess_mwh": 25.0,
+   "duration_h": 1.01,
+   "bess_over_pv": 0.165,
+   "coupling": "independent",
+   "colocated_by": "nearby_named",
+   "region": "west"
+  },
+  {
+   "plant_code": 63892,
+   "pv_mwac": 146.7,
+   "pv_mwdc": 180.9,
+   "ilr": 1.233,
+   "bess_mw": 55.2,
+   "bess_mwh": 80.5,
+   "duration_h": 1.46,
+   "bess_over_pv": 0.376,
+   "coupling": "independent",
+   "colocated_by": "same_plant",
+   "region": "north"
+  },
+  {
+   "plant_code": 65521,
+   "pv_mwac": 78.1,
+   "pv_mwdc": 112.0,
+   "ilr": 1.434,
+   "bess_mw": 174.0,
+   "bess_mwh": 407.4,
+   "duration_h": 2.34,
+   "bess_over_pv": 2.228,
+   "coupling": "independent",
+   "colocated_by": "nearby_named",
+   "region": "houston"
+  },
+  {
+   "plant_code": 62610,
+   "pv_mwac": 5.0,
+   "pv_mwdc": 5.9,
+   "ilr": 1.18,
+   "bess_mw": 10.0,
+   "bess_mwh": 10.0,
+   "duration_h": 1.0,
+   "bess_over_pv": 2.0,
+   "coupling": "independent",
+   "colocated_by": "nearby_named",
+   "region": "south"
+  }
+ ],
+ "notes": [
+  "sites = ERCO plants (EIA-860 2025 2___Plant BA code) with operable PV (3_3) and operable storage (3_4) at the same plant code, linked by Direct Support Plant ID 1, or a storage plant within NEAR_KM whose name starts with the same word (nearby_named)",
+  "POI is not public: it defaults to the PV AC nameplate, with a 1.2x variant (V3-D7)",
+  "weights: in-window site counts per nearest grid cell plus 0.5 smoothing",
+  "region from plant lat/lon by coarse boxes (approximate)"
+ ]
+}

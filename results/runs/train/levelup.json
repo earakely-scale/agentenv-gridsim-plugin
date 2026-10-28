@@ -1,0 +1,163 @@
+{
+ "schema": "gridsim.levelup/v1",
+ "task_id": "dam-v1-2025-01-14-LZ_HOUSTON-4h-x",
+ "model": "Qwen/Qwen3-1.7B",
+ "rule": "the largest base-to-trained gain in reward among held-out days where the trained model scores at least 0.85",
+ "note": "day picked after the runs to show the arc, not by the rule, which picks dam-v1-2025-10-05-LZ_AEN-1h-f",
+ "why": "On this day the plan climbs from 0.22 at the end of arm 2 to 0.85 in arm 2c. It was picked with every arm's result in hand, so it shows the arc, not a typical day: the numbers over all 200 held-out days sit beside it",
+ "decoding": "sampled for every frame where the run has it",
+ "days": {
+  "candidates": 200,
+  "doing_well": 76
+ },
+ "context": {
+  "tasks": 200,
+  "base": 0.0,
+  "sft": 0.5418,
+  "arms": [
+   {
+    "label": "arm 2 (exploratory, not pre-registered)",
+    "step": 75,
+    "reward": 0.579
+   },
+   {
+    "label": "arm 2b (exploratory continuation)",
+    "step": 180,
+    "reward": 0.6684
+   },
+   {
+    "label": "arm 2c (exploratory continuation)",
+    "step": 330,
+    "reward": 0.7197
+   }
+  ],
+  "trained": 0.7197,
+  "greedy": 0.764,
+  "threshold": 0.6371,
+  "reading": "above the threshold rule (paired +0.08 [+0.03, +0.13]) and level with the greedy rule (paired -0.04 [-0.09, +0.00])",
+  "opening": {
+   "hour": 2,
+   "charge": false,
+   "share": [
+    36,
+    200
+   ]
+  }
+ },
+ "total_steps": 330,
+ "gain": 0.847236,
+ "frames": [
+  {
+   "episode_id": "7869470f73d9b9cb",
+   "trained": "base",
+   "step": 0,
+   "reward": 0.0,
+   "arm": "arm 2 (exploratory, not pre-registered)"
+  },
+  {
+   "episode_id": "4e023a6916622552",
+   "trained": "sft",
+   "step": 0,
+   "reward": 0.393588,
+   "arm": "arm 2 (exploratory, not pre-registered)"
+  },
+  {
+   "episode_id": "e4fb41ca2b4e2a81",
+   "trained": "grpo",
+   "step": 25,
+   "reward": 0.393588,
+   "arm": "arm 2 (exploratory, not pre-registered)"
+  },
+  {
+   "episode_id": "5fc11682de94e6ae",
+   "trained": "grpo",
+   "step": 50,
+   "reward": 0.217229,
+   "arm": "arm 2 (exploratory, not pre-registered)"
+  },
+  {
+   "episode_id": "d11ff29e98522579",
+   "trained": "grpo",
+   "step": 75,
+   "reward": 0.220736,
+   "arm": "arm 2 (exploratory, not pre-registered)"
+  },
+  {
+   "episode_id": "32564891417afd0d",
+   "trained": "grpo",
+   "step": 100,
+   "reward": 0.217442,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "c38f3c5c3f67e57f",
+   "trained": "grpo",
+   "step": 125,
+   "reward": 0.795188,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "0f19d0a87e2af9e0",
+   "trained": "grpo",
+   "step": 150,
+   "reward": 0.795188,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "536b3de441b64a9c",
+   "trained": "grpo",
+   "step": 175,
+   "reward": 0.795188,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "a875d9b56ddad5d7",
+   "trained": "grpo",
+   "step": 180,
+   "reward": 0.795188,
+   "arm": "arm 2b (exploratory continuation)"
+  },
+  {
+   "episode_id": "fbe2c980e06ec58f",
+   "trained": "grpo",
+   "step": 205,
+   "reward": 0.795188,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "377109e242b7c3e9",
+   "trained": "grpo",
+   "step": 230,
+   "reward": 0.805269,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "e5da69a0f36ca91e",
+   "trained": "grpo",
+   "step": 255,
+   "reward": 0.837843,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "e56a75b637f0273e",
+   "trained": "grpo",
+   "step": 280,
+   "reward": 0.847236,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "97850433e8952340",
+   "trained": "grpo",
+   "step": 305,
+   "reward": 0.847236,
+   "arm": "arm 2c (exploratory continuation)"
+  },
+  {
+   "episode_id": "0f2c18b49963c9e7",
+   "trained": "grpo",
+   "step": 330,
+   "reward": 0.847236,
+   "arm": "arm 2c (exploratory continuation)"
+  }
+ ]
+}

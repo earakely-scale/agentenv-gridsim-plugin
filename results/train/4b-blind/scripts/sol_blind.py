@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pathb_blind import graded  # noqa: E402
 
 from gridsim_core.episode import to_episode_json  # noqa: E402
-from gridsim_core.forecast import parse_forecast  # noqa: E402
+from gridsim_core.forecast_line import parse_forecast  # noqa: E402
 from gridsim_core.prompt import situation_text, system_prompt, tool_schemas  # noqa: E402
 from gridsim_core.task import load_pack  # noqa: E402
 from gridsim_core.trl import extract_actions  # noqa: E402

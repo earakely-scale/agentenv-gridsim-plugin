@@ -1,0 +1,4939 @@
+{
+ "earlier_pilot": "rules 3.0, kept on record; the current v3 pilot (rules 3.2) is results/pilot-v3c.json",
+ "columns": {
+  "reserves": {
+   "primary": {
+    "reserves primary: all": {
+     "n": 30,
+     "reward": 0.8109902,
+     "reward_ci": [
+      0.7397337,
+      0.8765178666666666
+     ],
+     "reward_at_1": 0.2,
+     "capture": 0.3969896524843365,
+     "capture_ci": [
+      0.3118613252632206,
+      0.4831669852199078
+     ],
+     "anchor_capture": 0.4797729690245008,
+     "capture_minus_anchor": -0.08278331654016433,
+     "capture_minus_anchor_ci": [
+      -0.1212313140191668,
+      -0.04825954401677262
+     ],
+     "beats_anchor": 0.2,
+     "v2_energy": 0.8364687666666667,
+     "reward_minus_v2_energy": -0.02547856666666665,
+     "reward_minus_v2_energy_ci": [
+      -0.10000226666666666,
+      0.042235733333333345
+     ],
+     "beats_v2_energy": 0.5,
+     "as_share": 0.5104795,
+     "as_usd": 5985.332666666666,
+     "anchor_as_usd": 6241.480356733334,
+     "as_vs_anchor_median": 0.9605966151475988,
+     "da_mwh": {
+      "regup": 15.933333333333334,
+      "regdn": 1102.836,
+      "rrs": 1473.433,
+      "ecrs": 17.845,
+      "nspin": 13.577666666666667
+     },
+     "anchor_da_mwh": {
+      "regup": 493.22266666666667,
+      "regdn": 664.6906666666666,
+      "rrs": 1025.905,
+      "ecrs": 117.86566666666667,
+      "nspin": 68.86066666666666
+     },
+     "ftp_mwh_charged": 2.609443683387204,
+     "ftp_mwh_excused": 43.02298395662857,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 60.570204901616144,
+      "rrs": 17.705645599999965,
+      "ecrs": 0.0,
+      "nspin": 0.00746000000000151
+     },
+     "ftp_excused_by_product": {
+      "regup": 21.87620121959503,
+      "regdn": 814.8550585683843,
+      "rrs": 445.71107111647035,
+      "ecrs": 0.0,
+      "nspin": 8.24718779440744
+     },
+     "days_ftp_charged": 11,
+     "under_reserved_days": 15,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 8,
+      "rrs": 10,
+      "ecrs": 1,
+      "nspin": 1
+     },
+     "refused_rows_by_rule": {
+      "reserve_up": 16,
+      "reserve_dn": 14,
+      "parse": 10,
+      "soc_empty": 5,
+      "soc_full": 3,
+      "cycle_cap": 2,
+      "headroom_dn": 1,
+      "as_fixed": 1,
+      "headroom_up": 1
+     },
+     "check_issues_by_rule": {
+      "reserve_up": 172,
+      "reserve_dn": 36,
+      "soc_empty": 32,
+      "as_fixed": 21,
+      "parse": 15,
+      "soc_full": 12,
+      "power": 9,
+      "cycle_cap": 6,
+      "headroom_dn": 2,
+      "headroom_up": 1
+     },
+     "refused_commits": 16,
+     "days_with_refusal": 12,
+     "governor_hours": 3.8666666666666667,
+     "end_short_days": 6,
+     "replan_rate": 0.4596774193548387,
+     "replanned_days": 0.8666666666666667,
+     "anchor_replan_rate": 0.3225806451612903,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.1901594,
+     "turns": 17.6,
+     "input_tokens": 341107.5333333333,
+     "output_tokens": 10186.5,
+     "cached_tokens": 312589.8333333333,
+     "errors": {
+      "governed": 24,
+      "refused": 18,
+      "ftp_charged": 11,
+      "end_short": 6,
+      "no_replanning": 4,
+      "as_unused": 1
+     },
+     "as_hog": 0.4640087333333333,
+     "reward_minus_as_hog": 0.3469814666666667,
+     "reward_minus_as_hog_ci": [
+      0.25060943333333335,
+      0.43864363333333334
+     ],
+     "beats_as_hog": 0.9,
+     "energy_only": 0.8364687666666667,
+     "reward_minus_energy_only": -0.02547856666666665,
+     "reward_minus_energy_only_ci": [
+      -0.10000226666666666,
+      0.042235733333333345
+     ],
+     "beats_energy_only": 0.5
+    },
+    "reserves primary: low AS": {
+     "n": 10,
+     "reward": 0.8303717,
+     "reward_ci": [
+      0.6744990000000001,
+      0.9384474
+     ],
+     "reward_at_1": 0.2,
+     "capture": 0.34863607123477147,
+     "capture_ci": [
+      0.23272149498368594,
+      0.4682518092505975
+     ],
+     "anchor_capture": 0.41642789320633666,
+     "capture_minus_anchor": -0.06779182197156519,
+     "capture_minus_anchor_ci": [
+      -0.11940723299557726,
+      -0.02160318170630673
+     ],
+     "beats_anchor": 0.2,
+     "v2_energy": 0.8534769,
+     "reward_minus_v2_energy": -0.02310519999999997,
+     "reward_minus_v2_energy_ci": [
+      -0.19608939999999997,
+      0.10699910000000003
+     ],
+     "beats_v2_energy": 0.5,
+     "as_share": 0.4961736,
+     "as_usd": 2731.369,
+     "anchor_as_usd": 3132.0423651,
+     "as_vs_anchor_median": 0.8846488514916475,
+     "da_mwh": {
+      "regup": 0,
+      "regdn": 758.102,
+      "rrs": 1118.335,
+      "ecrs": 8.175,
+      "nspin": 20.303
+     },
+     "anchor_da_mwh": {
+      "regup": 406.03499999999997,
+      "regdn": 536.643,
+      "rrs": 707.527,
+      "ecrs": 107.342,
+      "nspin": 68.099
+     },
+     "ftp_mwh_charged": 3.045366882352937,
+     "ftp_mwh_excused": 28.086530032066534,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 30.446208823529368,
+      "rrs": 0.0,
+      "ecrs": 0.0,
+      "nspin": 0.00746000000000151
+     },
+     "ftp_excused_by_product": {
+      "regup": 0.0,
+      "regdn": 119.64556617647051,
+      "rrs": 154.5692853589264,
+      "ecrs": 0.0,
+      "nspin": 6.6504487852684155
+     },
+     "days_ftp_charged": 3,
+     "under_reserved_days": 5,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 3,
+      "rrs": 1,
+      "ecrs": 0,
+      "nspin": 1
+     },
+     "refused_rows_by_rule": {
+      "parse": 6,
+      "reserve_dn": 5,
+      "soc_empty": 3,
+      "reserve_up": 1
+     },
+     "check_issues_by_rule": {
+      "reserve_up": 61,
+      "soc_empty": 11,
+      "reserve_dn": 7,
+      "power": 5,
+      "parse": 4,
+      "cycle_cap": 1,
+      "headroom_dn": 1
+     },
+     "refused_commits": 4,
+     "days_with_refusal": 4,
+     "governor_hours": 4.4,
+     "end_short_days": 1,
+     "replan_rate": 0.525,
+     "replanned_days": 1.0,
+     "anchor_replan_rate": 0.35,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.2221495,
+     "turns": 17.2,
+     "input_tokens": 344769.9,
+     "output_tokens": 12911.3,
+     "cached_tokens": 313949.1,
+     "errors": {
+      "refused": 8,
+      "governed": 8,
+      "ftp_charged": 3,
+      "end_short": 1
+     },
+     "as_hog": 0.4788843,
+     "reward_minus_as_hog": 0.3514874,
+     "reward_minus_as_hog_ci": [
+      0.27218000000000003,
+      0.4396011
+     ],
+     "beats_as_hog": 1.0,
+     "energy_only": 0.8534769,
+     "reward_minus_energy_only": -0.02310519999999997,
+     "reward_minus_energy_only_ci": [
+      -0.19608939999999997,
+      0.10699910000000003
+     ],
+     "beats_energy_only": 0.5
+    },
+    "reserves primary: mid AS": {
+     "n": 10,
+     "reward": 0.7740371,
+     "reward_ci": [
+      0.6747043,
+      0.8750135
+     ],
+     "reward_at_1": 0.1,
+     "capture": 0.3122255425975172,
+     "capture_ci": [
+      0.20650084838129584,
+      0.42863478373879216
+     ],
+     "anchor_capture": 0.40396673948855133,
+     "capture_minus_anchor": -0.09174119689103408,
+     "capture_minus_anchor_ci": [
+      -0.13417564857188086,
+      -0.0486251824806851
+     ],
+     "beats_anchor": 0.1,
+     "v2_energy": 0.8699285999999999,
+     "reward_minus_v2_energy": -0.09589149999999998,
+     "reward_minus_v2_energy_ci": [
+      -0.19960629999999996,
+      0.010711400000000015
+     ],
+     "beats_v2_energy": 0.3,
+     "as_share": 0.546774,
+     "as_usd": 6486.1,
+     "anchor_as_usd": 6593.2259537,
+     "as_vs_anchor_median": 0.9853792084468851,
+     "da_mwh": {
+      "regup": 32.8,
+      "regdn": 1433.85,
+      "rrs": 1701.875,
+      "ecrs": 25.98,
+      "nspin": 9.42
+     },
+     "anchor_da_mwh": {
+      "regup": 584.127,
+      "regdn": 816.711,
+      "rrs": 1196.796,
+      "ecrs": 105.161,
+      "nspin": 98.039
+     },
+     "ftp_mwh_charged": 3.9347241078086728,
+     "ftp_mwh_excused": 57.293417970562665,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 27.346596078086773,
+      "rrs": 12.000644999999956,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "ftp_excused_by_product": {
+      "regup": 21.87620121959503,
+      "regdn": 432.35303268603155,
+      "rrs": 118.70494580000008,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "days_ftp_charged": 6,
+     "under_reserved_days": 7,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 4,
+      "rrs": 6,
+      "ecrs": 0,
+      "nspin": 0
+     },
+     "refused_rows_by_rule": {
+      "reserve_up": 12,
+      "reserve_dn": 6,
+      "parse": 3,
+      "soc_full": 2,
+      "soc_empty": 2,
+      "headroom_dn": 1,
+      "as_fixed": 1,
+      "headroom_up": 1
+     },
+     "check_issues_by_rule": {
+      "reserve_up": 59,
+      "as_fixed": 21,
+      "reserve_dn": 20,
+      "soc_empty": 13,
+      "parse": 6,
+      "soc_full": 4,
+      "headroom_dn": 1,
+      "cycle_cap": 1,
+      "headroom_up": 1
+     },
+     "refused_commits": 8,
+     "days_with_refusal": 5,
+     "governor_hours": 3.3,
+     "end_short_days": 2,
+     "replan_rate": 0.43902439024390244,
+     "replanned_days": 0.9,
+     "anchor_replan_rate": 0.3170731707317073,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.1809712,
+     "turns": 17.5,
+     "input_tokens": 334343.3,
+     "output_tokens": 9436.1,
+     "cached_tokens": 306356,
+     "errors": {
+      "governed": 8,
+      "ftp_charged": 6,
+      "refused": 6,
+      "end_short": 2,
+      "no_replanning": 1
+     },
+     "as_hog": 0.4105416,
+     "reward_minus_as_hog": 0.3634955,
+     "reward_minus_as_hog_ci": [
+      0.1896912,
+      0.5475544
+     ],
+     "beats_as_hog": 0.8,
+     "energy_only": 0.8699285999999999,
+     "reward_minus_energy_only": -0.09589149999999998,
+     "reward_minus_energy_only_ci": [
+      -0.19960629999999996,
+      0.010711400000000015
+     ],
+     "beats_energy_only": 0.3
+    },
+    "reserves primary: high AS": {
+     "n": 10,
+     "reward": 0.8285618,
+     "reward_ci": [
+      0.7042534,
+      0.9437802
+     ],
+     "reward_at_1": 0.3,
+     "capture": 0.5301073436207207,
+     "capture_ci": [
+      0.3595119311044346,
+      0.7044935578281021
+     ],
+     "anchor_capture": 0.6189242743786144,
+     "capture_minus_anchor": -0.08881693075789371,
+     "capture_minus_anchor_ci": [
+      -0.17557871492787344,
+      -0.010721366632100496
+     ],
+     "beats_anchor": 0.3,
+     "v2_energy": 0.7860008,
+     "reward_minus_v2_energy": 0.042561,
+     "reward_minus_v2_energy_ci": [
+      -0.03635679999999996,
+      0.11987740000000001
+     ],
+     "beats_v2_energy": 0.7,
+     "as_share": 0.4884909,
+     "as_usd": 8738.529,
+     "anchor_as_usd": 8999.1727514,
+     "as_vs_anchor_median": 0.9971697667403652,
+     "da_mwh": {
+      "regup": 15,
+      "regdn": 1116.556,
+      "rrs": 1600.089,
+      "ecrs": 19.38,
+      "nspin": 11.01
+     },
+     "anchor_da_mwh": {
+      "regup": 489.50600000000003,
+      "regdn": 640.718,
+      "rrs": 1173.392,
+      "ecrs": 141.094,
+      "nspin": 40.443999999999996
+     },
+     "ftp_mwh_charged": 0.8482400600000017,
+     "ftp_mwh_excused": 43.68900386725651,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 2.7774000000000068,
+      "rrs": 5.70500060000001,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "ftp_excused_by_product": {
+      "regup": 0.0,
+      "regdn": 262.8564597058822,
+      "rrs": 172.43683995754387,
+      "ecrs": 0.0,
+      "nspin": 1.5967390091390243
+     },
+     "days_ftp_charged": 2,
+     "under_reserved_days": 3,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 1,
+      "rrs": 3,
+      "ecrs": 1,
+      "nspin": 0
+     },
+     "refused_rows_by_rule": {
+      "reserve_up": 3,
+      "reserve_dn": 3,
+      "cycle_cap": 2,
+      "soc_full": 1,
+      "parse": 1
+     },
+     "check_issues_by_rule": {
+      "reserve_up": 52,
+      "reserve_dn": 9,
+      "soc_empty": 8,
+      "soc_full": 8,
+      "parse": 5,
+      "cycle_cap": 4,
+      "power": 4
+     },
+     "refused_commits": 4,
+     "days_with_refusal": 3,
+     "governor_hours": 3.9,
+     "end_short_days": 3,
+     "replan_rate": 0.4186046511627907,
+     "replanned_days": 0.7,
+     "anchor_replan_rate": 0.3023255813953488,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.1673575,
+     "turns": 18.1,
+     "input_tokens": 344209.4,
+     "output_tokens": 8212.1,
+     "cached_tokens": 317464.4,
+     "errors": {
+      "governed": 8,
+      "refused": 4,
+      "end_short": 3,
+      "no_replanning": 3,
+      "ftp_charged": 2,
+      "as_unused": 1
+     },
+     "as_hog": 0.5026003,
+     "reward_minus_as_hog": 0.3259615,
+     "reward_minus_as_hog_ci": [
+      0.1384682,
+      0.5022926
+     ],
+     "beats_as_hog": 0.9,
+     "energy_only": 0.7860008,
+     "reward_minus_energy_only": 0.042561,
+     "reward_minus_energy_only_ci": [
+      -0.03635679999999996,
+      0.11987740000000001
+     ],
+     "beats_energy_only": 0.7
+    },
+    "reserves primary: notice days": {
+     "n": 10,
+     "reward": 0.8474006000000001,
+     "reward_ci": [
+      0.748999,
+      0.9374153000000001
+     ],
+     "reward_at_1": 0.2,
+     "capture": 0.4748116187275671,
+     "capture_ci": [
+      0.33702330365868766,
+      0.6251683918622933
+     ],
+     "anchor_capture": 0.54356201442436,
+     "capture_minus_anchor": -0.06875039569679295,
+     "capture_minus_anchor_ci": [
+      -0.11987994219919362,
+      -0.01623874015364731
+     ],
+     "beats_anchor": 0.2,
+     "v2_energy": 0.8237331,
+     "reward_minus_v2_energy": 0.02366750000000002,
+     "reward_minus_v2_energy_ci": [
+      -0.07639229999999994,
+      0.1164725
+     ],
+     "beats_v2_energy": 0.6,
+     "as_share": 0.4669722,
+     "as_usd": 6149.415,
+     "anchor_as_usd": 6149.2806588,
+     "as_vs_anchor_median": 0.959001322608019,
+     "da_mwh": {
+      "regup": 40,
+      "regdn": 1021.773,
+      "rrs": 1710.042,
+      "ecrs": 19.38,
+      "nspin": 15.34
+     },
+     "anchor_da_mwh": {
+      "regup": 477.166,
+      "regdn": 690.3199999999999,
+      "rrs": 1284.676,
+      "ecrs": 85.217,
+      "nspin": 50.189
+     },
+     "ftp_mwh_charged": 3.938907207058824,
+     "ftp_mwh_excused": 48.11661710078592,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 29.485926470588186,
+      "rrs": 9.90314560000005,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "ftp_excused_by_product": {
+      "regup": 0.0,
+      "regdn": 291.99803494117634,
+      "rrs": 187.5713970575439,
+      "ecrs": 0.0,
+      "nspin": 1.5967390091390243
+     },
+     "days_ftp_charged": 6,
+     "under_reserved_days": 6,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 4,
+      "rrs": 5,
+      "ecrs": 1,
+      "nspin": 0
+     },
+     "refused_rows_by_rule": {
+      "reserve_dn": 10,
+      "soc_empty": 2,
+      "cycle_cap": 2,
+      "reserve_up": 2,
+      "headroom_dn": 1
+     },
+     "check_issues_by_rule": {
+      "reserve_up": 84,
+      "reserve_dn": 21,
+      "soc_empty": 12,
+      "soc_full": 12,
+      "parse": 8,
+      "cycle_cap": 5,
+      "power": 4
+     },
+     "refused_commits": 5,
+     "days_with_refusal": 5,
+     "governor_hours": 5.4,
+     "end_short_days": 1,
+     "replan_rate": 0.5227272727272727,
+     "replanned_days": 0.9,
+     "anchor_replan_rate": 0.36363636363636365,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.2042197,
+     "turns": 19.8,
+     "input_tokens": 411380.2,
+     "output_tokens": 10419.1,
+     "cached_tokens": 380385.1,
+     "errors": {
+      "governed": 9,
+      "ftp_charged": 6,
+      "refused": 5,
+      "end_short": 1,
+      "no_replanning": 1
+     },
+     "as_hog": 0.4282588,
+     "reward_minus_as_hog": 0.4191418,
+     "reward_minus_as_hog_ci": [
+      0.24214580000000002,
+      0.6006793
+     ],
+     "beats_as_hog": 0.9,
+     "energy_only": 0.8237331,
+     "reward_minus_energy_only": 0.02366750000000002,
+     "reward_minus_energy_only_ci": [
+      -0.07639229999999994,
+      0.1164725
+     ],
+     "beats_energy_only": 0.6
+    },
+    "reserves primary: quiet days": {
+     "n": 20,
+     "reward": 0.7927850000000001,
+     "reward_ci": [
+      0.69999225,
+      0.87743775
+     ],
+     "reward_at_1": 0.2,
+     "capture": 0.35807866936272115,
+     "capture_ci": [
+      0.2626546363393633,
+      0.4631071433706709
+     ],
+     "anchor_capture": 0.44787844632457113,
+     "capture_minus_anchor": -0.08979977696185001,
+     "capture_minus_anchor_ci": [
+      -0.13988632351826083,
+      -0.04781520542570299
+     ],
+     "beats_anchor": 0.2,
+     "v2_energy": 0.8428366,
+     "reward_minus_v2_energy": -0.05005159999999998,
+     "reward_minus_v2_energy_ci": [
+      -0.14473329999999995,
+      0.036446600000000016
+     ],
+     "beats_v2_energy": 0.45,
+     "as_share": 0.53223315,
+     "as_usd": 5903.2915,
+     "anchor_as_usd": 6287.5802057,
+     "as_vs_anchor_median": 0.9786288662899383,
+     "da_mwh": {
+      "regup": 3.9,
+      "regdn": 1143.3675,
+      "rrs": 1355.1285,
+      "ecrs": 17.0775,
+      "nspin": 12.6965
+     },
+     "anchor_da_mwh": {
+      "regup": 501.251,
+      "regdn": 651.876,
+      "rrs": 896.5195,
+      "ecrs": 134.19,
+      "nspin": 78.1965
+     },
+     "ftp_mwh_charged": 1.9447119215513937,
+     "ftp_mwh_excused": 40.47616738454989,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 31.084278431027958,
+      "rrs": 7.802499999999916,
+      "ecrs": 0.0,
+      "nspin": 0.00746000000000151
+     },
+     "ftp_excused_by_product": {
+      "regup": 21.87620121959503,
+      "regdn": 522.8570236272079,
+      "rrs": 258.13967405892646,
+      "ecrs": 0.0,
+      "nspin": 6.6504487852684155
+     },
+     "days_ftp_charged": 5,
+     "under_reserved_days": 9,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 4,
+      "rrs": 5,
+      "ecrs": 0,
+      "nspin": 1
+     },
+     "refused_rows_by_rule": {
+      "reserve_up": 14,
+      "parse": 10,
+      "reserve_dn": 4,
+      "soc_empty": 3,
+      "soc_full": 3,
+      "as_fixed": 1,
+      "headroom_up": 1
+     },
+     "check_issues_by_rule": {
+      "reserve_up": 88,
+      "as_fixed": 21,
+      "soc_empty": 20,
+      "reserve_dn": 15,
+      "parse": 7,
+      "power": 5,
+      "headroom_dn": 2,
+      "cycle_cap": 1,
+      "headroom_up": 1
+     },
+     "refused_commits": 11,
+     "days_with_refusal": 7,
+     "governor_hours": 3.1,
+     "end_short_days": 5,
+     "replan_rate": 0.425,
+     "replanned_days": 0.85,
+     "anchor_replan_rate": 0.3,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.18312925,
+     "turns": 16.5,
+     "input_tokens": 305971.2,
+     "output_tokens": 10070.2,
+     "cached_tokens": 278692.2,
+     "errors": {
+      "governed": 15,
+      "refused": 13,
+      "ftp_charged": 5,
+      "end_short": 5,
+      "no_replanning": 3,
+      "as_unused": 1
+     },
+     "as_hog": 0.4818837,
+     "reward_minus_as_hog": 0.3109013,
+     "reward_minus_as_hog_ci": [
+      0.20087075000000001,
+      0.40986345
+     ],
+     "beats_as_hog": 0.9,
+     "energy_only": 0.8428366,
+     "reward_minus_energy_only": -0.05005159999999998,
+     "reward_minus_energy_only_ci": [
+      -0.14473329999999995,
+      0.036446600000000016
+     ],
+     "beats_energy_only": 0.45
+    },
+    "days": [
+     {
+      "task_id": "hyb-v3-2025-01-24-LZ_AEN-pv100-r40-2h-poi120",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "LZ_AEN",
+      "date": "2025-01-24",
+      "notice_day": false,
+      "reward": 0.974817,
+      "raw_ratio": 0.968521,
+      "profit_usd": 14396.072738,
+      "p_idle": 9909.88583,
+      "p_anchor": 14541.883662,
+      "p_hind": 22962.42425,
+      "capture": 0.34370225649946806,
+      "anchor_capture": 0.3548733344391106,
+      "beats_anchor": false,
+      "v2_energy": 0.904582,
+      "beats_v2_energy": true,
+      "as_share": 0.22456,
+      "as_usd": 1007.42,
+      "anchor_as_usd": 996.019217,
+      "as_vs_anchor": 1.011446348429239,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 192.52,
+       "rrs": 784.1500000000001,
+       "ecrs": 3.75,
+       "nspin": 3.52
+      },
+      "anchor_da_mwh": {
+       "regup": 172.04000000000002,
+       "regdn": 241.54000000000002,
+       "rrs": 486.59000000000003,
+       "ecrs": 3.75,
+       "nspin": 68.74000000000001
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 21.015650358926344,
+       "ecrs": 0.0,
+       "nspin": 0.04034978526841464
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 21.05600014419476,
+      "ftp_usd": 0.0,
+      "excused_usd": 50.35,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 2,
+       "soc_empty": 1
+      },
+      "check_rules": {
+       "power": 2
+      },
+      "refused_commits": 1,
+      "governor_hours": 3,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 1,
+      "anchor_replans": 0,
+      "commits": 2,
+      "planning_calls": 6,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.348327,
+      "turns": 16,
+      "input_tokens": 393739,
+      "output_tokens": 23408,
+      "cached_tokens": 354332,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.33913,
+      "beats_as_hog": true,
+      "energy_only": 0.904582,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-09-03-LZ_SOUTH-pv300-r80-2h-poi300",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_SOUTH",
+      "date": "2025-09-03",
+      "notice_day": false,
+      "reward": 0.773315,
+      "raw_ratio": 0.716643,
+      "profit_usd": 120358.877844,
+      "p_idle": 99089.4614,
+      "p_anchor": 128768.67992,
+      "p_hind": 166026.291231,
+      "capture": 0.31775356702282365,
+      "anchor_capture": 0.4433914572132135,
+      "beats_anchor": false,
+      "v2_energy": 0.927972,
+      "beats_v2_energy": false,
+      "as_share": 0.491994,
+      "as_usd": 12608.79,
+      "anchor_as_usd": 11923.639241,
+      "as_vs_anchor": 1.0574615471964361,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 3250,
+       "rrs": 2732.75,
+       "ecrs": 200.9,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 1182.35,
+       "regdn": 1196.08,
+       "rrs": 1675.0600000000002,
+       "ecrs": 58.77,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 7.802499999999916,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 127.91323529411778,
+       "rrs": 8.159999999999972,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 7.802499999999916,
+      "ftp_mwh_excused": 136.07323529411775,
+      "ftp_usd": 5.77,
+      "excused_usd": 106.51,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "parse": 1,
+       "reserve_up": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 3,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 0,
+      "commits": 3,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.163458,
+      "turns": 20,
+      "input_tokens": 370088,
+      "output_tokens": 7695,
+      "cached_tokens": 344036,
+      "errors": [
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.411884,
+      "beats_as_hog": true,
+      "energy_only": 0.927972,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-07-30-HB_HOUSTON-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "HB_HOUSTON",
+      "date": "2025-07-30",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.021731,
+      "profit_usd": 196849.567838,
+      "p_idle": 106582.08127,
+      "p_anchor": 194929.713316,
+      "p_hind": 203341.55366,
+      "capture": 0.9329059402491021,
+      "anchor_capture": 0.913064425257559,
+      "beats_anchor": true,
+      "v2_energy": 0.960169,
+      "beats_v2_energy": true,
+      "as_share": 0.191242,
+      "as_usd": 17418.48,
+      "anchor_as_usd": 14958.203053,
+      "as_vs_anchor": 1.1644767715936688,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 868.58,
+       "rrs": 1112.24,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 227.5,
+       "regdn": 264.76,
+       "rrs": 830.91,
+       "ecrs": 8.76,
+       "nspin": 10.45
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 24.53510588235293,
+       "rrs": 35.59850869999999,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 60.13361458235292,
+      "ftp_usd": 0.0,
+      "excused_usd": 10529.1,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 2,
+      "end_short_mwh": 18.052032,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.122583,
+      "turns": 12,
+      "input_tokens": 169423,
+      "output_tokens": 6792,
+      "cached_tokens": 149570,
+      "errors": [
+       "end_short",
+       "governed",
+       "no_replanning"
+      ],
+      "as_hog": 0.441214,
+      "beats_as_hog": true,
+      "energy_only": 0.960169,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-04-24-HB_WEST-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "HB_WEST",
+      "date": "2025-04-24",
+      "notice_day": false,
+      "reward": 0.86911,
+      "raw_ratio": 0.836388,
+      "profit_usd": 28226.5936,
+      "p_idle": 17110.60061,
+      "p_anchor": 30401.078888,
+      "p_hind": 51600.527346,
+      "capture": 0.32229679915200615,
+      "anchor_capture": 0.38534376659396097,
+      "beats_anchor": false,
+      "v2_energy": 0.945429,
+      "beats_v2_energy": false,
+      "as_share": 0.420605,
+      "as_usd": 5180.15,
+      "anchor_as_usd": 3651.077688,
+      "as_vs_anchor": 1.4188002673910782,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1505.8799999999999,
+       "rrs": 1248.34,
+       "ecrs": 78,
+       "nspin": 156.21
+      },
+      "anchor_da_mwh": {
+       "regup": 199.99,
+       "regdn": 800.51,
+       "rrs": 782.94,
+       "ecrs": 336.86,
+       "nspin": 99.1
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.00746000000000151
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 20.18767794117649,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 6.610099000000001
+      },
+      "ftp_mwh_charged": 0.00746000000000151,
+      "ftp_mwh_excused": 26.79777694117649,
+      "ftp_usd": 0.01,
+      "excused_usd": 40.14,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": true
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "reserve_up": 12,
+       "soc_empty": 2,
+       "parse": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 8,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 2,
+      "commits": 3,
+      "planning_calls": 8,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.182495,
+      "turns": 18,
+      "input_tokens": 355292,
+      "output_tokens": 9285,
+      "cached_tokens": 326810,
+      "errors": [
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.56262,
+      "beats_as_hog": true,
+      "energy_only": 0.945429,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-03-25-LZ_RAYBN-pv150-r40-2h-poi150",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_RAYBN",
+      "date": "2025-03-25",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.045757,
+      "profit_usd": 53326.873075,
+      "p_idle": 39758.01687,
+      "p_anchor": 52733.163015,
+      "p_hind": 60228.712071,
+      "capture": 0.6628429602301518,
+      "anchor_capture": 0.6338400341365132,
+      "beats_anchor": true,
+      "v2_energy": 0.819626,
+      "beats_v2_energy": true,
+      "as_share": 0.391186,
+      "as_usd": 5575.33,
+      "anchor_as_usd": 6971.739655,
+      "as_vs_anchor": 0.7997042740977108,
+      "da_mwh": {
+       "regup": 78,
+       "regdn": 534.3,
+       "rrs": 497.26,
+       "ecrs": 7.5,
+       "nspin": 33
+      },
+      "anchor_da_mwh": {
+       "regup": 297.32,
+       "regdn": 453.46,
+       "rrs": 391.74,
+       "ecrs": 25.58,
+       "nspin": 34.42
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 6.738431372204423,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 21.87620121959503,
+       "regdn": 37.098627450808074,
+       "rrs": 5.149000000000002,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 6.738431372204423,
+      "ftp_mwh_excused": 64.1238286704031,
+      "ftp_usd": 64.63,
+      "excused_usd": 4582.74,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1,
+       "soc_full": 1
+      },
+      "check_rules": {
+       "reserve_up": 5,
+       "soc_empty": 1,
+       "headroom_dn": 1,
+       "parse": 1
+      },
+      "refused_commits": 1,
+      "governor_hours": 5,
+      "end_short_mwh": 22.033601,
+      "later_watches": 4,
+      "replan_watches": 1,
+      "anchor_replans": 1,
+      "commits": 2,
+      "planning_calls": 6,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.161046,
+      "turns": 15,
+      "input_tokens": 256815,
+      "output_tokens": 8437,
+      "cached_tokens": 229976,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "end_short",
+       "governed"
+      ],
+      "as_hog": 0.5414,
+      "beats_as_hog": true,
+      "energy_only": 0.819626,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-05-21-LZ_WEST-pv150-r80-1h-poi150",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "LZ_WEST",
+      "date": "2025-05-21",
+      "notice_day": true,
+      "reward": 0.810933,
+      "raw_ratio": 0.763667,
+      "profit_usd": 52106.554337,
+      "p_idle": 37724.73045,
+      "p_anchor": 56557.325069,
+      "p_hind": 64077.225489,
+      "capture": 0.5457480920009975,
+      "anchor_capture": 0.7146418049269707,
+      "beats_anchor": false,
+      "v2_energy": 0.754239,
+      "beats_v2_energy": true,
+      "as_share": 0.650405,
+      "as_usd": 9354.01,
+      "anchor_as_usd": 6571.847186,
+      "as_vs_anchor": 1.4233456340748214,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1043,
+       "rrs": 744.35,
+       "ecrs": 43.8,
+       "nspin": 110.1
+      },
+      "anchor_da_mwh": {
+       "regup": 155.42000000000002,
+       "regdn": 760.48,
+       "rrs": 441.26,
+       "ecrs": 28.84,
+       "nspin": 57.949999999999996
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 45.18847058823526,
+       "rrs": 21.824249257543883,
+       "ecrs": 0.0,
+       "nspin": 1.5967390091390243
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 68.60945885491817,
+      "ftp_usd": 0.0,
+      "excused_usd": 117.23,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "soc_empty": 1,
+       "reserve_dn": 3,
+       "soc_full": 1,
+       "reserve_up": 7,
+       "parse": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 10,
+      "end_short_mwh": 0.33763,
+      "later_watches": 5,
+      "replan_watches": 2,
+      "anchor_replans": 3,
+      "commits": 3,
+      "planning_calls": 8,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.210484,
+      "turns": 20,
+      "input_tokens": 436394,
+      "output_tokens": 10557,
+      "cached_tokens": 404144,
+      "errors": [
+       "end_short",
+       "governed"
+      ],
+      "as_hog": 0.686134,
+      "beats_as_hog": true,
+      "energy_only": 0.754239,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-10-27-HB_NORTH-pv150-b100x2h-poi180",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "HB_NORTH",
+      "date": "2025-10-27",
+      "notice_day": false,
+      "reward": 0.809749,
+      "raw_ratio": 0.762187,
+      "profit_usd": 42268.648385,
+      "p_idle": 30867.87716,
+      "p_anchor": 45825.851798,
+      "p_hind": 78192.412423,
+      "capture": 0.24090614227148108,
+      "anchor_capture": 0.3160722985418238,
+      "beats_anchor": false,
+      "v2_energy": 0.912591,
+      "beats_v2_energy": false,
+      "as_share": 0.301765,
+      "as_usd": 3760.22,
+      "anchor_as_usd": 7227.358314,
+      "as_vs_anchor": 0.520275851373819,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 600,
+       "rrs": 1438.0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 651.3699999999999,
+       "regdn": 997.1099999999999,
+       "rrs": 793.96,
+       "ecrs": 90.87,
+       "nspin": 115.41999999999999
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 18.74600000000001,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 18.74600000000001,
+      "ftp_usd": 0.0,
+      "excused_usd": 12.93,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 2,
+      "commits": 3,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.393634,
+      "turns": 18,
+      "input_tokens": 452416,
+      "output_tokens": 26419,
+      "cached_tokens": 408099,
+      "errors": [
+       "refused"
+      ],
+      "as_hog": 0.622739,
+      "beats_as_hog": true,
+      "energy_only": 0.912591,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-06-16-LZ_CPS-pv150-b100x2h-poi180",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_CPS",
+      "date": "2025-06-16",
+      "notice_day": false,
+      "reward": 0.590659,
+      "raw_ratio": 0.488323,
+      "profit_usd": 60885.695211,
+      "p_idle": 55794.01735,
+      "p_anchor": 66220.876161,
+      "p_hind": 85824.644786,
+      "capture": 0.16954949981818276,
+      "anchor_capture": 0.3472074911928254,
+      "beats_anchor": false,
+      "v2_energy": 0.831162,
+      "beats_v2_energy": false,
+      "as_share": 1.0,
+      "as_usd": 7599.27,
+      "anchor_as_usd": 6802.828607,
+      "as_vs_anchor": 1.1170750343732716,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1784.5,
+       "rrs": 1442.99,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 323.73,
+       "regdn": 859.79,
+       "rrs": 795.6800000000001,
+       "ecrs": 160.41,
+       "nspin": 170.22
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 20.311647058823535,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 104.56777941176476,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 20.311647058823535,
+      "ftp_mwh_excused": 104.56777941176476,
+      "ftp_usd": 23.71,
+      "excused_usd": 130.92,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 1,
+       "rrs": 7,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "reserve_up": 7,
+       "soc_empty": 1,
+       "reserve_dn": 1
+      },
+      "check_rules": {
+       "reserve_up": 7,
+       "soc_empty": 1,
+       "parse": 1,
+       "reserve_dn": 1,
+       "cycle_cap": 1
+      },
+      "refused_commits": 2,
+      "governor_hours": 5,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 1,
+      "anchor_replans": 2,
+      "commits": 3,
+      "planning_calls": 6,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.140471,
+      "turns": 15,
+      "input_tokens": 256378,
+      "output_tokens": 6910,
+      "cached_tokens": 232308,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.685162,
+      "beats_as_hog": false,
+      "energy_only": 0.831162,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-08-03-LZ_HOUSTON-pv300-r67-2h-poi300",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "LZ_HOUSTON",
+      "date": "2025-08-03",
+      "notice_day": false,
+      "reward": 0.888414,
+      "raw_ratio": 0.860517,
+      "profit_usd": 111850.390502,
+      "p_idle": 93152.35555,
+      "p_anchor": 114881.182139,
+      "p_hind": 124263.511076,
+      "capture": 0.6010074083032309,
+      "anchor_capture": 0.6984255718448303,
+      "beats_anchor": false,
+      "v2_energy": 0.867921,
+      "beats_v2_energy": true,
+      "as_share": 0.565543,
+      "as_usd": 12843.72,
+      "anchor_as_usd": 12604.762847,
+      "as_vs_anchor": 1.01895768733617,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 2600,
+       "rrs": 2846.9,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 576.4,
+       "regdn": 568.24,
+       "rrs": 2080.41,
+       "ecrs": 571.79,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 9.22588235294115,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 9.22588235294115,
+      "ftp_usd": 0.0,
+      "excused_usd": 1342.68,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 6,
+      "end_short_mwh": 13.617,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.10263,
+      "turns": 12,
+      "input_tokens": 162808,
+      "output_tokens": 4943,
+      "cached_tokens": 143377,
+      "errors": [
+       "end_short",
+       "governed",
+       "no_replanning"
+      ],
+      "as_hog": 0.587527,
+      "beats_as_hog": true,
+      "energy_only": 0.867921,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-02-03-LZ_LCRA-pv300-r40-1h-poi300",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "LZ_LCRA",
+      "date": "2025-02-03",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.054374,
+      "profit_usd": 41620.192299,
+      "p_idle": 34786.1976,
+      "p_anchor": 41267.761513,
+      "p_hind": 46538.062146,
+      "capture": 0.5815242910816311,
+      "anchor_capture": 0.5515349404879024,
+      "beats_anchor": true,
+      "v2_energy": 0.870576,
+      "beats_v2_energy": true,
+      "as_share": 0.333534,
+      "as_usd": 2646.28,
+      "anchor_as_usd": 3133.737684,
+      "as_vs_anchor": 0.8444484723501828,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 949,
+       "rrs": 1412.0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 315.4,
+       "regdn": 535.22,
+       "rrs": 1187.21,
+       "ecrs": 15.5,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 4.0342,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 18.738582352941137,
+       "rrs": 18.243600000000008,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 4.0342,
+      "ftp_mwh_excused": 36.982182352941145,
+      "ftp_usd": 4.6,
+      "excused_usd": 43.46,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "reserve_up": 3,
+       "soc_empty": 1,
+       "reserve_dn": 6,
+       "parse": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 13,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 2,
+      "commits": 3,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.157731,
+      "turns": 20,
+      "input_tokens": 348315,
+      "output_tokens": 7543,
+      "cached_tokens": 323331,
+      "errors": [
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.561606,
+      "beats_as_hog": true,
+      "energy_only": 0.870576,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-11-25-LZ_NORTH-pv150-b100x2h-poi180",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_NORTH",
+      "date": "2025-11-25",
+      "notice_day": false,
+      "reward": 0.894836,
+      "raw_ratio": 0.868545,
+      "profit_usd": 35122.414544,
+      "p_idle": 23705.09678,
+      "p_anchor": 36850.431738,
+      "p_hind": 56674.147939,
+      "capture": 0.34630410529370853,
+      "anchor_capture": 0.39871741818118844,
+      "beats_anchor": false,
+      "v2_energy": 0.802631,
+      "beats_v2_energy": true,
+      "as_share": 0.590433,
+      "as_usd": 7420.24,
+      "anchor_as_usd": 6765.240583,
+      "as_vs_anchor": 1.0968183479898574,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1597,
+       "rrs": 1524.1,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 565.31,
+       "regdn": 1475.05,
+       "rrs": 961.0,
+       "ecrs": 40.92,
+       "nspin": 86.24
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 8.271982352941167,
+       "rrs": 7.632499999999991,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 15.904482352941159,
+      "ftp_usd": 0.0,
+      "excused_usd": 24.82,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "reserve_up": 2,
+       "soc_empty": 2,
+       "reserve_dn": 7,
+       "parse": 1,
+       "as_fixed": 21
+      },
+      "refused_commits": 0,
+      "governor_hours": 3,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 1,
+      "anchor_replans": 1,
+      "commits": 2,
+      "planning_calls": 6,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.151332,
+      "turns": 18,
+      "input_tokens": 302286,
+      "output_tokens": 7527,
+      "cached_tokens": 278163,
+      "errors": [
+       "governed"
+      ],
+      "as_hog": 0.489023,
+      "beats_as_hog": true,
+      "energy_only": 0.802631,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-09-25-HB_SOUTH-pv200-r80-1h-poi200",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "HB_SOUTH",
+      "date": "2025-09-25",
+      "notice_day": false,
+      "reward": 0.574127,
+      "raw_ratio": 0.467659,
+      "profit_usd": 50631.341265,
+      "p_idle": 46136.18867,
+      "p_anchor": 55748.225792,
+      "p_hind": 79560.170213,
+      "capture": 0.13448884266576616,
+      "anchor_capture": 0.2875790578580261,
+      "beats_anchor": false,
+      "v2_energy": 0.706839,
+      "beats_v2_energy": false,
+      "as_share": 1.0,
+      "as_usd": 7352.16,
+      "anchor_as_usd": 9111.862552,
+      "as_vs_anchor": 0.8068778428166965,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1222.4,
+       "rrs": 1250.4,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 668.34,
+       "regdn": 639.98,
+       "rrs": 918.82,
+       "ecrs": 0,
+       "nspin": 47.24
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 20.168611764705823,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 20.168611764705823,
+      "ftp_usd": 0.0,
+      "excused_usd": 27.23,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 2,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "soc_full": 1,
+       "reserve_up": 2
+      },
+      "check_rules": {
+       "reserve_up": 17,
+       "soc_empty": 4
+      },
+      "refused_commits": 2,
+      "governor_hours": 4,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 2,
+      "commits": 4,
+      "planning_calls": 8,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.14986,
+      "turns": 17,
+      "input_tokens": 300415,
+      "output_tokens": 7217,
+      "cached_tokens": 275337,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.481492,
+      "beats_as_hog": true,
+      "energy_only": 0.706839,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-07-27-HB_PAN-pv150-r40-2h-poi150",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "HB_PAN",
+      "date": "2025-07-27",
+      "notice_day": true,
+      "reward": 0.729307,
+      "raw_ratio": 0.661634,
+      "profit_usd": 26898.662148,
+      "p_idle": 25212.27448,
+      "p_anchor": 27761.097653,
+      "p_hind": 30581.111782,
+      "capture": 0.31410668141718245,
+      "anchor_capture": 0.47474397707125765,
+      "beats_anchor": false,
+      "v2_energy": 0.790169,
+      "beats_v2_energy": false,
+      "as_share": 0.465628,
+      "as_usd": 1219.47,
+      "anchor_as_usd": 1460.012581,
+      "as_vs_anchor": 0.8352462272378186,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 642.25,
+       "rrs": 637.5,
+       "ecrs": 0,
+       "nspin": 43.3
+      },
+      "anchor_da_mwh": {
+       "regup": 144,
+       "regdn": 200.82,
+       "rrs": 631.4200000000001,
+       "ecrs": 118.12,
+       "nspin": 43.37
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 26.412008823529366,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 70.4742647058823,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 26.412008823529366,
+      "ftp_mwh_excused": 70.4742647058823,
+      "ftp_usd": 32.78,
+      "excused_usd": 58.58,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 2,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "soc_empty": 1,
+       "reserve_dn": 2
+      },
+      "check_rules": {
+       "parse": 1,
+       "reserve_up": 18,
+       "soc_empty": 2,
+       "cycle_cap": 1
+      },
+      "refused_commits": 1,
+      "governor_hours": 11,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 1,
+      "commits": 4,
+      "planning_calls": 9,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.17572,
+      "turns": 19,
+      "input_tokens": 353960,
+      "output_tokens": 8518,
+      "cached_tokens": 324937,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.476169,
+      "beats_as_hog": true,
+      "energy_only": 0.790169,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-10-07-HB_PAN-pv300-r40-1h-poi360",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "HB_PAN",
+      "date": "2025-10-07",
+      "notice_day": true,
+      "reward": 0.55842,
+      "raw_ratio": 0.448025,
+      "profit_usd": 79858.913286,
+      "p_idle": 74988.2652,
+      "p_anchor": 85859.643196,
+      "p_hind": 107781.578834,
+      "capture": 0.14852564581793676,
+      "anchor_capture": 0.33151203069422663,
+      "beats_anchor": false,
+      "v2_energy": 0.863926,
+      "beats_v2_energy": false,
+      "as_share": 0.271459,
+      "as_usd": 1322.18,
+      "anchor_as_usd": 4684.251064,
+      "as_vs_anchor": 0.28226070335157427,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 696.9,
+       "rrs": 1474.13,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 540.73,
+       "regdn": 807.26,
+       "rrs": 1381.45,
+       "ecrs": 0,
+       "nspin": 1.09
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0038950000000011887,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 1.8075399411764739,
+       "rrs": 44.706315800000034,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0038950000000011887,
+      "ftp_mwh_excused": 46.513855741176506,
+      "ftp_usd": 0.0,
+      "excused_usd": 30.37,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 5,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "soc_empty": 1,
+       "reserve_dn": 5
+      },
+      "check_rules": {
+       "reserve_up": 13,
+       "soc_empty": 2,
+       "reserve_dn": 8,
+       "soc_full": 1
+      },
+      "refused_commits": 1,
+      "governor_hours": 12,
+      "end_short_mwh": 0.0,
+      "later_watches": 5,
+      "replan_watches": 1,
+      "anchor_replans": 0,
+      "commits": 2,
+      "planning_calls": 5,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.184069,
+      "turns": 17,
+      "input_tokens": 343506,
+      "output_tokens": 9098,
+      "cached_tokens": 312591,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.577758,
+      "beats_as_hog": false,
+      "energy_only": 0.863926,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-03-13-LZ_AEN-pv300-r40-1h-poi360",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "LZ_AEN",
+      "date": "2025-03-13",
+      "notice_day": true,
+      "reward": 0.931436,
+      "raw_ratio": 0.914295,
+      "profit_usd": 91788.354891,
+      "p_idle": 82966.59726,
+      "p_anchor": 92615.301915,
+      "p_hind": 101552.789039,
+      "capture": 0.47464040702342525,
+      "anchor_capture": 0.5191329547079031,
+      "beats_anchor": false,
+      "v2_energy": 0.779712,
+      "beats_v2_energy": true,
+      "as_share": 0.416142,
+      "as_usd": 4292.8,
+      "anchor_as_usd": 4586.503538,
+      "as_vs_anchor": 0.9359635208897991,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 756.5,
+       "rrs": 1761.6,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 201.87,
+       "regdn": 531.75,
+       "rrs": 1606.25,
+       "ecrs": 0,
+       "nspin": 26.08
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 23.55568999999999,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 23.55568999999999,
+      "ftp_usd": 0.0,
+      "excused_usd": 129.03,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "reserve_up": 4,
+       "soc_empty": 1,
+       "reserve_dn": 3,
+       "soc_full": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 7,
+      "end_short_mwh": 0.0,
+      "later_watches": 5,
+      "replan_watches": 3,
+      "anchor_replans": 1,
+      "commits": 5,
+      "planning_calls": 9,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.195966,
+      "turns": 26,
+      "input_tokens": 539037,
+      "output_tokens": 8126,
+      "cached_tokens": 507036,
+      "errors": [
+       "governed"
+      ],
+      "as_hog": 0.338208,
+      "beats_as_hog": true,
+      "energy_only": 0.779712,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-06-15-HB_HOUSTON-pv150-r40-2h-poi150",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "HB_HOUSTON",
+      "date": "2025-06-15",
+      "notice_day": false,
+      "reward": 0.998312,
+      "raw_ratio": 0.99789,
+      "profit_usd": 33514.026165,
+      "p_idle": 27601.14253,
+      "p_anchor": 33526.526476,
+      "p_hind": 36132.482947,
+      "capture": 0.6930779157771831,
+      "anchor_capture": 0.6945431381676868,
+      "beats_anchor": false,
+      "v2_energy": 0.780716,
+      "beats_v2_energy": true,
+      "as_share": 0.635401,
+      "as_usd": 3757.05,
+      "anchor_as_usd": 4062.337812,
+      "as_vs_anchor": 0.9248492306331121,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 450,
+       "rrs": 998.1,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 484.65000000000003,
+       "regdn": 450,
+       "rrs": 386.52,
+       "ecrs": 85.47,
+       "nspin": 104.58
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.9371249999999942,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.9371249999999942,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.97,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 1,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "reserve_up": 1
+      },
+      "check_rules": {},
+      "refused_commits": 1,
+      "governor_hours": 4,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 2,
+      "commits": 5,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.34527,
+      "turns": 18,
+      "input_tokens": 447667,
+      "output_tokens": 22309,
+      "cached_tokens": 406923,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.632569,
+      "beats_as_hog": true,
+      "energy_only": 0.780716,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-01-11-LZ_WEST-pv300-r80-2h-poi300",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_WEST",
+      "date": "2025-01-11",
+      "notice_day": true,
+      "reward": 0.935185,
+      "raw_ratio": 0.918981,
+      "profit_usd": 34009.271765,
+      "p_idle": 9712.493085,
+      "p_anchor": 36151.326643,
+      "p_hind": 68786.442593,
+      "capture": 0.41129429947306373,
+      "anchor_capture": 0.4475548660314232,
+      "beats_anchor": false,
+      "v2_energy": 0.845015,
+      "beats_v2_energy": true,
+      "as_share": 0.126612,
+      "as_usd": 3076.81,
+      "anchor_as_usd": 3264.101538,
+      "as_vs_anchor": 0.9426207990714779,
+      "da_mwh": {
+       "regup": 250,
+       "regdn": 1000,
+       "rrs": 3062.44,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 494.70000000000005,
+       "regdn": 1112.08,
+       "rrs": 3012.23,
+       "ecrs": 0,
+       "nspin": 108.83
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 4.1942500000000384,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 4.78125,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 4.1942500000000384,
+      "ftp_mwh_excused": 4.78125,
+      "ftp_usd": 4.19,
+      "excused_usd": 2.34,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "reserve_dn": 4,
+       "soc_full": 3,
+       "reserve_up": 6,
+       "parse": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 2,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 4,
+      "commits": 3,
+      "planning_calls": 8,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.377061,
+      "turns": 21,
+      "input_tokens": 576591,
+      "output_tokens": 23615,
+      "cached_tokens": 532774,
+      "errors": [
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.0,
+      "beats_as_hog": true,
+      "energy_only": 0.845015,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-02-22-LZ_RAYBN-pv300-r67-1h-poi300",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "LZ_RAYBN",
+      "date": "2025-02-22",
+      "notice_day": true,
+      "reward": 0.99293,
+      "raw_ratio": 0.991162,
+      "profit_usd": 88059.187622,
+      "p_idle": 68145.33886,
+      "p_anchor": 88236.750193,
+      "p_hind": 99802.178366,
+      "capture": 0.629053597034716,
+      "anchor_capture": 0.6346625767613987,
+      "beats_anchor": false,
+      "v2_energy": 0.832549,
+      "beats_v2_energy": true,
+      "as_share": 0.468416,
+      "as_usd": 9327.97,
+      "anchor_as_usd": 10761.011697,
+      "as_vs_anchor": 0.866830207293659,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 2450.4900000000002,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 507.07,
+       "regdn": 575.06,
+       "rrs": 1974.2,
+       "ecrs": 54.98,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "soc_empty": 1,
+       "soc_full": 2
+      },
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 1,
+      "commits": 1,
+      "planning_calls": 3,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.109346,
+      "turns": 14,
+      "input_tokens": 190824,
+      "output_tokens": 5020,
+      "cached_tokens": 169738,
+      "errors": [
+       "no_replanning"
+      ],
+      "as_hog": 0.369872,
+      "beats_as_hog": true,
+      "energy_only": 0.832549,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-11-27-LZ_CPS-pv200-r40-1h-poi240",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "LZ_CPS",
+      "date": "2025-11-27",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.044237,
+      "profit_usd": 34677.034166,
+      "p_idle": 31512.51225,
+      "p_anchor": 34542.97478,
+      "p_hind": 47299.482149,
+      "capture": 0.20045150755626948,
+      "anchor_capture": 0.19195973320959814,
+      "beats_anchor": true,
+      "v2_energy": 0.738363,
+      "beats_v2_energy": true,
+      "as_share": 0.966107,
+      "as_usd": 3303.62,
+      "anchor_as_usd": 3114.865231,
+      "as_vs_anchor": 1.060598053206752,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 40,
+       "rrs": 1420.0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 536.41,
+       "regdn": 363.48,
+       "rrs": 560.27,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {
+       "reserve_up": 10,
+       "soc_empty": 4
+      },
+      "refused_commits": 0,
+      "governor_hours": 1,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 1,
+      "anchor_replans": 1,
+      "commits": 2,
+      "planning_calls": 5,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.171699,
+      "turns": 15,
+      "input_tokens": 279466,
+      "output_tokens": 9268,
+      "cached_tokens": 252586,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.804236,
+      "beats_as_hog": true,
+      "energy_only": 0.738363,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-04-02-LZ_HOUSTON-pv200-r80-2h-poi200",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_HOUSTON",
+      "date": "2025-04-02",
+      "notice_day": false,
+      "reward": 0.865496,
+      "raw_ratio": 0.83187,
+      "profit_usd": 108611.271065,
+      "p_idle": 71654.25387,
+      "p_anchor": 116080.662071,
+      "p_hind": 152932.258634,
+      "capture": 0.45469887335828346,
+      "anchor_capture": 0.5465981642880773,
+      "beats_anchor": false,
+      "v2_energy": 0.952613,
+      "beats_v2_energy": false,
+      "as_share": 0.257999,
+      "as_usd": 9964.82,
+      "anchor_as_usd": 6838.708514,
+      "as_vs_anchor": 1.4571201535495069,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 2473,
+       "rrs": 2189.48,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 530.5799999999999,
+       "regdn": 462.12,
+       "rrs": 1154.12,
+       "ecrs": 328.33,
+       "nspin": 290.74
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 29.364380000000022,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 29.364380000000022,
+      "ftp_usd": 0.0,
+      "excused_usd": 30.83,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {
+       "soc_empty": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 1,
+      "commits": 4,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.168326,
+      "turns": 16,
+      "input_tokens": 287594,
+      "output_tokens": 9105,
+      "cached_tokens": 262059,
+      "errors": [
+       "refused"
+      ],
+      "as_hog": 0.491194,
+      "beats_as_hog": true,
+      "energy_only": 0.952613,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-11-01-HB_WEST-pv150-b100x2h-poi180",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "HB_WEST",
+      "date": "2025-11-01",
+      "notice_day": true,
+      "reward": 0.625022,
+      "raw_ratio": 0.531277,
+      "profit_usd": 22593.557638,
+      "p_idle": 16430.42653,
+      "p_anchor": 28031.020525,
+      "p_hind": 59479.72602,
+      "capture": 0.1431644923614063,
+      "anchor_capture": 0.26947230576178643,
+      "beats_anchor": false,
+      "v2_energy": 0.801497,
+      "beats_v2_energy": false,
+      "as_share": 1.0,
+      "as_usd": 7479.65,
+      "anchor_as_usd": 6201.045488,
+      "as_vs_anchor": 1.2061917646748925,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1759.4099999999999,
+       "rrs": 2001.11,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 404.28,
+       "regdn": 957.18,
+       "rrs": 988.1300000000001,
+       "ecrs": 328.69,
+       "nspin": 33.33
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 2.7774000000000068,
+       "rrs": 4.952500600000009,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 123.54548323529406,
+       "rrs": 8.351142,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 7.7299006000000166,
+      "ftp_mwh_excused": 131.89662523529407,
+      "ftp_usd": 35.27,
+      "excused_usd": 164.98,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 3,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "reserve_dn": 3,
+       "cycle_cap": 1
+      },
+      "check_rules": {
+       "parse": 2,
+       "soc_full": 2,
+       "reserve_up": 6,
+       "reserve_dn": 3,
+       "cycle_cap": 3
+      },
+      "refused_commits": 1,
+      "governor_hours": 6,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 2,
+      "commits": 4,
+      "planning_calls": 12,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.259629,
+      "turns": 21,
+      "input_tokens": 499322,
+      "output_tokens": 14264,
+      "cached_tokens": 464029,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.347804,
+      "beats_as_hog": true,
+      "energy_only": 0.801497,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-08-15-HB_SOUTH-pv200-r40-2h-poi200",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "HB_SOUTH",
+      "date": "2025-08-15",
+      "notice_day": false,
+      "reward": 0.228623,
+      "raw_ratio": 0.035779,
+      "profit_usd": 64424.242415,
+      "p_idle": 64327.3693,
+      "p_anchor": 67034.928024,
+      "p_hind": 79279.658474,
+      "capture": 0.00647881497426169,
+      "anchor_capture": 0.18107987964197966,
+      "beats_anchor": false,
+      "v2_energy": 0.919476,
+      "beats_v2_energy": false,
+      "as_share": 1.0,
+      "as_usd": 1629.31,
+      "anchor_as_usd": 2466.847197,
+      "as_vs_anchor": 0.6604827416880332,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 585,
+       "rrs": 959.3000000000001,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 441.08,
+       "regdn": 493.33,
+       "rrs": 715.76,
+       "ecrs": 114.56,
+       "nspin": 10.46
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {
+       "reserve_up": 3,
+       "headroom_dn": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 1,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 3,
+      "commits": 3,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.156967,
+      "turns": 17,
+      "input_tokens": 296786,
+      "output_tokens": 7820,
+      "cached_tokens": 270950,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.0,
+      "beats_as_hog": true,
+      "energy_only": 0.919476,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-05-24-LZ_LCRA-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_LCRA",
+      "date": "2025-05-24",
+      "notice_day": true,
+      "reward": 0.890773,
+      "raw_ratio": 0.863466,
+      "profit_usd": 51967.250336,
+      "p_idle": 44107.08841,
+      "p_anchor": 53210.126667,
+      "p_hind": 61682.483105,
+      "capture": 0.44722534329406133,
+      "anchor_capture": 0.5179421808142783,
+      "beats_anchor": false,
+      "v2_energy": 0.939678,
+      "beats_v2_energy": false,
+      "as_share": 0.677899,
+      "as_usd": 6104.76,
+      "anchor_as_usd": 5956.171202,
+      "as_vs_anchor": 1.024947032743133,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1404,
+       "rrs": 1135.0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 697.2,
+       "regdn": 691.27,
+       "rrs": 719.76,
+       "ecrs": 40.44,
+       "nspin": 120.98
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.2965176470588138,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 10.789370588235272,
+       "rrs": 1.2454999999999912,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.2965176470588138,
+      "ftp_mwh_excused": 12.034870588235263,
+      "ftp_usd": 0.76,
+      "excused_usd": 21.6,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 1,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "headroom_dn": 1,
+       "reserve_up": 1
+      },
+      "check_rules": {
+       "parse": 1,
+       "reserve_up": 12,
+       "soc_empty": 4
+      },
+      "refused_commits": 1,
+      "governor_hours": 2,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 4,
+      "anchor_replans": 2,
+      "commits": 6,
+      "planning_calls": 10,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.18992,
+      "turns": 19,
+      "input_tokens": 373398,
+      "output_tokens": 9608,
+      "cached_tokens": 343661,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.484447,
+      "beats_as_hog": true,
+      "energy_only": 0.939678,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-01-21-LZ_NORTH-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "LZ_NORTH",
+      "date": "2025-01-21",
+      "notice_day": true,
+      "reward": 1.0,
+      "raw_ratio": 1.051074,
+      "profit_usd": 89319.446493,
+      "p_idle": 53208.7117,
+      "p_anchor": 87564.732253,
+      "p_hind": 94966.150332,
+      "capture": 0.86477370202796,
+      "anchor_capture": 0.8227521054577309,
+      "beats_anchor": true,
+      "v2_energy": 0.853155,
+      "beats_v2_energy": true,
+      "as_share": 0.212911,
+      "as_usd": 7943.86,
+      "anchor_as_usd": 6348.182503,
+      "as_vs_anchor": 1.2513597389876425,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 978.67,
+       "rrs": 1635.1,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 0,
+       "regdn": 198.04000000000002,
+       "rrs": 1374.81,
+       "ecrs": 0,
+       "nspin": 110.25999999999999
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 65.84549999999999,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 65.84549999999999,
+      "ftp_usd": 0.0,
+      "excused_usd": 251.33,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "power": 2,
+       "parse": 1,
+       "soc_full": 1,
+       "reserve_up": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 3,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 0,
+      "commits": 3,
+      "planning_calls": 6,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.150417,
+      "turns": 19,
+      "input_tokens": 349398,
+      "output_tokens": 6721,
+      "cached_tokens": 323994,
+      "errors": [
+       "governed"
+      ],
+      "as_hog": 0.260158,
+      "beats_as_hog": true,
+      "energy_only": 0.853155,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-09-20-LZ_SOUTH-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "LZ_SOUTH",
+      "date": "2025-09-20",
+      "notice_day": false,
+      "reward": 0.781845,
+      "raw_ratio": 0.727306,
+      "profit_usd": 37378.959473,
+      "p_idle": 33316.86814,
+      "p_anchor": 38901.986106,
+      "p_hind": 40969.343667,
+      "capture": 0.5308205584804352,
+      "anchor_capture": 0.7298446033958804,
+      "beats_anchor": false,
+      "v2_energy": 0.745905,
+      "beats_v2_energy": true,
+      "as_share": 0.45269,
+      "as_usd": 2382.08,
+      "anchor_as_usd": 3489.041642,
+      "as_vs_anchor": 0.6827318915673749,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1337.3700000000001,
+       "rrs": 955.66,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 849.97,
+       "regdn": 738.35,
+       "rrs": 587.71,
+       "ecrs": 174.12,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 10.245041176470579,
+       "rrs": 5.292999999999987,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 15.538041176470566,
+      "ftp_usd": 0.0,
+      "excused_usd": 19.86,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 3,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": true,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "soc_empty": 1,
+       "reserve_dn": 3
+      },
+      "check_rules": {
+       "parse": 1
+      },
+      "refused_commits": 1,
+      "governor_hours": 3,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 0,
+      "commits": 4,
+      "planning_calls": 5,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.116482,
+      "turns": 15,
+      "input_tokens": 224757,
+      "output_tokens": 5210,
+      "cached_tokens": 202701,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.382208,
+      "beats_as_hog": true,
+      "energy_only": 0.745905,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-07-12-HB_SOUTH-pv150-b100x2h-poi180",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "HB_SOUTH",
+      "date": "2025-07-12",
+      "notice_day": false,
+      "reward": 0.714879,
+      "raw_ratio": 0.643599,
+      "profit_usd": 31755.637862,
+      "p_idle": 27584.30468,
+      "p_anchor": 34065.564524,
+      "p_hind": 125506.371079,
+      "capture": 0.042598500372767835,
+      "anchor_capture": 0.06618793988263087,
+      "beats_anchor": false,
+      "v2_energy": 0.825281,
+      "beats_v2_energy": false,
+      "as_share": 0.660158,
+      "as_usd": 3139.01,
+      "anchor_as_usd": 4214.590436,
+      "as_vs_anchor": 0.7447959766594032,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 300,
+       "rrs": 1950.8999999999999,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 592.47,
+       "regdn": 557.23,
+       "rrs": 1074.58,
+       "ecrs": 297.63,
+       "nspin": 138.01
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 151.71,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 2.0995,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 1,
+      "commits": 1,
+      "planning_calls": 3,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.106654,
+      "turns": 13,
+      "input_tokens": 187613,
+      "output_tokens": 4823,
+      "cached_tokens": 166738,
+      "errors": [
+       "end_short",
+       "no_replanning"
+      ],
+      "as_hog": 0.0,
+      "beats_as_hog": true,
+      "energy_only": 0.825281,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-04-03-HB_PAN-pv200-r80-2h-poi200",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "HB_PAN",
+      "date": "2025-04-03",
+      "notice_day": true,
+      "reward": 1.0,
+      "raw_ratio": 1.094394,
+      "profit_usd": 31948.314597,
+      "p_idle": 3854.548023,
+      "p_anchor": 29525.155274,
+      "p_hind": 40359.684883,
+      "capture": 0.7695839268249219,
+      "anchor_capture": 0.703205342016625,
+      "beats_anchor": true,
+      "v2_energy": 0.777391,
+      "beats_v2_energy": true,
+      "as_share": 0.38025,
+      "as_usd": 11372.64,
+      "anchor_as_usd": 11659.679791,
+      "as_vs_anchor": 0.9753818461445601,
+      "da_mwh": {
+       "regup": 150,
+       "regdn": 1937,
+       "rrs": 2198.7,
+       "ecrs": 150,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 1626.39,
+       "regdn": 1069.26,
+       "rrs": 717.25,
+       "ecrs": 281.1,
+       "nspin": 0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.7525000000000004,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 40.19290588235295,
+       "rrs": 17.261750000000013,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.7525000000000004,
+      "ftp_mwh_excused": 57.45465588235297,
+      "ftp_usd": 0.48,
+      "excused_usd": 171.1,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 1,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": true,
+       "ecrs": true,
+       "nspin": false
+      },
+      "refused_rules": {
+       "reserve_up": 1,
+       "cycle_cap": 1
+      },
+      "check_rules": {
+       "power": 2,
+       "reserve_up": 17,
+       "soc_empty": 1,
+       "parse": 1,
+       "soc_full": 1,
+       "cycle_cap": 1
+      },
+      "refused_commits": 1,
+      "governor_hours": 1,
+      "end_short_mwh": 0.0,
+      "later_watches": 5,
+      "replan_watches": 3,
+      "anchor_replans": 2,
+      "commits": 4,
+      "planning_calls": 11,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.189585,
+      "turns": 22,
+      "input_tokens": 451372,
+      "output_tokens": 8664,
+      "cached_tokens": 420947,
+      "errors": [
+       "refused",
+       "ftp_charged",
+       "governed"
+      ],
+      "as_hog": 0.742038,
+      "beats_as_hog": true,
+      "energy_only": 0.777391,
+      "beats_energy_only": true
+     },
+     {
+      "task_id": "hyb-v3-2025-03-30-LZ_NORTH-pv150-b100x2h-poi180",
+      "tier": "reserves",
+      "stratum": "low",
+      "point": "LZ_NORTH",
+      "date": "2025-03-30",
+      "notice_day": false,
+      "reward": 0.911954,
+      "raw_ratio": 0.889942,
+      "profit_usd": 47555.100862,
+      "p_idle": 33715.32062,
+      "p_anchor": 49266.64086,
+      "p_hind": 88418.929309,
+      "capture": 0.2529957451377966,
+      "anchor_capture": 0.28428326051416636,
+      "beats_anchor": false,
+      "v2_energy": 0.926962,
+      "beats_v2_energy": false,
+      "as_share": 0.161446,
+      "as_usd": 2428.09,
+      "anchor_as_usd": 1719.126285,
+      "as_vs_anchor": 1.4123976936342406,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1279,
+       "rrs": 1330.3000000000002,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 265.44,
+       "regdn": 546.07,
+       "rrs": 942.89,
+       "ecrs": 134.17,
+       "nspin": 239.32
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 90.33391000000007,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 90.33391000000007,
+      "ftp_usd": 0.0,
+      "excused_usd": 4420.16,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {
+       "power": 3,
+       "reserve_up": 15,
+       "soc_empty": 2,
+       "reserve_dn": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 30.32552,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 1,
+      "commits": 4,
+      "planning_calls": 7,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.17317,
+      "turns": 16,
+      "input_tokens": 295301,
+      "output_tokens": 9333,
+      "cached_tokens": 268822,
+      "errors": [
+       "refused",
+       "end_short"
+      ],
+      "as_hog": 0.407566,
+      "beats_as_hog": true,
+      "energy_only": 0.926962,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-08-01-LZ_AEN-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "mid",
+      "point": "LZ_AEN",
+      "date": "2025-08-01",
+      "notice_day": false,
+      "reward": 0.516808,
+      "raw_ratio": 0.39601,
+      "profit_usd": 73830.003276,
+      "p_idle": 67394.39866,
+      "p_anchor": 83645.501385,
+      "p_hind": 120378.63379,
+      "capture": 0.1214626312941926,
+      "anchor_capture": 0.3067158124511363,
+      "beats_anchor": false,
+      "v2_energy": 0.891382,
+      "beats_v2_energy": false,
+      "as_share": 1.0,
+      "as_usd": 8049.79,
+      "anchor_as_usd": 8510.988697,
+      "as_vs_anchor": 0.9458113841506374,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 1298.8,
+       "rrs": 1009.7,
+       "ecrs": 51.4,
+       "nspin": 61.2
+      },
+      "anchor_da_mwh": {
+       "regup": 616.88,
+       "regdn": 552.77,
+       "rrs": 802.34,
+       "ecrs": 99.53,
+       "nspin": 29.86
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 141.90449764698803,
+       "rrs": 17.66600000000006,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 159.5704976469881,
+      "ftp_usd": 0.0,
+      "excused_usd": 342.74,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 4,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": true,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1,
+       "reserve_up": 4,
+       "soc_full": 1,
+       "as_fixed": 1,
+       "headroom_up": 1
+      },
+      "check_rules": {
+       "headroom_up": 1,
+       "reserve_up": 13,
+       "soc_empty": 2
+      },
+      "refused_commits": 3,
+      "governor_hours": 1,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 3,
+      "anchor_replans": 1,
+      "commits": 5,
+      "planning_calls": 8,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.167375,
+      "turns": 21,
+      "input_tokens": 389164,
+      "output_tokens": 7543,
+      "cached_tokens": 361254,
+      "errors": [
+       "refused",
+       "governed"
+      ],
+      "as_hog": 0.424548,
+      "beats_as_hog": true,
+      "energy_only": 0.891382,
+      "beats_energy_only": false
+     },
+     {
+      "task_id": "hyb-v3-2025-06-23-LZ_SOUTH-pv150-b100x2h-poi150",
+      "tier": "reserves",
+      "stratum": "high",
+      "point": "LZ_SOUTH",
+      "date": "2025-06-23",
+      "notice_day": false,
+      "reward": 0.462756,
+      "raw_ratio": 0.328445,
+      "profit_usd": 32105.41947,
+      "p_idle": 29319.66947,
+      "p_anchor": 37801.31265,
+      "p_hind": 42861.987547,
+      "capture": 0.20570702771568056,
+      "anchor_capture": 0.6263065991933133,
+      "beats_anchor": false,
+      "v2_energy": 0.526536,
+      "beats_v2_energy": false,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 7188.628859,
+      "as_vs_anchor": 0.0,
+      "da_mwh": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "anchor_da_mwh": {
+       "regup": 527.79,
+       "regdn": 842.4300000000001,
+       "rrs": 801.8799999999999,
+       "ecrs": 136.78,
+       "nspin": 119.13
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 2,
+      "anchor_replans": 2,
+      "commits": 2,
+      "planning_calls": 5,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.183075,
+      "turns": 18,
+      "input_tokens": 343101,
+      "output_tokens": 9817,
+      "cached_tokens": 316472,
+      "errors": [
+       "refused",
+       "as_unused"
+      ],
+      "as_hog": 0.771556,
+      "beats_as_hog": false,
+      "energy_only": 0.526536,
+      "beats_energy_only": false
+     }
+    ]
+   }
+  },
+  "energy": {
+   "primary": {
+    "energy primary: all": {
+     "n": 10,
+     "reward": 0.9995602,
+     "reward_ci": [
+      0.998688,
+      1.0
+     ],
+     "reward_at_1": 0.8,
+     "capture": 0.48303370272599655,
+     "capture_ci": [
+      0.36333492040731374,
+      0.613292135144719
+     ],
+     "anchor_capture": 0.483514004308226,
+     "capture_minus_anchor": -0.00048030158222945875,
+     "capture_minus_anchor_ci": [
+      -0.0014351527835885004,
+      8.916499982802861e-10
+     ],
+     "beats_anchor": 0.6,
+     "v2_energy": 0.9790772,
+     "reward_minus_v2_energy": 0.020483000000000008,
+     "reward_minus_v2_energy_ci": [
+      0.0,
+      0.049467600000000014
+     ],
+     "beats_v2_energy": 0.8,
+     "as_share": 0.0,
+     "as_usd": 0.0,
+     "anchor_as_usd": 0.0,
+     "as_vs_anchor_median": null,
+     "da_mwh": {
+      "regup": 0.0,
+      "regdn": 0.0,
+      "rrs": 0.0,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "anchor_da_mwh": {
+      "regup": 0.0,
+      "regdn": 0.0,
+      "rrs": 0.0,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "ftp_mwh_charged": 0.0,
+     "ftp_mwh_excused": 0.0,
+     "ftp_charged_by_product": {
+      "regup": 0.0,
+      "regdn": 0.0,
+      "rrs": 0.0,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "ftp_excused_by_product": {
+      "regup": 0.0,
+      "regdn": 0.0,
+      "rrs": 0.0,
+      "ecrs": 0.0,
+      "nspin": 0.0
+     },
+     "days_ftp_charged": 0,
+     "under_reserved_days": 0,
+     "under_reserved_days_by_product": {
+      "regup": 0,
+      "regdn": 0,
+      "rrs": 0,
+      "ecrs": 0,
+      "nspin": 0
+     },
+     "refused_rows_by_rule": {
+      "parse": 1
+     },
+     "check_issues_by_rule": {
+      "parse": 2
+     },
+     "refused_commits": 0,
+     "days_with_refusal": 0,
+     "governor_hours": 0,
+     "end_short_days": 0,
+     "replan_rate": 0.0,
+     "replanned_days": 0.0,
+     "anchor_replan_rate": 0.0,
+     "finished": 1.0,
+     "audit_failures": 0,
+     "usd_per_episode": 0.0857238,
+     "turns": 12.8,
+     "input_tokens": 146890.4,
+     "output_tokens": 4356.8,
+     "cached_tokens": 132434.2,
+     "errors": {
+      "no_replanning": 10,
+      "refused": 1
+     }
+    },
+    "days": [
+     {
+      "task_id": "hyb-v3-2025-10-08-LZ_WEST-pv150-r40-2h-poi150",
+      "tier": "energy",
+      "stratum": "low",
+      "point": "LZ_WEST",
+      "date": "2025-10-08",
+      "notice_day": true,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 51020.121045,
+      "p_idle": 46094.53281,
+      "p_anchor": 51020.121017,
+      "p_hind": 63407.131555,
+      "capture": 0.2845088890206357,
+      "anchor_capture": 0.2845088874033163,
+      "beats_anchor": true,
+      "v2_energy": 1.0,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "parse": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 5,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 3,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.274159,
+      "turns": 16,
+      "input_tokens": 372611,
+      "output_tokens": 17503,
+      "cached_tokens": 340049,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-02-07-HB_WEST-pv300-r40-1h-poi300",
+      "tier": "energy",
+      "stratum": "mid",
+      "point": "HB_WEST",
+      "date": "2025-02-07",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 35911.833346,
+      "p_idle": 31236.39217,
+      "p_anchor": 35911.833335,
+      "p_hind": 44470.898696,
+      "capture": 0.3532765779226305,
+      "anchor_capture": 0.3532765770914702,
+      "beats_anchor": true,
+      "v2_energy": 1.0,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 1,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.037722,
+      "turns": 12,
+      "input_tokens": 92009,
+      "output_tokens": 890,
+      "cached_tokens": 81682,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-11-08-HB_NORTH-pv150-b100x2h-poi150",
+      "tier": "energy",
+      "stratum": "high",
+      "point": "HB_NORTH",
+      "date": "2025-11-08",
+      "notice_day": false,
+      "reward": 0.999963,
+      "raw_ratio": 0.999954,
+      "profit_usd": 30551.226006,
+      "p_idle": 24819.1113,
+      "p_anchor": 30551.488495,
+      "p_hind": 33943.154513,
+      "capture": 0.6282428274597431,
+      "anchor_capture": 0.6282715963940712,
+      "beats_anchor": false,
+      "v2_energy": 0.918802,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {
+       "parse": 1
+      },
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.257917,
+      "turns": 15,
+      "input_tokens": 324999,
+      "output_tokens": 17429,
+      "cached_tokens": 298090,
+      "errors": [
+       "refused",
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-09-07-LZ_HOUSTON-pv200-r67-2h-poi200",
+      "tier": "energy",
+      "stratum": "low",
+      "point": "LZ_HOUSTON",
+      "date": "2025-09-07",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 34281.043608,
+      "p_idle": 29902.07302,
+      "p_anchor": 34281.043596,
+      "p_hind": 39400.33203,
+      "capture": 0.46102876152247624,
+      "anchor_capture": 0.4610287602590871,
+      "beats_anchor": true,
+      "v2_energy": 1.0,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {
+       "parse": 1
+      },
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.037538,
+      "turns": 12,
+      "input_tokens": 91549,
+      "output_tokens": 932,
+      "cached_tokens": 81516,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-10-14-HB_NORTH-pv200-r40-1h-poi240",
+      "tier": "energy",
+      "stratum": "mid",
+      "point": "HB_NORTH",
+      "date": "2025-10-14",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 53506.441314,
+      "p_idle": 47766.38249,
+      "p_anchor": 53506.441311,
+      "p_hind": 56720.500137,
+      "capture": 0.6410524241797468,
+      "anchor_capture": 0.6410524238447053,
+      "beats_anchor": true,
+      "v2_energy": 1.0,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.038657,
+      "turns": 13,
+      "input_tokens": 99634,
+      "output_tokens": 908,
+      "cached_tokens": 89311,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-05-15-LZ_LCRA-pv100-r67-2h-poi100",
+      "tier": "energy",
+      "stratum": "high",
+      "point": "LZ_LCRA",
+      "date": "2025-05-15",
+      "notice_day": true,
+      "reward": 0.995639,
+      "raw_ratio": 0.994548,
+      "profit_usd": 82756.529303,
+      "p_idle": 52979.89695,
+      "p_anchor": 82919.750614,
+      "p_hind": 87167.718141,
+      "capture": 0.8709719226225141,
+      "anchor_capture": 0.8757461757136402,
+      "beats_anchor": false,
+      "v2_energy": 0.87197,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 5,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.056196,
+      "turns": 14,
+      "input_tokens": 146845,
+      "output_tokens": 1221,
+      "cached_tokens": 131423,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-04-18-LZ_RAYBN-pv150-r40-2h-poi150",
+      "tier": "energy",
+      "stratum": "low",
+      "point": "LZ_RAYBN",
+      "date": "2025-04-18",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 30661.52352,
+      "p_idle": 29186.52352,
+      "p_anchor": 30661.523521,
+      "p_hind": 36603.981877,
+      "capture": 0.1988551777453545,
+      "anchor_capture": 0.1988551778801716,
+      "beats_anchor": false,
+      "v2_energy": 1.0,
+      "beats_v2_energy": false,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 1,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.035385,
+      "turns": 11,
+      "input_tokens": 77022,
+      "output_tokens": 1030,
+      "cached_tokens": 67873,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-08-10-HB_HOUSTON-pv200-r80-2h-poi200",
+      "tier": "energy",
+      "stratum": "mid",
+      "point": "HB_HOUSTON",
+      "date": "2025-08-10",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 59851.236844,
+      "p_idle": 49254.00155,
+      "p_anchor": 59851.236845,
+      "p_hind": 85692.08411,
+      "capture": 0.2908285658706186,
+      "anchor_capture": 0.29082856589806244,
+      "beats_anchor": false,
+      "v2_energy": 1.0,
+      "beats_v2_energy": false,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.039491,
+      "turns": 12,
+      "input_tokens": 95185,
+      "output_tokens": 1027,
+      "cached_tokens": 84815,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-06-24-LZ_CPS-pv200-r67-2h-poi200",
+      "tier": "energy",
+      "stratum": "high",
+      "point": "LZ_CPS",
+      "date": "2025-06-24",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 60113.002185,
+      "p_idle": 52901.16395,
+      "p_anchor": 60113.002167,
+      "p_hind": 64232.779053,
+      "capture": 0.6364351568110262,
+      "anchor_capture": 0.6364351552225502,
+      "beats_anchor": true,
+      "v2_energy": 1.0,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.03928,
+      "turns": 12,
+      "input_tokens": 87902,
+      "output_tokens": 1201,
+      "cached_tokens": 78176,
+      "errors": [
+       "no_replanning"
+      ]
+     },
+     {
+      "task_id": "hyb-v3-2025-03-28-LZ_WEST-pv150-b100x2h-poi180",
+      "tier": "energy",
+      "stratum": "low",
+      "point": "LZ_WEST",
+      "date": "2025-03-28",
+      "notice_day": false,
+      "reward": 1.0,
+      "raw_ratio": 1.0,
+      "profit_usd": 41157.139785,
+      "p_idle": 29688.55155,
+      "p_anchor": 41157.139767,
+      "p_hind": 54344.932439,
+      "capture": 0.46513672410521956,
+      "anchor_capture": 0.46513672337518547,
+      "beats_anchor": true,
+      "v2_energy": 1.0,
+      "beats_v2_energy": true,
+      "as_share": 0.0,
+      "as_usd": 0.0,
+      "anchor_as_usd": 0.0,
+      "as_vs_anchor": null,
+      "da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "anchor_da_mwh": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_charged": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_excused": {
+       "regup": 0.0,
+       "regdn": 0.0,
+       "rrs": 0.0,
+       "ecrs": 0.0,
+       "nspin": 0.0
+      },
+      "ftp_mwh_charged": 0.0,
+      "ftp_mwh_excused": 0.0,
+      "ftp_usd": 0.0,
+      "excused_usd": 0.0,
+      "reserve_refused": {
+       "regup": 0,
+       "regdn": 0,
+       "rrs": 0,
+       "ecrs": 0,
+       "nspin": 0
+      },
+      "under_reserved": {
+       "regup": false,
+       "regdn": false,
+       "rrs": false,
+       "ecrs": false,
+       "nspin": false
+      },
+      "refused_rules": {},
+      "check_rules": {},
+      "refused_commits": 0,
+      "governor_hours": 0,
+      "end_short_mwh": 0.0,
+      "later_watches": 4,
+      "replan_watches": 0,
+      "anchor_replans": 0,
+      "commits": 1,
+      "planning_calls": 2,
+      "finished": true,
+      "audit_ok": true,
+      "cost_usd": 0.040893,
+      "turns": 11,
+      "input_tokens": 81148,
+      "output_tokens": 1427,
+      "cached_tokens": 71407,
+      "errors": [
+       "no_replanning"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "unscored": {
+  "reserves": [],
+  "energy": [],
+  "v3-pilot-sol-show-energy": [],
+  "v3-pilot-sol-show-reserves": []
+ },
+ "spend_usd": {
+  "v3-pilot-sol": 5.7048,
+  "v3-pilot-sol-energy": 0.8572,
+  "v3-pilot-sol-show-energy": 0.0456,
+  "v3-pilot-sol-show-reserves": 0.421
+ },
+ "showcase": [
+  {
+   "task_id": "hyb-v3-2024-03-29-HB_WEST-pv150-b100x2h-poi150",
+   "tier": "energy",
+   "stratum": null,
+   "point": "HB_WEST",
+   "date": "2024-03-29",
+   "notice_day": false,
+   "reward": 0.989328,
+   "raw_ratio": 0.98666,
+   "profit_usd": 5203.501256,
+   "p_idle": 587.442432,
+   "p_anchor": 5265.913023,
+   "p_hind": 6159.530668,
+   "capture": 0.8284252920075258,
+   "anchor_capture": 0.8396260778451894,
+   "beats_anchor": false,
+   "v2_energy": 1.0,
+   "beats_v2_energy": false,
+   "as_share": 0.0,
+   "as_usd": 0.0,
+   "anchor_as_usd": 0.0,
+   "as_vs_anchor": null,
+   "da_mwh": {
+    "regup": 0.0,
+    "regdn": 0.0,
+    "rrs": 0.0,
+    "ecrs": 0.0,
+    "nspin": 0.0
+   },
+   "anchor_da_mwh": {
+    "regup": 0.0,
+    "regdn": 0.0,
+    "rrs": 0.0,
+    "ecrs": 0.0,
+    "nspin": 0.0
+   },
+   "ftp_charged": {
+    "regup": 0.0,
+    "regdn": 0.0,
+    "rrs": 0.0,
+    "ecrs": 0.0,
+    "nspin": 0.0
+   },
+   "ftp_excused": {
+    "regup": 0.0,
+    "regdn": 0.0,
+    "rrs": 0.0,
+    "ecrs": 0.0,
+    "nspin": 0.0
+   },
+   "ftp_mwh_charged": 0.0,
+   "ftp_mwh_excused": 0.0,
+   "ftp_usd": 0.0,
+   "excused_usd": 0.0,
+   "reserve_refused": {
+    "regup": 0,
+    "regdn": 0,
+    "rrs": 0,
+    "ecrs": 0,
+    "nspin": 0
+   },
+   "under_reserved": {
+    "regup": false,
+    "regdn": false,
+    "rrs": false,
+    "ecrs": false,
+    "nspin": false
+   },
+   "refused_rules": {},
+   "check_rules": {
+    "parse": 1
+   },
+   "refused_commits": 0,
+   "governor_hours": 0,
+   "end_short_mwh": 0.0,
+   "later_watches": 4,
+   "replan_watches": 0,
+   "anchor_replans": 0,
+   "commits": 1,
+   "planning_calls": 3,
+   "finished": true,
+   "audit_ok": true,
+   "cost_usd": 0.045639,
+   "turns": 14,
+   "input_tokens": 102040,
+   "output_tokens": 1592,
+   "cached_tokens": 91769,
+   "errors": [
+    "no_replanning"
+   ]
+  },
+  {
+   "task_id": "hyb-v3-2024-03-29-HB_WEST-pv150-b100x2h-poi150",
+   "tier": "reserves",
+   "stratum": null,
+   "point": "HB_WEST",
+   "date": "2024-03-29",
+   "notice_day": false,
+   "reward": 0.846872,
+   "raw_ratio": 0.80859,
+   "profit_usd": 8400.254129,
+   "p_idle": 587.442432,
+   "p_anchor": 10249.7093,
+   "p_hind": 11084.400143,
+   "capture": 0.7442929572644441,
+   "anchor_capture": 0.9204825944830368,
+   "beats_anchor": false,
+   "v2_energy": 0.58736,
+   "beats_v2_energy": true,
+   "as_share": 0.894943,
+   "as_usd": 8091.95,
+   "anchor_as_usd": 6848.086989,
+   "as_vs_anchor": 1.181636566970893,
+   "da_mwh": {
+    "regup": 2050,
+    "regdn": 1975,
+    "rrs": 172,
+    "ecrs": 0,
+    "nspin": 0
+   },
+   "anchor_da_mwh": {
+    "regup": 1308.7800000000002,
+    "regdn": 1716.12,
+    "rrs": 615.85,
+    "ecrs": 94.34,
+    "nspin": 0
+   },
+   "ftp_charged": {
+    "regup": 0.0,
+    "regdn": 10.698588235294082,
+    "rrs": 0.0,
+    "ecrs": 0.0,
+    "nspin": 0.0
+   },
+   "ftp_excused": {
+    "regup": 5.348399999999995,
+    "regdn": 75.80941176470589,
+    "rrs": 0.0,
+    "ecrs": 0.0,
+    "nspin": 0.0
+   },
+   "ftp_mwh_charged": 10.698588235294082,
+   "ftp_mwh_excused": 81.15781176470588,
+   "ftp_usd": 49.04,
+   "excused_usd": 266.73,
+   "reserve_refused": {
+    "regup": 0,
+    "regdn": 0,
+    "rrs": 0,
+    "ecrs": 0,
+    "nspin": 0
+   },
+   "under_reserved": {
+    "regup": false,
+    "regdn": true,
+    "rrs": false,
+    "ecrs": false,
+    "nspin": false
+   },
+   "refused_rules": {},
+   "check_rules": {
+    "reserve_up": 4,
+    "parse": 1
+   },
+   "refused_commits": 0,
+   "governor_hours": 5,
+   "end_short_mwh": 0.0,
+   "later_watches": 4,
+   "replan_watches": 3,
+   "anchor_replans": 2,
+   "commits": 4,
+   "planning_calls": 10,
+   "finished": true,
+   "audit_ok": true,
+   "cost_usd": 0.420996,
+   "turns": 25,
+   "input_tokens": 730049,
+   "output_tokens": 26182,
+   "cached_tokens": 684696,
+   "errors": [
+    "ftp_charged",
+    "governed"
+   ],
+   "as_hog": 0.690852,
+   "beats_as_hog": true,
+   "energy_only": 0.58736,
+   "beats_energy_only": true
+  }
+ ]
+}

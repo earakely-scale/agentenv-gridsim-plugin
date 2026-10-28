@@ -17,9 +17,13 @@ runs (1,550 submits, 1,051 checks, 33 `get_situation`) again on a fresh env and 
 every reward equals both the verifier's and gridsim_core's grade of the schedule (within 1e-6). No run mismatched. The
 runs are in the dataset's `v1_episodes` config with their transcripts and replay in 3D in the Space ([links](#links)).
 
-**Headline: the amended columns.** Foresight is saturated: Sol scores 0.9999 on A (99.6% of days optimal), 0.9999 on B
-and 1.0000 on D, with no rule broken in any of the 1,550 scored runs. The blind tier separates: R 0.9721 (0.962 to
-0.980), r_opt 0.9165 against the blind anchor's own 0.9204 on the same days, beating its anchor on 40.3%.
+**Headline: the amended columns,** on the cross-version scale ([docs/REWARD-SCALES.md](../docs/REWARD-SCALES.md)):
+hindsight capture C = (P − P_idle)/(P_opt − P_idle) with the anchor's own C and the paired gap Δ, then R. At the
+foresight tier the anchor is the hindsight, so C = (R − 0.2)/0.8 and the tier reads as solved: C 1.000 on A (98.8% of
+days at C = 1), 1.000 on B and 1.000 on D, with no rule broken in any of the 1,550 scored runs. The blind tier
+separates: C 0.896 (0.881 to 0.910) against the blind anchor's own 0.901 on the same days, Δ -0.005 (-0.019 to +0.009):
+level with the anchor. Second, R 0.9721 (0.962 to 0.980), at R = 1 on 62.3% of the days, above the anchor on 33.0%. The
+r_opt this board printed before (0.2 + 0.8 C) is replaced by C.
 
 ## The amendment
 
@@ -43,24 +47,26 @@ What the files show:
   final, so the same-cap retries are not in these files.
 - **The re-runs.** The `-amend` sweeps re-ran exactly those 85 tasks once each at a $0.40 episode cap; all 85 scored,
   for $2.46, the dearest episode $0.0539.
-- **The bias.** The stops fell on the days that make Sol work hardest: C's 63 re-run days score R 0.9539 (r_opt 0.8865)
-  against 0.9769 (0.9245) on the 237 that scored under the cap, so the pre-registered C (0.9769) overstates the full
-  column (0.9721). The 22 stopped foresight runs (A, B and D) scored 1.0000 on average on their re-runs.
+- **The bias.** The stops fell on the days that make Sol work hardest: column C's 63 re-run days capture 0.858 (R
+  0.9539) against 0.906 (0.9769) on the 237 that scored under the cap, so the pre-registered column (C 0.906, R 0.9769)
+  overstates the full one (C 0.896, R 0.9721). The 22 stopped foresight runs (A, B and D) scored R 1.0000 on average on
+  their re-runs.
 
 ## Columns
 
-Reward R = clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1): foresight against P_opt, blind against max(P_persist, P_ridge); r_opt is R against P_opt. Mean R over battery-days, its CI a 95% bootstrap over tasks, 10,000 resamples. Optimal: R >= 0.99 (at the blind tier, at or within 1% of the anchor's scale). Valid: submitted and feasible. An amended row adds the amendment's re-runs to the pre-registered sweep's scored runs.
+Headline: hindsight capture C = (P − P_idle)/(P_hind − P_idle), unclipped, with P_hind the exact DP optimum P_opt. At the foresight tier the anchor is P_opt itself, so C = (R − 0.2)/0.8, the anchor's C is 1 and a column at C 1 has solved the tier: idle 0, hindsight 1. It is printed beside the anchor's own C on the same tasks and Δ = C − C_anchor, the paired gap with its 95% CI. Second: R on the anchor scale (the anchor 1.0), a level that is never differenced, with its R = 1 share (a tie with the anchor or better) and the beats-anchor share. Every comparison with a reference is (P − P_ref)/(P_hind − P_idle). CIs bootstrap over tasks; the rule and its evidence: docs/REWARD-SCALES.md.
+R = clip(0.2+0.8(P-P_idle)/(P_anchor-P_idle),0,1): foresight against P_opt, blind against max(P_persist, P_ridge). Means over battery-days, the CI a 95% bootstrap over tasks, 10,000 resamples. Valid: submitted and feasible. An amended row adds the amendment's re-runs to the pre-registered sweep's scored runs.
 
-| Column | Scoring | Model | Pack | Tier | Harness | Scored/planned | Mean R (95% CI) | r_opt | Optimal | Valid | Beats anchor | Checks used |
-|---|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|
-| A | amended | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | full | 500/500 | 0.9999 (0.9997 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | 1.00 |
-| A | pre-registered | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | full | 486/500 | 0.9999 (0.9997 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | 1.00 |
-| B | amended | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | oneshot | 500/500 | 0.9999 (0.9998 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | 0.00 |
-| B | pre-registered | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | oneshot | 497/500 | 0.9999 (0.9998 to 1.0000) | 0.9999 | 99.6% | 100.0% | – | 0.00 |
-| C | amended | GPT-6.1 Sol | ercot-dam-v1-eval | blind | full | 300/300 | 0.9721 (0.9624 to 0.9804) | 0.9165 | 72.3% | 100.0% | 40.3% | 1.00 |
-| C | pre-registered | GPT-6.1 Sol | ercot-dam-v1-eval | blind | full | 237/300 | 0.9769 (0.9678 to 0.9846) | 0.9245 | 75.1% | 100.0% | 39.2% | 1.00 |
-| D | amended | GPT-6.1 Sol | ercot-dam-v1-rtcb | foresight | full | 250/250 | 1.0000 (0.9999 to 1.0000) | 1.0000 | 100.0% | 100.0% | – | 1.00 |
-| D | pre-registered | GPT-6.1 Sol | ercot-dam-v1-rtcb | foresight | full | 245/250 | 1.0000 (0.9999 to 1.0000) | 1.0000 | 100.0% | 100.0% | – | 1.00 |
+| Column | Scoring | Model | Pack | Tier | Harness | Scored/planned | C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor | Valid | Checks used |
+|---|---|---|---|---|---|---:|---|---:|---|---|---:|---:|---:|---:|
+| A | amended | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | full | 500/500 | 1.000 (1.000 to 1.000) | 1.000 | -0.000 (-0.000 to -0.000) | 1.000 (1.000 to 1.000) | 0.988 | 0.000 | 100.0% | 1.00 |
+| A | pre-registered | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | full | 486/500 | 1.000 (1.000 to 1.000) | 1.000 | -0.000 (-0.000 to -0.000) | 1.000 (1.000 to 1.000) | 0.988 | 0.000 | 100.0% | 1.00 |
+| B | amended | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | oneshot | 500/500 | 1.000 (1.000 to 1.000) | 1.000 | -0.000 (-0.000 to -0.000) | 1.000 (1.000 to 1.000) | 0.988 | 0.000 | 100.0% | 0.00 |
+| B | pre-registered | GPT-6.1 Sol | ercot-dam-v1-eval | foresight | oneshot | 497/500 | 1.000 (1.000 to 1.000) | 1.000 | -0.000 (-0.000 to -0.000) | 1.000 (1.000 to 1.000) | 0.988 | 0.000 | 100.0% | 0.00 |
+| C | amended | GPT-6.1 Sol | ercot-dam-v1-eval | blind | full | 300/300 | 0.896 (0.881 to 0.910) | 0.901 | -0.005 (-0.019 to +0.009) | 0.972 (0.962 to 0.980) | 0.623 | 0.330 | 100.0% | 1.00 |
+| C | pre-registered | GPT-6.1 Sol | ercot-dam-v1-eval | blind | full | 237/300 | 0.906 (0.890 to 0.920) | 0.913 | -0.008 (-0.021 to +0.005) | 0.977 (0.968 to 0.985) | 0.662 | 0.312 | 100.0% | 1.00 |
+| D | amended | GPT-6.1 Sol | ercot-dam-v1-rtcb | foresight | full | 250/250 | 1.000 (1.000 to 1.000) | 1.000 | -0.000 (-0.000 to +0.000) | 1.000 (1.000 to 1.000) | 0.988 | 0.000 | 100.0% | 1.00 |
+| D | pre-registered | GPT-6.1 Sol | ercot-dam-v1-rtcb | foresight | full | 245/250 | 1.000 (1.000 to 1.000) | 1.000 | -0.000 (-0.000 to +0.000) | 1.000 (1.000 to 1.000) | 0.988 | 0.000 | 100.0% | 1.00 |
 
 ## Errors
 
@@ -75,36 +81,36 @@ Scored runs whose submitted schedule broke a rule (it executes up to that hour),
 
 ## Checks
 
-Runs by the number of `check_schedule` calls, with their mean R (and r_opt at the blind tier); the count of runs in brackets.
+Runs by the number of `check_schedule` calls, with their mean C / R; the count of runs in brackets.
 
 | | A eval foresight full | B eval foresight oneshot | C eval blind full | D rtcb foresight full |
 |---|---:|---:|---:|---:|
-| 0 checks | – | 0.9999 (500) | 0.9978 / 0.9602 (1) | – |
-| 1 check | 0.9999 (499) | – | 0.9720 / 0.9164 (299) | 1.0000 (249) |
-| 2 checks | 1.0000 (1) | – | – | 1.0000 (1) |
+| 0 checks | – | 0.9999 / 0.9999 (500) | 0.9502 / 0.9978 (1) | – |
+| 1 check | 0.9998 / 0.9999 (499) | – | 0.8954 / 0.9720 (299) | 0.9999 / 1.0000 (249) |
+| 2 checks | 1.0000 / 1.0000 (1) | – | – | 1.0000 / 1.0000 (1) |
 
 ## By battery class, binding constraint and day type
 
-Mean R (and r_opt at the blind tier) over the battery-days in each group, the count in brackets. The binding constraint is the pack's tag for what limits the optimum; a day with negative-price hours and a spike counts in both.
+Mean C / R over the battery-days in each group, the count in brackets. The binding constraint is the pack's tag for what limits the optimum; a day with negative-price hours and a spike counts in both.
 
 | | A eval foresight full | B eval foresight oneshot | C eval blind full | D rtcb foresight full |
 |---|---:|---:|---:|---:|
-| 1 h battery | 1.0000 (172) | 1.0000 (172) | 0.9698 / 0.9303 (102) | 1.0000 (81) |
-| 2 h battery | 1.0000 (166) | 1.0000 (166) | 0.9653 / 0.9083 (105) | 0.9999 (92) |
-| 4 h battery | 0.9997 (162) | 0.9997 (162) | 0.9822 / 0.9106 (93) | 1.0000 (77) |
+| 1 h battery | 1.0000 / 1.0000 (172) | 1.0000 / 1.0000 (172) | 0.9129 / 0.9698 (102) | 1.0000 / 1.0000 (81) |
+| 2 h battery | 0.9999 / 1.0000 (166) | 1.0000 / 1.0000 (166) | 0.8854 / 0.9653 (105) | 0.9999 / 0.9999 (92) |
+| 4 h battery | 0.9996 / 0.9997 (162) | 0.9997 / 0.9997 (162) | 0.8883 / 0.9822 (93) | 1.0000 / 1.0000 (77) |
 
 | | A eval foresight full | B eval foresight oneshot | C eval blind full | D rtcb foresight full |
 |---|---:|---:|---:|---:|
-| No constraint binds | 0.9999 (169) | 1.0000 (169) | 0.9604 / 0.9149 (94) | 1.0000 (110) |
-| Rate | 1.0000 (163) | 0.9999 (163) | 0.9810 / 0.9162 (93) | 0.9999 (69) |
-| Cycle cap | 0.9996 (103) | 0.9999 (103) | 0.9714 / 0.9050 (70) | 1.0000 (38) |
-| End-of-day charge | 1.0000 (65) | 0.9998 (65) | 0.9793 / 0.9395 (43) | 1.0000 (33) |
+| No constraint binds | 0.9999 / 0.9999 (169) | 1.0000 / 1.0000 (169) | 0.8936 / 0.9604 (94) | 1.0000 / 1.0000 (110) |
+| Rate | 1.0000 / 1.0000 (163) | 0.9998 / 0.9999 (163) | 0.8952 / 0.9810 (93) | 0.9998 / 0.9999 (69) |
+| Cycle cap | 0.9995 / 0.9996 (103) | 0.9999 / 0.9999 (103) | 0.8812 / 0.9714 (70) | 1.0000 / 1.0000 (38) |
+| End-of-day charge | 1.0000 / 1.0000 (65) | 0.9998 / 0.9998 (65) | 0.9244 / 0.9793 (43) | 1.0000 / 1.0000 (33) |
 
 | | A eval foresight full | B eval foresight oneshot | C eval blind full | D rtcb foresight full |
 |---|---:|---:|---:|---:|
-| Negative-price hours | 0.9983 (27) | 0.9998 (27) | 0.9794 / 0.8228 (12) | 1.0000 (25) |
-| Price spike | 1.0000 (14) | 1.0000 (14) | 0.9790 / 0.9662 (9) | 1.0000 (3) |
-| Neither | 1.0000 (459) | 0.9999 (459) | 0.9715 / 0.9189 (279) | 1.0000 (222) |
+| Negative-price hours | 0.9979 / 0.9983 (27) | 0.9997 / 0.9998 (27) | 0.7785 / 0.9794 (12) | 1.0000 / 1.0000 (25) |
+| Price spike | 1.0000 / 1.0000 (14) | 1.0000 / 1.0000 (14) | 0.9578 / 0.9790 (9) | 1.0000 / 1.0000 (3) |
+| Neither | 1.0000 / 1.0000 (459) | 0.9999 / 0.9999 (459) | 0.8987 / 0.9715 (279) | 0.9999 / 1.0000 (222) |
 
 ## Cost, tokens and time
 
@@ -119,20 +125,49 @@ Per scored run: model spend at the agent's price table, tokens and wall time of 
 
 ## Baselines on the same tasks
 
-Each reference policy graded by `gridsim_core` at the column's tier on the column's battery-days: mean R, and r_opt at the blind tier; persistence-DP, ridge-DP and the blind anchor need the blind inputs, so on foresight columns they cover only the days that have them (count in brackets). Threshold and greedy read the day's own prices, so at the blind tier they are not policies a blind desk could run.
+Each reference policy graded by `gridsim_core` at the column's tier on the column's battery-days: mean C / R; persistence-DP, ridge-DP and the blind anchor need the blind inputs, so on foresight columns they cover only the days that have them (count in brackets). Threshold and greedy read the day's own prices, so at the blind tier they are not policies a blind desk could run.
 
 | | A eval foresight full | B eval foresight oneshot | C eval blind full | D rtcb foresight full |
 |---|---:|---:|---:|---:|
-| Idle | 0.200 | 0.200 | 0.200 / 0.200 | 0.200 |
-| Random feasible | 0.072 | 0.072 | 0.076 / 0.076 | 0.043 |
-| Clock | 0.485 | 0.485 | 0.516 / 0.487 | 0.435 |
-| Threshold | 0.642 | 0.642 | 0.698 / 0.655 | 0.664 |
-| Greedy | 0.761 | 0.761 | 0.821 / 0.783 | 0.724 |
-| Persistence-DP | 0.882 (300) | 0.882 (300) | 0.957 / 0.882 | 0.844 (202) |
-| Ridge-DP | 0.799 (300) | 0.799 (300) | 0.861 / 0.799 | 0.764 (202) |
-| Blind anchor | 0.920 (300) | 0.920 (300) | 1.000 / 0.920 | 0.888 (202) |
-| DP optimum | 1.000 | 1.000 | 1.000 / 1.000 | 1.000 |
-| **Model** | **1.000** | **1.000** | **0.972** / **0.916** | **1.000** |
+| Idle | 0.000 / 0.200 | 0.000 / 0.200 | 0.000 / 0.200 | 0.000 / 0.200 |
+| Random feasible | -0.559 / 0.072 | -0.559 / 0.072 | -0.507 / 0.076 | -0.718 / 0.043 |
+| Clock | 0.341 / 0.485 | 0.341 / 0.485 | 0.349 / 0.516 | 0.251 / 0.435 |
+| Threshold | 0.543 / 0.642 | 0.543 / 0.642 | 0.565 / 0.698 | 0.567 / 0.664 |
+| Greedy | 0.701 / 0.761 | 0.701 / 0.761 | 0.729 / 0.821 | 0.654 / 0.724 |
+| Persistence-DP | 0.852 / 0.882 (300) | 0.852 / 0.882 (300) | 0.852 / 0.957 | 0.805 / 0.844 (202) |
+| Ridge-DP | 0.747 / 0.799 (300) | 0.747 / 0.799 (300) | 0.747 / 0.861 | 0.702 / 0.764 (202) |
+| Blind anchor | 0.901 / 0.920 (300) | 0.901 / 0.920 (300) | 0.901 / 1.000 | 0.860 / 0.888 (202) |
+| DP optimum | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 | 1.000 / 1.000 |
+| **Model** | **1.000 / 1.000** | **1.000 / 1.000** | **0.896 / 0.972** | **1.000 / 1.000** |
+
+The model against each reference on the same battery-days, (P − P_ref)/(P_opt − P_idle) with its paired 95% CI:
+
+| Model | Tier | Reference | Its C | Model − it (95% CI) | Tasks |
+|---|---|---|---:|---|---:|
+| A eval foresight full | foresight | random | -0.559 | +1.558 (+1.502 to +1.618) | 500 |
+| A eval foresight full | foresight | clock | 0.341 | +0.659 (+0.626 to +0.693) | 500 |
+| A eval foresight full | foresight | threshold | 0.543 | +0.456 (+0.428 to +0.487) | 500 |
+| A eval foresight full | foresight | greedy | 0.701 | +0.299 (+0.270 to +0.330) | 500 |
+| A eval foresight full | foresight | persistence_dp | 0.852 | +0.147 (+0.128 to +0.168) | 300 |
+| A eval foresight full | foresight | ridge_dp | 0.747 | +0.252 (+0.224 to +0.282) | 300 |
+| B eval foresight oneshot | foresight | random | -0.559 | +1.558 (+1.502 to +1.619) | 500 |
+| B eval foresight oneshot | foresight | clock | 0.341 | +0.659 (+0.626 to +0.694) | 500 |
+| B eval foresight oneshot | foresight | threshold | 0.543 | +0.456 (+0.428 to +0.487) | 500 |
+| B eval foresight oneshot | foresight | greedy | 0.701 | +0.299 (+0.270 to +0.330) | 500 |
+| B eval foresight oneshot | foresight | persistence_dp | 0.852 | +0.147 (+0.128 to +0.168) | 300 |
+| B eval foresight oneshot | foresight | ridge_dp | 0.747 | +0.253 (+0.224 to +0.282) | 300 |
+| C eval blind full | blind | random | -0.507 | +1.403 (+1.343 to +1.465) | 300 |
+| C eval blind full | blind | clock | 0.349 | +0.547 (+0.506 to +0.589) | 300 |
+| C eval blind full | blind | threshold | 0.565 | +0.331 (+0.292 to +0.372) | 300 |
+| C eval blind full | blind | greedy | 0.729 | +0.167 (+0.133 to +0.202) | 300 |
+| C eval blind full | blind | persistence_dp | 0.852 | +0.043 (+0.028 to +0.059) | 300 |
+| C eval blind full | blind | ridge_dp | 0.747 | +0.148 (+0.119 to +0.179) | 300 |
+| D rtcb foresight full | foresight | random | -0.718 | +1.718 (+1.633 to +1.803) | 250 |
+| D rtcb foresight full | foresight | clock | 0.251 | +0.749 (+0.693 to +0.806) | 250 |
+| D rtcb foresight full | foresight | threshold | 0.567 | +0.433 (+0.389 to +0.478) | 250 |
+| D rtcb foresight full | foresight | greedy | 0.654 | +0.346 (+0.302 to +0.392) | 250 |
+| D rtcb foresight full | foresight | persistence_dp | 0.805 | +0.195 (+0.167 to +0.224) | 202 |
+| D rtcb foresight full | foresight | ridge_dp | 0.702 | +0.298 (+0.261 to +0.337) | 202 |
 
 LP bound (the convex relaxation, in $) against the exact DP optimum on each column's days:
 
@@ -143,7 +178,8 @@ LP bound (the convex relaxation, in $) against the exact DP optimum on each colu
 
 ## Hypotheses
 
-The pre-registration's hypotheses, from the spec before any run, against the amended columns.
+The pre-registration's hypotheses, from the spec before any run, against the amended columns. They were registered on R,
+so R is what they are read on.
 
 | Row | Hypothesis | Measured | Reading |
 |---|---|---|---|
@@ -151,20 +187,21 @@ The pre-registration's hypotheses, from the spec before any run, against the ame
 | Sol, oneshot, foresight (B) | below full, by an amount not predicted | 0.9999; B − A +0.0000 over the 500 days (B lower on 4, higher on 5) | not below: no difference |
 | Greedy (filtered pack) | ~0.78 (tuned to 0.75-0.80) | 0.761 on A's days | in the tuned band, under 0.78 |
 | Threshold | ~0.62 | 0.642 on A's days | near |
-| Sol, blind (C) | no prior; first measurement | R 0.9721 (0.9624 to 0.9804), r_opt 0.9165, beats the anchor on 40.3% | first measurement |
+| Sol, blind (C) | no prior; first measurement | R 0.9721 (0.9624 to 0.9804); C 0.896 against the anchor's 0.901, Δ -0.005; beats the anchor on 33.0% | first measurement |
 
 ## Reading
 
-- **Foresight is saturated for Sol,** as FD-4332 warned it would be for a frontier model: A's mean is 0.9999, 99.6% of
-  its 500 days score R ≥ 0.99 (the 2 others 0.968, 0.986), B matches A, and D's 250 post-RTC+B days all score 1.0000.
-  Every submitted schedule was valid: no overfill, no sell-before-charge, no rate or cycle-cap break, no end-of-day
-  shortfall and no all-idle day in any column. With 24 prices in view, Sol finds the DP's optimum; the foresight tier
-  stays the training headline for small models and the check that the harness works, not a way to rank frontier models.
-- **The blind tier carries the discrimination.** Sol's r_opt is 0.9165 against the blind anchor's own 0.9204 on the same
-  300 days (persistence-DP 0.8820, ridge-DP 0.7988): it sits above persistence-DP and just under the better of the two
-  forecasters, which a desk can build from the same inputs. It beats its anchor on 40.3% of the days and scores R ≥ 0.99
-  on 72.3%; 21.7% of its blind days score r_opt ≥ 0.99. It does worst on days with negative-price hours (r_opt 0.823 on
-  12 days, against 0.919 on the 279 days with neither negative prices nor a spike), and 1 blind day scored below idle.
+- **Foresight is solved for Sol,** as the design expected for a frontier model: A's C is 1.000 (R 0.9999), 99.6% of its
+  500 days score R ≥ 0.99 (the 2 others 0.968, 0.986), B matches A, and D's 250 post-RTC+B days average C 1.000. Every
+  submitted schedule was valid: no overfill, no sell-before-charge, no rate or cycle-cap break, no end-of-day shortfall
+  and no all-idle day in any column. With 24 prices in view, Sol finds the DP's optimum; the foresight tier stays the
+  training headline for small models and the check that the harness works, not a way to rank frontier models.
+- **The blind tier carries the discrimination.** Sol's C is 0.896 against the blind anchor's own 0.901 on the same 300
+  days, Δ -0.005 (-0.019 to +0.009); persistence-DP captures 0.852 (Sol − it +0.043, +0.028 to +0.059) and ridge-DP
+  0.747: Sol sits above persistence-DP and level with the better of the two forecasters, which a desk can build from the
+  same inputs. It out-earns its anchor on 33.0% of the days and ties or beats it (R = 1) on 62.3%, where R − R_anchor
+  reads a deficit by construction; C reaches 1 on 13.3%. It does worst on days with negative-price hours (C 0.778 on 12
+  days, against 0.899 on the 279 days with neither negative prices nor a spike), and 1 blind day scored below idle.
 - **Checking: one check, almost always.** Sol used exactly one of its three checks on 499 of A's 500 runs, 299 of C's
   300 and 249 of D's 250, never three; on 1,046 of the 1,049 runs that checked, the last schedule checked is the one it
   submitted. B, with no checks, scores the same as A, so at the foresight tier the check confirms rather than repairs.

@@ -1,11 +1,15 @@
-# The GridSim env: the battery-desk MCP server with the ERCOT DAM task packs, on port 18765.
+# The GridSim envs on port 18765: the battery-desk MCP server with the ERCOT DAM task packs, or, behind the gateway,
+# gridsim-live (the live packs), gridsim-hybrid (the hybrid packs), gridsim-forecast (the forecast packs) or
+# gridsim-market (the market packs) when ENVIRONMENT_NAME names one. HiGHS grades a window whose stored references don't
+# match its forecast source (the desk ablation) by playing the references in the env, and solves the market's welfare LP.
 #   Build: agent-env gridsim setup   (docker build -t agentenv-gridsim-env .)
 FROM python:3.12-slim
 LABEL org.opencontainers.image.source="https://github.com/earakely-scale/agentenv-gridsim-plugin" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.description="GridSimEnv as an AgentEnv environment. Prices derived from ERCOT Day-Ahead Market settlement point prices (NP4-180-ER); ERCOT does not endorse this product. Battery archetypes from EIA-860 (public domain)."
+      org.opencontainers.image.description="GridSimEnv as an AgentEnv environment. Prices derived from ERCOT Day-Ahead and Real-Time Market settlement point prices (NP4-180-ER, NP6-785-ER); ERCOT does not endorse this product. Battery archetypes from EIA-860 (public domain)."
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONPATH=/app
-RUN pip install "agentenv-framework-protocol==0.1.370" "fastmcp==3.4.8" "mcp==1.30.0" "pydantic==2.13.5" "numpy>=2,<3"
+RUN pip install "agentenv-framework-protocol==0.1.370" "fastmcp==3.4.8" "mcp==1.30.0" "pydantic==2.13.5" "numpy>=2,<3" \
+    "highspy==1.15.1"
 WORKDIR /app
 COPY LICENSE NOTICE /app/
 COPY data /app/gridsim_core/data

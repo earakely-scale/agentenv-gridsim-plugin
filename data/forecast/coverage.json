@@ -1,0 +1,1711 @@
+{
+ "built_utc": "2026-10-24T17:30:44Z",
+ "store_sha": "cb47cd9fc080268a822392b48acb662d40e8f7180b7cd0bab3c2cd4c0b5ee6b1",
+ "hrrr": {
+  "expected_runs": 10664,
+  "runs": 10664,
+  "missing_runs": [],
+  "by_year": {
+   "2019": {
+    "runs": 736,
+    "expected": 736,
+    "coverage": 1.0,
+    "complete_fh": 735,
+    "partial_fh": 1,
+    "empty": 0,
+    "fh_max": [
+     35,
+     36
+    ],
+    "backfilled": 736,
+    "lastmodified_lag_min": null,
+    "gb_read": 151.2
+   },
+   "2020": {
+    "runs": 1464,
+    "expected": 1464,
+    "coverage": 1.0,
+    "complete_fh": 1460,
+    "partial_fh": 4,
+    "empty": 0,
+    "fh_max": [
+     30,
+     36,
+     47,
+     48
+    ],
+    "backfilled": 1464,
+    "lastmodified_lag_min": null,
+    "gb_read": 305.6
+   },
+   "2021": {
+    "runs": 1460,
+    "expected": 1460,
+    "coverage": 1.0,
+    "complete_fh": 1460,
+    "partial_fh": 0,
+    "empty": 0,
+    "fh_max": [
+     48
+    ],
+    "backfilled": 199,
+    "lastmodified_lag_min": {
+     "p50": 111.8,
+     "p90": 114.5,
+     "max": 163.7
+    },
+    "gb_read": 397.8
+   },
+   "2022": {
+    "runs": 1460,
+    "expected": 1460,
+    "coverage": 1.0,
+    "complete_fh": 1459,
+    "partial_fh": 1,
+    "empty": 0,
+    "fh_max": [
+     48
+    ],
+    "backfilled": 23,
+    "lastmodified_lag_min": {
+     "p50": 111.4,
+     "p90": 114.1,
+     "max": 172.7
+    },
+    "gb_read": 398.0
+   },
+   "2023": {
+    "runs": 1460,
+    "expected": 1460,
+    "coverage": 1.0,
+    "complete_fh": 1460,
+    "partial_fh": 0,
+    "empty": 0,
+    "fh_max": [
+     48
+    ],
+    "backfilled": 4,
+    "lastmodified_lag_min": {
+     "p50": 113.5,
+     "p90": 116.3,
+     "max": 152.2
+    },
+    "gb_read": 398.1
+   },
+   "2024": {
+    "runs": 1464,
+    "expected": 1464,
+    "coverage": 1.0,
+    "complete_fh": 1464,
+    "partial_fh": 0,
+    "empty": 0,
+    "fh_max": [
+     48
+    ],
+    "backfilled": 12,
+    "lastmodified_lag_min": {
+     "p50": 109.9,
+     "p90": 112.7,
+     "max": 159.3
+    },
+    "gb_read": 397.5
+   },
+   "2025": {
+    "runs": 1460,
+    "expected": 1460,
+    "coverage": 1.0,
+    "complete_fh": 1460,
+    "partial_fh": 0,
+    "empty": 0,
+    "fh_max": [
+     48
+    ],
+    "backfilled": 3,
+    "lastmodified_lag_min": {
+     "p50": 106.9,
+     "p90": 109.7,
+     "max": 178.1
+    },
+    "gb_read": 397.7
+   },
+   "2026": {
+    "runs": 1160,
+    "expected": 1160,
+    "coverage": 1.0,
+    "complete_fh": 1159,
+    "partial_fh": 1,
+    "empty": 0,
+    "fh_max": [
+     48
+    ],
+    "backfilled": 2,
+    "lastmodified_lag_min": {
+     "p50": 107.9,
+     "p90": 115.4,
+     "max": 162.7
+    },
+    "gb_read": 319.9
+   }
+  },
+  "staleness_10cpt": {
+   "p50_h": 1.0,
+   "p95_h": 2.0,
+   "max_h": 2.0,
+   "days_over_6h": 0,
+   "days_over_24h": 0
+  },
+  "missing_fh_runs": [
+   "2019-11-22T18Z",
+   "2020-02-14T00Z",
+   "2020-10-08T06Z",
+   "2022-02-26T18Z"
+  ]
+ },
+ "eia930": {
+  "span": [
+   "2018-07-01 06:00:00+00:00",
+   "2026-10-24 05:00:00+00:00"
+  ],
+  "by_year": {
+   "2018": {
+    "hours": 4410,
+    "expected": 4411,
+    "df_mw_non_null": 0.978,
+    "demand_mw_non_null": 0.9889,
+    "wind_mw_non_null": 0.9889,
+    "solar_mw_non_null": 0.9889,
+    "demand_imputed_h": 24
+   },
+   "2019": {
+    "hours": 8760,
+    "expected": 8760,
+    "df_mw_non_null": 1.0,
+    "demand_mw_non_null": 1.0,
+    "wind_mw_non_null": 1.0,
+    "solar_mw_non_null": 1.0,
+    "demand_imputed_h": 0
+   },
+   "2020": {
+    "hours": 8784,
+    "expected": 8784,
+    "df_mw_non_null": 1.0,
+    "demand_mw_non_null": 1.0,
+    "wind_mw_non_null": 1.0,
+    "solar_mw_non_null": 1.0,
+    "demand_imputed_h": 0
+   },
+   "2021": {
+    "hours": 8760,
+    "expected": 8760,
+    "df_mw_non_null": 1.0,
+    "demand_mw_non_null": 1.0,
+    "wind_mw_non_null": 1.0,
+    "solar_mw_non_null": 1.0,
+    "demand_imputed_h": 0
+   },
+   "2022": {
+    "hours": 8760,
+    "expected": 8760,
+    "df_mw_non_null": 1.0,
+    "demand_mw_non_null": 1.0,
+    "wind_mw_non_null": 1.0,
+    "solar_mw_non_null": 1.0,
+    "demand_imputed_h": 0
+   },
+   "2023": {
+    "hours": 8760,
+    "expected": 8760,
+    "df_mw_non_null": 1.0,
+    "demand_mw_non_null": 1.0,
+    "wind_mw_non_null": 1.0,
+    "solar_mw_non_null": 1.0,
+    "demand_imputed_h": 0
+   },
+   "2024": {
+    "hours": 8784,
+    "expected": 8784,
+    "df_mw_non_null": 1.0,
+    "demand_mw_non_null": 1.0,
+    "wind_mw_non_null": 1.0,
+    "solar_mw_non_null": 1.0,
+    "demand_imputed_h": 0
+   },
+   "2025": {
+    "hours": 8760,
+    "expected": 8760,
+    "df_mw_non_null": 0.9945,
+    "demand_mw_non_null": 0.9973,
+    "wind_mw_non_null": 0.9973,
+    "solar_mw_non_null": 0.9973,
+    "demand_imputed_h": 24
+   },
+   "2026": {
+    "hours": 7110,
+    "expected": 7109,
+    "df_mw_non_null": 1.0001,
+    "demand_mw_non_null": 0.9968,
+    "wind_mw_non_null": 0.9968,
+    "solar_mw_non_null": 0.9968,
+    "demand_imputed_h": 0
+   }
+  },
+  "subregion_non_null_by_year": {
+   "2018": 0.0,
+   "2019": 0.5993,
+   "2020": 1.0,
+   "2021": 1.0,
+   "2022": 1.0,
+   "2023": 1.0,
+   "2024": 0.9998,
+   "2025": 0.9941,
+   "2026": 0.9959
+  },
+  "df_days": 3034
+ },
+ "ercot": {
+  "reports": {
+   "NP3-565-CD": {
+    "postings": 25144,
+    "listed_csv_docs": 25144,
+    "first": "2023-12-11 00:30:01-06:00",
+    "last": "2026-10-23 23:30:00-05:00",
+    "posting_minute_mode": 30,
+    "days_with_lt_23_postings": 2,
+    "days_with_gt_25_postings": 0,
+    "gaps_over_1_5h": 5,
+    "largest_gaps": [
+     {
+      "after": "2026-03-06 15:30:00+00:00",
+      "hours": 4.0
+     },
+     {
+      "after": "2026-10-05 09:30:00+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-03-06 09:30:00+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-10-05 11:30:00+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-03-06 13:30:00+00:00",
+      "hours": 2.0
+     }
+    ],
+    "dst_postings": 16937,
+    "dst_ambiguous": 0,
+    "fallback_hour_postings": [
+     "2024-11-01T01:30:00.000",
+     "2024-11-02T01:30:00.000",
+     "2024-11-03T01:30:00.000",
+     "2024-11-03T01:30:00.000",
+     "2024-11-04T01:30:00.000",
+     "2024-11-05T01:30:00.000",
+     "2024-11-06T01:30:00.000",
+     "2024-11-07T01:30:00.000",
+     "2025-11-01T01:30:00.000",
+     "2025-11-02T01:30:00.000",
+     "2025-11-02T01:30:00.000",
+     "2025-11-03T01:30:00.000"
+    ],
+    "by_year": {
+     "2023": 504,
+     "2024": 8784,
+     "2025": 8760,
+     "2026": 7096
+    },
+    "staleness_10cpt": {
+     "p50_h": 0.5,
+     "p95_h": 0.5,
+     "max_h": 0.5,
+     "days_over_6h": 0,
+     "days_over_24h": 0
+    },
+    "zones_sum_vs_system_total_max_abs_mw": 0.0,
+    "in_use_model_hours": {
+     "E": 466508,
+     "E3": 357286,
+     "E1": 348941,
+     "E2": 294899,
+     "X": 223136,
+     "M": 113840,
+     "A3": 3735,
+     "A6": 2023
+    }
+   },
+   "NP4-732-CD": {
+    "postings": 25147,
+    "listed_csv_docs": 25147,
+    "first": "2023-12-11 00:55:46-06:00",
+    "last": "2026-10-23 23:55:14-05:00",
+    "posting_minute_mode": 55,
+    "days_with_lt_23_postings": 0,
+    "days_with_gt_25_postings": 0,
+    "gaps_over_1_5h": 7,
+    "largest_gaps": [
+     {
+      "after": "2024-01-18 21:55:37+00:00",
+      "hours": 3.0
+     },
+     {
+      "after": "2026-08-06 19:55:32+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2024-05-16 19:55:10+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-01-28 20:55:32+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-06-04 19:55:36+00:00",
+      "hours": 2.0
+     }
+    ],
+    "dst_postings": 16936,
+    "dst_ambiguous": 0,
+    "fallback_hour_postings": [
+     "2024-11-01T01:55:10.000",
+     "2024-11-02T01:55:08.000",
+     "2024-11-03T01:55:09.000",
+     "2024-11-03T01:55:10.000",
+     "2024-11-04T01:55:08.000",
+     "2024-11-05T01:55:09.000",
+     "2024-11-06T01:55:08.000",
+     "2024-11-07T01:55:09.000",
+     "2025-11-01T01:55:12.000",
+     "2025-11-02T01:55:13.000",
+     "2025-11-02T01:55:10.000",
+     "2025-11-03T01:55:11.000"
+    ],
+    "by_year": {
+     "2023": 504,
+     "2024": 8784,
+     "2025": 8760,
+     "2026": 7099
+    },
+    "staleness_10cpt": {
+     "p50_h": 0.08,
+     "p95_h": 0.08,
+     "max_h": 0.08,
+     "days_over_6h": 0,
+     "days_over_24h": 0
+    }
+   },
+   "NP4-742-CD": {
+    "postings": 25127,
+    "listed_csv_docs": 25127,
+    "first": "2023-12-11 00:55:51-06:00",
+    "last": "2026-10-23 23:55:14-05:00",
+    "posting_minute_mode": 55,
+    "days_with_lt_23_postings": 3,
+    "days_with_gt_25_postings": 0,
+    "gaps_over_1_5h": 10,
+    "largest_gaps": [
+     {
+      "after": "2024-09-18 16:55:09+00:00",
+      "hours": 21.08
+     },
+     {
+      "after": "2024-01-18 21:55:41+00:00",
+      "hours": 3.0
+     },
+     {
+      "after": "2026-06-04 19:55:28+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-01-28 20:55:32+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-08-06 19:55:34+00:00",
+      "hours": 2.0
+     }
+    ],
+    "dst_postings": 16916,
+    "dst_ambiguous": 0,
+    "fallback_hour_postings": [
+     "2024-11-01T01:55:09.000",
+     "2024-11-02T01:55:08.000",
+     "2024-11-03T01:55:09.000",
+     "2024-11-03T01:55:10.000",
+     "2024-11-04T01:55:08.000",
+     "2024-11-05T01:55:09.000",
+     "2024-11-06T01:55:08.000",
+     "2024-11-07T01:55:09.000",
+     "2025-11-01T01:55:12.000",
+     "2025-11-02T01:55:11.000",
+     "2025-11-02T01:55:11.000",
+     "2025-11-03T01:55:12.000"
+    ],
+    "by_year": {
+     "2023": 504,
+     "2024": 8766,
+     "2025": 8760,
+     "2026": 7097
+    },
+    "staleness_10cpt": {
+     "p50_h": 0.08,
+     "p95_h": 0.08,
+     "max_h": 0.08,
+     "days_over_6h": 0,
+     "days_over_24h": 0
+    }
+   },
+   "NP4-745-CD": {
+    "postings": 25142,
+    "listed_csv_docs": 25142,
+    "first": "2023-12-11 00:55:50-06:00",
+    "last": "2026-10-23 23:55:18-05:00",
+    "posting_minute_mode": 55,
+    "days_with_lt_23_postings": 1,
+    "days_with_gt_25_postings": 0,
+    "gaps_over_1_5h": 9,
+    "largest_gaps": [
+     {
+      "after": "2024-01-18 21:55:37+00:00",
+      "hours": 3.0
+     },
+     {
+      "after": "2026-01-28 20:55:32+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-08-06 19:55:33+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-01-08 20:55:33+00:00",
+      "hours": 2.0
+     },
+     {
+      "after": "2026-10-05 11:55:11+00:00",
+      "hours": 2.0
+     }
+    ],
+    "dst_postings": 16933,
+    "dst_ambiguous": 0,
+    "fallback_hour_postings": [
+     "2024-11-01T01:55:07.000",
+     "2024-11-02T01:55:07.000",
+     "2024-11-03T01:55:08.000",
+     "2024-11-03T01:55:08.000",
+     "2024-11-04T01:55:08.000",
+     "2024-11-05T01:55:08.000",
+     "2024-11-06T01:55:07.000",
+     "2024-11-07T01:55:08.000",
+     "2025-11-01T01:55:10.000",
+     "2025-11-02T01:55:10.000",
+     "2025-11-02T01:55:11.000",
+     "2025-11-03T01:55:09.000"
+    ],
+    "by_year": {
+     "2023": 504,
+     "2024": 8781,
+     "2025": 8760,
+     "2026": 7097
+    },
+    "staleness_10cpt": {
+     "p50_h": 0.08,
+     "p95_h": 0.08,
+     "max_h": 0.08,
+     "days_over_6h": 0,
+     "days_over_24h": 0
+    },
+    "regions_sum_vs_system_wide_max_abs_stppf_mw": 0.0,
+    "regions_sum_vs_system_wide_max_abs_pvgrpp_mw": 0.0
+   }
+  }
+ },
+ "watch_cover": {
+  "days": 1048,
+  "share_of_days_all_watches_covered": {
+   "ercot_load": 0.999,
+   "ercot_wind": 0.9971,
+   "ercot_solar": 0.9981
+  },
+  "days_all_three_covered": 0.9971,
+  "failing_days": {
+   "ercot_load": [
+    "2023-12-11"
+   ],
+   "ercot_wind": [
+    "2023-12-11",
+    "2024-01-18",
+    "2025-03-28"
+   ],
+   "ercot_solar": [
+    "2023-12-11",
+    "2024-01-18"
+   ]
+  }
+ },
+ "store": {
+  "ercot_load": {
+   "keys": 9,
+   "by_year": {
+    "2023": 498,
+    "2024": 8784,
+    "2025": 8760,
+    "2026": 7102
+   },
+   "vintages": 226296,
+   "n_hours": [
+    72,
+    72
+   ]
+  },
+  "ercot_solar": {
+   "keys": 7,
+   "by_year": {
+    "2023": 498,
+    "2024": 8780,
+    "2025": 8759,
+    "2026": 7102
+   },
+   "vintages": 175973,
+   "n_hours": [
+    1,
+    72
+   ]
+  },
+  "ercot_wind": {
+   "keys": 6,
+   "by_year": {
+    "2023": 996,
+    "2024": 17550,
+    "2025": 17504,
+    "2026": 14208
+   },
+   "vintages": 150734,
+   "n_hours": [
+    2,
+    72
+   ]
+  },
+  "load": {
+   "keys": 9,
+   "by_year": {
+    "2021": 1459,
+    "2022": 1460,
+    "2023": 1460,
+    "2024": 1464,
+    "2025": 1460,
+    "2026": 1160
+   },
+   "vintages": 76167,
+   "n_hours": [
+    72,
+    72
+   ]
+  },
+  "load_official": {
+   "keys": 1,
+   "by_year": {
+    "2019": 184,
+    "2020": 366,
+    "2021": 365,
+    "2022": 365,
+    "2023": 365,
+    "2024": 366,
+    "2025": 363,
+    "2026": 296
+   },
+   "vintages": 2670,
+   "n_hours": [
+    23,
+    25
+   ]
+  },
+  "mcpc": {
+   "keys": 5,
+   "by_year": {
+    "2021": 1459,
+    "2022": 1460,
+    "2023": 1460,
+    "2024": 1464,
+    "2025": 1460,
+    "2026": 1160
+   },
+   "vintages": 38767,
+   "n_hours": [
+    72,
+    72
+   ]
+  },
+  "price": {
+   "keys": 13,
+   "by_year": {
+    "2021": 1459,
+    "2022": 1460,
+    "2023": 1460,
+    "2024": 1464,
+    "2025": 1460,
+    "2026": 1160
+   },
+   "vintages": 110019,
+   "n_hours": [
+    72,
+    72
+   ]
+  },
+  "solar": {
+   "keys": 1,
+   "by_year": {
+    "2021": 1459,
+    "2022": 1460,
+    "2023": 1460,
+    "2024": 1464,
+    "2025": 1460,
+    "2026": 1160
+   },
+   "vintages": 8463,
+   "n_hours": [
+    72,
+    72
+   ]
+  },
+  "weather": {
+   "keys": 18,
+   "by_year": {
+    "2021": 1459,
+    "2022": 1460,
+    "2023": 1460,
+    "2024": 1464,
+    "2025": 1460,
+    "2026": 1160
+   },
+   "vintages": 152334,
+   "n_hours": [
+    8,
+    45
+   ]
+  },
+  "wind": {
+   "keys": 1,
+   "by_year": {
+    "2021": 1459,
+    "2022": 1460,
+    "2023": 1460,
+    "2024": 1464,
+    "2025": 1460,
+    "2026": 1160
+   },
+   "vintages": 8463,
+   "n_hours": [
+    72,
+    72
+   ]
+  }
+ },
+ "api_vs_mis": {
+  "mis_file": "PVGR_20261024_0655.zip",
+  "api_file": "np4-745-cd_20261024T065512_1290252298.csv",
+  "rows_mis": 216,
+  "rows_api": 216,
+  "rows_matched": 216,
+  "max_abs_diff_by_column": {
+   "COP_HSL_SYSTEM_WIDE": 0.0,
+   "STPPF_SYSTEM_WIDE": 0.0,
+   "PVGRPP_SYSTEM_WIDE": 0.0,
+   "GEN_CenterWest": 0.0,
+   "COP_HSL_CenterWest": 0.0,
+   "STPPF_CenterWest": 0.0,
+   "PVGRPP_CenterWest": 0.0,
+   "GEN_NorthWest": 0.0,
+   "COP_HSL_NorthWest": 0.0,
+   "STPPF_NorthWest": 0.0,
+   "PVGRPP_NorthWest": 0.0,
+   "GEN_FarWest": 0.0,
+   "COP_HSL_FarWest": 0.0,
+   "STPPF_FarWest": 0.0,
+   "PVGRPP_FarWest": 0.0,
+   "GEN_FarEast": 0.0,
+   "COP_HSL_FarEast": 0.0,
+   "STPPF_FarEast": 0.0,
+   "PVGRPP_FarEast": 0.0,
+   "GEN_SouthEast": 0.0,
+   "COP_HSL_SouthEast": 0.0,
+   "STPPF_SouthEast": 0.0,
+   "PVGRPP_SouthEast": 0.0,
+   "GEN_CenterEast": 0.0,
+   "COP_HSL_CenterEast": 0.0,
+   "STPPF_CenterEast": 0.0,
+   "PVGRPP_CenterEast": 0.0
+  },
+  "identical": true
+ },
+ "sizes": {
+  "hrrr": 0.312,
+  "eia930": 1.178,
+  "ercot": 2.565,
+  "store": 0.557,
+  "hrrr_points_gb": 0.124,
+  "ercot_raw_gb": 2.565,
+  "store_vintages_gb": 0.52
+ },
+ "leakage": {
+  "windows": [
+   [
+    "fern-0124",
+    "2026-01-24"
+   ],
+   [
+    "heather-0114",
+    "2024-01-14"
+   ],
+   [
+    "uri-0213",
+    "2021-02-13"
+   ],
+   [
+    "spring-0328",
+    "2024-03-28"
+   ],
+   [
+    "random-0",
+    "2025-12-02"
+   ],
+   [
+    "random-1",
+    "2024-09-08"
+   ],
+   [
+    "random-2",
+    "2023-12-17"
+   ],
+   [
+    "random-3",
+    "2022-07-26"
+   ],
+   [
+    "random-4",
+    "2022-10-15"
+   ],
+   [
+    "random-5",
+    "2021-03-31"
+   ],
+   [
+    "random-6",
+    "2021-06-11"
+   ],
+   [
+    "random-7",
+    "2021-02-07"
+   ],
+   [
+    "random-8",
+    "2022-01-08"
+   ],
+   [
+    "random-9",
+    "2025-09-15"
+   ],
+   [
+    "random-10",
+    "2024-10-04"
+   ],
+   [
+    "random-11",
+    "2026-04-13"
+   ]
+  ],
+  "served_checks": 2480,
+  "all_issued_at_le_watch": true,
+  "vintage_changes": {
+   "fern-0124|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "fern-0124|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "heather-0114|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "uri-0213|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "spring-0328|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-0|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-1|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-2|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-3|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-4|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-5|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-6|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-7|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|ercot_load|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|ercot_wind|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-8|ercot_solar|system": {
+    "watches": 0,
+    "new_vintages": 0,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-9|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-10|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|weather|DFW": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|load|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|load|NCEN": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|wind|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|solar|system": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|price|HB_NORTH": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|mcpc|regup": {
+    "watches": 16,
+    "new_vintages": 12,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|load_official|system": {
+    "watches": 16,
+    "new_vintages": 3,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|ercot_load|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|ercot_wind|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   },
+   "random-11|ercot_solar|system": {
+    "watches": 16,
+    "new_vintages": 15,
+    "identical_sha_after_new_vintage": []
+   }
+  },
+  "sha_recomputed": {
+   "checked": 38740,
+   "mismatch": 0
+  },
+  "identical_after_change": 0,
+  "changes": 1797
+ }
+}

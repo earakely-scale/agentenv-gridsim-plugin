@@ -1,9 +1,20 @@
 """portsim-llm's harness loop as the GridSim A2A agent: one battery-day on the env's MCP tools through agent-env's model
-endpoint, on the API each provider serves best. Cost is usage times PRICES, or the most a request could cost when its
+endpoint, on the API each provider serves best. Cost is usage times PRICES, or the estimate of a request when its
 usage is lost (it failed, or the harness cut its stream); when GRIDSIM_MAX_COST_USD is set, an episode stops before a
-request that could take it past that. The summary also gives the cost without the failed requests, which may not have
-been billed, and how many failed. MCP has no done flag, so the episode ends on submit_schedule's submitted, at
-MAX_TOOL_CALLS calls, or after max_turns."""
+request whose estimate would take it past that. The estimate prices a request as its usage will be: the last request's
+measured input tokens at the cache-read rate while the provider reports caching and the cache is warm, the bytes added
+since as fresh tokens (not the last reply's reasoning, priced once as its output), and the most output a reply of the
+episode has used (max_tokens before the first reply, and for a stream the harness cut). The summary also gives the
+cost without the failed requests, which may not have been billed, and how many failed. MCP
+has no done flag, so the episode ends on submit_schedule's submitted, at MAX_TOOL_CALLS calls, or after max_turns. An
+env that lists advance is a live day in watches (gridsim-live): the episode ends on advance's done, with no tool-call
+cap, or once a turn would start within TIME_MARGIN of the time limit, the day then graded on what was committed;
+Anthropic requests carry one rolling cache breakpoint. A live env without commit_da is a hybrid site-day
+(gridsim-hybrid), whose nudges speak of commit_schedule and the AS book; one that lists submit_dam is a forecast window
+(gridsim-forecast), whose nudges speak of DAM gates: the first advance that would leave an open gate with no DAM hour
+accepted there is not sent, and the agent is told so; a second advance leaves it. An env that lists submit_offer is a
+market floor (gridsim-market): without advance a floor-sprint, which ends on submit_offer's submitted; with it a
+floor-day, which ends on advance's done; the nudges speak of the DAM offer."""
 
 import json
 import logging
@@ -36,7 +47,10 @@ log = logging.getLogger("gridsim-llm")
 REQUEST_TIMEOUT = 900.0
 NOTES_CHARS = 8000
 MAX_TOOL_CALLS = 24
+TIME_MARGIN = 1200
 HARNESS_CAP = "length (harness cap)"
+CACHE_SECONDS = 300
+BYTES_PER_TOKEN = 3.5
 PRICES = {  # USD per 1M tokens: input, output, cache read. LiteLLM public price map, 2026-10-06 to 2026-10-21.
     "anthropic/claude-opus-5-5": (4.00, 20.00, 0.40),
     "anthropic/claude-sonnet-5-5": (2.00, 10.00, 0.20),
@@ -59,6 +73,50 @@ NO_CALL = ("No tool was called. Schedules only count through the tools: call sub
            "actions.")
 CUT_OFF = ("Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
            "reasoning short now and call submit_schedule with your best schedule.")
+
+
+@dataclass(frozen=True)
+class Mode:
+    last_turn: str
+    no_call: str
+    cut_off: str
+
+
+V1 = Mode(LAST_TURN, NO_CALL, CUT_OFF)
+LIVE = Mode("This is your last turn: commit now if your schedule needs a change (commit_da at watch 0, else "
+            "commit_schedule); the rest of the day then runs on what you committed.",
+            "No tool was called. Only the tools count: commit_da and commit_schedule commit your position and "
+            "schedule, advance moves to the next watch.",
+            "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+            "reasoning short now and call commit_schedule with your current draft, or advance.")
+HYBRID = Mode("This is your last turn: commit now if your book needs a change (commit_schedule; at watch 0 it also "
+              "sets your DA position and DA AS awards); the rest of the day then runs on what you committed.",
+              "No tool was called. Only the tools count: commit_schedule commits your energy schedule and AS book, "
+              "advance moves to the next watch.",
+              LIVE.cut_off)
+FORECAST = Mode("This is your last turn: at an open DAM gate, submit_dam now; commit_schedule if your book needs a "
+                "change; the rest of the window then runs on what you submitted and committed.",
+                "No tool was called. Only the tools count: submit_dam sets a day's DA position and AS at its gate, "
+                "commit_schedule commits your energy book, advance moves to the next watch.",
+                "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+                "reasoning short now and call submit_dam (at a DAM gate) or commit_schedule with your current draft, "
+                "or advance.")
+GATE_OPEN = ("Not sent: this watch is a DAM gate and no DAM hour is accepted at it. Call submit_dam for the next "
+             "operating day now, or call advance again to leave that day with no DA position and no AS.")
+SPRINT = Mode("This is your last turn: call submit_offer now with your best offer; a floor without a valid "
+              "submit_offer scores 0.",
+              "No tool was called. Only the tools count: submit_offer submits your DAM offer and ends the floor.",
+              "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+              "reasoning short now and call submit_offer with your best offer.")
+FLOOR = Mode("This is your last turn: before 10:00 submit_offer now if your offer needs a change, after the awards "
+             "commit_schedule if your schedule does; the rest of the day then runs on what you submitted and "
+             "committed.",
+             "No tool was called. Only the tools count: submit_offer sets your DAM offer before 10:00, commit_schedule "
+             "your physical schedule after the awards, advance moves to the next watch.",
+             "Your last turn ran out of output tokens before calling a tool. Your notes from it are above. Keep "
+             "reasoning short now and call submit_offer or commit_schedule with your current draft, or advance.")
+OFFER = "submit_offer"
+CHECKS = ("check_schedule", "check_offer")
 
 
 class GridSimConfig(AgentConfig):
@@ -113,6 +171,7 @@ class Turn:
     calls: list[Call]
     stop: str
     usage: dict = field(default_factory=dict)
+    resent: int = 0
 
 
 def _result(out: str) -> Any:
@@ -134,10 +193,10 @@ class AnthropicAgent:
     route = "messages"
 
     def __init__(self, model: str, tools, system: str, max_tokens: int, base_url: str, api_key: str,
-                 effort: str | None = None):
+                 effort: str | None = None, cache: bool = False):
         self.client = anthropic.AsyncAnthropic(base_url=base_url, auth_token=api_key, max_retries=4,
                                                timeout=REQUEST_TIMEOUT)
-        self.model, self.system, self.max_tokens = model, system, max_tokens
+        self.model, self.system, self.max_tokens, self.cache = model, system, max_tokens, cache
         self.extra = ({"extra_body": {"output_config": {"effort": effort}}} if effort in ("low", "medium", "high")
                       else {})
         self.tools = [{"name": t.name, "description": t.description or "",
@@ -160,13 +219,19 @@ class AnthropicAgent:
         if self._pending:
             self.messages.append({"role": "user", "content": self._pending})
             self._pending = []
-        return {"model": self.model, "system": self.system, "messages": self.messages, "tools": self.tools,
+        messages = self.messages
+        if self.cache:
+            *blocks, newest = messages[-1]["content"]
+            messages = [*messages[:-1], {**messages[-1], "content": [
+                *blocks, {**newest, "cache_control": {"type": "ephemeral"}}]}]
+        return {"model": self.model, "system": self.system, "messages": messages, "tools": self.tools,
                 "max_tokens": self.max_tokens, **self.extra}
 
     async def step(self, request: dict) -> Turn:
         async with self.client.messages.stream(**request) as s:
             msg = await s.get_final_message()
-        self.messages.append({"role": "assistant", "content": [b.model_dump(exclude_none=True) for b in msg.content]})
+        blocks = [b.model_dump(exclude_none=True) for b in msg.content]
+        self.messages.append({"role": "assistant", "content": blocks})
         text, reasoning, calls = "", "", []
         for b in msg.content:
             if b.type == "text":
@@ -180,7 +245,8 @@ class AnthropicAgent:
         cached, written = u.cache_read_input_tokens or 0, u.cache_creation_input_tokens or 0
         usage = {"input": (u.input_tokens or 0) + cached + written, "output": u.output_tokens or 0, "cached": cached,
                  "cache_write": written}
-        return Turn(text, reasoning, calls, msg.stop_reason or "", usage)
+        resent = sum(size_of(b) for b in blocks if b.get("type") in ("thinking", "redacted_thinking"))
+        return Turn(text, reasoning, calls, msg.stop_reason or "", usage, resent)
 
 
 class OpenAIResponsesAgent:
@@ -240,7 +306,8 @@ class OpenAIResponsesAgent:
             stop = f"length ({resp.incomplete_details.reason})"
         return Turn(text, reasoning, calls, stop, {"input": u.input_tokens or 0, "output": u.output_tokens or 0,
                                                    "cached": u.input_tokens_details.cached_tokens or 0,
-                                                   "cache_write": 0})
+                                                   "cache_write": 0},
+                    sum(size_of(item) for item in resp.output if item.type == "reasoning"))
 
 
 class ChatAgent:
@@ -348,20 +415,32 @@ def effort_of(model: str, effort: str | None) -> str | None:
     return effort or ("medium" if route(model) == "responses" else None)
 
 
-def make_agent(model: str, tools, system: str, max_tokens: int, effort: str | None, root: str, key: str):
+def make_agent(model: str, tools, system: str, max_tokens: int, effort: str | None, root: str, key: str,
+               cache: bool = False):
     if route(model) == "messages":
-        return AnthropicAgent(model, tools, system, max_tokens, root, key, effort)
+        return AnthropicAgent(model, tools, system, max_tokens, root, key, effort, cache)
     if route(model) == "responses":
         return OpenAIResponsesAgent(model, tools, system, max_tokens, f"{root}/v1", key, effort or "medium")
     return ChatAgent(model, tools, system, max_tokens, f"{root}/v1", key, effort)
 
 
-def bound(agent, request: dict, price: tuple[float, float, float]) -> float:
-    """The most a request can cost: each byte of its body an input token (a cache write on Messages), and its output
-    limit in output tokens."""
-    size = len(json.dumps(request, default=lambda o: o.model_dump(mode="json")).encode())
-    out = agent.max_tokens * (5 if agent.route == "chat" else 1)
-    return (size * price[0] * (1.25 if agent.route == "messages" else 1) + out * price[1]) / 1e6
+def size_of(request) -> int:
+    return len(json.dumps(request, default=lambda o: o.model_dump(mode="json")).encode())
+
+
+def estimate(agent, size: int, last: tuple[int, int] | None, cached: bool, price: tuple[float, float, float],
+             out: int | None = None) -> float:
+    """What a request of ``size`` bytes will likely be priced at: the last request's measured input tokens (``last``
+    is (tokens, bytes), the bytes counting the last reply's reasoning, already priced as output) at the cache-read
+    rate when ``cached`` (the provider reports caching and the cache is warm), else fresh; the bytes added since at
+    BYTES_PER_TOKEN a token, fresh (a cache write on Messages); and ``out`` output tokens, reasoning included, else
+    the output limit."""
+    tokens, sent = last or (0, 0)
+    fresh = max(0, size - sent) / BYTES_PER_TOKEN + (0 if cached else tokens)
+    if out is None:
+        out = agent.max_tokens * (5 if agent.route == "chat" else 1)
+    return ((tokens if cached else 0) * price[2] + fresh * price[0] * (1.25 if agent.route == "messages" else 1)
+            + out * price[1]) / 1e6
 
 
 def cost(usage: dict, price: tuple[float, float, float]) -> float:
@@ -396,7 +475,13 @@ class Episode:
                                        "final": {"submitted": False, "schedule": None},
                                        "usage": {"input_tokens": 0, "output_tokens": 0}, "turns": 0,
                                        "end_reason": None, "errors": []}
-        self.tool_calls = self.checks = self.cached = self.written = 0
+        self.live = self.commit_da = self.dam = self.market = self.caching = False
+        self.gate = {"open": False, "submitted": False, "nudged": False}
+        self.gate_nudges = 0
+        self.last: tuple[int, int] | None = None
+        self.last_at = 0.0
+        self.reward: float | None = None
+        self.tool_calls = self.checks = self.cached = self.written = self.out_max = 0
         self.spent = self.unbilled = 0.0
         self.failed_requests = 0
         self.failure: tuple[str, str] | None = None
@@ -436,27 +521,40 @@ class Episode:
         tools = await env.tools()
         self.record["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.input_schema}
                                 for t in tools]
+        self.live = any(t.name == "advance" for t in tools)
+        self.commit_da = any(t.name == "commit_da" for t in tools)
+        self.dam = any(t.name == "submit_dam" for t in tools)
+        self.gate["open"] = self.dam and '"phase":"dam_gate"' in opening
+        self.market = any(t.name == OFFER for t in tools)
         limit = self.config.model_params["max_tokens"]
         agent = make_agent(self.model, tools, system, min(limit, MAX_OUTPUT.get(self.model, limit)), self.effort,
-                           self.base.rstrip("/").removesuffix("/v1"), self.key)
+                           self.base.rstrip("/").removesuffix("/v1"), self.key, self.live)
         agent.user(opening)
         async with agent.client:
             await self.turns(env, agent)
 
     async def turns(self, env: EnvSession, agent) -> None:
         config, record, price = self.config, self.record, PRICES[self.model]
+        mode = ((FORECAST if self.dam else FLOOR if self.market else LIVE if self.commit_da else HYBRID) if self.live
+                else SPRINT if self.market else V1)
         max_turns = config.max_turns
         empty = 0
         for turn in range(max_turns):
-            if time.time() - self.started > config.timeout_seconds:
+            elapsed = time.time() - self.started
+            if self.live and elapsed > config.timeout_seconds - TIME_MARGIN:
+                record["end_reason"] = "time_limit"
+                break
+            if elapsed > config.timeout_seconds:
                 return self.fail("wall_clock",
                                  f"turn {turn + 1} would start after the {config.timeout_seconds} s limit")
             last = turn == max_turns - 1
             if last:
-                agent.user(LAST_TURN)
-                record["messages"].append({"role": "user", "content": LAST_TURN})
+                agent.user(mode.last_turn)
+                record["messages"].append({"role": "user", "content": mode.last_turn})
             request = agent.request()
-            most = bound(agent, request, price)
+            size = size_of(request)
+            warm = self.caching and time.monotonic() - self.last_at < CACHE_SECONDS
+            most = estimate(agent, size, self.last, warm, price, self.out_max or None)
             if self.max_cost is not None and self.spent + most > self.max_cost:
                 return self.fail("cost_cap", f"the next request could cost ${most:.4f}, past the ${self.max_cost:g} "
                                              f"cap with ${self.spent:.4f} spent")
@@ -475,7 +573,14 @@ class Episode:
                         return self.fail("provider_error", error=e)
                     self.record["errors"].append(f"{self.describe(e)} (turn {turn + 1} sent again)")
                     log.warning("turn %d: the reply failed mid-stream, sending it again", turn + 1)
-            self.spent += most if t.stop == HARNESS_CAP else cost(t.usage, price)
+            if t.stop == HARNESS_CAP:
+                self.spent += estimate(agent, size, self.last, warm, price)
+            else:
+                self.spent += cost(t.usage, price)
+                self.out_max = max(self.out_max, t.usage["output"])
+            self.last = (t.usage["input"] or round(size / BYTES_PER_TOKEN), size + t.resent)
+            self.last_at = time.monotonic()
+            self.caching = self.caching or bool(t.usage["cached"] or t.usage["cache_write"])
             self.cached += t.usage["cached"]
             self.written += t.usage["cache_write"]
             record["turns"] += 1
@@ -493,9 +598,9 @@ class Episode:
                     break
                 if t.stop.startswith("length") and t.reasoning:
                     agent.notes(t.reasoning[-NOTES_CHARS:])
-                    nudge = CUT_OFF
+                    nudge = mode.cut_off
                 else:
-                    nudge = NO_CALL
+                    nudge = mode.no_call
                 agent.user(nudge)
                 record["messages"].append({"role": "user", "content": nudge})
                 continue
@@ -506,19 +611,35 @@ class Episode:
                     out = json.dumps({"error": "the episode is over"})
                 elif c.error:
                     out = json.dumps({"error": c.error})
+                elif self.dam and c.name == "advance" and self.gate["open"] and not (
+                        self.gate["submitted"] or self.gate["nudged"]):
+                    out = json.dumps({"error": GATE_OPEN})
+                    self.gate["nudged"] = True
+                    self.gate_nudges += 1
                 else:
                     out = await env.call(c.name, c.arguments)
                     res = _result(out)
                     record["steps"].append({"t": self.tool_calls, "turn": turn + 1, "call_id": c.id, "tool": c.name,
                                             "args": c.arguments, "output": res})
                     self.tool_calls += 1
-                    if c.name == "check_schedule":
+                    if c.name in CHECKS:
                         self.checks += 1
-                    if c.name == SUBMIT and isinstance(res, dict) and res.get("submitted") is True:
+                    if self.dam:
+                        self.follow_gate(c.name, res)
+                    if self.live and c.name == "advance" and isinstance(res, dict) and res.get("done") is True:
+                        done = True
+                        self.reward = None if res.get("reward") is None else float(res["reward"])
+                        record["final"] = {"done": True, "reward": self.reward}
+                        record["end_reason"] = "done"
+                    elif c.name == SUBMIT and isinstance(res, dict) and res.get("submitted") is True:
                         done = True
                         record["final"] = {"submitted": True, "schedule": c.arguments.get("actions")}
                         record["end_reason"] = "submitted"
-                    elif self.tool_calls >= MAX_TOOL_CALLS:
+                    elif not self.live and c.name == OFFER and isinstance(res, dict) and res.get("done") is True:
+                        done = True
+                        record["final"] = {"submitted": True, "offer": c.arguments.get("offer")}
+                        record["end_reason"] = "submitted"
+                    elif not self.live and self.tool_calls >= MAX_TOOL_CALLS:
                         done = True
                         record["end_reason"] = "tool_call_limit"
                 left = max_turns - turn - 1
@@ -531,6 +652,18 @@ class Episode:
         else:
             record["end_reason"] = record["end_reason"] or "turn_limit"
 
+    def follow_gate(self, name: str, res: Any) -> None:
+        """Whether the current watch is a DAM gate and has an accepted DAM hour, from the env's outputs."""
+        if not isinstance(res, dict):
+            return
+        if name == "submit_dam" and res.get("accepted"):
+            self.gate["submitted"] = True
+        elif name == "advance" and "watch" in res:
+            self.gate = {"open": res.get("phase") == "dam_gate", "submitted": False, "nudged": False}
+        elif name == "get_situation" and "dam_gate" in res:
+            g = res["dam_gate"]
+            self.gate |= {"open": g is not None, "submitted": bool(g and g.get("submitted"))}
+
     def result(self) -> TaskResult:
         record = self.record
         record["seconds"] = round(time.time() - self.started, 1)
@@ -542,6 +675,10 @@ class Episode:
                    "cached_tokens": self.cached, "cache_write_tokens": self.written, "cost_usd": round(self.spent, 6),
                    "max_cost_usd": self.max_cost, "priced_cost_usd": round(self.spent - self.unbilled, 6),
                    "failed_requests": self.failed_requests, "seconds": record["seconds"], "error": self.error}
+        if self.live:
+            summary |= {"live": True, "reward": self.reward}
+        if self.dam:
+            summary["gate_nudges"] = self.gate_nudges
         text = (f"{record['end_reason']}: {record['turns']} turns, {self.tool_calls} tool calls, ${self.spent:.4f} "
                 f"({self.model})")
         builder = TaskResult.builder()

@@ -1,0 +1,313 @@
+{
+ "pack": "fixtures-live",
+ "live_version": "2.0",
+ "contract_version": "1.0",
+ "count": 20,
+ "count_blind": 19,
+ "count_short": 17,
+ "count_notice_days": 8,
+ "date_range": [
+  "2024-01-02",
+  "2026-08-05"
+ ],
+ "by_ep": {
+  "1h": 10,
+  "2h": 6,
+  "4h": 4
+ },
+ "by_point": {
+  "HB_BUSAVG": 3,
+  "HB_HOUSTON": 1,
+  "HB_HUBAVG": 4,
+  "HB_NORTH": 2,
+  "HB_PAN": 2,
+  "HB_WEST": 1,
+  "LZ_CPS": 3,
+  "LZ_HOUSTON": 1,
+  "LZ_LCRA": 1,
+  "LZ_SOUTH": 1,
+  "LZ_WEST": 1
+ },
+ "means": {
+  "naive_reward": 0.8439,
+  "naive_capture": 0.4084,
+  "roll_capture": 0.51,
+  "watches": 5.75,
+  "roll_commits": 2.25
+ },
+ "tasks_sha256": "48d0f1783bde71c80d227fbd7933f3b915901b3babb402ffe07d80fe9ca628be",
+ "sources": {
+  "RTMLZHBSPP_2019.zip": "99663eea4a9002d30ce9064fb0d5225558f9f43d632c760dd23f2f5b6a4e00f9",
+  "RTMLZHBSPP_2020.zip": "2c5154762e26cef8ad619a97a3d4346668713fe1d458b6e57ea79e43ead2381f",
+  "RTMLZHBSPP_2021.zip": "5255421af0d19274e852cd3a8eb6388b88e14238043487852d3cadc4edccd18d",
+  "RTMLZHBSPP_2022.zip": "9807875a28926cba482f935bece5cb865dfed8a3ebd70a3bf65c47e2dc8afb4f",
+  "RTMLZHBSPP_2023.zip": "e22179bf7efe1b7f6ac25f8757e97d8d11c27de3638523da4166727f5d5652cb",
+  "RTMLZHBSPP_2024.zip": "cffa1d6011ca8272af9ba3ba0d0afa397d728ea4ce8d05abe96fe3fe6662adac",
+  "RTMLZHBSPP_2025.zip": "522a26678575b93bbc7e2c040760eead52c4aae484e0f353c603d5b1a0378faa",
+  "RTMLZHBSPP_2026.zip": "e6b05d49ae5ac8b15016dbba713ffec32090e51f1e3c14496cbd2d8aca386a63",
+  "DAMLZHBSPP_2014.zip": "f06b9d71ee7e621a9c23e04bb040543a37945787aba36004789765eeb6b3bfe4",
+  "DAMLZHBSPP_2015.zip": "5b26a3932f9e3b6092e1a48153fea855c503d92154fe012fe4b8efbfdf7e928a",
+  "DAMLZHBSPP_2016.zip": "ed15d8a9f10f6f1efe82119963975923278662913858359dbaa5061fa9a1137c",
+  "DAMLZHBSPP_2017.zip": "6530cbee60922fff3441c5c8b384db6903273234abd748527bd3b0423bfa2d64",
+  "DAMLZHBSPP_2018.zip": "2c1b63c36d64341c25650a3eeb579cad981c9ac7030804e6bbd6f026ab91bb01",
+  "DAMLZHBSPP_2019.zip": "736f7f933d5a59f8ccd3814cd124722b5f45651934e9084b2e0bb46ff84cf2d4",
+  "DAMLZHBSPP_2020.zip": "0d07c345750ef48322002badff0497136ffee6fc8bb2c27919c3c795eba06844",
+  "DAMLZHBSPP_2021.zip": "c9e8b92fbbb3b82232d578cb8679751511600fc895eca760cf993835f079d435",
+  "DAMLZHBSPP_2022.zip": "c71656e45a865bdec7166defa1cde1ac875219655be20425a08265e34fd641b8",
+  "DAMLZHBSPP_2023.zip": "dd704eeeb794ba1d1ebfc52acdec55836a0409283ff8357e3561b555f0d94d79",
+  "DAMLZHBSPP_2024.zip": "b9fd0b9aa9ec83376c6385c91416174857ca6ba556c6df08e942a2f98b89af65",
+  "DAMLZHBSPP_2025.zip": "30df71ebb306bbe8c6cc075598d2e5bd47079b8ab9e0442979f3331353618320",
+  "DAMLZHBSPP_2026.zip": "36eb96d99cb36bc2c85ec03d3de11f2bb81e85038734a3f2624be0a90e294f7c"
+ },
+ "filter": {
+  "divergence_usd_per_mw": 40.0,
+  "roll_minus_naive_share": 0.1,
+  "roll_minus_naive_usd_per_mw": 5.0,
+  "hind_headroom_usd_per_mw": 10.0
+ },
+ "filter_spec": {
+  "divergence_usd_per_mw": 40.0,
+  "roll_minus_naive_share": 0.05,
+  "roll_minus_naive_usd_per_mw": 5.0,
+  "hind_headroom_usd_per_mw": 10.0
+ },
+ "per_split": {
+  "train": {
+   "candidates": 196782,
+   "eligible": 32601,
+   "eligible_share": 0.1657,
+   "by_kind": {
+    "notice": [
+     28858,
+     28802
+    ],
+    "quiet": [
+     126197,
+     2557
+    ],
+    "unknown": [
+     41727,
+     1242
+    ]
+   },
+   "notice_eligible_without_exemption": 637,
+   "fail_divergence": 458,
+   "fail_headroom": 113,
+   "fail_share": 192150,
+   "fail_usd": 181521,
+   "kept": 4000,
+   "kept_by_kind": {
+    "notice": 1600,
+    "unknown": 752,
+    "quiet": 1648
+   },
+   "point_days": 3394
+  },
+  "eval": {
+   "candidates": 21389,
+   "eligible": 5877,
+   "eligible_share": 0.2748,
+   "by_kind": {
+    "notice": [
+     5582,
+     5582
+    ],
+    "quiet": [
+     6819,
+     136
+    ],
+    "unknown": [
+     8988,
+     159
+    ]
+   },
+   "notice_eligible_without_exemption": 181,
+   "fail_divergence": 0,
+   "fail_headroom": 0,
+   "fail_share": 20870,
+   "fail_usd": 19623,
+   "kept": 300,
+   "kept_by_kind": {
+    "notice": 150,
+    "quiet": 136,
+    "unknown": 14
+   },
+   "point_days": 221
+  },
+  "test": {
+   "candidates": 13979,
+   "eligible": 1948,
+   "eligible_share": 0.1394,
+   "by_kind": {
+    "notice": [
+     1736,
+     1736
+    ],
+    "quiet": [
+     5265,
+     112
+    ],
+    "unknown": [
+     6978,
+     100
+    ]
+   },
+   "notice_eligible_without_exemption": 86,
+   "fail_divergence": 0,
+   "fail_headroom": 0,
+   "fail_share": 13668,
+   "fail_usd": 12842,
+   "kept": 200,
+   "kept_by_kind": {
+    "notice": 60,
+    "quiet": 72,
+    "unknown": 68
+   },
+   "point_days": 200
+  },
+  "rtcb": {
+   "candidates": 13114,
+   "eligible": 1004,
+   "eligible_share": 0.0766,
+   "by_kind": {
+    "notice": [
+     664,
+     664
+    ],
+    "quiet": [
+     10918,
+     295
+    ],
+    "unknown": [
+     1532,
+     45
+    ]
+   },
+   "notice_eligible_without_exemption": 5,
+   "fail_divergence": 3,
+   "fail_headroom": 0,
+   "fail_share": 12758,
+   "fail_usd": 11950,
+   "kept": 100,
+   "kept_by_kind": {
+    "notice": 30,
+    "quiet": 59,
+    "unknown": 11
+   },
+   "point_days": 100
+  }
+ },
+ "holdouts": {
+  "train": [
+   "2019-01-01",
+   "2024-12-31"
+  ],
+  "eval": "every third 2024 date ((d - 2024-01-01) % 3 == 1) and every 2024 ERCOT notice day",
+  "eval_ercot_notice_days": [
+   "2024-01-08",
+   "2024-01-09",
+   "2024-01-11",
+   "2024-01-13",
+   "2024-01-14",
+   "2024-01-15",
+   "2024-01-16",
+   "2024-01-17",
+   "2024-04-02",
+   "2024-04-11",
+   "2024-04-12",
+   "2024-04-24",
+   "2024-04-25",
+   "2024-04-26",
+   "2024-04-27",
+   "2024-04-28",
+   "2024-04-30",
+   "2024-05-02",
+   "2024-05-03",
+   "2024-05-07",
+   "2024-05-08",
+   "2024-05-09",
+   "2024-05-10",
+   "2024-05-11",
+   "2024-05-15",
+   "2024-05-16",
+   "2024-05-17",
+   "2024-07-03",
+   "2024-07-05",
+   "2024-07-06",
+   "2024-07-08",
+   "2024-08-06",
+   "2024-08-12",
+   "2024-08-16",
+   "2024-08-17",
+   "2024-09-08",
+   "2024-09-09",
+   "2024-11-07",
+   "2024-11-08"
+  ],
+  "test": [
+   "2025-01-01",
+   "2025-11-30"
+  ],
+  "rtcb": [
+   "2025-12-05",
+   "2026-10-17"
+  ],
+  "showcase": {
+   "sep23-0906": "2023-09-06",
+   "uri-0215": "2021-02-15",
+   "elliott-1223": "2022-12-23",
+   "heather-0116": "2024-01-16",
+   "aug23-0820": "2023-08-20",
+   "fern-0126": "2026-01-26"
+  },
+  "showcase_pad_days": 3
+ },
+ "notices": {
+  "archive": "data/notices (lane N)",
+  "payload": "summary, ids, times, levels (V2-D4)",
+  "nws_kept": [
+   "BZ.A",
+   "BZ.W",
+   "EC.A",
+   "EC.W",
+   "EH.A",
+   "EH.W",
+   "EW.A",
+   "EW.W",
+   "HT.Y",
+   "HU.A",
+   "HU.W",
+   "HW.A",
+   "HW.W",
+   "HZ.A",
+   "HZ.W",
+   "IS.A",
+   "IS.W",
+   "TR.A",
+   "TR.W",
+   "WC.A",
+   "WC.W",
+   "WS.A",
+   "WS.W",
+   "XH.A",
+   "XH.W"
+  ],
+  "notice_days_exempt": true,
+  "notice_share_targets": {
+   "train": 0.4,
+   "eval": 0.5,
+   "test": 0.3,
+   "rtcb": 0.3
+  }
+ },
+ "build_command": "python scripts/build_live_pack.py --workers 12",
+ "bundles": {
+  "sep23-0906": "live-v2-2023-09-06-LZ_CPS-2h-n",
+  "uri-0215": "live-v2-2021-02-15-LZ_AEN-2h-w",
+  "elliott-1223": "live-v2-2022-12-23-LZ_RAYBN-2h-l",
+  "heather-0116": "live-v2-2024-01-16-LZ_LCRA-2h-y",
+  "aug23-0820": "live-v2-2023-08-20-LZ_WEST-2h-u",
+  "fern-0126": "live-v2-2026-01-26-LZ_CPS-2h-r"
+ },
+ "hero": "sep23-0906"
+}

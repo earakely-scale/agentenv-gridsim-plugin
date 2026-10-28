@@ -1,0 +1,11 @@
+{
+ "pack": "desk-v2-pilot",
+ "tasks": 2,
+ "floored": 0,
+ "floored_tasks": [],
+ "anchor_setting": {
+  "risk": 1.25,
+  "dam_position": "spread"
+ },
+ "core_version": "desk-2.1"
+}

@@ -1,0 +1,40 @@
+{
+ "schema": "gridsim.desk.prc-proxy/v1",
+ "label": "modelled",
+ "formula": "prc_proxy = a + b * (s * (RTOLHSL - demand) + c)",
+ "feature": "headroom",
+ "a": 7382.846,
+ "b": 0.32875,
+ "s": 0.76568,
+ "c": -6447.19,
+ "inputs": {
+  "RTOLHSL": "NP6-323-CD (post) / NP6-792-ER (pre)",
+  "demand": "NP6-345-CD hourly total"
+ },
+ "train": [
+  "2025-01-01",
+  "2025-08-31"
+ ],
+ "test": [
+  "2025-09-01",
+  "2025-12-04"
+ ],
+ "test_metrics": {
+  "n": 27569,
+  "mae_mw": 1374.5,
+  "rmse_mw": 1603.9,
+  "bias_mw": -333.3,
+  "corr": 0.8207,
+  "mae_prc_below_7000_mw": 2312.6,
+  "prc_test_range": [
+   5213.0,
+   18587.0
+  ]
+ },
+ "era_check": {
+  "headroom_median_pre_2025-11-20_12-04": 10298.0,
+  "headroom_median_post_2025-12-05_12-19": 21477.6,
+  "ratio": 2.0856,
+  "note": "RTOLHSL changes meaning at RTC+B (single-model ESRs count both directions); when the median ratio is off by > 15%, post headroom is rescaled by quantile matching (s, c) to the last pre-RTC+B quarter"
+ }
+}

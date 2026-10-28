@@ -28,7 +28,7 @@ export const REGIONS = {
     city: { name: "Midland", bearing: 8, km: 21, towers: 10, spread: 1.1, tallest: 105, lights: 0.55 },
     shrubs: { n: 3400, kind: "mesquite", r: [55, 2600] }, shrubs2: { n: 4200, kind: "creosote", r: [45, 1800] }, trees: null,
     pumpjacks: 18, turbines: { n: 34, km: [5.4, 8.5], bearing: [-58, -12], caprock: { km: 4.8, height: 60, span: [-72, -2] } },
-    hills: 0, grain: false, refinery: null, suburbs: 0, line: 78, road: "#cbb995",
+    hills: 0, dunes: true, grain: false, refinery: null, suburbs: 0, line: 78, road: "#cbb995",
   },
   panhandle: {
     label: "the High Plains of the Texas Panhandle",

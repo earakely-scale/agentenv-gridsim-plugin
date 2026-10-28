@@ -1,0 +1,266 @@
+{
+ "sets": {
+  "primary": {
+   "primary: all": {
+    "n": 40,
+    "reward": 0.88294675,
+    "reward_ci": [
+     0.839889925,
+     0.924243675
+    ],
+    "naive_reward": 0.84959925,
+    "reward_minus_naive": 0.033347499999999995,
+    "reward_minus_naive_ci": [
+     0.010185999999999997,
+     0.05988525
+    ],
+    "reward_at_1": 0.375,
+    "capture": 0.4366723358914099,
+    "capture_ci": [
+     0.3601715678875149,
+     0.5171361522639948
+    ],
+    "naive_capture": 0.42485001580113235,
+    "anchor_capture": 0.4980843634627841,
+    "capture_minus_naive": 0.01182232009027754,
+    "capture_minus_naive_ci": [
+     -0.004127027724460558,
+     0.027713181019861838
+    ],
+    "capture_minus_anchor": -0.06141202757137423,
+    "capture_minus_anchor_ci": [
+     -0.08828106340844318,
+     -0.03458458301454402
+    ],
+    "beats_naive": 0.25,
+    "ties_naive": 0.6,
+    "beats_anchor": 0.225,
+    "replan_rate": 0.07065217391304347,
+    "replanned_days": 0.3,
+    "anchor_replan_rate": 0.3858695652173913,
+    "refused_commits": 1,
+    "days_with_refusal": 1,
+    "finished": 1.0,
+    "audit_failures": 0,
+    "usd_per_episode": 0.046241199999999996,
+    "turns": 15.125
+   },
+   "primary: notice": {
+    "n": 20,
+    "reward": 0.9684047,
+    "reward_ci": [
+     0.92831875,
+     0.996796
+    ],
+    "naive_reward": 0.94031765,
+    "reward_minus_naive": 0.028087049999999995,
+    "reward_minus_naive_ci": [
+     -0.00203605,
+     0.06909855
+    ],
+    "reward_at_1": 0.7,
+    "capture": 0.4468966384564936,
+    "capture_ci": [
+     0.32456385662205933,
+     0.564019655775039
+    ],
+    "naive_capture": 0.45099192946221633,
+    "anchor_capture": 0.4497399455379095,
+    "capture_minus_naive": -0.004095291005722739,
+    "capture_minus_naive_ci": [
+     -0.026651875373114555,
+     0.011352926846832062
+    ],
+    "capture_minus_anchor": -0.0028433070814159406,
+    "capture_minus_anchor_ci": [
+     -0.028825736855541028,
+     0.019043409630655834
+    ],
+    "beats_naive": 0.25,
+    "ties_naive": 0.6,
+    "beats_anchor": 0.45,
+    "replan_rate": 0.0784313725490196,
+    "replanned_days": 0.35,
+    "anchor_replan_rate": 0.3431372549019608,
+    "refused_commits": 1,
+    "days_with_refusal": 1,
+    "finished": 1.0,
+    "audit_failures": 0,
+    "usd_per_episode": 0.05062865,
+    "turns": 16.15
+   },
+   "primary: quiet": {
+    "n": 20,
+    "reward": 0.7974888,
+    "reward_ci": [
+     0.73988855,
+     0.85330775
+    ],
+    "naive_reward": 0.75888085,
+    "reward_minus_naive": 0.038607949999999995,
+    "reward_minus_naive_ci": [
+     0.0075843499999999845,
+     0.0741161
+    ],
+    "reward_at_1": 0.05,
+    "capture": 0.4264480333263262,
+    "capture_ci": [
+     0.3383103817988475,
+     0.5210289041887166
+    ],
+    "naive_capture": 0.39870810214004837,
+    "anchor_capture": 0.5464287813876587,
+    "capture_minus_naive": 0.02773993118627782,
+    "capture_minus_naive_ci": [
+     0.005819355473057948,
+     0.05297923118359757
+    ],
+    "capture_minus_anchor": -0.11998074806133252,
+    "capture_minus_anchor_ci": [
+     -0.15337152769777773,
+     -0.08836275035874923
+    ],
+    "beats_naive": 0.25,
+    "ties_naive": 0.6,
+    "beats_anchor": 0.0,
+    "replan_rate": 0.06097560975609756,
+    "replanned_days": 0.25,
+    "anchor_replan_rate": 0.43902439024390244,
+    "refused_commits": 0,
+    "days_with_refusal": 0,
+    "finished": 1.0,
+    "audit_failures": 0,
+    "usd_per_episode": 0.04185375,
+    "turns": 14.1
+   },
+   "primary: anchor \u2260 naive": {
+    "n": 35,
+    "reward": 0.8673883142857143,
+    "reward_ci": [
+     0.8209898857142857,
+     0.9138073428571428
+    ],
+    "naive_reward": 0.8281134285714286,
+    "reward_minus_naive": 0.03927488571428571,
+    "reward_minus_naive_ci": [
+     0.013956771428571426,
+     0.06916099999999999
+    ],
+    "reward_at_1": 0.3142857142857143,
+    "capture": 0.4347761862303732,
+    "capture_ci": [
+     0.35680884413649755,
+     0.5169293513214158
+    ],
+    "naive_capture": 0.4211354006924512,
+    "anchor_capture": 0.5048317980200532,
+    "capture_minus_naive": 0.01364078553792199,
+    "capture_minus_naive_ci": [
+     -0.005177091929381904,
+     0.031652463881042196
+    ],
+    "capture_minus_anchor": -0.07005561178968003,
+    "capture_minus_anchor_ci": [
+     -0.10001431414513771,
+     -0.03983827741324098
+    ],
+    "beats_naive": 0.2857142857142857,
+    "ties_naive": 0.5714285714285714,
+    "beats_anchor": 0.2571428571428571,
+    "replan_rate": 0.08280254777070063,
+    "replanned_days": 0.34285714285714286,
+    "anchor_replan_rate": 0.45222929936305734,
+    "refused_commits": 1,
+    "days_with_refusal": 1,
+    "finished": 1.0,
+    "audit_failures": 0,
+    "usd_per_episode": 0.04647,
+    "turns": 15.028571428571428
+   },
+   "primary: a notice watch": {
+    "n": 18,
+    "reward": 0.9566066666666666,
+    "reward_ci": [
+     0.9119615,
+     0.9925707222222222
+    ],
+    "naive_reward": 0.920416,
+    "reward_minus_naive": 0.036190666666666656,
+    "reward_minus_naive_ci": [
+     -0.0006833333333333383,
+     0.08429316666666666
+    ],
+    "reward_at_1": 0.6666666666666666,
+    "capture": 0.46727797161932966,
+    "capture_ci": [
+     0.3220953332134251,
+     0.6220844953823136
+    ],
+    "naive_capture": 0.46643798471122816,
+    "anchor_capture": 0.47762820916047755,
+    "capture_minus_naive": 0.0008399869081015108,
+    "capture_minus_naive_ci": [
+     -0.028513576926137638,
+     0.024295728172832657
+    ],
+    "capture_minus_anchor": -0.010350237541147889,
+    "capture_minus_anchor_ci": [
+     -0.04259468807453171,
+     0.018348923163477263
+    ],
+    "beats_naive": 0.3333333333333333,
+    "ties_naive": 0.4444444444444444,
+    "beats_anchor": 0.4444444444444444,
+    "replan_rate": 0.09375,
+    "replanned_days": 0.4444444444444444,
+    "anchor_replan_rate": 0.34375,
+    "refused_commits": 0,
+    "days_with_refusal": 0,
+    "finished": 1.0,
+    "audit_failures": 0,
+    "usd_per_episode": 0.055162277777777775,
+    "turns": 17.055555555555557
+   }
+  }
+ },
+ "unscored": [],
+ "spend_usd": {
+  "v2-pilot-sol": 1.9515,
+  "v2-pilot-sol-hero": 0.0778
+ },
+ "hero": {
+  "days": [
+   {
+    "task_id": "live-v2-2023-09-06-HB_NORTH-2h-l",
+    "kind": "notice",
+    "point": "HB_NORTH",
+    "notice_watches": 5,
+    "reward": 0.596321,
+    "naive_reward": 0.596321,
+    "capture": 0.0771617381657156,
+    "naive_capture": 0.0771617381657156,
+    "anchor_capture": 0.1557560633882339,
+    "beats_naive": false,
+    "beats_anchor": false,
+    "ties_naive": true,
+    "anchor_equals_naive": false,
+    "later_watches": 9,
+    "replan_watches": 0,
+    "reached": 9,
+    "anchor_replans": 2,
+    "refused_commits": 0,
+    "commits": 2,
+    "planning_calls": 2,
+    "finished": true,
+    "audit_ok": true,
+    "cost_usd": 0.077768,
+    "turns": 23,
+    "profit_usd": 14940.0,
+    "p_naive": 14940.0,
+    "p_roll": 30157.376471,
+    "p_hind": 193619.277574
+   }
+  ],
+  "unscored": []
+ }
+}

@@ -1,0 +1,69 @@
+{
+ "pack": "desk-v2-pre",
+ "schema": "gridsim.desk.pack/v1",
+ "split": "train",
+ "layer": "v2",
+ "n_tasks": 2,
+ "sites": [
+  "S02",
+  "S03"
+ ],
+ "dates": [
+  "2025-05-16",
+  "2025-08-20"
+ ],
+ "operator_ok": 2,
+ "sced_fill": {
+  "desk-v2-2025-05-16-S02": 192,
+  "desk-v2-2025-08-20-S03": 192
+ },
+ "coverage": {
+  "desk-v2-2025-05-16-S02": {
+   "sced_fill": 192,
+   "sced_rows": 96,
+   "soc_null": 1,
+   "load_rows": 96,
+   "unit_events": 0,
+   "notices": 9,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v2-2025-08-20-S03": {
+   "sced_fill": 192,
+   "sced_rows": 96,
+   "soc_null": 1,
+   "load_rows": 96,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 1,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  }
+ },
+ "built_utc": "2026-10-28T08:11:58Z",
+ "builder": "scripts/desk_data_build.py",
+ "sources": {
+  "dam_spp": "NP4-190-CD",
+  "rt_spp": "NP6-905-CD",
+  "rt_lmp": "NP6-788-CD",
+  "dam_mcpc": "NP4-188-CD",
+  "rt_mcpc": "NP6-332-CD",
+  "rt_mcpc_15": "NP6-331-CD",
+  "asdc": "NP4-212-CD",
+  "system.lambda": "NP6-323-CD",
+  "system.prc_mw": "post: proxy (docs/desk-data.md) from NP6-323-CD and NP6-345-CD; pre: NP6-792-ER",
+  "system.load_mw": "NP6-345-CD (hourly actual system load, repeated on the 5-min grid)",
+  "system.wind_mw": "NP4-733-CD",
+  "system.solar_mw": "NP4-738-CD",
+  "forecasts": "v4 forecast store (NP3-565-CD, NP4-742-CD, NP4-745-CD system vintages)",
+  "outage_capacity": "NP3-233-CD",
+  "unit_events": "NP1-346-ER",
+  "notices": "data/notices/notices.jsonl.gz",
+  "nws": "data/notices/nws_vtec.jsonl.gz",
+  "operator.dam": "NP3-966-ER",
+  "operator.sced": "NP3-965-ER",
+  "operator.cop": "NP3-991-EX",
+  "desk_forecast": "data/desk/forecast (desk-qr-v1)"
+ }
+}

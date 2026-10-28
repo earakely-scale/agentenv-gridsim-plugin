@@ -36,7 +36,7 @@ from pathb_blind import graded  # noqa: E402
 
 from gridsim_core import CONTRACT_VERSION, baselines  # noqa: E402
 from gridsim_core.contract import price_violations  # noqa: E402
-from gridsim_core.forecast import parse_forecast  # noqa: E402
+from gridsim_core.forecast_line import parse_forecast  # noqa: E402
 from gridsim_core.grade import grade, references  # noqa: E402
 from gridsim_core.task import REGIONS, point_kind, task_id  # noqa: E402
 from gridsim_core.trl import extract_actions  # noqa: E402

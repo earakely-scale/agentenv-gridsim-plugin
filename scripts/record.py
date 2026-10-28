@@ -4,6 +4,7 @@ frame a JPEG piped to ffmpeg for an H.264 MP4. --still writes one PNG at an hour
 usage: python scripts/record.py --episode results/runs/reference/X.json --out cache/films/X.mp4 [--seconds 84]
        python scripts/record.py --episode E.json --still out.png --t 19.5 [--size 1920x1080]
        python scripts/record.py --episode E.json --thumb out.jpg
+       python scripts/record.py --view levelup=results/runs/train/levelup.json --out levelup.mp4   (or race=...)
 """
 
 import argparse
@@ -38,15 +39,18 @@ RENDERER = ("(() => { const g = document.createElement('canvas').getContext('web
             "return x ? g.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'webgl2'; })()")
 ANSWER_SECONDS = 180
 INTRO, DAY, OUTRO = 5.0, 72.0, 7.0
+INTRO_V4, HOLD_V4, OPEN_V4 = 11.0, 5.5, -14.0
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--episode", type=Path)
+    p.add_argument("--view", help="A training view instead of an episode: levelup=MANIFEST or race=MANIFEST.")
     p.add_argument("--page",
                    help="Capture a page under the checkout instead, e.g. build/hub/space/index.html (with --still).")
     p.add_argument("--weather", type=Path, help="The weather sidecar (default cache/weather/DATE_POINT.json).")
     p.add_argument("--out", type=Path, help="An MP4 to write.")
+    p.add_argument("--gif", type=Path, help="Also a GIF of the film (640 px wide, 10 fps).")
     p.add_argument("--still", type=Path, help="One PNG at --t.")
     p.add_argument("--thumb", type=Path, help="A 640x360 JPEG at the day's most telling hour.")
     p.add_argument("--t", type=float, default=19.5, help="Hour of the day for --still.")
@@ -66,10 +70,17 @@ def main(argv: list[str] | None = None) -> int:
             args.still.write_bytes(base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"]))
             print(f"wrote {args.still} ({gl})")
         return 0
-    ep = json.loads(args.episode.read_text())
-    wx = args.weather or ROOT / "cache" / "weather" / f"{ep['task']['date']}_{ep['task']['settlement_point']}.json"
+    if args.view:
+        kind, manifest = args.view.split("=", 1)
+        m = json.loads(Path(manifest).read_text())
+        first = (m.get("frames") or m.get("lanes"))[0]["episode_id"]
+        ep = json.loads((Path(manifest).parent / f"{first}.json").read_text())
+    else:
+        ep = json.loads(args.episode.read_text())
+    wx = args.weather or weather_path(ep)
     with serve(ROOT) as port:
-        url = viewer_url(port, args.episode, wx, args.reduced, args.extra)
+        url = (view_url(port, kind, Path(manifest), wx, args.reduced, args.extra) if args.view
+               else viewer_url(port, args.episode, wx, args.reduced, args.extra))
         if args.thumb:
             width, height = 1280, 720
         with session(url, chrome, width, height) as (page, ready, gl):
@@ -91,38 +102,77 @@ def main(argv: list[str] | None = None) -> int:
                     out.write_bytes(data)
                 print(f"wrote {out}")
             if args.out:
-                film(page, args.out, args.fps, args.seconds, ep)
+                film(page, args.out, args.fps, args.seconds, ep, ready.get("duration"))
                 probe(args.out)
+                if args.gif:
+                    gif(args.out, args.gif)
     return 0
 
 
+def weather_path(ep: dict) -> Path:
+    """The cached sidecar an episode plays in: a v4 window's spans it, a v5 floor's also holds the day before."""
+    t = ep["task"]
+    if ep.get("schema") == "gridsim.episode/v5":
+        return ROOT / "cache" / "weather" / f"{t['date']}_{t['point']}_d1.json"
+    if ep.get("schema") == "gridsim.episode/v4":
+        return ROOT / "cache" / "weather" / f"{t['d1']}_{t['settlement_point']}_{len(ep['hours']) // 24}d.json"
+    return ROOT / "cache" / "weather" / f"{t['date']}_{t['settlement_point']}.json"
+
+
 def telling_hour(ep: dict) -> float:
+    if ep.get("schema") == "gridsim.episode/v4":
+        rt = ep["task"]["rt"]
+        return max(range(len(rt)), key=lambda h: rt[h]) + 0.6
+    if ep.get("schema") == "gridsim.episode/v5":
+        hub = ep["clear"]["hub_usd"]
+        return max(range(24), key=lambda h: hub[h]) + 0.55
+    if ep.get("schema") == "gridsim.episode/v3":
+        for n in sorted((n for n in ep["notices"] if n.get("deploy")), key=lambda n: n["deploy"]["start_min"]):
+            if ep["hours"][min(23, n["deploy"]["start_min"] // 60)]["awards"].get(n["deploy"]["product"]):
+                return n["deploy"]["start_min"] / 60 + 0.35
+        rt = ep["task"]["rt"]
+        return max(range(24), key=lambda h: rt[h]) + 0.5
+    if ep.get("schema") == "gridsim.episode/v2":
+        rt = ep["task"]["rt"]
+        return (max(range(96), key=lambda i: rt[i]) + 1) / 4 + 0.1
     prices = ep["task"]["prices"]
     acts = ep.get("final_schedule") or [0] * 24
     best = max(range(24), key=lambda h: abs(prices[h]) * (1 + abs(acts[h])))
     return best + 0.5
 
 
-def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: str = "") -> str:
-    def rel(p: Path) -> str:
-        return "/" + quote(str(Path(os.path.abspath(p)).relative_to(ROOT)))
+def rel(p: Path) -> str:
+    return "/" + quote(str(Path(os.path.abspath(p)).relative_to(ROOT)))
 
+
+def view_url(port: int, kind: str, manifest: Path, weather: Path, reduced: bool, extra: str = "") -> str:
+    return (f"http://127.0.0.1:{port}/{WEB}/index.html?record=1&{kind}={rel(manifest)}&weather={rel(weather)}"
+            f"&reduced={1 if reduced else 0}{'&' + extra if extra else ''}")
+
+
+def viewer_url(port: int, episode: Path, weather: Path, reduced: bool, extra: str = "") -> str:
     return (f"http://127.0.0.1:{port}/{WEB}/index.html?record=1&t=0&episode={rel(episode)}&weather={rel(weather)}"
             f"&reduced={1 if reduced else 0}{'&' + extra if extra else ''}")
 
 
-def film(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
-    """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score."""
+def film(page, out: Path, fps: int, seconds: float, ep: dict, duration: float | None = None) -> None:
+    """INTRO seconds before the day, the day at seconds per 24 h, OUTRO on the score; a training view plays its own
+    duration in seconds. A v4 window holds on the opening card for HOLD_V4 seconds, plays the rest of the day before by
+    INTRO_V4 and each of its days at seconds per 24 h. A v5 floor opens at 6 am the day before: its pre-day (t -6..0)
+    takes three seconds a unit."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    total = INTRO + seconds + OUTRO
+    if ep.get("schema") == "gridsim.episode/v4":
+        return film_window(page, out, fps, seconds, ep)
+    start, intro = (-6.0, 18.0) if ep.get("schema") == "gridsim.episode/v5" else (-2.0, INTRO)
+    total = duration or intro + seconds + OUTRO
     frames = round(total * fps)
     encoder = subprocess.Popen(ffmpeg_args(find("ffmpeg"), out, fps, ep["episode_id"]), stdin=subprocess.PIPE)
     t0 = time.monotonic()
     try:
         for i in range(frames):
             s = i / fps
-            t = (-2 + 2 * s / INTRO if s < INTRO else min(24.0, (s - INTRO) / seconds * 24) if s < INTRO + seconds
-                 else 24 + (s - INTRO - seconds) / 4)
+            t = (s if duration else start - start * s / intro if s < intro else min(24.0, (s - intro) / seconds * 24)
+                 if s < intro + seconds else 24 + (s - intro - seconds) / 4)
             page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
             shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
             encoder.stdin.write(base64.b64decode(shot["data"]))
@@ -133,6 +183,44 @@ def film(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
         encoder.wait()
     if encoder.returncode:
         raise SystemExit(f"ffmpeg exited {encoder.returncode}")
+
+
+def film_window(page, out: Path, fps: int, seconds: float, ep: dict) -> None:
+    hours = len(ep["hours"])
+    span = seconds * hours / 24
+    frames = round((INTRO_V4 + span + OUTRO) * fps)
+    encoder = subprocess.Popen(ffmpeg_args(find("ffmpeg"), out, fps, ep["episode_id"]), stdin=subprocess.PIPE)
+    t0 = time.monotonic()
+    try:
+        for i in range(frames):
+            s = i / fps
+            if s < HOLD_V4:
+                t = OPEN_V4 + 1.4 * s / HOLD_V4
+            elif s < INTRO_V4:
+                t = (OPEN_V4 + 1.4) * (1 - (s - HOLD_V4) / (INTRO_V4 - HOLD_V4))
+            elif s < INTRO_V4 + span:
+                t = min(hours, (s - INTRO_V4) / span * hours)
+            else:
+                t = hours + (s - INTRO_V4 - span) / 4
+            page.js(f"gridsim.time({t:.5f}, {{dt: {1 / fps}}})")
+            shot = page.call("Page.captureScreenshot", format="jpeg", quality=90)
+            encoder.stdin.write(base64.b64decode(shot["data"]))
+            if i % (fps * 10) == 0:
+                print(f"  {i}/{frames} frames, {time.monotonic() - t0:.0f} s", flush=True)
+    finally:
+        encoder.stdin.close()
+        encoder.wait()
+    if encoder.returncode:
+        raise SystemExit(f"ffmpeg exited {encoder.returncode}")
+
+
+def gif(mp4: Path, out: Path, width: int = 640, fps: int = 10) -> None:
+    """A palette GIF of the film; ordered dither keeps the terrain from bloating it."""
+    f = f"fps={fps},scale={width}:-1:flags=lanczos"
+    subprocess.run([find("ffmpeg"), "-v", "error", "-y", "-i", str(mp4), "-filter_complex",
+                    f"[0:v]{f},split[a][b];[a]palettegen=max_colors=96:stats_mode=full[p];"
+                    "[b][p]paletteuse=dither=bayer:bayer_scale=4", str(out)], check=True)
+    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
 def ffmpeg_args(ffmpeg: str, out: Path, fps: int, name: str) -> list[str]:

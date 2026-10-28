@@ -125,7 +125,7 @@ export function buildHud(root, d, { onSeek, onToggle }) {
   return { update, place, timeline };
 }
 
-const REFS = { "dp-optimum": "DP optimum (reference)", greedy: "Greedy (reference)", threshold: "Threshold (reference)", "flawed-plan": "Flawed plan (demo)", "persistence-dp": "Persistence DP (reference)" };
+const REFS = { "rolling-anchor": "Rolling anchor (reference)", naive: "Naive (reference)", "dp-optimum": "DP optimum (reference)", greedy: "Greedy (reference)", threshold: "Threshold (reference)", "flawed-plan": "Flawed plan (demo)", "persistence-dp": "Persistence DP (reference)", "as-hog": "AS-hog (reference)", "solar-sponge": "Solar sponge (reference)", "v2-energy-only": "v2 energy-only plan (reference)", "rolling-p50": "Rolling anchor (reference)", "rolling-mean3": "Three-scenario anchor (reference)", persistence: "Blind re-planner (reference)", "naive-dam": "Naive DAM bidder (reference)" };
 
 export function modelName(m, label) {
   if (label) return label;

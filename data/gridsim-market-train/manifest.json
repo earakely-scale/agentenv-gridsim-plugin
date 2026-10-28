@@ -1,0 +1,112 @@
+{
+ "pack": "gridsim-market-train",
+ "tasks": 3777,
+ "dates": 229,
+ "first": "2022-07-15",
+ "last": "2024-12-29",
+ "day_checks": {
+  "dates": 1089,
+  "passed": 453,
+  "dropped": {
+   "missing day row": 96,
+   "fidelity": 461,
+   "pool": 76,
+   "missing disclosure": 3
+  }
+ },
+ "task_filters": {
+  "kept": 3777,
+  "headroom": 3689,
+  "impact": 4765
+ },
+ "errors": [],
+ "n_errors": 0,
+ "impact_hours": {
+  "7": 133,
+  "10": 81,
+  "12": 16,
+  "1": 467,
+  "2": 202,
+  "3": 112,
+  "0": 2121,
+  "4": 107,
+  "5": 108,
+  "8": 66,
+  "11": 50,
+  "6": 150,
+  "9": 156,
+  "15": 6,
+  "18": 2
+ },
+ "impact_hours_2usd": {
+  "13": 52,
+  "14": 19,
+  "8": 223,
+  "11": 174,
+  "12": 69,
+  "15": 21,
+  "17": 12,
+  "3": 299,
+  "7": 278,
+  "5": 174,
+  "4": 159,
+  "9": 326,
+  "19": 6,
+  "16": 4,
+  "1": 947,
+  "6": 242,
+  "10": 193,
+  "2": 559,
+  "20": 6,
+  "21": 6,
+  "22": 2,
+  "18": 6
+ },
+ "anchor_headroom_usd_per_mw_median": 138.46,
+ "floor_day_ok": 3708,
+ "filters": {
+  "within_ns_min": 0.7,
+  "headroom_br_usd_per_mw": 25.0,
+  "headroom_anchor_usd_per_mw": 10.0,
+  "headroom_anchor_day_usd_per_mw": "10.0 (floor-day eligibility)",
+  "impact": "train: >= 1 hour of >= $2 (V5-P12 b); others: tagged only; peak (eval stratum, board column): >= 2 hours of >= $5"
+ },
+ "draws": {
+  "sizes_mw": [
+   400,
+   600,
+   800,
+   1000,
+   1200,
+   1500
+  ],
+  "size_weights": [
+   0.1,
+   0.15,
+   0.25,
+   0.2,
+   0.15,
+   0.15
+  ],
+  "durations_h": [
+   1.0,
+   2.0,
+   4.0
+  ],
+  "etas": [
+   0.8,
+   0.85,
+   0.9,
+   0.95
+  ],
+  "c_deg": [
+   0.0,
+   2.0,
+   4.0,
+   8.0
+  ],
+  "per_date": 27
+ },
+ "showcase_guard": "\u00b13 days around the showcase days",
+ "note": "derived, anonymised aggregates only; ERCOT data, not endorsed by ERCOT"
+}

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from gridsim_core.contract import P_FLOOR
-from gridsim_core.forecast import FORECAST_NOTE
+from gridsim_core.forecast_line import FORECAST_NOTE
 
 BATTERY_KEYS = ("p_dis_mw", "p_ch_mw", "energy_mwh", "unit_mwh", "k_dis", "k_ch", "soc_levels", "eta", "c_deg",
                 "cycle_cap_units", "s0", "s_end_min")

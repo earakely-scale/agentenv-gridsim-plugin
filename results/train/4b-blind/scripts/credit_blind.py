@@ -10,7 +10,7 @@ import re
 from pathb_blind import score
 
 from gridsim_core.advantage import hour_advantages
-from gridsim_core.forecast import forecast_span
+from gridsim_core.forecast_line import forecast_span
 
 CALL = re.compile(r"<tool_call>\s*(.*?)\s*(?:</tool_call>|$)", re.S)
 LIST = re.compile(r'"actions"\s*:\s*\[([^\[\]]*)\]')

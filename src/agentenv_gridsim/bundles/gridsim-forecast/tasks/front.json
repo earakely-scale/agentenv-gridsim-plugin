@@ -1,0 +1,544 @@
+[
+  {
+    "id": "deploy",
+    "type": "deploy_env",
+    "env_id": "gridsim-forecast"
+  },
+  {
+    "id": "load-task",
+    "type": "apply_server_config",
+    "env_id": "gridsim-forecast",
+    "directives": [
+      {
+        "service": "gridsim-forecast",
+        "uri": "urn:gridsim:forecast-load/v1",
+        "args": {
+          "task_id": "front-v4-2022-12-22-HB_NORTH-pv150-b100x2h-poi150",
+          "tier": "front"
+        }
+      }
+    ]
+  },
+  {
+    "id": "hide-grid-notice",
+    "type": "modify_env_tool_access",
+    "env_id": "gridsim-forecast",
+    "action": "disable",
+    "role": "default",
+    "tools": [
+      "grid_notice"
+    ]
+  },
+  {
+    "id": "watches",
+    "type": "register_env_triggers",
+    "env_id": "gridsim-forecast",
+    "watch_roles": [
+      "default"
+    ],
+    "triggers": [
+      {
+        "id": "watch-1",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 1
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-0578f5362fff",
+              "name": "ERCOT",
+              "text": "ERCOT issued a Watch (predicted extreme cold weather event for the ERCOT Region Thursday morning, December 22, 2022 through...).",
+              "level": "Watch",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-2",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 2
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "OPS-b3eba653f54b",
+              "name": "ERCOT",
+              "text": "ERCOT issued a Watch.",
+              "level": "Watch",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-3",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 3
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-4",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 4
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "VTEC-FWD-HZ.W-2022-0002-north",
+              "name": "NWS FWD",
+              "text": "NWS FWD: Hard Freeze Warning for Dallas, Tarrant, Collin and 2 more counties until 2022-12-23 09:00 CPT.",
+              "level": "Warning",
+              "derate_mw": null,
+              "from": null,
+              "until": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-5",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 5
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-6",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 6
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-7",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 7
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-8",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 8
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-9",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 9
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-10",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 10
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-11",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 11
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-12",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 12
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-13",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 13
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-14",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 14
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-15",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 15
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-16",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 16
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-17",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 17
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": [
+          {
+            "type": "tool",
+            "tool": "grid_notice",
+            "args": {
+              "event_id": "dep-nspin-20221223T0652",
+              "name": "ERCOT",
+              "text": "ERCOT deployed Non-Spin at 100% of awards from 06:52 to 24:00.",
+              "level": null,
+              "derate_mw": null,
+              "from": null,
+              "until": null,
+              "deploy": {
+                "product": "nspin",
+                "frac": 1.0,
+                "start_min": 1852,
+                "end_min": 2041
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "watch-18",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 18
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-19",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 19
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-20",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 20
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-21",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 21
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-22",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 22
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      },
+      {
+        "id": "watch-23",
+        "when": {
+          "type": "action",
+          "tool": "advance",
+          "where": {
+            "result.watch": {
+              "equals": 23
+            }
+          }
+        },
+        "barrier": {
+          "at": "provoking_call",
+          "timeout_seconds": 60
+        },
+        "actions": []
+      }
+    ]
+  },
+  {
+    "id": "deploy-agent",
+    "type": "deploy_agent",
+    "a2a_agent_id": "gridsim-llm",
+    "env_ids": [
+      "gridsim-forecast"
+    ]
+  },
+  {
+    "id": "clock",
+    "type": "sync_env_clock",
+    "env_id": "gridsim-forecast",
+    "virtual_time": "2022-12-21T16:00:00Z",
+    "virtual_seconds_per_real_second": 0,
+    "tolerate_missing_sync_time": false
+  },
+  {
+    "id": "play",
+    "type": "prompt_agent",
+    "prompt_id": "front-v4-2022-12-22-HB_NORTH-pv150-b100x2h-poi150",
+    "system_prompt": "You run the desk of a solar farm and battery behind one meter at an ERCOT settlement point for 3 operating days, live, on a virtual clock. Times are Central Prevailing Time (CPT), shown as ISO 8601 with the UTC offset (e.g. 2025-01-28T10:00-06:00). Window hour h counts from 00:00 of the first operating day (hour 0) to the last hour of the last day (71); tools also accept a time: without an offset it is read as CPT, with one (or Z) it is converted. You are a price taker.\n\nHow the window runs\n- The clock opens at 10:00 the day before the first operating day. Watches: 10:00, 14:00 and 18:00 that day; then 00:00, 06:00, 10:00, 14:00 and 18:00 each operating day (the last day ends with 00:00, 06:00 and 18:00); plus a watch when ERCOT or the National Weather Service issues a notice, ERCOT deploys reserves, or a new weather run moves the price outlook.\n- The day-ahead market (DAM) gate for each operating day is the 10:00 watch the day before: submit_dam is open only there, and you may resubmit until you advance (up to 3 submits). Miss a gate and that day has no DA position and no reserves: everything settles in real time (RT).\n- DAM results (that day's DA prices and AS prices) arrive at 13:30 and show at the 14:00 watch.\n- At every watch: read, plan, then call advance, which runs your book to the next watch. The window goes on until advance returns \"done\": true, so never stop early. Nothing moves while you think.\n- The freeze: hours that start before the next full hour plus 1 hour are frozen at what you committed (frozen_until_hour is the first window hour you can change).\n- An hour's RT price and its actual solar are shown only after the hour ends.\n\nThe plant\n- energy[h] is the battery's MW in hour h: + discharges (sells), - charges (buys or soaks up PV). |energy| <= p_mw. Charging c MWh stores eta*c; discharging d MWh removes d. SoC stays within 0..e_mwh. Discharge over the window <= cycle_cap_mwh. Plan values are MW, any value (one hour at x MW is x MWh).\n- PV: the panels deliver what the sun gives; you see only the forecast until the hour ends. The controller curtails PV in hours whose price is negative and whenever PV plus the battery plus up-reserve awards would exceed meter_mw.\n\nReserves (AS), set only at the DAM gate\n- Products: RegUp, RegDn (regulation), RRS, ECRS, Non-Spin. Up reserves (RegUp, RRS, ECRS, Non-Spin) discharge on call; RegDn charges on call. An award pays the hour's DA MCPC per MW. Awards are part of submit_dam and fixed after the gate.\n- Power: energy + up awards <= p_mw, energy - RegDn >= -p_mw, energy + up awards <= meter_mw.\n- SoC must back every award: SoC >= sum over up products of duration_h x MW, and SoC <= e_mwh - eta x RegDn duration_h x RegDn MW. Regulation drifts SoC every hour (reg_drift_mean); RRS, ECRS and Non-Spin deploy when ERCOT calls them. An award the battery cannot back is a failure to provide, charged at the hour's MCPC; a shortfall caused by drift or a deployment that arrived after the hour froze is excused.\n\nAS durations for this day (era A): RegUp 1 h, RegDn 1 h, RRS 1 h, Non-Spin 4 h. ECRS does not exist yet (it starts 2023-06-10).\n\nSettlement (two settlements)\n- Your DA position for an hour is your DAM battery move plus pv_da_share x the desk's P50 solar forecast at the gate (none in hours whose DA price outlook is negative). It settles at the DA price; actual export minus the DA position settles at the hour's RT price (the mean of its four 15-minute prices).\n- Profit = DA energy + RT deviations + AS awards x MCPC - c_deg per MWh discharged - failures to provide - the end shortfall: each MWh of SoC short of s_end_min_mwh at the end of the window is bought back at max(the window's highest DA price, $50/MWh) / eta. Prices can be negative or spike to the cap. Make profit as large as you can.\n\nForecasts, served as they were issued\n- get_forecast(kind, zone?, hours?, issued_at?) returns the latest vintage issued by now (issued_at left out, blank or null); issued_at asks for the one issued at or before it, and a time after now is refused. Kinds: load (system or a weather zone), wind, solar (system or your site), weather (NOAA HRRR at your site or a zone), price (the desk's P10/P50/P90 for DA and RT prices at your point, and AS prices), alerts (NWS products in force).\n- load, wind and solar are the desk's models run on each weather run; ERCOT's own day-ahead load forecast (via EIA-930) shows at 06:00 of its operating day\n- The price guide is the desk's model, not a market product: it is often wrong, most when the weather turns.\n- get_forecast_drift(kind, target_hour) shows how every vintage so far forecast one hour.\n- Forecast tools share 6 calls per watch.\n\nTools\n- get_situation(): the full state as JSON: time, phase, frozen_until_hour, the site, each day's DAM state and results, recent RT prices, SoC, your book, a projection of the window on the P50 forecasts and every notice.\n- check_schedule(plan, from_hour): a dry run of an energy plan; commit_schedule(plan, from_hour) replaces your book from from_hour, hour by hour (a refused hour keeps its old entry). They share 3 planning calls per watch. plan = {\"energy\": ...}: MW values from from_hour to the last window hour (or all of them), or blocks [{\"from\": 30, \"to\": 34, \"mw\": 50}] in window hours (hours no block covers are 0).\n- submit_dam(operating_day, plan, pv_da_share): at the gate, the next day's 24 hours: plan = {\"energy\": ..., \"regup\": ..., \"regdn\": ..., \"rrs\": ..., \"ecrs\": ..., \"nspin\": ...} in that day's hours 0..23 (lists or blocks). It sets the day's DA position and AS awards and your book for that day. To keep an AS field as it is, leave it out of the plan or send \"keep\" (a field never submitted is 0); a field that does not parse refuses the whole submit.\n- advance(): ends this watch.\n- get_time(), if offered, reads the same virtual clock in UTC.",
+    "prompt": "Window 2022-12-22, 2022-12-23, 2022-12-24 at HB_NORTH (site pv150-b100x2h-poi150). It is 2022-12-21T10:00-06:00, watch 0. The DAM gate for 2022-12-22 is open now. The situation:\n{\"task_id\":\"front-v4-2022-12-22-HB_NORTH-pv150-b100x2h-poi150\",\"tier\":\"front\",\"era\":\"A\",\"source\":\"desk\",\"settlement_point\":\"HB_NORTH\",\"zone\":\"NCEN\",\"site_id\":\"pv150-b100x2h-poi150\",\"region\":\"north\",\"window\":{\"days\":[\"2022-12-22\",\"2022-12-23\",\"2022-12-24\"],\"open\":\"2022-12-21T10:00-06:00\",\"end\":\"2022-12-25T00:00-06:00\",\"hour_0\":\"2022-12-22T00:00-06:00\"},\"watch\":0,\"time\":\"2022-12-21T10:00-06:00\",\"phase\":\"dam_gate\",\"frozen_until_hour\":0,\"calls_left\":3,\"forecast_calls_left\":6,\"window_over\":false,\"dam_gate\":{\"operating_day\":\"2022-12-22\",\"submits_left\":3,\"submitted\":false},\"site\":{\"coupling\":\"ac\",\"pv_mwac\":150.0,\"meter_mw\":150.0,\"meter_import_mw\":150.0,\"p_mw\":100.0,\"e_mwh\":200.0,\"eta\":0.85,\"c_deg\":4.0,\"cycle_cap_mwh\":900.0,\"cycle_used_mwh\":0.0,\"s_end_min_mwh\":100.0},\"as_rules\":{\"products\":[\"regup\",\"regdn\",\"rrs\",\"nspin\"],\"qualified\":[\"regup\",\"regdn\",\"rrs\",\"nspin\"],\"duration_h\":{\"regup\":1.0,\"regdn\":1.0,\"rrs\":1.0,\"nspin\":4.0},\"reg_drift_mean\":{\"regup\":0.12,\"regdn\":0.18},\"set_by\":\"submit_dam\"},\"days\":[{\"date\":\"2022-12-22\",\"first_hour\":0,\"dam\":\"open\",\"da_usd\":null,\"mcpc_da\":null,\"x_da_mw\":null,\"awards\":null,\"pv_da_share\":null},{\"date\":\"2022-12-23\",\"first_hour\":24,\"dam\":\"pending\",\"da_usd\":null,\"mcpc_da\":null,\"x_da_mw\":null,\"awards\":null,\"pv_da_share\":null},{\"date\":\"2022-12-24\",\"first_hour\":48,\"dam\":\"pending\",\"da_usd\":null,\"mcpc_da\":null,\"x_da_mw\":null,\"awards\":null,\"pv_da_share\":null}],\"rt_usd_last_24h\":[],\"pv_mw_last_24h\":[],\"soc_mwh\":100.0,\"status\":\"OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\",\"book\":{\"energy\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},\"projected\":{\"soc_end_mwh\":100.0,\"reserve_margin_min_mwh\":100.0,\"energy_da_usd\":292523.71,\"energy_rt_usd\":0.0,\"as_usd\":0.0,\"degradation_usd\":0.0,\"ftp_usd\":0.0,\"end_penalty_usd\":0.0,\"total_usd\":292523.71,\"basis\":\"P50 as of now\"},\"cash\":{\"energy_da\":0.0,\"energy_rt\":0.0,\"as_da\":0.0,\"deployment_energy\":0.0,\"degradation\":0.0,\"ftp\":0.0,\"excused\":0.0,\"end_penalty\":0.0,\"total\":0.0},\"latest_vintages\":{\"weather\":\"2022-12-21T08:00-06:00\",\"load\":\"2022-12-21T08:00-06:00\",\"wind\":\"2022-12-21T08:00-06:00\",\"solar\":\"2022-12-21T08:00-06:00\",\"price\":\"2022-12-21T08:00-06:00\",\"load_official\":null},\"active_alerts\":[{\"event_id\":\"VTEC-FWD-WC.A-2022-0001-north\",\"name\":\"NWS FWD\",\"title\":\"Wind Chill Watch\",\"until\":null}],\"notices\":[{\"time\":\"2022-12-21T10:00-06:00\",\"issued_at\":\"2022-12-19T13:26-06:00\",\"event_id\":\"OPS-0502f1b85122\",\"source\":\"ERCOT\",\"level\":\"Advisory\",\"name\":\"ERCOT\",\"title\":\"ERCOT Advisory\",\"text\":\"ERCOT issued an Advisory (predicted extreme cold weather event for the ERCOT Region Thursday morning, December 22, 2022 through...).\"},{\"time\":\"2022-12-21T10:00-06:00\",\"issued_at\":\"2022-12-20T15:31-06:00\",\"event_id\":\"VTEC-FWD-WC.A-2022-0001-north\",\"source\":\"NWS\",\"level\":\"Watch\",\"name\":\"NWS FWD\",\"title\":\"Wind Chill Watch\",\"text\":\"NWS FWD: Wind Chill Watch for Dallas, Tarrant, Collin and 2 more counties until 2022-12-21 14:18 CPT.\"}]}",
+    "max_turns": 122,
+    "model_params": {
+      "max_tokens": 16384
+    },
+    "effort": "high",
+    "timeout_seconds": 14400
+  },
+  {
+    "id": "end-window",
+    "type": "apply_server_config",
+    "env_id": "gridsim-forecast",
+    "directives": [
+      {
+        "service": "gridsim-forecast",
+        "uri": "urn:gridsim:end-window/v1",
+        "args": {}
+      }
+    ]
+  },
+  {
+    "id": "grade",
+    "type": "env_outcome_verifier",
+    "env_id": "gridsim-forecast",
+    "file_artifact_id": "gridsim-forecast-verifier",
+    "verifier_id": "gridsim",
+    "score_aggregator": "weighted_average"
+  }
+]

@@ -1,0 +1,58 @@
+{
+ "tz": "America/Chicago",
+ "items": {
+  "hrrr_run": {
+   "rule": "cycle + 120 min",
+   "minutes_after_cycle": 120,
+   "basis": "S3 completion of f00..f48 .idx measured p50 111, p90 116, max 118.5 min (104 runs 2021-03..2026-10)"
+  },
+  "desk_vintage": {
+   "rule": "the run's reveal_at"
+  },
+  "guide_vintage": {
+   "rule": "the run's reveal_at"
+  },
+  "eia_df": {
+   "rule": "operating day 06:00 CPT",
+   "basis": "EIA-930 daily file (yesterday's day-ahead forecast for today) due by 07:00 Eastern"
+  },
+  "eia_demand": {
+   "rule": "hour end + 60 min",
+   "basis": "EIA-930 same-day file due within 60 minutes of the hour"
+  },
+  "eia_fuel_generation": {
+   "rule": "day D -> D+1 06:00 CPT",
+   "basis": "EIA-930 daily file"
+  },
+  "eia_subregion_demand": {
+   "rule": "hour end + 31 days",
+   "basis": "EIA-930: within one month; desk fitting only"
+  },
+  "da_spp": {
+   "rule": "operating day D -> D-1 13:30 CPT",
+   "basis": "DAM results; delivered at the 14:00 watch"
+  },
+  "da_mcpc": {
+   "rule": "operating day D -> D-1 13:30 CPT"
+  },
+  "rt_spp_hour": {
+   "rule": "end of the hour"
+  },
+  "pv_actual_hour": {
+   "rule": "end of the hour"
+  },
+  "notice": {
+   "rule": "ceil(issued_at, 60 min)"
+  },
+  "nws_vtec": {
+   "rule": "ceil(issued_at, 60 min)"
+  },
+  "deployment": {
+   "rule": "ceil(issued_at, 60 min)"
+  },
+  "ercot_posting": {
+   "rule": "its posting time",
+   "basis": "ERCOT public API postedDatetime (NP3-565, NP4-732/742, NP4-745), 2023-12-11 on"
+  }
+ }
+}

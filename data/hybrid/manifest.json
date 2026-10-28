@@ -1,0 +1,602 @@
+{
+ "schema": "gridsim.hybrid-inputs/v1",
+ "built_from": {
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261017.123243236.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1287590414",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-17T12:32:42-05:00",
+   "bytes": 847,
+   "sha256": "cd173b3805363316ce18ddfd454c80b282d294317082ee5c7307157be05d7e04"
+  },
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261018.123354424.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1287974427",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-18T12:33:54-05:00",
+   "bytes": 846,
+   "sha256": "dd1b75d6d5c714a39de1bf0918c9fd150dd8ab3926d38607f3566a48e85d0f1b"
+  },
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261019.123331023.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1288373565",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-19T12:33:30-05:00",
+   "bytes": 857,
+   "sha256": "18f6bf904573f9d856151ad3935e11e71933d41ad2e4916e8b59f15e0022a751"
+  },
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261020.123244565.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1288779722",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-20T12:32:44-05:00",
+   "bytes": 884,
+   "sha256": "c595e19ed9b93fd85b3c3df0398bac1274cf3593d9061458bb5513c8b416eb2f"
+  },
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261021.123446471.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1289174770",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-21T12:34:46-05:00",
+   "bytes": 867,
+   "sha256": "141d236e1818b0fec07142a5317cf4a30f9c96921b5cd111999f061cd415d782"
+  },
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261022.123246817.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1289567347",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-22T12:32:46-05:00",
+   "bytes": 841,
+   "sha256": "93c940273b7d3975884606b7d6384146c2977574c4eda640e8e79110e6f70576"
+  },
+  "cache/raw/hybrid/dam_mcpc_daily/cdr.00012329.0000000000000000.20261023.123247181.DAMCPCNP4188_csv.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1289954839",
+   "product": "NP4-188-CD",
+   "rtid": 12329,
+   "published": "2026-10-23T12:32:46-05:00",
+   "bytes": 816,
+   "sha256": "e1109b85252d5f056d2b6fb732e838b28b030002dc0c89905b74593b04d91223"
+  },
+  "cache/raw/hybrid/dam_mcpc_yearly/DAMASMCPC_2021.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=814917148",
+   "product": "NP4-181-ER",
+   "rtid": 13091,
+   "published": "2022-01-01T08:04:42-05:00",
+   "bytes": 87312,
+   "sha256": "71b17b8611fa029ebd3df827eba7d3b2089a6f3a11cde5e54a194d8b86832aa7"
+  },
+  "cache/raw/hybrid/dam_mcpc_yearly/DAMASMCPC_2022.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=886625668",
+   "product": "NP4-181-ER",
+   "rtid": 13091,
+   "published": "2023-01-01T08:03:38-05:00",
+   "bytes": 85199,
+   "sha256": "988e9aa58b4beaf0fa64a3aadb5ce99e76e42082bfe521e18ac9c09dc7aad184"
+  },
+  "cache/raw/hybrid/dam_mcpc_yearly/DAMASMCPC_2023.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=969797266",
+   "product": "NP4-181-ER",
+   "rtid": 13091,
+   "published": "2024-01-01T08:00:55-05:00",
+   "bytes": 90511,
+   "sha256": "57bf73546071160ba672853485c3105f38db14d93f55b27df84e9fedaed3eb76"
+  },
+  "cache/raw/hybrid/dam_mcpc_yearly/DAMASMCPC_2024.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1065466940",
+   "product": "NP4-181-ER",
+   "rtid": 13091,
+   "published": "2025-01-01T08:01:05-05:00",
+   "bytes": 82321,
+   "sha256": "da9a6c0c2e9936ed7a092f5e53d19e8820fa7cb59fbc6a509370a9bafecd69cc"
+  },
+  "cache/raw/hybrid/dam_mcpc_yearly/DAMASMCPC_2025.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1177658395",
+   "product": "NP4-181-ER",
+   "rtid": 13091,
+   "published": "2026-01-01T08:18:09-05:00",
+   "bytes": 84926,
+   "sha256": "87aac1be22778a3afda54312c2f3af6c43d5534fb77734f7e2df5de23979d320"
+  },
+  "cache/raw/hybrid/dam_mcpc_yearly/DAMASMCPC_2026.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1287897544",
+   "product": "NP4-181-ER",
+   "rtid": 13091,
+   "published": "2026-10-18T08:01:06-05:00",
+   "bytes": 254715,
+   "sha256": "34c084f2234e1509c2edd8f8cb1fe19795e81e01c7eb988cf60a9b07b0aa7cd8"
+  },
+  "cache/raw/hybrid/eia860m/september_generator2026.xlsx": {
+   "url": "https://www.eia.gov/electricity/data/eia860m/xls/september_generator2026.xlsx",
+   "product": null,
+   "rtid": null,
+   "published": null,
+   "bytes": 14013970,
+   "sha256": "bcef74e1af991680731aeecfda967f5950db4ce739bb584edd8b8774c7e6da17"
+  },
+  "cache/raw/hybrid/fuel_mix/FuelMixReport_PreviousYears.zip": {
+   "url": "https://www.ercot.com/files/docs/2021/03/10/FuelMixReport_PreviousYears.zip",
+   "product": null,
+   "rtid": null,
+   "published": null,
+   "bytes": 50971482,
+   "sha256": "51a933f745d1a8a8e87cc74f8807adf193f349127fa86715671880e0705aeb30"
+  },
+  "cache/raw/hybrid/fuel_mix/IntGenbyFuel2026.xlsx": {
+   "url": "https://www.ercot.com/files/docs/2026/02/09/IntGenbyFuel2026.xlsx",
+   "product": null,
+   "rtid": null,
+   "published": null,
+   "bytes": 2296298,
+   "sha256": "11b5b42723e9955b035a017239ffeaead650b0ea214b5089c60a3fbb7bd8d2b5"
+  },
+  "cache/raw/hybrid/np4_745/PVGR_20261024_0655.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1290252298",
+   "product": "NP4-745-CD",
+   "rtid": 21809,
+   "published": null,
+   "bytes": 9150,
+   "sha256": "a943a01dc28f21be7db3f311dcc5f554ec27f0c386e64fb6d161b9347d3bb060"
+  },
+  "cache/raw/hybrid/np6_331/MCPC15Min_20261024_0717.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1290257737",
+   "product": "NP6-331-CD",
+   "rtid": 24898,
+   "published": null,
+   "bytes": 366,
+   "sha256": "7721356abc61c25bc354acc4a00e048b7f898844c99292976aa51ed93d7680f1"
+  },
+  "cache/raw/hybrid/nprr/1186NPRR-36_PUCT_Report_041124.docx": {
+   "url": "https://www.ercot.com/files/docs/2024/04/12/1186NPRR-36%20PUCT%20Report%20041124.docx",
+   "product": null,
+   "rtid": null,
+   "published": null,
+   "bytes": 402663,
+   "sha256": "7674f0795b585f35b73930e3c9d298295634989f3504c34d8887d69a3f9d2aa3"
+  },
+  "cache/raw/hybrid/rt_adders_yearly/HIST_RT15MPRICEADDER_2025.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1180319245",
+   "product": "NP6-793-ER",
+   "rtid": 13240,
+   "published": "2026-01-08T18:55:44-05:00",
+   "bytes": 108756,
+   "sha256": "fc2fa6c643039f62aa24c0f745b57bb2466c1bc55946c592ff4c1830d45ef798"
+  },
+  "cache/raw/hybrid/rt_adders_yearly/HIST_RT15MPRICEADDER_2026.zip": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1287934698",
+   "product": "NP6-793-ER",
+   "rtid": 13240,
+   "published": "2026-10-18T10:02:04-05:00",
+   "bytes": 1052164,
+   "sha256": "8abe301296951e2d85fb73f92f7a452a42380a2523928da83692cd4cfcf0b972"
+  },
+  "cache/raw/hybrid/wind_solar_yearly/ERCOT_2023_Hourly_WindSolar_Output.xlsx": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=971575038",
+   "product": "PG7-126-M",
+   "rtid": 13424,
+   "published": "2024-01-08T11:08:04-05:00",
+   "bytes": 3192046,
+   "sha256": "52296bbe9f2b79fa4642941c6974e178ce68a33c4bb61071a19e48311c443c6a"
+  },
+  "cache/raw/hybrid/wind_solar_yearly/ERCOT_2024_Hourly_WindSolar_Output.xlsx": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1068801799",
+   "product": "PG7-126-M",
+   "rtid": 13424,
+   "published": "2025-01-13T11:17:08-05:00",
+   "bytes": 3211502,
+   "sha256": "9cdf71475b1d70bd9851aa33d196435f267d126504f0fdb683b713b6edf2a731"
+  },
+  "cache/raw/hybrid/wind_solar_yearly/ERCOT_2025_Hourly_WindSolar_Output.xlsx": {
+   "url": "https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId=1182433954",
+   "product": "PG7-126-M",
+   "rtid": 13424,
+   "published": "2026-01-14T15:05:09-05:00",
+   "bytes": 3204693,
+   "sha256": "5e6718adbab776ba97df38cdbbc0521cfbe4bfe4c142a6b30174fbb014327fa2"
+  },
+  "cache/raw/eia860/eia8602025.zip": {
+   "bytes": 23622347,
+   "sha256": "2b27929d26cc1da9ad6a530da1cac6718cd8496098ee560c4d47cfffd96d08ba"
+  },
+  "data/notices/notices.jsonl.gz": {
+   "bytes": 974918,
+   "sha256": "165f9658be165996ea72451fa9614401d7bd0e7e9c5adba63cdf78b6f50b8a1e"
+  },
+  "data/notices/ops_coverage.json": {
+   "bytes": 120833,
+   "sha256": "a5e331cb1c84e5e412b01066f20dbc5de495c22b1d7ab08e121bd75041e637d6"
+  },
+  "cache/raw/ercot-rt/RTMLZHBSPP_2021.zip": {
+   "bytes": 13278381,
+   "sha256": "5255421af0d19274e852cd3a8eb6388b88e14238043487852d3cadc4edccd18d"
+  },
+  "cache/raw/ercot-rt/RTMLZHBSPP_2022.zip": {
+   "bytes": 13773266,
+   "sha256": "9807875a28926cba482f935bece5cb865dfed8a3ebd70a3bf65c47e2dc8afb4f"
+  },
+  "cache/raw/ercot-rt/RTMLZHBSPP_2023.zip": {
+   "bytes": 14000500,
+   "sha256": "e22179bf7efe1b7f6ac25f8757e97d8d11c27de3638523da4166727f5d5652cb"
+  },
+  "cache/raw/ercot-rt/RTMLZHBSPP_2024.zip": {
+   "bytes": 14288420,
+   "sha256": "cffa1d6011ca8272af9ba3ba0d0afa397d728ea4ce8d05abe96fe3fe6662adac"
+  },
+  "cache/raw/ercot-rt/RTMLZHBSPP_2025.zip": {
+   "bytes": 13969454,
+   "sha256": "522a26678575b93bbc7e2c040760eead52c4aae484e0f353c603d5b1a0378faa"
+  },
+  "cache/raw/ercot-rt/RTMLZHBSPP_2026.zip": {
+   "bytes": 10869647,
+   "sha256": "e6b05d49ae5ac8b15016dbba713ffec32090e51f1e3c14496cbd2d8aca386a63"
+  },
+  "cache/raw/hybrid/sced60/days": {
+   "days": 1039,
+   "product": "NP3-965-ER",
+   "via": "api.ercot.com/api/public-reports/archive/np3-965-er",
+   "sha256_of_doc_sha256s": "33745432fff7a525dd58cebc48df10b26e88397d72e6345b6b257996a8dec7c8"
+  }
+ },
+ "outputs": {
+  "archetypes.json": {
+   "bytes": 13106,
+   "sha256": "4200cf52e7434caf52ec0e3eca96af925ef2c8d0323a28221ed0baeacd77cb69"
+  },
+  "as_dam_mcpc.jsonl.gz": {
+   "bytes": 352637,
+   "sha256": "7c54baae729723b9a943ca242196b0299c68ef839513765cae60f154bffc4c4a"
+  },
+  "deployments.jsonl": {
+   "bytes": 175155,
+   "sha256": "afde717faf09f5dc32ef86d6a83caf7cdc469f52b76a475bbaaf21da62312517"
+  },
+  "drift.json": {
+   "bytes": 554,
+   "sha256": "e4c0884e155aa698eb1df72342567671fa46894b6c5a2c4ad7e38feed1d03cd1"
+  },
+  "durations.json": {
+   "bytes": 1623,
+   "sha256": "8bd44461f72f09d56b5d1244d969feddaa3f02b704f00b452908bb3af14bf8da"
+  },
+  "solar_cf.jsonl.gz": {
+   "bytes": 94607,
+   "sha256": "5fb5ed482a76070f1d273b14ac56dc8ce17d66889b614841e46fdec14293b4ec"
+  },
+  "reg_deploy.jsonl.gz": {
+   "bytes": 186447,
+   "sha256": "a58378a6aea2a63d40f5a19931ae4e9f8c317dda42b2458694e10e8b70840b1b"
+  },
+  "reg_model.json": {
+   "bytes": 4369,
+   "sha256": "af369ba1f20d7e2acea85577ce04f0552dbecfb18ec3187ebbc214f190e1d738"
+  },
+  "reg_deploy.md": {
+   "bytes": 3938,
+   "sha256": "8cb782dcaf9f99bde5e6ee7c620b42f8a7b24c5f86567405f46aff5c06319333"
+  }
+ },
+ "stats": {
+  "as_dam_mcpc": {
+   "days": 2123,
+   "first": "2021-01-01",
+   "last": "2026-10-24",
+   "first_ecrs": "2023-06-10",
+   "gaps": [],
+   "era_A": 890,
+   "dst_days": 11,
+   "era_B": 909,
+   "era_C": 324
+  },
+  "solar_cf": {
+   "days": 2099,
+   "src_fuel-mix+EIA-860M": 1003,
+   "repaired_days": 124,
+   "repaired_hours": 468,
+   "src_PG7-126-M": 1096,
+   "example": "2024-03-29 HE09-HE17 cf 0.1834-0.4814 actual, 0.2181-0.6211 repaired",
+   "first": "2021-01-01",
+   "last": "2026-09-30",
+   "gaps": [],
+   "ercot_over_eia_installed": {
+    "used_before_2023": 1.2991,
+    "used_after_2025": 1.2504,
+    "min": 1.2258,
+    "max": 1.4841,
+    "months": 36
+   }
+  },
+  "deployments": {
+   "tagged": 1267,
+   "ruc": 32,
+   "unparsed": 2,
+   "cancel_or_cancelled": 21,
+   "ers_skipped": 13,
+   "events_rrs": 180,
+   "end_recall": 377,
+   "year_2017": 12,
+   "year_2018": 19,
+   "events_nspin": 141,
+   "year_2019": 27,
+   "year_2020": 42,
+   "year_2021": 48,
+   "year_2022": 57,
+   "year_2023": 85,
+   "events_ecrs": 56,
+   "year_2024": 29,
+   "year_2025": 18,
+   "year_2026": 40,
+   "messages": 1231,
+   "archive_coverage_by_year": {
+    "2021": 0.995,
+    "2022": 0.999,
+    "2023": 1.0,
+    "2024": 0.992,
+    "2025": 0.986,
+    "2026": 0.991
+   }
+  },
+  "archetypes": {
+   "sites": 22,
+   "in_archetype_window": 5,
+   "pv_mwac": {
+    "n": 22,
+    "p10": 98.68,
+    "median": 230.5,
+    "p90": 386.62,
+    "min": 5.0,
+    "max": 420.0
+   },
+   "ilr": {
+    "n": 22,
+    "p10": 1.219,
+    "median": 1.285,
+    "p90": 1.411,
+    "min": 1.18,
+    "max": 1.434
+   },
+   "bess_over_pv": {
+    "n": 22,
+    "p10": 0.114,
+    "median": 0.462,
+    "p90": 1.622,
+    "min": 0.055,
+    "max": 2.228
+   },
+   "duration_h": {
+    "n": 22,
+    "p10": 0.943,
+    "median": 1.52,
+    "p90": 2.445,
+    "min": 0.88,
+    "max": 4.24
+   },
+   "ilr_missing": 0,
+   "coupling_share": {
+    "independent": 0.682,
+    "ac": 0.318
+   },
+   "coupling_share_ac_vs_dc": 1.0,
+   "colocated_by": {
+    "same_plant": 16,
+    "nearby_named": 5,
+    "direct_support": 1
+   },
+   "regions": {
+    "west": 8,
+    "north": 8,
+    "central": 3,
+    "south": 2,
+    "houston": 1
+   }
+  }
+ },
+ "tables": {
+  "as_by_year": {
+   "2021": {
+    "regup": {
+     "mean": 244.37,
+     "max": 24992.9
+    },
+    "regdn": {
+     "mean": 95.57,
+     "max": 17925.1
+    },
+    "rrs": {
+     "mean": 312.24,
+     "max": 25674.3
+    },
+    "nspin": {
+     "mean": 134.0,
+     "max": 12866.7
+    }
+   },
+   "2022": {
+    "regup": {
+     "mean": 21.67,
+     "max": 2977.77
+    },
+    "regdn": {
+     "mean": 8.46,
+     "max": 250.0
+    },
+    "rrs": {
+     "mean": 20.31,
+     "max": 2976.97
+    },
+    "nspin": {
+     "mean": 22.49,
+     "max": 2976.77
+    }
+   },
+   "2023": {
+    "regup": {
+     "mean": 26.79,
+     "max": 4082.91
+    },
+    "regdn": {
+     "mean": 13.63,
+     "max": 2961.16
+    },
+    "rrs": {
+     "mean": 21.26,
+     "max": 4083.28
+    },
+    "nspin": {
+     "mean": 19.05,
+     "max": 2715.7
+    },
+    "ecrs": {
+     "mean": 58.15,
+     "max": 4085.33
+    }
+   },
+   "2024": {
+    "regup": {
+     "mean": 6.01,
+     "max": 1007.0
+    },
+    "regdn": {
+     "mean": 3.44,
+     "max": 1455.29
+    },
+    "rrs": {
+     "mean": 5.67,
+     "max": 1458.75
+    },
+    "ecrs": {
+     "mean": 8.23,
+     "max": 2086.26
+    },
+    "nspin": {
+     "mean": 6.22,
+     "max": 2150.0
+    }
+   },
+   "2025": {
+    "regup": {
+     "mean": 2.98,
+     "max": 223.25
+    },
+    "regdn": {
+     "mean": 1.62,
+     "max": 60.97
+    },
+    "rrs": {
+     "mean": 2.76,
+     "max": 270.0
+    },
+    "ecrs": {
+     "mean": 2.46,
+     "max": 270.0
+    },
+    "nspin": {
+     "mean": 3.05,
+     "max": 470.92
+    }
+   },
+   "2026": {
+    "regup": {
+     "mean": 2.07,
+     "max": 896.96
+    },
+    "regdn": {
+     "mean": 1.32,
+     "max": 26.71
+    },
+    "rrs": {
+     "mean": 1.6,
+     "max": 999.02
+    },
+    "ecrs": {
+     "mean": 1.97,
+     "max": 1000.65
+    },
+    "nspin": {
+     "mean": 4.18,
+     "max": 432.13
+    }
+   }
+  },
+  "solar_by_year": {
+   "2021": {
+    "days": 365,
+    "mean_cf": 0.216,
+    "repaired_days": 12,
+    "sources": {
+     "fuel-mix+EIA-860M": 365
+    }
+   },
+   "2022": {
+    "days": 365,
+    "mean_cf": 0.22,
+    "repaired_days": 15,
+    "sources": {
+     "fuel-mix+EIA-860M": 365
+    }
+   },
+   "2023": {
+    "days": 365,
+    "mean_cf": 0.219,
+    "repaired_days": 17,
+    "sources": {
+     "PG7-126-M": 365
+    }
+   },
+   "2024": {
+    "days": 366,
+    "mean_cf": 0.218,
+    "repaired_days": 28,
+    "sources": {
+     "PG7-126-M": 366
+    }
+   },
+   "2025": {
+    "days": 365,
+    "mean_cf": 0.236,
+    "repaired_days": 31,
+    "sources": {
+     "PG7-126-M": 365
+    }
+   },
+   "2026": {
+    "days": 273,
+    "mean_cf": 0.254,
+    "repaired_days": 21,
+    "sources": {
+     "fuel-mix+EIA-860M": 273
+    }
+   }
+  },
+  "deployments_by_year": {
+   "2021": {
+    "rrs": 40,
+    "mw_stated": 8,
+    "nspin": 8
+   },
+   "2022": {
+    "rrs": 33,
+    "mw_stated": 24,
+    "nspin": 24
+   },
+   "2023": {
+    "nspin": 33,
+    "mw_stated": 33,
+    "rrs": 8,
+    "ecrs": 44
+   },
+   "2024": {
+    "ecrs": 9,
+    "mw_stated": 17,
+    "nspin": 20
+   },
+   "2025": {
+    "ecrs": 3,
+    "mw_stated": 14,
+    "nspin": 15
+   },
+   "2026": {
+    "nspin": 40,
+    "mw_stated": 40
+   }
+  }
+ }
+}

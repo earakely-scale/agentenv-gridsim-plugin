@@ -304,10 +304,13 @@ export function buildSky(renderer, scene, { date, lat, lon, region }) {
     sun.intensity = 4.2 * smooth(-1.5, 8, el) * Math.max(0.06, cloudDim);
     moon.color.set("#a7b8d8");
     moon.intensity = 0.7 * st.moon.lit * smooth(-2, 12, st.moon.el) * night * (1 - 0.85 * overcast);
+    const dusk = o.uTwi.value * (0.55 + 0.45 * o.uTwiK.value) * (1 - day);
+    const moonSky = st.moon.lit * smooth(-4, 20, st.moon.el) * (1 - 0.8 * overcast);
     hemi.color.copy(_a.copy(skyZen).lerp(skyHor, 0.4).multiplyScalar(1 / Math.max(0.05, _a.r * 0.3 + _a.g * 0.6 + _a.b * 0.1)).multiplyScalar(0.5)).lerp(_b.set("#c9ced4"), overcast * 0.7);
-    hemi.color.lerp(_b.set("#3a4a70"), night * 0.85);
-    hemi.groundColor.copy(groundTint).multiplyScalar(0.25 + 0.5 * day);
-    hemi.intensity = 0.2 + 0.7 * day * (0.7 + 0.8 * overcast) + 0.85 * twilight * (1 - day);
+    hemi.color.lerp(_b.set("#8d8aac"), Math.min(1, dusk * 1.4));
+    hemi.color.lerp(_b.set("#66718f").lerp(_a.set("#8592ae"), moonSky), night * 0.9);
+    hemi.groundColor.copy(groundTint).multiplyScalar(0.25 + 0.5 * day + 0.2 * dusk);
+    hemi.intensity = 0.2 + 0.7 * day * (0.7 + 0.8 * overcast) + 0.85 * twilight * (1 - day) + 3.2 * dusk + night * (1.0 + 0.8 * moonSky) * (1 - 0.35 * overcast);
     renderer.toneMappingExposure = 0.6 + 0.5 * night + 0.4 * twilight * (1 - day) + 0.15 * overcast * day;
     envGround.material.color.copy(groundTint).multiplyScalar(0.06 + 0.5 * day);
 

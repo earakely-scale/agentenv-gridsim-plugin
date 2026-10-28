@@ -1,0 +1,21 @@
+{
+ "pack": "desk-v2-tune",
+ "tasks": 12,
+ "floored": 9,
+ "floored_tasks": [
+  "desk-v2-2026-01-12-S01",
+  "desk-v2-2026-01-14-S03",
+  "desk-v2-2026-02-11-S02",
+  "desk-v2-2026-03-04-S04",
+  "desk-v2-2026-04-02-S03",
+  "desk-v2-2026-05-20-S02",
+  "desk-v2-2026-06-17-S03",
+  "desk-v2-2026-07-14-S01",
+  "desk-v2-2026-08-12-S04"
+ ],
+ "anchor_setting": {
+  "risk": 1.25,
+  "dam_position": "spread"
+ },
+ "core_version": "desk-2.1"
+}

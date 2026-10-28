@@ -1,0 +1,106 @@
+{
+ "pack": "desk-v3-pre",
+ "schema": "gridsim.desk.pack/v1",
+ "split": "train",
+ "layer": "v3",
+ "n_tasks": 2,
+ "sites": [
+  "S01",
+  "S04"
+ ],
+ "dates": [
+  "2025-06-24",
+  "2025-10-21"
+ ],
+ "operator_ok": 2,
+ "sced_fill": {
+  "desk-v3-2025-06-24-S04": 192,
+  "desk-v3-2025-10-21-S01": 192
+ },
+ "coverage": {
+  "desk-v3-2025-06-24-S04": {
+   "sced_fill": 192,
+   "sced_rows": 96,
+   "soc_null": 1,
+   "load_rows": 96,
+   "as_offer_hours": 63,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 192,
+   "desk_forecast_vintages": 43
+  },
+  "desk-v3-2025-10-21-S01": {
+   "sced_fill": 192,
+   "sced_rows": 96,
+   "soc_null": 1,
+   "load_rows": 96,
+   "as_offer_hours": 90,
+   "unit_events": 0,
+   "notices": 6,
+   "nws": 0,
+   "forecast_vintages": 144,
+   "desk_forecast_vintages": 43
+  }
+ },
+ "built_utc": "2026-10-28T08:52:38Z",
+ "builder": "scripts/desk_data_build.py",
+ "sources": {
+  "dam_spp": "NP4-190-CD",
+  "rt_spp": "NP6-905-CD",
+  "rt_lmp": "NP6-788-CD",
+  "dam_mcpc": "NP4-188-CD",
+  "rt_mcpc": "NP6-332-CD",
+  "rt_mcpc_15": "NP6-331-CD",
+  "asdc": "NP4-212-CD",
+  "system.lambda": "NP6-323-CD",
+  "system.prc_mw": "post: proxy (docs/desk-data.md) from NP6-323-CD and NP6-345-CD; pre: NP6-792-ER",
+  "system.load_mw": "NP6-345-CD (hourly actual system load, repeated on the 5-min grid)",
+  "system.wind_mw": "NP4-733-CD",
+  "system.solar_mw": "NP4-738-CD",
+  "forecasts": "v4 forecast store (NP3-565-CD, NP4-742-CD, NP4-745-CD system vintages)",
+  "outage_capacity": "NP3-233-CD",
+  "unit_events": "NP1-346-ER",
+  "notices": "data/notices/notices.jsonl.gz",
+  "nws": "data/notices/nws_vtec.jsonl.gz",
+  "operator.dam": "NP3-966-ER",
+  "operator.sced": "NP3-965-ER",
+  "operator.cop": "NP3-991-EX",
+  "desk_forecast": "data/desk/forecast (desk-qr-v1)",
+  "as_plan": "NP4-33-CD DAM AS Plan, latest posting <= D-1 06:00 [data]",
+  "reg_deploy": "data/hybrid/reg_deploy (60-day SCED storage-fleet regulation) else the fitted fallback [modelled]",
+  "deployments": "data/hybrid/deployments.jsonl (ERCOT notices) [data]",
+  "rt_lmp_hub": "NP6-788-CD at the site's hub [data]",
+  "pv": "MODELLED PV: NP4-745-CD regional actual / (share x EIA-860M capacity) x ILR, NP4-738-CD shape",
+  "forecasts.pv": "MODELLED from NP4-745-CD regional STPPF vintages",
+  "operator.dam.as_offers": "NP3-966-ER 60d DAM ESR (pre: Gen Resource) AS Offers, per product [simplified]",
+  "operator.sced.as_offer_updates": "NP3-965-ER 60d SCED Resource AS Offers, incl. proxy extension [simplified]",
+  "operator.cop.as_capability": "NP3-991-EX COP All Updates",
+  "market": "v5: NP3-966-ER 60-Day DAM Disclosure via market_stack.build_day, site resource carved out"
+ },
+ "refs": {
+  "n": 2,
+  "core_version": [
+   "desk-2.1"
+  ],
+  "anchor_setting": [
+   "{\"dam_position\": \"spread\", \"risk\": 1.5}"
+  ],
+  "floored": [],
+  "c_undefined": [],
+  "anchor_below_idle": []
+ },
+ "refs_report": {
+  "pack": "desk-v3-pre",
+  "tasks": 2,
+  "floored": 0,
+  "floored_tasks": [],
+  "c_undefined": 0,
+  "c_undefined_tasks": [],
+  "anchor_setting": {
+   "risk": 1.5,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
+ }
+}

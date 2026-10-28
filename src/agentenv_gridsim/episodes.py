@@ -1,6 +1,11 @@
 """`agent-env gridsim episodes`: a sweep's scored runs as gridsim.episode/v1 JSON (gridsim_core.episode), each recorded
 tool call played again on a fresh gridsim env through its MCP tools and its output checked against the record, and
-the verifier's reward against gridsim_core's grade of the schedule, so the viewer shows only what replays."""
+the verifier's reward against gridsim_core's grade of the schedule, so the viewer shows only what replays. A live
+sweep's runs become gridsim.episode/v2 JSON: the record played again through a fresh gridsim_core.live.Session, each
+watch's notices delivered after the advance that opened it as the triggers did, every output checked byte for byte,
+and the audit run with the agent's get_time reads; a hybrid sweep's runs likewise become gridsim.episode/v3 JSON
+through gridsim_core.hybrid.Session, a forecast sweep's gridsim.episode/v4 JSON through gridsim_core.forecast.Session,
+and a market sweep's gridsim.episode/v5 JSON through gridsim_core.market.Session."""
 
 import asyncio
 import json
@@ -9,10 +14,16 @@ from pathlib import Path
 import click
 from fastmcp import Client
 
+from gridsim_core import forecast, hybrid, market
 from gridsim_core.episode import to_episode_json
 from gridsim_core.grade import grade
+from gridsim_core.live import Session
 
-from .server import GridSimEnv, TaskIndex, pack_dirs
+from .forecast import FORECAST_PACK_NAMES
+from .hybrid import HYBRID_PACK_NAMES
+from .live import LIVE_PACK_NAMES
+from .market import MARKET_PACK_NAMES
+from .server import PACK_NAMES, GridSimEnv, TaskIndex, pack_dirs
 from .sweep import LABELS, RUNS, Sweep, load, results, slug
 from .tasks import BUNDLES, HIDDEN_IN_ONESHOT
 
@@ -66,18 +77,108 @@ def episode(sweep: Sweep, row: dict, task: dict) -> dict:
     return e | {"model_label": LABELS.get(row["model"], row["model"])}
 
 
+def live_replay(task: dict, tier: str, record: dict, session: type = Session) -> tuple[Session, list[tuple[int, str]]]:
+    """A live run's record played again through a fresh Session (``session``: live's, hybrid's or forecast's), and the
+    agent's get_time reads by watch; ReplayError at the first output that differs byte for byte. Calls the env refused
+    before the Session saw them are skipped."""
+    s, reads, watch = session(task, tier), [], 0
+    raw = {m["tool_call_id"]: m["content"] for m in record["messages"] if m["role"] == "tool"}
+    for step in record["steps"]:
+        if step["tool"] == "get_time" and "current_time" in step["output"]:
+            reads.append((watch, step["output"]["current_time"]))
+        if step["tool"] not in session.TOOLS or "messages" not in step["output"]:
+            continue
+        out = s.call(step["tool"], step["args"])
+        if out != raw[step["call_id"]]:
+            raise ReplayError(f"call {step['t']} {step['tool']} returns {out}, recorded {raw[step['call_id']]}")
+        result = json.loads(out)
+        if step["tool"] == "advance" and "watch" in result:
+            watch = result["watch"]
+            s.deliver_watch_notices()
+    if not s.done:
+        s.end_window() if isinstance(s, forecast.Session) else s.end_day()
+    return s, reads
+
+
+def live_episode(sweep: Sweep, row: dict, task: dict) -> dict:
+    """The live run's gridsim.episode/v2 (v3 for a hybrid sweep, v4 for a forecast sweep), once every recorded output
+    replays, the audit passes with the agent's get_time reads, and the replayed day's reward is the verifier's."""
+    if not row.get("transcript"):
+        raise ReplayError("no transcript recorded")
+    record = json.loads((sweep.out / row["transcript"]).read_text())
+    s, reads = live_replay(task, sweep.tier, record, hybrid.Session if sweep.hybrid
+                           else forecast.Session if sweep.forecast else Session)
+    audit = s.audit(reads)
+    if not audit["ok"]:
+        raise ReplayError(f"the audit fails: {audit['problems']}")
+    if abs(s.grade()["reward"] - row["reward"]) > TOLERANCE:
+        raise ReplayError(f"rewards differ: replay {s.grade()['reward']}, verifier {row['reward']}")
+    excerpt = [{"role": "assistant", "content": m["content"][:EXCERPT_CHARS]}
+               for m in record["messages"] if m["role"] == "assistant" and m.get("content")]
+    return s.episode(bundle=sweep.bundle, path="A", model=row["model"], trained="base", messages=excerpt,
+                     usage=record["usage"] | {"usd": row["cost_usd"]}, wall_seconds=row["wall_seconds"],
+                     episode_id=row["instance"].rsplit("/", 1)[-1]) | {"audit": audit}
+
+
+def market_replay(task: dict, tier: str, record: dict, compliant: bool = False
+                  ) -> tuple[market.Session, list[tuple[int, str]]]:
+    """A market run's record played again through a fresh market Session, as live_replay does, the floor closed with
+    end_floor when the agent left it open."""
+    s, reads, watch = market.Session(task, tier, compliant=compliant), [], 0
+    raw = {m["tool_call_id"]: m["content"] for m in record["messages"] if m["role"] == "tool"}
+    for step in record["steps"]:
+        if step["tool"] == "get_time" and "current_time" in step["output"]:
+            reads.append((watch, step["output"]["current_time"]))
+        if step["tool"] not in market.TOOLS or "messages" not in step["output"]:
+            continue
+        out = s.call(step["tool"], step["args"])
+        if out != raw[step["call_id"]]:
+            raise ReplayError(f"call {step['t']} {step['tool']} returns {out}, recorded {raw[step['call_id']]}")
+        result = json.loads(out)
+        if step["tool"] == "advance" and "watch" in result:
+            watch = result["watch"]
+            s.deliver_watch_notices()
+    if not s.done:
+        s.end_floor()
+    return s, reads
+
+
+def market_episode(sweep: Sweep, row: dict, task: dict) -> dict:
+    """The market run's gridsim.episode/v5, once every recorded output replays, the audit passes with the agent's
+    get_time reads, and the replayed floor's score (compliant on a compliant sweep) is the verifier's."""
+    if not row.get("transcript"):
+        raise ReplayError("no transcript recorded")
+    record = json.loads((sweep.out / row["transcript"]).read_text())
+    s, reads = market_replay(task, sweep.tier, record, sweep.bundle == "compliant")
+    audit = s.audit(reads)
+    if not audit["ok"]:
+        raise ReplayError(f"the audit fails: {audit['problems']}")
+    g = s.grade()
+    if abs(g["compliant_reward" if s.compliant else "reward"] - row["reward"]) > TOLERANCE:
+        raise ReplayError(f"rewards differ: replay {g['reward']} (compliant {g['compliant_reward']}), verifier "
+                          f"{row['reward']}")
+    excerpt = [{"role": "assistant", "content": m["content"][:EXCERPT_CHARS]}
+               for m in record["messages"] if m["role"] == "assistant" and m.get("content")]
+    return s.episode(bundle=sweep.bundle, path="A", model=row["model"], trained="base", messages=excerpt,
+                     usage=record["usage"] | {"usd": row["cost_usd"]}, wall_seconds=row["wall_seconds"],
+                     episode_id=row["instance"].rsplit("/", 1)[-1]) | {"audit": audit}
+
+
 def write(name: str, echo=click.echo) -> tuple[list[Path], list[str]]:
     """Writes each scored run of the sweep ``name`` as RUNS/<name>/<task>-<model>-r<rep>.json; returns the files and
     the runs that didn't replay."""
     sweep = load(name)
-    index = TaskIndex(pack_dirs())
+    index = TaskIndex(pack_dirs(MARKET_PACK_NAMES if sweep.market else HYBRID_PACK_NAMES if sweep.hybrid
+                                else FORECAST_PACK_NAMES if sweep.forecast else LIVE_PACK_NAMES if sweep.live
+                                else PACK_NAMES))
     done, failed = [], []
     for row in results(sweep.out):
         if row["outcome"] != "scored":
             continue
         label = f"{row['model']} {row['task_id']} r{row['rep']} a{row['attempt']}"
         try:
-            e = episode(sweep, row, index.get(row["task_id"]))
+            e = (market_episode if sweep.market else live_episode if sweep.live else episode)(
+                sweep, row, index.get(row["task_id"]))
         except ReplayError as err:
             failed.append(f"{label}: {err}")
             echo(click.style(f"MISMATCH {label}: {err}", fg="red", bold=True), err=True)
