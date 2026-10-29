@@ -5,16 +5,22 @@ pushed. Two kinds of files share it:
   battery, the prices, the blind inputs and the path-B prompt exactly as gridsim_core writes it), v1_showcase (the
   display-only famous days), v1_references (the DP optimum, the LP bound, the baselines and the blind anchors) and
   v1_episodes (each gridsim.episode/v1 JSON under --runs, graded again by gridsim_core before it is published, with
-  its transcript as chat messages). Beside them, the Episode JSON the Space reads under runs/, the eval card and board
-  under results/, and the packs as JSON lines under raw/packs/.
+  its transcript as chat messages). The results' tables: leaderboard (every model, effort and baseline on the four
+  evaluation packs, from results/overview/results.json; the default config) and eval_runs (every schedule behind it,
+  re-graded from the committed per-task records by scripts/hub_results.py and checked against the leaderboard).
+  Beside them, the Episode JSON the Space reads under runs/, the eval card and board under results/, and the packs as
+  JSON lines under raw/packs/.
 - agentenv-hf's, one pair per --bundle folder, as `agent-env hf publish` writes them: the bundle's tasks and runs and
   the bundle itself under bundles/, which `agent-env hf run` plays; the card's `agentenv` table names what it needs.
 
-The card is hub/dataset/README.md, with the episode splits found, the bundles' configs and the board from
-results/eval-v1.json filled in. Every file goes through agentenv-hf's scan for keys and token shapes before anything is
-written. Nothing is pushed: upload the folder with `hf upload <repo> <out> --repo-type dataset` after reading it.
+The card is hub/dataset/README.md, the desk's card, with its blocks filled in from
+results/overview/desk.json (scripts/hub_desk.py writes it and the desk's tables); the v1 tables stay in the
+repo outside every config. --card-only writes the card alone. Every file goes through agentenv-hf's scan for keys
+and token shapes before anything is written. Nothing is pushed: upload the folder with
+`hf upload <repo> <out> --repo-type dataset` after reading it.
 
     uv run python scripts/hub_dataset.py --out build/hub/dataset
+    uv run python scripts/hub_dataset.py --out build/hub/card --card-only
     agent-env gridsim tasks generate --pack ercot-dam-v1-eval --out build/bundles/ercot-dam-v1-eval
     uv run python scripts/hub_dataset.py --out build/hub/dataset --runs results/runs --results results \
         --bundle build/bundles/ercot-dam-v1-eval
@@ -22,34 +28,27 @@ written. Nothing is pushed: upload the folder with `hf upload <repo> <out> --rep
 
 import argparse
 import gzip
-import hashlib
+import importlib.util
 import io
 import json
 import re
 import shutil
 import tomllib
-from collections import Counter
-from collections.abc import Iterator
-from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from html import escape
 from pathlib import Path
-from types import ModuleType, SimpleNamespace
 
 import pyarrow as pa
-import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from agent_env.store.routing import namespace_routing
 from agentenv_hf import dataset, runs, tables
-from agentenv_hf.card import card
 from agentenv_hf.messages import to_messages
 from agentenv_hf.scan import known_values, scan
 from huggingface_hub import DatasetCard
 
-from gridsim_core import forecast, forecast_prompt, hybrid, hybrid_prompt, live, live_prompt, market, market_prompt
-from gridsim_core import forecast_inputs as FI
 from gridsim_core.episode import SCHEMA
-from gridsim_core.grade import grade, reward_value
-from gridsim_core.market_stack import overflow_root
+from gridsim_core.grade import grade
 from gridsim_core.prompt import messages, situation, tool_schemas
 from gridsim_core.task import data_root
 
@@ -68,9 +67,27 @@ UNITS = ("k_dis", "k_ch", "soc_levels", "cycle_cap_units", "s0", "s_end_min")
 BASELINES = ("clock", "threshold", "greedy", "random")
 PACK_FILES = ("stats.md", "ridge-v1.json")
 TOLERANCE = 1e-6
-BOARD = re.compile(r"(<!-- board:v1 -->\n).*?(\n<!-- /board:v1 -->)", re.S)
-NAMES = {"openai/gpt-6.1-sol": "GPT-6.1 Sol", "Qwen/Qwen3-1.7B": "Qwen3-1.7B", "Qwen/Qwen3-4B": "Qwen3-4B"}
-MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles", "training")
+DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
+APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
+VIEWER = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
+ELSEWHERE = ("v2_", "v3_", "v4_", "v5_", "desk_")
+RESULTS = "overview/results.json"
+DESK = "overview/desk.json"
+BADGES = (
+    '<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/'
+    '%F0%9F%93%96%20Article-A%20live%20ERCOT%20battery%20desk-0e7d56?style=for-the-badge&labelColor=1a1a1a" '
+    'alt="The article: a live ERCOT battery desk" height="32"></a>',
+    f'<a href="{VIEWER}"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Space-Every%20run%2C%20version%20by'
+    '%20version-FFD21E?style=for-the-badge&labelColor=1a1a1a" alt="The viewer Space: every run, version by version" '
+    'height="32"></a>',
+    '<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-'
+    'agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" '
+    'height="32"></a>',
+    '<a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?'
+    'style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>')
+CAPTIONS = ROOT / "results/overview/figures/captions.json"
+BEAM = ROOT / "results/beam-agent/beam"
+MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles", "leaderboard", "eval_runs")
 
 F64, I64, STR, BOOL = pa.float64(), pa.int64(), pa.string(), pa.bool_()
 PROMPT = pa.list_(pa.struct([("role", STR), ("content", STR)]))
@@ -100,6 +117,20 @@ EPISODES = pa.schema([
     ("final_schedule", pa.list_(I64)), ("soc_path", pa.list_(I64)), ("checks_used", I64), ("tool_calls", I64),
     ("steps", STR), ("messages", pa.list_(tables.MESSAGE)), ("transcript", STR), ("assistant_text", STR),
     ("input_tokens", I64), ("output_tokens", I64), ("usd", F64), ("wall_seconds", F64), ("file", STR),
+])
+
+
+LEADERBOARD = pa.schema([
+    ("model", STR), ("effort", STR), ("score", F64), ("ci_low", F64), ("ci_high", F64), ("usd_per_battery_day", F64),
+    ("pack", STR), ("weights", STR), ("frontier", BOOL), ("valid", F64), ("battery_days", I64), ("metric", STR),
+    ("type", STR), ("source", STR),
+])
+EVAL_RUNS = pa.schema([
+    ("model", STR), ("effort", STR), ("task_id", STR), ("score", F64), ("kind", STR), ("profit_usd_per_mw", F64),
+    ("optimum_usd_per_mw", F64), ("actions", pa.list_(I64)), ("date", STR), ("settlement_point", STR),
+    ("battery", STR), ("power_mw", F64), ("energy_mwh", F64), ("profit_usd", F64), ("idle_usd_per_mw", F64),
+    ("forecast", pa.list_(F64)), ("prices", pa.list_(F64)), ("usd", F64), ("output_tokens", I64), ("weights", STR),
+    ("tier", STR), ("source", STR),
 ])
 
 
@@ -144,12 +175,10 @@ def reference_row(task: dict) -> dict:
     return row
 
 
-def parquet(rows: list[dict], schema: pa.Schema, row_group_size: int | None = None) -> bytes:
-    """The rows as agentenv-hf types its tables, compressed with zstd: the task rows' JSON and prompts halve. The v4
-    and v5 tables pass a row group size (row_group) so the dataset viewer can page their heavy rows."""
+def parquet(rows: list[dict], schema: pa.Schema) -> bytes:
+    """The rows as agentenv-hf types its tables, compressed with zstd: the task rows' JSON and prompts halve."""
     sink = io.BytesIO()
-    pq.write_table(pq.read_table(io.BytesIO(tables.parquet(rows, schema))), sink, compression="zstd",
-                   row_group_size=row_group_size)
+    pq.write_table(pq.read_table(io.BytesIO(tables.parquet(rows, schema))), sink, compression="zstd")
     return sink.getvalue()
 
 
@@ -224,11 +253,9 @@ def episode_row(e: dict, task: dict, g: dict, record: dict | None, file: str) ->
 
 def episodes(runs_dir: Path, by_id: dict[str, dict]) -> tuple[list[dict], dict[str, bytes], list[dict]]:
     """Every gridsim.episode/v1 JSON under ``runs_dir`` (sweeps' raw folders skipped): its row, its file for the Space
-    under runs/, and the Space's index of them; an episode a training view copies under train/ keeps its board row.
-    Raises at the first episode gridsim_core does not reproduce."""
-    rows, files, index, seen = [], {}, [], set()
-    paths = sorted(runs_dir.rglob("*.json"), key=lambda p: (p.relative_to(runs_dir).parts[0] == "train", p)) \
-        if runs_dir.is_dir() else []
+    under runs/, and the Space's index of them. Raises at the first episode gridsim_core does not reproduce."""
+    rows, files, index = [], {}, []
+    paths = sorted(runs_dir.rglob("*.json")) if runs_dir.is_dir() else []
     for path in paths:
         rel = path.relative_to(runs_dir)
         if "raw" in rel.parts[:-1]:
@@ -244,9 +271,7 @@ def episodes(runs_dir: Path, by_id: dict[str, dict]) -> tuple[list[dict], dict[s
         except Mismatch as err:
             raise Mismatch(f"{rel}: {err}") from None
         file = f"runs/{rel.as_posix()}"
-        if e["episode_id"] not in seen:
-            seen.add(e["episode_id"])
-            rows.append(episode_row(e, task, g, recorded(path, e), file))
+        rows.append(episode_row(e, task, g, recorded(path, e), file))
         files[file] = path.read_bytes()
         index.append({"path": rel.as_posix(), "episode_id": e["episode_id"], "task_id": e["task_id"],
                       "tier": e["tier"], "bundle": e["bundle"], "path_kind": e["path"], "model": e["model"],
@@ -264,99 +289,1014 @@ def bundle_split(name: str) -> str:
     return max(matches)[1]
 
 
-def mci(x: dict, fmt: str = ".3f") -> str:
-    """A mean with its 95% CI from an eval card."""
-    def f(v):
-        return "–" if v is None else format(round(v, 3) + 0.0, fmt)
-    return f(x["mean"]) + (f" ({f(x['ci95'][0])} to {f(x['ci95'][1])})" if x.get("ci95") else "")
+def h(x: float, nd: int = 3, sign: bool = False) -> str:
+    """Half-up, as the results READMEs print their stored four-decimal values; a true minus sign."""
+    q = abs(Decimal(str(x))).quantize(Decimal(1).scaleb(-nd), ROUND_HALF_UP)
+    return f"{'−' if x < 0 and q else '+' if sign else ''}{q}"
 
 
-SCALE_HEAD = "C (95% CI) | Anchor's C | Δ vs anchor (95% CI) | R (95% CI) | R = 1 | Beats anchor"
+def ci(c: list[float], nd: int = 3, sign: bool = False) -> str:
+    return f"[{h(c[0], nd, sign)}, {h(c[1], nd, sign)}]"
 
 
-def scale_cells(m: dict, share) -> str:
-    """An eval card row's cross-version cells (docs/REWARD-SCALES.md): C bold, the anchor's C, the paired delta, then R
-    with its R = 1 and beats-anchor shares."""
-    return " | ".join([f"**{mci(m['capture'])}**", "–" if m["anchor_capture"] is None else f"{m['anchor_capture']:.3f}",
-                       mci(m["delta"], "+.3f"), mci({"mean": m["mean"], "ci95": m["ci95"]}), share(m["r_one"]),
-                       share(m["beats_anchor"])])
+def usd(x: float) -> str:
+    return f"${x:.5f}" if x < 0.001 else f"${x:.4f}"
 
 
-def board_markdown(eval_card: dict) -> str:
-    """The card's board on the cross-version scale (docs/REWARD-SCALES.md): each column's hindsight capture C with the
-    anchor's C and the paired delta, then R, amended when the board was, then its pre-registered scoring and the
-    baselines on its days, all from the eval card."""
-    def f(x, fmt=".3f"):
-        return "–" if x is None else format(x, fmt)
-
-    def pct(x):
-        return "–" if x is None else f"{100 * x:.1f}%"
-
-    models = eval_card["models"]
-    lines = ["Hindsight capture C = (P − P_idle)/(P_opt − P_idle) heads the board, beside the anchor's own C and the "
-             "paired gap Δ = C − C_anchor; R, the anchor scale, comes second. At the foresight tier the anchor is the "
-             "DP optimum, so C = (R − 0.2)/0.8 and a column at C 1 has solved the tier.", "",
-             f"| Column | Model | Pack | Tier | Harness | Battery-days | {SCALE_HEAD} | Valid | $ per episode |",
-             "|---|---|---|---|---|---:|---|---:|---|---|---:|---:|---:|---:|"]
-    for m in models:
-        usd = "–" if m["usd_per_episode"] is None else f"${m['usd_per_episode']:.4f}"
-        lines.append(f"| {m.get('column') or ''} | {m.get('label') or NAMES.get(m['model'], m['model'])} | "
-                     f"`{m['pack']}` | {m['tier']} | {m['bundle']} | {m['tasks']} | {scale_cells(m, pct)} | "
-                     f"{pct(m['valid'])} | {usd} |")
-    names = {"idle": "idle", "random": "random", "clock": "clock", "threshold": "threshold", "greedy": "greedy",
-             "persistence_dp": "persistence-DP", "ridge_dp": "ridge-DP", "blind_anchor": "blind anchor"}
-    lines += ["", "Baselines graded on each column's battery-days (mean C / R):", ""]
-    for m in models:
-        b = m.get("baselines") or {}
-        parts = [f"{name} {f(b[k]['capture'])} / {f(b[k]['reward'])}"
-                 + ("" if b[k]["n"] == m["planned"] else f" on {b[k]['n']}") for k, name in names.items() if k in b]
-        lines.append(f"- {m.get('column') or m['model']}: " + ", ".join(parts) + "; the DP optimum 1.000 / 1.000.")
-    if amended := [m for m in models if m.get("prereg")]:
-        a = eval_card.get("amendment") or {}
-        caps = a.get("episode_cap_usd") or {}
-        stopped = ", ".join(f"{k} {v}" for k, v in (a.get("stopped") or {}).items())
-        lines += ["", f"The headline is the amended board. The pre-registered ${caps.get('prereg', 0):.2f} episode cap "
-                  f"stopped runs before they submitted ({stopped}): the agent's own pre-request cost guard, not the "
-                  f"model. Those runs were re-run once at ${caps.get('amended', 0):.2f} and all scored. The "
-                  "pre-registered scoring, its scored runs only: " + "; ".join(
-                      f"{m.get('column') or m['model']}: C {f(m['prereg']['capture']['mean'])}, R "
-                      f"{f(m['prereg']['mean'], '.4f')} ({m['prereg']['runs']} of {m['prereg']['planned']})"
-                      for m in amended) + ". Dropping the stopped runs would bias the "
-                  "blind column toward easy days, so the amended column is the headline."]
-    return "\n".join(lines)
+def kd(x: float, sign: bool = False) -> str:
+    """Thousands of dollars: +$41.2k, −$3.4k."""
+    return f"{'−' if x < 0 else '+' if sign else ''}${h(abs(x), 1)}k"
 
 
-def card_text(files: dict[str, bytes], bundles: dict[str, str], plugin: str, board: str | None,
-              blocks: dict[str, str] | None = None, preview_ref: str | None = None) -> str:
-    """The card with each version's episodes config on the splits that have episodes, the board and the generated
-    blocks when there are, the preview links on ``preview_ref``, and each bundle's configs and needs as agentenv-hf
-    writes them. A config whose tables are all empty is left off: `datasets` can't load a parquet file with no rows."""
+def md(text: str) -> str:
+    return text.replace("*", "\\*")
+
+
+def ev(path: str, label: str) -> str:
+    return f"[{label}]({DATASET}/blob/main/{path})"
+
+
+def tree(path: str) -> str:
+    return f"[{path}]({DATASET}/tree/main/{path})"
+
+
+def folder(rel: str) -> str:
+    """The results folder that documents a file: the nearest one up from it with a README."""
+    return next(p.as_posix() for p in (Path(rel), *Path(rel).parents)
+                if p.parts[:1] == ("results",) and (ROOT / p / "README.md").is_file())
+
+
+def captions() -> dict:
+    return json.loads(CAPTIONS.read_text())
+
+
+def figure(name: str, n: int, alt: str) -> str:
+    """A results-page figure as the card prints it: its title above the bare chart, drawn in the page's light or dark
+    theme as the Hub's theme is (Tailwind's dark: classes, which the Hub keeps on a card's HTML), then its caption and
+    notes, with its sources linked into this dataset."""
+    c = captions()[name]
+    src = c["src"].removeprefix("Sources: ").removesuffix(" in the GridSimEnv-AgentEnv dataset.")
+    src = re.sub(r"results/[\w./-]+", lambda m: tree(m[0]), src)
+    note = "".join(f" {md(x)}" for x in c["notes"])
+    return "\n".join([f"**{md(c['title'])}**", "",
+                      f'<img class="dark:hidden" src="assets/figures/{name}.png" alt="{escape(alt)}">',
+                      f'<img class="hidden dark:block" src="assets/figures/{name}-dark.png" alt="{escape(alt)}">', "",
+                      f"<small>Figure {n} · {md(c['sub'])}{note} Sources: {src}.</small>"])
+
+
+LINKS = {"results/train/4b-blind": "run 4", "results/cost-matched": "the cost-matched contest",
+         "results/economics": "the economics", "results/train/4b-dpa": "run 3", "results/train/4b-v2": "run 2"}
+
+
+def glance_block(r: dict) -> str:
+    s = r["scores"]
+    cells = [f'<td width="50%"><b>{escape(g["value"])}</b> {escape(g["label"])}<br><small>{escape(g["text"])} '
+             "Evidence: " + " · ".join(f'<a href="{DATASET}/blob/main/{x}/README.md">{LINKS[x]}</a>'
+                                       for x in g["src"]) + "</small></td>" for g in r["glance"]]
+    alt = ("Before and after training. Blind capture on the 331 newest battery-days: untrained Qwen3-4B "
+           f"{h(s[0]['untrained']['mean'])}, trained {h(s[0]['trained']['mean'])}, GPT-6 Luna "
+           f"{h(s[0]['luna']['mean'])}, GPT-6.1 Sol {h(s[0]['sol']['mean'])}, persistence-DP "
+           f"{h(s[0]['baseline']['mean'])}. Blind 2025: {h(s[1]['untrained']['mean'])} to "
+           f"{h(s[1]['trained']['mean'])}. Foresight 2025: {h(s[2]['untrained']['mean'], 2)} to "
+           f"{h(s[2]['trained']['mean'])}. In dollars per MW-year on 2025: {kd(dollar(r, 'base'))} to "
+           f"{kd(dollar(r, '4b-sampled'))}, against persistence-DP's {kd(dollar(r, 'persistence-dp'))} and Sol's "
+           f"{kd(dollar(r, 'sol'))}.")
+    return "\n".join([
+        "A 4-billion-parameter open model, **Qwen3-4B**, trained on this environment's exact grader, went from losing "
+        "money on a Texas grid battery to **bidding as well as GPT-6 Luna at a quarter of its cost**. It still trails "
+        "GPT-6.1 Sol, and a free heuristic, by thousands of dollars per MW of battery a year.", "",
+        "<table>", f"<tr>{cells[0]}{cells[1]}</tr>", f"<tr>{cells[2]}{cells[3]}</tr>", "</table>", "",
+        figure("before-after", 1, alt)])
+
+
+def dollar(r: dict, key: str, pack: str = "eval2025") -> float:
+    return next(x for x in r["dollars"]["packs"][pack]["ladder"] if x["key"] == key)["yr"]["mean"]
+
+
+ORDER = ("blind-fresh", "blind-eval2025", "foresight-eval2025", "foresight-fresh")
+SPLIT = {"blind-fresh": "blind_fresh", "blind-eval2025": "blind_eval_2025", "foresight-eval2025": "foresight_eval_2025",
+         "foresight-fresh": "foresight_fresh"}
+REFS = {"teacher-dp": "forecaster + exact DP (no LLM)", "persistence-dp": "persistence-DP (no LLM)",
+        "greedy": "greedy rule (no LLM)", "threshold": "threshold rule (no LLM)"}
+BASELINE_SRC = {"persistence-dp": "results/blind-ceiling", "teacher-dp": "results/train/4b-blind",
+                "foresight-eval2025": "results/train/4b-dpa", "foresight-fresh": "results/fresh/2026-10"}
+
+
+def leaderboard_rows(r: dict) -> list[dict]:
+    """The leaderboard config: every model row of results.json's leaderboard, best first, then the baselines the article
+    draws beside them, pack by pack in ORDER."""
+    packs = {p["key"]: p for p in r["leaderboard"]["packs"]}
+    front = {x["key"]: x["frontier"] for x in r["frontier"]["points"]}
+    rows = []
+    for key in ORDER:
+        p = packs[key]
+        common = {"pack": SPLIT[key], "metric": p["metric"], "battery_days": p["n_tasks"]}
+        out = [common | {"model": x["label"], "effort": x["effort"], "weights": "open" if x["open"] else "API",
+                         "type": "model", "score": x["mean"], "ci_low": x["ci"][0], "ci_high": x["ci"][1],
+                         "usd_per_battery_day": x["usd"], "frontier": front[x["key"]] if key == "blind-fresh" else None,
+                         "valid": x["valid"], "source": folder(x["src"])} for x in p["rows"]]
+        out += [common | {"model": REFS[b["key"]], "effort": None, "weights": None, "type": "baseline",
+                          "score": b["mean"], "ci_low": b["ci"][0], "ci_high": b["ci"][1], "usd_per_battery_day": None,
+                          "frontier": None, "valid": None, "source": BASELINE_SRC.get(b["key"]) or BASELINE_SRC[key]}
+                for b in p["baselines"] if b["key"] in REFS]
+        rows += sorted(out, key=lambda x: (x["type"] == "baseline", -x["score"]))
+    return rows
+
+
+def result_tables(r: dict, runs: dict[str, list[dict]]) -> dict[str, bytes]:
+    """The leaderboard and eval_runs configs: the leaderboard from results.json, the runs as hub_results.eval_runs
+    re-grades them, each run's mean score, failure kinds and cost checked against its leaderboard row."""
+    packs = {p["key"]: {x["key"]: x for x in p["rows"]} for p in r["leaderboard"]["packs"]}
+    files = {"leaderboard/v1.parquet": parquet(leaderboard_rows(r), LEADERBOARD)}
+    for key in ORDER:
+        by: dict[str, list[dict]] = {}
+        for row in runs[key]:
+            by.setdefault(row["key"], []).append(row)
+        if by.keys() != packs[key].keys():
+            raise Mismatch(f"{key}: runs {sorted(by)}, leaderboard rows {sorted(packs[key])}")
+        for k, rows in by.items():
+            want, n = packs[key][k], len(rows)
+            kinds = {x: sum(row["kind"] == x for row in rows) for x in {row["kind"] for row in rows}}
+            cost = [row["usd"] for row in rows]
+            if (n != want["n"] or abs(sum(row["score"] for row in rows) / n - want["mean"]) > 5e-5
+                    or kinds != want["kinds"]
+                    or (want["usd"] is None) != (None in cost)
+                    or want["usd"] is not None and abs(sum(cost) / n - want["usd"]) > 5e-8):
+                raise Mismatch(f"{key} {k}: the runs do not reproduce the leaderboard row")
+        rank = {k: i for i, k in enumerate(sorted(packs[key], key=lambda k: -packs[key][k]["mean"]))}
+        rows = [x | {"weights": "open" if x["open"] else "API", "source": folder(packs[key][x["key"]]["src"])}
+                for x in sorted(runs[key], key=lambda x: (x["date"], x["task_id"], rank[x["key"]]))]
+        files[f"eval_runs/v1/{SPLIT[key]}.parquet"] = parquet(rows, EVAL_RUNS)
+    return files
+
+
+def counts(r: dict) -> dict[str, str]:
+    """The row counts the card's table of configs prints, from results.json."""
+    packs = {p["key"]: p for p in r["leaderboard"]["packs"]}
+    n = {k: len(packs[k]["rows"]) * packs[k]["n_tasks"] for k in ORDER}
+    splits = [f"`{SPLIT[k]}` ({n[k]:,})" for k in ORDER]
+    return {"leaderboard_rows": f"{len(leaderboard_rows(r)):,}", "eval_runs_rows": f"{sum(n.values()):,}",
+            "eval_runs_splits": f"{', '.join(splits[:-1])} and {splits[-1]}"}
+
+
+def packs_block(r: dict) -> str:
+    p = {x["key"]: x for x in r["leaderboard"]["packs"]}
+    f, e, fe, ff = (p[k] for k in ORDER)
+    return ("- **The four evaluation packs** name `leaderboard`'s `pack` column and `eval_runs`' splits: "
+            f"`blind_fresh`, ERCOT's {f['n_tasks']} newest battery-days at the blind tier ({f['when']}, the newest "
+            f"days at the time of the runs); `blind_eval_2025`, {e['n_tasks']} held-out battery-days of 2025 at the "
+            f"blind tier; `foresight_eval_2025`, {fe['n_tasks']} of 2025's held-out battery-days at the foresight "
+            f"tier, the training runs' held-out set; and `foresight_fresh`, the {ff['n_tasks']} newest at the "
+            "foresight tier. The newest days are not in `v1_tasks`: the plugin carries them as the packs "
+            "`ercot-dam-v1-fresh-2026-10` and `ercot-dam-v1-fresh-2026-10-blind`.")
+
+
+def gpu(x: float | None) -> str:
+    return "–" if x is None else f"${x:.2f}" if x % 1 else f"${x:.0f}"
+
+
+def gap(g: dict, nd: int = 3) -> str:
+    return f"{h(g['mean'], nd, True)} {ci(g['ci'], nd, True)}"
+
+
+def run_line(x: dict) -> str:
+    kind = "pre-registered" if x["registered"] else "exploratory"
+    return (f"| **{x['label']}**<br>{x['model']}, {kind} | {md(x['change'])} | {x['result']} | {md(x['lesson'])} "
+            f"{ev(x['src'] + '/README.md', 'Evidence')} | {gpu(x['usd'])} |")
+
+
+def stacked(g: dict) -> str:
+    return f"{h(g['mean'], sign=True)}<br><small>{ci(g['ci'], sign=True)}</small>"
+
+
+def pack_line(x: dict) -> str:
+    u, t, b, g = x["untrained"], x["trained"], x["baseline"], x["gaps"]
+    before = "not run" if u is None else h(u["mean"], 2 if u["mean"] < 0.1 else 3)
+    return (f"| {x['label']}<br><small>{x['n_tasks']} battery-days</small> | {before} → **{h(t['mean'])}**<br>"
+            f"<small>{t['run']}</small> | {h(x['luna']['mean'])} | {h(x['sol']['mean'])} | {h(b['mean'])}<br>"
+            f"<small>{b['label']}</small> | {stacked(g['trained_minus_luna'])} | {stacked(g['trained_minus_sol'])} |")
+
+
+def training_block(r: dict) -> str:
+    t, c = r["training"], r["training"]["curve"]
+    pl = t["planning"]
+    e, fr = pl["eval2025"], pl["fresh"]
+    alt_t = (f"Held-out reward against training step on 200 foresight days of 2025: run 3 with exact DP advantages "
+             f"from {h(c['run3'][0]['sampled']['mean'])} to {h(c['run3'][-1]['sampled']['mean'])}; run 2, GRPO from "
+             f"the same warm start, from {h(c['run2']['start']['mean'])} to {h(c['run2']['end']['mean'])}; run 1, GRPO "
+             f"from a weaker warm start, from {h(c['run1']['start']['mean'])} to {h(c['run1']['end']['mean'])}. "
+             f"Reference lines: GPT-6.1 Sol {h(c['sol']['mean'])}, GPT-6 Luna {h(c['luna_high']['mean'])}, the "
+             f"greedy rule {h(c['greedy_rule']['mean'])}.")
+    alt_p = (f"Run 4 on blind 2025: after SFT {h(e['sft']['mean'])}, after RL {h(e['final']['mean'])}, the exact DP on "
+             f"its own written forecast {h(e['dp_own']['mean'])}, the teacher's forecast with the DP "
+             f"{h(e['teacher']['mean'])}, GPT-6.1 Sol {h(e['sol']['mean'])}; on the newest days "
+             f"{h(fr['sft']['mean'])}, {h(fr['final']['mean'])}, {h(fr['dp_own']['mean'])}, "
+             f"{h(fr['teacher']['mean'])} and {h(fr['sol']['mean'])}.")
+    return "\n".join([
+        "Qwen3-4B (thinking off, LoRA adapters, one GPU at a time) trains on battery-days of 2014 to 2024 from the "
+        "`train` split and is scored on days it never saw: 200 held-out foresight days and 300 blind days of 2025, and "
+        "ERCOT's ten newest days. Each registered run committed its plan, schedule and bars before its first step.", "",
+        "### How it was trained", "",
+        "1. **One prompt, one completion, an exact reward.** `v1_tasks`' `prompt`, a completion that ends in a "
+        "`submit_schedule` call, and `gridsim_core.trl.reward_fn`, the env's own grader: the schedule against the "
+        "dynamic program's optimum, in under a millisecond.",
+        "2. **SFT on solver labels.** The DP gives every training day's optimal schedule for free. Ten thousand of "
+        "them, each with a rationale that tracks the state of charge and states the DP's buy-and-sell rule (SFT-10k), "
+        f"took the 4B from {h(c['base']['mean'], 2)} to {h(c['run2']['start']['mean'], 2)} with no RL.",
+        "3. **GRPO in TRL stalls on a confident policy.** TRL's `GRPOTrainer` with colocated vLLM lifted run 1's "
+        f"weaker warm start ({h(c['run1']['gain']['mean'], sign=True)}); from SFT-10k about half the days gave eight "
+        f"identical rollouts and no gradient (run 2, {h(c['run2']['gain']['mean'], sign=True)}).",
+        "4. **Exact advantages instead of a group baseline.** Run 3 credits each hour with "
+        "A_t = Q\\*(s_t, a_t) − V\\*(s_t) from the DP's value table, on the tokens of that hour's integer, in a "
+        "PPO-clipped loop with a KL anchor to SFT-10k (PyTorch and PEFT, rollouts in vLLM): held-out reward rose "
+        f"{gap(c['run3_gain'])}.",
+        "5. **Blind: forecast, then plan.** Run 4 continues from run 3 on the blind tier: SFT on a teacher "
+        "forecaster's written 24-hour forecast and the DP plan on it, then the same exact-advantage RL on the plan, "
+        "credited against the model's own forecast.", "",
+        figure("training", 3, alt_t), "",
+        "### Blind: forecast, then plan", "",
+        f"Run 4's written forecasts miss by {h(pl['mae']['final'], 2)} $/MWh over all hours, against its teacher's "
+        f"{h(pl['mae']['teacher'], 2)} and yesterday's prices' {h(pl['mae']['persistence'], 2)}. Planned by the exact "
+        f"DP they would capture {h(e['dp_own']['mean'])}, level with GPT-6.1 Sol "
+        f"({gap(e['gaps']['dp_own_minus_sol'])}, reported, not registered); its own schedules capture "
+        f"{h(e['final']['mean'])}, {gap(e['gaps']['final_minus_sol'])} behind Sol, the registered primary, not met.",
+        "", figure("planning", 4, alt_p), "",
+        "### Before and after, pack by pack", "",
+        "The cost-matched contest's comparisons under one harness, with day-block 95% CIs on the paired gaps. The "
+        "score is `r_opt`, the hindsight optimum's share on the reward's scale (idle 0.2, hindsight 1.0; the "
+        "cross-version C of [Grading](#grading) is (r_opt − 0.2)/0.8 wherever r_opt is above 0). At the foresight "
+        "tier it equals R.", "",
+        "| Pack | 4B, untrained → trained | GPT-6 Luna, high | GPT-6.1 Sol, high | Simple rule | "
+        "Trained − Luna [95% CI] | Trained − Sol [95% CI] |", "|---|---|---|---|---|---|---|",
+        *map(pack_line, r["scores"]), "",
+        f"About ${t['gpu_usd_total']:.0f} of GPU in all, from the first 1.7B arm to run 4; training called no API, "
+        "and the adapters are not published. The recipes, with their scripts, logs and package versions, are under "
+        f"{tree('results/train')}.", "",
+        "<details>", "<summary><b>Every run</b>: what it changed, what it scored held out and what it taught</summary>",
+        "", "| Run | What changed | Held-out | What it taught | GPU |", "|---|---|---|---|---:|",
+        *map(run_line, t["runs"]), "",
+        "Held-out is reward R on 200 foresight days of 2025 for runs 1 to 3 (500 unseen days of 2014 to 2024 for the "
+        "confirmation) and blind capture on 300 days of 2025 for run 4.", "", "</details>"])
+
+
+def model_name(x: dict) -> str:
+    if x["label"].startswith("Qwen3-4B, trained"):
+        return "**Qwen3-4B, trained**"
+    return f"{x['label']}, {x['effort']}" if x.get("effort") else x["label"]
+
+
+def board_line(x: dict, gaps: dict) -> str:
+    band = ci([x["ci_low"], x["ci_high"]])
+    if x["type"] == "baseline":
+        return f"| *{x['model']}* | *{h(x['score'])}* | *{band}* | – | – | – | – |"
+    name = f"{x['model']}, {x['effort']}" if x["effort"] else x["model"]
+    if x["model"].startswith("Qwen3-4B, trained"):
+        name, score = f"**{name}**", f"**{h(x['score'])}**"
+    else:
+        score = h(x["score"])
+    g = gaps.get((x["model"], x["effort"]))
+    return (f"| {name} | {score} | {band} | {usd(x['usd_per_battery_day'])} | {x['weights']} | "
+            f"{'yes' if x['frontier'] else '–'} | {gap(g) if g else '–'} |")
+
+
+def matrix(r: dict) -> list[str]:
+    """Every model and baseline on every pack, the score with its CI, best on the blind newest days first."""
+    packs = {p["key"]: p for p in r["leaderboard"]["packs"]}
+    cells: dict[str, dict[str, str]] = {}
+    for key in ORDER:
+        p = packs[key]
+        for x in p["rows"]:
+            cells.setdefault(model_name(x), {})[key] = f"{h(x['mean'])}<br><small>{ci(x['ci'])}</small>"
+        for b in p["baselines"]:
+            if b["key"] in REFS:
+                cells.setdefault(f"*{REFS[b['key']]}*", {})[key] = (
+                    f"{h(b['mean'])}<br><small>{ci(b['ci'])}</small>")
+    first = {model_name(x): x["mean"] for x in packs["blind-fresh"]["rows"]} | {
+        f"*{REFS[b['key']]}*": b["mean"] for b in packs["blind-fresh"]["baselines"] if b["key"] in REFS}
+    names = sorted(cells, key=lambda n: (n not in first, -first.get(n, 0), n))
+    head = " | ".join(f"{packs[k]['label']} ({packs[k]['n_tasks']})" for k in ORDER)
+    return [f"| Model | {head} |", "|---|" + "---|" * len(ORDER),
+            *(f"| {n} | " + " | ".join(cells[n].get(k, "–") for k in ORDER) + " |" for n in names)]
+
+
+INVALID = ("malformed", "truncated", "error")
+
+
+def holds(ok: bool, wording: str) -> None:
+    if not ok:
+        raise SystemExit(f"the card says {wording!r}, which results.json no longer supports; update the wording")
+
+
+def board_block(r: dict) -> str:
+    f = r["frontier"]
+    p, refs, ratio = {x["key"]: x for x in f["points"]}, f["refs"], f["ratios"]
+    beams = sorted((x for x in f["points"] if x["family"] == "beam"), key=lambda x: -x["mean"])
+    sol = p["sol"]["final_minus"]
+    lb = {x["key"]: x for x in r["leaderboard"]["packs"]}
+    fresh = {x["key"]: x for x in lb["blind-fresh"]["rows"]}
+    rows = sorted((x for x in leaderboard_rows(r) if x["pack"] == "blind_fresh"), key=lambda x: -x["score"])
+    gaps = {(x["label"], x["effort"]): x["final_minus"] for x in f["points"] if "final_minus" in x}
+    ks = fresh["sol"]["kinds"]
+    broke = {m: sum(v for k, v in fresh[m]["kinds"].items() if k not in ("ok", *INVALID)) for m in ("final", "sol")}
+    fore = [lb[k]["rows"] for k in ("foresight-eval2025", "foresight-fresh")]
+    above = {x["key"] for x in lb["blind-fresh"]["rows"] if x["mean"] > refs["persistence_dp"]["mean"]}
+    holds(all(max(lb[k]["rows"], key=lambda x: x["mean"])["key"] == "sol" for k in ORDER), "Sol leads every pack")
+    holds(fresh["final"]["valid"] == 1 and broke["sol"] == 0, "the 4B always submits and Sol breaks no rule")
+    holds(above == {"sol", "beam-max"}, "only Sol and Beam at max effort score above persistence-DP")
+    alt = ("Capture against cost per battery-day on a log scale, blind, the 331 newest battery-days. The frontier "
+           f"runs through the untrained 4B ({h(p['base']['mean'])} at {usd(p['base']['usd'])}), the trained 4B "
+           f"({h(p['final']['mean'])} at {usd(p['final']['usd'])}) and GPT-6.1 Sol ({h(p['sol']['mean'])} at "
+           f"{usd(p['sol']['usd'])}). GPT-6 Luna at low, medium and high effort and Beam-1.0 at four efforts lie "
+           "below it. Persistence-DP and a forecaster with the exact DP, which use no LLM, are drawn as lines at "
+           f"{h(refs['persistence_dp']['mean'])} and {h(refs['teacher_dp']['mean'])}.")
+    beam = [f"- **Beam-1.0** (open weights, untrained) is off the frontier at every effort: at its best, "
+            f"{beams[0]['effort']}, it captures {h(beams[0]['mean'])} for {usd(beams[0]['usd'])} a battery-day, and "
+            "Sol captures more for less."] if beams else []
+    return "\n".join([
+        "Every model plays the same one-call harness: the battery and the day's prices in, or at the blind tier the "
+        "week before, and one `submit_schedule` call out. Training uses exactly this prompt, so trained and frontier "
+        "models meet on equal terms. Scores put idle at 0.2 and the hindsight optimum at 1; the blind tier is where "
+        "models separate.", "",
+        f"**Bidding blind on ERCOT's {f['n_tasks']} newest battery-days** ({lb['blind-fresh']['when']}), best first:",
+        "", "| Model, effort | Score | 95% CI | $ per battery-day | Weights | Frontier | Trained 4B − this [95% CI] |",
+        "|---|---|---|---:|---|---|---|", *(board_line(x, gaps) for x in rows), "",
+        figure("frontier", 2, alt), "",
+        "- **The trained 4B is the cheapest model on the frontier above its untrained base.** It is level with GPT-6 "
+        f"Luna at high effort, {gap(p['luna-high']['final_minus'])}, at a quarter of the cost (Luna costs "
+        f"{h(ratio['luna_high'], 1)}× as much), and ahead of Luna at low effort, the matched cost "
+        f"({h(ratio['luna_low'], 1)}×), by {gap(p['luna-low']['final_minus'])}.",
+        f"- **GPT-6.1 Sol** captures {h(-sol['mean'], sign=True)} {ci([-sol['ci'][1], -sol['ci'][0]], sign=True)} "
+        f"more, for {h(ratio['sol'], 0)}× the cost, and is the best model on every pack.", *beam,
+        "- **Two baselines use no LLM:** persistence-DP, the exact DP on yesterday's prices, captures "
+        f"{h(refs['persistence_dp']['mean'])}, and run 4's teacher forecaster planned with the exact DP "
+        f"{h(refs['teacher_dp']['mean'])}. On these days only Sol and Beam at max effort score above persistence-DP.",
+        f"- **How they fail.** The trained 4B always submits, and {broke['final']} of its "
+        f"{lb['blind-fresh']['n_tasks']} "
+        "schedules break a rule; GPT-6.1 Sol keeps every rule but sends no parseable call on "
+        f"{ks.get('malformed', 0)}. `eval_runs` names the failure of every schedule.",
+        "- **Foresight is nearly solved at the top.** With the day's prices in view, Sol scores "
+        + " and ".join(dict.fromkeys(h(next(x for x in rs if x["key"] == "sol")["mean"]) for rs in fore))
+        + " on the two foresight packs.",
+        "- The 4B, Luna at high and low effort and Sol are the cost-matched contest's pre-registered rows "
+        f"({tree('results/cost-matched')}); Luna at medium effort and Beam are descriptive runs under the same harness "
+        f"({tree('results/beam-agent')}).", "",
+        "<details>", "<summary><b>Every pack</b>: each model and baseline on the four evaluation packs</summary>", "",
+        *matrix(r), "",
+        "Blind packs score hindsight capture `r_opt`, foresight packs the reward R; both put idle at 0.2 and the "
+        "optimum at 1. Brackets: day-block bootstrap 95% CIs. The trained 4B is run 4 on the blind packs and run 3 "
+        "at foresight. The `leaderboard` config has every row with its cost, validity and source, and `eval_runs` "
+        "every schedule behind it.", "", "</details>"])
+
+
+ROWS = ("optimum", "sol", "persistence-dp", "luna-high", "luna-medium", "4b-sampled", "sft", "ridge-dp", "greedy-d1",
+        "luna-low", "threshold-d1", "idle", "base")
+SHORT = {"sol": "GPT-6.1 Sol", "persistence-dp": "persistence-DP", "luna-high": "GPT-6 Luna (high)",
+         "luna-medium": "GPT-6 Luna (medium)", "4b-sampled": "trained Qwen3-4B", "ridge-dp": "ridge-DP",
+         "greedy-d1": "greedy rule on yesterday's prices", "luna-low": "GPT-6 Luna (low)",
+         "threshold-d1": "threshold rule on yesterday's prices", "idle": "idle", "base": "untrained Qwen3-4B"}
+
+
+def yr(x: dict | None) -> str:
+    return "–" if x is None else f"{h(x['yr']['mean'], 1)} {ci(x['yr']['ci'], 1)}"
+
+
+def per100(x: dict | None) -> str:
+    return "–" if x is None else f"{'−' if x['per_100mw_yr'] < 0 else ''}${abs(x['per_100mw_yr']) / 1000:.2f}M"
+
+
+def kk(x: dict, sign: bool = False) -> str:
+    return f"{kd(x['mean'], sign)} {ci(x['ci'], 1, sign)}"
+
+
+def worth_block(r: dict) -> str:
+    d = r["dollars"]["packs"]
+    e, fr = d["eval2025"], d["fresh"]
+    get = {p: {x["key"]: x for x in d[p]["ladder"]} for p in d}
+    lad = get["eval2025"]
+    rows = []
+    for key in ROWS:
+        a, b = get["eval2025"].get(key), get["fresh"].get(key)
+        if a or b:
+            x = a or b
+            name = f"**{x['label']}**" if key == "4b-sampled" else x["label"]
+            rows.append(f"| {name} | {yr(a)} | {per100(a)} | "
+                        f"{'–' if a is None or a['inference'] is None else usd(a['inference'])} | {yr(b)} |")
+    g, gf = e["gaps"], fr["gaps"]
+    up, vb, sp = g["4b-sampled - base"], g["4b-sampled - persistence-dp"], g["sol - persistence-dp"]
+    inf, pay, q = e["inference"], r["dollars"]["payback"], e["quartiles"]
+    alt_l = ("Dollars per MW of battery power per year on blind 2025: " + "; ".join(
+        f"{SHORT[x['key']]} {kd(x['yr']['mean'])}" for x in sorted(
+            (x for x in e["ladder"] if x["key"] not in ("optimum", "sft")), key=lambda x: -x["yr"]["mean"]))
+        + f"; the hindsight optimum {kd(lad['optimum']['yr']['mean'])}.")
+    alt_q = ("Gain over persistence-DP in $ per MW-day by quartile of how much the day's price shape changes, blind "
+             "2025. " + "; ".join(f"Q{x['q']}: Sol {h(x['sol']['mean'], 1, True)}, Luna "
+                                  f"{h(x['luna-high']['mean'], 1, True)}, trained 4B "
+                                  f"{h(x['4b-sampled']['mean'], 1, True)}, "
+                                  f"room {h(x['shortfall']['mean'], 1)}" for x in q) + ".")
+    return "\n".join([
+        "Every recorded blind schedule settled again at ERCOT's day-ahead prices, its profit per MW of battery power: "
+        f"× 365 for a year, × 100 for a 100 MW battery. Blind 2025 ({e['n_tasks']} battery-days on {e['n_days']} days) "
+        f"and the newest days ({fr['n_tasks']} on {fr['n_days']}), day-block 95% CIs. A reply with no valid schedule "
+        "settles as idle. A descriptive re-analysis computed after the results, not pre-registered "
+        f"({tree('results/economics')}).", "",
+        figure("ladder", 5, alt_l), "",
+        f"- **Training bought {kd(up['yr']['mean'], True)} per MW-year {ci(up['yr']['ci'], 1, True)}** on 2025's "
+        f"days ({kk(gf['4b-sampled - base']['yr'], True)} on the newest): from {kd(lad['base']['yr']['mean'])}, "
+        f"worse than idle, to {kd(lad['4b-sampled']['yr']['mean'])}, about ${up['per_100mw_yr'] / 1000:.1f}M a year "
+        "for a 100 MW battery.",
+        "- **The trained 4B still earns less than persistence-DP**, the exact DP on yesterday's prices: "
+        f"{kk(vb['yr'], True)} per MW-year on 2025 ({kk(gf['4b-sampled - persistence-dp']['yr'], True)} on the newest "
+        f"days, not separated). **GPT-6.1 Sol beats it by {kk(sp['yr'], True)}** "
+        f"({kk(gf['sol - persistence-dp']['yr'], True)}), about ${sp['per_100mw_yr']:,.0f}k a year for a 100 MW "
+        "battery.",
+        "- **Inference cost against value.** One call per battery-day, whatever the battery's size: Sol's "
+        f"${inf['sol_over_persistence']['inference_usd_per_battery_yr']:.2f} of inference a battery-year buys that "
+        f"${sp['per_100mw_yr']:,.0f}k, and its extra ${inf['sol_over_4b']['extra_inference_usd_per_battery_yr']:.2f} "
+        f"over the trained 4B buys ${inf['sol_over_4b']['decision_gap_k_usd_per_100mw_yr']:,.0f}k a year of better "
+        "decisions per 100 MW. At grid scale, decision quality, not inference cost, decides which model to run.",
+        "- **Training payback.** Against renting the same score from GPT-6 Luna at high effort, run 4's GPU bill "
+        f"(${pay['run 4']['gpu_usd']}) is repaid by its inference savings after about "
+        f"{round(pay['run 4']['battery_days'], -3):,} battery-days, run 3's (${pay['run 3']['gpu_usd']}) after about "
+        f"{round(pay['run 3']['battery_days'], -3):,}.", "",
+        "**What these dollars are and aren't.**", "",
+        "- **Day-ahead energy arbitrage only**, settled at ERCOT's hourly day-ahead prices at 7 hubs and 8 load zones. "
+        "No real-time market and no ancillary services, where real ERCOT batteries earn much of their revenue: this is "
+        "the value of the day-ahead decisions, not a battery's total revenue.",
+        "- **A price-taker with perfect execution**: every MWh clears at the published price and moves no price.",
+        "- **Archetype batteries**, 7.5 to 225 MW and 1, 2 or 4 hours, sized from the ERCOT fleet in EIA-860, with a "
+        f"flat degradation cost of $4 or $8 per MWh discharged on {e['degradation_days']} of the {e['n_tasks']} "
+        f"battery-days of 2025 and {fr['degradation_days']} of the {fr['n_tasks']} newest, $0 on the rest; no "
+        "capacity fade, O&M or capital cost.",
+        "- **× 365 is a unit, not a forecast**: 2025's 191 days run from January to November, and the newest pack is "
+        "10 days of October 2026.", "",
+        "### When reasoning pays", "",
+        "Split 2025's 191 days into quartiles by how far the day's 24 hourly prices move from the day before's shape "
+        "(1 − Pearson r). When the day repeats yesterday, persistence-DP is within "
+        f"${h(q[0]['shortfall']['mean'], 1)}–{h(q[1]['shortfall']['mean'], 1)} per MW-day of the optimum: Sol stays "
+        "level with it, while Luna and the 4B lose money by moving off it. When the shape changes (Q4), persistence-DP "
+        f"falls ${h(q[3]['shortfall']['mean'], 1)} short; Sol recovers ${h(q[3]['sol']['mean'], 1)} of it "
+        f"{ci(q[3]['sol']['ci'], 1, True)}, while Luna and the 4B only draw level. "
+        f"{e['top_days']['sol_share_from_top']:.0%} of Sol's net gain over persistence-DP comes from its best "
+        f"{e['top_days']['k']} days.", "",
+        figure("regimes", 6, alt_q), "",
+        "<details>", "<summary><b>Every policy in dollars</b>, on both blind packs</summary>", "",
+        "| Policy | 2025: $k per MW-year [95% CI] | 2025: per 100 MW-year | 2025: inference per battery-day | "
+        "Newest days: $k per MW-year [95% CI] |", "|---|---|---:|---:|---|", *rows, "", "</details>"])
+
+
+def live_block(r: dict) -> str:
+    return (f"[The live board]({APP}/board.html) tests the agents on days that have not happened. Before ERCOT's "
+            "day-ahead market closes for a delivery day, GPT-6.1 Sol, GPT-6 Luna, the trained 4B (run 4) and three "
+            "rules each seal a 24-hour schedule for 45 batteries (15 hubs and load zones × a 1-, 2- and 4-hour battery "
+            "at 100 MW) as a timestamped commit to this dataset's `live/` folder; when ERCOT posts the day's prices, "
+            "every schedule is settled at them and the cumulative P&L updates. The prices do not exist when a schedule "
+            "is published, so no model can have seen them. Passes now run on demand rather than daily (amendment 1 of "
+            f"the [pre-registration]({REPO}/blob/main/{r['live']['prereg']})); the first seal is for "
+            f"{r['live']['first_seal']}. A descriptive track record, not a test with a verdict.")
+
+
+def results_blocks(r: dict) -> dict[str, str]:
+    """The card's results sections from results/overview/results.json (scripts/hub_results.py writes it)."""
+    return {"glance": glance_block(r), "packs": packs_block(r), "board": board_block(r),
+            "training-results": training_block(r), "worth": worth_block(r), "live": live_block(r)}
+
+
+def desk_blocks(d: dict) -> dict[str, str]:
+    """The card's blocks, from results/overview/desk.json (scripts/hub_desk.py writes it): the badges and the lead GIF,
+    the results across the ladder's versions, the newest one's results open and the earlier ones folded, then the
+    price-impact check, the quick start from main, the versions, the configs and files, and the line to the archived
+    v1."""
+    vs = ladder(d)
+    results = [desk_results(v, d) for v in reversed(vs)]
+    results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
+                   "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
+    return {"badges": "\n".join(BADGES), "gif": gif_block(d["gif"]), "across": across(d),
+            "results": "\n\n".join(results + [price_check(v, d) for v in checks(d)]),
+            "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]), "ladder": ladder_block(d),
+            "models": models_block(d), "inside": inside(d), "archive": ARCHIVE}
+
+
+def ladder(d: dict) -> list[dict]:
+    return [v for v in d["versions"] if v["role"] == "ladder"]
+
+
+def checks(d: dict) -> list[dict]:
+    return [v for v in d["versions"] if v["role"] == "check"]
+
+
+def inside(d: dict) -> str:
+    n = {k: sum(v["rows"][k] for v in d["versions"]) for k in ("leaderboard", "runs", "tasks")}
+    tick = lambda vs: and_join([f"`{v['version']}`" for v in vs])  # noqa: E731
+    return "\n".join([
+        "| Config | Rows | What it holds |", "|---|---:|---|",
+        f"| **`desk_leaderboard`**, the default | {n['leaderboard']:,} | Each model and reference of each version: "
+        "each model's settings (`reasoning_effort`, `thinking`), C, P and R, the paired gaps to the anchor and to the "
+        "real operator's bids with their CIs, cost and how it traded. |",
+        f"| **`desk_runs`** | {n['runs']:,} | Each model's every task: its settings, its grade, every statement line, "
+        "usage and its Episode JSON's path. |",
+        f"| **`desk_tasks`** | {n['tasks']:,} | Every task of each version's pilot, eval and tune packs: its dates, "
+        "anonymous site card, tags and the references it was graded against. |", "",
+        f"One split per version, {tick(ladder(d))}, and one for the price-impact check, {tick(checks(d))}. Each "
+        "one's folder, `results/desk-v<N>/`, holds its README, `summary.json`, `grades.jsonl.gz`, figures, raw runs "
+        "(`runs/<model>/results.jsonl.gz` and the per-call logs) and every Episode JSON "
+        "(`episodes/<model>/*.json.gz`); `assets/` holds the desk GIFs and this card's charts."])
+
+
+QUICKSTART = """In process, with no Docker and no model key, play the anchor policy on v2's two pilot battery-days:
+
+```bash
+git clone https://github.com/earakely-scale/agentenv-gridsim-plugin
+cd agentenv-gridsim-plugin && uv sync --extra dev
+uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor --out runs/anchor
+```
+
+Each run writes every task's Episode JSON and a results row with its grade. `--policy model --model NAME --base-url URL`
+plays any model behind an OpenAI-compatible endpoint the same way, with its key in `DESK_API_KEY`, and every version's
+packs are under `data/desk/`. On AgentEnv, after `agent-env gridsim setup`, `scripts/desk_e2e.py` plays a task through
+the gateway env, its post-turn hook and its verifier, and checks it against the in-process run byte for byte.
+
+The tables:
+
+```python
+from datasets import load_dataset
+
+repo = "earakely-scale/GridSimEnv-AgentEnv"
+board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
+runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's every task
+tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
+```"""
+ARCHIVE = ("GridSimEnv v1 (one-shot day-ahead schedule, training results) is archived at revision "
+           f"[6ae10fcc]({DATASET}/tree/6ae10fcc7fea8037716a0ea7f4ef761786a34f87).")
+
+
+def ladder_block(d: dict) -> str:
+    done, lad, chk = {v["version"]: v for v in d["versions"]}, [x["version"] for x in d["ladder"]], checks(d)
+    rows = [f"| **{x['version']}, {x['name']}**<br><small>" + (
+        f"{done[x['version']]['n_tasks']} {unit(done[x['version']])}s, results above" if x["version"] in done
+        else "next")
+        + f"</small> | {md(x['adds'])} | {md(x['does'])} |" for x in d["ladder"]] + [
+        f"| **{v['version']}, {v['name']}**<br><small>a price-impact check on {v['check_of']}'s {v['n_tasks']} "
+        f"{unit(v)}s, results above</small> | {md(v['adds'])} | {md(v['does'])} |" for v in chk]
+    return "\n".join([
+        f"**{NUM[len(lad)]} versions ({lad[0]}–{lad[-1]}) plus a price-impact check "
+        f"({and_join([v['version'] for v in chk])}).** Each version adds one kind of realism to the same desk, tools "
+        "and grading. The check re-runs " + and_join([f"{v['check_of']}'s {unit(v)}s" for v in chk]) + " with the "
+        "desk's day-ahead offers re-clearing the market, to measure how far one battery moves the price.", "",
+        "| Version | What it adds | What the agent does |", "|---|---|---|", *rows])
+
+
+def desk_results(v: dict, d: dict) -> str:
+    charts = d["charts"]
+    sites = ", ".join(f"{s['region']} {s['size']}" for s in v["sites"])
+    a, b = (f"{date.fromisoformat(x):%-d %B %Y}" for x in v["dates"])
+    rows = [desk_row(m, d["models"][m["key"]]) for m in v["models"]] + [
+        f"| *{r['short']}* | *{h(r['C']['mean'])}* | *{usdk(r['P']['mean'])}* |"
+        for r in v["references"] if r["key"] != "idle" or abs(r["P"]["mean"]) >= 0.5]
+    gaps = [f"| {who(d['models'][m['key']])} | "
+            + ("–" if m["P_minus_operator_replay"]["mean"] is None else stacked_usd(m["P_minus_operator_replay"], True))
+            + f" | {stacked_usd(m['P_minus_anchor'], True)} |" for m in v["models"]]
+    return "\n".join([
+        f"### {v['version']}, {v['name']}: results", "",
+        (f"{v['n_tasks']} battery-days: {len(v['sites'])} real batteries ({sites}) on {v['n_days']} operating days "
+         f"from {a} to {b}" if v["days_per_task"] == 1 else
+         f"{v['n_tasks']} windows of {v['days_per_task']} operating days: {len(v['sites'])} real batteries ({sites}) "
+         f"across {v['n_days']} {v['block']}s from {a} to {last(v)}")
+        + ", each old enough for ERCOT to have disclosed the operators' bids. Each model plays each one once under "
+        "pre-registered settings.", "",
+        f"| Desk | C, hindsight capture | P, $ a {unit(v)} |", "|---|---:|---:|", *rows, "",
+        f"| Paired, $ a {unit(v)} | P − the operator's bids | P − anchor |", "|---|---:|---:|", *gaps, "",
+        "<small>The anchor is the desk's own optimiser, re-planning at every wake on the same information. The "
+        f"operator rows are the real operator's own bids on each {unit(v)}, disclosed by ERCOT 60 days later and "
+        "replayed through the same clearing and settlement, and its actual awards and metered output settled the same "
+        "way. Hindsight knows every price in advance. " + (f"{v['idle']} " if v.get("idle") else "")
+        + f"Brackets: {v['block']}-block bootstrap 95% CIs over {v['n_days']} {v['block']}s.</small>", "",
+        *([f"<small>{' '.join(x for x in (v.get('defects'), v.get('deviations')) if x)}</small>", ""]
+          if v.get("defects") or v.get("deviations") else []),
+        f"**How much of the hindsight optimum each desk captured, {by(v)}, {v['version']}**", "",
+        *chart(f"desk-{v['version']}-days", days_alt(v, d), charts["width"], charts["phone"]["media"]), "",
+        f"<small>{days_caption(v, d)}</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
+        f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the viewer lists every "
+        f"{unit(v)} with a replay of each model's run.", "",
+        f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
+        "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
+        f"split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the plugin."])
+
+
+def chart(name: str, alt: str, width: int, media: str) -> list[str]:
+    """One of the card's own charts (scripts/hub_desk.py draws them from hub/desk-charts) as SVG at the width it is
+    drawn at, in the page's light or dark theme as the Hub's theme is, and on a phone in its phone layout (a source
+    the Hub leaves as written, so its URL is absolute)."""
+    phone = f"{DATASET}/resolve/main/assets/figures/{name}-phone"
+    return [f'<picture><source media="{media}" srcset="{phone}{sfx}.svg"><img class="{cls}" '
+            f'src="assets/figures/{name}{sfx}.svg" width="{width}" alt="{escape(alt)}"></picture>'
+            for sfx, cls in (("", "dark:hidden"), ("-dark", "hidden dark:block"))]
+
+
+def by(v: dict) -> str:
+    return "front by front" if v["days_per_task"] > 1 else "day by day"
+
+
+def days_alt(v: dict, desk: dict) -> str:
+    ds, scale, n = v["days"], desk["charts"]["days_scale"], NUM[len(ladder(desk))].lower()
+    each = [f"{desk['models'][m['key']]['label']} " + ", ".join(f"{pc(d['C'][m['key']])}%" for d in ds)
+            for m in v["models"]]
+    each += ["the real operator's bids, replayed, " + ", ".join(f"{pc(d['C']['operator_replay'])}%" for d in ds)
+             if all(d["C"].get("operator_replay") is not None for d in ds) else ""]
+    named, years = [d for d in ds if d.get("named")], "–".join(sorted({d["block"][:4] for d in ds}))
+    unit_ = "fronts" if v["days_per_task"] > 1 else "days"
+    return (f"Line chart of hindsight capture C {by(v)}, each point the mean of the {ds[0]['n']} sites' {span(v)}s, "
+            f"as a percentage of the hindsight optimum's profit over idle, on a scale of {pc(scale[0], 0)}% to "
+            f"{pc(scale[1], 0)}% shared by all {n} versions, over {len(ds)} {unit_} "
+            f"({', '.join(short(v, d['block']) for d in ds)} {years}): " + "; ".join(x for x in each if x) + "."
+            + (f" Shaded: {named[0]['named']}, {short(v, named[0]['block'])}." if named else ""))
+
+
+def days_caption(v: dict, desk: dict) -> str:
+    ds, multi, scale, n = v["days"], v["days_per_task"] > 1, desk["charts"]["days_scale"], len(ladder(desk))
+    named = [d for d in ds if d.get("named")]
+    region = {s["name"].split()[-1]: s["region"] for s in v["sites"]}
+    moved = [t for t in v["tasks"] if t["date"] != t["block"]]
+    return (f"Each point is the mean C of the {ds[0]['n']} {span(v)}s {'of that front' if multi else 'that day'}, one "
+            f"per site; grey dashed, the real operator's own bids, replayed. All {NUM[n].lower()} versions share one "
+            f"scale, {pc(scale[0], 0)}% to {pc(scale[1], 0)}%."
+            + (f" Shaded: {named[0]['named']}, {long_(v, named[0]['block'])}." if named else "")
+            + "".join(f" The {region.get(t['site'], t['site'])} window of the {long_(v, t['block'])} front ran "
+                      f"{long_(v, t['date'])}." for t in moved))
+
+
+def pc(x: float, nd: int = 1, sign: bool = False) -> str:
+    """C as a percentage, half-up to nd decimals, with a true minus: 0.3463 is 34.6."""
+    q = (Decimal(str(x)) * 100).quantize(Decimal(1).scaleb(-nd), ROUND_HALF_UP)
+    return f"{'−' if q < 0 else '+' if sign and q > 0 else ''}{abs(q)}"
+
+
+def short(v: dict, iso: str) -> str:
+    """'25 Jan'; a front's three days, '23–25 Jan'."""
+    a = date.fromisoformat(iso)
+    b = a + timedelta(days=v["days_per_task"] - 1)
+    return f"{a:%-d %b}" if a == b else f"{a:%-d}–{b:%-d %b}" if a.month == b.month else f"{a:%-d %b}–{b:%-d %b}"
+
+
+def long_(v: dict, iso: str) -> str:
+    a = date.fromisoformat(iso)
+    b = a + timedelta(days=v["days_per_task"] - 1)
+    return f"{a:%-d %B %Y}" if a == b else f"{a:%-d} to {b:%-d %B %Y}" if a.month == b.month else (
+        f"{a:%-d %B} to {b:%-d %B %Y}")
+
+
+def last(v: dict) -> str:
+    return f"{date.fromisoformat(v['dates'][1]) + timedelta(days=v['days_per_task'] - 1):%-d %B %Y}"
+
+
+def desk_row(m: dict, s: dict) -> str:
+    cost = m["usd_per_episode"]
+    sub = [s["setting"]] + (["open weights"] if m["weights"] == "open" else [f"${cost:.2f} a run"] if cost else [])
+    return (f"| **{s['name']}**<br><small>{' · '.join(sub)}</small> | **{h(m['C']['mean'])}**<br><small>"
+            f"{ci(m['C']['ci'])}</small> | {stacked_usd(m['P'])} |")
+
+
+def who(s: dict) -> str:
+    """A model as the card's tables name it: its name over its setting, the two halves of its label."""
+    return f"**{s['name']}**<br><small>{s['setting']}</small>"
+
+
+def models_block(d: dict) -> str:
+    lead, *each = models_lines(d)
+    return "\n".join([f"- **Models and settings.** {lead}", *(f"  - {x}" for x in each)])
+
+
+def models_lines(d: dict) -> list[str]:
+    """The models and their settings in Markdown, from desk.json's `models`: how every run was played, then what each
+    label's setting is and how the model was served. desk.json carries them as `models_lines` for the viewer."""
+    api = [s for s in d["models"].values() if s["weights"] == "API"]
+    q = next(s for s in d["models"].values() if s["weights"] == "open")
+    names, ids = and_join([f"**{s['label']}**" for s in api]), ", ".join(f"`{s['model_id']}`" for s in api)
+    return ["One sampled run per model per task, with the same system prompt, the same 11 tools and the same turn "
+            "budget.",
+            f"{names} ({ids}): reasoning effort {api[0]['reasoning_effort']}, through the {api[0]['api']}.",
+            f"**{q['label']}** (`{q['checkpoint']}`): thinking {'on' if q['thinking'] else 'off'}, temperature "
+            f"{q['temperature']}, top_p {q['top_p']}; served by {q['server']} in {q['dtype']} with a "
+            f"{q['context_tokens']:,}-token context and the {q['tool_parser']} tool parser; prompts compacted to about "
+            f"{q['prompt_tokens'] // 1000}k tokens, with up to {q['max_output_tokens']:,} output tokens a call."]
+
+
+def unit(v: dict) -> str:
+    return "battery-day" if v["days_per_task"] == 1 else f"{v['days_per_task']}-day window"
+
+
+def stacked_usd(b: dict, sign: bool = False) -> str:
+    return f"{usdk(b['mean'], sign)}<br><small>[{usdk(b['ci'][0], sign)}, {usdk(b['ci'][1], sign)}]</small>"
+
+
+def usdk(x: float, sign: bool = False) -> str:
+    """Thousands of dollars to one decimal, a whole dollar figure under $1,000; a word joiner keeps the sign on it."""
+    v = f"{h(abs(x) / 1000, 1)}k" if abs(x) >= 999.5 else f"{abs(x):.0f}"
+    return f"{'' if v == '0' else '−' if x < 0 else '+' if sign else ''}\u2060${v}"
+
+
+def desk_bullets(v: dict) -> list[str]:
+    ms, refs = v["models"], {r["key"]: r for r in v["references"]}
+    top, others = ms[0], ms[1:]
+    pairs = {(x["a"], x["b"]): x["C"] for x in v["paired"] if "C" in x}
+    pairs |= {(b, a): {"mean": -c["mean"], "ci": [-c["ci"][1], -c["ci"][0]]} for (a, b), c in list(pairs.items())
+              if (b, a) not in pairs}
+    leads = [(m, pairs[top["key"], m["key"]]) for m in others if (top["key"], m["key"]) in pairs]
+    out = [f"**{top['name']} captures the most of hindsight:** C {h(top['C']['mean'])} {ci(top['C']['ci'])}, "
+           f"{usd0(top['P']['mean'])} a {unit(v)}" + (", against " + " and ".join(
+               f"{h(m['C']['mean'])} for {m['name']}" for m in others) if others else "") + "."
+           + (f" Paired by {unit(v)}, its lead in C: " + "; ".join(
+               f"{m['name']} {gap(d)}" + (", a CI that includes zero" if d["ci"][0] <= 0 <= d["ci"][1] else "")
+               for m, d in leads) + "." if leads else "")]
+    if "operator_replay" in refs:
+        op = refs["operator_replay"]["P"]["mean"]
+        gaps = [f"{m['name']} {usd0(m['P_minus_operator_replay']['mean'], True)} "
+                f"{usd0_ci(m['P_minus_operator_replay']['ci'], True)}" for m in ms
+                if m["P_minus_operator_replay"]["mean"] is not None]
+        ahead = [m["name"] for m in ms if m["P_minus_operator_replay"]["mean"] is not None
+                 and m["P_minus_operator_replay"]["ci"][0] > 0]
+        behind = [m["name"] for m in ms if m["P_minus_operator_replay"]["mean"] is not None
+                  and m["P_minus_operator_replay"]["ci"][1] < 0]
+        out.append(f"**Against the real operator:** its own bids, replayed through the same clearing and settlement, "
+                   f"earn {usd0(op)} a {unit(v)}; paired, {'; '.join(gaps)}. "
+                   + (f"Ahead with a CI above zero: {' and '.join(ahead)}." if ahead else
+                      "No model is ahead with a CI above zero.")
+                   + (f" Behind with a CI below zero: {' and '.join(behind)}." if behind else ""))
+    out += sensitivity(v) + reserves(v) + dam_days(v)
+    a, spread = refs["anchor"], "anchor" in (v.get("sensitivity") or {}).get("bought_back", [])
+    out.append("**The anchor,** the desk's own optimiser on the same information, "
+               + ("" if spread else "free to take DAM/RT spread positions, ")
+               + f"captures C {h(a['C']['mean'])} ({usd0(a['P']['mean'])} a {unit(v)})"
+               + (", partly from DAM/RT spread positions that pay off on scarcity days" if spread else "")
+               + f"; paired against it, a {unit(v)}: " + "; ".join(
+                   f"{m['name']} {usd0(m['P_minus_anchor']['mean'], True)} {usd0_ci(m['P_minus_anchor']['ci'], True)}"
+                   for m in ms) + ".")
+    paid = [f"{m['name']} ${m['usd_per_episode']:.2f}" for m in ms if m["weights"] != "open" and m["usd_per_episode"]]
+    local = [m["name"] for m in ms if m["weights"] == "open"]
+    if paid:
+        out.append(f"**A {unit(v)}'s inference** costs {' and '.join(paid)} at list prices"
+                   + (f"; {' and '.join(local)} runs on one GPU." if local else "."))
+    return out
+
+
+def sensitivity(v: dict) -> list[str]:
+    """The post-hoc check of the block that carries the means (the report's, else the one scripts/hub_desk.py derives
+    from the grades): what each desk earned there, which desks made more than half their total P there and, where the
+    statements show it, how; the means without it, the medians over every task and each model's losing tasks."""
+    sv = v.get("sensitivity") or {}
+    w = sv.get("without") or sv.get("derived")
+    if not w:
+        return []
+    ms, u, blk = {m["key"]: m for m in v["models"]}, unit(v), sv.get("block", "day")
+    name = lambda k: ms[k]["name"] if k in ms else SHORTS.get(k, k)  # noqa: E731
+    days = {d: block_label(v, d) for d in w["days"]}
+    on = {label: ", ".join(f"{name(k)} {usd0(x)}" for k, x in {
+        **sv["per_day_mean_P"][d]["models"], **sv["per_day_mean_P"][d]["references"]}.items() if x is not None)
+        for d, label in days.items()}
+    wo = "; ".join(f"{name(k)} {usd0(b['P']['mean'])}" + (f" {usd0_ci(b['P']['ci'])}" if "ci" in b["P"] else "")
+                   for k, b in w["means"]["models"].items())
+    wr = " and ".join(f"{name(k)} {usd0(b['P']['mean'])}" for k, b in w["means"]["references"].items()
+                      if k in ("operator_replay", "anchor"))
+    med = "; ".join(f"{name(k)} {usd0(x)}" for k, x in {**sv["median_P"], **sv["median_P_references"]}.items()
+                    if k in ms or k == "operator_replay")
+    loss = "; ".join(f"{name(k)} {x['tasks_p_below_0']} of {v['n_tasks']}"
+                     + (f" (worst {usd0(x['worst_p'])})" if x["tasks_p_below_0"] else "")
+                     for k, x in sv["losses"].items())
+    who, bb = [name(k) for k in sv.get("carried", [])], [name(k) for k in sv.get("bought_back", [])]
+    one, there = len(days) == 1, "there" if blk != "day" else "that day"
+    head = (f"One {blk} carries" if one else f"A few {blk}s carry") + " the means" if who else \
+        f"Without {and_join(list(days.values()))}"
+    when = (f"Mean P a {u} {next(iter(on))}" + (f", {sv['why_short']}" if sv.get("why_short") else "")
+            + f": {next(iter(on.values()))}." if one else f"Mean P a {u}: " + "; ".join(
+                f"{d}, {x}" for d, x in on.items()) + ".")
+    return [f"**{head}.** {when}"
+            + (f" {and_join(who)} made more than half of {'its' if len(who) == 1 else 'their'} total P "
+               f"{there if one else f'in those {blk}s'}" + ("" if not bb else f", from {BUYBACK}" if bb == who
+                                                             else f"; {and_join(bb)} from {BUYBACK}") + "."
+               if who else "")
+            + f" Without {'it' if one else 'them'} ({w['n_tasks']} {u}s): {wo}, against {wr}. Over every {u}, the "
+            f"medians are {med}. P below zero: {loss}. A post-hoc check, not pre-registered."]
+
+
+def block_label(v: dict, d: str) -> str:
+    """'on 25 January 2026' for a day; 'on the front of 23 to 25 January 2026 (winter storm Fern)' for a window."""
+    a = date.fromisoformat(d)
+    if v["days_per_task"] == 1:
+        return f"on {a:%-d %B %Y}"
+    b = a + timedelta(days=v["days_per_task"] - 1)
+    named = (v.get("sensitivity") or {}).get("names", {}).get(d)
+    return (f"on the front of {a:%-d} to {b:%-d %B %Y}" if a.month == b.month else
+            f"on the front of {a:%-d %B} to {b:%-d %B %Y}") + (f" ({named})" if named else "")
+
+
+AS_CODES = {"ASO-01": "a product the battery may not offer", "ASO-02": "the shape check",
+            "ASO-06": "after the market window closed"}
+
+
+def reserves(v: dict) -> list[str]:
+    """What each model's reserve offers won and earned, and which ERCOT-style checks refused them (v3 on)."""
+    ms = [m for m in v["models"] if m.get("ancillary")]
+    if not ms:
+        return []
+    def one(m: dict) -> str:
+        a, rc = m["ancillary"], m["ancillary"]["rejected_codes_total"]
+        got = m["lines"].get("dam_as_capacity", 0.0) + m["lines"].get("rt_as_imbalance", 0.0)
+        why = "; ".join((f"{c} ×{k}" if len(rc) > 1 else c) + (f", {AS_CODES[c]}" if c in AS_CODES else "")
+                        for c, k in rc.items())
+        no = f", AS offers refused {sum(rc.values())} times ({why})" if rc else ""
+        return (f"{m['name']}: AS awards in {a['episodes_with_awards']} of {m['n']} {unit(v)}s, {usd0(got, True)} a "
+                f"{unit(v)} from the AS lines{no}")
+    return ["**Reserves.** " + "; ".join(one(m) for m in ms) + "."]
+
+
+def price_check(v: dict, d: dict) -> str:
+    """v5: the battery-days of the version it checks, re-run with each desk's DAM curves re-cleared against the day's
+    real offers; how far that moved the price, and each model's gap to its own run there, paired by task."""
+    pi, vs, u, of = v["price_impact"], v["versus"]["models"], unit(v), v["check_of"]
+    names = {m["key"]: m["name"] for m in v["models"]}
+    top = max((k for k in names if k in pi), key=lambda k: abs(pi[k]["revenue_effect_usd_per_episode"]))
+    mw, move = sorted({int(x["size"].split()[0]) for x in v["sites"]}), pi[top]["sales_mwh_weighted_usd_per_mwh"] * 100
+    effect = usd0(pi[top]["revenue_effect_usd_per_episode"], True)
+    noise = all(b[x]["ci"][0] <= 0 <= b[x]["ci"][1] for b in vs.values() for x in ("P", "R", "C"))
+    rows = [f"| {who(d['models'][m['key']])} | {h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small> | "
+            f"{stacked(vs[m['key']]['C'])} | {stacked_usd(vs[m['key']]['P'], True)} |" for m in v["models"]]
+    return "\n".join([
+        f"### {v['version']} · {v['name']}: a price-impact check", "",
+        f"{v['version']} re-runs {of}'s {v['n_tasks']} {u}s with each desk's day-ahead curves re-cleared against the "
+        f"day's real offer stack, as ERCOT disclosed it 60 days later. One {mw[0]}–{mw[-1]} MW battery moves the price "
+        f"by cents: {names[top]}'s offers moved it by {'−' if move < 0 else '+'}{abs(move):.1f}¢/MWh on its sales, at "
+        f"most ${pi[top]['max_abs_usd_per_mwh']:.2f}/MWh, about {effect} in revenue a {u}. "
+        + (f"Paired by {u}, every {v['version']} − {of} difference in C, P and R has a 95% CI that includes zero: "
+           f"{v['version']} reproduces {of}. " if noise else "")
+        + "The next step that would make price impact matter is a fleet desk: a QSE trading a portfolio of batteries.",
+        "", f"| Desk | C in {v['version']} | {v['version']} − {of} in C | {v['version']} − {of} in P, $ a {u} |",
+        "|---|---:|---:|---:|", *rows, "",
+        f"<small>{v['version']} − {of}: each model's {v['version']} run minus its {of} run on the same {u}, averaged. "
+        f"Brackets: {v['block']}-block bootstrap 95% CIs over {v['n_days']} {v['block']}s.</small>", "",
+        f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) and in the `desk_leaderboard` and "
+        f"`desk_runs` configs, split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the "
+        "plugin."])
+
+
+def across(d: dict) -> str:
+    """The models' C over the ladder's versions, as the card's lead chart and a table, and what the paired gaps between
+    them say."""
+    vs = ladder(d)
+    if len(vs) < 2:
+        return ""
+    keys = list(dict.fromkeys(m["key"] for v in vs for m in v["models"]))
+    names = {m["key"]: m["name"] for v in vs for m in v["models"]}
+    cell = lambda v, k: next((f"{h(m['C']['mean'])}<br><small>{ci(m['C']['ci'])}</small>" for m in v["models"]  # noqa: E731
+                              if m["key"] == k), "–")
+    rows = [f"| {who(d['models'][k])} | " + " | ".join(cell(v, k) for v in vs) + " |" for k in keys]
+    return "\n".join(["**How much of the hindsight optimum each desk captured, version by version**", "",
+                      *chart("desk-across", across_alt(d, keys, names), d["charts"]["lead"],
+                             d["charts"]["phone"]["media"]), "",
+                      f"<small>{across_caption(d, names)}</small>", "",
+                      "| Desk | " + " | ".join(v["version"] for v in vs) + " |",
+                      "|---|" + "---:|" * len(vs), *rows, "", across_text(d)])
+
+
+def across_alt(d: dict, keys: list[str], names: dict[str, str]) -> str:
+    vs = ladder(d)
+    each = [f"{d['models'][k]['label']} " + ", ".join(f"{pc(m['C']['mean'])}%" for v in vs if (m := next(
+        (x for x in v["models"] if x["key"] == k), None))) for k in keys]
+    ops = [next((r for r in v["references"] if r["key"] == "operator_replay"), None) for v in vs]
+    op = ["the real operator's bids, replayed, " + ", ".join(f"{pc(r['C']['mean'])}%" for r in ops)] if all(
+        ops) else []
+    gaps = [f" In {v['version']}, {names['sol']} − {names['luna']}, paired by {span(v)}: {pc(g['mean'], 1, True)} "
+            f"points [{pc(g['ci'][0])}, {pc(g['ci'][1])}]." for v, g in clear_gaps(d)]
+    names_ = "; ".join(f"{v['version']} {v['name']}, {count(v)}" for v in vs)
+    return ("Line chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, across "
+            f"the {NUM[len(vs)].lower()} versions ({names_}): " + "; ".join(each + op) + "." + "".join(gaps)
+            + " Each value's 95% CI is in the table below.")
+
+
+def across_caption(d: dict, names: dict[str, str]) -> str:
+    multi = [f"in {v['version']}, over its {v['n_days']} {v['block']}s" for v in ladder(d) if v["block"] != "day"]
+    clear = clear_gaps(d)
+    return ("C × 100: the share of the hindsight optimum's profit over idle that each desk captured; the table below "
+            "gives each value with its 95% CI (a block bootstrap over operating days"
+            + (f"; {'; '.join(multi)}" if multi else "") + "). Grey dashed: the real operator's own bids, replayed "
+            "through the same clearing and settlement."
+            + (f" The callout in {and_join([v['version'] for v, _ in clear])} is {names['sol']}'s lead over "
+               f"{names['luna']} in points, paired by {and_join(list(dict.fromkeys(span(v) for v, _ in clear)))}, with "
+               f"its 95% CI; {and_join([v['version'] for v, _ in clear])} "
+               f"{'is the only version' if len(clear) == 1 else 'are the only versions'} where that CI excludes zero."
+               if clear else "")
+            + "".join(f" {v['version']} is not on the chart: it re-runs {v['check_of']}'s {unit(v)}s as a price-impact "
+                      "check, in its own section below." for v in checks(d)))
+
+
+def count(v: dict) -> str:
+    """'32 battery-days'; '16 three-day windows over 4 fronts'."""
+    return f"{v['n_tasks']} {span(v)}s" + (f" over {v['n_days']} {v['block']}s" if v["days_per_task"] > 1 else "")
+
+
+def span(v: dict) -> str:
+    d = v["days_per_task"]
+    return f"{NUM.get(d, str(d)).lower()}-day window" if d > 1 else "battery-day"
+
+
+def clear_gaps(d: dict) -> list[tuple[dict, dict]]:
+    """The versions where GPT-6.1 Sol and GPT-6 Luna's paired C gap has a CI that excludes zero, Sol minus Luna."""
+    return [(v, g) for v in ladder(d) if (g := paired_c(v, "sol", "luna")) and (g["ci"][0] > 0 or g["ci"][1] < 0)]
+
+
+def paired_c(v: dict, a: str, b: str) -> dict | None:
+    for x in v["paired"]:
+        if (x["a"], x["b"]) == (a, b) and "C" in x:
+            return x["C"]
+        if (x["a"], x["b"]) == (b, a) and "C" in x:
+            return {"mean": -x["C"]["mean"], "ci": [-x["C"]["ci"][1], -x["C"]["ci"][0]]}
+    return None
+
+
+def across_text(d: dict) -> str:
+    """The card's one-liner, also desk.json's `across`: where GPT-6.1 Sol and GPT-6 Luna's paired C gap is within noise
+    and where it is not, by how long the ladder's tasks run, and whether the untrained model is last in every
+    version."""
+    vs, clear = ladder(d), clear_gaps(d)
+    close = [v for v in vs if all(v is not c for c, _ in clear)]
+    on = lambda xs: "single days" if all(v["days_per_task"] == 1 for v in xs) else (  # noqa: E731
+        f"{xs[0]['days_per_task']}-day weather fronts")
+    out = [f"Paired by task, GPT-6.1 Sol and GPT-6 Luna are within noise on {on(close)} "
+           f"({', '.join(v['version'] for v in close)}) and {'Sol' if clear[0][1]['mean'] > 0 else 'Luna'} is clearly "
+           f"ahead on {on([v for v, _ in clear])} (" + "; ".join(
+               f"{v['version']}: {pc(g['mean'], 1, True)} pts of hindsight capture, 95% CI [{pc(g['ci'][0])}, "
+               f"{pc(g['ci'][1])}]" for v, g in clear) + ")."]
+    if all(min(v["models"], key=lambda m: m["C"]["mean"])["key"] == "qwen" for v in vs):
+        out.append("The untrained Qwen3-4B has the lowest capture throughout.")
+    return " ".join(out)
+
+
+def dam_days(v: dict) -> list[str]:
+    """Over a multi-day window: how often each model's day-ahead bids for each operating day were accepted."""
+    ms = [m for m in v["models"] if m.get("submissions_by_day") and v["days_per_task"] > 1]
+    if not ms:
+        return []
+    days = [f"D{i}" for i in range(v["days_per_task"])]
+    return [f"**{NUM[len(days)]} day-ahead markets.** Accepted DAM submissions a window for each operating day, "
+            + "/".join(days) + ": " + "; ".join(
+                f"{m['name']} " + "/".join(f"{m['submissions_by_day'].get(f'dam:{d}', 0):.2f}" for d in days)
+                for m in ms) + ". A mean above one means a desk rebid some of those markets as forecasts moved."]
+
+
+NUM = {2: "Two", 3: "Three", 4: "Four", 5: "Five"}
+
+
+def and_join(xs: list[str]) -> str:
+    return xs[0] if len(xs) == 1 else f"{', '.join(xs[:-1])} and {xs[-1]}"
+
+
+BUYBACK = ("day-ahead sales bought back in real time: positions the DAM allows because it ignores state of charge, and "
+           "which ERCOT's DAM credit screening, not modelled here, would limit")
+SHORTS = {"anchor": "the anchor", "operator_replay": "the operator's bids",
+          "operator_actual": "the operator as settled"}
+
+
+def gif_block(gif: dict) -> str:
+    return "\n".join([f'<a href="{gif["link"]}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
+                      "", f"<small>{gif['caption']}</small>"])
+
+
+def usd0(x: float, sign: bool = False) -> str:
+    v = f"{abs(x):,.0f}"
+    return f"{'' if v == '0' else '−' if x < 0 else '+' if sign else ''}\u2060${v}"
+
+
+def usd0_ci(c: list[float], sign: bool = False) -> str:
+    return f"[{usd0(c[0], sign)}, {usd0(c[1], sign)}]"
+
+
+def desk_configs(d: dict) -> list[dict]:
+    return [{"config_name": f"desk_{name}", **({"default": True} if name == "leaderboard" else {}), "data_files": [
+        {"split": v["version"], "path": f"desk_{name}/{v['version']}.parquet"} for v in d["versions"]]}
+        for name in ("leaderboard", "runs", "tasks")]
+
+
+def eval_runs() -> dict[str, list[dict]]:
+    """Every schedule behind the leaderboard, as scripts/hub_results.py re-grades them from the committed records."""
+    spec = importlib.util.spec_from_file_location("hub_results", ROOT / "scripts/hub_results.py")
+    hr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hr)
+    return hr.eval_runs(BEAM)
+
+
+def card_text(results_dir: Path) -> str:
+    """The desk's card: hub/dataset/README.md with each block filled in from results/overview/desk.json and the desk's
+    configs as the only ones; the v1 files stay in the repo, outside every config."""
+    d = json.loads((results_dir / DESK).read_text())
     text = CARD.read_text()
-    if board:
-        text = BOARD.sub(lambda m: f"{m[1]}{board}{m[2]}", text)
-    for name, block in (blocks or {}).items():
-        text = re.sub(rf"(<!-- {name} -->\n).*?(\n<!-- /{name} -->)", lambda m, b=block: f"{m[1]}{b}{m[2]}", text,
-                      flags=re.S)
-    if preview_ref:
-        text = text.replace("/blob/PREVIEW_REF/", f"/blob/{preview_ref}/")
-    for name, split in bundles.items():
-        text = card(text, name=name, split=split, repo=None, description=None, license=None,
-                    needs={"plugins": [plugin], "setup": SETUP})
-    result = DatasetCard(text)
-    episodes = {f"{v}_episodes": {"config_name": f"{v}_episodes", "data_files": [
-        {"split": s, "path": f"episodes/{v}/{s}.parquet"} for s in splits if f"episodes/{v}/{s}.parquet" in files]}
-        for v, splits in (("v1", (*SPLITS, "showcase")), *((pv.version, tuple(pv.packs)) for pv in (V2, V3, V4, V5)))}
-    configs = [episodes.get(c["config_name"], c) for c in result.data.configs]
-    result.data.configs = [c for c in configs if any(
-        f["path"] in files and pq.read_metadata(io.BytesIO(files[f["path"]])).num_rows for f in c["data_files"])]
-    if bundles:
-        result.data.agentenv = {"default": next(iter(bundles)), **result.data.agentenv}
-    return str(result)
+    for name, block in desk_blocks(d).items():
+        text, n = re.subn(rf"^<!-- {name} -->$", lambda m, b=block: b, text, flags=re.M)
+        if n != 1:
+            raise SystemExit(f"{CARD} has no <!-- {name} --> line")
+    out = DatasetCard(text)
+    out.data.configs = desk_configs(d)
+    return str(out)
 
 
-def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: str,
-          extras: "Extras | None" = None) -> dict[str, bytes]:
-    """v1's files, then, unless ``extras`` is None, the v2 to v5 previews and the training summary, and the card."""
+def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: str) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
     by_id: dict[str, dict] = {}
     for split, pack in PACKS.items():
@@ -379,1127 +1319,16 @@ def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: st
     files |= run_files
     if index:
         files["runs/index.json"] = json.dumps(index, indent=1).encode()
-    board = None
     for name in ("eval-v1.json", "board.md"):
         if (results_dir / name).is_file():
             files[f"results/{name}"] = (results_dir / name).read_bytes()
-    if "results/eval-v1.json" in files:
-        board = board_markdown(json.loads(files["results/eval-v1.json"]))
+    files |= result_tables(json.loads((results_dir / RESULTS).read_text()), eval_runs())
     bundles = {}
     for path in bundle_dirs:
         bundles[path.name] = bundle_split(path.name)
         files |= dataset.build(runs.locate(str(path)), name=path.name, split=bundles[path.name],
                                which="latest").files
-    if extras is None:
-        return files | {"README.md": card_text(files, bundles, plugin, board).encode()}
-    more, blocks = previews(extras)
-    files |= more
-    files["README.md"] = card_text(files, bundles, plugin, board, blocks, extras.preview_ref).encode()
-    n = check_text(files, [*more, "README.md"])
-    print(f"{n:,} distinct strings of the previews, the training summary and the card checked: no notice text "
-          f"verbatim, no bucket, host, key or ticket id")
-    return files
-
-
-# ================================================================ v2 and v3 previews
-@dataclass(frozen=True)
-class Preview:
-    """What differs between the previews: packs, tiers, core module, prompts and the episode schema."""
-    version: str
-    packs: dict[str, str]
-    tiers: tuple[str, ...]
-    core: ModuleType
-    prompts: ModuleType
-    sha: str
-
-
-V2 = Preview("v2", {"train": "gridsim-live-train", "eval_2024": "gridsim-live-eval",
-                    "test_2025": "gridsim-live-test-2025", "rtcb": "gridsim-live-rtcb",
-                    "showcase": "gridsim-live-showcase"},
-             ("foresight", "blind", "short", "freeze6h"), live, live_prompt, "notices_sha")
-V3 = Preview("v3", {"train": "ercot-hybrid-v3-train", "eval": "ercot-hybrid-v3-eval", "rtcb": "ercot-hybrid-v3-rtcb",
-                    "showcase": "ercot-hybrid-v3-showcase"},
-             ("energy", "reserves"), hybrid, hybrid_prompt, "events_sha")
-PREVIEW_STATS = ("live-stats.md", "hybrid-stats.md")
-PILOTS = {"v2": ("v2",), "v3": ("v3", "v3b", "v3c"), "v4": ("v4", "v4b"), "v5": ("v5", "v5b")}
-CURRENT = {v: p[-1] for v, p in PILOTS.items()}
-PREVIEW_RESULTS = {v: tuple(f for p in ps for f in (f"eval-{p}.json", f"board-{p}.md", f"pilot-{p}.json"))
-                   for v, ps in PILOTS.items()}
-LABELS = {**NAMES, "reference/rolling-anchor": "rolling anchor", "reference/naive": "naive",
-          "reference/as-hog": "AS-hog", "reference/solar-sponge": "solar sponge",
-          "reference/v2-energy-only": "v2 energy-only"}
-TIME = r"(\d{1,2})(?::(\d{2}))?\s*([AaPp])\.?\s*[Mm]\.?"
-CONSERVE = re.compile(rf"ERCOT asked the public to conserve electricity(?: from {TIME} to {TIME})?")
-NOTE = re.compile(r"(?P<head>.*?)(?: \((?P<why>.*)\))?\.?", re.S)
-REASONS = ((r"tropical|hurricane|cyclone", "a tropical storm"), (r"fire", "wildfire risk"),
-           (r"freez|winter|\bic[ey]\b|snow", "freezing precipitation"), (r"cold", "extreme cold"),
-           (r"\bhot\b|heat|high temperatures|°F", "extreme heat"),
-           (r"severe weather|tornado|high wind|thunderstorm", "severe storms"),
-           (r"physical responsive capability|\bPRC\b", "low physical responsive capability"),
-           (r"\bSCED\b", "a failure of the real-time dispatch software"),
-           (r"geomagnetic|\bGMD\b", "a geomagnetic disturbance"),
-           (r"interface|transmission|line operations|constraint|outage", "transmission conditions"),
-           (r"reserve|capacity|shortage|emergency condition|deficien|wind|solar|demand",
-            "a projected shortage of reserves"))
-WORD = re.compile(r"[a-z0-9]+(?:['’.:-][a-z0-9]+)*")
-SHINGLE = 7
-ORG = re.compile(r"(?:the )?Electric Reliability Council of Texas,? Inc\.?(?: \(ERCOT\))?", re.I)
-LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]|ocp-apim|"
-                  r"b2clogin|ercot-api", re.I)
-TRAIN_ARMS = (("arm1", ".", "arm 1: SFT-200 warm start, then GRPO 280 steps", "bars", "Qwen/Qwen3-1.7B", None,
-               "trained_sampled_minus_greedy"),
-              ("arm2", "arm2", "arm 2: SoC-aware SFT-1500 warm start, then GRPO 75 steps", "", "Qwen/Qwen3-1.7B", None,
-               "arm2_sampled_minus_greedy"),
-              ("arm2b", "arm2b", "arm 2b: arm 2, then 105 more GRPO steps from its step 75", "", "Qwen/Qwen3-1.7B",
-               None, "arm2b_sampled_minus_greedy"),
-              ("arm2c", "arm2c", "arm 2c: arm 2b, then 150 more GRPO steps from its step 180", "", "Qwen/Qwen3-1.7B",
-               None, "arm2c_sampled_minus_greedy"),
-              ("4b", "4b",
-               "Qwen3-4B, registered run 1: SoC-aware SFT-1500 warm start, then GRPO 330 steps as one schedule",
-               "registered", "Qwen/Qwen3-4B", None, "trained_sampled_minus_greedy"),
-              ("4b-v2", "4b-v2",
-               "Qwen3-4B, registered run 2: SFT-10k warm start stating the DP's rule, then GRPO 310 steps with "
-               "adaptive and dynamic sampling", "registered", "Qwen/Qwen3-4B", None,
-               "run2_trained_sampled_minus_greedy"),
-              ("4b-v2-sft", "4b-v2",
-               "Qwen3-4B SFT-10k (run 2's warm start): 10,000 DP-optimal schedules whose rationale states the DP's "
-               "rule, one epoch, no GRPO", "warm", "Qwen/Qwen3-4B", "SFT-10k (step 0)",
-               "run2_sft_sampled_minus_greedy"))
-REGISTRATION = {"registered": "the registered run: plan, schedule and bars committed before any step",
-                "bars": "bars set in the training plan, but the learning rate changed in the run: exploratory",
-                "confirm": "the confirmatory eval: plan, packs and bars committed before any generation",
-                "warm": "the registered run's warm start, evaluated as its plan says; the bars are on the run's final "
-                        "model, so a bar this clears is post hoc, not a claim",
-                "": "none: exploratory"}
-TRAIN_FILES = ("summary.json", "eval_checkpoints.json", "curves.png")
-
-LIVE_TASKS = pa.schema([
-    ("task_id", STR), ("tier", STR), ("split", STR), ("pack", STR), ("date", STR), ("settlement_point", STR),
-    ("point_kind", STR), ("region", STR), ("archetype", STR), *((k, I64 if k in UNITS else F64) for k in BATTERY),
-    ("prices", pa.list_(F64)), ("rt", pa.list_(F64)), ("dam_prev_day", pa.list_(F64)),
-    ("dam_prev_7d", pa.list_(pa.list_(F64))), ("watches", I64), ("notice_count", I64), ("notices", STR),
-    ("day_kind", STR), ("system_prompt", STR), ("situation", STR), ("prompt", PROMPT), ("tools", STR),
-    ("p_idle", F64), ("p_naive", F64), ("p_roll", F64), ("p_hind", F64), ("p_lp", F64), ("naive_reward", F64),
-    ("naive_capture", F64), ("anchor_capture", F64), ("anchor_commits", I64), ("season", STR), ("era", STR),
-    ("neg_intervals", I64), ("rt_spike", BOOL), ("short_ok", BOOL), ("notice_day", BOOL), ("showcase", STR),
-    ("tags", STR), ("eligibility", STR), ("task", STR),
-])
-HYBRID_TASKS = pa.schema([
-    ("task_id", STR), ("tier", STR), ("split", STR), ("pack", STR), ("date", STR), ("era", STR),
-    ("settlement_point", STR), ("point_kind", STR), ("region", STR), ("site_id", STR), ("site_source", STR),
-    ("coupling", STR), ("pv_mwac", F64), ("pv_mwdc", F64), ("ilr", F64), ("poi_mw", F64), ("poi_import_mw", F64),
-    ("p_mw", F64), ("e_mwh", F64), ("eta", F64), ("c_deg", F64), ("cycle_cap_mwh", F64), ("s0_mwh", F64),
-    ("s_end_min_mwh", F64), ("qualified", pa.list_(STR)), ("prices", pa.list_(F64)), ("rt", pa.list_(F64)),
-    ("pv_cf", pa.list_(F64)), ("pv_mw", pa.list_(F64)), ("mcpc_da", STR), ("reg_up", pa.list_(F64)),
-    ("reg_dn", pa.list_(F64)), ("watches", I64), ("notice_count", I64), ("notices", STR), ("deployments", STR),
-    ("system_prompt", STR), ("situation", STR), ("prompt", PROMPT), ("oneshot_prompt", PROMPT), ("tools", STR),
-    ("p_idle", F64), ("p_anchor", F64), ("p_hind", F64), ("p_lp", F64), ("anchor_capture", F64),
-    ("oneshot_p_milp", F64), ("anchor_commits", I64), ("anchor_as_usd", F64), ("sponge_reward", F64),
-    ("as_hog_reward", F64), ("v2_energy_reward", F64), ("energy_only_reward", F64), ("season", STR),
-    ("as_value_usd", F64), ("as_stratum", STR), ("notice_day", BOOL), ("deploy_day", BOOL), ("neg_hours", I64),
-    ("clip_mwh", F64), ("showcase", STR), ("tags", STR), ("flags", STR), ("task", STR),
-])
-LIVE_REFERENCES = pa.schema([
-    ("task_id", STR), ("split", STR), ("date", STR), ("settlement_point", STR), ("archetype", STR),
-    ("notice_day", BOOL), ("p_idle", F64), ("p_naive", F64), ("naive_da", pa.list_(I64)), ("p_hind", F64),
-    ("p_hind_da", F64), ("p_hind_rt", F64), ("hind_da", pa.list_(I64)), ("hind_schedule", pa.list_(I64)),
-    ("p_lp", F64),
-    *((f"{t}_{k}", typ) for t in V2.tiers for k, typ in (
-        ("p_roll", F64), ("roll_da", pa.list_(I64)), ("roll_executed", pa.list_(I64)), ("roll_commits", I64),
-        ("naive_reward", F64), ("anchor_capture", F64))),
-    ("blind_via", STR), ("divergence_usd_per_mw", F64), ("roll_minus_naive_share", F64),
-    ("roll_minus_naive_usd_per_mw", F64), ("hind_headroom_usd_per_mw", F64),
-])
-HYBRID_REFERENCES = pa.schema([
-    ("task_id", STR), ("split", STR), ("date", STR), ("era", STR), ("settlement_point", STR), ("site_id", STR),
-    ("as_stratum", STR), ("p_idle", F64),
-    *((f"{t}_{k}", typ) for t in V3.tiers for k, typ in (
-        ("p_anchor", F64), ("anchor_book", STR), ("anchor_commits", I64), ("anchor_as_usd", F64), ("p_hind", F64),
-        ("p_lp", F64), ("anchor_capture", F64), ("oneshot_p_milp", F64), ("oneshot_plan", STR),
-        ("sponge_profit", F64), ("sponge_reward", F64), ("v2_energy_profit", F64), ("v2_energy_reward", F64))),
-    ("reserves_as_hog_profit", F64), ("reserves_as_hog_reward", F64), ("reserves_p_energy_only", F64),
-    ("reserves_energy_only_reward", F64),
-])
-EPISODE_HEAD = [
-    ("episode_id", STR), ("task_id", STR), ("split", STR), ("tier", STR), ("bundle", STR), ("path", STR),
-    ("model", STR), ("model_label", STR), ("trained", STR), ("checkpoint_step", I64), ("seed", I64),
-    ("reward", F64), ("capture_vs_hindsight", F64), ("beats_anchor", BOOL), ("profit_usd", F64), ("p_idle", F64),
-    ("p_hind", F64),
-]
-EPISODE_TAIL = [
-    ("commits", I64), ("tool_calls", I64), ("watches", I64), ("notices", I64), ("steps", STR),
-    ("messages", pa.list_(tables.MESSAGE)), ("transcript", STR), ("assistant_text", STR), ("input_tokens", I64),
-    ("output_tokens", I64), ("usd", F64), ("wall_seconds", F64), ("audit_ok", BOOL), ("verified", BOOL), ("file", STR),
-]
-LIVE_EPISODES = pa.schema([
-    *EPISODE_HEAD, ("p_naive", F64), ("p_roll", F64), ("naive_reward", F64), ("stretch_reward", F64),
-    ("feasible", BOOL), ("da_position", pa.list_(I64)), ("schedule", pa.list_(I64)), ("executed", pa.list_(I64)),
-    ("soc_path", pa.list_(I64)), ("pnl", STR), *EPISODE_TAIL,
-])
-HYBRID_EPISODES = pa.schema([
-    *EPISODE_HEAD, ("p_anchor", F64), ("raw_ratio", F64), ("energy_only_reward", F64), ("as_share", F64),
-    ("ftp_mwh_charged", F64), ("governor_hours", I64), ("refusals", I64), ("book", STR),
-    ("da", STR), ("soc_path", pa.list_(F64)), ("cash", STR), ("deployments", I64), *EPISODE_TAIL,
-])
-
-
-def _clock(h: str, m: str | None, ap: str) -> str:
-    return f"{int(h) % 12 + (12 if ap.lower() == 'p' else 0):02d}:{m or '00'}"
-
-
-def _conserve(m: re.Match) -> str:
-    if not m[1]:
-        return "ERCOT appealed for conservation"
-    return f"ERCOT appealed for conservation from {_clock(m[1], m[2], m[3])} to {_clock(m[4], m[5], m[6])}"
-
-
-def paraphrase(text: str) -> str:
-    """An ERCOT notice summary in our own words: lane N's template head, its clock times as HH:MM, and the clause the
-    summary quoted from ERCOT's text replaced by a reason category, so no notice text reaches the Hub verbatim."""
-    m = NOTE.fullmatch(text)
-    why = m["why"]
-    reason = next((r for p, r in REASONS if re.search(p, why, re.I)), None) if why else None
-    head = CONSERVE.sub(_conserve, m["head"])
-    return f"{head} ({reason})." if reason else f"{head}."
-
-
-class Scrubber:
-    """Every ERCOT notice summary of the published packs, and the clause each quoted, mapped to its paraphrase; applied
-    to every string of a task or an episode, the agent's own words included."""
-
-    def __init__(self, tasks: list[dict]):
-        self.table: dict[str, str] = {}
-        for n in (n for t in tasks for n in t.get("notices") or [] if n.get("source") == "ERCOT"):
-            new = paraphrase(n["text"])
-            if new != n["text"]:
-                self.table[n["text"]] = new
-            if (why := NOTE.fullmatch(n["text"])["why"]) and len(why.split()) >= 4:
-                reason = new[new.find("(") + 1:-2] if new.endswith(").") else "an ERCOT notice"
-                self.table.setdefault(why, reason)
-                self.table.setdefault(why.removesuffix("..."), reason)
-        keys = sorted(self.table, key=len, reverse=True)
-        self.rx = re.compile("|".join(map(re.escape, keys))) if keys else None
-
-    def __call__(self, x):
-        if isinstance(x, str):
-            return self.rx.sub(lambda m: self.table[m[0]], x) if self.rx else x
-        if isinstance(x, dict):
-            return {k: self(v) for k, v in x.items()}
-        if isinstance(x, list):
-            return [self(v) for v in x]
-        return x
-
-
-def published(pv: Preview, task: dict, scrub: Scrubber) -> dict:
-    """The task row as published: notices paraphrased and their sha recomputed over the published text, so a Session
-    keeps the stored references (they depend on the notices' times, levels and derates, never on their text)."""
-    t = scrub(task)
-    if t != task:
-        sha = live.notices_sha(t["notices"]) if pv is V2 else hybrid.events_sha(t)
-        t[pv.sha] = t["refs"][pv.sha] = sha
-    return t
-
-
-def capture(p: float | None, p_idle: float, p_hind: float) -> float | None:
-    return None if p is None or p_hind - p_idle <= 1e-9 else round((p - p_idle) / (p_hind - p_idle), 6)
-
-
-def live_task_row(task: dict, tier: str, raw: str, pack: str) -> dict:
-    s = live.Session(task, tier)
-    prompt = live_prompt.messages(s)
-    refs, roll, b, tags = task["refs"], task["refs"]["roll"][tier], task["battery"], task["tags"]
-    blind = task.get("blind") or {}
-    return {
-        **{k: task[k] for k in ("task_id", "split", "date", "settlement_point", "point_kind", "region", "prices",
-                                "rt")},
-        "tier": tier, "pack": pack, "archetype": b["archetype"], **{k: b[k] for k in BATTERY},
-        "dam_prev_day": blind.get("dam_prev_day"), "dam_prev_7d": blind.get("dam_prev_7d"), "watches": len(s.watches),
-        "notice_count": len(task["notices"]), "notices": json.dumps(task["notices"], ensure_ascii=False),
-        "day_kind": tags.get("day_kind"), "system_prompt": prompt[0]["content"], "situation": prompt[1]["content"],
-        "prompt": prompt, "tools": json.dumps(live_prompt.tool_schemas(tier)),
-        **{k: refs[k] for k in ("p_idle", "p_naive", "p_hind", "p_lp")}, "p_roll": roll["p_roll"],
-        "naive_reward": roll["naive_reward"], "naive_capture": capture(refs["p_naive"], refs["p_idle"], refs["p_hind"]),
-        "anchor_capture": capture(roll["p_roll"], refs["p_idle"], refs["p_hind"]), "anchor_commits": roll["commits"],
-        **{k: tags.get(k) for k in ("season", "era", "neg_intervals", "rt_spike", "short_ok", "notice_day",
-                                    "showcase")},
-        "tags": json.dumps(tags), "eligibility": json.dumps(task.get("eligibility")), "task": raw,
-    }
-
-
-def hybrid_task_row(task: dict, tier: str, raw: str, pack: str) -> dict:
-    s = hybrid.Session(task, tier)
-    prompt = hybrid_prompt.messages(s)
-    site, bess, tags = task["site"], task["site"]["bess"], task["tags"]
-    p_idle, t = task["refs"]["p_idle"], task["refs"][tier]
-    base = t["baselines"]
-    return {
-        **{k: task[k] for k in ("task_id", "split", "date", "era", "settlement_point", "point_kind", "region", "prices",
-                                "rt", "pv_cf", "pv_mw")},
-        "tier": tier, "pack": pack, "site_id": site["site_id"], "site_source": site["source"],
-        **{k: site[k] for k in ("coupling", "pv_mwac", "pv_mwdc", "ilr", "poi_mw", "poi_import_mw", "qualified")},
-        **{k: bess[k] for k in ("p_mw", "e_mwh", "eta", "c_deg", "cycle_cap_mwh", "s0_mwh", "s_end_min_mwh")},
-        "mcpc_da": json.dumps(task["mcpc_da"]), "reg_up": task["reg"]["up"], "reg_dn": task["reg"]["dn"],
-        "watches": len(s.watches), "notice_count": len(task["notices"]),
-        "notices": json.dumps(task["notices"], ensure_ascii=False), "deployments": json.dumps(task["deployments"]),
-        "system_prompt": prompt[0]["content"], "situation": prompt[1]["content"], "prompt": prompt,
-        "oneshot_prompt": hybrid_prompt.oneshot_messages(task, tier),
-        "tools": json.dumps(hybrid_prompt.tool_schemas(tier)),
-        "p_idle": p_idle, **{k: t[k] for k in ("p_anchor", "p_hind", "p_lp")},
-        "anchor_capture": capture(t["p_anchor"], p_idle, t["p_hind"]), "oneshot_p_milp": t["oneshot"]["p_milp"],
-        "anchor_commits": t["anchor"]["commits"], "anchor_as_usd": t["anchor"]["as_usd"],
-        **{f"{b}_reward": (base.get(b) or {}).get("reward") for b in ("sponge", "as_hog", "v2_energy")},
-        "energy_only_reward": None if t.get("p_energy_only") is None
-        else reward_value(t["p_energy_only"], p_idle, t["p_anchor"]),
-        **{k: tags.get(k) for k in ("season", "as_value_usd", "as_stratum", "notice_day", "deploy_day", "neg_hours",
-                                    "clip_mwh", "showcase")},
-        "tags": json.dumps(tags), "flags": json.dumps(task.get("flags")), "task": raw,
-    }
-
-
-def live_reference_row(task: dict) -> dict:
-    r, e = task["refs"], task.get("eligibility") or {}
-    row = {**{k: task[k] for k in ("task_id", "split", "date", "settlement_point")},
-           "archetype": task["battery"]["archetype"], "notice_day": task["tags"].get("notice_day"),
-           **{k: r[k] for k in ("p_idle", "p_naive", "p_hind", "p_hind_da", "p_hind_rt", "p_lp")},
-           "naive_da": r["naive"]["da"], "hind_da": r["hind"]["da"], "hind_schedule": r["hind"]["schedule"],
-           "blind_via": (r["roll"].get("blind") or {}).get("via"),
-           **{k: e.get(k) for k in ("divergence_usd_per_mw", "roll_minus_naive_share", "roll_minus_naive_usd_per_mw",
-                                    "hind_headroom_usd_per_mw")}}
-    for tier in V2.tiers:
-        x = r["roll"].get(tier) or {}
-        row |= {f"{tier}_p_roll": x.get("p_roll"), f"{tier}_roll_da": x.get("da"),
-                f"{tier}_roll_executed": x.get("executed"), f"{tier}_roll_commits": x.get("commits"),
-                f"{tier}_naive_reward": x.get("naive_reward"),
-                f"{tier}_anchor_capture": capture(x.get("p_roll"), r["p_idle"], r["p_hind"])}
-    return row
-
-
-def hybrid_reference_row(task: dict) -> dict:
-    r = task["refs"]
-    row = {**{k: task[k] for k in ("task_id", "split", "date", "era", "settlement_point")},
-           "site_id": task["site"]["site_id"], "as_stratum": task["tags"].get("as_stratum"), "p_idle": r["p_idle"]}
-    for tier in V3.tiers:
-        t, base = r[tier], r[tier]["baselines"]
-        row |= {f"{tier}_p_anchor": t["p_anchor"], f"{tier}_anchor_book": json.dumps(t["anchor"]["book"]),
-                f"{tier}_anchor_commits": t["anchor"]["commits"], f"{tier}_anchor_as_usd": t["anchor"]["as_usd"],
-                f"{tier}_p_hind": t["p_hind"], f"{tier}_p_lp": t["p_lp"],
-                f"{tier}_anchor_capture": capture(t["p_anchor"], r["p_idle"], t["p_hind"]),
-                f"{tier}_oneshot_p_milp": t["oneshot"]["p_milp"],
-                f"{tier}_oneshot_plan": json.dumps(t["oneshot"]["plan"]),
-                **{f"{tier}_{b}_{k}": base[b][k] for b in ("sponge", "v2_energy") for k in ("profit", "reward")}}
-    t = r["reserves"]
-    return row | {"reserves_as_hog_profit": t["baselines"]["as_hog"]["profit"],
-                  "reserves_as_hog_reward": t["baselines"]["as_hog"]["reward"],
-                  "reserves_p_energy_only": t.get("p_energy_only"),
-                  "reserves_energy_only_reward": None if t.get("p_energy_only") is None
-                  else reward_value(t["p_energy_only"], r["p_idle"], t["p_anchor"])}
-
-
-def replay(pv: Preview, e: dict, task: dict) -> dict:
-    """The episode's every recorded call played again through a fresh gridsim_core Session on the task, byte for byte,
-    then its audit and grade; Mismatch at the first output, audit row or score that differs."""
-    s = pv.core.Session(task, e["tier"], compliant=e["compliant"]) if pv is V5 else pv.core.Session(task, e["tier"])
-    for i, step in enumerate(e["steps"]):
-        args = dict(step["args"]) | ({"_via": "trigger"} if step["tool"] == pv.core.NOTICE_TOOL else {})
-        if s.call(step["tool"], args) != json.dumps(step["output"], ensure_ascii=False, separators=(",", ":")):
-            raise Mismatch(f"call {i} ({step['tool']}) does not replay byte for byte")
-    if not s.done:
-        s.end_window() if pv is V4 else s.end_floor() if pv is V5 else s.end_day()
-    if not (audit := s.audit())["ok"]:
-        raise Mismatch(f"the audit fails: {audit['problems'][:2]}")
-    g = s.grade()
-    recorded = e | e["rows"] if pv is V5 else e
-    for k in GRADED.get(pv.version, ("reward", "capture_vs_hindsight", "beats_anchor")):
-        if (g[k] is None) != (recorded.get(k) is None) or (
-                g[k] is not None and abs(float(g[k]) - float(recorded[k])) > TOLERANCE):
-            raise Mismatch(f"{k} {recorded.get(k)}; gridsim_core {g[k]}")
-    if abs(g["profit_usd"] - e["profit_usd"]) > TOLERANCE * max(1.0, abs(g["profit_usd"])):
-        raise Mismatch(f"profit {e['profit_usd']}; gridsim_core {g['profit_usd']}")
-    return g
-
-
-def rebuilt_live(pv: Preview, e: dict, task: dict) -> list[dict]:
-    """The chat as path B' sends it: the system prompt and the watch-0 opening, then each agent call with its output
-    (the bulletins arrive inside the outputs' messages); the agent's text goes on its calls only when there is one
-    text per call."""
-    out = pv.prompts.messages(pv.core.Session(task, e["tier"]))
-    steps = [s for s in e["steps"] if s["tool"] != pv.core.NOTICE_TOOL]
-    texts = [m["content"] for m in e.get("messages") or [] if m.get("role") == "assistant" and m.get("content")]
-    paired = len(texts) == len(steps)
-    for i, step in enumerate(steps):
-        call = f"call_{i}"
-        out.append({"role": "assistant", "content": texts[i] if paired else None, "tool_calls": [
-            {"id": call, "type": "function", "function": {"name": step["tool"], "arguments": step["args"]}}]})
-        out.append({"role": "tool", "tool_call_id": call, "name": step["tool"],
-                    "content": json.dumps(step["output"], ensure_ascii=False, separators=(",", ":"))})
-    return out
-
-
-def preview_episode_row(pv: Preview, e: dict, task: dict, g: dict, file: str) -> dict:
-    if pv is V4:
-        return forecast_episode_row(e, task, g, file)
-    if pv is V5:
-        return market_episode_row(e, task, g, file)
-    usage = e.get("usage") or {}
-    texts = [m["content"] for m in e.get("messages") or [] if m.get("role") == "assistant" and m.get("content")]
-    row = {**{k: e.get(k) for k in ("episode_id", "task_id", "tier", "bundle", "path", "model", "trained",
-                                    "checkpoint_step", "seed", "reward", "profit_usd", "soc_path")},
-           "split": task["split"], "model_label": LABELS.get(e["model"], e["model"]),
-           **{k: g[k] for k in ("capture_vs_hindsight", "beats_anchor", "p_idle", "p_hind", "commits")},
-           "tool_calls": sum(s["tool"] != pv.core.NOTICE_TOOL for s in e["steps"]), "watches": len(e["watches"]),
-           "notices": len(e["notices"]), "steps": json.dumps(e["steps"], ensure_ascii=False),
-           "messages": to_messages(rebuilt_live(pv, e, task)), "transcript": "rebuilt",
-           "assistant_text": "\n\n".join(texts) or None, "input_tokens": usage.get("input_tokens"),
-           "output_tokens": usage.get("output_tokens"), "usd": usage.get("usd"), "wall_seconds": e.get("wall_seconds"),
-           "audit_ok": True, "verified": True, "file": file}
-    if pv is V2:
-        return row | {k: g[k] for k in ("p_naive", "p_roll", "naive_reward", "stretch_reward", "feasible")} | {
-            k: e.get(k) for k in ("da_position", "schedule", "executed")} | {"pnl": json.dumps(e.get("pnl"))}
-    return row | {k: g[k] for k in ("p_anchor", "raw_ratio", "energy_only_reward", "as_share", "ftp_mwh_charged",
-                                    "governor_hours", "refusals")} | {
-        "book": json.dumps(e.get("book")), "da": json.dumps(e.get("da")), "cash": json.dumps(e.get("cash")),
-        "deployments": sum(bool(n.get("deploy")) for n in e["notices"])}
-
-
-def preview_episodes(pv: Preview, roots: list[Path], tasks: dict[str, tuple[dict, dict]],
-                     scrub: Scrubber) -> tuple[list[dict], dict[str, bytes], Counter]:
-    """Every gridsim.episode/<version> JSON under the roots (sweeps' raw folders skipped), replayed byte for byte on
-    the plugin's pack row and again, paraphrased, on the published row: its table row and its file under runs/
-    (runs/<root>/<file> for a root of episodes, runs/<folder>/<file> for a root of folders). Raises at the first
-    episode that does not replay."""
-    rows, files, counts = [], {}, Counter()
-    schema = pv.core.EPISODE_SCHEMA
-    for root in roots:
-        for path in sorted(root.rglob("*.json")):
-            rel = path.relative_to(root)
-            if "raw" in rel.parts[:-1]:
-                continue
-            e = json.loads(path.read_text())
-            if not isinstance(e, dict) or e.get("schema") != schema:
-                continue
-            file = f"runs/{root.name}/{rel.as_posix()}" if len(rel.parts) == 1 else f"runs/{rel.as_posix()}"
-            if e["task_id"] not in tasks:
-                raise Mismatch(f"{file}: {e['task_id']} is not a task of the published {pv.version} packs")
-            if file in files:
-                raise Mismatch(f"{file}: two episodes would publish to the same path")
-            original, public = tasks[e["task_id"]]
-            try:
-                replay(pv, e, original)
-                pub = scrub(e)
-                g = replay(pv, pub, public)
-            except Mismatch as err:
-                raise Mismatch(f"{file}: {err}") from None
-            rows.append(preview_episode_row(pv, pub, public, g, file))
-            files[file] = path.read_bytes() if pub == e else json.dumps(pub, ensure_ascii=False).encode()
-            counts[file.split("/")[1]] += 1
-    rows.sort(key=lambda r: (r["model"] or "", r["tier"], r["bundle"] or "", r["task_id"]))
-    return rows, files, counts
-
-
-def preview(pv: Preview, roots: list[Path]) -> tuple[dict[str, bytes], Counter]:
-    """tasks/<v>, references/<v>, episodes/<v>, the packs under raw/packs/ and the episodes under runs/, notice text
-    paraphrased everywhere."""
-    files: dict[str, bytes] = {}
-    packs = {split: pack_lines(pack) for split, pack in pv.packs.items()}
-    originals = {split: [json.loads(line) for line in lines] for split, lines in packs.items()}
-    scrub = Scrubber([t for ts in originals.values() for t in ts])
-    task_row = live_task_row if pv is V2 else hybrid_task_row
-    reference_row = live_reference_row if pv is V2 else hybrid_reference_row
-    by_id: dict[str, tuple[dict, dict]] = {}
-    for split, pack in pv.packs.items():
-        public = [published(pv, t, scrub) for t in originals[split]]
-        lines = [line if p == t else json.dumps(p, ensure_ascii=False, separators=(",", ":"))
-                 for line, t, p in zip(packs[split], originals[split], public, strict=True)]
-        by_id |= {t["task_id"]: (t, p) for t, p in zip(originals[split], public, strict=True)}
-        rows = [task_row(p, tier, line, pack) for p, line in zip(public, lines, strict=True) for tier in pv.tiers
-                if (p["refs"]["roll"].get(tier) if pv is V2 else p["refs"].get(tier))]
-        files[f"tasks/{pv.version}/{split}.parquet"] = parquet(rows, LIVE_TASKS if pv is V2 else HYBRID_TASKS)
-        files[f"references/{pv.version}/{split}.parquet"] = parquet(
-            [reference_row(p) for p in public], LIVE_REFERENCES if pv is V2 else HYBRID_REFERENCES)
-        files[f"raw/packs/{pack}.jsonl"] = ("\n".join(lines) + "\n").encode()
-        files[f"raw/packs/{pack}.manifest.json"] = unticket((data_root() / pack / "manifest.json").read_bytes())
-    rows, run_files, counts = preview_episodes(pv, roots, by_id, scrub)
-    for split in pv.packs:
-        if any(r["split"] == split for r in rows):
-            files[f"episodes/{pv.version}/{split}.parquet"] = parquet(
-                [r for r in rows if r["split"] == split], LIVE_EPISODES if pv is V2 else HYBRID_EPISODES)
-    return files | run_files, counts
-
-
-# ================================================================ v4 and v5 previews
-def market_messages(s: market.Session) -> list[dict]:
-    """The opening path A sends a market floor: the tier's rules card and the watch-0 situation."""
-    return [{"role": "system", "content": market_prompt.system_prompt(s.tier)},
-            {"role": "user", "content": market_prompt.opening(s)}]
-
-
-V4 = Preview("v4", {"train": "ercot-front-v4-train", "eval": "ercot-front-v4-eval", "rtcb": "ercot-front-v4-rtcb",
-                    "showcase": "ercot-front-v4-showcase"}, forecast.TIERS, forecast, forecast_prompt, "events_sha")
-V5 = Preview("v5", {"train": "gridsim-market-train", "eval": "gridsim-market-eval", "rtcb": "gridsim-market-rtcb",
-                    "showcase": "gridsim-market-showcase"}, market.TIERS, market,
-             SimpleNamespace(messages=market_messages), "notices_sha")
-GRADED = {"v4": ("reward", "raw_ratio", "r_hind", "paired_vs_anchor", "beats_anchor"),
-          "v5": ("reward", "compliant_reward", "raw_ratio", "regret_usd", "welfare_ratio", "eps_a")}
-STORE = "raw/v4-store"
-FORECAST_DIR, FORECAST_FILES = "raw/v4-forecast", ("points.json", "reveal.json", "guide-card.json", "coverage.json",
-                                                   "store-index-sha.txt")
-MARKET_DIR, MARKET_FILES = "raw/v5-market", ("manifest.json", "stats.md", "ct_heat_rates.json")
-DAY_KEYS = frozenset((
-    "actuals", "background", "buy", "cleared_mw", "ct", "date", "demand", "df_mw", "dst", "era", "esr", "fidelity",
-    "full_lambda_usd", "hub_dam_usd", "hub_rt_usd", "id", "implied_gas_usd_mmbtu", "lambda_usd", "load", "load_mw",
-    "lsl", "mae_ns_usd", "mae_usd", "max_err_usd", "mw", "ns_hours", "parser", "pool", "renew", "replay", "sell",
-    "simplify_err_usd", "size_mw", "solar_mw", "start_usd", "supply", "units", "wind_mw", "within_ns"))
-ANON = re.compile(r"\d{4}-\d{2}-\d{2}|[ecrlu]\d{1,2}|966-(?:rtcb-)?v1|light|hcap-5000|ecrs|rtc\+b")
-SEAT_NAMES = {"A": "bess-A", "B": "bess-B", "G": "gas-G", "R": "renew-R", "L": "retail-L"}
-NAMED = re.compile(r"qse|resource", re.I)
-
-FORECAST_TASKS = pa.schema([
-    ("task_id", STR), ("split", STR), ("pack", STR), ("d1", STR), ("days", I64), ("dates", pa.list_(STR)),
-    ("open", STR), ("era", STR), ("source", STR), ("settlement_point", STR), ("point_kind", STR), ("region", STR),
-    ("zone", STR), ("weather_point", STR), ("label", STR), ("forecast_bust", BOOL), ("site_id", STR),
-    ("site_source", STR), ("coupling", STR), ("pv_mwac", F64), ("pv_mwdc", F64), ("ilr", F64), ("poi_mw", F64),
-    ("poi_import_mw", F64), ("p_mw", F64), ("e_mwh", F64), ("eta", F64), ("c_deg", F64), ("cycle_cap_mwh", F64),
-    ("s0_mwh", F64), ("s_end_min_mwh", F64), ("qualified", pa.list_(STR)), ("tiers", pa.list_(STR)),
-    ("prices", pa.list_(F64)), ("rt", pa.list_(F64)), ("pv_mw", pa.list_(F64)), ("mcpc_da", STR), ("watches", STR),
-    ("notice_count", I64), ("notices", STR), ("deployments", STR), ("vintages", STR), ("vintage_count", I64),
-    ("prompt_tier", STR), ("system_prompt", STR), ("situation", STR), ("prompt", PROMPT), ("tools", STR),
-    ("p_idle", F64), ("p_anchor", F64), ("p_hind", F64), ("p_blind", F64), ("p_naive", F64), ("p_roll3", F64),
-    ("anchor_capture", F64), ("blind_reward", F64), ("naive_reward", F64), ("season", STR), ("neg_hours", I64),
-    ("dam_max", F64), ("rt_max", F64), ("showcase", STR), ("tags", STR), ("flags", STR), ("task", STR),
-])
-FORECAST_REFERENCES = pa.schema([
-    ("task_id", STR), ("split", STR), ("d1", STR), ("source", STR), ("settlement_point", STR), ("site_id", STR),
-    ("label", STR), ("events_sha", STR), ("vintages_sha", STR),
-    *((f"{t.replace('-', '_')}_{k}", typ) for t in forecast.TIERS for k, typ in (
-        ("p_idle", F64), ("p_anchor", F64), ("p_roll", F64), ("p_roll3", F64), ("p_blind", F64), ("p_naive", F64),
-        ("p_hind", F64), ("p_lp", F64), ("anchor_capture", F64), ("anchor_commits", I64), ("anchor", STR),
-        ("baselines", STR))),
-])
-FORECAST_EPISODES = pa.schema([
-    *EPISODE_HEAD, ("source", STR), ("p_anchor", F64), ("raw_ratio", F64), ("r_hind", F64), ("paired_vs_anchor", F64),
-    ("r_roll3", F64), ("p_blind", F64), ("p_naive", F64), ("p_roll3", F64), ("dam_missed", I64), ("dam_submits", I64),
-    ("forecast_calls", I64), ("forecasts_served", I64), ("refusals", I64), ("governor_hours", I64),
-    ("ftp_mwh_charged", F64), ("ftp_mwh_excused", F64), ("end_short_mwh", F64), ("dam", STR), ("book", STR),
-    ("soc_path", pa.list_(F64)), ("cash", STR), *EPISODE_TAIL,
-])
-MARKET_TASKS = pa.schema([
-    ("task_id", STR), ("split", STR), ("pack", STR), ("date", STR), ("era", STR), ("point", STR), ("region", STR),
-    ("p_mw", F64), ("e_mwh", F64), ("duration_h", F64), ("grid_mw", F64), ("eta", F64), ("c_deg", F64),
-    ("s0_mwh", F64), ("s_end_min_mwh", F64), ("seats", STR), ("stratum", STR), ("impact_hours", I64),
-    ("impact_hours_2usd", I64), ("within_ns", F64), ("floor_day_ok", BOOL), ("floor_day", BOOL), ("season", STR),
-    ("neg_hours", I64), ("spike", BOOL), ("notice_day", BOOL), ("rtcb", BOOL), ("showcase", STR),
-    ("notice_count", I64), ("notices", STR), ("fidelity", STR), ("system_prompt", STR), ("situation", STR),
-    ("prompt", PROMPT), ("tools", STR), ("day_prompt", PROMPT), ("day_tools", STR), ("p_idle", F64),
-    ("p_anchor", F64), ("p_br", F64), ("p_br_rt", F64), ("day_p_anchor", F64), ("day_p_br", F64),
-    ("day_p_br_rt", F64), ("anchor_capture", F64), ("price_taker_reward", F64), ("max_withhold_reward", F64),
-    ("replay_A_reward", F64), ("price_taker_gap_usd_per_mw", F64), ("tags", STR), ("flags", STR), ("task", STR),
-])
-MARKET_REFERENCES = pa.schema([
-    ("task_id", STR), ("split", STR), ("date", STR), ("p_mw", F64), ("p_idle", F64), ("forecast_delta_mw", F64),
-    ("forecast_lambda_usd", pa.list_(F64)), ("forecast_hub_usd", pa.list_(F64)), ("forecast_mae_prev_usd", F64),
-    ("replay_lambda_usd", pa.list_(F64)), ("anchor_q_mw", pa.list_(F64)), ("anchor_hub_usd", pa.list_(F64)),
-    *((f"{t.replace('-', '_')}_{k}", typ) for t in market.TIERS for k, typ in (
-        ("p_anchor", F64), ("p_br", F64), ("p_br_rt", F64), ("br_q_mw", pa.list_(F64)))),
-    *((f"{b}_{k}", F64) for b in ("price_taker", "max_withhold", "replay_A") for k in ("profit", "reward")),
-    ("headroom", STR), ("price_taker_gap_usd_per_mw", F64), ("impact_hours", I64), ("baseline_issues", STR),
-])
-MARKET_EPISODES = pa.schema([
-    ("episode_id", STR), ("task_id", STR), ("split", STR), ("tier", STR), ("compliant", BOOL), ("bundle", STR),
-    ("path", STR), ("model", STR), ("model_label", STR), ("trained", STR), ("checkpoint_step", I64), ("seed", I64),
-    ("reward", F64), ("compliant_reward", F64), ("raw_ratio", F64), ("submitted", BOOL), ("beats_anchor", BOOL),
-    ("profit_usd", F64), ("p_idle", F64), ("p_anchor", F64), ("p_br", F64), ("p_br_rt", F64), ("regret_usd", F64),
-    ("regret_norm", F64), ("capture_vs_br", F64), ("price_making_gain_usd_per_mw_day", F64), ("impact_usd", F64),
-    ("profit_usd_per_kw_day", F64), ("welfare_ratio", F64), ("dwl_usd", F64), ("eps_nash", F64), ("eps_a", F64),
-    ("eps_mean", F64), ("rank", I64), ("mitigated_hours", I64), ("clipped_hours", I64), ("offer", STR),
-    ("awards", STR), ("clear", STR), ("hours", STR), ("pnl", STR), ("contracts", STR), ("conduct", STR),
-    ("seat_results", STR), ("commits", I64), *EPISODE_TAIL[1:],
-])
-TABLES = {"v4": (FORECAST_TASKS, FORECAST_REFERENCES, FORECAST_EPISODES),
-          "v5": (MARKET_TASKS, MARKET_REFERENCES, MARKET_EPISODES)}
-ROW_GROUP_BYTES = 16_000_000
-
-
-def row_group(rows: list[dict]) -> int:
-    """Rows per parquet row group, about ROW_GROUP_BYTES each, counting a row's text twice (its prompt or messages
-    repeat it): a v4 row carries megabytes of vintages, a v5 train row a few kilobytes."""
-    mean = sum(len(v) for r in rows for v in r.values() if isinstance(v, str)) / max(1, len(rows))
-    return max(1, int(ROW_GROUP_BYTES // max(1.0, 2 * mean)))
-
-
-def published45(pv: Preview, task: dict, scrub: Scrubber) -> dict:
-    """A v4 or v5 task row as published, notices paraphrased: v4's events sha recomputed in the row and its refs, so
-    the stored references still hold (they read the events' times and levels, never their text); v5's notices sha
-    recomputed (its references never read the notices)."""
-    t = scrub(task)
-    if t != task:
-        if pv is V4:
-            t["events_sha"] = t["refs"]["events_sha"] = forecast.events_sha(t)
-        else:
-            t["notices_sha"] = live.notices_sha(t.get("notices"))
-    return t
-
-
-def forecast_store(root: Path, files: dict[str, bytes]) -> str:
-    """The forecast store the packs were built on, under raw/v4-store/ (its parquet and manifest, nothing else), and
-    the committed forecast card under raw/v4-forecast/; its sha recomputed from the index and checked against the
-    manifest and the packs'."""
-    paths = sorted(p for p in root.rglob("*") if p.is_file())
-    if odd := [p.name for p in paths if p.suffix not in (".parquet", ".json")]:
-        raise SystemExit(f"the forecast store holds {odd}; only parquet and its manifest are published")
-    index = pq.read_table(root / "index.parquet", columns=["kind", "key", "issued_at_utc", "sha"]).to_pylist()
-    sha = FI.vintages_sha([{"kind": r["kind"], "key": r["key"], "issued_at": r["issued_at_utc"], "sha": r["sha"]}
-                           for r in index])
-    want = (data_root() / "forecast" / "store-index-sha.txt").read_text().strip()
-    if sha != json.loads((root / "manifest.json").read_text())["store_sha"] or sha != want:
-        raise SystemExit(f"the forecast store at {root} is {sha}; the packs were built on {want}")
-    files |= {f"{STORE}/{p.relative_to(root).as_posix()}": p.read_bytes() for p in paths}
-    files |= {f"{FORECAST_DIR}/{n}": (data_root() / "forecast" / n).read_bytes() for n in FORECAST_FILES}
-    print(f"v4 store v4-store@{sha[:8]}: {len(index):,} vintages, {len(paths)} files, "
-          f"{sum(p.stat().st_size for p in paths) / 1e6:.0f} MB, its sha recomputed from the index")
-    return sha
-
-
-def held(task: dict, store: Path, sha: str) -> dict:
-    """The window's vintages, inline or read from the store, once the row's stored references hold on them at every
-    tier it carries (same events, vintages and source), so no Session ever re-solves an anchor."""
-    v = task["vintages"]
-    if v.get("store") and v["store"] != f"v4-store@{sha}":
-        raise Mismatch(f"{task['task_id']} was built on {v['store']}; the published store is v4-store@{sha}")
-    sl = FI.slice_for(task, store)
-    for tier in forecast.TIERS:
-        if task["refs"].get(tier) and forecast.stored_refs(task, tier, vintages=sl) is None:
-            raise Mismatch(f"{task['task_id']}: its {tier} references do not hold on the published row")
-    return sl
-
-
-def keys(x) -> Iterator[str]:
-    if isinstance(x, dict):
-        for k, v in x.items():
-            yield k
-            yield from keys(v)
-    elif isinstance(x, list):
-        for v in x:
-            yield from keys(v)
-
-
-def anonymous_day(row: dict, where: str) -> None:
-    """A market day as the anonymised build writes it: its keys from the days schema and its strings dates, era and
-    parser tags or seat pool ids; anything else (a resource or QSE name) fails the build."""
-    def walk(x):
-        if isinstance(x, dict):
-            for k, v in x.items():
-                if k not in DAY_KEYS:
-                    raise SystemExit(f"{where} {row['date']}: key {k!r} is not in the anonymised days schema")
-                walk(v)
-        elif isinstance(x, list):
-            for v in x:
-                walk(v)
-        elif isinstance(x, str) and not ANON.fullmatch(x):
-            raise SystemExit(f"{where} {row['date']}: {x!r} is not an anonymised id")
-
-    walk(row)
-
-
-def anonymous(x: dict, where: str) -> None:
-    """A v5 task row or episode: its seats named by role, their pools by id, and no resource or QSE field anywhere."""
-    if bad := sorted({k for k in keys(x) if NAMED.search(k)}):
-        raise SystemExit(f"{where} has the fields {bad}; no resource or QSE name may leave the data build")
-    seats = x.get("seats") or {**x["task"]["seats_public"], "A": x["task"]["seat_A"]}
-    for s, seat in seats.items():
-        if seat.get("name") != SEAT_NAMES[s] or not re.fullmatch(r"[ecrl]\d{1,2}", seat.get("pool_id", "e1")):
-            raise SystemExit(f"{where}: seat {s} is {seat.get('name')!r} in pool {seat.get('pool_id')!r}")
-
-
-def market_days(files: dict[str, bytes]) -> None:
-    """v5's market days under raw/v5-market/days/ (derived, aggregated curves by seat pool id): git's months and the
-    overflow's (cache/market/days, the train-only months), each overflow month checked against the manifest's sha256 of
-    its lines; with the manifest, stats and heat rates, every day checked by anonymous_day."""
-    root, n = data_root() / "market", 0
-    want = json.loads((root / "manifest.json").read_text())["store"]["overflow"]["sha256"]
-    over = {f.name.split(".")[0]: f for f in overflow_root().glob("*.jsonl.gz")} if overflow_root().is_dir() else {}
-    if missing := sorted(set(want) - set(over)):
-        raise SystemExit(f"the overflow days {missing[0]}..{missing[-1]} are not in {overflow_root()}: run "
-                         "scripts/build_market_days.py or fetch raw/v5-market/days from the dataset")
-    for f in sorted([*(over[m] for m in want), *(root / "days").glob("*.jsonl.gz")], key=lambda f: f.name):
-        text = gzip.decompress(f.read_bytes()).decode()
-        if f.name.split(".")[0] in want and hashlib.sha256(text.encode()).hexdigest() != want[f.name.split(".")[0]]:
-            raise SystemExit(f"{f} is not the overflow month the manifest lists")
-        for line in text.splitlines():
-            if line.strip():
-                anonymous_day(json.loads(line), f.name)
-                n += 1
-        files[f"{MARKET_DIR}/days/{f.name}"] = f.read_bytes()
-    files |= {f"{MARKET_DIR}/{name}": unticket((root / name).read_bytes()) for name in MARKET_FILES}
-    print(f"v5 market days: {n} days in {len(want) + len(list((root / 'days').glob('*.jsonl.gz')))} files "
-          f"({len(want)} from the overflow), every key and string anonymised (seat pool ids, no resource or QSE name)")
-
-
-def forecast_task_row(task: dict, raw: str, pack: str, sl: dict) -> dict:
-    """One window, with the opening path A and B' send at its headline tier (front; front-lite in train)."""
-    tier = "front" if task["refs"].get("front") else "front-lite"
-    prompt = forecast_prompt.messages(forecast.Session(task, tier, vintages=sl))
-    site, bess, tags, r, v = task["site"], task["site"]["bess"], task["tags"], task["refs"][tier], task["vintages"]
-    return {
-        **{k: task[k] for k in ("task_id", "split", "d1", "days", "dates", "open", "era", "source", "settlement_point",
-                                "point_kind", "region", "zone", "weather_point", "prices", "rt", "pv_mw")},
-        "pack": pack, "label": tags["label"], "forecast_bust": tags.get("forecast_bust"), "site_id": site["site_id"],
-        "site_source": site["source"],
-        **{k: site[k] for k in ("coupling", "pv_mwac", "pv_mwdc", "ilr", "poi_mw", "poi_import_mw", "qualified")},
-        **{k: bess[k] for k in ("p_mw", "e_mwh", "eta", "c_deg", "cycle_cap_mwh", "s0_mwh", "s_end_min_mwh")},
-        "tiers": [t for t in forecast.TIERS if task["refs"].get(t)], "mcpc_da": json.dumps(task["mcpc_da"]),
-        "watches": json.dumps(tags.get("watches")), "notice_count": len(task["notices"]),
-        "notices": json.dumps(task["notices"], ensure_ascii=False), "deployments": json.dumps(task["deployments"]),
-        "vintages": v["store"] if v.get("series") is None else "inline",
-        "vintage_count": None if v.get("series") is None else len(v["series"]), "prompt_tier": tier,
-        "system_prompt": prompt[0]["content"], "situation": prompt[1]["content"], "prompt": prompt,
-        "tools": json.dumps(forecast_prompt.tool_schemas(tier)),
-        **{k: r.get(k) for k in ("p_idle", "p_anchor", "p_hind", "p_blind", "p_naive", "p_roll3")},
-        "anchor_capture": capture(r["p_anchor"], r["p_idle"], r["p_hind"]),
-        "blind_reward": r["baselines"]["blind"]["reward"], "naive_reward": r["baselines"]["naive"]["reward"],
-        **{k: tags.get(k) for k in ("season", "neg_hours", "dam_max", "rt_max", "showcase")},
-        "tags": json.dumps(tags), "flags": json.dumps(task.get("flags")), "task": raw,
-    }
-
-
-def forecast_reference_row(task: dict) -> dict:
-    r = task["refs"]
-    row = {**{k: task[k] for k in ("task_id", "split", "d1", "source", "settlement_point")},
-           "site_id": task["site"]["site_id"], "label": task["tags"]["label"], "events_sha": r["events_sha"],
-           "vintages_sha": r["vintages_sha"]}
-    for tier in forecast.TIERS:
-        t, c = r.get(tier) or {}, tier.replace("-", "_")
-        row |= {f"{c}_{k}": t.get(k) for k in ("p_idle", "p_anchor", "p_roll", "p_roll3", "p_blind", "p_naive",
-                                               "p_hind", "p_lp")}
-        row |= {f"{c}_anchor_capture": capture(t["p_anchor"], t["p_idle"], t["p_hind"]) if t else None,
-                f"{c}_anchor_commits": (t.get("anchor") or {}).get("commits"),
-                f"{c}_anchor": json.dumps(t["anchor"]) if t else None,
-                f"{c}_baselines": json.dumps(t["baselines"]) if t else None}
-    return row
-
-
-def market_task_row(task: dict, raw: str, pack: str) -> dict:
-    """One floor, with the path-B prompt (floor-sprint) and, where the floor also runs as floor-day, the opening path
-    A sends there."""
-    a, tags, r = task["seats"]["A"], task["tags"], task["refs"]
-    sp, day, base = r["floor-sprint"], r["floor-day"], r["floor-sprint"]["baselines"]
-    prompt = market_prompt.sprint_messages(task)
-    opening = market_messages(market.Session(task, "floor-day")) if tags.get("floor_day_ok") else None
-    return {
-        **{k: task[k] for k in ("task_id", "split", "date", "era", "point", "region")}, "pack": pack,
-        **{k: a[k] for k in ("p_mw", "e_mwh", "grid_mw", "eta", "c_deg", "s0_mwh", "s_end_min_mwh")},
-        "duration_h": a["e_mwh"] / a["p_mw"],
-        "seats": json.dumps({s: {"name": v["name"], "kind": v["kind"], "size_mw": round(market.seat_size(s, v), 2)}
-                             for s, v in task["seats"].items() if s != "A"}),
-        **{k: tags.get(k) for k in ("stratum", "impact_hours", "impact_hours_2usd", "within_ns", "floor_day_ok",
-                                    "floor_day", "season", "neg_hours", "spike", "notice_day", "rtcb", "showcase")},
-        "notice_count": len(task.get("notices") or []),
-        "notices": json.dumps(task.get("notices") or [], ensure_ascii=False), "fidelity": json.dumps(task["fidelity"]),
-        "system_prompt": prompt[0]["content"], "situation": prompt[1]["content"], "prompt": prompt,
-        "tools": json.dumps(market_prompt.tool_schemas("floor-sprint")), "day_prompt": opening,
-        "day_tools": json.dumps(market_prompt.tool_schemas("floor-day")) if opening else None,
-        "p_idle": r["p_idle"], **{k: sp[k] for k in ("p_anchor", "p_br", "p_br_rt")},
-        **{f"day_{k}": day.get(k) for k in ("p_anchor", "p_br", "p_br_rt")},
-        "anchor_capture": capture(sp["p_anchor"], r["p_idle"], sp["p_br"]),
-        **{f"{b}_reward": (base.get(b) or {}).get("reward") for b in ("price_taker", "max_withhold", "replay_A")},
-        "price_taker_gap_usd_per_mw": r.get("price_taker_gap_usd_per_mw"), "tags": json.dumps(tags),
-        "flags": json.dumps(task.get("flags")), "task": raw,
-    }
-
-
-def market_reference_row(task: dict) -> dict:
-    r = task["refs"]
-    sp, fc, base = r["floor-sprint"], r["forecast"], r["floor-sprint"]["baselines"]
-    row = {**{k: task[k] for k in ("task_id", "split", "date")}, "p_mw": task["seats"]["A"]["p_mw"],
-           "p_idle": r["p_idle"], "forecast_delta_mw": fc.get("delta_mw"),
-           "forecast_lambda_usd": fc.get("forecast_lambda_usd"), "forecast_hub_usd": fc.get("forecast_hub_usd"),
-           "forecast_mae_prev_usd": fc.get("mae_prev_usd"), "replay_lambda_usd": r.get("replay_lambda_usd"),
-           "anchor_q_mw": sp["anchor"]["q_mw"], "anchor_hub_usd": sp["anchor"]["hub_usd"],
-           "headroom": json.dumps(r.get("headroom_usd_per_mw")),
-           "price_taker_gap_usd_per_mw": r.get("price_taker_gap_usd_per_mw"), "impact_hours": r.get("impact_hours"),
-           "baseline_issues": json.dumps(r["baseline_issues"]) if r.get("baseline_issues") else None}
-    for tier in market.TIERS:
-        t, c = r[tier], tier.replace("-", "_")
-        row |= {f"{c}_p_anchor": t.get("p_anchor"), f"{c}_p_br": t.get("p_br"), f"{c}_p_br_rt": t.get("p_br_rt"),
-                f"{c}_br_q_mw": (t.get("br") or {}).get("q_mw")}
-    for b in ("price_taker", "max_withhold", "replay_A"):
-        row |= {f"{b}_{k}": (base.get(b) or {}).get(k) for k in ("profit", "reward")}
-    return row
-
-
-def chat_columns(pv: Preview, e: dict, task: dict, file: str) -> dict:
-    usage = e.get("usage") or {}
-    texts = [m["content"] for m in e.get("messages") or [] if m.get("role") == "assistant" and m.get("content")]
-    return {"tool_calls": sum(s["tool"] != pv.core.NOTICE_TOOL for s in e["steps"]), "watches": len(e["watches"]),
-            "notices": len(e["notices"]), "steps": json.dumps(e["steps"], ensure_ascii=False),
-            "messages": to_messages(rebuilt_live(pv, e, task)), "transcript": "rebuilt",
-            "assistant_text": "\n\n".join(texts) or None, "input_tokens": usage.get("input_tokens"),
-            "output_tokens": usage.get("output_tokens"), "usd": usage.get("usd"),
-            "wall_seconds": e.get("wall_seconds"), "audit_ok": True, "verified": True, "file": file}
-
-
-def forecast_episode_row(e: dict, task: dict, g: dict, file: str) -> dict:
-    return {**{k: e.get(k) for k in ("episode_id", "task_id", "tier", "source", "bundle", "path", "model", "trained",
-                                     "checkpoint_step", "seed", "reward", "profit_usd", "soc_path")},
-            "split": task["split"], "model_label": LABELS.get(e["model"], e["model"]),
-            "capture_vs_hindsight": capture(g["profit_usd"], g["p_idle"], g["p_hind"]),
-            **{k: g[k] for k in ("beats_anchor", "p_idle", "p_hind", "p_anchor", "raw_ratio", "r_hind",
-                                 "paired_vs_anchor", "r_roll3", "p_blind", "p_naive", "p_roll3", "dam_missed",
-                                 "dam_submits", "forecast_calls", "refusals", "governor_hours", "ftp_mwh_charged",
-                                 "ftp_mwh_excused", "end_short_mwh", "commits")},
-            "forecasts_served": len(e.get("forecasts_served") or []),
-            **{k: json.dumps(e.get(k)) for k in ("dam", "book", "cash")}, **chat_columns(V4, e, task, file)}
-
-
-def market_episode_row(e: dict, task: dict, g: dict, file: str) -> dict:
-    return {**{k: e.get(k) for k in ("episode_id", "task_id", "tier", "compliant", "bundle", "path", "model",
-                                     "trained", "checkpoint_step", "seed", "reward", "compliant_reward", "raw_ratio",
-                                     "profit_usd")},
-            "split": task["split"], "model_label": LABELS.get(e["model"], e["model"]),
-            **{k: g.get(k) for k in ("submitted", "beats_anchor", "p_idle", "p_anchor", "p_br", "p_br_rt",
-                                     "regret_usd", "regret_norm", "capture_vs_br", "price_making_gain_usd_per_mw_day",
-                                     "impact_usd", "profit_usd_per_kw_day", "welfare_ratio", "dwl_usd", "eps_nash",
-                                     "eps_a", "eps_mean", "rank")},
-            "mitigated_hours": len(g["mitigated_hours"]), "clipped_hours": len(g["clipped_hours"]),
-            "offer": json.dumps(e["offers"]["A"]), "conduct": json.dumps(g["conduct"]),
-            **{k: json.dumps(e.get(k)) for k in ("awards", "clear", "hours", "pnl", "contracts", "seat_results")},
-            "commits": sum(s["tool"] == "commit_schedule" for s in e["steps"]), **chat_columns(V5, e, task, file)}
-
-
-def preview45(pv: Preview, roots: list[Path], store: Path) -> tuple[dict[str, bytes], Counter]:
-    """v4's or v5's tasks, references and episodes, one row per window or floor, the packs under raw/packs/ and the
-    episodes under runs/, notice text paraphrased everywhere; beside them v4's forecast store, which every row that
-    reads it is checked against, or v5's market days, checked to name no resource or QSE."""
-    files: dict[str, bytes] = {}
-    packs = {split: pack_lines(pack) for split, pack in pv.packs.items()}
-    originals = {split: [json.loads(line) for line in lines] for split, lines in packs.items()}
-    scrub = Scrubber([t for ts in originals.values() for t in ts])
-    if pv is V4:
-        sha = forecast_store(store, files)
-    else:
-        market_days(files)
-    by_id: dict[str, tuple[dict, dict]] = {}
-    task_table, reference_table, episode_table = TABLES[pv.version]
-    for split, pack in pv.packs.items():
-        public = [published45(pv, t, scrub) for t in originals[split]]
-        lines = [line if p == t else json.dumps(p, ensure_ascii=False, separators=(",", ":"))
-                 for line, t, p in zip(packs[split], originals[split], public, strict=True)]
-        by_id |= {t["task_id"]: (t, p) for t, p in zip(originals[split], public, strict=True)}
-        if pv is V4:
-            rows = [forecast_task_row(p, line, pack, held(p, store, sha))
-                    for p, line in zip(public, lines, strict=True)]
-            refs = [forecast_reference_row(p) for p in public]
-        else:
-            for p in public:
-                anonymous(p, f"{pack} {p['task_id']}")
-            rows = [market_task_row(p, line, pack) for p, line in zip(public, lines, strict=True)]
-            refs = [market_reference_row(p) for p in public]
-        files[f"tasks/{pv.version}/{split}.parquet"] = parquet(rows, task_table, row_group(rows))
-        files[f"references/{pv.version}/{split}.parquet"] = parquet(refs, reference_table)
-        files[f"raw/packs/{pack}.jsonl"] = ("\n".join(lines) + "\n").encode()
-        files[f"raw/packs/{pack}.manifest.json"] = unticket((data_root() / pack / "manifest.json").read_bytes())
-    if pv is V4:
-        print("v4: every row's stored references hold on its published row and vintages ("
-              + ", ".join(f"{s} {len(ts)}" for s, ts in originals.items()) + "; train reads the store)")
-    rows, run_files, counts = preview_episodes(pv, roots, by_id, scrub)
-    if pv is V5:
-        for path, content in run_files.items():
-            anonymous(json.loads(content), path)
-    for split in pv.packs:
-        if any(r["split"] == split for r in rows):
-            part = [r for r in rows if r["split"] == split]
-            files[f"episodes/{pv.version}/{split}.parquet"] = parquet(part, episode_table, row_group(part))
-    return files | run_files, counts
-
-
-def board_v4_markdown(c: dict) -> str:
-    """The v4 pilot's board from its eval card on the cross-version scale: C with the anchor's C and the paired delta
-    (the verifier's paired_vs_anchor), R second, C by label, and the weight-0 rows."""
-    def f(x, fmt=".3f"):
-        return "–" if x is None else format(x, fmt)
-
-    lines = [f"| Model | Tier | Windows | {SCALE_HEAD} | C front / calm | Forecast calls | $ per episode |",
-             "|---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|"]
-    for m in c["models"]:
-        lab = m.get("by_label") or {}
-        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | {scale_cells(m, f)} | "
-                     f"{f((lab.get('front') or {}).get('capture'))} / {f((lab.get('calm') or {}).get('capture'))} | "
-                     f"{f(m['forecast_calls'], '.1f')} | ${f(m['usd_per_episode'], '.2f')} |")
-    return "\n".join(lines)
-
-
-def board_v5_markdown(c: dict) -> str:
-    """The v5 pilot's board from its eval card: the public compliant score (its profit half clip(C), C against BR_rt)
-    beside the anchor's and the paired delta; then C, R and the weight-0 rows."""
-    def f(x, fmt=".3f"):
-        return "–" if x is None else format(x, fmt)
-
-    lines = [f"| Model | Tier | Floors | Score (95% CI) | Anchor's score | Δ vs anchor (95% CI) | {SCALE_HEAD} "
-             "| Welfare ratio | Mitigated hours | $ per episode |",
-             "|---|---|---:|---|---:|---|---|---:|---|---|---:|---:|---:|---:|---:|"]
-    for m in c["models"]:
-        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | **{mci(m)}** | "
-                     f"{f(m['anchor_headline'])} | {mci(m['headline_delta'], '+.3f')} | "
-                     f"{scale_cells(m | {'mean': m['reward']['mean'], 'ci95': m['reward']['ci95']}, f)} | "
-                     f"{f(m['welfare_ratio'])} | {m['mitigated_hours']} | ${f(m['usd_per_episode'])} |")
-    return "\n".join(lines)
-
-
-def distinct_strings(content: bytes) -> list[str]:
-    """A store table's string values, each once (its vintages are numbers, which hold no text)."""
-    schema = pq.read_schema(io.BytesIO(content))
-    cols = [f.name for f in schema if pa.types.is_string(f.type) or pa.types.is_large_string(f.type)
-            or (pa.types.is_list(f.type) and pa.types.is_string(f.type.value_type))]
-    t = pq.read_table(io.BytesIO(content), columns=cols)
-    out: list[str] = []
-    for name in cols:
-        c = t[name]
-        c = pc.list_flatten(c) if pa.types.is_list(c.type) else c
-        out += pc.unique(c).drop_null().to_pylist()
-    return out
-
-
-def scannable(files: dict[str, bytes]) -> dict[str, bytes]:
-    """The files agentenv-hf's scan reads: the store's tables as their string values, since a scan of their rows
-    would hold every vintage in memory."""
-    return {(f"{p}.strings" if p.startswith(f"{STORE}/") and p.endswith(".parquet") else p):
-            ("\n".join(distinct_strings(c)).encode() if p.startswith(f"{STORE}/") and p.endswith(".parquet") else c)
-            for p, c in files.items()}
-
-
-def unticket(content: bytes) -> bytes:
-    """A stats file, manifest or board as published: its tracker ids taken out of the prose."""
-    text = re.sub(r",\s*FD-\d+|\s*\(FD-\d+\)", "", content.decode())
-    text = re.sub(r"\b(?:the )?FD-\d+(?:'s)?", "the design plan's", text)
-    return text.encode()
-
-
-@dataclass(frozen=True)
-class Extras:
-    v2_runs: list[Path]
-    v3_runs: list[Path]
-    v2_results: Path
-    v3_results: Path
-    train: Path
-    preview_ref: str
-    v4_runs: list[Path]
-    v5_runs: list[Path]
-    v4_results: Path
-    v5_results: Path
-    store: Path
-
-
-def previews(x: Extras) -> tuple[dict[str, bytes], dict[str, str]]:
-    """The v2 to v5 previews, their pilots' eval cards and boards, the pack statistics, v4's forecast store, v5's
-    market days and the training summary; and the card's blocks made from them."""
-    files: dict[str, bytes] = {}
-    blocks: dict[str, str] = {}
-    for pv, roots, results in ((V2, x.v2_runs, x.v2_results), (V3, x.v3_runs, x.v3_results),
-                               (V4, x.v4_runs, x.v4_results), (V5, x.v5_runs, x.v5_results)):
-        out, counts = preview(pv, roots) if pv.version in ("v2", "v3") else preview45(pv, roots, x.store)
-        files |= out
-        print(f"{pv.version}: {sum(counts.values())} episodes replayed byte for byte and graded again, 0 mismatched ("
-              + ", ".join(f"{k} {n}" for k, n in sorted(counts.items())) + ")")
-        for name in PREVIEW_RESULTS[pv.version]:
-            if (results / name).is_file():
-                files[f"results/{name}"] = unticket((results / name).read_bytes())
-    for name in PREVIEW_STATS:
-        files[f"raw/packs/{name}"] = unticket((data_root() / name).read_bytes())
-    for v, board in (("v3", board_v3_markdown), ("v4", board_v4_markdown), ("v5", board_v5_markdown)):
-        if f"results/eval-{CURRENT[v]}.json" in files:
-            blocks[f"board:{v}"] = board(json.loads(files[f"results/eval-{CURRENT[v]}.json"]))
-    train_files, arms = training(x.train)
-    files |= train_files
-    if arms:
-        blocks["training"] = training_markdown(arms)
-    return files, blocks
-
-def shingles(text: str) -> set[tuple[str, ...]]:
-    w = WORD.findall(ORG.sub("ERCOT", text).lower())
-    return {tuple(w[i:i + SHINGLE]) for i in range(len(w) - SHINGLE + 1)}
-
-
-def strings(x) -> Iterator[str]:
-    if isinstance(x, str):
-        if x[:1] in "{[":
-            try:
-                yield from strings(json.loads(x))
-                return
-            except ValueError:
-                pass
-        yield x
-    elif isinstance(x, dict):
-        for v in x.values():
-            yield from strings(v)
-    elif isinstance(x, list):
-        for v in x:
-            yield from strings(v)
-
-
-def readable(path: str, content: bytes):
-    if path.startswith(f"{STORE}/") and path.endswith(".parquet"):
-        return distinct_strings(content)
-    if path.endswith(".parquet"):
-        return pq.read_table(io.BytesIO(content)).to_pylist()
-    if path.endswith((".jsonl", ".jsonl.gz")):
-        text = (gzip.decompress(content) if path.endswith(".gz") else content).decode()
-        return [json.loads(line) for line in text.splitlines() if line.strip()]
-    if path.endswith(".json"):
-        return json.loads(content)
-    return content.decode() if path.endswith(".md") else None
-
-
-def check_text(files: dict[str, bytes], paths: list[str]) -> int:
-    """Fails the build when a published v2 to v5 file holds a run of SHINGLE words from an ERCOT notice of the archive
-    (its text or title), or a bucket, internal host, key or ticket id; returns how many strings were checked."""
-    with gzip.open(data_root() / "notices/notices.jsonl.gz", "rt") as f:
-        archive = [json.loads(line) for line in f if line.strip()]
-    known = set().union(*(shingles(n.get(k) or "") for n in archive for k in ("text", "title")))
-    seen: set[str] = set()
-    for path in paths:
-        for s in strings(readable(path, files[path])):
-            if s in seen:
-                continue
-            seen.add(s)
-            if leak := LEAK.search(s):
-                raise SystemExit(f"{path} holds {leak[0]!r}; nothing was written")
-            if hit := next((g for g in shingles(s) if g in known), None):
-                raise SystemExit(f"{path} quotes ERCOT notice text verbatim ({' '.join(hit)!r}); nothing was written")
-    return len(seen)
-
-
-def training(train_dir: Path) -> tuple[dict[str, bytes], list[dict]]:
-    """training/<arm>/ (each arm's summary, checkpoint evals and curves, as results/train has them) and
-    training/arms.json: per arm, its final policy on the 200 eval_2025 tasks against the two rules it was held to."""
-    files, arms = {}, []
-    for name, sub, recipe, reg, model, row, gap in TRAIN_ARMS:
-        d = train_dir / sub
-        if not (d / "summary.json").is_file():
-            continue
-        for f in TRAIN_FILES:
-            if (d / f).is_file() and not row:
-                files[f"training/{name}/{f}"] = (d / f).read_bytes()
-        s = json.loads((d / "summary.json").read_text())
-        policies = [r for r in s["rows"] if r.get("decoding") == "sampled"]
-        rules = {r["model"].removeprefix("rule:"): r for r in s["rows"] if r["model"].startswith("rule:")}
-        if not rules:
-            ev = json.loads((d / "eval_trained.json").read_text())["baselines"]
-            rules = {k: {"model": f"rule:{k}", **v} for k, v in ev.items()}
-        bar = None if row else (s.get("bars") or {}).get("sampled")
-        final = (next(r for r in policies if row in r["model"]) if row else
-                 next((r for r in policies if bar and r.get("checkpoint_step") == bar["checkpoint_step"]
-                       and abs(r["reward_mean"] - bar["reward_mean"]) < 1e-9), policies[-1]))
-        base = (next((r for r in policies if r["model"] == "base" or " base (zero-shot" in r["model"]), None)
-                or next((a["base"] for a in reversed(arms) if a["model"] == model), None))
-        if base is None:
-            raise SystemExit(f"{d / 'summary.json'} has no base row and no earlier {model} arm to take it from")
-        bars = [{"bar": f"beats the {rule} rule: 95% CIs apart, valid >= 98%", "rule": rule,
-                 "rule_reward": rules[rule]["reward_mean"], "rule_ci95": rules[rule]["ci95"],
-                 "met": final["ci95"][0] > rules[rule]["ci95"][1] and final["valid_rate"] >= 0.98}
-                for rule in ("greedy", "threshold")]
-        arms.append({"arm": name, "label": s.get("label") or recipe, "recipe": recipe,
-                     "pre_registered": reg == "registered", "registration": REGISTRATION[reg],
-                     "model": model, "tasks": s["n_tasks"], "split": "eval_2025", "tier": "foresight",
-                     "harness": "oneshot (path B)", "base": {k: base[k] for k in ("reward_mean", "ci95", "valid_rate")},
-                     "final": {k: final.get(k) for k in ("model", "checkpoint_step", "reward_mean", "ci95",
-                                                         "valid_rate", "feasible_rate")},
-                     "rules": {k: {"reward_mean": v["reward_mean"], "ci95": v.get("ci95")} for k, v in rules.items()},
-                     "bars": bars, "paired_minus_greedy": (s.get("paired") or {}).get(gap), "paired": s.get("paired")}
-                    | ({"registered_bars": s["bars"]} if bar else {}))
-    if (c := train_dir / "confirm-sft10k" / "summary.json").is_file():
-        files["training/confirm-sft10k/summary.json"] = c.read_bytes()
-        arms.append(confirmation(json.loads(c.read_text())))
-    if arms:
-        files["training/arms.json"] = (json.dumps(arms, indent=1) + "\n").encode()
-    return files, arms
-
-
-def confirmation(s: dict) -> dict:
-    """The pre-registered confirmatory eval of run 2's SFT-10k as an arms.json row: its registered pack (eval_iid)
-    against the rules, every pack's bars and verdict as registered."""
-    pack = next(iter(s["bars"]))
-    rows, model = s["packs"][pack]["rows"], s["bars"][pack]["sampled"]["model"]
-    final = next(r for r in rows if r.get("decoding") == "sampled" and r["model"] == model)
-    rules = {r["model"].removeprefix("rule:"): r for r in rows if r["model"].startswith("rule:")}
-    return {"arm": "4b-v2-sft-confirm", "label": s["label"],
-            "recipe": "Qwen3-4B SFT-10k, confirmatory: run 2's warm start re-tested on fresh packs, no training",
-            "pre_registered": True, "registration": REGISTRATION["confirm"], "model": s["model"],
-            "tasks": s["packs"][pack]["n_tasks"], "split": pack, "tier": "foresight", "harness": "oneshot (path B)",
-            "base": None, "final": {k: final.get(k) for k in ("model", "checkpoint_step", "reward_mean", "ci95",
-                                                                 "valid_rate", "feasible_rate")},
-            "rules": {k: {"reward_mean": v["reward_mean"], "ci95": v.get("ci95")} for k, v in rules.items()},
-            "bars": [{"bar": f"beats the {rule} rule: 95% CIs apart, valid >= 98%", "rule": rule,
-                      "rule_reward": rules[rule]["reward_mean"], "rule_ci95": rules[rule]["ci95"],
-                      "met": final["ci95"][0] > rules[rule]["ci95"][1] and final["valid_rate"] >= 0.98}
-                     for rule in ("greedy", "threshold")],
-            "paired_minus_greedy": s["paired"][f"{pack}_sampled"]["sft_minus_greedy"], "paired": s["paired"],
-            "registered_bars": s["bars"], "verdicts": s["verdicts"], "overlap": s["overlap"]}
-
-
-def training_markdown(arms: list[dict]) -> str:
-    r = {k: v["reward_mean"] for k, v in arms[0]["rules"].items()}
-    confirm = [a for a in arms if a["split"] != "eval_2025"]
-    arms = [a for a in arms if a["split"] == "eval_2025"]
-    lines = ["| Arm | Pre-registered | Recipe | Mean R, sampled (95% CI) | Valid | Beats threshold | Beats greedy "
-             "| Paired gap to greedy (95% CI) |", "|---|---|---|---|---:|---|---|---|"]
-    for a in arms:
-        f, met = a["final"], {b["rule"]: "met" if b["met"] else "not met" for b in a["bars"]}
-        reg = ("**yes**" if a["pre_registered"] else "bars only, recipe changed" if a["registration"].startswith("bars")
-               else "no: its run's warm start, post hoc" if a["registration"].startswith("the registered run's warm")
-               else "no (exploratory)")
-        g = a.get("paired_minus_greedy")
-        lines.append(f"| {a['recipe'].split(': ', 1)[0]} | {reg} | "
-                     f"{a['recipe'].split(': ', 1)[1]} | **{f['reward_mean']:.3f}** ({f['ci95'][0]:.3f} to "
-                     f"{f['ci95'][1]:.3f}) | {100 * f['valid_rate']:.1f}% | {met['threshold']} | {met['greedy']} | "
-                     + (f"{sg(g['mean'])} ({sg(g['ci95'][0])} to {sg(g['ci95'][1])})" if g else "–") + " |")
-    bases = {a["model"]: a["base"] for a in arms}
-    return "\n".join(lines + ["", "On the same 200 tasks: " + ", ".join(
-        f"base {m.split('/')[-1]} {b['reward_mean']:.3f} ("
-        + ("no valid schedule" if not b["valid_rate"] else f"{100 * b['valid_rate']:.1f}% valid") + ")"
-        for m, b in bases.items()) + f", the threshold rule {r['threshold']:.3f}, the greedy rule {r['greedy']:.3f}, "
-        "idle 0.200, the DP optimum 1.000."] + [x for c in confirm for x in confirm_markdown(c)])
-
-
-def confirm_markdown(c: dict) -> list[str]:
-    """The confirmatory eval's table: each pack's sampled result against the greedy rule, its two bars and verdict."""
-    lines = ["", "The confirmatory evaluation of SFT-10k, pre-registered, sampled, on battery-days that share no date "
-             "with its training:", "",
-             "| Pack | Days | SFT-10k mean R (95% CI) | Valid | Greedy rule (95% CI) | Intervals apart | "
-             "Paired gap to greedy (95% CI) | Verdict |", "|---|---:|---|---:|---|---|---|---|"]
-    for pack, bars in c["registered_bars"].items():
-        b, g = bars["sampled"], bars["sampled"]["paired_minus_greedy"]
-        lines.append(f"| `{pack}` | {c['overlap'][pack]['tasks']} | **{h3(b['reward_mean'])}** ({h3(b['ci95'][0])} to "
-                     f"{h3(b['ci95'][1])}) | {100 * b['valid_rate']:.1f}% | {h3(b['greedy_rule_mean'])} "
-                     f"({h3(b['greedy_rule_ci95'][0])} to {h3(b['greedy_rule_ci95'][1])}) | "
-                     f"{'met' if b['primary_met'] else 'not met'} | {sg(g['mean'])} ({sg(g['ci95'][0])} to "
-                     f"{sg(g['ci95'][1])}), {'met' if b['secondary_met'] else 'not met'} | "
-                     f"{c['verdicts'][pack].lower()} |")
-    return lines
-
-
-def sg(x: float) -> str:
-    return h3(x, "+.3f").replace("-", "−")
-
-
-def h3(x: float, fmt: str = ".3f") -> str:
-    """Half-up, as the results READMEs print the stored four-decimal values (0.8795 is 0.880)."""
-    return format(Decimal(str(x)).quantize(Decimal("0.001"), ROUND_HALF_UP), fmt)
-
-
-def board_v3_markdown(c: dict) -> str:
-    """The v3 pilot's board from its eval card on the cross-version scale: C with the anchor's C and the paired delta,
-    R second, the weight-0 rows and the cost."""
-    def f(x, fmt=".3f"):
-        return "–" if x is None else format(x, fmt)
-
-    lines = [f"| Model | Tier | Days | {SCALE_HEAD} | C low / mid / high AS | AS share | $ per episode |",
-             "|---|---|---:|---|---:|---|---|---:|---:|---|---:|---:|"]
-    for m in c["models"]:
-        st = m.get("by_as_stratum") or {}
-        lines.append(f"| {LABELS.get(m['model'], m['model'])} | {m['tier']} | {m['tasks']} | "
-                     f"{scale_cells(m, f)} | " + " / ".join(f((st.get(k) or {}).get("capture"))
-                                                         for k in ("low", "mid", "high"))
-                     + f" | {f(m.get('as_share'))} | ${f(m.get('usd_per_episode'), '.4f')} |")
-    return "\n".join(lines)
+    return files | {"README.md": card_text(results_dir).encode()}
 
 
 def write(files: dict[str, bytes], out: Path) -> None:
@@ -1510,59 +1339,35 @@ def write(files: dict[str, bytes], out: Path) -> None:
         (out / path).write_bytes(content)
 
 
+def card_only(results_dir: Path) -> str:
+    return card_text(results_dir)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--out", type=Path, required=True, help="The folder to write, e.g. build/hub/dataset.")
     ap.add_argument("--runs", type=Path, default=ROOT / "results/runs",
                     help="A folder of gridsim.episode/v1 JSON, searched recursively; none there, no episodes.")
     ap.add_argument("--results", type=Path, default=ROOT / "results",
-                    help="The folder with the sweep report's eval-v1.json and board.md, when there are.")
+                    help="The folder with the sweep report's eval-v1.json and board.md and overview/results.json.")
     ap.add_argument("--bundle", type=Path, action="append", default=[],
                     help="A bundle folder to publish with agentenv-hf, named after its pack, e.g. "
                          "build/bundles/ercot-dam-v1-eval. Repeat for several.")
     ap.add_argument("--plugin-ref", default=f"v{VERSION}", help="The plugin tag the card's bundles pin.")
-    ap.add_argument("--v1-only", action="store_true", help="v1's files and card only: no previews, no training.")
-    ap.add_argument("--v2-runs", type=Path, action="append",
-                    help="A folder of gridsim.episode/v2 JSON, or of such folders, published under runs/<folder>/. "
-                         "Repeat for several. Default: results/runs/v2-pilot-sol and v2-pilot-sol-hero.")
-    ap.add_argument("--v3-runs", type=Path, action="append",
-                    help="The same for gridsim.episode/v3 JSON. Default: results/runs/hybrid-reference and the "
-                         "rules-3.2 pilot's five v3c-* folders.")
-    ap.add_argument("--v2-results", type=Path, default=ROOT / "results",
-                    help="The folder with eval-v2.json, board-v2.md and pilot-v2.json, when there are.")
-    ap.add_argument("--v3-results", type=Path, default=ROOT / "results",
-                    help="The folder with eval-v3c.json, board-v3c.md and pilot-v3c.json (the current pilot) and the "
-                         "earlier pilots' (v3, v3b), when there are.")
-    ap.add_argument("--v4-runs", type=Path, action="append",
-                    help="The same for gridsim.episode/v4 JSON. Default: the rules-4.1 pilot's four v4b-pilot-sol* "
-                         "folders.")
-    ap.add_argument("--v5-runs", type=Path, action="append",
-                    help="The same for gridsim.episode/v5 JSON. Default: the rules-5.1 pilot's three v5b-pilot-sol* "
-                         "folders.")
-    ap.add_argument("--v4-results", type=Path, default=ROOT / "results",
-                    help="The folder with the v4 pilots' eval cards, boards and pilot JSON, as for --v3-results.")
-    ap.add_argument("--v5-results", type=Path, default=ROOT / "results",
-                    help="The folder with the v5 pilots' eval cards, boards and pilot JSON, as for --v3-results.")
-    ap.add_argument("--forecast-store", type=Path, default=FI.store_root(),
-                    help="The v4 forecast store the packs were built on, published under raw/v4-store/.")
-    ap.add_argument("--train", type=Path, default=ROOT / "results/train",
-                    help="results/train: arm 1 at its top, arms 2, 2b and 2c in arm2/, arm2b/ and arm2c/, the Qwen3-4B "
-                         "registered runs 1 and 2 in 4b/ and 4b-v2/.")
-    ap.add_argument("--preview-ref", default="lane-hub2", help="The branch the card's preview links point at.")
+    ap.add_argument("--card-only", action="store_true",
+                    help="Write README.md alone, every config as the card lists it.")
     args = ap.parse_args()
+    if args.card_only:
+        files = {"README.md": card_only(args.results).encode()}
+        scan(files, known_values())
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "README.md").write_bytes(files["README.md"])
+        print(f"{len(files['README.md']) / 1e3:.1f} kB  {args.out / 'README.md'}")
+        return
     plugin = f"agentenv-gridsim @ git+{REPO}@{args.plugin_ref}"
-    runs_root = ROOT / "results/runs"
-    extras = None if args.v1_only else Extras(
-        args.v2_runs or [runs_root / "v2-pilot-sol", runs_root / "v2-pilot-sol-hero"],
-        args.v3_runs or [runs_root / n for n in ("hybrid-reference", "v3c-pilot-sol", "v3c-pilot-sol-energy",
-                                                  "v3c-pilot-sol-show", "v3c-smoke", "v3c-smoke-energy")],
-        args.v2_results, args.v3_results, args.train, args.preview_ref,
-        args.v4_runs or [runs_root / f"v4b-pilot-sol{n}" for n in ("", "-lite", "-smoke", "-show")],
-        args.v5_runs or [runs_root / f"v5b-pilot-sol{n}" for n in ("", "-day", "-show")],
-        args.v4_results, args.v5_results, args.forecast_store)
     with namespace_routing():
-        files = build(args.runs, args.results, args.bundle, plugin, extras)
-    scan(scannable(files), known_values())
+        files = build(args.runs, args.results, args.bundle, plugin)
+    scan(files, known_values())
     write(files, args.out)
     for path in sorted(files):
         rows = f"{pq.read_metadata(io.BytesIO(files[path])).num_rows:7} rows" if path.endswith(".parquet") else ""
@@ -1572,10 +1377,6 @@ def main():
         sized = [len(c) for p, c in files.items() if p.startswith(top)]
         if sized:
             print(f"{sum(sized) / 1e6:9.2f} MB {len(sized):7} files  {top}")
-    tops = Counter(p.split("/")[0] for p in files)
-    for top in sorted(tops):
-        print(f"{sum(len(c) for p, c in files.items() if p.split('/')[0] == top) / 1e6:9.2f} MB {tops[top]:7} files  "
-              f"{top}{'/' if top in MANAGED else ''}")
     print(f"into {args.out}")
 
 

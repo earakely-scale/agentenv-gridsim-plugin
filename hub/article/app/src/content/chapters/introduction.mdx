@@ -1,0 +1,41 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import F from "../assets/data/facts.json";
+
+## Why a desk
+
+Most RL environments ask an agent for one answer. A grid battery is not run that way. Behind it sits a trading desk
+that bids the next day's market in the morning, learns its awards after lunch, offers its real-time curves in the
+evening and then watches the operating day unfold five minutes at a time, with ERCOT's notices, the weather and its
+own plant to react to. **GridSimEnv Desk** turns that job into an environment, on the Texas grid's real records.
+
+- **A real battery.** The agent is the battery trader at a qualified scheduling entity (QSE), the registered party
+  that trades in ERCOT's markets for one real energy storage resource (ESR) at its own resource node. A desk day runs
+  from 06:00 the day before the operating day to midnight on it. The batteries are real; here they appear only as
+  cards, like Battery S02, Houston, 100 MW / 206 MWh.
+- **ERCOT's own objects.** The agent never moves a megawatt itself. It submits energy bid/offer curves into the
+  day-ahead market (DAM) before its 10:00 close, real-time curves from 18:00 the day before, and its Current
+  Operating Plan (COP), all checked against ERCOT's rules [@ercot_protocols], under the market design in force since
+  real-time co-optimization went live in December 2025 [@ercot2025rtcb]. The market's clearing decides what the
+  battery does.
+- **Information as it was published.** Each price, each forecast vintage, each ERCOT notice, NWS alert and outage
+  becomes visible at the minute it was posted, never earlier.
+- **Graded in dollars.** P is the battery's settled ERCOT statement. The headline, C, is the share of the hindsight
+  optimum's profit over idle that the desk captures, and the battery's real operator, through its own disclosed bids,
+  is the benchmark.
+
+<HtmlEmbed
+  src="d3-desk-curve.html"
+  wide
+  title="One of ERCOT's objects: a day-ahead energy bid/offer curve"
+  desc="An hour of a real submission. The curve runs from full charge to full discharge, and the day-ahead market clears it at the node's real price: the award is where the two meet. The strip above is the whole day's awards; pick an hour."
+/>
+
+The desk climbs a ladder of three versions on the same tools and grading. Each adds one kind of realism: v2, the live
+market; v3, ERCOT's reserve products and a co-located solar option; v4, three operating days across a weather front.
+Beside the ladder, v5 is a price-impact check, not a fourth step: it plays v3's battery-days again with the day-ahead
+market re-cleared against the agent's own offers. GPT-6.1 Sol and GPT-6 Luna at high reasoning effort, and the
+untrained Qwen3-4B with thinking off, play each version's real days under pre-registered settings; every result in
+this article is read from those runs' committed files.
+
+**The headline.** {F.across} The price-impact check finds that one battery moves the day-ahead price by cents; its
+runs reproduce v3's within noise.

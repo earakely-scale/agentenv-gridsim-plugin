@@ -23,7 +23,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
   for (const w of d.watches || []) {
     if (w.index === 0 || !w.notices.length) continue;
     const m = hourAt(w.t).mode;
-    claim(w.t - 0.05, w.t + 1.2, m === "discharge" || m === "charge" ? "ramp" : d.region.city.lights >= 0.85 ? "city" : "establish");
+    claim(w.t - 0.05, w.t + 1.2, m === "discharge" || m === "charge" ? "ramp" : d.eventShot || (d.region.city.lights >= 0.85 ? "city" : "establish"));
   }
   const negH = d.hours.find((x) => x.neg && x.action < 0)?.h ?? d.firstNeg;
   if (negH >= 0) claim(negH - 0.1, negH + 1.9, "neg");
@@ -49,7 +49,8 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
     if (st) claim(st.h - 0.1, st.h + 1.7, "stow");
   }
   if (d.hybrid) for (const w of d.wins) if (hourAt(w.a / 60).awards[w.product] > 0) claim(w.a / 60 - 0.15, w.a / 60 + 1.5, "deploy");
-  const fill = d.hybrid && plant ? ["sub", "establish", "solar", "line", "array", "high"] : d.region.city.lights >= 0.85 ? ["sub", "establish", "city", "line", "high"] : ["sub", "establish", "line", "high"];
+  const fill = d.shotFill?.(plant) || (d.hybrid && plant ? ["sub", "establish", "solar", "line", "array", "high"] : d.region.city.lights >= 0.85 ? ["sub", "establish", "city", "line", "high"] : ["sub", "establish", "line", "high"]);
+  const fillNight = d.shotNight || ["high", "establish", d.region.city.lights >= 0.85 ? "city" : "line"];
   let f = 0;
   for (let i = 0; i < N; i++) {
     if (slots[i].kind) continue;
@@ -57,7 +58,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
     while (j < N && !slots[j].kind) j++;
     for (let k = i; k < j; k += 10) {
       const dark = night(T0 + k / 4 + 1) > 0.6;
-      const kind = d.forecast && dark ? ["high", "establish", d.region.city.lights >= 0.85 ? "city" : "line"][f % 3] : dark && fill[f % fill.length] === "sub" ? "high" : fill[f % fill.length];
+      const kind = d.forecast && dark ? fillNight[f % fillNight.length] : dark && fill[f % fill.length] === "sub" ? "high" : fill[f % fill.length];
       f++;
       for (let m = k; m < Math.min(j, k + 10); m++) slots[m] = { kind, p: 0.5 };
     }
@@ -167,7 +168,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
     let s = t >= E ? { kind: "high", t0: E, t1: E + 6, n: 99 } : shots.find((x) => tt >= x.t0 && tt < x.t1) || shots[0];
     if (force && poses[force]) s = { kind: force, t0: Math.floor(tt), t1: Math.floor(tt) + 2, n: 0 };
     const u = reduced ? 0.5 : drift ?? ease((t - s.t0) / (s.t1 - s.t0));
-    const p = poses[s.kind](u, s);
+    const p = (poses[s.kind] || poses.establish)(u, s);
     out.pos.set(...p.pos);
     out.look.set(...p.look);
     out.fov = p.fov;
@@ -175,7 +176,7 @@ export function buildDirector(d, L, { night, plant = null, yaw = 0 }) {
     return out;
   }
   /** Site-local (x, z, radius) the cameras pass through, for keeping vegetation out of shot. */
-  const at = (kind, u, n) => poses[kind](u, { n }).pos;
+  const at = (kind, u, n) => (poses[kind] || poses.establish)(u, { n }).pos;
   const spots = [at("establish", 0, 0), at("establish", 1, 0), at("establish", 0, 1), at("establish", 1, 1)].map(([x, , z]) => [x, z, 40])
     .concat([[x0 - 85, zf + 46, 45], [L.sx + 40, 34, 40], [L.sx - 30, 36, 30], [L.cx, 0, 210], [L.sx + 50, 70, 40]]);
   return { shots, pose, hero, spots };

@@ -23,7 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from gridsim_core.desk import fixtures  # noqa: E402
+from gridsim_core.desk import fixtures, policies  # noqa: E402
 from gridsim_core.desk.data import load_series, load_tasks  # noqa: E402
 from gridsim_core.desk.refs import denominator  # noqa: E402
 from gridsim_core.grade import reward_value, stretch_value  # noqa: E402
@@ -163,7 +163,51 @@ def behaviour(ep: dict) -> dict:
             "submissions_by_tool": {f"{k}:{'accepted' if a else 'rejected'}": v for (k, a), v in by_tool.items()},
             "reminders": reminders, "cycles": sum(d.get("cycles", 0.0) for d in days),
             "discharged_mwh": sum(d.get("discharged_mwh", 0.0) for d in days),
-            "cop_late": (ep.get("compliance") or {}).get("cop_late", 0), "wakes": len(ep.get("wakes", []))}
+            "cop_late": (ep.get("compliance") or {}).get("cop_late", 0), "wakes": len(ep.get("wakes", [])),
+            "ancillary": ancillary(ep),
+            "by_day": Counter(f"{s['tool'].split('_')[1]}:{s.get('day')}" for s in subs
+                              if s["accepted"] and not s.get("as") and s["tool"] != "update_cop"),
+            "day_lines": {f"D{j}": dict(ep["statement"]["days"][d]["lines"]) for j, d in enumerate(ep["dates"])
+                          if d in ep["statement"]["days"]}}
+
+
+AS_NAMES = {"RegUp": "regup", "RegDn": "regdn", "RRS-FFR": "rrsffr", "RRS-PFR": "rrspfr", "ECRS": "ecrs",
+            "Non-Spin": "nspin"}
+AS_LABEL = {v: k for k, v in AS_NAMES.items()}
+EMPTY_AS_TEXT = "as_offers is a list of objects"
+
+
+def ancillary(ep: dict) -> dict | None:
+    """AS offers accepted per product and market, AS rejection codes, and awarded MWh per product (v3+)."""
+    d0 = ep["dates"][0]
+    if "as_award_mw" not in ep["dam"].get(d0, {}) and "as_award_mw" not in ep["rt"].get(d0, {}):
+        return None
+    acc, rej, empty = Counter(), Counter(), 0
+    for t in ep["turns"]:
+        for c in t["calls"]:
+            if c["tool"] not in ("submit_dam_offers", "submit_rt_offers", "check_submission") \
+                    or not isinstance(c.get("result"), dict):
+                continue
+            bad = c["result"].get("as_rejected") or []
+            if (c.get("args") or {}).get("as_offers") == [] and any(
+                    isinstance(x, dict) and x.get("code") == "ASO-02" and x.get("text") == EMPTY_AS_TEXT for x in bad):
+                empty += 1
+                bad = [x for x in bad if not (isinstance(x, dict) and x.get("text") == EMPTY_AS_TEXT)]
+            if c["tool"] == "check_submission":
+                continue
+            mkt = "dam" if c["tool"] == "submit_dam_offers" else "rt"
+            for k in c["result"].get("as_accepted") or {}:
+                acc[f"{mkt}:{AS_NAMES.get(k, k)}"] += 1
+            for x in bad:
+                rej[x.get("code", "?") if isinstance(x, dict) else "?"] += 1
+    dam, rt = Counter(), Counter()
+    for d in ep["dates"]:
+        for h in ep["dam"].get(d, {}).get("as_award_mw") or []:
+            dam.update({k: v for k, v in (h or {}).items() if v})
+        for i in ep["rt"].get(d, {}).get("as_award_mw") or []:
+            rt.update({k: v / 12 for k, v in (i or {}).items() if v})
+    return {"accepted": dict(acc), "rejected_codes": dict(rej), "dam_mwh": dict(dam), "rt_mwh": dict(rt),
+            "empty_as_flagged": empty}
 
 
 def mean_counter(cs: list[dict]) -> dict:
@@ -228,6 +272,17 @@ def model_block(run: dict, grades: dict, days: dict) -> dict:
         "cycles": round(float(np.mean([b["cycles"] for b in beh])), 3) if beh else None,
         "discharged_mwh": round(float(np.mean([b["discharged_mwh"] for b in beh])), 1) if beh else None,
         "cop_late": round(float(np.mean([b["cop_late"] for b in beh])), 2) if beh else None,
+        "submissions_by_day": mean_counter([b["by_day"] for b in beh]),
+        "day_lines": {dj: {k: round(float(np.mean([b["day_lines"].get(dj, {}).get(k, 0.0) for b in beh])), 2)
+                           for k in dict.fromkeys(k for b in beh for k in b["day_lines"].get(dj, {}))}
+                      for dj in dict.fromkeys(dj for b in beh for dj in b["day_lines"])},
+        "ancillary": {"offers_accepted": mean_counter([x["accepted"] for x in anc]),
+                      "rejected_codes_total": sum_counter([x["rejected_codes"] for x in anc]),
+                      "empty_as_flagged_total": sum(x.get("empty_as_flagged", 0) for x in anc),
+                      "dam_award_mwh": mean_counter([x["dam_mwh"] for x in anc]),
+                      "rt_award_mwh": mean_counter([x["rt_mwh"] for x in anc]),
+                      "episodes_with_awards": sum(1 for x in anc if x["dam_mwh"] or x["rt_mwh"])}
+        if (anc := [b["ancillary"] for b in beh if b["ancillary"]]) else None,
         "cost_usd": {"per_episode": round(float(np.mean(num("cost_usd"))), 4) if tids else None,
                      "total_scored": round(float(np.sum(num("cost_usd"))), 4),
                      "total_all_attempts": round(sum((r.get("usage") or {}).get("cost_usd", 0.0)
@@ -269,6 +324,54 @@ def series_for(pack: str, tid: str, layer: str, ep: dict) -> dict | None:
     return series if task["task_id"] == tid else None
 
 
+def impact_rows(ep: dict, series: dict) -> list[tuple[float, float]]:
+    """(awarded DAM MW, seen − real node DAM price) per awarded hour of an episode."""
+    out = []
+    for d in ep["dates"]:
+        real = (series.get("dam_spp") or {}).get(d)
+        if not real:
+            continue
+        for a, seen, x in zip(ep["dam"][d]["award_mw"], ep["dam"][d]["spp"], real, strict=False):
+            if a and seen is not None and x is not None:
+                out.append((float(a), float(seen) - float(x)))
+    return out
+
+
+def impact_block(rows: list[tuple[float, float]], n_eps: int) -> dict:
+    sell = [(a, d) for a, d in rows if a > 0]
+    buy = [(a, d) for a, d in rows if a < 0]
+
+    def wmean(xs):
+        w = sum(abs(a) for a, _ in xs)
+        return round(sum(abs(a) * d for a, d in xs) / w, 4) if w else None
+
+    return {"sales_mwh_weighted_usd_per_mwh": wmean(sell), "purchases_mwh_weighted_usd_per_mwh": wmean(buy),
+            "sales_mwh_per_episode": round(sum(a for a, _ in sell) / max(1, n_eps), 1),
+            "purchases_mwh_per_episode": round(-sum(a for a, _ in buy) / max(1, n_eps), 1),
+            "revenue_effect_usd_per_episode": round(sum(a * d for a, d in rows) / max(1, n_eps), 2),
+            "max_abs_usd_per_mwh": round(max((abs(d) for _, d in rows), default=0.0), 4),
+            "awarded_hours": len(rows), "hours_moved_over_1c": sum(abs(d) > 0.01 for _, d in rows)}
+
+
+def price_impact(runs: dict, pack: str, layer: str) -> dict:
+    """Re-cleared minus real node DAM price over each policy's awarded DAM hours (v5), the anchor replayed."""
+    out, cache = {}, {}
+    tasks = {t["task_id"]: t for t in load_tasks(pack)}
+    for name, run in runs.items():
+        rows = []
+        for tid, ep in run["episodes"].items():
+            if tid not in tasks:
+                continue
+            cache.setdefault(tid, load_series(pack, tasks[tid]))
+            rows += impact_rows(ep, cache[tid])
+        out[name] = impact_block(rows, len(run["episodes"]))
+    rows = []
+    for tid, ser in cache.items():
+        rows += impact_rows(policies.run(tasks[tid], ser, "anchor", layer=layer).episode(), ser)
+    out["anchor"] = impact_block(rows, len(cache))
+    return out
+
+
 def date_span(dates: list[str]) -> str:
     a, b = dt.date.fromisoformat(dates[0]), dt.date.fromisoformat(dates[-1])
     return a.strftime("%a %d %b %Y") if a == b else f"{a.strftime('%a %d')} – {b.strftime('%a %d %b %Y')}"
@@ -276,7 +379,7 @@ def date_span(dates: list[str]) -> str:
 
 def gz_copy(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    with open(src, "rb") as f, gzip.open(dst, "wb", compresslevel=9) as g:
+    with open(src, "rb") as f, gzip.GzipFile(dst, "wb", compresslevel=9, mtime=0) as g:
         shutil.copyfileobj(f, g)
 
 
@@ -370,9 +473,11 @@ def fig_bars(summary: dict, path: Path, mode: str) -> None:
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: money_s(v)))
         for s in ax.spines.values():
             s.set_visible(False)
-        ax.set_xlabel(f"mean P per battery-day ($, settled statement), 95% day-block CI, n = {summary['n_tasks']}",
+        ax.set_xlabel(f"mean P per {summary.get('unit', 'battery-day')} ($, settled statement), 95% "
+                      f"{summary.get('block_name', 'day')}-block CI, n = {summary['n_tasks']}",
                       fontsize=9)
-        ax.set_title(f"Mean P per battery-day on {summary['pack']}: models (bold) against the references",
+        ax.set_title(f"Mean P per {summary.get('unit', 'battery-day')} on {summary['pack']}: models (bold) against "
+                     "the references",
                      loc="left", fontsize=11, color=th["ink"], pad=14)
         fig.tight_layout()
         fig.savefig(path, dpi=200)
@@ -403,6 +508,8 @@ def turn_label(ep: dict, turn: dict) -> str:
         seen[c["tool"]] += 1
     groups = {}
     for s in subs:
+        if s.get("as"):
+            continue
         g = groups.setdefault((s["tool"], s.get("day") if len(ep.get("dates", [])) > 1 else None, s["accepted"]),
                               {"hours": set(), "codes": []})
         g["hours"].update(s.get("hours") or [])
@@ -410,9 +517,14 @@ def turn_label(ep: dict, turn: dict) -> str:
     for (tool, day, ok), g in groups.items():
         what = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT curves", "update_cop": "COP"}.get(tool, tool)
         hrs = g["hours"]
-        span = f" HE{min(hrs)}–{max(hrs)}" if hrs and tool != "update_cop" else ""
+        span = "" if not hrs or tool == "update_cop" else \
+            f" HE{min(hrs)}" if min(hrs) == max(hrs) else f" HE{min(hrs)}–{max(hrs)}"
         acts.append(f"{what}{f' {day}' if day else ''}{span}"
                     + ("" if ok else f" (rejected {','.join(g['codes'][:2])})"))
+    for c in turn["calls"]:
+        res = c.get("result") if isinstance(c.get("result"), dict) else {}
+        if c["tool"] in ("submit_dam_offers", "submit_rt_offers") and res.get("as_accepted"):
+            acts.append(f"AS {'DAM' if c['tool'] == 'submit_dam_offers' else 'RT'} " + ", ".join(res["as_accepted"]))
     for c in turn["calls"]:
         if c["tool"] == "set_reminder" and c.get("ok"):
             at = (c.get("args") or {}).get("at")
@@ -459,7 +571,7 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
     with plt.rc_context(theme_rc(th)):
         fig = plt.figure(figsize=(14, 7.6))
         gs = fig.add_gridspec(3, 2, width_ratios=[3.1, 1.25], height_ratios=[1.25, 1.0, 0.8], hspace=0.12,
-                              wspace=0.04, left=0.06, right=0.99, top=0.80, bottom=0.08)
+                              wspace=0.1, left=0.06, right=0.99, top=0.80, bottom=0.08)
         ax_p, ax_s, ax_d = (fig.add_subplot(gs[i, 0]) for i in range(3))
         ax_t = fig.add_subplot(gs[:, 1])
         ax_t.axis("off")
@@ -486,9 +598,26 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
                           textcoords="offset points", fontsize=8, color=th["muted"], va="top")
         ax_p.set_ylim(bot, top)
         ax_p.set_ylabel("$/MWh", fontsize=9)
+        if series and series.get("dam_spp") and all(d in series["dam_spp"] for d in dates):
+            real = np.concatenate([[np.nan if x is None else x for x in series["dam_spp"][d]] for d in dates])
+            dlt = (dam - real) * 100
+            if np.nanmax(np.abs(dlt)) > 1e-6:
+                ax_i = ax_p.twinx()
+                ax_i.bar(th_[:-1] + 30, np.nan_to_num(dlt), width=50, color=accent, alpha=0.55, zorder=1,
+                         label="re-cleared − real DAM price (¢/MWh, right)")
+                lim = float(np.nanmax(np.abs(dlt))) * 2.4
+                ax_i.set_ylim(-lim, lim)
+                ax_i.set_ylabel("¢/MWh", fontsize=9)
+                ax_i.tick_params(length=0, labelsize=8.5, colors=th["muted"])
+                for sp in ax_i.spines.values():
+                    sp.set_visible(False)
+                ax_i.legend(loc="upper right", fontsize=8.5, frameon=False, bbox_to_anchor=(1, 0.99))
         span_x = 1440 * nd - t0 * k
         lanes: list[float] = []
+        keep = {x[0] for x in shown} if len(items) > 30 else {x[0] for x in items}
         for i, w, _, acted in items:
+            if i not in keep:
+                continue
             x = w["t"] * k if w["t"] < 0 else w["t"]
             level = next((j for j, v in enumerate(lanes) if x - v >= 0.017 * span_x), len(lanes))
             if level >= 4:
@@ -517,10 +646,21 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
         ax_d.fill_between(t5, 0, np.where(metered < 0, metered, 0), step="post", color=th["charge"], lw=0,
                           alpha=0.85, zorder=2, label="charge")
         ax_d.step(th_, np.append(award, award[-1]), where="post", color=th["ink"], lw=1.0, zorder=3, label="DAM award")
+        aw = {}
+        for key, n in (("dam", 24), ("rt", 288)):
+            rows = [i or {} for d in dates for i in (ep[key][d].get("as_award_mw") or [{}] * n)]
+            up = np.array([sum(v or 0.0 for k, v in i.items() if k != "regdn") for i in rows])
+            dn = np.array([-(i.get("regdn") or 0.0) for i in rows])
+            aw[key] = (up, dn) if key == "dam" else (up.reshape(-1, 12).mean(1), dn.reshape(-1, 12).mean(1))
+        src = "RT" if aw["rt"][0].any() or aw["rt"][1].any() else "DAM"
+        for y, lab in zip(aw[src.lower()], ("AS up", "RegDn"), strict=True):
+            if y.any():
+                ax_d.fill_between(th_, 0, np.append(y, y[-1]), step="post", color=th["muted"], alpha=0.22, lw=0,
+                                  zorder=1, label=f"{lab} award ({src}, hourly)")
         ax_d.axhline(0, color=th["muted"], lw=0.6)
         ax_d.set_ylim(ep["site"]["lsl_mw"] * 1.1, ep["site"]["hsl_mw"] * 1.5)
         ax_d.set_ylabel("MW", fontsize=9)
-        ax_d.legend(loc="upper left", fontsize=8.5, frameon=False, ncol=3)
+        ax_d.legend(loc="upper left", fontsize=8, frameon=False, ncol=4)
         ticks = ([t for t in ((-1080, -360) if nd == 1 else (-1080,)) if t >= t0] if t0 < 0 else []) + \
             [d * 1440 + h for d in range(nd) for h in (0, 360, 720, 1080)] + [1440 * nd]
         names = []
@@ -568,11 +708,12 @@ def fig_hero(ep: dict, series: dict | None, name: str, label: str, path: Path, m
 
 def bullets(summary: dict) -> list[str]:
     ms, refs, out = summary["models"], summary["references"], []
+    unit = summary.get("unit", "battery-day")
     order = sorted(ms, key=lambda k: -(ms[k]["P"]["mean"] or -1e18))
     if order:
         top = order[0]
         m = ms[top]
-        out.append(f"{NAMES.get(top, top)} has the highest mean P, {money_s(m['P']['mean'])} per battery-day "
+        out.append(f"{NAMES.get(top, top)} has the highest mean P, {money_s(m['P']['mean'])} per {unit} "
                    f"(R {m['R']['mean']:.2f}, C {m['C']['mean']:.2f}), against the anchor's "
                    f"{money_s(refs['anchor']['P']['mean'])} and the hindsight optimum's "
                    f"{money_s(refs['hind']['P']['mean'])}.")
@@ -582,14 +723,14 @@ def bullets(summary: dict) -> list[str]:
         if g["mean"] is not None:
             side = "above" if g["ci"][0] > 0 else "below" if g["ci"][1] < 0 else "level with"
             out.append(f"{NAMES.get(k, k)} is {side} the anchor: {fmt_ci(g, money=True, signed=True)} per "
-                       f"battery-day; it beats the anchor on {pct(m['beats_anchor_share'])} of tasks.")
+                       f"{unit}; it beats the anchor on {pct(m['beats_anchor_share'])} of tasks.")
     for b in summary["paired"].values():
         if b["b"] == "operator_replay" or b["P"]["mean"] is None:
             continue
         a, c = b["a"], b["b"]
         if b["P"]["ci"][0] > 0 or b["P"]["ci"][1] < 0:
             out.append(f"{NAMES.get(a, a)} − {NAMES.get(c, c)}: {fmt_ci(b['P'], money=True, signed=True)} per "
-                       f"battery-day; the CI excludes zero.")
+                       f"{unit}; the CI excludes zero.")
         else:
             out.append(f"{NAMES.get(a, a)} − {NAMES.get(c, c)}: {fmt_ci(b['P'], money=True, signed=True)}; the CI "
                        f"includes zero.")
@@ -654,6 +795,47 @@ def sensitivity(grades: dict, days: dict, union: dict, exclude: list[str]) -> di
     return out
 
 
+def days_md(ms: dict) -> str:
+    dj = list(dict.fromkeys(d for m in ms.values() for d in m.get("day_lines") or {}))
+    if len(dj) < 2:
+        return ""
+    sub = table(["model", *[f"DAM {d}" for d in dj], *[f"RT {d}" for d in dj]],
+                [[NAMES.get(k, k), *[f"{m['submissions_by_day'].get(f'dam:{d}', 0):.2f}" for d in dj],
+                  *[f"{m['submissions_by_day'].get(f'rt:{d}', 0):.2f}" for d in dj]] for k, m in ms.items()])
+    lines = list(dict.fromkeys(ln for m in ms.values() for d in dj for ln in m["day_lines"].get(d, {})))
+    head = ["line", *[f"{NAMES.get(k, k)} {d}" for k in ms for d in dj]]
+    body = [[ln, *[money_s(ms[k]["day_lines"].get(d, {}).get(ln, 0.0), signed=True) for k in ms for d in dj]]
+            for ln in lines if any(ms[k]["day_lines"].get(d, {}).get(ln) for k in ms for d in dj)]
+    body.append(["**P**", *[f"**{money_s(sum(ms[k]['day_lines'].get(d, {}).values()), signed=True)}**"
+                            for k in ms for d in dj]])
+    return "\n".join(["### By operating day of the window (mean per window)", "",
+                      "Accepted energy submissions per window, by the day they are for:", "", sub, "",
+                      "Statement lines by day:", "", table(head, body), "", ""])
+
+
+def as_md(ms: dict) -> str:
+    rows = []
+    for k, m in ms.items():
+        a = m.get("ancillary")
+        if not a:
+            continue
+        prods = [p for p in AS_LABEL if any(p in a[f] or f"dam:{p}" in a[f] or f"rt:{p}" in a[f]
+                                            for f in ("offers_accepted", "dam_award_mwh", "rt_award_mwh"))]
+        for p in prods:
+            rows.append([NAMES.get(k, k), AS_LABEL[p], f"{a['offers_accepted'].get(f'dam:{p}', 0):.2f}",
+                         f"{a['offers_accepted'].get(f'rt:{p}', 0):.2f}", f"{a['dam_award_mwh'].get(p, 0):,.1f}",
+                         f"{a['rt_award_mwh'].get(p, 0):,.1f}"])
+        codes = ", ".join(f"{c} ×{v}" for c, v in list(a["rejected_codes_total"].items())[:4]) or "none"
+        rows.append([NAMES.get(k, k), "all", "", "", "", f"{a['episodes_with_awards']}/{m['n']} episodes with an AS "
+                     f"award; AS offers refused: {codes}; empty `as_offers` list flagged (env defect, energy "
+                     f"unaffected): {a.get('empty_as_flagged_total', 0)} calls"])
+    if not rows:
+        return ""
+    return "\n".join(["### Ancillary services (mean per episode)", "",
+                      table(["model", "product", "DAM submissions accepted", "RT submissions accepted",
+                             "DAM award MWh", "RT award MWh"], rows), "", ""])
+
+
 def sens_md(summary: dict) -> str:
     sv, ms = summary.get("sensitivity"), summary["models"]
     if not sv:
@@ -674,15 +856,70 @@ def sens_md(summary: dict) -> str:
                           fmt_ci(v["R"], digits=2) if "R" in v else "—", fmt_ci(v["C"], digits=2) if "C" in v else "—",
                           fmt_ci(v["C_phys"], digits=2) if "C_phys" in v else "—"]
                          for g in ("models", "references") for k, v in w["means"][g].items()])]
-    parts += ["", "Mean P per operating day:", "",
-              table(["day", *lm.values(), *lr.values()],
+    blk = summary.get("block_name", "day")
+    parts += ["", f"Mean P per {'operating day' if blk == 'day' else blk}:", "",
+              table([blk, *lm.values(), *lr.values()],
                     [[d, *["—" if v is None else money_s(v) for v in [*row["models"].values(),
                                                                      *row["references"].values()]]]
                      for d, row in sv["per_day_mean_P"].items()]),
-              "", table(["model", "tasks with P < 0", "days with mean P < 0", "worst task", "worst P"],
+              "", table(["model", "tasks with P < 0", f"{blk}s with mean P < 0", "worst task", "worst P"],
                         [[lm[k], str(v["tasks_p_below_0"]), str(v["days_mean_p_below_0"]), v["worst_task"],
                           money_s(v["worst_p"])] for k, v in sv["losses"].items()]), ""]
     return "\n".join(parts) + "\n"
+
+
+def versus(spec: str, grades: dict, days: dict) -> dict:
+    label, _, d = spec.partition("=")
+    rows = [json.loads(x) for x in gzip.open(Path(d) / "grades.jsonl.gz", "rt")]
+
+    def key(tid: str) -> str:
+        return re.sub(r"^desk-v\d+-", "", tid)
+
+    prev = {(r["model"], key(r["task_id"])): r for r in rows}
+    out = {}
+    for m, gs in grades.items():
+        ts = [t for t in sorted(gs) if (m, key(t)) in prev]
+        dd = [days[t] for t in ts]
+        b = {"n": len(ts), "P": paired([gs[t]["p"] for t in ts], [prev[(m, key(t))]["p"] for t in ts], dd),
+             "R": paired([gs[t]["reward"] for t in ts], [prev[(m, key(t))]["reward"] for t in ts], dd)}
+        cc = [t for t in ts if gs[t]["capture"] is not None and prev[(m, key(t))]["capture"] is not None]
+        b["C"] = paired([gs[t]["capture"] for t in cc], [prev[(m, key(t))]["capture"] for t in cc],
+                        [days[t] for t in cc])
+        out[m] = b
+    return {"label": label, "source": d, "models": out}
+
+
+def versus_md(summary: dict) -> str:
+    v = summary.get("versus")
+    if not v:
+        return ""
+    lay = summary["layer"]
+    return "\n".join([f"### Paired {lay} − {v['label']} (same battery-days, same model)", "",
+                      table(["model", "n", "Δ P", "Δ R", "Δ C", f"{lay} ahead (tasks)"],
+                            [[NAMES.get(k, k), str(b["n"]), fmt_ci(b["P"], money=True, signed=True),
+                              fmt_ci(b["R"], signed=True, digits=2), fmt_ci(b["C"], signed=True, digits=2),
+                              pct(b["P"].get("ahead"))] for k, b in v["models"].items()]), "", ""])
+
+
+def impact_md(summary: dict) -> str:
+    im = summary.get("price_impact")
+    if not im:
+        return ""
+
+    def c(v):
+        return "—" if v is None else f"{v * 100:+.2f}¢".replace("-", "−")
+
+    return "\n".join(["### DAM price impact (re-cleared minus real node DAM price, awarded hours)", "",
+                      table(["policy", "sales MWh / episode", "price move on sales ($/MWh, MWh-weighted)",
+                             "purchases MWh / episode", "price move on purchases", "largest move (absolute)",
+                             "revenue effect $ / episode", "awarded hours moved > 1¢"],
+                            [[NAMES.get(k, k) if k != "anchor" else "anchor (information-matched)",
+                              f"{b['sales_mwh_per_episode']:,.1f}", c(b["sales_mwh_weighted_usd_per_mwh"]),
+                              f"{b['purchases_mwh_per_episode']:,.1f}", c(b["purchases_mwh_weighted_usd_per_mwh"]),
+                              f"{b['max_abs_usd_per_mwh'] * 100:.2f}¢",
+                              money_s(b["revenue_effect_usd_per_episode"], signed=True),
+                              f"{b['hours_moved_over_1c']}/{b['awarded_hours']}"] for k, b in im.items()]),
+                      "", ""])
 
 
 def plural(n: int) -> str:
@@ -733,24 +970,34 @@ def readme(summary: dict, out: Path, notes: list[str] | None) -> str:
                          for k, m in ms.items())
     attempts = ", ".join(f"{NAMES.get(k, k)} ${m['cost_usd']['total_all_attempts']:.2f} ({m['cost_usd']['attempts']})"
                          for k, m in ms.items())
+    defects = "".join(f"- Known env defects (frozen for this version): {d}\n" for d in summary.get("defects") or [])
+    defects += "".join(f"- Deviation: {d}\n" for d in summary.get("deviations") or [])
+    if summary.get("block_alias"):
+        defects += ("- Bootstrap blocks: " + ", ".join(f"windows starting {k} count in block {v}"
+                                                     for k, v in summary["block_alias"].items()) + ".\n")
     pilot = ""
     if summary.get("pilot"):
-        pilot = "\n## Pilot\n\n" + table(
+        note = summary.get("pilot_note") or "The pilot pack, graded as the runner wrote it (not in the tables above)."
+        pilot = f"\n## Pilot\n\n{note}\n\n" + table(
             ["task", "policy", "R", "C", "P", "anchor", "operator replay", "turns", "$"],
-            [[p["task_id"], p["tag"], f"{p['reward']:.2f}", "—" if p["capture"] is None else f"{p['capture']:.2f}",
+            [[p["task_id"], p["tag"], f"{p['reward']:.2f}",
+              "—" if p["capture"] is None else f"{p['capture']:.2f}".replace("-", "−"),
               money_s(p["p"]), money_s(p["p_anchor"]),
               "—" if p["p_operator_replay"] is None else money_s(p["p_operator_replay"]), str(p["turns"]),
               f"${p['cost_usd']:.2f}"] for p in summary["pilot"]]) + "\n"
-    fig = ("![Mean P per battery-day against the references](figures/p-bars.png)\n\n"
+    unit, blk = summary.get("unit", "battery-day"), summary.get("block_name", "day")
+    blocks = "operating day" if blk == "day" else blk
+    summed = " (summed over its days)" if unit != "battery-day" else ""
+    fig = (f"![Mean P per {unit} against the references](figures/p-bars.png)\n\n"
            + (f"![{summary['hero']['model']} on {summary['hero']['task_id']}](figures/hero.png)\n"
               if summary.get("hero") else ""))
     return f"""# GridSimEnv desk {lay}: results on `{summary['pack']}`
 
-{summary['n_tasks']} battery-days ({summary['n_days']} operating days), {len(ms)} models. P is the settled ERCOT
-statement in $ per battery-day; R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
+{summary['n_tasks']} {unit}s ({summary['n_days']} {blocks}s), {len(ms)} models. P is the settled ERCOT
+statement in $ per {unit}{summed}; R the contract reward (anchor = 1.0, idle = 0.2); C the hindsight capture
 (P − P_idle)/(P_hind − P_idle); C_phys the same against the hindsight optimum with its DAM position tied to dispatch.
 "floored" counts tasks whose reward scale is floored at 10% of (P_hind_phys − P_idle) because the anchor
-earns less (contract §9.1). Brackets are 95% day-block CIs.
+earns less (contract §9.1). Brackets are 95% {blk}-block CIs.
 
 {t1}
 
@@ -762,7 +1009,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t3}
 
-### Statement lines (mean $ per battery-day)
+### Statement lines (mean $ per {unit})
 
 {t4}
 
@@ -770,7 +1017,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 
 {t5}
 
-{sens_md(summary)}
+{versus_md(summary)}{impact_md(summary)}{days_md(ms)}{as_md(ms)}{sens_md(summary)}
 {fig}
 ## What the numbers say
 
@@ -778,12 +1025,12 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
 {pilot}
 ## Method
 
-- Pack `{summary['pack']}`, layer {lay}: {summary['n_tasks']} tasks, {summary['n_days']} operating days,
+- Pack `{summary['pack']}`, layer {lay}: {summary['n_tasks']} tasks, {summary['n_days']} {blocks}s,
   {meth['sites']} site{plural(meth['sites'])}, era{plural(len(meth['eras']))} {', '.join(meth['eras'])}.
   Every model plays every task once (`scripts/desk_run.py`, path B', the in-process Session); {meth['grading']}.
 - Settings: {settings}.
 - Budgets per episode: {meth['budget']}.
-- CIs: day-block bootstrap, {B:,} resamples of operating days, seed {SEED}, task-weighted means (as
+- CIs: {blk}-block bootstrap, {B:,} resamples of {blocks}s, seed {SEED}, task-weighted means (as
   `results/train/4b-blind`); paired gaps resample days over the tasks both sides played. "days ahead" counts days whose
   mean gap is positive.
 - References are settled by the same clearing, physics and settlement code (contract §9.2): idle, the
@@ -791,7 +1038,7 @@ earns less (contract §9.1). Brackets are 95% day-block CIs.
   dispatch, the operator's disclosed curves replayed through our clearing, and the operator's disclosed awards and
   telemetry settled directly.
 - Cost is the runner's metered API cost of the scored attempts; all attempts (count): {attempts}.
-- Raw outputs: `runs/<model>/results.jsonl.gz`, `episodes/<model>/*.json.gz` (Episode JSON
+{defects}- Raw outputs: `runs/<model>/results.jsonl.gz`, `episodes/<model>/*.json.gz` (Episode JSON
   `gridsim.desk.episode/v1`){meth['calls_note']}. Core {meth['core_versions']}.
 """
 
@@ -807,6 +1054,14 @@ def main() -> None:
     ap.add_argument("--hero", help="MODEL or MODEL:TASK_ID for the timeline (default: the best Sol episode by C)")
     ap.add_argument("--exclude-day", action="append", default=[], metavar="DATE",
                     help="post hoc: also report means without these operating days (Sensitivity section)")
+    ap.add_argument("--block-alias", action="append", default=[], metavar="DATE=BLOCK",
+                    help="bootstrap block for windows starting on DATE (e.g. two windows of one front)")
+    ap.add_argument("--deviation", action="append", default=[], help="a deviation from the prereg, under the method")
+    ap.add_argument("--pilot-note", help="a line printed above the pilot table")
+    ap.add_argument("--compare", metavar="LABEL=DIR",
+                    help="a previous results folder on the same battery-days: paired (this − that) per model")
+    ap.add_argument("--price-impact", action="store_true", help="v5: re-cleared minus real DAM price per policy")
+    ap.add_argument("--defect", action="append", default=[], help="a known env defect, listed under the method")
     ap.add_argument("--notes", help="a file of README bullets (one per line) instead of the generated ones")
     ap.add_argument("--no-copy", action="store_true")
     ap.add_argument("--out", required=True)
@@ -824,6 +1079,7 @@ def main() -> None:
     refs_by = {t: x["refs"] for t, x in pack_tasks.items() if x.get("refs")}
     if a.refs:
         refs_by.update({x["task_id"]: x["refs"] for x in read_jsonl(Path(a.refs))})
+    blocks = dict(x.split("=", 1) for x in a.block_alias)
     grades, days, eps_any = {}, {}, {}
     regraded, diffs, unrefd = Counter(), [], Counter()
     for name, run in runs.items():
@@ -845,7 +1101,7 @@ def main() -> None:
                     diffs.append({"model": name, "task_id": tid, "changed": d})
                 g = g2
             grades[name][tid] = g
-            days[tid] = days_of(tid, ep)
+            days[tid] = blocks.get(days_of(tid, ep), days_of(tid, ep))
             if ep:
                 eps_any.setdefault(tid, ep)
     union = {}
@@ -894,9 +1150,15 @@ def main() -> None:
             dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "n_tasks": len(union), "n_days": len(set(days[t] for t in union)),
         "missing": {name: sorted(set(pack_tasks) - set(grades[name])) for name in runs} if pack_tasks else None,
-        "ci": {"method": "day-block bootstrap, task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
+        "ci": {"method": "block bootstrap over operating days (multi-day windows: the block named block_name), "
+                         "task-weighted", "resamples": B, "seed": SEED, "level": 0.95},
         "models": models, "references": ref_block(union, days), "paired": pairs, "pilot": pilot or None,
-        "sensitivity": sensitivity(grades, days, union, a.exclude_day),
+        "sensitivity": sensitivity(grades, days, union, a.exclude_day), "defects": a.defect or None,
+        "deviations": a.deviation or None,
+        "block_name": "day" if max((len(e.get("dates", [])) for e in eps_any.values()), default=1) == 1 else "front",
+        "unit": "battery-day" if (wd := max((len(e.get("dates", [])) for e in eps_any.values()), default=1)) == 1
+        else f"{wd}-day window",
+        "pilot_note": a.pilot_note, "block_alias": blocks or None,
         "regraded": {"applied": a.regrade, "refs": a.refs or ("pack task rows" if a.regrade else None),
                      "reward_changed": dict(regraded), "not_regraded": dict(unrefd), "diffs": diffs,
                      "anchor_settings": dict(Counter(json.dumps(x.get("anchor_setting"), sort_keys=True)
@@ -916,6 +1178,10 @@ def main() -> None:
                                   "; per-call logs `runs/<model>/calls/*.jsonl.gz`") if copies else "",
                    "calls_mb": calls_mb},
     }
+    if a.compare:
+        summary["versus"] = versus(a.compare, grades, days)
+    if a.price_impact:
+        summary["price_impact"] = price_impact(runs, a.pack, a.layer)
     hero = pick_hero(summary, runs, grades, a.hero)
     if hero:
         name, tid = hero
@@ -932,9 +1198,8 @@ def main() -> None:
         summary["hero"] = {"model": name, "task_id": tid, "operator_soc": ser is not None, "label": label}
     for mode, suf in (("light", ""), ("dark", "-dark")):
         fig_bars(summary, out / "figures" / f"p-bars{suf}.png", mode)
-    with gzip.open(out / "grades.jsonl.gz", "wt") as f:
-        for row in grade_rows(runs, grades, days):
-            f.write(json.dumps(row) + "\n")
+    with gzip.GzipFile(out / "grades.jsonl.gz", "wb", mtime=0) as f:
+        f.write("".join(json.dumps(row) + "\n" for row in grade_rows(runs, grades, days)).encode())
     (out / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     notes = [x.strip().lstrip("- ") for x in Path(a.notes).read_text().splitlines() if x.strip()] if a.notes else None
     (out / "README.md").write_text(readme(summary, out, notes))

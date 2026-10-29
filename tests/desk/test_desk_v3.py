@@ -139,3 +139,16 @@ def test_hub_sced_lmp_in_v3():
     v2.start()
     v2.advance_to(700)
     assert "error" in v2.call("get_prices", {"market": "sced", "point": "hub"})
+
+
+def test_empty_as_offers_mean_none(post3):
+    s = Session(*post3)
+    s.start()
+    c = [{"hours": "HE01-HE02", "points": [[0, -250], [0, 2000]]}]
+    for tool in ("submit_dam_offers", "check_submission"):
+        args = {"curves": c, "as_offers": []}
+        out = s.call(tool, args if tool != "check_submission" else {"kind": "dam", "payload": args})
+        assert out["accepted_hours"] == "HE01-HE02" and "as_rejected" not in out and "as_accepted" not in out
+    s.advance_to(-300)
+    out = s.call("submit_rt_offers", {"curves": c, "as_offers": []})
+    assert out["accepted_hours"] == "HE01-HE02" and "as_rejected" not in out

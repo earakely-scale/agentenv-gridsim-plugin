@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from gridsim_core.contract import P_FLOOR
+from gridsim_core.forecast_line import FORECAST_NOTE
 
 BATTERY_KEYS = ("p_dis_mw", "p_ch_mw", "energy_mwh", "unit_mwh", "k_dis", "k_ch", "soc_levels", "eta", "c_deg",
                 "cycle_cap_units", "s0", "s_end_min")
@@ -42,8 +43,11 @@ Profit = the sum of hourly cash - the end penalty. Make it as large as you can."
 _ACTIONS = "actions is a list of exactly 24 integers, HE01 first, for example [0, -2, -2, 0, ..., 3, 3, 0]."
 
 
-def system_prompt(task: dict, tier: str = "foresight", checks: int = 3) -> str:
-    """The system prompt for a tier and a check budget (the text does not depend on the task's numbers)."""
+def system_prompt(task: dict, tier: str = "foresight", checks: int = 3, forecast: bool = False) -> str:
+    """The system prompt for a tier and a check budget (the text does not depend on the task's numbers); forecast
+    adds the blind tier's forecast-first paragraph (forecast-then-plan)."""
+    if forecast and tier != "blind":
+        raise ValueError("the forecast-first paragraph is for the blind tier")
     tools = ["Tools"]
     if checks:
         what = "feasibility, the SoC path, any end shortfall" + (" and the profit" if tier == "foresight" else
@@ -53,7 +57,7 @@ def system_prompt(task: dict, tier: str = "foresight", checks: int = 3) -> str:
     tools.append("- submit_schedule(actions): submits your final schedule and ends the episode. You submit once.")
     tools.append(_ACTIONS)
     tools.append("Finish by calling submit_schedule.")
-    return "\n\n".join([_INTRO + " " + _SEE[tier], _RULES, "\n".join(tools)])
+    return "\n\n".join([_INTRO + " " + _SEE[tier], _RULES, "\n".join(tools)] + ([FORECAST_NOTE] if forecast else []))
 
 
 def situation(task: dict, tier: str = "foresight", checks: int = 3) -> dict:
@@ -75,9 +79,9 @@ def situation_text(task: dict, tier: str = "foresight", checks: int = 3) -> str:
     return json.dumps(situation(task, tier, checks), separators=(", ", ": "))
 
 
-def messages(task: dict, tier: str = "foresight", checks: int = 0) -> list[dict]:
+def messages(task: dict, tier: str = "foresight", checks: int = 0, forecast: bool = False) -> list[dict]:
     """[system, user] chat messages for a one-shot episode (path B and the oneshot bundle)."""
-    return [{"role": "system", "content": system_prompt(task, tier, checks)},
+    return [{"role": "system", "content": system_prompt(task, tier, checks, forecast)},
             {"role": "user", "content": situation_text(task, tier, checks)}]
 
 

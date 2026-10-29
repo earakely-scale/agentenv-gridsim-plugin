@@ -5,17 +5,19 @@ hybrid pack's site-days on gridsim-hybrid (hybrid_tasks), a forecast pack's wind
 (forecast_tasks), a market pack's floors on gridsim-market (market_tasks)."""
 
 import json
+import shutil
 from importlib.resources import files
 from pathlib import Path
 
 import click
+import numpy as np
 
 from gridsim_core.forecast import TIERS as FORECAST_TIERS
 from gridsim_core.hybrid import TIERS as HYBRID_TIERS
 from gridsim_core.live import TIERS as LIVE_TIERS
 from gridsim_core.market import TIERS as MARKET_TIERS
 from gridsim_core.prompt import messages
-from gridsim_core.task import data_root
+from gridsim_core.task import data_root, load_pack
 
 from . import forecast_tasks, hybrid_tasks, live_tasks, market_tasks
 from .forecast import FORECAST_PACK_NAMES
@@ -204,3 +206,84 @@ def generate_command(pack: str, tier: str | None, compliant: bool, bundle: str, 
         raise click.UsageError(f"{pack} has no {tier} tasks" + (f" at {zone}" if zone else ""))
     click.echo(f"Wrote {len(names)} tasks into {out}; play one with: agent-env run {out} --task {names[0]} "
                "--model <litellm model id>")
+
+
+TRAINING_PACK = "gridsim-v1"
+TRAIN_PACK, EVAL_PACK = "ercot-dam-v1-train", "ercot-dam-v1-eval"
+N_TRAIN, N_EVAL = 2000, 200
+TRAINING_DOCKERFILE = files("agentenv_gridsim") / "training-pack.Dockerfile"
+TRAINING_VERIFY = files("agentenv_gridsim") / "training-pack-verify.py"
+# The env image's code: the server and what it imports, without the viewer's assets or the plugin's own bundles.
+SOURCE_PACKAGES = ("gridsim_core", "agentenv_gridsim")
+NOT_IN_IMAGE = shutil.ignore_patterns("__pycache__", "*.pyc", "web", "bundles", "data", "training-pack*")
+
+
+def training_rows(n_train: int = N_TRAIN, n_eval: int = N_EVAL) -> dict[str, list[dict]]:
+    """The training bundle's splits: ``n_train`` foresight days of the train pack in a seeded sample, and the first
+    ``n_eval`` days of the eval pack in the seeded order the registered training runs scored (``default_rng(20251)``),
+    so a model trained on the bundle is scored on the same days as path B's."""
+    train = eligible(pack_rows(TRAIN_PACK), "foresight")
+    every_eval = load_pack(EVAL_PACK)
+    return {"train": [train[i] for i in np.random.default_rng(0).permutation(len(train))[:n_train]],
+            "eval": [every_eval[i] for i in np.random.default_rng(20251).permutation(len(every_eval))[:n_eval]]}
+
+
+def training_pack(out: Path, n_train: int = N_TRAIN, n_eval: int = N_EVAL) -> list[str]:
+    """Writes the self-contained GridSim v1 training bundle into ``out`` and returns its task ids: one-shot foresight
+    battery-days (submit_schedule only, as path B trains) in a train and an eval split, the verifier, and the env built
+    from this checkout's code and the v1 packs, which `agent_env.openenv.build_app` and `AgentEnv.local` serve with no
+    GridSim setup."""
+    splits = training_rows(n_train, n_eval)
+    root = data_root().parent
+    _write(out / "README.md", f"""GridSim v1 for training: run one grid battery for one day in the ERCOT day-ahead \
+market, on the day's 24 hourly prices, and submit a 24-hour schedule; it is graded exactly against the DP optimum, \
+from 0 (nothing useful) through 0.2 (idle) to 1 (the optimum). {len(splits["train"])} train and \
+{len(splits["eval"])} eval battery-days of GridSimEnv's v1 packs at the foresight tier, one-shot: the situation is \
+in the prompt, and the only tool is submit_schedule.
+
+Each task deploys the env in `envs/gridsim`, loads one battery-day through `urn:gridsim:load-task/v1`, hides every \
+tool but submit_schedule, gives one agent the day, and grades its schedule with `gridsim-verifier`. A served task's \
+agent is played from outside, by TRL through `agent_env.training.trl`; the eval split is the 200 eval-2025 days \
+GridSimEnv's training runs were scored on.
+
+```python
+from agent_env.training.trl import AgentEnv
+
+env = AgentEnv.local("gridsim-v1", split="train")
+```
+
+The env image builds from `envs/gridsim`: GridSimEnv's code and the v1 train and eval packs. \
+`agent-env gridsim tasks training-pack` writes this folder.
+
+{LICENCE}
+""".encode())
+    env = out / "envs/gridsim"
+    _write(env / "Dockerfile", TRAINING_DOCKERFILE.read_bytes())
+    _write(env / "env.toml", b'environment_name = "gridsim"\nenv_provider_type = "server"\n')
+    for name in ("LICENSE", "NOTICE"):
+        _write(env / name, (root / name).read_bytes())
+    for package in SOURCE_PACKAGES:
+        shutil.copytree(Path(str(files(package))), env / package, ignore=NOT_IN_IMAGE, dirs_exist_ok=True)
+    for pack in (TRAIN_PACK, EVAL_PACK):
+        shutil.copytree(data_root() / pack, env / "packs" / pack, dirs_exist_ok=True)
+    _write(out / f"artifacts/{VERIFIER}/verify.py", TRAINING_VERIFY.read_bytes())
+    for split, rows in splits.items():
+        _write(out / "evals" / f"{split}.toml", ("tasks = [\n" + "".join(f'  "{r["task_id"]}",\n' for r in rows)
+                                                 + "]\n").encode())
+        for row in rows:
+            _write(out / "tasks" / f"{row['task_id']}.json",
+                   (json.dumps(steps(row, "foresight", "oneshot"), indent=2, ensure_ascii=False) + "\n").encode())
+    return [row["task_id"] for rows in splits.values() for row in rows]
+
+
+@tasks_group.command("training-pack")
+@click.option("--out", type=click.Path(file_okay=False, path_type=Path), default=Path("packs") / TRAINING_PACK,
+              show_default=True, help="The bundle folder to write.")
+@click.option("--train", "n_train", type=click.IntRange(min=1), default=N_TRAIN, show_default=True,
+              help="Train battery-days, a seeded sample of the train pack.")
+def training_pack_command(out: Path, n_train: int):
+    """Write the self-contained GridSim v1 training bundle: one-shot train and eval battery-days, the verifier, and
+    the env built from this checkout's code and the v1 packs, which `agent_env.openenv.build_app` and
+    `AgentEnv.local` serve with no GridSim setup."""
+    names = training_pack(out, n_train)
+    click.echo(f"Wrote {len(names)} tasks into {out}; train on it with: AgentEnv.local({str(out)!r}, split=\"train\")")

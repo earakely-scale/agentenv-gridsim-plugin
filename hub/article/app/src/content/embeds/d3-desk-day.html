@@ -1,0 +1,82 @@
+<div class="gs-deskday"></div>
+<style>
+  .gs-deskday { font-size: 12px; --c-event: #c98a12; --c-own: var(--c-sol); }
+  [data-theme="dark"] .gs-deskday { --c-event: #e7aa3c; }
+  .gs-deskday svg { display: block; width: 100%; overflow: visible; }
+  .gs-deskday .day-l { fill: var(--muted-color); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .gs-deskday .ms { stroke: var(--text-color); stroke-opacity: 0.35; }
+  .gs-deskday .ms-t { fill: var(--text-color); font-size: 11.5px; }
+  .gs-deskday .ms-s { fill: var(--muted-color); font-size: 11px; }
+  .gs-deskday .run { stroke: var(--text-color); stroke-opacity: 0.25; stroke-width: 6; stroke-linecap: round; }
+  .gs-deskday .wk { cursor: pointer; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-deskday");
+    if (!root) return;
+    const MARKET = new Set(["start", "dam_results", "adjustment_open", "checkpoint", "end"]);
+    const OWN = new Set(["reminder"]);
+    const kind = (w) => (w.reasons.some((r) => !MARKET.has(r) && !OWN.has(r)) ? "event" : w.reasons.some((r) => OWN.has(r)) ? "own" : "market");
+    const COLOR = { market: "var(--text-color)", event: "var(--c-event)", own: "var(--c-own)" };
+    const hhmm = (t) => { const m = ((t % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      const V = D.versions.find((v) => v.version === D.story_version) || D.versions.find((v) => D.gif && v.version === D.gif.version) || D.versions[D.versions.length - 1];
+      const S = V && V.story;
+      if (!S) return;
+      const tip = K.tip(root);
+      const svg = d3.select(root).append("svg").attr("class", "gs-svg");
+      const legend = d3.select(root).append("div").attr("class", "gs-legend");
+      [["market", "a market milestone"], ["event", "a notice, alert or outage"], ["own", "a reminder the agent set"]].forEach(([k, l]) => {
+        const s = legend.append("span");
+        s.append("i").style("background", COLOR[k]);
+        s.append("span").text(l);
+      });
+      legend.append("span").text("filled: the desk submitted something; size: its tool calls");
+      d3.select(root).append("div").attr("class", "gs-note").text(`One real episode: ${D.models[S.model].label} on ${S.label}. Times are Central.`);
+      function render() {
+        svg.selectAll("*").remove();
+        const W = root.clientWidth || 700, narrow = W < 560;
+        const ml = 6, mr = 10, xb = ml + (W - ml - mr) * (narrow ? 0.3 : 0.34);
+        const x = (t) => (t < 0 ? ml + ((t - S.start) / -S.start) * (xb - ml) : xb + (t / S.end) * (W - mr - xb));
+        const top = 40, line1 = top + 26, H = line1 + (narrow ? 88 : 74);
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        svg.append("text").attr("class", "day-l").attr("x", ml).attr("y", line1 + 32).text(narrow ? "day before" : "the day before");
+        svg.append("text").attr("class", "day-l").attr("x", xb + 6).attr("y", line1 + 32).text("the operating day");
+        svg.append("line").attr("class", "ms").attr("x1", xb).attr("x2", xb).attr("y1", top - 4).attr("y2", line1 + 38).style("stroke-dasharray", "2 3");
+        const ms = [[-1080, "start", "06:00"], [-840, "DAM closes", "10:00"], ...S.dam_results.slice(0, 1).map((t) => [t, "DAM results", hhmm(t)]), [-360, "adjustment period", "18:00"], [0, "", "00:00"], [360, "", "06:00"], [720, "", "12:00"], [1080, "", "18:00"], [S.end, "settles", "24:00"]];
+        const right = [-1e9, -1e9, -1e9];
+        ms.forEach(([t, l, h], i) => {
+          const xx = x(t), text = narrow || !l ? h : `${h} ${l}`, w = text.length * 6.2;
+          const anchor = i === 0 ? "start" : t === S.end ? "end" : "middle";
+          const left = anchor === "start" ? xx : anchor === "end" ? xx - w : xx - w / 2;
+          let lv = [2, 1, 0].find((k) => left > right[k] + 8);
+          if (lv === undefined) lv = right.indexOf(Math.min(...right));
+          right[lv] = left + w;
+          const ty = top - 6 - (2 - lv) * 13;
+          svg.append("line").attr("class", "ms").attr("x1", xx).attr("x2", xx).attr("y1", ty + 4).attr("y2", line1 + 14);
+          svg.append("text").attr("class", "ms-s").attr("x", xx).attr("y", ty).attr("text-anchor", anchor).text(text);
+        });
+        svg.append("line").attr("class", "run").attr("x1", x(S.start)).attr("x2", x(S.end)).attr("y1", line1).attr("y2", line1);
+        const r = d3.scaleSqrt().domain([0, d3.max(S.wakes, (w) => w.calls) || 1]).range([3.5, narrow ? 8 : 10]);
+        S.wakes.forEach((w, i) => {
+          const k = kind(w), c = COLOR[k];
+          const g = svg.append("g").attr("class", "wk").attr("tabindex", 0);
+          g.append("circle").attr("cx", x(w.t)).attr("cy", line1).attr("r", r(w.calls)).style("fill", w.submitted ? c : "var(--page-bg)").style("stroke", c).style("stroke-width", 1.8);
+          const show = (ev) => tip.show((el) => {
+            K.t.title(el, `${w.label}: ${w.reasons.join(", ").replace(/_/g, " ")}`, c);
+            K.t.row(el, "tool calls", String(w.calls));
+            K.t.note(el, w.did);
+          }, ev);
+          g.on("mousemove", show).on("focus", show).on("mouseleave blur", () => tip.hide());
+        });
+        const note = svg.append("text").attr("class", "ms-t").attr("x", x(S.start)).attr("y", line1 + 58);
+        (narrow ? [`${S.wakes.length} wake-ups; the clock stood still for each turn`, "and ran between them"] : [`${S.wakes.length} wake-ups; the clock stood still for each turn and ran between them`])
+          .forEach((l, i) => note.append("tspan").attr("x", x(S.start)).attr("dy", i ? 15 : 0).text(l));
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

@@ -1,0 +1,35 @@
+[      3s] dam point-days 67960; training targets 33363 (2014-01-08..2024-12-31)
+[      4s] train rows 33363: fit 29573, 2024 val 3790; holdout tasks 922
+[     17s] lgb {'obj': 'l2', 'target': 'level', 'leaves': 63, 'mcs': 100} rounds 100 val MAE 14.242 holdout C {25: 0.8542, 50: 0.8673, 100: 0.8731, 200: 0.8706, 400: 0.8704, 800: 0.8674, 1200: 0.8685, 1600: 0.8679, 2000: 0.8663}
+[     33s] lgb {'obj': 'l2', 'target': 'level', 'leaves': 63, 'mcs': 400} rounds 50 val MAE 13.891 holdout C {25: 0.8579, 50: 0.8758, 100: 0.8719, 200: 0.853, 400: 0.8383, 800: 0.8338, 1200: 0.8291, 1600: 0.829, 2000: 0.8261}
+[     66s] lgb {'obj': 'l2', 'target': 'level', 'leaves': 255, 'mcs': 100} rounds 50 val MAE 13.77 holdout C {25: 0.8673, 50: 0.8736, 100: 0.8723, 200: 0.8671, 400: 0.8648, 800: 0.8618, 1200: 0.8569, 1600: 0.8571, 2000: 0.8543}
+[    108s] lgb {'obj': 'l2', 'target': 'level', 'leaves': 255, 'mcs': 400} rounds 50 val MAE 13.996 holdout C {25: 0.8666, 50: 0.8734, 100: 0.864, 200: 0.8441, 400: 0.8376, 800: 0.8222, 1200: 0.8213, 1600: 0.8177, 2000: 0.8175}
+[    121s] lgb {'obj': 'l2', 'target': 'delta', 'leaves': 63, 'mcs': 100} rounds 25 val MAE 14.589 holdout C {25: 0.8793, 50: 0.877, 100: 0.8701, 200: 0.8631, 400: 0.8614, 800: 0.8556, 1200: 0.8547, 1600: 0.8536, 2000: 0.8511}
+[    137s] lgb {'obj': 'l2', 'target': 'delta', 'leaves': 63, 'mcs': 400} rounds 25 val MAE 13.92 holdout C {25: 0.8723, 50: 0.8534, 100: 0.8492, 200: 0.8437, 400: 0.8398, 800: 0.8318, 1200: 0.8277, 1600: 0.825, 2000: 0.8217}
+[    170s] lgb {'obj': 'l2', 'target': 'delta', 'leaves': 255, 'mcs': 100} rounds 25 val MAE 14.269 holdout C {25: 0.8734, 50: 0.8709, 100: 0.8639, 200: 0.8515, 400: 0.8428, 800: 0.8382, 1200: 0.8359, 1600: 0.8355, 2000: 0.8356}
+[    214s] lgb {'obj': 'l2', 'target': 'delta', 'leaves': 255, 'mcs': 400} rounds 25 val MAE 13.732 holdout C {25: 0.8705, 50: 0.8525, 100: 0.8409, 200: 0.8411, 400: 0.8301, 800: 0.817, 1200: 0.813, 1600: 0.8125, 2000: 0.8094}
+[    227s] lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 100} rounds 1200 val MAE 12.252 holdout C {25: 0.8457, 50: 0.8768, 100: 0.8772, 200: 0.8798, 400: 0.881, 800: 0.8846, 1200: 0.8873, 1600: 0.8865, 2000: 0.8856}
+[    242s] lgb {'obj': 'huber', 'target': 'level', 'leaves': 63, 'mcs': 400} rounds 400 val MAE 11.846 holdout C {25: 0.8462, 50: 0.8763, 100: 0.8808, 200: 0.8811, 400: 0.8833, 800: 0.8819, 1200: 0.8808, 1600: 0.8809, 2000: 0.8779}
+[    274s] lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 100} rounds 400 val MAE 12.581 holdout C {25: 0.8576, 50: 0.8785, 100: 0.8808, 200: 0.8843, 400: 0.8875, 800: 0.8874, 1200: 0.8868, 1600: 0.8848, 2000: 0.8838}
+[    317s] lgb {'obj': 'huber', 'target': 'level', 'leaves': 255, 'mcs': 400} rounds 200 val MAE 11.794 holdout C {25: 0.8599, 50: 0.8785, 100: 0.8847, 200: 0.8866, 400: 0.8816, 800: 0.8773, 1200: 0.8728, 1600: 0.8683, 2000: 0.8621}
+[    330s] lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 100} rounds 25 val MAE 13.962 holdout C {25: 0.896, 50: 0.8948, 100: 0.8922, 200: 0.8928, 400: 0.8886, 800: 0.8816, 1200: 0.8769, 1600: 0.8742, 2000: 0.873}
+[    345s] lgb {'obj': 'huber', 'target': 'delta', 'leaves': 63, 'mcs': 400} rounds 25 val MAE 13.953 holdout C {25: 0.8962, 50: 0.895, 100: 0.8917, 200: 0.8893, 400: 0.8861, 800: 0.8738, 1200: 0.8722, 1600: 0.8725, 2000: 0.8704}
+[    380s] lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 100} rounds 25 val MAE 13.825 holdout C {25: 0.897, 50: 0.8957, 100: 0.8951, 200: 0.8921, 400: 0.8885, 800: 0.8841, 1200: 0.8807, 1600: 0.8754, 2000: 0.8763}
+[    421s] lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 400} rounds 50 val MAE 13.215 holdout C {25: 0.8956, 50: 0.8958, 100: 0.8911, 200: 0.8922, 400: 0.8865, 800: 0.8704, 1200: 0.8628, 1600: 0.861, 2000: 0.8581}
+[    683s] mlp {'tf': 'raw', 'width': 128, 'alpha': 0.0001} holdout C 0.8066 val MAE 18.372
+[    684s] mlp {'tf': 'raw', 'width': 128, 'alpha': 0.01} holdout C 0.7929 val MAE 19.304
+[    684s] mlp {'tf': 'raw', 'width': 512, 'alpha': 0.0001} holdout C 0.8138 val MAE 17.346
+[    684s] mlp {'tf': 'raw', 'width': 512, 'alpha': 0.01} holdout C 0.8113 val MAE 18.389
+[    684s] mlp {'tf': 'asinh', 'width': 128, 'alpha': 0.0001} holdout C 0.8679 val MAE 14.456
+[    685s] mlp {'tf': 'asinh', 'width': 128, 'alpha': 0.01} holdout C 0.8701 val MAE 15.156
+[    685s] mlp {'tf': 'asinh', 'width': 512, 'alpha': 0.0001} holdout C 0.8734 val MAE 13.294
+[    685s] mlp {'tf': 'asinh', 'width': 512, 'alpha': 0.01} holdout C 0.8664 val MAE 13.199
+[    697s] ensemble weights {'persist': 0.0, 'ridge': 0.1, 'lgb': 0.5, 'mlp': 0.4} holdout C 0.9049
+[    697s] holdout persist: {'c': 0.8532, 'x': 0.8153} None
+[    697s] holdout ridge: {'c': 0.8124, 'x': 0.7636} {'c': 0.8451, 'x': 0.7914}
+[    697s] holdout lgb: {'c': 0.897, 'x': 0.8712} {'c': 0.7424, 'x': 0.6459}
+[    697s] holdout mlp: {'c': 0.8734, 'x': 0.8415} {'c': 0.8177, 'x': 0.764}
+[    698s] holdout ens: {'c': 0.9049, 'x': 0.8811} {'c': 0.8163, 'x': 0.7589}
+[    698s] best information-matched method on the 2024 holdout: ens_point C 0.9049
+[    728s] holdout lgb extended (exploratory): {'c': 0.899, 'x': 0.8737, 'best_iter': 25, 'holdout_c_by_rounds': {25: 0.899, 50: 0.8963, 100: 0.8967, 200: 0.8916, 400: 0.8871, 800: 0.8817, 1200: 0.8756, 1600: 0.873, 2000: 0.8706}, 'exploratory': True}
+[    728s] done

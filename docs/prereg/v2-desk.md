@@ -67,3 +67,9 @@ anchor and the hindsight optimum on most days.
    were set aside unread. The tag was moved to bcd30f7, which accepts the displayed formats, adds two lines to the
    brief (which day is D-1 and D0; hubs as 15-minute SPPs) and posts hourly load actuals at the hour's end, and the
    runs were restarted from scratch.
+2. Qwen3-4B was served from one g5 host at first. At 09:10 UTC, with 10 of 32 tasks done, the unit was stopped with
+   SIGTERM (checkpoints kept): its 8 in-progress tasks resumed from their checkpoints on the same host, and the 14
+   untouched tasks were split over three new hosts with the identical vLLM build, model revision, unit file and flags
+   (one disjoint task list each). All 32 tasks have exactly one run; results merged.
+3. R is graded against the frozen 1.25/spread anchor refs (`results/desk-refs/desk-v2-eval/refs.jsonl`), so R and the
+   floored flags differ from the runner's own rows on 44 rows; P, C and C_phys are unchanged.

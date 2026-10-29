@@ -1,0 +1,77 @@
+<div class="gs-clock"></div>
+<style>
+  .gs-clock { font-size: 12.5px; }
+  .gs-clock svg { display: block; width: 100%; overflow: visible; }
+  .gs-clock .box { fill: var(--surface-bg); stroke: var(--border-color); stroke-width: 1.2; }
+  .gs-clock .box.agent { stroke: var(--c-sol); stroke-width: 1.6; }
+  .gs-clock .box.clock { stroke: var(--c-discharge); stroke-width: 1.6; }
+  .gs-clock .n { font-size: 11px; font-weight: 700; fill: var(--muted-color); letter-spacing: 0.04em; }
+  .gs-clock .h { font-size: 13.5px; font-weight: 650; fill: var(--text-color); }
+  .gs-clock .t { font-size: 12px; fill: var(--muted-color); }
+  .gs-clock .t tspan.code { font-family: var(--font-mono, ui-monospace, monospace); fill: var(--text-color); font-size: 11.5px; }
+  .gs-clock .arrow { fill: none; stroke: var(--muted-color); stroke-width: 1.4; }
+  .gs-clock svg.narrow .t { font-size: 11px; }
+  .gs-clock svg.narrow .tag { font-size: 10.5px; }
+  .gs-clock .tag { font-size: 11px; font-weight: 600; }
+  .gs-clock .frozen { fill: var(--c-sol); }
+  .gs-clock .runs { fill: var(--c-discharge); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-clock");
+    if (!root) return;
+    const STEPS = [
+      { cls: "agent", h: "The agent's turn", tag: ["frozen", "the clock stands still"], t: ["It reads ERCOT's reports, its plant and its book,", "and may submit DAM or RT curves or update the COP.", "Waiting means ending the turn: there is no advance tool."] },
+      { cls: "", h: "The post-turn hook", t: ["It asks the environment for its next wake-up and", "the gateway for its next time trigger,", "and takes the earlier of the two."] },
+      { cls: "clock", h: "The clock runs", tag: ["runs", "time moves only here"], t: ["AgentEnv's virtual clock moves to that minute.", "The market runs forward: the DAM clears, SCED", "runs every 5 minutes, every interval settles."] },
+      { cls: "", h: "The agent wakes", t: ["with its reasons: a market milestone, an ERCOT", "notice, an NWS alert, an outage or a deployment", "at its real minute, or a reminder it set itself."] },
+    ];
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      const svg = d3.select(root).append("svg").attr("class", "gs-svg").attr("role", "img")
+        .attr("aria-label", "The desk's clock: the agent's turn with the clock frozen, then the post-turn hook takes the earlier of the environment's next wake-up and the gateway's next time trigger, the clock runs to that minute while the market clears and settles, and the agent wakes with its reasons.");
+      const note = d3.select(root).append("div").attr("class", "gs-note");
+      note.text(`Turn budgets, as pre-registered: ${D.versions.map((v) => `${v.role === "check" ? `the ${v.version} check` : v.version} ${v.budget.replace(/_/g, " ")}`).join("; ")}. A reminder set with set_reminder wakes the agent at its minute; a desk that wakes for everything runs out of turns.`);
+      const defs = svg.append("defs");
+      defs.append("marker").attr("id", "gs-clock-arr").attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5).attr("markerWidth", 7).attr("markerHeight", 7).attr("orient", "auto-start-reverse")
+        .append("path").attr("d", "M0,0L10,5L0,10z").style("fill", "var(--muted-color)");
+      function box(g, s, i, x, y, w, h) {
+        g.append("rect").attr("class", `box ${s.cls}`).attr("x", x).attr("y", y).attr("width", w).attr("height", h).attr("rx", 10);
+        g.append("text").attr("class", "n").attr("x", x + 14).attr("y", y + 20).text(String(i + 1).padStart(2, "0"));
+        g.append("text").attr("class", "h").attr("x", x + 40).attr("y", y + 21).text(s.h);
+        if (s.tag) g.append("text").attr("class", `tag ${s.tag[0]}`).attr("x", x + w - 14).attr("y", y + 20).attr("text-anchor", "end").text(s.tag[1]);
+        const t = g.append("text").attr("class", "t").attr("x", x + 14).attr("y", y + 42);
+        s.t.forEach((line, j) => t.append("tspan").attr("x", x + 14).attr("dy", j ? 16 : 0).text(line));
+      }
+      function render() {
+        svg.selectAll("g").remove();
+        const W = root.clientWidth || 760, narrow = W < 680;
+        svg.classed("narrow", narrow);
+        const g = svg.append("g");
+        if (narrow) {
+          const w = W - 2, h = 100, gap = 26, H = STEPS.length * (h + gap) + 6;
+          svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+          STEPS.forEach((s, i) => {
+            const y = i * (h + gap);
+            box(g, s, i, 1, y, w - 22, h);
+            if (i < STEPS.length - 1) g.append("line").attr("class", "arrow").attr("x1", (w - 22) / 2).attr("x2", (w - 22) / 2).attr("y1", y + h + 2).attr("y2", y + h + gap - 3).attr("marker-end", "url(#gs-clock-arr)");
+          });
+          const yl = (STEPS.length - 1) * (h + gap) + h / 2;
+          g.append("path").attr("class", "arrow").attr("d", `M${w - 21},${yl} H${w - 4} V${h / 2} H${w - 19}`).attr("marker-end", "url(#gs-clock-arr)");
+          return;
+        }
+        const cw = (W - 70) / 2, h = 104, gx = 70, gy = 52, H = 2 * h + gy + 8;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const pos = [[0, 0], [cw + gx, 0], [cw + gx, h + gy], [0, h + gy]];
+        STEPS.forEach((s, i) => box(g, s, i, pos[i][0] + 1, pos[i][1] + 1, cw - 2, h));
+        g.append("line").attr("class", "arrow").attr("x1", cw + 4).attr("x2", cw + gx - 6).attr("y1", h / 2).attr("y2", h / 2).attr("marker-end", "url(#gs-clock-arr)");
+        g.append("line").attr("class", "arrow").attr("x1", cw + gx + cw / 2).attr("x2", cw + gx + cw / 2).attr("y1", h + 4).attr("y2", h + gy - 4).attr("marker-end", "url(#gs-clock-arr)");
+        g.append("line").attr("class", "arrow").attr("x1", cw + gx - 4).attr("x2", cw + 6).attr("y1", h + gy + h / 2).attr("y2", h + gy + h / 2).attr("marker-end", "url(#gs-clock-arr)");
+        g.append("line").attr("class", "arrow").attr("x1", cw / 2).attr("x2", cw / 2).attr("y1", h + gy - 4).attr("y2", h + 4).attr("marker-end", "url(#gs-clock-arr)");
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

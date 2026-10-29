@@ -1,0 +1,28 @@
+[      3s] dam point-days 67960; training targets 33363 (2014-01-08..2024-12-31)
+[      4s] refit lgb {'obj': 'huber', 'target': 'delta', 'leaves': 255, 'mcs': 100} for 25 rounds on 33363 rows
+[    180s] eval2025 persist_point: C {'mean': 0.882, 'ci': [0.8601, 0.9015]} vs Sol {'mean': -0.0345, 'ci': [-0.0511, -0.0197]}
+[    180s] eval2025 ridge_point: C {'mean': 0.7988, 'ci': [0.7711, 0.8249]} vs Sol {'mean': -0.1177, 'ci': [-0.1447, -0.0909]}
+[    180s] eval2025 ridge_scen: C {'mean': 0.8342, 'ci': [0.8088, 0.8586]} vs Sol {'mean': -0.0823, 'ci': [-0.1038, -0.062]}
+[    180s] eval2025 lgb_point: C {'mean': 0.9, 'ci': [0.8813, 0.9174]} vs Sol {'mean': -0.0165, 'ci': [-0.0285, -0.0056]}
+[    180s] eval2025 lgb_scen: C {'mean': 0.7776, 'ci': [0.7409, 0.8121]} vs Sol {'mean': -0.1389, 'ci': [-0.1731, -0.1069]}
+[    180s] eval2025 mlp_point: C {'mean': 0.8815, 'ci': [0.863, 0.8988]} vs Sol {'mean': -0.035, 'ci': [-0.0513, -0.0191]}
+[    180s] eval2025 mlp_scen: C {'mean': 0.8028, 'ci': [0.7752, 0.8289]} vs Sol {'mean': -0.1137, 'ci': [-0.141, -0.0879]}
+[    180s] eval2025 ens_point: C {'mean': 0.9119, 'ci': [0.8953, 0.9271]} vs Sol {'mean': -0.0046, 'ci': [-0.0151, 0.0056]}
+[    180s] eval2025 ens_scen: C {'mean': 0.8255, 'ci': [0.7948, 0.8539]} vs Sol {'mean': -0.091, 'ci': [-0.1164, -0.0667]}
+[    180s] eval2025 lgb_ext_point: C {'mean': 0.901, 'ci': [0.8825, 0.9184]} vs Sol {'mean': -0.0155, 'ci': [-0.0275, -0.0044]}
+[    180s] eval2025 sol: C {'mean': 0.9165, 'ci': [0.9016, 0.9296]} vs Sol None
+[    180s] eval2025 anchor: C {'mean': 0.9204, 'ci': [0.906, 0.9335]} vs Sol {'mean': 0.0039, 'ci': [-0.0087, 0.0169]}
+[    181s] fresh persist_point: C {'mean': 0.871, 'ci': [0.7868, 0.9355]} vs Sol {'mean': -0.0554, 'ci': [-0.1048, -0.0163]}
+[    181s] fresh ridge_point: C {'mean': 0.8851, 'ci': [0.8317, 0.9287]} vs Sol {'mean': -0.0413, 'ci': [-0.0693, -0.0135]}
+[    181s] fresh ridge_scen: C {'mean': 0.8629, 'ci': [0.8118, 0.9044]} vs Sol {'mean': -0.0635, 'ci': [-0.0918, -0.0371]}
+[    181s] fresh lgb_point: C {'mean': 0.9099, 'ci': [0.863, 0.943]} vs Sol {'mean': -0.0165, 'ci': [-0.0304, -0.0036]}
+[    181s] fresh lgb_scen: C {'mean': 0.8876, 'ci': [0.8306, 0.9266]} vs Sol {'mean': -0.0388, 'ci': [-0.0614, -0.0202]}
+[    181s] fresh mlp_point: C {'mean': 0.905, 'ci': [0.8688, 0.9341]} vs Sol {'mean': -0.0214, 'ci': [-0.0595, 0.0214]}
+[    181s] fresh mlp_scen: C {'mean': 0.8975, 'ci': [0.8549, 0.9298]} vs Sol {'mean': -0.0289, 'ci': [-0.0707, 0.0153]}
+[    181s] fresh ens_point: C {'mean': 0.9194, 'ci': [0.8927, 0.9437]} vs Sol {'mean': -0.007, 'ci': [-0.0289, 0.0175]}
+[    181s] fresh ens_scen: C {'mean': 0.9018, 'ci': [0.872, 0.9256]} vs Sol {'mean': -0.0246, 'ci': [-0.0501, 0.0025]}
+[    181s] fresh lgb_ext_point: C {'mean': 0.9089, 'ci': [0.8604, 0.9429]} vs Sol {'mean': -0.0175, 'ci': [-0.0325, -0.0041]}
+[    181s] fresh sol: C {'mean': 0.9264, 'ci': [0.8897, 0.9524]} vs Sol None
+[    181s] fresh anchor: C {'mean': 0.9192, 'ci': [0.8623, 0.96]} vs Sol {'mean': -0.0072, 'ci': [-0.0316, 0.0124]}
+[    181s] verdict {'best_method': 'ens_point', 'eval2025_gap_sol_c': {'mean': -0.0046, 'ci': [-0.0151, 0.0056]}, 'fresh_gap_sol_c': {'mean': -0.007, 'ci': [-0.0289, 0.0175]}, 'criterion_1_eval2025_ci_above_0': False, 'criterion_2_fresh_no_worse': True, 'headroom': False}
+[    181s] done

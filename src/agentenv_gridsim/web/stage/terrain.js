@@ -154,7 +154,7 @@ function shrubGeometry(kind, r) {
       parts.push(b);
     }
   }
-  return mergeGeometries(parts.map((p) => p.toNonIndexed()));
+  return mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)));
 }
 
 function treeGeometry(kind) {
@@ -179,7 +179,7 @@ function treeGeometry(kind) {
       parts.push(c);
     }
   }
-  return mergeGeometries(parts.map((p) => p.toNonIndexed()));
+  return mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)));
 }
 
 function scatter(group, { n, kind, r: [r0, r1] }, heightAt, avoid, seed, geomOf, palette, cams = []) {

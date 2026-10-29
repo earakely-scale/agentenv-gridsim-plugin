@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GridSimEnv · What training bought</title>
+  <meta name="description" content="Qwen3-4B trained on GridSimEnv's exact grader: before and after, score against cost, and what its day-ahead battery decisions are worth in dollars.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./board.css">
+  <link rel="stylesheet" href="./results.css">
+</head>
+<body>
+  <div class="viz-root">
+    <header class="top">
+      <div class="wrap">
+        <nav class="crumbs" aria-label="GridSimEnv pages"><a class="back" href="./index.html">← The Battery Desk</a><a href="./desk.html">The desk</a><a href="./board.html">Live board</a><a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv" target="_blank" rel="noopener">The article ↗</a><a href="https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv">Dataset</a></nav>
+        <h1>What training bought, in dollars</h1>
+        <p class="lede" id="lede">Loading the results…</p>
+        <div id="kpis" class="kpis"></div>
+      </div>
+    </header>
+    <main class="wrap" id="main"></main>
+  </div>
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+  <script type="module" src="./results.js"></script>
+</body>
+</html>

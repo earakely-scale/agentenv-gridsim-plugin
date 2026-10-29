@@ -62,6 +62,36 @@ PACKS = {
     "desk-v4-eval": {"split": "eval", "layer": "v4", "n_days": 3,
                      "tasks": [(d, s) for d in ("2026-01-23", "2026-03-16", "2026-04-17", "2026-05-08")
                                for s in SITES if (d, s) != ("2026-04-17", "S04")] + [("2026-04-03", "S04")]},
+    "desk-v4-bench": {"split": "eval", "layer": "v4", "n_days": 3, "reuse": "desk-v4-eval",
+                      "tasks": [(d, s) for d in ("2026-01-23", "2026-03-16", "2026-04-17", "2026-05-08")
+                                for s in SITES if (d, s) != ("2026-04-17", "S04")] + [("2026-04-03", "S04")]
+                      + [(d, s) for d in ("2026-07-04", "2026-07-23", "2026-08-18", "2026-08-26") for s in SITES],
+                      "cutoff": {"post_cutoff_from": "2026-07-01",
+                                 "models": {"Gemini 4 Argon": "about 2026-03", "GPT-6.1 Sol": "about 2026-04-30",
+                                            "GPT-6 Luna": "about 2026-05-18", "Claude Opus 5.5": "about 2026-06"},
+                                 "basis": "third-party reports, unconfirmed"},
+                      "fronts": [
+                          {"dates": "2026-01-23..25", "split": "pre_cutoff", "kind": "arctic front",
+                           "why": "Winter Storm Fern, 01-24 -23.8F; 202(c) orders, Transmission Emergency 01-25"},
+                          {"dates": "2026-03-16..18", "split": "pre_cutoff", "kind": "cold front",
+                           "why": "03-16 -24.4F with Freeze Warnings, +10.6F rebound 03-18; hub RT max $221"},
+                          {"dates": "2026-04-17..19", "split": "pre_cutoff", "kind": "cold front",
+                           "why": "04-18 -14F with 9 severe-thunderstorm warnings; S04 runs 04-03..05 (04-04 -9.4F)"},
+                          {"dates": "2026-05-08..10", "split": "pre_cutoff", "kind": "warm front, storms",
+                           "why": "05-09 +8.7F, 27 severe-thunderstorm warnings 05-09..10, 7 ERCOT notices"},
+                          {"dates": "2026-07-04..06", "split": "post_cutoff", "kind": "severe-storm line",
+                           "why": "Independence Day storm complex: 24 severe-thunderstorm warnings 07-04..06 (18 on"
+                                  " 07-05), heat dips -0.8F and -1.2F"},
+                          {"dates": "2026-07-23..25", "split": "post_cutoff", "kind": "tropical system",
+                           "why": "Tropical Storm Warning on the upper Texas coast 07-23 ends the July heat wave"
+                                  " (90.6F and Extreme Heat Warnings 07-22, then -1.9F and -3.1F)"},
+                          {"dates": "2026-08-18..20", "split": "post_cutoff", "kind": "heat wave",
+                           "why": "Extreme Heat Warning for North Texas in force 08-17..22, 13 heat advisories,"
+                                  " daily mean 88.9-89.4F; hub RT max $154 08-18"},
+                          {"dates": "2026-08-26..28", "split": "post_cutoff", "kind": "heat-wave break, storm line",
+                           "why": "08-26 scarcity (hub RT max $795, mean $120, 17 ERCOT notices), then 15"
+                                  " severe-thunderstorm warnings 08-27..28 and -2.2F 08-28 as the August heat"
+                                  " breaks"}]},
     "desk-v2-pre": {"split": "train", "layer": "v2",
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
@@ -749,6 +779,25 @@ def desk_forecast(site: dict, days: list[dt.date]) -> list[dict]:
 
 # ---------------------------------------------------------------- task
 
+def reused(spec: dict) -> dict[str, dict]:
+    """Task records of the pack named by the spec's `reuse`, by task id; those tasks are copied, never rebuilt."""
+    if "reuse" not in spec:
+        return {}
+    return {t["task_id"]: t for t in map(json.loads, gzip.open(DESK / spec["reuse"] / "tasks.jsonl.gz", "rt"))}
+
+
+def new_tasks(spec: dict) -> list[tuple[str, str]]:
+    old = reused(spec)
+    return [(d0, sid) for d0, sid in spec["tasks"] if f"desk-{spec['layer']}-{d0}-{sid}" not in old]
+
+
+def cutoff_tag(task: dict, spec: dict) -> dict:
+    if "cutoff" in spec:
+        late = task["dates"][0] >= spec["cutoff"]["post_cutoff_from"]
+        task["tags"]["split"] = "post_cutoff" if late else "pre_cutoff"
+    return task
+
+
 def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict, dict, dict]:
     days = [d_(d0) + dt.timedelta(days=k) for k in range(spec.get("n_days", 1))]
     if not dst_free([days[0] - dt.timedelta(days=7)] + days):
@@ -876,11 +925,20 @@ def main():
         out = DESK / pack
         (out / "series").mkdir(parents=True, exist_ok=True)
         tasks, infos = [], {}
+        old = reused(spec)
+        old_cov = json.loads((DESK / spec["reuse"] / "manifest.json").read_text())["coverage"] if old else {}
         for d0, sid in spec["tasks"]:
             tid = f"desk-{spec['layer']}-{d0}-{sid}"
             if a.only and a.only not in tid:
                 continue
+            if tid in old:
+                src = DESK / spec["reuse"] / old[tid]["series"]
+                (out / old[tid]["series"]).write_bytes(src.read_bytes())
+                tasks.append(cutoff_tag(old[tid], spec))
+                infos[tid] = old_cov[tid]
+                continue
             task, s, info = build_task(pack, spec, d0, sid, reg, cal)
+            task = cutoff_tag(task, spec)
             (out / "series" / f"{task['task_id']}.json.gz").write_bytes(gzip.compress(s.encode(), mtime=0))
             tasks.append(task)
             infos[task["task_id"]] = info
@@ -897,6 +955,12 @@ def main():
                     "sced_fill": {k: v.get("sced_fill", 0) for k, v in infos.items()},
                     "coverage": infos, "built_utc": dt.datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "builder": "scripts/desk_data_build.py", "sources": SOURCES}
+        if old:
+            manifest["reused"] = {"pack": spec["reuse"], "tasks": [t for t in old if t in infos]}
+        if spec.get("cutoff"):
+            manifest["cutoff"] = {**spec["cutoff"], "splits": dict(Counter(t["tags"]["split"] for t in tasks))}
+        if spec.get("fronts"):
+            manifest["fronts"] = spec["fronts"]
         (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
 
 

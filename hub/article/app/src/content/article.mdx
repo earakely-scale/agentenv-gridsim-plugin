@@ -1,0 +1,67 @@
+---
+title: "GridSimEnv Desk: a real ERCOT battery's trading desk as an RL environment"
+description: "An agent runs a real Texas grid battery's trading desk through the day-ahead market and real time, on ERCOT's own market objects and on prices, forecasts and notices as each was posted, graded in dollars against hindsight and the battery's real operator. A ladder of three versions and a price-impact check, three models."
+seoImageAlt: "GridSimEnv Desk: a dot map of Texas with four anonymised batteries, in the Far West, North, Houston and South, charging and discharging through one real ERCOT operating day, 23 August 2026."
+authors:
+  - name: "Edgar Arakelyan"
+    url: "https://huggingface.co/earakely-scale"
+    affiliations: [1]
+affiliations:
+  - name: "Scale AI"
+published: "October 28, 2026"
+links:
+  - label: "GitHub"
+    url: "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+    icon: "github"
+  - label: "Dataset"
+    url: "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv"
+    icon: "hf"
+  - label: "Viewer"
+    url: "https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4"
+    icon: "hf"
+licence: >
+  Text and charts are licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>, unless noted otherwise. Prices, forecasts, notices and disclosures are ERCOT's public data, and weather alerts NWS's, used under their terms and not relicensed (<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE" target="_blank" rel="noopener noreferrer">data/LICENSE</a>); GridSimEnv is not affiliated with or endorsed by ERCOT. The code is Apache-2.0.
+seoThumbImage: "https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/og-image.jpg"
+tags:
+  - reinforcement learning
+  - RL environments
+  - simulation
+  - energy
+  - electricity markets
+  - battery storage
+  - ERCOT
+  - day-ahead market
+  - real-time market
+  - ancillary services
+  - agents
+  - tool use
+  - AgentEnv
+  - GridSimEnv
+template: "article"
+tableOfContentsAutoCollapse: true
+showPdf: false
+---
+
+{/*
+  The import list is the chapter registry: the order of the elements below is the running order.
+*/}
+
+import Introduction from "./chapters/introduction.mdx";
+import Time from "./chapters/time.mdx";
+import Tools from "./chapters/tools.mdx";
+import Operator from "./chapters/operator.mdx";
+import Ladder from "./chapters/ladder.mdx";
+import Across from "./chapters/across.mdx";
+import Check from "./chapters/check.mdx";
+import Methods from "./chapters/methods.mdx";
+import Limits from "./chapters/limits.mdx";
+
+<Introduction />
+<Time />
+<Tools />
+<Operator />
+<Ladder />
+<Across />
+<Check />
+<Methods />
+<Limits />

@@ -1,0 +1,45 @@
+import F from "../assets/data/facts.json";
+
+## Methods
+
+- **Pre-registered.** Each version's pre-registration ([v2](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v2-desk.md),
+  [v3](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v3-desk.md),
+  [v4](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v4-desk.md) and the
+  [v5 price-impact check](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v5-desk.md))
+  was committed before its first scored episode: the pack, the models and their settings, the budgets, the references,
+  the metrics and the CIs. Nothing is rerun to improve a score; anything done differently is logged under its
+  deviations.
+- **Frozen.** Each version ran on a frozen tag, `desk-v2-freeze`, `desk-v3-freeze` and `desk-v4-freeze`, and the check
+  on `desk-v5-freeze`, the same commit as v4's; fixes land on the head only and never change a frozen run. The results
+  are committed under `desk-v2-results` to `desk-v5-results`.
+- **Reviewed before the first scored run.** The review found two information-timing leaks, fixed in
+  [049cc93](https://github.com/earakely-scale/agentenv-gridsim-plugin/commit/049cc93) before v2 froze: the day
+  before's real-time prices were visible before they posted, and a unit event before it started. The v2 pilot ran
+  before that fix and is not scored. The desk's tests check that nothing is visible before it posts and that the
+  AgentEnv gateway gives the same tool outputs and wake-ups as the in-process session.
+- **Models and settings.** One sampled run per model per task, with the same system prompt, the same eleven tools and
+  the same turn budget.
+  - **{F.models.sol.label}** and **{F.models.luna.label}** (<code>{F.models.sol.id}</code>,
+    <code>{F.models.luna.id}</code>): reasoning effort {F.models.sol.effort}, through the {F.models.sol.api}.
+  - **{F.models.qwen.label}** (<code>{F.models.qwen.checkpoint}</code>): thinking {F.models.qwen.thinking},
+    temperature {F.models.qwen.temperature}, top_p {F.models.qwen.top_p}; served by {F.models.qwen.server} in
+    {F.models.qwen.dtype} with a {F.models.qwen.context}-token context and the {F.models.qwen.parser} tool parser;
+    prompts compacted to about {F.models.qwen.prompt} tokens, with up to {F.models.qwen.out} output tokens a call.
+- **References,** all settled by the same clearing, physics and settlement code
+  ([the desk contract](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/CONTRACT-desk.md), §9):
+  idle; the anchor, the desk's own optimiser re-planning at every wake on the same forecasts the agent can read, its
+  risk and DAM basis chosen blind on a separate tune pack (`risk=1.25` with spread positions for v2, `risk=1.5` from
+  v3); the hindsight optimum, with every real price known and DAM/RT spread positions within the battery's limits;
+  hindsight with the DAM position tied to dispatch; and the operator's bids and actual settlement.
+- **Reward.** The env's reward is R = clip(0.2 + 0.8·(P − P<sub>idle</sub>) / den, 0, 1) with den = max(P<sub>anchor</sub>
+  − P<sub>idle</sub>, 0.1·(P<sub>hind,phys</sub> − P<sub>idle</sub>)): the floor keeps a day where the anchor barely
+  beats idle from turning R into a step. No valid submission scores R = 0. R is for training; C is the headline.
+- **Statistics.** Means carry 95% CIs from a day-block bootstrap with {F.resamples} resamples of operating days
+  (weather fronts in v4); paired gaps resample over the tasks both sides played.
+- **Deviations, as logged.** In v2 a first launch was stopped after five minutes, when the environment refused its own
+  displayed time format; its outputs were set aside unread and the runs restarted on a fixed freeze. v2's Qwen3-4B
+  runs moved mid-run onto identical hosts, every task keeping exactly one run, and R is graded against the frozen
+  anchor references, so it differs from the runner's own rows while P and C do not. In v4 and the v5 check the Qwen3-4B
+  task lists were set wrong: some tasks ran late as a fill-in on the same frozen code and some ran twice, and the planned
+  host's runs are scored under a rule set before any duplicate was read. The check's Qwen3-4B runs began before
+  its pilot was checked; the pilot passed. The known defect K1 is under limitations.

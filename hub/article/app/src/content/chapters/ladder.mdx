@@ -1,0 +1,73 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import F from "../assets/data/facts.json";
+
+## The ladder, v2 to v4
+
+Each version adds one kind of realism to the same desk, tools and grading. Each was pre-registered, piloted, frozen
+and then run once per model on real days at least 60 days old, at the same four real batteries.
+
+### v2, The Live Grid
+
+Energy only: the day-ahead market and real time at each battery's own node, with ERCOT's notices, NWS alerts and the
+battery's outages at their real minutes. {F.v2.n} battery-days on {F.v2.blocks} operating days, {F.v2.from} to
+{F.v2.to}.
+
+<HtmlEmbed
+  src="d3-desk-version.html"
+  wide
+  config={{ version: "v2" }}
+  title="v2, The Live Grid: capture and dollars"
+  desc="Hindsight capture C for each model and reference with its 95% CI; below, P a battery-day and each model's paired gaps to the operator's bids and the anchor."
+/>
+
+- **Sol and Luna are level.** GPT-6.1 Sol captures {F.v2.m.sol.C} of hindsight {F.v2.m.sol.Cci} and GPT-6 Luna
+  {F.v2.m.luna.C}; paired by battery-day, Sol minus Luna is {F.v2.pair.sol_luna.C} {F.v2.pair.sol_luna.Cci}.
+- **One day carries the means.** On {F.v2.sens.day}, when the node's day-ahead price ran far above real time, Sol made
+  {F.v2.sens.on.sol} a battery-day and the anchor {F.v2.sens.on.anchor}, from day-ahead sales bought back in real
+  time: positions the DAM allows because it ignores state of charge, and which ERCOT's DAM credit screening, not
+  modelled here, would limit. Without that day Sol averages {F.v2.sens.without.sol} against the operator's bids'
+  {F.v2.sens.without.operator_replay}. A post-hoc check, not pre-registered.
+
+### v3, Sun, Storage and Reserves
+
+ERCOT's five ancillary services in the DAM and real time, with their state-of-charge duration rules, deployments and
+capacity-short charges, and a co-located solar option at some batteries (modelled). {F.v3.n} battery-days on
+{F.v3.blocks} operating days.
+
+<HtmlEmbed
+  src="d3-desk-version.html"
+  wide
+  config={{ version: "v3" }}
+  title="v3, Sun, Storage and Reserves: capture and dollars"
+  desc="As for v2. Idle earns here: ERCOT's proxy reserve offers and the co-located solar pay a battery that offers nothing."
+/>
+
+- **Still level.** Sol captures {F.v3.m.sol.C} and Luna {F.v3.m.luna.C}; paired, {F.v3.pair.sol_luna.C}
+  {F.v3.pair.sol_luna.Cci}. Idle, offering nothing, earns {F.v3.r.idle.P} a battery-day.
+- **Reserves are where they differ.** Sol wins reserve awards on {F.v3.as.sol.awards} of {F.v3.n} battery-days and earns
+  {F.v3.as.sol.lines} a battery-day from the reserve lines; Luna's reserve offers fail ERCOT's shape check
+  {F.v3.as.luna.shape} times, with awards on {F.v3.as.luna.awards} of {F.v3.n}.
+- **One day weighs on Sol.** On {F.v3.sens.day} Sol made more than half of its total P; without it Sol averages
+  {F.v3.sens.without.sol} a battery-day. Post hoc.
+
+### v4, Weather Front
+
+Three operating days in a row across a weather front, on ERCOT's load, wind and solar forecasts as each was issued,
+with three day-ahead markets to bid. {F.v4.n} three-day windows at four batteries across {F.v4.blocks} fronts;
+P is summed over each window, and the CIs resample fronts.
+
+<HtmlEmbed
+  src="d3-desk-version.html"
+  wide
+  config={{ version: "v4" }}
+  title="v4, Weather Front: capture and dollars"
+  desc="As for v2, a 3-day window at a time, with front-block CIs."
+/>
+
+- **Sol is ahead, the one clear gap.** Sol captures {F.v4.m.sol.C} {F.v4.m.sol.Cci} and Luna {F.v4.m.luna.C}; paired,
+  Sol minus Luna is {F.v4.pair.sol_luna.C} {F.v4.pair.sol_luna.Cci}, the only version where that interval excludes
+  zero.
+- **Winter storm Fern carries the dollars.** On the front of {F.v4.sens.span}, Sol made {F.v4.sens.on.sol} a window,
+  again from day-ahead sales bought back in real time, and the anchor {F.v4.sens.on.anchor}. Without Fern, Sol
+  averages {F.v4.sens.without.sol} and Luna {F.v4.sens.without.luna} a window.
+- **Three markets, re-bid.** Both GPT models bid each day's DAM in turn and re-bid some as forecast vintages moved.

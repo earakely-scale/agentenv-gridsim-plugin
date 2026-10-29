@@ -47,7 +47,8 @@ export class GridStage {
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.3, 120000);
     this.#build();
     this.resize();
-    addEventListener("resize", () => this.resize());
+    this.onResize = () => this.resize();
+    addEventListener("resize", this.onResize);
   }
 
   #build() {
@@ -60,7 +61,7 @@ export class GridStage {
     this.site.rotation.y = this.yaw;
     const U = { uWet: { value: 0 } };
     const hyb = !!d.hybrid && !d.lite;
-    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed, ...(hyb ? { bands: true } : {}) });
+    this.yard = buildYard(d.b, U, { gravel: region.gravel, road: region.road, seed, ...(hyb || d.bands ? { bands: true } : {}), ...(d.fill ? { fill: true } : {}) });
     const L = this.yard.layout;
     this.plantL = hyb ? plantLayout(d.site, L, this.yaw, seed) : null;
     this.director = buildDirector(d, L, { night: (t) => 1 - Math.min(1, Math.max(0, (this.sky.sunAt(t).el + 6) / 8)), plant: this.plantL, yaw: this.yaw });
@@ -162,6 +163,25 @@ export class GridStage {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x || 1, size.y || 1), 0.5, 0.55, 1.4);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+  }
+
+  dispose() {
+    removeEventListener("resize", this.onResize);
+    this.controls?.dispose();
+    const tex = (v) => v?.isTexture && v.dispose();
+    this.scene.traverse((o) => {
+      o.geometry?.dispose();
+      for (const m of [o.material].flat().filter(Boolean)) {
+        Object.values(m).forEach(tex);
+        Object.values(m.uniforms || {}).forEach((u) => tex(u.value));
+        m.dispose();
+      }
+    });
+    tex(this.scene.environment);
+    this.composer.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+    this.renderer.domElement.remove();
   }
 
   direct(on) {

@@ -1,0 +1,131 @@
+<div class="gs-check"></div>
+<style>
+  .gs-check { font-size: 12.5px; }
+  .gs-check svg { display: block; width: 100%; overflow: visible; }
+  .gs-check .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); margin: 0 0 14px; }
+  .gs-check .tile { padding: 11px 14px 12px 0; }
+  .gs-check .tile + .tile { padding-left: 14px; border-left: 1px solid var(--border-color); }
+  .gs-check .tile b { display: block; font-size: 24px; font-weight: 650; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--text-color); line-height: 1.15; }
+  .gs-check .tile span { display: block; margin-top: 3px; font-size: 12px; line-height: 1.4; color: var(--muted-color); }
+  .gs-check h5 { margin: 16px 0 2px; font-size: 13px; font-weight: 650; color: var(--text-color); }
+  .gs-check .u { margin: 0 0 6px; font-size: 12px; color: var(--muted-color); }
+  .gs-check .lab { fill: var(--text-color); font-size: 12px; }
+  .gs-check .lab.b { font-weight: 600; }
+  .gs-check .tick { fill: var(--muted-color); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .gs-check .ann { fill: var(--muted-color); font-size: 11px; }
+  .gs-check .val { fill: var(--text-color); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .gs-check .grid { stroke: var(--grid-color); stroke-width: 1; }
+  .gs-check .zero { stroke: var(--muted-color); stroke-width: 1; }
+  .gs-check table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .gs-check th, .gs-check td { padding: 6px 8px; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap; }
+  .gs-check th { color: var(--muted-color); font-weight: 600; font-size: 11.5px; vertical-align: bottom; white-space: normal; }
+  .gs-check th:first-child, .gs-check td:first-child { text-align: left; }
+  .gs-check td small { display: block; color: var(--muted-color); font-size: 11px; }
+  .gs-check tr.ref td { color: var(--muted-color); }
+  .gs-check .who { display: inline-flex; align-items: flex-start; gap: 7px; }
+  .gs-check .who > i { flex: none; width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; }
+  .gs-check .set { fill: var(--muted-color); font-weight: 400; }
+  .gs-check .wrap { overflow-x: auto; }
+  @media (max-width: 640px) {
+    .gs-check .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gs-check .tile:nth-child(3) { padding-left: 0; border-left: 0; }
+    .gs-check .tile:nth-child(n + 3) { border-top: 1px solid var(--border-color); }
+    .gs-check .tile b { font-size: 21px; }
+    .gs-check table.stack tr.h { display: none; }
+    .gs-check table.stack, .gs-check table.stack tbody, .gs-check table.stack tr, .gs-check table.stack td { display: block; width: 100%; }
+    .gs-check table.stack tr { border-bottom: 1px solid var(--border-color); padding: 6px 0 8px; }
+    .gs-check table.stack td { border: 0; padding: 2px 0; text-align: left; display: flex; justify-content: space-between; gap: 12px; }
+    .gs-check table.stack td::before { content: attr(data-l); color: var(--muted-color); font-size: 11.5px; }
+    .gs-check table.stack td:first-child { display: block; padding-bottom: 4px; }
+    .gs-check table.stack td:first-child::before { content: none; }
+    .gs-check table.stack td small { display: inline; margin-left: 6px; }
+    .gs-check table.stack td:first-child small { margin-left: 0; }
+    .gs-check table.stack td:first-child small::before { content: " · "; }
+  }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-check");
+    if (!root) return;
+    const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)", anchor: "var(--text-color)" };
+    const f = K.fmt;
+    const ct = (x, d = 1) => `${x < 0 ? "−" : x > 0 ? "+" : ""}${(Math.abs(x) * 100).toFixed(d)}¢`;
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    K.whenD3(() => K.data("desk.json").then((D) => {
+      const d3 = window.d3;
+      const X = D.versions.find((v) => v.role === "check");
+      if (!X) { root.textContent = "No price-impact check yet."; return; }
+      const B = D.versions.find((v) => v.version === X.check_of);
+      const pi = X.price_impact, vs = X.versus.models;
+      const unit = X.days_per_task > 1 ? `${X.days_per_task}-day window` : "battery-day";
+      const nm = (k) => (X.models.find((m) => m.key === k) || {}).name || (X.references.find((r) => r.key === k) || {}).short || k;
+      const M = D.models, lab = (k) => (M[k] ? M[k].label : nm(k));
+      const keys = [...["sol", "luna", "qwen"].filter((k) => pi[k]), ...(pi.anchor ? ["anchor"] : [])];
+      const lead = pi.sol ? "sol" : keys[0];
+      const top = keys.reduce((a, k) => (pi[k].max_abs_usd_per_mwh > pi[a].max_abs_usd_per_mwh ? k : a), keys[0]);
+      const noise = Object.values(vs).every((b) => ["P", "C", "R"].every((q) => b[q].ci[0] <= 0 && b[q].ci[1] >= 0));
+      root.innerHTML = `<div class="tiles">
+          <div class="tile"><b>${ct(pi[lead].sales_mwh_weighted_usd_per_mwh)}</b><span>per MWh: how far ${esc(nm(lead))}'s own offers moved the day-ahead price on its sales</span></div>
+          <div class="tile"><b>$${pi[top].max_abs_usd_per_mwh.toFixed(2)}</b><span>per MWh: the largest move in any hour, ${esc(nm(top))}'s</span></div>
+          <div class="tile"><b>${f.usd0(pi[lead].revenue_effect_usd_per_episode, true)}</b><span>a ${unit}: what the moves did to ${esc(nm(lead))}'s day-ahead revenue</span></div>
+          <div class="tile"><b>${noise ? "Within noise" : "Mixed"}</b><span>${noise ? `every paired ${X.version} − ${B.version} gap in P, C and R, for all ${Object.keys(vs).length} models` : `paired ${X.version} − ${B.version} gaps`}</span></div>
+        </div>
+        <h5>What each desk's own offers did to the day-ahead price</h5>
+        <p class="u">The re-cleared minus the real node price over the hours it was awarded, MWh-weighted, ¢ per MWh</p>
+        <div class="plot"></div>
+        <h5>${esc(X.version)} against ${esc(B.version)}, model by model</h5>
+        <p class="u">The same ${X.n_tasks} ${unit}s, paired, with 95% day-block CIs</p>
+        <div class="wrap"></div>
+        <div class="gs-note"></div>`;
+      const tip = K.tip(root);
+      const rows = Object.keys(vs).map((k) => {
+        const a = B.models.find((m) => m.key === k), b = X.models.find((m) => m.key === k), d = vs[k];
+        const cell = (l, v, c) => `<td data-l="${l}"><span>${v}<small>${c}</small></span></td>`;
+        return `<tr><td><span class="who"><i style="background:${COL[k]}"></i><span><b>${esc(M[k].name)}</b><small>${esc(M[k].setting)}</small></span></span></td>${cell(`C, ${B.version}`, f.c(a.C.mean), f.cci(a.C.ci))}${cell(`C, ${X.version}`, f.c(b.C.mean), f.cci(b.C.ci))}${cell(`${X.version} − ${B.version}, C`, f.c(d.C.mean, 3, true), f.cci(d.C.ci, 3, true))}${cell(`${X.version} − ${B.version}, P a ${unit}`, f.usd0(d.P.mean, true), f.usdci(d.P.ci, true))}${cell(`${X.version} − ${B.version}, R`, f.c(d.R.mean, 2, true), f.cci(d.R.ci, 2, true))}</tr>`;
+      }).join("");
+      const refs = ["anchor", "operator_replay"].map((k) => [B.references.find((r) => r.key === k), X.references.find((r) => r.key === k)]).filter(([a, b]) => a && b)
+        .map(([a, b]) => `<tr class="ref"><td>${esc(b.short)}</td><td data-l="C, ${B.version}">${f.c(a.C.mean)}</td><td data-l="C, ${X.version}">${f.c(b.C.mean)}</td><td data-l="${X.version} − ${B.version}, C">–</td><td data-l="${X.version} − ${B.version}, P a ${unit}">${f.usd0(b.P.mean - a.P.mean, true)}</td><td data-l="${X.version} − ${B.version}, R">–</td></tr>`).join("");
+      d3.select(root).select(".wrap").html(`<table class="stack"><tr class="h"><th>Desk</th><th>C, ${B.version}</th><th>C, ${X.version}</th><th>${X.version} − ${B.version}, C</th><th>${X.version} − ${B.version}, P a ${unit}</th><th>${X.version} − ${B.version}, R</th></tr>${rows}${refs}</table>`);
+      d3.select(root).select(".gs-note").text(`${X.label}: ${B.version}'s ${X.n_tasks} ${unit}s, the same tools, grading and models, with each day-ahead market re-cleared after the desk's own curves join ERCOT's offer stack for that day, disclosed 60 days later. The anchor and the operator's bids are re-cleared the same way; for them, ${X.version} − ${B.version} is the difference of means, not paired. A single 100–150 MW battery is a price taker; a fleet desk, a QSE trading a portfolio of batteries, is where price impact would matter. Data: ${X.folder} in the dataset.`);
+
+      function render() {
+        const W = Math.max(300, root.clientWidth || 700), narrow = W < 560;
+        const svg = d3.select(root).select(".plot").html("").append("svg").attr("class", "gs-svg");
+        const lw = narrow ? 0 : 150, rh = narrow ? 50 : 40, t0 = 22, H = t0 + keys.length * rh + 24;
+        svg.attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+        const m = Math.max(0.05, ...keys.flatMap((k) => [pi[k].sales_mwh_weighted_usd_per_mwh, pi[k].purchases_mwh_weighted_usd_per_mwh].map(Math.abs))) * (narrow ? 1.25 : 1.45);
+        const x = d3.scaleLinear().domain([-m, m]).range([lw + 10, W - 12]);
+        x.ticks(narrow ? 4 : 6).forEach((t) => {
+          svg.append("line").attr("class", "grid").attr("x1", x(t)).attr("x2", x(t)).attr("y1", t0 - 4).attr("y2", H - 20);
+          svg.append("text").attr("class", "tick").attr("x", x(t)).attr("y", H - 6).attr("text-anchor", "middle").text(ct(t, Number.isInteger(Math.round(t * 1e6) / 1e4) ? 0 : 1));
+        });
+        svg.append("line").attr("class", "zero").attr("x1", x(0)).attr("x2", x(0)).attr("y1", t0 - 10).attr("y2", H - 20);
+        svg.append("text").attr("class", "ann").attr("x", x(0) - 6).attr("y", t0 - 12).attr("text-anchor", "end").text("price lower");
+        svg.append("text").attr("class", "ann").attr("x", x(0) + 6).attr("y", t0 - 12).text("price higher");
+        keys.forEach((k, i) => {
+          const r = pi[k], y = t0 + i * rh + (narrow ? 20 : 8), model = k !== "anchor";
+          const two = model && !narrow;
+          const lt = svg.append("text").attr("class", `lab halo${model ? " b" : ""}`).attr("x", narrow ? lw + 10 : lw).attr("y", narrow ? y - 6 : y + (two ? 9 : 14)).attr("text-anchor", narrow ? "start" : "end").text(model ? M[k].name : nm(k));
+          if (model && narrow) lt.append("tspan").attr("class", "set").text(` · ${M[k].setting}`);
+          if (two) svg.append("text").attr("class", "sub").attr("x", lw).attr("y", y + 23).attr("text-anchor", "end").text(M[k].setting);
+          [[r.sales_mwh_weighted_usd_per_mwh, "on its sales", r.sales_mwh_per_episode, 0], [r.purchases_mwh_weighted_usd_per_mwh, "on its purchases", r.purchases_mwh_per_episode, 1]].forEach(([v, l, mwh, j]) => {
+            const yy = y + j * 14, x0 = x(Math.min(0, v)), w = Math.max(1, Math.abs(x(v) - x(0)));
+            svg.append("rect").attr("x", x0).attr("y", yy).attr("width", w).attr("height", 10).attr("rx", 2).style("fill", COL[k]).style("fill-opacity", j ? 0.45 : 0.9)
+              .on("mousemove", (ev) => tip.show((el) => {
+                K.t.title(el, lab(k), COL[k]);
+                K.t.row(el, "On its sales", `${ct(r.sales_mwh_weighted_usd_per_mwh)}/MWh, ${f.int(r.sales_mwh_per_episode)} MWh a ${unit}`);
+                K.t.row(el, "On its purchases", `${ct(r.purchases_mwh_weighted_usd_per_mwh)}/MWh, ${f.int(r.purchases_mwh_per_episode)} MWh a ${unit}`);
+                K.t.row(el, "Largest move", `$${r.max_abs_usd_per_mwh.toFixed(2)}/MWh`);
+                K.t.row(el, "Revenue effect", `${f.usd0(r.revenue_effect_usd_per_episode, true)} a ${unit}`);
+                K.t.row(el, "Hours moved over 1¢", `${r.hours_moved_over_1c} of ${r.awarded_hours}`);
+              }, ev)).on("mouseleave", () => tip.hide());
+            svg.append("text").attr("class", "val").attr("x", v < 0 ? x0 - 6 : x0 + w + 6).attr("y", yy + 9).attr("text-anchor", v < 0 ? "end" : "start").text(narrow ? ct(v) : `${ct(v)} ${l}`);
+          });
+        });
+      }
+      render();
+      K.watch(root, render);
+    }));
+  })();
+</script>

@@ -3,6 +3,7 @@ import { box, canvasTexture, cyl, glowTexture, insulator, inst, mat4, merge, str
 import { gravelMaterial } from "./terrain.js";
 
 export const COLORS = { charge: "#2fd3ff", discharge: "#ffa62b", idle: "#eef2f0", violation: "#ff4b3e", grey: "#5d6266" };
+const STORED = "#4ff09a";
 const ENC = { L: 6.06, W: 2.44, H: 2.9, F: 0.3 };
 const BLOCK = 20.5, GAPX = 3.5, PITCH = 9.2;
 
@@ -165,7 +166,7 @@ function bandGaugeMaterial() {
 }
 
 /** The battery yard, its substation, fence, lights and O&M building. update(state) drives lights, fans and gauges. */
-export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#c2b394", seed = "yard", bands = false } = {}) {
+export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#c2b394", seed = "yard", bands = false, fill = false } = {}) {
   const L = layout(battery);
   const group = new THREE.Group();
   const white = [
@@ -215,7 +216,7 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
       grilleM.push(mat4(p, e.end > 0 ? Math.PI / 2 : -Math.PI / 2));
       fans.push({ p: V(hx + e.end * 0.47, ENC.F + 1.55, e.z + dz), yaw: e.end > 0 ? Math.PI / 2 : -Math.PI / 2 });
     }
-    barM.push(mat4(V(e.x, ENC.F + ENC.H - 0.16, e.z + ENC.W / 2 + 0.03)));
+    for (const side of fill ? [1, -1] : [1]) barM.push(mat4(V(e.x, ENC.F + ENC.H - 0.16, e.z + side * (ENC.W / 2 + 0.03))));
     gaugeM.push(mat4(V(e.x - e.end * (ENC.L / 2 - 0.45), ENC.F + 1.5, e.z + ENC.W / 2 + 0.025)));
   }
   group.add(inst(new THREE.BoxGeometry(ENC.L, ENC.H, ENC.W), white, encM));
@@ -229,7 +230,9 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
   const fanMesh = inst(fanGeom, new THREE.MeshStandardMaterial({ color: "#8f979b", roughness: 0.5, metalness: 0.5, side: THREE.DoubleSide }), fans.map((f) => mat4(f.p, f.yaw)), { shadow: false });
   group.add(fanMesh);
   const barMat = new THREE.MeshStandardMaterial({ color: "#111", emissive: new THREE.Color(COLORS.idle), emissiveIntensity: 1.2, roughness: 0.4 });
-  group.add(inst(new THREE.BoxGeometry(ENC.L - 0.7, 0.13, 0.06), barMat, barM, { shadow: false }));
+  const barFill = { value: 1 };
+  if (fill) fillBar(barMat, barFill, ENC.L - 0.7);
+  group.add(inst(new THREE.BoxGeometry(ENC.L - 0.7, fill ? 0.3 : 0.13, 0.06), barMat, barM, { shadow: false }));
   const gauge = bands ? bandGaugeMaterial() : gaugeMaterial(battery.soc_levels);
   gauge.uniforms.uEnd.value = bands ? battery.s_end_min / battery.soc_levels : battery.s_end_min;
   group.add(inst(new THREE.PlaneGeometry(0.36, 1.55), gauge, gaugeM, { shadow: false }));
@@ -289,16 +292,17 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
       fanMesh.setMatrixAt(i, _m.compose(f.p, _q, one));
     });
     fanMesh.instanceMatrix.needsUpdate = true;
-    col.set(COLORS[mode] || COLORS.idle);
+    col.set(fill && mode === "idle" ? STORED : COLORS[mode] || COLORS.idle);
     barMat.emissive.copy(col);
     const active = mode === "charge" || mode === "discharge";
-    barMat.emissiveIntensity = mode === "idle" ? 0.8 + 0.6 * night : mode === "grey" ? 0.25 : mode === "violation" ? 4 + 2 * night : (3.2 + 4 * load) * (1.25 - 0.45 * night);
+    barMat.emissiveIntensity = mode === "idle" ? (fill ? 2.4 - 0.9 * night : 0.8 + 0.6 * night) : mode === "grey" ? 0.25 : mode === "violation" ? 4 + 2 * night : (3.2 + 4 * load) * (1.25 - 0.45 * night);
     hum.material.color.set(COLORS[mode] || COLORS.idle);
     const beat = reduced ? 1 : 0.85 + 0.15 * Math.sin(wall * Math.PI);
     hum.material.opacity = active ? (0.25 + 0.55 * load) * (0.35 + 0.65 * night) * beat : 0;
     humBush.emissive.set(COLORS[mode] || COLORS.idle);
     humBush.emissiveIntensity = active ? (0.6 + 1.8 * load) * (0.4 + 0.8 * night) * beat : 0;
     gauge.uniforms.uGlow.value = night;
+    barFill.value = soc / battery.soc_levels;
     if (bands) {
       gauge.uniforms.uSoc.value = soc / battery.soc_levels;
       gauge.uniforms.uFloor.value = floor;
@@ -314,6 +318,16 @@ export function buildYard(battery, U, { gravel = "#a7a39b", road: roadColor = "#
     flag.update(wind, dt);
   }
   return { group, layout: L, update, lights, sub };
+}
+
+/** The enclosure's light strip lit along its length to the state of charge, the rest dark. */
+function fillBar(mat, uFill, len) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uFill = uFill;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying float vBarX;").replace("#include <begin_vertex>", `#include <begin_vertex>\nvBarX = position.x / ${len.toFixed(3)} + 0.5;`);
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vBarX;\nuniform float uFill;").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= step(vBarX, uFill + 0.002);");
+  };
+  mat.customProgramCacheKey = () => "bar-fill";
 }
 
 function buildSubstation(L, M) {

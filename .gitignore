@@ -8,8 +8,12 @@ __pycache__/
 results/runs/*/raw/
 .agentenv/config.toml
 dist/
-build/
+/build/
 *.egg-info/
 results/bundles/
 results/videos/
 results/films/
+hub/article/app/node_modules/
+hub/article/app/dist/
+hub/article/app/.astro/
+hub/article/app/public/media/

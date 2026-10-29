@@ -1,0 +1,580 @@
+{
+ "pack": "desk-v4-bench",
+ "schema": "gridsim.desk.pack/v1",
+ "split": "eval",
+ "layer": "v4",
+ "n_tasks": 32,
+ "sites": [
+  "S01",
+  "S02",
+  "S03",
+  "S04"
+ ],
+ "dates": [
+  "2026-01-23",
+  "2026-03-16",
+  "2026-04-03",
+  "2026-04-17",
+  "2026-05-08",
+  "2026-07-04",
+  "2026-07-23",
+  "2026-08-18",
+  "2026-08-26"
+ ],
+ "operator_ok": 32,
+ "sced_fill": {
+  "desk-v4-2026-01-23-S01": 0,
+  "desk-v4-2026-01-23-S02": 0,
+  "desk-v4-2026-01-23-S03": 0,
+  "desk-v4-2026-01-23-S04": 0,
+  "desk-v4-2026-03-16-S01": 0,
+  "desk-v4-2026-03-16-S02": 0,
+  "desk-v4-2026-03-16-S03": 0,
+  "desk-v4-2026-03-16-S04": 0,
+  "desk-v4-2026-04-17-S01": 0,
+  "desk-v4-2026-04-17-S02": 0,
+  "desk-v4-2026-04-17-S03": 0,
+  "desk-v4-2026-05-08-S01": 0,
+  "desk-v4-2026-05-08-S02": 0,
+  "desk-v4-2026-05-08-S03": 0,
+  "desk-v4-2026-05-08-S04": 0,
+  "desk-v4-2026-04-03-S04": 0,
+  "desk-v4-2026-07-04-S01": 2,
+  "desk-v4-2026-07-04-S02": 2,
+  "desk-v4-2026-07-04-S03": 2,
+  "desk-v4-2026-07-04-S04": 2,
+  "desk-v4-2026-07-23-S01": 0,
+  "desk-v4-2026-07-23-S02": 0,
+  "desk-v4-2026-07-23-S03": 0,
+  "desk-v4-2026-07-23-S04": 0,
+  "desk-v4-2026-08-18-S01": 1,
+  "desk-v4-2026-08-18-S02": 1,
+  "desk-v4-2026-08-18-S03": 1,
+  "desk-v4-2026-08-18-S04": 1,
+  "desk-v4-2026-08-26-S01": 1,
+  "desk-v4-2026-08-26-S02": 1,
+  "desk-v4-2026-08-26-S03": 1,
+  "desk-v4-2026-08-26-S04": 1
+ },
+ "coverage": {
+  "desk-v4-2026-01-23-S01": {
+   "sced_fill": 0,
+   "sced_rows": 903,
+   "soc_null": 0,
+   "as_offer_hours": 279,
+   "unit_events": 0,
+   "notices": 6,
+   "nws": 10,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-01-23-S02": {
+   "sced_fill": 0,
+   "sced_rows": 903,
+   "soc_null": 0,
+   "as_offer_hours": 264,
+   "unit_events": 0,
+   "notices": 6,
+   "nws": 6,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-01-23-S03": {
+   "sced_fill": 0,
+   "sced_rows": 903,
+   "soc_null": 0,
+   "as_offer_hours": 218,
+   "unit_events": 0,
+   "notices": 6,
+   "nws": 4,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-01-23-S04": {
+   "sced_fill": 0,
+   "sced_rows": 903,
+   "soc_null": 0,
+   "as_offer_hours": 224,
+   "unit_events": 0,
+   "notices": 6,
+   "nws": 14,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-03-16-S01": {
+   "sced_fill": 0,
+   "sced_rows": 881,
+   "soc_null": 0,
+   "as_offer_hours": 281,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 2,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-03-16-S02": {
+   "sced_fill": 0,
+   "sced_rows": 881,
+   "soc_null": 0,
+   "as_offer_hours": 312,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 3,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-03-16-S03": {
+   "sced_fill": 0,
+   "sced_rows": 881,
+   "soc_null": 0,
+   "as_offer_hours": 155,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 2,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-03-16-S04": {
+   "sced_fill": 0,
+   "sced_rows": 881,
+   "soc_null": 0,
+   "as_offer_hours": 112,
+   "unit_events": 0,
+   "notices": 0,
+   "nws": 0,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-04-17-S01": {
+   "sced_fill": 0,
+   "sced_rows": 871,
+   "soc_null": 0,
+   "as_offer_hours": 262,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 11,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-04-17-S02": {
+   "sced_fill": 0,
+   "sced_rows": 871,
+   "soc_null": 0,
+   "as_offer_hours": 312,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 0,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-04-17-S03": {
+   "sced_fill": 0,
+   "sced_rows": 871,
+   "soc_null": 0,
+   "as_offer_hours": 155,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 3,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-05-08-S01": {
+   "sced_fill": 0,
+   "sced_rows": 867,
+   "soc_null": 0,
+   "as_offer_hours": 237,
+   "unit_events": 0,
+   "notices": 7,
+   "nws": 11,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-05-08-S02": {
+   "sced_fill": 0,
+   "sced_rows": 867,
+   "soc_null": 0,
+   "as_offer_hours": 312,
+   "unit_events": 0,
+   "notices": 7,
+   "nws": 6,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-05-08-S03": {
+   "sced_fill": 0,
+   "sced_rows": 867,
+   "soc_null": 0,
+   "as_offer_hours": 200,
+   "unit_events": 0,
+   "notices": 7,
+   "nws": 5,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-05-08-S04": {
+   "sced_fill": 0,
+   "sced_rows": 867,
+   "soc_null": 0,
+   "as_offer_hours": 177,
+   "unit_events": 0,
+   "notices": 7,
+   "nws": 12,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-04-03-S04": {
+   "sced_fill": 0,
+   "sced_rows": 867,
+   "soc_null": 0,
+   "as_offer_hours": 101,
+   "unit_events": 0,
+   "notices": 1,
+   "nws": 1,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-04-S01": {
+   "sced_fill": 2,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 288,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 15,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-04-S02": {
+   "sced_fill": 2,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 216,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 3,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-04-S03": {
+   "sced_fill": 2,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 183,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 2,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-04-S04": {
+   "sced_fill": 2,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 129,
+   "unit_events": 0,
+   "notices": 2,
+   "nws": 0,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-23-S01": {
+   "sced_fill": 0,
+   "sced_rows": 866,
+   "soc_null": 0,
+   "as_offer_hours": 267,
+   "unit_events": 0,
+   "notices": 17,
+   "nws": 5,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-23-S02": {
+   "sced_fill": 0,
+   "sced_rows": 866,
+   "soc_null": 0,
+   "as_offer_hours": 216,
+   "unit_events": 0,
+   "notices": 17,
+   "nws": 8,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-23-S03": {
+   "sced_fill": 0,
+   "sced_rows": 866,
+   "soc_null": 0,
+   "as_offer_hours": 207,
+   "unit_events": 0,
+   "notices": 17,
+   "nws": 6,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-07-23-S04": {
+   "sced_fill": 0,
+   "sced_rows": 866,
+   "soc_null": 0,
+   "as_offer_hours": 124,
+   "unit_events": 0,
+   "notices": 17,
+   "nws": 5,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-18-S01": {
+   "sced_fill": 1,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 267,
+   "unit_events": 0,
+   "notices": 5,
+   "nws": 4,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-18-S02": {
+   "sced_fill": 1,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 312,
+   "unit_events": 0,
+   "notices": 5,
+   "nws": 1,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-18-S03": {
+   "sced_fill": 1,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 201,
+   "unit_events": 0,
+   "notices": 5,
+   "nws": 3,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-18-S04": {
+   "sced_fill": 1,
+   "sced_rows": 870,
+   "soc_null": 0,
+   "as_offer_hours": 128,
+   "unit_events": 0,
+   "notices": 5,
+   "nws": 4,
+   "forecast_vintages": 288,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-26-S01": {
+   "sced_fill": 1,
+   "sced_rows": 878,
+   "soc_null": 0,
+   "as_offer_hours": 261,
+   "unit_events": 0,
+   "notices": 19,
+   "nws": 5,
+   "forecast_vintages": 286,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-26-S02": {
+   "sced_fill": 1,
+   "sced_rows": 878,
+   "soc_null": 0,
+   "as_offer_hours": 312,
+   "unit_events": 0,
+   "notices": 19,
+   "nws": 8,
+   "forecast_vintages": 286,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-26-S03": {
+   "sced_fill": 1,
+   "sced_rows": 878,
+   "soc_null": 0,
+   "as_offer_hours": 195,
+   "unit_events": 0,
+   "notices": 19,
+   "nws": 3,
+   "forecast_vintages": 286,
+   "desk_forecast_vintages": 93
+  },
+  "desk-v4-2026-08-26-S04": {
+   "sced_fill": 1,
+   "sced_rows": 878,
+   "soc_null": 0,
+   "as_offer_hours": 120,
+   "unit_events": 0,
+   "notices": 19,
+   "nws": 5,
+   "forecast_vintages": 286,
+   "desk_forecast_vintages": 93
+  }
+ },
+ "built_utc": "2026-10-28T23:40:51Z",
+ "builder": "scripts/desk_data_build.py",
+ "sources": {
+  "dam_spp": "NP4-190-CD",
+  "rt_spp": "NP6-905-CD",
+  "rt_lmp": "NP6-788-CD",
+  "dam_mcpc": "NP4-188-CD",
+  "rt_mcpc": "NP6-332-CD",
+  "rt_mcpc_15": "NP6-331-CD",
+  "asdc": "NP4-212-CD",
+  "system.lambda": "NP6-323-CD",
+  "system.prc_mw": "post: proxy (docs/desk-data.md) from NP6-323-CD and NP6-345-CD; pre: NP6-792-ER",
+  "system.load_mw": "NP6-345-CD (hourly actual system load, repeated on the 5-min grid)",
+  "system.wind_mw": "NP4-733-CD",
+  "system.solar_mw": "NP4-738-CD",
+  "forecasts": "v4 forecast store (NP3-565-CD, NP4-742-CD, NP4-745-CD system vintages)",
+  "outage_capacity": "NP3-233-CD",
+  "unit_events": "NP1-346-ER",
+  "notices": "data/notices/notices.jsonl.gz",
+  "nws": "data/notices/nws_vtec.jsonl.gz",
+  "operator.dam": "NP3-966-ER",
+  "operator.sced": "NP3-965-ER",
+  "operator.cop": "NP3-991-EX",
+  "desk_forecast": "data/desk/forecast (desk-qr-v1)",
+  "as_plan": "NP4-33-CD DAM AS Plan, latest posting <= D-1 06:00 [data]",
+  "reg_deploy": "data/hybrid/reg_deploy (60-day SCED storage-fleet regulation) else the fitted fallback [modelled]",
+  "deployments": "data/hybrid/deployments.jsonl (ERCOT notices) [data]",
+  "rt_lmp_hub": "NP6-788-CD at the site's hub [data]",
+  "pv": "MODELLED PV: NP4-745-CD regional actual / (share x EIA-860M capacity) x ILR, NP4-738-CD shape",
+  "forecasts.pv": "MODELLED from NP4-745-CD regional STPPF vintages",
+  "operator.dam.as_offers": "NP3-966-ER 60d DAM ESR (pre: Gen Resource) AS Offers, per product [simplified]",
+  "operator.sced.as_offer_updates": "NP3-965-ER 60d SCED Resource AS Offers, incl. proxy extension [simplified]",
+  "operator.cop.as_capability": "NP3-991-EX COP All Updates",
+  "market": "v5: NP3-966-ER 60-Day DAM Disclosure via market_stack.build_day, site resource carved out"
+ },
+ "reused": {
+  "pack": "desk-v4-eval",
+  "tasks": [
+   "desk-v4-2026-01-23-S01",
+   "desk-v4-2026-01-23-S02",
+   "desk-v4-2026-01-23-S03",
+   "desk-v4-2026-01-23-S04",
+   "desk-v4-2026-03-16-S01",
+   "desk-v4-2026-03-16-S02",
+   "desk-v4-2026-03-16-S03",
+   "desk-v4-2026-03-16-S04",
+   "desk-v4-2026-04-17-S01",
+   "desk-v4-2026-04-17-S02",
+   "desk-v4-2026-04-17-S03",
+   "desk-v4-2026-05-08-S01",
+   "desk-v4-2026-05-08-S02",
+   "desk-v4-2026-05-08-S03",
+   "desk-v4-2026-05-08-S04",
+   "desk-v4-2026-04-03-S04"
+  ]
+ },
+ "cutoff": {
+  "post_cutoff_from": "2026-07-01",
+  "models": {
+   "Gemini 4 Argon": "about 2026-03",
+   "GPT-6.1 Sol": "about 2026-04-30",
+   "GPT-6 Luna": "about 2026-05-18",
+   "Claude Opus 5.5": "about 2026-06"
+  },
+  "basis": "third-party reports, unconfirmed",
+  "splits": {
+   "pre_cutoff": 16,
+   "post_cutoff": 16
+  }
+ },
+ "fronts": [
+  {
+   "dates": "2026-01-23..25",
+   "split": "pre_cutoff",
+   "kind": "arctic front",
+   "why": "Winter Storm Fern, 01-24 -23.8F; 202(c) orders, Transmission Emergency 01-25"
+  },
+  {
+   "dates": "2026-03-16..18",
+   "split": "pre_cutoff",
+   "kind": "cold front",
+   "why": "03-16 -24.4F with Freeze Warnings, +10.6F rebound 03-18; hub RT max $221"
+  },
+  {
+   "dates": "2026-04-17..19",
+   "split": "pre_cutoff",
+   "kind": "cold front",
+   "why": "04-18 -14F with 9 severe-thunderstorm warnings; S04 runs 04-03..05 (04-04 -9.4F)"
+  },
+  {
+   "dates": "2026-05-08..10",
+   "split": "pre_cutoff",
+   "kind": "warm front, storms",
+   "why": "05-09 +8.7F, 27 severe-thunderstorm warnings 05-09..10, 7 ERCOT notices"
+  },
+  {
+   "dates": "2026-07-04..06",
+   "split": "post_cutoff",
+   "kind": "severe-storm line",
+   "why": "Independence Day storm complex: 24 severe-thunderstorm warnings 07-04..06 (18 on 07-05), heat dips -0.8F and -1.2F"
+  },
+  {
+   "dates": "2026-07-23..25",
+   "split": "post_cutoff",
+   "kind": "tropical system",
+   "why": "Tropical Storm Warning on the upper Texas coast 07-23 ends the July heat wave (90.6F and Extreme Heat Warnings 07-22, then -1.9F and -3.1F)"
+  },
+  {
+   "dates": "2026-08-18..20",
+   "split": "post_cutoff",
+   "kind": "heat wave",
+   "why": "Extreme Heat Warning for North Texas in force 08-17..22, 13 heat advisories, daily mean 88.9-89.4F; hub RT max $154 08-18"
+  },
+  {
+   "dates": "2026-08-26..28",
+   "split": "post_cutoff",
+   "kind": "heat-wave break, storm line",
+   "why": "08-26 scarcity (hub RT max $795, mean $120, 17 ERCOT notices), then 15 severe-thunderstorm warnings 08-27..28 and -2.2F 08-28 as the August heat breaks"
+  }
+ ],
+ "refs": {
+  "n": 32,
+  "core_version": [
+   "desk-2.1"
+  ],
+  "anchor_setting": [
+   "{\"dam_position\": \"spread\", \"risk\": 1.5}"
+  ],
+  "floored": [
+   "desk-v4-2026-03-16-S01",
+   "desk-v4-2026-03-16-S02",
+   "desk-v4-2026-03-16-S03",
+   "desk-v4-2026-03-16-S04",
+   "desk-v4-2026-07-23-S03",
+   "desk-v4-2026-08-26-S02",
+   "desk-v4-2026-08-26-S03",
+   "desk-v4-2026-08-26-S04"
+  ],
+  "c_undefined": [],
+  "anchor_below_idle": [
+   "desk-v4-2026-03-16-S01",
+   "desk-v4-2026-03-16-S04",
+   "desk-v4-2026-08-26-S04"
+  ]
+ },
+ "refs_report": {
+  "pack": "desk-v4-bench",
+  "tasks": 32,
+  "floored": 8,
+  "floored_tasks": [
+   "desk-v4-2026-03-16-S01",
+   "desk-v4-2026-03-16-S02",
+   "desk-v4-2026-03-16-S03",
+   "desk-v4-2026-03-16-S04",
+   "desk-v4-2026-07-23-S03",
+   "desk-v4-2026-08-26-S02",
+   "desk-v4-2026-08-26-S03",
+   "desk-v4-2026-08-26-S04"
+  ],
+  "c_undefined": 0,
+  "c_undefined_tasks": [],
+  "anchor_setting": {
+   "risk": 1.5,
+   "dam_position": "spread"
+  },
+  "core_version": "desk-2.1"
+ }
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GridSimEnv · The desk</title>
+  <meta name="description" content="GridSimEnv's desk: GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B trade one real ERCOT battery through the day-ahead market and real time, on ERCOT's real prices and notices, against an anchor, the hindsight optimum and the real operator.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./board.css">
+  <link rel="stylesheet" href="./results.css">
+  <link rel="stylesheet" href="./desk.css">
+</head>
+<body>
+  <div class="viz-root">
+    <header class="top">
+      <div class="wrap">
+        <nav class="crumbs" aria-label="GridSimEnv pages"><a class="back" href="./index.html">← The Battery Desk</a><a href="./results.html">What training bought</a><a href="./board.html">Live board</a><a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv" target="_blank" rel="noopener">The article ↗</a><a href="https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv">Dataset</a></nav>
+        <h1>The desk</h1>
+        <p class="lede" id="lede">Loading the desk…</p>
+        <nav class="vtabs" id="tabs" aria-label="Desk versions"></nav>
+        <div id="kpis" class="kpis"></div>
+      </div>
+    </header>
+    <main class="wrap" id="main"></main>
+  </div>
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+  <script type="module" src="./desk.js"></script>
+</body>
+</html>

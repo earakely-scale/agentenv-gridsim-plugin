@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GridSimEnv Desk</title>
+  <meta name="description" content="An agent trades a real ERCOT battery, up a ladder from v2 to v4 and through a v5 price-impact check. Each replay shows the battery site in 3D in its real light and weather beside the desk: prices as they posted, every tool call, and ERCOT's settlement.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='9' width='22' height='14' rx='3' fill='none' stroke='%2314202b' stroke-width='2.5'/%3E%3Crect x='27' y='13' width='3' height='6' rx='1' fill='%2314202b'/%3E%3Crect x='7' y='12' width='11' height='8' rx='1' fill='%2310855a'/%3E%3C/svg%3E">
+  <link rel="preload" href="./fonts/plex-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./base.css">
+  <link rel="stylesheet" href="./viewer.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../vendor/three-0.180.0/build/three.module.min.js",
+      "three/addons/": "../vendor/three-0.180.0/examples/jsm/",
+      "gridsim/": "../"
+    }
+  }
+  </script>
+</head>
+<body class="viewer">
+  <div class="app" id="app">
+    <section class="stage" id="stage" aria-label="The battery site in 3D">
+      <div class="boot" id="boot"><span>Loading the battery site</span></div>
+      <header class="plate" id="plate">
+        <div class="brand"><b>GridSimEnv Desk</b><span class="ver" id="p-ver"></span></div>
+        <h1 id="p-site">A real ERCOT battery</h1>
+        <p class="who" id="p-who"></p>
+        <div class="row">
+          <button class="btn solid" id="open-sheet" type="button" aria-haspopup="dialog" aria-controls="sheet">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12M2 8h12M2 12.5h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>Episodes
+          </button>
+          <a class="btn" href="./results.html" id="to-results">Results</a>
+        </div>
+      </header>
+      <div class="hold" id="hold" aria-live="polite"><i></i><span id="hold-text"></span></div>
+      <div class="tags" id="tags" aria-hidden="true"></div>
+      <div class="wx" id="wx"></div>
+      <div class="corner">
+        <button class="btn icon-btn" id="cam" type="button" aria-pressed="true" title="Camera: the director's shots (drag the scene to fly it yourself)">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5.5h7v6h-7zM9.5 7.5l4-2v6l-4-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <div class="transport" id="transport">
+      <button class="play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-icon" d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg></button>
+      <div class="scrub" id="scrub" role="slider" tabindex="0" aria-label="Replay time" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"></div>
+      <div class="seg" id="speed" role="group" aria-label="Speed"></div>
+      <label class="toggle" title="Stop the clock at each of the agent's turns and show its tool calls one by one"><input type="checkbox" id="holdturns" checked> Pause at turns</label>
+    </div>
+
+    <aside class="desk" id="desk" aria-label="The desk">
+      <div class="desk-head">
+        <div class="clockrow"><div class="clock" id="clock">06:00</div><div class="dayname" id="day"></div><div class="state" id="state"></div></div>
+        <dl class="now">
+          <div><dt>Node DAM</dt><dd id="n-dam">–</dd></div>
+          <div><dt>SCED, 5-min</dt><dd id="n-sced">–</dd></div>
+          <div><dt>Desk forecast</dt><dd id="n-fc">–</dd></div>
+        </dl>
+        <div class="batt">
+          <div class="meter">
+            <div class="lab"><span id="b-mode">Waiting</span><b id="b-soc"></b></div>
+            <div class="bar"><b id="b-bar"></b></div>
+            <div class="pvline" id="b-pv"></div>
+          </div>
+          <div class="pnl"><div class="lab" id="b-pnl-l">Settled so far</div><div class="v" id="b-pnl">$0</div></div>
+        </div>
+      </div>
+      <div class="desk-charts" id="charts"></div>
+      <div class="desk-pos" id="pos"></div>
+      <div class="feed-head"><b>Wake-ups</b><span id="feed-count"></span></div>
+      <div class="feed" id="feed" aria-live="polite"></div>
+      <footer class="foot" id="foot"></footer>
+    </aside>
+  </div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="scrim" data-close></div>
+    <div class="box" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="top">
+        <div><h2 id="sheet-title">Episodes</h2><p id="sheet-sub"></p></div>
+        <button class="btn icon-btn" type="button" data-close aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="vtabs" id="vtabs" role="tablist" aria-label="Versions"></div>
+      <p class="adds" id="adds"></p>
+      <div class="ctl" id="ctl"></div>
+      <div class="grid-wrap" id="grid"></div>
+    </div>
+  </div>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <script type="module" src="./viewer.js"></script>
+</body>
+</html>

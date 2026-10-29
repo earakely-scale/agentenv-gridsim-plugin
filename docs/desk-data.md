@@ -401,3 +401,61 @@ handles the gap; ridge and MLP impute it), so the second and third days lean on 
 - **Floored windows:** pilot 0 of 1; eval 4 of 16, the four 2026-03-16 windows, where the anchor loses or barely gains.
 - **Window swap:** 2026-04-17 S04 was replaced by 2026-04-03..05 S04, because WFTANK was on a forced outage from 04-10
   to 04-20 (NP1-346-ER). The 04-17 front is kept at S01–S03.
+## 13. v4 benchmark pack (`desk-v4-bench`)
+
+**What it is.** 32 three-day windows: the 16 windows of `desk-v4-eval` (four fronts, January to May), copied unchanged,
+plus 16 windows on four new fronts in July and August 2026. Each task's `tags.split` marks its half: `pre_cutoff`
+(the January–May windows) or `post_cutoff` (from 2026-07-01). The post-cutoff half falls after the training cutoffs
+reported for the models run on the desk, so it is the contamination-clean split. The manifest's `cutoff` records the
+dates we were given: Gemini 4 Argon about 2026-03, GPT-6.1 Sol about 2026-04-30, GPT-6 Luna about 2026-05-18, Claude
+Opus 5.5 about 2026-06. These come from third-party reports and are unconfirmed.
+
+**Reused windows.** `desk_data_build.py` copies a task named by the spec's `reuse` pack instead of rebuilding it. The
+series files are byte-identical to `desk-v4-eval`. The task records are identical except for the added
+`tags.split`; they keep `pack: desk-v4-eval`, because no code reads that field.
+
+**New fronts.** Found the same way as §12: HRRR 2-m daily means (DFW, IAH, AUS, SAT, MAF) from the v4 forecast store,
+NWS VTEC warnings in `data/notices/nws_vtec.jsonl.gz`, ERCOT notices and hub RT prices.
+
+| Window | Front | Evidence |
+|---|---|---|
+| 2026-07-04..06 | severe-storm line | Independence Day storm complex: 24 severe-thunderstorm warnings 07-04..06 (18 on 07-05); daily mean −0.8°F, then −1.2°F |
+| 2026-07-23..25 | tropical system | Tropical Storm Warning on the upper Texas coast 07-23, after the July heat peak (90.6°F and Extreme Heat Warnings 07-22); then −1.9°F and −3.1°F |
+| 2026-08-18..20 | heat wave | Extreme Heat Warning for North Texas in force 08-17..22; daily mean 88.9–89.4°F; hub RT max $154 on 08-18 |
+| 2026-08-26..28 | heat-wave break, storm line | 08-26 scarcity (hub RT max $795, mean $120, 17 ERCOT notices), then 15 severe-thunderstorm warnings 08-27..28 and −2.2°F on 08-28 |
+
+**Constraints.**
+- Every new day is post-RTC+B and at least 60 days old: the last day is 2026-08-28.
+- No DST change from D-7 through D2.
+- No date overlaps v2-eval, v2-tune, the v2 and v3 pilots, v3/v5-eval or v4-pilot/eval.
+- `operator_ok` holds for all 16 new windows.
+- No NP1-346-ER outage or derate touches any new window, so no swaps were needed.
+- The 08-26 windows carry 286 ERCOT forecast vintages instead of 288: the API has no wind or solar posting for
+  08-27 17:00.
+
+**Other candidates checked** (all four sites `operator_ok`, not used):
+- 07-11..13: mid-July cool-down.
+- 07-15..17: five tornado warnings in South Texas, then the heat rebuilds.
+- 07-18..20: onset of the late-July heat wave (Houston hub to $223).
+- 08-24..26: the start of the August break.
+
+**Caveat for 08-26..28.** These days fall after the measured storage-fleet regulation data ends (2026-08-25), so
+their `reg_deploy` is the fitted fallback, labelled `modelled`.
+
+**Desk forecast.** The 2026-07 and 2026-08 refits are new in `report.json` `v4`. Re-running the existing months
+reproduces them exactly.
+
+| Month | DAM | RT (3-day horizons) | coverage DAM / RT |
+|---|---|---|---|
+| 2026-07 | 2.54 | 2.82 | 0.81 / 0.80 |
+| 2026-08 | 2.14 | 4.71 | 0.78 / 0.72 |
+
+**References.** Built with `desk_run.py --refs-only` on the core at tag `desk-v4-freeze` (be6ff8c, desk-2.1, anchor
+risk 1.5 / spread). The 16 reused windows reproduce their `desk-v4-eval` refs byte for byte. Every hind-bound assert
+passes and `c_undefined` is 0 of 32. 8 of 32 windows are floored:
+- the four 2026-03-16 windows (as in `desk-v4-eval`);
+- 07-23 S03;
+- 08-26 S02, S03 and S04.
+
+On 08-26 S04 the anchor loses money (−$33.1k against idle +$25.4k). Most of the loss is the RT AS imbalance on
+08-26 (−$75.6k): the anchor's DAM AS awards are bought back at scarcity RT prices. Hindsight there is $464k.

@@ -32,7 +32,7 @@ from sklearn.preprocessing import StandardScaler
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import desk_data_api as A  # noqa: E402
-from desk_data_build import PACKS, SITES, STORE  # noqa: E402
+from desk_data_build import PACKS, SITES, STORE, new_tasks  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "desk" / "forecast"
@@ -423,7 +423,7 @@ def main_v4(packs: list[str]):
     reg = pd.read_parquet(ROOT / "data" / "desk" / "sites.parquet").set_index("resource_name")
     nodes = [Node(k, reg.loc[s["resource"], "settlement_point"], s["hub"]) for k, s in enumerate(SITES.values())]
     by_point = {nd.point: nd for nd in nodes}
-    tasks = [(d0, sid) for name in packs for d0, sid in PACKS[name]["tasks"]]
+    tasks = [(d0, sid) for name in packs for d0, sid in new_tasks(PACKS[name])]
     months = sorted({d0[:7] for d0, _ in tasks})
     last_day = pd.Timestamp("2026-08-31", tz=CPT)
     pool = {"dam": build_set(nodes, EV, pd.date_range(T0, last_day, freq="D"), "dam", 1),
