@@ -1,0 +1,54 @@
+## serve (48.9s)
+'http://127.0.0.1:39963'
+
+## sizes (48.9s)
+(2000, 200)
+
+## row
+{
+  "prompt": [
+    {
+      "role": "system",
+      "content": "You operate a grid battery in the ERCOT day-ahead market (DAM) for one operating day: 24 hours, HE01..HE24 (hour ending, Central Prevailing Time). You are a pri\u2026"
+    },
+    {
+      "role": "user",
+      "content": "{\"task_id\": \"dam-v1-2021-05-06-HB_HUBAVG-1h-r\", \"tier\": \"foresight\", \"market\": \"ERCOT DAM\", \"date\": \"2021-05-06\", \"settlement_point\": \"HB_HUBAVG\", \"point_kind\":\u2026"
+    }
+  ],
+  "split": "train",
+  "index": 0,
+  "task_id": "@local/~/bundles/gridsim-v1/dam-v1-2021-05-06-HB_HUBAVG-1h-r"
+}
+Deprecated agent card endpoint '/.well-known/agent.json' accessed. Please use '/.well-known/agent-card.json' instead. This endpoint will be removed in a future version.
+## methods ['submit_schedule', 'end_turn']
+## signature (self, *, actions: list[int]) -> str
+## doc Submit the final 24-hour schedule. This ends the episode.
+
+Args:
+    actions: 24 integers for HE01..HE24: a > 0 discharges (sells) a units, a < 0 charges (buys) -a units.
+## reset (0.0s)
+None
+
+Deprecated agent card endpoint '/.well-known/agent.json' accessed. Please use '/.well-known/agent-card.json' instead. This endpoint will be removed in a future version.
+## submit 23 (4.2s)
+'{"submitted":false,"error":"expected exactly 24 integers, got 23"}'
+
+## submit idle (0.0s)
+'{"submitted":true,"feasible":true,"truncated_at":null,"violation":null,"soc_path":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"profit_usd":0.0}'
+
+## end_turn (2.4s)
+'The episode has ended.'
+
+## reward (0.0s)
+0.2
+
+Deprecated agent card endpoint '/.well-known/agent.json' accessed. Please use '/.well-known/agent-card.json' instead. This endpoint will be removed in a future version.
+## rollout: reset 0.00s, reward 0.2 after 6.52s
+Deprecated agent card endpoint '/.well-known/agent.json' accessed. Please use '/.well-known/agent-card.json' instead. This endpoint will be removed in a future version.
+## rollout: reset 0.00s, reward 0.2 after 6.51s
+Deprecated agent card endpoint '/.well-known/agent.json' accessed. Please use '/.well-known/agent-card.json' instead. This endpoint will be removed in a future version.
+## rollout: reset 0.00s, reward 0.2 after 6.55s
+## closed (83.2s)
+None
+
