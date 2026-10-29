@@ -78,3 +78,23 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
 - Gemini CLI + Argon: first pilot failed at wake 13 on a transient Google 400 (the identical request replays fine); rerun on route C.
 - OpenCode + Qwen3-4B (thinking on): completed mechanically but submitted nothing valid (its tool-call JSON for nested offers is malformed and it repeats it); diagnosed as the untrained model's limitation, not configuration. Its benchmark score is reported as the untrained baseline.
 - A $0 parity check showed the bench bundle's hook and env reproduce the frozen desk byte for byte on Linux.
+
+## Deviations
+1. Route C, as recorded above before the first scored episode: API models on one EC2 box (m7i.16xlarge, no GPU
+   needed), Qwen3-4B on four EC2 GPU boxes (g5.xlarge and g5.2xlarge, A10G) each serving the same vLLM 0.29.0 build,
+   model revision and flags, not on a Modal GPU. Qwen3-4B's cost is the boxes' on-demand GPU-hours shared by episode.
+2. The API box ran agentenv-framework 0.9.1377, the Qwen boxes 0.9.1378. The two releases differ only in
+   `agent_env.openenv` and `agent_env.training`, which `agent-env run` does not use.
+3. Gemini 4 Argon was not run. Its route-C smoke on the pilot window stopped at its $12.47 cap after 40 minutes and
+   30 wakes (5.5M uncached input tokens), which projects $15–20 a window and $480–640 for 32, past its share of the
+   cap; per the spend rule it is reported, not run. Its smoke is not scored.
+4. Retries, decided at 09:25 UTC while runs were in progress (Opus had finished and its results had been read; the rule
+   is by failure type and applies to every model): launch attempts that failed while deploying, before the first model
+   call, at $0, do not count toward the two-retry limit. All 81 such failures (Opus 27, Sol 35, Luna 19) were a port
+   race in our launcher on the shared box; the last ended at 08:21 UTC, after the launcher was fixed. Sol 2026-03-16
+   S04 and 2026-04-17 S02 were each graded on attempt 4 (two $0 deploy failures, then one paid stall).
+5. Codex CLI stalls: the framework's agent CLI inactivity watchdog (300 s) ended 7 Codex episodes whose CLI printed
+   nothing for 300 s (Sol 4, $7.68; Luna 3, $0.61). They were treated as infrastructure failures and retried; their
+   spend is counted. A longer watchdog (900 s) is recommended for the next run.
+6. No window is missing: each model run has exactly one graded run on each of the 32 windows. Qwen3-4B submitted
+   nothing valid on 7 windows, which are scored as settled (R = 0).
