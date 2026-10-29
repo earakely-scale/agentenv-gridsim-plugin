@@ -43,7 +43,6 @@
     const K = window.GridsimKit;
     const root = K.mount("gs-bench");
     if (!root) return;
-    const kind = K.config(root).chart === "splits" ? "splits" : "cost";
     if (!document.getElementById("ruler")) {
       const box = document.createElement("div");
       box.className = "gs-bench-ruler";
@@ -67,16 +66,14 @@
       };
       const card = (el, m, color, sp) => {
         head(el, m, color);
-        const rows = sp ? [[side[sp].name, sp === "pre_cutoff" ? `${m.pre} ${m.preci}` : `${m.post} ${m.postci}`], [`C, all ${fb.n} windows`, `${m.C} ${m.Cci}`]]
-          : [[`C, all ${fb.n} windows`, `${m.C} ${m.Cci}`], [fb.side.pre.name, `${m.pre} ${m.preci}`], [fb.side.post.name, `${m.post} ${m.postci}`],
-            ["R", `${m.R} ${m.Rci}`], ["cost a window", m.basis ? `${m.usd}, ${m.basis}` : m.usd], ["every attempt", m.spent]];
-        rows.forEach(([a, b]) => K.t.row(el, a, b));
+        [[side[sp].name, sp === "pre_cutoff" ? `${m.pre} ${m.preci}` : `${m.post} ${m.postci}`], [`C, all ${fb.n} windows`, `${m.C} ${m.Cci}`],
+          ["R", `${m.R} ${m.Rci}`], ["cost a window", m.basis ? `${m.usd}, ${m.basis}` : m.usd]].forEach(([a, b]) => K.t.row(el, a, b));
         if (m.valid !== m.n) K.t.note(el, `A valid submission on ${m.valid} of ${m.n} windows.`);
       };
 
       function render() {
         const W = Math.max(280, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 460;
-        plot.innerHTML = kind === "splits" ? C.splitsChart(B, W, narrow) : C.costScore(B, W, narrow);
+        plot.innerHTML = C.splitsChart(B, W, narrow);
         const svg = plot.querySelector("svg");
         svg.removeAttribute("height");
         const marks = [...svg.querySelectorAll(".mk, .mk-o")].map((el) => {
@@ -86,7 +83,7 @@
         }).filter((m) => m.fam && fb.m[m.fam]);
         for (const m of marks) {
           const twins = marks.filter((o) => o.fam === m.fam);
-          const sp = kind === "splits" ? (m.x <= Math.min(...twins.map((o) => o.x)) ? "pre_cutoff" : "post_cutoff") : null;
+          const sp = m.x <= Math.min(...twins.map((o) => o.x)) ? "pre_cutoff" : "post_cutoff";
           const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
           hit.setAttribute("class", "hit");
           hit.setAttribute("cx", m.x.toFixed(1));

@@ -11,21 +11,10 @@ Each model runs in a native agent harness, once per window, on the same desk, to
 runs further down. The headline is C, hindsight capture: the share of the hindsight optimum's profit over idle that a
 desk captures.
 
-The banner above plays the lead run, the one the dataset card's GIF films: {F.bench.lead.name} in
-{F.bench.lead.harness} over {F.bench.lead.span}, a {F.bench.lead.kind}, at the four batteries. At {F.bench.lead.site}
-({F.bench.lead.region}, {F.bench.lead.battery}) it settles at {F.bench.lead.P}, hindsight capture C {F.bench.lead.C};
-the real operator's own bids, replayed, earn {F.bench.lead.op}. <a href={F.bench.lead.replay.sol}>Replay it in
-3D</a>, or watch <a href={F.bench.lead.replay.opus}>{F.bench.m.opus.name}</a>,
-<a href={F.bench.lead.replay.luna}>{F.bench.m.luna.name}</a> or <a href={F.bench.lead.replay.qwen}>{F.bench.m.qwen.name}</a>
-trade the same window.
-
 <HtmlEmbed
   src="d3-desk-bench.html"
-  id="bench-cost"
-  wide
-  config={{ chart: "cost" }}
-  title="How much of the hindsight optimum each model captured, against what a three-day window cost"
-  desc={F.bench.cap.cost}
+  id="bench-splits"
+  desc={F.bench.cap.splits}
 />
 
 <div class="table-scroll gs-bench-wrap">
@@ -95,13 +84,13 @@ trade the same window.
 
 <p class="gs-table-note">{F.bench.cap.table} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0. The viewer's <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#board">board</a> adds each model's settled P.</p>
 
-<HtmlEmbed
-  src="d3-desk-bench.html"
-  id="bench-splits"
-  config={{ chart: "splits" }}
-  title="Hindsight capture before and after the training cutoffs"
-  desc={`Each model's C on the ${F.bench.side.pre.n} windows of ${F.bench.side.pre.name}, which may be in its training data, and on the ${F.bench.side.post.n} windows of ${F.bench.side.post.name}, after every model's reported cutoff. Grey dashed: the real operator's own bids, replayed. Each side's 95% CI is in the table above.`}
-/>
+The banner above plays the lead run, the one the dataset card's GIF films: {F.bench.lead.name} in
+{F.bench.lead.harness} over {F.bench.lead.span}, a {F.bench.lead.kind}, at the four batteries. At {F.bench.lead.site}
+({F.bench.lead.region}, {F.bench.lead.battery}) it settles at {F.bench.lead.P}, hindsight capture C {F.bench.lead.C};
+the real operator's own bids, replayed, earn {F.bench.lead.op}. <a href={F.bench.lead.replay.sol}>Replay it in
+3D</a>, or watch <a href={F.bench.lead.replay.opus}>{F.bench.m.opus.name}</a>,
+<a href={F.bench.lead.replay.luna}>{F.bench.m.luna.name}</a> or <a href={F.bench.lead.replay.qwen}>{F.bench.m.qwen.name}</a>
+trade the same window.
 
 ### What it shows
 
