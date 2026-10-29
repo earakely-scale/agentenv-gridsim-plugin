@@ -90,22 +90,20 @@ desk captures.
 </table>
 </div>
 
-<p class="gs-table-note">{F.bench.cap.table} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0. The viewer's <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#board">board</a> adds each model's settled P.</p>
+<p class="gs-table-note">{F.bench.cap.table.before}<a href={F.bench.cap.table.url}>{F.bench.cap.table.label}</a>{F.bench.cap.table.after} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0. The viewer's <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#board">board</a> adds each model's settled P.</p>
 
 The banner above plays the lead run, the one the dataset card's GIF films: {F.bench.lead.name} in
 {F.bench.lead.harness} over {F.bench.lead.span}, a {F.bench.lead.kind}, at the four batteries. At {F.bench.lead.site}
 ({F.bench.lead.region}, {F.bench.lead.battery}) it settles at {F.bench.lead.P}, hindsight capture C {F.bench.lead.C};
 the real operator's own bids, replayed, earn {F.bench.lead.op}. <a href={F.bench.lead.replay.sol}>Replay it in
-3D</a>, or watch <a href={F.bench.lead.replay.opus}>{F.bench.m.opus.name}</a>,
-<a href={F.bench.lead.replay.luna}>{F.bench.m.luna.name}</a> or <a href={F.bench.lead.replay.qwen}>{F.bench.m.qwen.name}</a>
+3D</a>, or watch {F.bench.lead.others.map((o, i, all) => <>{i ? (i === all.length - 1 ? " or " : ", ") : ""}<a href={o.url}>{o.name}</a></>)}
 trade the same window.
 
 ### What it shows
 
 - **{F.bench.say.lead.head}** {F.bench.say.lead.text} Every pair of models, paired by window, is on the viewer's
   [benchmark page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#paired).
-- **{F.bench.say.operator.head}** {F.bench.say.operator.text} Paired by window, in points of C: {F.bench.m.sol.name}
-  {F.bench.m.sol.op} and {F.bench.m.opus.name} {F.bench.m.opus.op}.
+- **{F.bench.say.operator.head}** {F.bench.say.operator.text} Paired by window, in points of C: {F.bench.ahead}.
 - **Before and after the cutoffs:** {F.bench.text.halves} The viewer gives each model's
   [post − pre gap](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#halves).
 - **{F.bench.m.qwen.name}, untrained, is the baseline for fine-tuning.** It made a valid submission on
@@ -124,12 +122,16 @@ tools off and has its internet egress blocked.
 - **{F.bench.how.tools.head}** {F.bench.how.tools.text}
 - **{F.bench.how.internet.head}** {F.bench.how.internet.text}
 - **{F.bench.route.head}, because the Modal route wasn't available to us:** {F.bench.route.text}
+- **{F.bench.late.head}:** {F.bench.late.text} The prompt-cache fix is
+  [agentenv-framework#388](https://github.com/scaleapi/agentenv-framework/pull/388).
+- **{F.bench.errors.head}:** {F.bench.errors.text} Both are logged in the
+  <a href={F.bench.links.deviations}>deviations</a>.
 - **Pre-registered.** The
   [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
   was committed before the first scored episode, and every deviation from it is logged at its end, under
-  [Deviations](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations),
-  which the viewer [lists too](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#deviations). {F.bench.text.reliability}
-- **{F.bench.gemini.head}:** {F.bench.gemini.text}
+  <a href={F.bench.links.deviations}>Deviations</a>, which the viewer
+  [lists too](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#deviations).
+  {F.bench.text.reliability}
 
 **Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
 (`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), and `agent-env run` plays one window of it,

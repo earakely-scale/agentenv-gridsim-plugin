@@ -13,7 +13,7 @@ import F from "../assets/data/facts.json";
 - **Frozen.** Each version ran on a frozen tag, `desk-v2-freeze`, `desk-v3-freeze` and `desk-v4-freeze`, and the check
   on `desk-v5-freeze`, the same commit as v4's; fixes land on the head only and never change a frozen run. The results
   are committed under `desk-v2-results` to `desk-v5-results`. The benchmark plays v4's freeze through its bundle at
-  `desk-v4-bench-run1`, and its results are under `desk-v4-bench-results`.
+  `desk-v4-bench-run1`, and its results are under <code>{F.bench.tag}</code>.
 - **Reviewed before the first scored run.** The review found two information-timing leaks, fixed in
   [049cc93](https://github.com/earakely-scale/agentenv-gridsim-plugin/commit/049cc93) before v2 froze: the day
   before's real-time prices were visible before they posted, and a unit event before it started. The v2 pilot ran
