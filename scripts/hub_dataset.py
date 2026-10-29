@@ -926,7 +926,8 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
         f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
         "(four within each side of the cutoffs). Cost a window: the graded attempt's list-price tokens, or the open "
-        "model's GPU time; in all: every attempt, retries and stalls included. The "
+        "model's GPU time; in all: every attempt, retries and stalls included." + (f" {s['text']['metered']}" if s[
+            "text"].get("metered") else "") + " The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
         "settlement.</small>", "", *(x for d in s.get("deferred") or [] for x in (md(d), "")),
@@ -934,7 +935,10 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         *(f"- {x}" for x in bench_bullets(s)), "",
         "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
         "### Known limitations of the benchmark", "", *(f"- {x}" for x in bench_limits(s)), "",
-        *(["### Deviations from the pre-registration", "", *(f"- {x}" for x in s["deviations"]), ""]
+        *(["### Deviations from the pre-registration", "", *(f"- {x}" for x in s["deviations"]), "",
+           *([f"The pre-registration lists its deviations at its end: [{s['run']['prereg']}#deviations]({REPO}/blob/"
+              f"{s['run']['deviations_ref']}/{s['run']['prereg']}#deviations).", ""]
+             if s["run"].get("prereg") and s["run"].get("deviations_ref") else [])]
           if s.get("deviations") else []),
         f"Every number is in [`{BENCH_DIR}`]({DATASET}/tree/main/{BENCH_DIR}) (its README, `summary.json`, "
         "`grades.jsonl.gz` and every scored Episode JSON) and in the `desk_v4_bench` config, one row per model and "

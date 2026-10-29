@@ -124,7 +124,8 @@ def bench(tmp_path_factory):
     out = root / "results" / "desk-v4-bench"
     argv = sys.argv
     sys.argv = ["desk_bench_results.py", "--runs", str(root / "runs"), "--out", str(out), "--no-figures",
-                "--framework", "0.9.1378", "--redact", "ZZSECRET"]
+                "--framework", "0.9.1378", "--redact", "ZZSECRET", "--prereg", "docs/prereg/v4-bench.md",
+                "--deviations-ref", "desk-v4-bench-results", "--deviation", "Infrastructure retries ({retries})."]
     try:
         dbr.main()
     finally:
@@ -229,6 +230,7 @@ def test_card_numbers_are_summary_json(bench, tmp_path):
     gap = hub_dataset.bench_pair(s, "opus", "qwen")
     assert f"{_pc(gap['mean']).replace('−', '')} pts" in section
     assert "desk_v4_bench/pre_cutoff.parquet" in card and "default: true" in card.split("desk_leaderboard")[0]
+    assert f"({dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations)" in section
 
 
 def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
@@ -264,6 +266,8 @@ def _route_c(root: Path) -> None:
                    "t_end": (t0 + dt.timedelta(seconds=b)).isoformat(), "wall_s": float(b - a), "box": "box1",
                    "instance_type": kind, "harness": harness, "status": "completed" if cls == "ok" else "failed",
                    "usage": {"tokens": {"input": 10}, "cost_usd_list_price": 0.0 if key == "qwen" else 1.25}}
+            if key == "sol" and cls != "agent":
+                row["proxy_cost_usd"] = 0.4 if cls == "infra" else 1.3
             rows.append(row)
             if cls == "ok":
                 ep = _episode(tasks[tid], round(tasks[tid]["refs"]["p_idle"] + 1000, 2))
@@ -282,7 +286,8 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     out = tmp_path / "out"
     argv = sys.argv
     sys.argv = ["desk_bench_results.py", "--runs", str(tmp_path / "runs"), "--out", str(out), "--no-figures",
-                "--deferred", "Gemini 4 Argon (Gemini CLI): deferred; projected $15–20 per window."]
+                "--deferred", "Gemini 4 Argon (Gemini CLI): deferred; projected $15–20 per window.",
+                "--prereg", "docs/prereg/v4-bench.md", "--deviations-ref", "desk-v4-bench-results"]
     try:
         dbr.main()
     finally:
@@ -293,7 +298,8 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     assert qwen["cost"]["gpu"]["basis"] == "ec2" and qwen["cost"]["gpu"]["gpu_hours"] == pytest.approx(1500 / 3600,
                                                                                                          abs=1e-3)
     assert qwen["cost"]["usd_per_window"] == pytest.approx(750 / 3600 * 1.006, abs=1e-4) and qwen["n"] == 2
-    assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 3.75
+    assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 2.9
+    assert s["run"]["metered_attempts"] == 1 and s["text"]["metered"] == dbr.METERED
     agent = "agent-side failure, final, no grade possible"
     assert sol["attempts"]["missing_reasons"] == {agent: 1, "no attempt": 30}
     assert sol["attempts"]["failure_kinds"] == {"infrastructure": 1, agent: 1}
@@ -302,5 +308,6 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
                                "reported missing and not imputed."]
     assert s["lead_rule"]["exposed"] == ["sol"] and s["lead_rule"]["unexposed"] == ["qwen"]
     readme = (out / "README.md").read_text()
-    assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and s["text"]["halves"] in readme
+    assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and s["text"]["halves"] in readme and dbr.METERED in readme
+    assert f"({dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations)" in readme
     assert "GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1;" in s["text"]["reliability"]

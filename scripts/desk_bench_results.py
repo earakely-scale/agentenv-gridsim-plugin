@@ -66,6 +66,8 @@ SCALEDOWN_S = 300
 EC2_USD_PER_H = {"g5.xlarge": 1.006, "g5.2xlarge": 1.212}
 EC2_PRICE_SOURCE = "EC2 on-demand, us-west-2"
 NAMED_FRONTS = {"2026-01-23": "winter storm Fern"}
+REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+METERED = "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory."
 CLASS_KIND = {"infra": "infrastructure", "agent": "agent-side failure, final, no grade possible",
               "capped": "episode spend cap, final", "stopped": "model spend cap, final"}
 SHELL = {"Bash", "command_execution", "run_shell_command", "bash", "shell", "local_shell"}
@@ -265,13 +267,15 @@ def route_c(bench: Path, row: dict, result: dict | None, labels: dict) -> dict:
         a |= {"episode": ep, "grade": a["grade"] or ep.get("grade") or {}}
     u = row.get("usage") or {}
     version = re.search(r"\d+\.\d+\.\d+", row.get("agent_version") or "")
+    metered = not ok and row.get("proxy_cost_usd") is not None
+    usd = row["proxy_cost_usd"] if metered else a["usd"] if a["usd"] is not None else u.get(
+        "cost_usd_list_price", row.get("proxy_cost_usd"))
     return a | {"graded": ok and a["episode"] is not None and bool(a["grade"]),
                 "harness_version": version[0] if version else None,
                 "kind": None if ok else CLASS_KIND.get(row["class"], row["class"]),
                 "error": clean(row.get("why")) or a["error"], "box": row.get("box"),
                 "instance_type": row.get("instance_type"), "ended": dt.datetime.fromisoformat(row["t_end"]),
-                "tokens": a["tokens"] or u.get("tokens") or {},
-                "usd": a["usd"] if a["usd"] is not None else u.get("cost_usd_list_price", row.get("proxy_cost_usd"))}
+                "tokens": a["tokens"] or u.get("tokens") or {}, "usd": usd, "metered": metered}
 
 
 def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[dict], Counter]:
@@ -621,11 +625,12 @@ def texts(s: dict, retry_note: str | None) -> dict:
                       if failed else "every one reached the grade.")
                    + (f" Windows not scored and not imputed: {'; '.join(missing)}." if missing else
                       " No window is missing."))
-    return {"halves": " ".join(halves), "rule": rule["text"], "valid": valid, "reliability": reliability}
+    return {"halves": " ".join(halves), "rule": rule["text"], "valid": valid, "reliability": reliability,
+            "metered": METERED if s["run"].get("metered_attempts") else ""}
 
 
 def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: list[dict], labs: dict, gpus: dict,
-              episodes: list[dict], fake: bool) -> dict:
+              episodes: list[dict], fake: bool, metered: int) -> dict:
     rank = {k: i for i, k in enumerate(ORDER)}
     keys = sorted({r["model"] for r in rows}, key=lambda k: (rank.get(k, 99), k))
     models = {k: model_block([r for r in rows if r["model"] == k], log, labs[k], gpus.get(k)) for k in keys}
@@ -662,6 +667,7 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
                 "harness_versions": {m["harness"]: m["harness_version"] for m in models.values()},
                 "budget": next((e.get("budget") for e in episodes if e.get("budget")), None),
                 "core_versions": sorted({e.get("core_version", "?") for e in episodes}),
+                "metered_attempts": metered, "deviations_ref": a.deviations_ref,
                 "prices_per_mtok": {k: v for k, v in DBR.PRICES.items() if any(m["model_id"] == k
                                                                               for m in models.values())}},
         "deviations": [d.replace("{retries}", ", ".join(
@@ -787,6 +793,13 @@ def picture(name: str, alt: str) -> str:
             f'<img src="figures/{name}.png" width="660" alt="{alt}"></picture>')
 
 
+def deviations_link(s: dict) -> str | None:
+    run = s["run"]
+    if not (run.get("prereg") and run.get("deviations_ref")):
+        return None
+    return f"{REPO}/blob/{run['deviations_ref']}/{run['prereg']}#deviations"
+
+
 def readme(s: dict) -> str:
     ms, refs, sp = s["models"], s["references"], s["splits"]
     who = {k: m["name"] for k, m in ms.items()} | {"operator_replay": "the operator's bids, replayed"}
@@ -881,13 +894,16 @@ def readme(s: dict) -> str:
         + (": " + "; ".join(f"{who[d['model']]} {d['task_id']}" for d in diffs[:8]) if diffs else "") + ".",
         f"- CIs: {s['ci']['method']}; {s['ci']['resamples']:,} resamples, seed {s['ci']['seed']}.",
         "- Cost: tokens from the harness trajectories at public list prices, $ per million tokens "
-        f"input/cached/cache write/output: {prices}." + (f" Open weights: {gpu['note']}." if gpu else ""),
+        f"input/cached/cache write/output: {prices}." + (f" {s['text']['metered']}" if s["text"]["metered"] else "")
+        + (f" Open weights: {gpu['note']}." if gpu else ""),
         *(["- Passed over under the run folders: " + ", ".join(f"{k} ×{v}" for k, v in s["skipped"].items()) + "."]
           if s.get("skipped") else []),
         *([f"- Redacted from the Episode JSON: {sum(s['redactions'].values())} occurrences of "
            f"{len(s['redactions'])} term{'s' if len(s['redactions']) > 1 else ''} the leak scan refused."]
           if s.get("redactions") else []),
         *[f"- Deviation: {d}" for d in s.get("deviations") or []],
+        *([f"- Deviations as appended to the pre-registration: [{run['prereg']}#deviations]({deviations_link(s)})."]
+          if deviations_link(s) else []),
         *[f"- Known env defect: {d}" for d in s.get("defects") or []],
         *[f"- {n}" for n in s.get("notes") or []],
         "- Files: `summary.json`, `grades.jsonl.gz` (one row per model and window), `episodes/<model>/*.json.gz` "
@@ -913,6 +929,7 @@ def main() -> None:
     ap.add_argument("--framework", help="the agentenv-framework version the runs used")
     ap.add_argument("--bundle", help="the bench bundle's tag or commit the runs played")
     ap.add_argument("--prereg", help="the pre-registration's path in the repo, e.g. docs/prereg/v4-bench.md")
+    ap.add_argument("--deviations-ref", help="the tag or commit whose pre-registration carries its appended Deviations")
     ap.add_argument("--deviation", action="append", default=[], help="a deviation from the pre-registration; "
                     "{retries} becomes each model's count of infrastructure retries")
     ap.add_argument("--defect", action="append", default=[], help="a known env defect")
@@ -943,7 +960,7 @@ def main() -> None:
         gpus[k] = ec2_share(xs) if all(x.get("box") for x in xs) else gpu_share(xs, a.qwen_gpu, a.qwen_gpu_hours)
     rows, log = windows(atts, tasks, front_of)
     s = summarize(a, tasks, fr, front_of, rows, log, labs, gpus, [x["episode"] for x in atts if x["episode"]],
-                  fake.pop())
+                  fake.pop(), sum(bool(x.get("metered")) for x in atts))
     out = a.out
     out.mkdir(parents=True, exist_ok=True)
     s["redactions"] = episodes_out(atts, rows, out, a.redact) or None
