@@ -9,7 +9,8 @@ Each harness is a framework agent (claude-code, codex, gemini, opencode) on its 
 - the gridsim-desk env itself, `envs/<env>/`, built where it deploys from the plugin's tree at desk-v4-freeze;
 - a `netcheck` task that deploys the same env and agent and asks the agent to curl hosts outside the allowlist and to
   call a desk tool.
-The hook and the verifier are gridsim-desk's, unchanged. The allowlist names each vendor's API host; `--allow-host`
+The hook and the verifier are gridsim-desk's, unchanged; the hook finds the task's one desk env itself, since a
+bundle's env is deployed under its bundle-qualified id. The allowlist names each vendor's API host; `--allow-host`
 replaces it, for a run whose model endpoint is elsewhere.
 
     python scripts/desk_bench.py tasks --harness codex-sol --pack desk-v4-pilot --out results/bundles/bench-codex-sol
@@ -82,6 +83,8 @@ def harness_steps(steps: list[dict], h: dict, hosts: list[str]) -> list[dict]:
             step.pop("model_params", None)
             step.pop("effort", None)
             step |= {"model": h["model"]} | ({"effort": h["effort"]} if h["effort"] else {})
+            step["post_turn_hooks"] = [hook | {"params": {k: v for k, v in hook.get("params", {}).items() if k != "env_id"}}
+                                       for hook in step.get("post_turn_hooks", [])]
         out.append(step)
     return out
 
