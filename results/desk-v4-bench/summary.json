@@ -1,0 +1,6775 @@
+{
+ "schema": "gridsim.desk.bench/v1",
+ "fake": false,
+ "pack": "desk-v4-bench",
+ "layer": "v4",
+ "unit": "3-day window",
+ "generated": "2026-10-29T11:55:04Z",
+ "n_windows": 32,
+ "n_fronts": 8,
+ "sites": [
+  "S01",
+  "S02",
+  "S03",
+  "S04"
+ ],
+ "splits": {
+  "pre_cutoff": {
+   "windows": 16,
+   "fronts": [
+    "2026-01-23",
+    "2026-03-16",
+    "2026-04-17",
+    "2026-05-08"
+   ]
+  },
+  "post_cutoff": {
+   "windows": 16,
+   "fronts": [
+    "2026-07-04",
+    "2026-07-23",
+    "2026-08-18",
+    "2026-08-26"
+   ]
+  }
+ },
+ "cutoff": {
+  "post_cutoff_from": "2026-07-01",
+  "models": {
+   "Gemini 4 Argon": "about 2026-03",
+   "GPT-6.1 Sol": "about 2026-04-30",
+   "GPT-6 Luna": "about 2026-05-18",
+   "Claude Opus 5.5": "about 2026-06"
+  },
+  "basis": "third-party reports, unconfirmed",
+  "splits": {
+   "pre_cutoff": 16,
+   "post_cutoff": 16
+  }
+ },
+ "fronts": [
+  {
+   "front": "2026-01-23",
+   "dates": "2026-01-23..25",
+   "split": "pre_cutoff",
+   "kind": "arctic front",
+   "why": "Winter Storm Fern, 01-24 -23.8F; 202(c) orders, Transmission Emergency 01-25"
+  },
+  {
+   "front": "2026-03-16",
+   "dates": "2026-03-16..18",
+   "split": "pre_cutoff",
+   "kind": "cold front",
+   "why": "03-16 -24.4F with Freeze Warnings, +10.6F rebound 03-18; hub RT max $221"
+  },
+  {
+   "front": "2026-04-17",
+   "dates": "2026-04-17..19",
+   "split": "pre_cutoff",
+   "kind": "cold front",
+   "why": "04-18 -14F with 9 severe-thunderstorm warnings; S04 runs 04-03..05 (04-04 -9.4F)"
+  },
+  {
+   "front": "2026-05-08",
+   "dates": "2026-05-08..10",
+   "split": "pre_cutoff",
+   "kind": "warm front, storms",
+   "why": "05-09 +8.7F, 27 severe-thunderstorm warnings 05-09..10, 7 ERCOT notices"
+  },
+  {
+   "front": "2026-07-04",
+   "dates": "2026-07-04..06",
+   "split": "post_cutoff",
+   "kind": "severe-storm line",
+   "why": "Independence Day storm complex: 24 severe-thunderstorm warnings 07-04..06 (18 on 07-05), heat dips -0.8F and -1.2F"
+  },
+  {
+   "front": "2026-07-23",
+   "dates": "2026-07-23..25",
+   "split": "post_cutoff",
+   "kind": "tropical system",
+   "why": "Tropical Storm Warning on the upper Texas coast 07-23 ends the July heat wave (90.6F and Extreme Heat Warnings 07-22, then -1.9F and -3.1F)"
+  },
+  {
+   "front": "2026-08-18",
+   "dates": "2026-08-18..20",
+   "split": "post_cutoff",
+   "kind": "heat wave",
+   "why": "Extreme Heat Warning for North Texas in force 08-17..22, 13 heat advisories, daily mean 88.9-89.4F; hub RT max $154 08-18"
+  },
+  {
+   "front": "2026-08-26",
+   "dates": "2026-08-26..28",
+   "split": "post_cutoff",
+   "kind": "heat-wave break, storm line",
+   "why": "08-26 scarcity (hub RT max $795, mean $120, 17 ERCOT notices), then 15 severe-thunderstorm warnings 08-27..28 and -2.2F 08-28 as the August heat breaks"
+  }
+ ],
+ "block_alias": {
+  "2026-04-03": "2026-04-17"
+ },
+ "ci": {
+  "method": "block bootstrap, the pack's weather fronts as blocks, task-weighted means; a split's CI draws its own fronts; post − pre draws each split's fronts apart",
+  "resamples": 10000,
+  "seed": 0,
+  "level": 0.95,
+  "blocks": "front"
+ },
+ "models": {
+  "opus": {
+   "key": "opus",
+   "name": "Claude Opus 5.5",
+   "tag": "Opus 5.5",
+   "provider": "Anthropic",
+   "harness": "Claude Code",
+   "setting": "effort high",
+   "weights": "API",
+   "variant": null,
+   "family": "opus",
+   "harness_note": null,
+   "server": null,
+   "cutoff": "2026-06",
+   "model_id": "claude-opus-5-5",
+   "harness_key": "claude-code",
+   "harness_version": "2.1.280",
+   "harness_versions_recorded": {
+    "2.1.280": 59
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.1679,
+     "ci": [
+      0.0862,
+      0.2654
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.714,
+     "ci": [
+      0.6082,
+      0.8233
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 94056.2669,
+     "ci": [
+      11485.7019,
+      251436.1421
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.3691,
+     "ci": [
+      0.198,
+      0.5738
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -42727.7844,
+     "ci": [
+      -131753.9622,
+      7490.7169
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 69693.1263,
+     "ci": [
+      -793.9608,
+      202590.5078
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0942,
+     "ci": [
+      0.0296,
+      0.1825
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.4062,
+    "usd_per_window": 1.9971
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.2285,
+     "ci": [
+      0.1265,
+      0.3757
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.8227,
+     "ci": [
+      0.7131,
+      0.9343
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 173955.7375,
+     "ci": [
+      14499.9206,
+      483719.5931
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.5037,
+     "ci": [
+      0.2997,
+      0.824
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -79807.0375,
+     "ci": [
+      -258086.4969,
+      20588.2469
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 137617.7663,
+     "ci": [
+      5727.2625,
+      397675.5025
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1446,
+     "ci": [
+      0.0538,
+      0.2934
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.5,
+    "usd_per_window": 2.1122
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1073,
+     "ci": [
+      0.016,
+      0.1987
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.6053,
+     "ci": [
+      0.4918,
+      0.7157
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 14156.7962,
+     "ci": [
+      5305.3737,
+      25680.3438
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.2344,
+     "ci": [
+      0.0445,
+      0.4243
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -5648.5312,
+     "ci": [
+      -16146.4206,
+      1577.8969
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 1768.4862,
+     "ci": [
+      -10637.9556,
+      11871.4281
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0438,
+     "ci": [
+      -0.012,
+      0.0997
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.3125,
+    "usd_per_window": 1.8821
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.1212,
+     "ci": [
+      -0.2861,
+      0.0258
+     ]
+    },
+    "R": {
+     "mean": -0.2174,
+     "ci": [
+      -0.3731,
+      -0.0672
+     ]
+    },
+    "P": {
+     "mean": -159798.9412,
+     "ci": [
+      -469663.9374,
+      4108.4975
+     ]
+    }
+   },
+   "cost": {
+    "basis": "list_price_tokens",
+    "usd_per_window": 1.9971,
+    "usd_median": 1.8664,
+    "usd_scored_total": 63.9082,
+    "usd_all_attempts": 63.9082
+   },
+   "tokens_per_window": {
+    "input": 120.8,
+    "cached": 3838520.7,
+    "cache_write": 129609.1,
+    "cache_write_1h": 0.0,
+    "output": 29045.0,
+    "reasoning": 12526.9
+   },
+   "behaviour": {
+    "turns": 28.16,
+    "wakes": 28.16,
+    "desk_calls": 55.62,
+    "own_tool_calls": 0.0,
+    "shell_calls": 0.0,
+    "reminders": 2.94,
+    "submissions": 16.38,
+    "rejected": 0.03,
+    "compactions": 0.0,
+    "wall_s": 522.89
+   },
+   "own_tools": {},
+   "attempts": {
+    "total": 59,
+    "scored": 32,
+    "failed": 27,
+    "extra": 0,
+    "windows_retried": 19,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 27
+    }
+   }
+  },
+  "sol": {
+   "key": "sol",
+   "name": "GPT-6.1 Sol",
+   "tag": "Sol",
+   "provider": "OpenAI",
+   "harness": "Codex CLI",
+   "setting": "effort high",
+   "weights": "API",
+   "variant": null,
+   "family": "sol",
+   "harness_note": "with OpenAI's catalog entries for the GPT-6 models",
+   "server": null,
+   "cutoff": "2026-04-30",
+   "model_id": "gpt-6.1-sol",
+   "harness_key": "codex-sol",
+   "harness_version": "0.147.0",
+   "harness_versions_recorded": {
+    "0.147.0": 71
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.27,
+     "ci": [
+      0.0946,
+      0.4379
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.7787,
+     "ci": [
+      0.534,
+      0.963
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 130790.4666,
+     "ci": [
+      -6520.5,
+      364304.7134
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.6077,
+     "ci": [
+      0.2299,
+      0.9587
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -5993.5847,
+     "ci": [
+      -39470.9018,
+      22564.4022
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 106427.3259,
+     "ci": [
+      -20694.1046,
+      316692.2875
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1962,
+     "ci": [
+      0.0311,
+      0.3512
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.6562,
+    "usd_per_window": 4.1198
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.3763,
+     "ci": [
+      0.2667,
+      0.5499
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.9535,
+     "ci": [
+      0.8876,
+      1.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 257500.5706,
+     "ci": [
+      31110.895,
+      694478.9737
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.8387,
+     "ci": [
+      0.5832,
+      1.1633
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": 3737.7956,
+     "ci": [
+      -43283.0256,
+      38398.8687
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 221162.5994,
+     "ci": [
+      18658.4775,
+      607286.6656
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.2923,
+     "ci": [
+      0.1617,
+      0.471
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.8125,
+    "usd_per_window": 4.278
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1636,
+     "ci": [
+      -0.0972,
+      0.4266
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.6038,
+     "ci": [
+      0.2327,
+      0.9441
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 4080.3625,
+     "ci": [
+      -57471.5262,
+      58484.3362
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.3766,
+     "ci": [
+      -0.1778,
+      0.9325
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -15724.965,
+     "ci": [
+      -66537.4937,
+      18437.0687
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -8307.9475,
+     "ci": [
+      -78753.3463,
+      46454.9175
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1001,
+     "ci": [
+      -0.1526,
+      0.3443
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.5,
+    "usd_per_window": 3.9615
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.2127,
+     "ci": [
+      -0.5297,
+      0.0965
+     ]
+    },
+    "R": {
+     "mean": -0.3496,
+     "ci": [
+      -0.7516,
+      -0.0094
+     ]
+    },
+    "P": {
+     "mean": -253420.2081,
+     "ci": [
+      -690398.6112,
+      5316.5106
+     ]
+    }
+   },
+   "cost": {
+    "basis": "list_price_tokens",
+    "usd_per_window": 4.1198,
+    "usd_median": 3.7287,
+    "usd_scored_total": 131.833,
+    "usd_all_attempts": 139.5089
+   },
+   "tokens_per_window": {
+    "input": 821.1,
+    "cached": 16793642.6,
+    "cache_write": 569120.8,
+    "output": 101597.5,
+    "reasoning": 70183.0
+   },
+   "behaviour": {
+    "turns": 58.34,
+    "wakes": 58.34,
+    "desk_calls": 372.34,
+    "own_tool_calls": 0.0,
+    "shell_calls": 0.0,
+    "reminders": 33.38,
+    "submissions": 70.38,
+    "rejected": 0.0,
+    "compactions": 0.0,
+    "wall_s": 4576.7
+   },
+   "own_tools": {},
+   "attempts": {
+    "total": 71,
+    "scored": 32,
+    "failed": 39,
+    "extra": 0,
+    "windows_retried": 25,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 39
+    }
+   }
+  },
+  "luna": {
+   "key": "luna",
+   "name": "GPT-6 Luna",
+   "tag": "Luna",
+   "provider": "OpenAI",
+   "harness": "Codex CLI",
+   "setting": "effort high",
+   "weights": "API",
+   "variant": null,
+   "family": "luna",
+   "harness_note": "with OpenAI's catalog entries for the GPT-6 models",
+   "server": null,
+   "cutoff": "2026-05-18",
+   "model_id": "gpt-6-luna",
+   "harness_key": "codex-luna",
+   "harness_version": "0.147.0",
+   "harness_versions_recorded": {
+    "0.147.0": 54
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.1367,
+     "ci": [
+      0.0573,
+      0.223
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.5996,
+     "ci": [
+      0.4594,
+      0.7479
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 69876.9787,
+     "ci": [
+      8482.7851,
+      181600.3982
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.2903,
+     "ci": [
+      0.1282,
+      0.4619
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -66907.0725,
+     "ci": [
+      -202538.5097,
+      6165.4994
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 45513.8381,
+     "ci": [
+      -3439.5059,
+      132285.2356
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.063,
+     "ci": [
+      -0.001,
+      0.1358
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.3125,
+    "usd_per_window": 0.3244
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1872,
+     "ci": [
+      0.1068,
+      0.2863
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.7269,
+     "ci": [
+      0.5948,
+      0.9076
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 126625.3356,
+     "ci": [
+      12077.2637,
+      343932.7181
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.403,
+     "ci": [
+      0.246,
+      0.5891
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -127137.4394,
+     "ci": [
+      -397873.3719,
+      18542.8862
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 90287.3644,
+     "ci": [
+      3920.355,
+      256662.46
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1032,
+     "ci": [
+      0.0405,
+      0.2041
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.375,
+    "usd_per_window": 0.3195
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.0863,
+     "ci": [
+      -0.0065,
+      0.2151
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.4724,
+     "ci": [
+      0.3355,
+      0.6427
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 13128.6219,
+     "ci": [
+      1513.675,
+      32814.9656
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.1777,
+     "ci": [
+      -0.0104,
+      0.4454
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -6676.7056,
+     "ci": [
+      -10223.6887,
+      -3129.7225
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 740.3119,
+     "ci": [
+      -15902.3306,
+      19493.7825
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0228,
+     "ci": [
+      -0.0468,
+      0.1302
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.25,
+    "usd_per_window": 0.3292
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.1009,
+     "ci": [
+      -0.2408,
+      0.055
+     ]
+    },
+    "R": {
+     "mean": -0.2545,
+     "ci": [
+      -0.4906,
+      -0.0277
+     ]
+    },
+    "P": {
+     "mean": -113496.7137,
+     "ci": [
+      -330962.8588,
+      7950.1787
+     ]
+    }
+   },
+   "cost": {
+    "basis": "list_price_tokens",
+    "usd_per_window": 0.3244,
+    "usd_median": 0.3052,
+    "usd_scored_total": 10.38,
+    "usd_all_attempts": 10.9939
+   },
+   "tokens_per_window": {
+    "input": 391.7,
+    "cached": 11225478.9,
+    "cache_write": 803828.9,
+    "output": 223201.9,
+    "reasoning": 201660.9
+   },
+   "behaviour": {
+    "turns": 33.91,
+    "wakes": 33.91,
+    "desk_calls": 229.88,
+    "own_tool_calls": 0.0,
+    "shell_calls": 0.0,
+    "reminders": 8.28,
+    "submissions": 30.16,
+    "rejected": 0.09,
+    "compactions": 0.0,
+    "wall_s": 2939.92
+   },
+   "own_tools": {},
+   "attempts": {
+    "total": 54,
+    "scored": 32,
+    "failed": 22,
+    "extra": 0,
+    "windows_retried": 16,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 22
+    }
+   }
+  },
+  "qwen": {
+   "key": "qwen",
+   "name": "Qwen3-4B",
+   "tag": "Qwen3-4B",
+   "provider": "Qwen",
+   "harness": "OpenCode",
+   "setting": "thinking on",
+   "weights": "open",
+   "variant": "untrained",
+   "family": "qwen",
+   "harness_note": null,
+   "server": "vLLM 0.29.0",
+   "cutoff": "2024",
+   "model_id": "qwen3-4b",
+   "harness_key": "opencode-qwen",
+   "harness_version": "1.17.18",
+   "harness_versions_recorded": {
+    "1.17.18": 32
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": -0.0207,
+     "ci": [
+      -0.0585,
+      0.0136
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.1412,
+     "ci": [
+      0.0627,
+      0.2528
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": -3525.1919,
+     "ci": [
+      -8531.0413,
+      1231.7429
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": -0.0474,
+     "ci": [
+      -0.1426,
+      0.0334
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -140309.2431,
+     "ci": [
+      -389671.0219,
+      -9248.2609
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": -27888.3325,
+     "ci": [
+      -58094.2063,
+      -9218.3063
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.0944,
+     "ci": [
+      -0.1177,
+      -0.067
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 0.7812,
+    "beats_anchor_share": 0.125,
+    "usd_per_window": 0.1622
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.0102,
+     "ci": [
+      -0.0111,
+      0.0491
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.2123,
+     "ci": [
+      0.1064,
+      0.4017
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": -2407.825,
+     "ci": [
+      -12937.4012,
+      6582.3888
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.0228,
+     "ci": [
+      -0.0265,
+      0.1147
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -256170.6,
+     "ci": [
+      -754042.2288,
+      3755.7312
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -38745.7962,
+     "ci": [
+      -98521.6662,
+      -5441.6987
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.0738,
+     "ci": [
+      -0.0984,
+      -0.0352
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 0.75,
+    "beats_anchor_share": 0.1875,
+    "usd_per_window": 0.1419
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": -0.0516,
+     "ci": [
+      -0.1077,
+      -0.009
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.0702,
+     "ci": [
+      0.0174,
+      0.1256
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": -4642.5588,
+     "ci": [
+      -7815.0037,
+      -1470.1137
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": -0.1176,
+     "ci": [
+      -0.2626,
+      -0.0149
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -24447.8862,
+     "ci": [
+      -42560.8031,
+      -13745.4262
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -17030.8688,
+     "ci": [
+      -27551.6012,
+      -9343.55
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.1151,
+     "ci": [
+      -0.1382,
+      -0.092
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 0.8125,
+    "beats_anchor_share": 0.0625,
+    "usd_per_window": 0.1825
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.0618,
+     "ci": [
+      -0.1237,
+      -0.009
+     ]
+    },
+    "R": {
+     "mean": -0.142,
+     "ci": [
+      -0.3414,
+      -0.0002
+     ]
+    },
+    "P": {
+     "mean": -2234.7338,
+     "ci": [
+      -11480.4423,
+      7871.32
+     ]
+    }
+   },
+   "cost": {
+    "basis": "gpu_time",
+    "usd_per_window": 0.1622,
+    "usd_median": 0.1164,
+    "usd_scored_total": 5.1892,
+    "usd_all_attempts": 5.1892,
+    "gpu": {
+     "basis": "ec2",
+     "price_source": "EC2 on-demand, us-west-2",
+     "usd_per_hour": {
+      "g5.2xlarge": 1.212,
+      "g5.xlarge": 1.006
+     },
+     "boxes": 4,
+     "gpu_hours": 4.641,
+     "usd_total": 5.1894,
+     "attempts": 32,
+     "where": "EC2 GPU boxes (g5.2xlarge, g5.xlarge)",
+     "note": "GPU time: 4.64 box-hours on EC2 GPU boxes (g5.xlarge at $1.006/h, g5.2xlarge at $1.212/h, EC2 on-demand, us-west-2), each run's share of its box's time while it ran"
+    }
+   },
+   "tokens_per_window": {
+    "input": 91849.3,
+    "cached": 830061.5,
+    "cache_write": 0.0,
+    "output": 37750.2,
+    "reasoning": 24179.1
+   },
+   "behaviour": {
+    "turns": 26.41,
+    "wakes": 26.41,
+    "desk_calls": 17.75,
+    "own_tool_calls": 4.81,
+    "shell_calls": 0.88,
+    "reminders": 0.81,
+    "submissions": 9.09,
+    "rejected": 3.28,
+    "compactions": 0.0,
+    "wall_s": 1689.82
+   },
+   "own_tools": {
+    "invalid": 81,
+    "edit": 42,
+    "bash": 28,
+    "read": 2,
+    "write": 1
+   },
+   "attempts": {
+    "total": 32,
+    "scored": 32,
+    "failed": 0,
+    "extra": 0,
+    "windows_retried": 0,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {}
+   }
+  }
+ },
+ "order_by_C": [
+  "sol",
+  "opus",
+  "luna",
+  "qwen"
+ ],
+ "lead_rule": {
+  "exposed": [
+   "opus",
+   "sol",
+   "luna"
+  ],
+  "unexposed": [
+   "qwen"
+  ],
+  "first_window": "2026-01-23",
+  "set": "before any API-model result",
+  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero."
+ },
+ "halves_differ": [],
+ "lead_split": "all",
+ "references": {
+  "idle": {
+   "label": "Idle",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 1095.9675,
+     "ci": [
+      22.1341,
+      3025.2806
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C": {
+     "mean": 0.0,
+     "ci": [
+      0.0,
+      0.0
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.0,
+     "ci": [
+      0.0,
+      0.0
+     ],
+     "n": 32,
+     "fronts": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 261.105,
+     "ci": [
+      8.1412,
+      642.3694
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.0,
+     "ci": [
+      0.0,
+      0.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.0,
+     "ci": [
+      0.0,
+      0.0
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 1930.83,
+     "ci": [
+      0.0,
+      5789.4562
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.0,
+     "ci": [
+      0.0,
+      0.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.0,
+     "ci": [
+      0.0,
+      0.0
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  },
+  "anchor": {
+   "label": "Anchor (the desk's optimiser, same information)",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 136784.0513,
+     "ci": [
+      8317.7381,
+      381550.2204
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C": {
+     "mean": 0.2094,
+     "ci": [
+      0.0761,
+      0.3768
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.4536,
+     "ci": [
+      0.1772,
+      0.7937
+     ],
+     "n": 32,
+     "fronts": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 253762.775,
+     "ci": [
+      2826.6575,
+      741104.8275
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.2499,
+     "ci": [
+      0.0312,
+      0.5625
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.5429,
+     "ci": [
+      0.0667,
+      1.1761
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 19805.3275,
+     "ci": [
+      5930.4225,
+      40521.9587
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.1688,
+     "ci": [
+      0.0327,
+      0.305
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.3642,
+     "ci": [
+      0.0967,
+      0.6448
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  },
+  "hind": {
+   "label": "Hindsight optimum",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 309831.3538,
+     "ci": [
+      104156.1458,
+      636609.7234
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C": {
+     "mean": 1.0,
+     "ci": [
+      1.0,
+      1.0
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 2.3274,
+     "ci": [
+      2.0903,
+      2.6134
+     ],
+     "n": 32,
+     "fronts": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 443669.1163,
+     "ci": [
+      111815.8231,
+      1079502.1069
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 1.0,
+     "ci": [
+      1.0,
+      1.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 2.3158,
+     "ci": [
+      2.0621,
+      2.5695
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 175993.5912,
+     "ci": [
+      77067.4837,
+      333803.4888
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 1.0,
+     "ci": [
+      1.0,
+      1.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 2.3391,
+     "ci": [
+      1.9843,
+      2.8919
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  },
+  "hind_phys": {
+   "label": "Hindsight, DAM tied to dispatch",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 148796.5059,
+     "ci": [
+      43069.784,
+      311643.1253
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C": {
+     "mean": 0.4518,
+     "ci": [
+      0.4065,
+      0.4918
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 1.0,
+     "ci": [
+      1.0,
+      1.0
+     ],
+     "n": 32,
+     "fronts": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 211267.3919,
+     "ci": [
+      45813.7781,
+      527818.0212
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.4485,
+     "ci": [
+      0.4009,
+      0.496
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 1.0,
+     "ci": [
+      1.0,
+      1.0
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 86325.62,
+     "ci": [
+      29837.4025,
+      175024.6275
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.4551,
+     "ci": [
+      0.3721,
+      0.5132
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 1.0,
+     "ci": [
+      1.0,
+      1.0
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  },
+  "operator_replay": {
+   "label": "Real operator's bids, replayed",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 24363.1406,
+     "ci": [
+      7213.2219,
+      51060.6359
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C": {
+     "mean": 0.0737,
+     "ci": [
+      0.0406,
+      0.1087
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.1629,
+     "ci": [
+      0.0975,
+      0.2338
+     ],
+     "n": 32,
+     "fronts": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 36337.9712,
+     "ci": [
+      5983.4437,
+      85433.5987
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.084,
+     "ci": [
+      0.0278,
+      0.1444
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.1874,
+     "ci": [
+      0.0797,
+      0.3043
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 12388.31,
+     "ci": [
+      3853.6912,
+      21281.82
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.0635,
+     "ci": [
+      0.028,
+      0.099
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.1384,
+     "ci": [
+      0.067,
+      0.2099
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  },
+  "operator_actual": {
+   "label": "Real operator, as settled",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 22820.7812,
+     "ci": [
+      6458.5969,
+      42558.4354
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C": {
+     "mean": 0.0723,
+     "ci": [
+      0.0334,
+      0.1081
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.1506,
+     "ci": [
+      0.0695,
+      0.2247
+     ],
+     "n": 32,
+     "fronts": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 27571.5081,
+     "ci": [
+      6420.0138,
+      59804.4925
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.0799,
+     "ci": [
+      0.0479,
+      0.1286
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.1772,
+     "ci": [
+      0.1127,
+      0.2655
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 18070.0544,
+     "ci": [
+      597.4388,
+      41061.0906
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C": {
+     "mean": 0.0648,
+     "ci": [
+      0.0035,
+      0.1189
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.124,
+     "ci": [
+      -0.0099,
+      0.2357
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  }
+ },
+ "paired": {
+  "opus-sol": {
+   "a": "opus",
+   "b": "sol",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": -0.102,
+     "ci": [
+      -0.1994,
+      0.0094
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.2812,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": -0.0646,
+     "ci": [
+      -0.209,
+      0.1106
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.1875,
+     "level": 0.3438,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -36734.1997,
+     "ci": [
+      -113999.3066,
+      20263.4022
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.2812,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.1478,
+     "ci": [
+      -0.1812,
+      -0.1141
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.1875,
+     "level": 0.0,
+     "fronts_ahead": 0
+    },
+    "R": {
+     "mean": -0.1308,
+     "ci": [
+      -0.222,
+      -0.0402
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.125,
+     "level": 0.4375,
+     "fronts_ahead": 0
+    },
+    "P": {
+     "mean": -83544.8331,
+     "ci": [
+      -209611.1631,
+      -12504.1138
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.1875,
+     "level": 0.0,
+     "fronts_ahead": 0
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0563,
+     "ci": [
+      -0.262,
+      0.1486
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.375,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": 0.0015,
+     "ci": [
+      -0.2607,
+      0.294
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.25,
+     "level": 0.25,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 10076.4338,
+     "ci": [
+      -34583.4894,
+      68115.3906
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.375,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   }
+  },
+  "opus-luna": {
+   "a": "opus",
+   "b": "luna",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0312,
+     "ci": [
+      -0.0067,
+      0.0689
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.1144,
+     "ci": [
+      0.0102,
+      0.2235
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5312,
+     "level": 0.1875,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": 24179.2881,
+     "ci": [
+      -2049.4747,
+      71945.5022
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0414,
+     "ci": [
+      0.0088,
+      0.0897
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.0958,
+     "ci": [
+      0.0325,
+      0.1384
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 47330.4019,
+     "ci": [
+      -1067.1975,
+      140824.3944
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.021,
+     "ci": [
+      -0.0504,
+      0.091
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.133,
+     "ci": [
+      -0.0744,
+      0.3403
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0625,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 1028.1744,
+     "ci": [
+      -7293.3844,
+      6934.5437
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "opus-qwen": {
+   "a": "opus",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1886,
+     "ci": [
+      0.1199,
+      0.2804
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.9688,
+     "level": 0.0,
+     "fronts_ahead": 8
+    },
+    "R": {
+     "mean": 0.5728,
+     "ci": [
+      0.4863,
+      0.6592
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 8
+    },
+    "P": {
+     "mean": 97581.4587,
+     "ci": [
+      14676.0741,
+      258135.5609
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.9688,
+     "level": 0.0,
+     "fronts_ahead": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2183,
+     "ci": [
+      0.1251,
+      0.3846
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.6105,
+     "ci": [
+      0.5266,
+      0.7072
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 176363.5625,
+     "ci": [
+      13631.315,
+      495810.0013
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1589,
+     "ci": [
+      0.0847,
+      0.2179
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 1.0,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.5351,
+     "ci": [
+      0.4094,
+      0.6608
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 18799.355,
+     "ci": [
+      12533.0287,
+      27397.4225
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 1.0,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
+  "sol-luna": {
+   "a": "sol",
+   "b": "luna",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1332,
+     "ci": [
+      0.0207,
+      0.2235
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.179,
+     "ci": [
+      -0.0395,
+      0.3517
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.25,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 60913.4878,
+     "ci": [
+      -19072.8006,
+      185092.8638
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1891,
+     "ci": [
+      0.1239,
+      0.2643
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.2266,
+     "ci": [
+      0.0728,
+      0.3386
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 130875.235,
+     "ci": [
+      14738.1225,
+      350624.2056
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0773,
+     "ci": [
+      -0.1033,
+      0.234
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1315,
+     "ci": [
+      -0.3046,
+      0.4625
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -9048.2594,
+     "ci": [
+      -62687.5138,
+      26797.6331
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "sol-qwen": {
+   "a": "sol",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.2907,
+     "ci": [
+      0.1246,
+      0.4459
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.6374,
+     "ci": [
+      0.4019,
+      0.821
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.1875,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 134315.6584,
+     "ci": [
+      -3121.7666,
+      370784.1887
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.3661,
+     "ci": [
+      0.242,
+      0.548
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.7412,
+     "ci": [
+      0.5895,
+      0.8755
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 259908.3956,
+     "ci": [
+      26811.235,
+      704982.98
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2152,
+     "ci": [
+      -0.0598,
+      0.4586
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.5336,
+     "ci": [
+      0.1334,
+      0.85
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 8722.9212,
+     "ci": [
+      -51326.0112,
+      60776.6387
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "luna-qwen": {
+   "a": "luna",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1574,
+     "ci": [
+      0.0934,
+      0.2315
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 8
+    },
+    "R": {
+     "mean": 0.4584,
+     "ci": [
+      0.3861,
+      0.5292
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.125,
+     "fronts_ahead": 8
+    },
+    "P": {
+     "mean": 73402.1706,
+     "ci": [
+      11209.0471,
+      188445.9634
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.177,
+     "ci": [
+      0.0995,
+      0.2949
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 1.0,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.5147,
+     "ci": [
+      0.4481,
+      0.5841
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 129033.1606,
+     "ci": [
+      12073.1125,
+      354985.6069
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 1.0,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1379,
+     "ci": [
+      0.049,
+      0.2415
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.4022,
+     "ci": [
+      0.3104,
+      0.5172
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 17771.1806,
+     "ci": [
+      7973.0338,
+      33979.0056
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
+  "opus-operator_replay": {
+   "a": "opus",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 69693.1263,
+     "ci": [
+      -793.9608,
+      202590.5078
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "C": {
+     "mean": 0.0942,
+     "ci": [
+      0.0296,
+      0.1825
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 137617.7663,
+     "ci": [
+      5727.2625,
+      397675.5025
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "C": {
+     "mean": 0.1446,
+     "ci": [
+      0.0538,
+      0.2934
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 1768.4862,
+     "ci": [
+      -10637.9556,
+      11871.4281
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.0438,
+     "ci": [
+      -0.012,
+      0.0997
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "sol-operator_replay": {
+   "a": "sol",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 106427.3259,
+     "ci": [
+      -20694.1046,
+      316692.2875
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "C": {
+     "mean": 0.1962,
+     "ci": [
+      0.0311,
+      0.3512
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 221162.5994,
+     "ci": [
+      18658.4775,
+      607286.6656
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "C": {
+     "mean": 0.2923,
+     "ci": [
+      0.1617,
+      0.471
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -8307.9475,
+     "ci": [
+      -78753.3463,
+      46454.9175
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.1001,
+     "ci": [
+      -0.1526,
+      0.3443
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "luna-operator_replay": {
+   "a": "luna",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 45513.8381,
+     "ci": [
+      -3439.5059,
+      132285.2356
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "C": {
+     "mean": 0.063,
+     "ci": [
+      -0.001,
+      0.1358
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 90287.3644,
+     "ci": [
+      3920.355,
+      256662.46
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "C": {
+     "mean": 0.1032,
+     "ci": [
+      0.0405,
+      0.2041
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 740.3119,
+     "ci": [
+      -15902.3306,
+      19493.7825
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "C": {
+     "mean": 0.0228,
+     "ci": [
+      -0.0468,
+      0.1302
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   }
+  },
+  "qwen-operator_replay": {
+   "a": "qwen",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": -27888.3325,
+     "ci": [
+      -58094.2063,
+      -9218.3063
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.0625,
+     "level": 0.0,
+     "fronts_ahead": 0
+    },
+    "C": {
+     "mean": -0.0944,
+     "ci": [
+      -0.1177,
+      -0.067
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.0625,
+     "level": 0.0,
+     "fronts_ahead": 0
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -38745.7962,
+     "ci": [
+      -98521.6662,
+      -5441.6987
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.125,
+     "level": 0.0,
+     "fronts_ahead": 0
+    },
+    "C": {
+     "mean": -0.0738,
+     "ci": [
+      -0.0984,
+      -0.0352
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.125,
+     "level": 0.0,
+     "fronts_ahead": 0
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -17030.8688,
+     "ci": [
+      -27551.6012,
+      -9343.55
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.0,
+     "level": 0.0,
+     "fronts_ahead": 0
+    },
+    "C": {
+     "mean": -0.1151,
+     "ci": [
+      -0.1382,
+      -0.092
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.0,
+     "level": 0.0,
+     "fronts_ahead": 0
+    }
+   }
+  }
+ },
+ "plot": {
+  "points": [
+   {
+    "key": "opus",
+    "family": "opus",
+    "name": "Claude Opus 5.5",
+    "tag": "Opus 5.5",
+    "variant": null,
+    "provider": "Anthropic",
+    "harness": "Claude Code",
+    "setting": "effort high",
+    "weights": "API",
+    "n": 32,
+    "usd": 1.9971,
+    "basis": "list_price_tokens",
+    "C": {
+     "mean": 0.1679,
+     "ci": [
+      0.0862,
+      0.2654
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.2285,
+     "ci": [
+      0.1265,
+      0.3757
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.1073,
+     "ci": [
+      0.016,
+      0.1987
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
+    "key": "sol",
+    "family": "sol",
+    "name": "GPT-6.1 Sol",
+    "tag": "Sol",
+    "variant": null,
+    "provider": "OpenAI",
+    "harness": "Codex CLI",
+    "setting": "effort high",
+    "weights": "API",
+    "n": 32,
+    "usd": 4.1198,
+    "basis": "list_price_tokens",
+    "C": {
+     "mean": 0.27,
+     "ci": [
+      0.0946,
+      0.4379
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.3763,
+     "ci": [
+      0.2667,
+      0.5499
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.1636,
+     "ci": [
+      -0.0972,
+      0.4266
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
+    "key": "luna",
+    "family": "luna",
+    "name": "GPT-6 Luna",
+    "tag": "Luna",
+    "variant": null,
+    "provider": "OpenAI",
+    "harness": "Codex CLI",
+    "setting": "effort high",
+    "weights": "API",
+    "n": 32,
+    "usd": 0.3244,
+    "basis": "list_price_tokens",
+    "C": {
+     "mean": 0.1367,
+     "ci": [
+      0.0573,
+      0.223
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.1872,
+     "ci": [
+      0.1068,
+      0.2863
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.0863,
+     "ci": [
+      -0.0065,
+      0.2151
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
+    "key": "qwen",
+    "family": "qwen",
+    "name": "Qwen3-4B",
+    "tag": "Qwen3-4B",
+    "variant": "untrained",
+    "provider": "Qwen",
+    "harness": "OpenCode",
+    "setting": "thinking on",
+    "weights": "open",
+    "n": 32,
+    "usd": 0.1622,
+    "basis": "gpu_time",
+    "C": {
+     "mean": -0.0207,
+     "ci": [
+      -0.0585,
+      0.0136
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.0102,
+     "ci": [
+      -0.0111,
+      0.0491
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": -0.0516,
+     "ci": [
+      -0.1077,
+      -0.009
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  ],
+  "series": [
+   {
+    "family": "opus",
+    "points": [
+     "opus"
+    ]
+   },
+   {
+    "family": "sol",
+    "points": [
+     "sol"
+    ]
+   },
+   {
+    "family": "luna",
+    "points": [
+     "luna"
+    ]
+   },
+   {
+    "family": "qwen",
+    "points": [
+     "qwen"
+    ]
+   }
+  ],
+  "references": {
+   "operator_replay": {
+    "label": "Real operator's bids, replayed",
+    "all": {
+     "mean": 0.0737,
+     "ci": [
+      0.0406,
+      0.1087
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.084,
+     "ci": [
+      0.0278,
+      0.1444
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.0635,
+     "ci": [
+      0.028,
+      0.099
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   "anchor": {
+    "label": "Anchor (the desk's optimiser, same information)",
+    "all": {
+     "mean": 0.2094,
+     "ci": [
+      0.0761,
+      0.3768
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.2499,
+     "ci": [
+      0.0312,
+      0.5625
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.1688,
+     "ci": [
+      0.0327,
+      0.305
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   }
+  }
+ },
+ "attempts": [
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-opus-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Container agent-env-local-374720bf-thx_ycmm-servicedb-1 Starting \\n Container agent-env-local-374720bf-thx_ycmm-servicedb-1 Started \\n Container agent-env-local",
+   "usd": 0,
+   "wall_s": 590.6,
+   "started": "2026-10-29T07:41:19+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-opus-desk-v4-2026-01-23-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: b-1 Creating \\n Container agent-env-local-88f68cd6-_2u4yndf-pgweb-1 Created \\n Container agent-env-local-88f68cd6-_2u4yndf-db-mcp-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 40.0,
+   "started": "2026-10-29T08:05:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-opus-desk-v4-2026-01-23-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.6065,
+   "wall_s": 495.4,
+   "started": "2026-10-29T08:22:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-opus-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-02384e7d-krp_24je-db-mcp-1 Creating \\n Container agent-env-local-02384e7d-krp_24je-db-mcp-1 Created \\n Container agent-",
+   "usd": 0,
+   "wall_s": 574.1,
+   "started": "2026-10-29T07:41:34+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-opus-desk-v4-2026-01-23-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-98acc4e8-copf68xl-gridsim-desk-v4-1 Creating \\n Container agent-env-local-98acc4e8-copf68xl-pgweb-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 42.5,
+   "started": "2026-10-29T08:06:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-opus-desk-v4-2026-01-23-S02-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.1244,
+   "wall_s": 457.2,
+   "started": "2026-10-29T08:22:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-opus-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-5842345c-xtsbn3js-gateway-1 Created \\n Container agent-env-local-5842345c-xtsbn3js-servicedb-1 Starting \\n Container agent-env-local-58",
+   "usd": 0,
+   "wall_s": 580.4,
+   "started": "2026-10-29T07:41:49+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-opus-desk-v4-2026-01-23-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 1 Creating \\n Container agent-env-local-0e5d9b60-bs0g36oe-db-mcp-1 Creating \\n Container agent-env-local-0e5d9b60-bs0g36oe-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 42.4,
+   "started": "2026-10-29T08:06:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-opus-desk-v4-2026-01-23-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2079,
+   "wall_s": 618.0,
+   "started": "2026-10-29T08:23:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-opus-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.9664,
+   "wall_s": 1175.1,
+   "started": "2026-10-29T07:42:04+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-opus-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-aa9ef9bc (971d4",
+   "usd": 0,
+   "wall_s": 562.7,
+   "started": "2026-10-29T07:42:20+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-opus-desk-v4-2026-03-16-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-33c6becb-0fxmh6n0-gridsim-desk-v4-1 Creating \\n Container agent-env-local-33c6becb-0fxmh6n0-pgweb-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 27.6,
+   "started": "2026-10-29T08:07:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-opus-desk-v4-2026-03-16-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6827,
+   "wall_s": 385.5,
+   "started": "2026-10-29T08:23:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-opus-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-3b29266b-tqrv66s7-gridsim-desk-v4-1 Creating \\n Container agent-env-local-3b29266b-tqrv66s7-gridsim-desk-v4-1 Created \\n Contain",
+   "usd": 0,
+   "wall_s": 712.0,
+   "started": "2026-10-29T07:42:35+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-opus-desk-v4-2026-03-16-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-1ca5c16a-_4hscwtk-gateway-1 Created \\n Container agent-env-local-1ca5c16a-_4hscwtk-servicedb-1 Starting \\n Container agent-env-local-1c",
+   "usd": 0,
+   "wall_s": 26.9,
+   "started": "2026-10-29T08:08:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-opus-desk-v4-2026-03-16-S02-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.811,
+   "wall_s": 395.7,
+   "started": "2026-10-29T08:24:22+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-opus-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7683,
+   "wall_s": 947.3,
+   "started": "2026-10-29T07:42:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-opus-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-c0b1b26c-asnybvmz-gridsim-desk-v4-1 Creating \\n Container agent-env-local-c0b1b26c-asnybvmz-db-mcp-1 Created \\n Container agent-",
+   "usd": 0,
+   "wall_s": 775.9,
+   "started": "2026-10-29T07:43:05+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-opus-desk-v4-2026-03-16-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-e6365a95 (75c92",
+   "usd": 0,
+   "wall_s": 39.6,
+   "started": "2026-10-29T08:09:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-opus-desk-v4-2026-03-16-S04-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7487,
+   "wall_s": 345.4,
+   "started": "2026-10-29T08:24:52+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-opus-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-1ef6b55a (5f2d1",
+   "usd": 0,
+   "wall_s": 521.7,
+   "started": "2026-10-29T07:45:08+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-opus-desk-v4-2026-04-03-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.2772,
+   "wall_s": 478.1,
+   "started": "2026-10-29T08:13:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-opus-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.1262,
+   "wall_s": 947.0,
+   "started": "2026-10-29T07:43:20+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-opus-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5201,
+   "wall_s": 953.9,
+   "started": "2026-10-29T07:43:35+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-opus-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-76d47efa-btxpgsme-gateway-1 Created \\n Container agent-env-local-76d47efa-btxpgsme-servicedb-1 Starting \\n Container agent-env-local-76",
+   "usd": 0,
+   "wall_s": 586.3,
+   "started": "2026-10-29T07:43:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-opus-desk-v4-2026-04-17-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Container agent-env-local-04f45e37-5kvj4o6e-servicedb-1 Starting \\n Container agent-env-local-04f45e37-5kvj4o6e-servicedb-1 Started \\n Container agent-env-local",
+   "usd": 0,
+   "wall_s": 28.9,
+   "started": "2026-10-29T08:09:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-opus-desk-v4-2026-04-17-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8586,
+   "wall_s": 365.7,
+   "started": "2026-10-29T08:25:22+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-opus-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-c7b13990 (7d9a8",
+   "usd": 0,
+   "wall_s": 649.4,
+   "started": "2026-10-29T07:44:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-opus-desk-v4-2026-05-08-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: g \\n Container agent-env-local-c4c2b362-7grg2sdf-gridsim-desk-v4-1 Creating \\n Container agent-env-local-c4c2b362-7grg2sdf-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 27.1,
+   "started": "2026-10-29T08:10:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-opus-desk-v4-2026-05-08-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.084,
+   "wall_s": 472.6,
+   "started": "2026-10-29T08:25:52+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-opus-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-c4078ea2-oj_5xfg1-gateway-1 Created \\n Container agent-env-local-c4078ea2-oj_5xfg1-servicedb-1 Starting \\n Container agent-env-local-c40",
+   "usd": 0,
+   "wall_s": 706.7,
+   "started": "2026-10-29T07:44:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-opus-desk-v4-2026-05-08-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8743,
+   "wall_s": 335.7,
+   "started": "2026-10-29T08:11:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-opus-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-5f15017d-nppkuttr-gateway-1 Created \\n Container agent-env-local-5f15017d-nppkuttr-servicedb-1 Starting \\n Container agent-env-local-5f1",
+   "usd": 0,
+   "wall_s": 693.5,
+   "started": "2026-10-29T07:44:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-opus-desk-v4-2026-05-08-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8135,
+   "wall_s": 417.7,
+   "started": "2026-10-29T08:12:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-opus-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-645a3997-gnpswunk-gateway-1 Created \\n Container agent-env-local-645a3997-gnpswunk-servicedb-1 Starting \\n Container agent-env-local-645",
+   "usd": 0,
+   "wall_s": 680.3,
+   "started": "2026-10-29T07:44:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-opus-desk-v4-2026-05-08-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3248,
+   "wall_s": 447.6,
+   "started": "2026-10-29T08:12:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-opus-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-82cbbb08-yki5h6dg-db-mcp-1 Creating \\n Container agent-env-local-82cbbb08-yki5h6dg-db-mcp-1 Created \\n Container agent-",
+   "usd": 0,
+   "wall_s": 634.8,
+   "started": "2026-10-29T07:45:23+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-opus-desk-v4-2026-07-04-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.1909,
+   "wall_s": 423.1,
+   "started": "2026-10-29T08:14:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-opus-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 1 Creating \\n Container agent-env-local-a0e6b245-vc7hdzj4-db-mcp-1 Creating \\n Container agent-env-local-a0e6b245-vc7hdzj4-gridsim-desk-v4-1 Created \\n Containe",
+   "usd": 0,
+   "wall_s": 534.4,
+   "started": "2026-10-29T07:45:39+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-opus-desk-v4-2026-07-04-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5307,
+   "wall_s": 384.4,
+   "started": "2026-10-29T08:14:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-opus-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-f545eca6 (5417d",
+   "usd": 0,
+   "wall_s": 458.6,
+   "started": "2026-10-29T07:45:55+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-opus-desk-v4-2026-07-04-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5307,
+   "wall_s": 310.4,
+   "started": "2026-10-29T08:15:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-opus-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7982,
+   "wall_s": 795.2,
+   "started": "2026-10-29T07:46:11+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-opus-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-f20ac7db (a7c65",
+   "usd": 0,
+   "wall_s": 568.4,
+   "started": "2026-10-29T07:46:26+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-opus-desk-v4-2026-07-23-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7859,
+   "wall_s": 367.1,
+   "started": "2026-10-29T08:16:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-opus-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-de1acec4-bmzen0u1-gridsim-desk-v4-1 Creating \\n Container agent-env-local-de1acec4-bmzen0u1-gridsim-desk-v4-1 Created \\n Contain",
+   "usd": 0,
+   "wall_s": 580.8,
+   "started": "2026-10-29T07:46:42+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-opus-desk-v4-2026-07-23-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.1043,
+   "wall_s": 420.4,
+   "started": "2026-10-29T08:17:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-opus-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4908,
+   "wall_s": 829.0,
+   "started": "2026-10-29T07:46:57+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-opus-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr:  \\n Container agent-env-local-6d763551-5dy5b3ll-servicedb-1 Started \\n Container agent-env-local-6d763551-5dy5b3ll-servicedb-1 Waiting \\n Container agent-env-lo",
+   "usd": 0,
+   "wall_s": 528.0,
+   "started": "2026-10-29T07:47:12+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-opus-desk-v4-2026-07-23-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9779,
+   "wall_s": 435.9,
+   "started": "2026-10-29T08:17:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-opus-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4103,
+   "wall_s": 715.7,
+   "started": "2026-10-29T07:47:27+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-opus-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-de15552d-s38ct3wz-gridsim-desk-v4-1 Creating \\n Container agent-env-local-de15552d-s38ct3wz-pgweb-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 457.0,
+   "started": "2026-10-29T07:47:42+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-opus-desk-v4-2026-08-18-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4817,
+   "wall_s": 287.1,
+   "started": "2026-10-29T08:18:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-opus-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4794,
+   "wall_s": 334.2,
+   "started": "2026-10-29T08:18:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-opus-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8186,
+   "wall_s": 358.3,
+   "started": "2026-10-29T08:19:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-opus-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3184,
+   "wall_s": 454.4,
+   "started": "2026-10-29T08:19:47+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-opus-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.2473,
+   "wall_s": 413.4,
+   "started": "2026-10-29T08:20:17+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-opus-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.4,
+   "wall_s": 485.2,
+   "started": "2026-10-29T08:20:47+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "opus",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-opus-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.5485,
+   "wall_s": 480.9,
+   "started": "2026-10-29T08:21:17+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "2.1.280"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-sol-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr:  \\n Container agent-env-local-3f39efa5-qfv42noe-servicedb-1 Started \\n Container agent-env-local-3f39efa5-qfv42noe-servicedb-1 Waiting \\n Container agent-env-lo",
+   "usd": 0,
+   "wall_s": 606.5,
+   "started": "2026-10-29T07:41:14+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-sol-desk-v4-2026-01-23-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 4-1 Creating \\n Container agent-env-local-c4c44341-5_76z4f5-pgweb-1 Created \\n Container agent-env-local-c4c44341-5_76z4f5-db-mcp-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 39.4,
+   "started": "2026-10-29T08:04:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-sol-desk-v4-2026-01-23-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.9341,
+   "wall_s": 4778.4,
+   "started": "2026-10-29T08:22:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-sol-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.1433,
+   "wall_s": 9465.5,
+   "started": "2026-10-29T07:41:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-sol-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-586017d7-69_ck3h4-gridsim-desk-v4-1 Creating \\n Container agent-env-local-586017d7-69_ck3h4-db-mcp-1 Created \\n Container agent-",
+   "usd": 0,
+   "wall_s": 647.5,
+   "started": "2026-10-29T07:41:44+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-sol-desk-v4-2026-01-23-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr:  \\n Container agent-env-local-e6781a96-ghm_esl7-servicedb-1 Started \\n Container agent-env-local-e6781a96-ghm_esl7-servicedb-1 Waiting \\n Container agent-env-lo",
+   "usd": 0,
+   "wall_s": 42.8,
+   "started": "2026-10-29T08:05:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-sol-desk-v4-2026-01-23-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2717,
+   "wall_s": 3591.6,
+   "started": "2026-10-29T08:23:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-sol-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 1 Creating \\n Container agent-env-local-e3332547-dpq_ayr3-db-mcp-1 Creating \\n Container agent-env-local-e3332547-dpq_ayr3-db-mcp-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 862.7,
+   "started": "2026-10-29T07:41:59+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-sol-desk-v4-2026-01-23-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: \\n Container agent-env-local-69dbc8db-ny7v353a-servicedb-1 Started \\n Container agent-env-local-69dbc8db-ny7v353a-servicedb-1 Waiting \\n Container agent-env-loc",
+   "usd": 0,
+   "wall_s": 28.7,
+   "started": "2026-10-29T08:06:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-sol-desk-v4-2026-01-23-S04-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.1179,
+   "wall_s": 5106.4,
+   "started": "2026-10-29T08:23:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-sol-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.6325,
+   "wall_s": 4460.9,
+   "started": "2026-10-29T07:42:14+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-sol-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.4716,
+   "wall_s": 5749.6,
+   "started": "2026-10-29T07:42:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-sol-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: g \\n Container agent-env-local-06d3a763-1jtx_hkm-gridsim-desk-v4-1 Creating \\n Container agent-env-local-06d3a763-1jtx_hkm-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 793.0,
+   "started": "2026-10-29T07:42:44+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-sol-desk-v4-2026-03-16-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr:  \\n Container agent-env-local-f77e1105-1a2tu1nz-servicedb-1 Started \\n Container agent-env-local-f77e1105-1a2tu1nz-servicedb-1 Waiting \\n Container agent-env-lo",
+   "usd": 0,
+   "wall_s": 28.5,
+   "started": "2026-10-29T08:07:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-sol-desk-v4-2026-03-16-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.6604,
+   "wall_s": 4562.1,
+   "started": "2026-10-29T08:24:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-sol-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-99db9d7c-n13gpm2t-pgweb-1 Creating \\n Container agent-env-local-99db9d7c-n13gpm2t-gridsim-desk-v4-1 Created \\n Containe",
+   "usd": 0,
+   "wall_s": 806.8,
+   "started": "2026-10-29T07:42:59+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-sol-desk-v4-2026-03-16-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr:  \\n Container agent-env-local-475135bd-8y0vt6a5-servicedb-1 Started \\n Container agent-env-local-475135bd-8y0vt6a5-servicedb-1 Waiting \\n Container agent-env-lo",
+   "usd": 0,
+   "wall_s": 28.1,
+   "started": "2026-10-29T08:07:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-sol-desk-v4-2026-03-16-S04-a3",
+   "attempt": 3,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "infra error: \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=e1fb0aff-76f8-4eab-9dc4-04aa8c05441a, agent_sandbox=local-35a15746): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through",
+   "usd": 2.0687,
+   "wall_s": 3524.0,
+   "started": "2026-10-29T08:24:37+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-sol-desk-v4-2026-03-16-S04-a4",
+   "attempt": 4,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.774,
+   "wall_s": 3931.9,
+   "started": "2026-10-29T09:35:27+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-sol-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-e790ad9b-7z4q_jll-gateway-1 Created \\n Container agent-env-local-e790ad9b-7z4q_jll-servicedb-1 Starting \\n Container agent-env-local-e79",
+   "usd": 0,
+   "wall_s": 571.8,
+   "started": "2026-10-29T07:45:02+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-sol-desk-v4-2026-04-03-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2104,
+   "wall_s": 3219.3,
+   "started": "2026-10-29T08:13:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-sol-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-d47aed81-_fcs2g3f-db-mcp-1 Creating \\n Container agent-env-local-d47aed81-_fcs2g3f-gridsim-desk-v4-1 Created \\n Contain",
+   "usd": 0,
+   "wall_s": 790.1,
+   "started": "2026-10-29T07:43:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-sol-desk-v4-2026-04-17-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: \\n Container agent-env-local-2bd6cd70-n7xjd35v-servicedb-1 Started \\n Container agent-env-local-2bd6cd70-n7xjd35v-servicedb-1 Waiting \\n Container agent-env-loc",
+   "usd": 0,
+   "wall_s": 26.2,
+   "started": "2026-10-29T08:08:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-sol-desk-v4-2026-04-17-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.4839,
+   "wall_s": 4598.9,
+   "started": "2026-10-29T08:25:07+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-sol-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-f0045179-preyps97-gateway-1 Created \\n Container agent-env-local-f0045179-preyps97-servicedb-1 Starting \\n Container agent-env-local-f0",
+   "usd": 0,
+   "wall_s": 760.1,
+   "started": "2026-10-29T07:43:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-sol-desk-v4-2026-04-17-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Container agent-env-local-f6e3fb71-wwofojwk-servicedb-1 Starting \\n Container agent-env-local-f6e3fb71-wwofojwk-servicedb-1 Started \\n Container agent-env-local",
+   "usd": 0,
+   "wall_s": 42.1,
+   "started": "2026-10-29T08:09:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-sol-desk-v4-2026-04-17-S02-a3",
+   "attempt": 3,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "infra error: \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=343b6d35-d774-4970-87e1-85692571eebe, agent_sandbox=local-8431be83): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through",
+   "usd": 1.9435,
+   "wall_s": 3289.8,
+   "started": "2026-10-29T08:25:37+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-sol-desk-v4-2026-04-17-S02-a4",
+   "attempt": 4,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.9747,
+   "wall_s": 3109.2,
+   "started": "2026-10-29T09:35:42+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-sol-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-95abcf0a (7e415",
+   "usd": 0,
+   "wall_s": 584.6,
+   "started": "2026-10-29T07:43:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-sol-desk-v4-2026-04-17-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 4-1 Creating \\n Container agent-env-local-25c1656b-vzkc0jeb-pgweb-1 Created \\n Container agent-env-local-25c1656b-vzkc0jeb-db-mcp-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 37.8,
+   "started": "2026-10-29T08:10:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-sol-desk-v4-2026-04-17-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2083,
+   "wall_s": 4100.8,
+   "started": "2026-10-29T08:26:07+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-sol-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-13d05532-ug7u8t76-gateway-1 Created \\n Container agent-env-local-13d05532-ug7u8t76-servicedb-1 Starting \\n Container agent-env-local-13d",
+   "usd": 0,
+   "wall_s": 650.2,
+   "started": "2026-10-29T07:44:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-sol-desk-v4-2026-05-08-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr:  \\n Container agent-env-local-3169e45d-zsh7nctc-servicedb-1 Started \\n Container agent-env-local-3169e45d-zsh7nctc-servicedb-1 Waiting \\n Container agent-env-lo",
+   "usd": 0,
+   "wall_s": 26.2,
+   "started": "2026-10-29T08:10:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-sol-desk-v4-2026-05-08-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 6.3372,
+   "wall_s": 8121.1,
+   "started": "2026-10-29T08:26:22+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-sol-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-f8a34420 (d608b",
+   "usd": 0,
+   "wall_s": 515.4,
+   "started": "2026-10-29T07:44:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-sol-desk-v4-2026-05-08-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Container agent-env-local-aef2a632-l9y0lz6f-servicedb-1 Starting \\n Container agent-env-local-aef2a632-l9y0lz6f-servicedb-1 Started \\n Container agent-env-local",
+   "usd": 0,
+   "wall_s": 26.4,
+   "started": "2026-10-29T08:11:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-sol-desk-v4-2026-05-08-S02-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.0879,
+   "wall_s": 4447.3,
+   "started": "2026-10-29T08:56:56+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-sol-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-422b32b9-dq5rdv6f-gateway-1 Created \\n Container agent-env-local-422b32b9-dq5rdv6f-servicedb-1 Starting \\n Container agent-env-local-42",
+   "usd": 0,
+   "wall_s": 701.4,
+   "started": "2026-10-29T07:44:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-sol-desk-v4-2026-05-08-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Container agent-env-local-36720756-dx52zjiq-servicedb-1 Starting \\n Container agent-env-local-36720756-dx52zjiq-servicedb-1 Started \\n Container agent-env-local",
+   "usd": 0,
+   "wall_s": 28.3,
+   "started": "2026-10-29T08:12:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-sol-desk-v4-2026-05-08-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.4881,
+   "wall_s": 4294.7,
+   "started": "2026-10-29T09:00:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-sol-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-74ea5d29-6_l2ti7u-db-mcp-1 Creating \\n Container agent-env-local-74ea5d29-6_l2ti7u-db-mcp-1 Created \\n Container agent-",
+   "usd": 0,
+   "wall_s": 660.5,
+   "started": "2026-10-29T07:44:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-sol-desk-v4-2026-05-08-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 4-1 Creating \\n Container agent-env-local-a2aa14c4-u4unvyak-pgweb-1 Created \\n Container agent-env-local-a2aa14c4-u4unvyak-db-mcp-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 42.3,
+   "started": "2026-10-29T08:13:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-sol-desk-v4-2026-05-08-S04-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.6526,
+   "wall_s": 3107.6,
+   "started": "2026-10-29T09:07:52+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-sol-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-fdaa29d9-wkcw_5lf-db-mcp-1 Creating \\n Container agent-env-local-fdaa29d9-wkcw_5lf-db-mcp-1 Created \\n Container agent-",
+   "usd": 0,
+   "wall_s": 655.6,
+   "started": "2026-10-29T07:45:17+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-sol-desk-v4-2026-07-04-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.9466,
+   "wall_s": 4889.4,
+   "started": "2026-10-29T08:14:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-sol-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-5b298443 (5537e",
+   "usd": 0,
+   "wall_s": 516.2,
+   "started": "2026-10-29T07:45:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-sol-desk-v4-2026-07-04-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.6052,
+   "wall_s": 2675.6,
+   "started": "2026-10-29T08:15:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-sol-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-b058e030 (7516f",
+   "usd": 0,
+   "wall_s": 621.3,
+   "started": "2026-10-29T07:45:47+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-sol-desk-v4-2026-07-04-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.12,
+   "wall_s": 5013.7,
+   "started": "2026-10-29T08:16:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-sol-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-0ef5550a-3d9a8zkz-gateway-1 Created \\n Container agent-env-local-0ef5550a-3d9a8zkz-servicedb-1 Starting \\n Container agent-env-local-0e",
+   "usd": 0,
+   "wall_s": 544.4,
+   "started": "2026-10-29T07:46:02+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-sol-desk-v4-2026-07-04-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.521,
+   "wall_s": 3258.5,
+   "started": "2026-10-29T08:16:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-sol-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.5273,
+   "wall_s": 4212.0,
+   "started": "2026-10-29T07:46:18+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-sol-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-e302fdbe (06cd0",
+   "usd": 0,
+   "wall_s": 532.6,
+   "started": "2026-10-29T07:46:33+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-sol-desk-v4-2026-07-23-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.5213,
+   "wall_s": 4647.9,
+   "started": "2026-10-29T08:17:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-sol-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-4b831fd1 (de181",
+   "usd": 0,
+   "wall_s": 536.2,
+   "started": "2026-10-29T07:46:48+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-sol-desk-v4-2026-07-23-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2835,
+   "wall_s": 3884.3,
+   "started": "2026-10-29T08:18:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-sol-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-38ed8377-adxtkjbf-servicedb-1 Starting \\n Container agent-env-local-38ed8377-adxtkjbf-servicedb-1 Started \\n Container agent-env-local-",
+   "usd": 0,
+   "wall_s": 542.4,
+   "started": "2026-10-29T07:47:04+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-sol-desk-v4-2026-07-23-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.594,
+   "wall_s": 4541.2,
+   "started": "2026-10-29T08:18:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-sol-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: g \\n Container agent-env-local-f8ef39a2-g4c0jayt-gridsim-desk-v4-1 Creating \\n Container agent-env-local-f8ef39a2-g4c0jayt-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 531.2,
+   "started": "2026-10-29T07:47:19+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-sol-desk-v4-2026-08-18-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.8892,
+   "wall_s": 5292.7,
+   "started": "2026-10-29T08:19:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-sol-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-74340d87 (578d2",
+   "usd": 0,
+   "wall_s": 474.9,
+   "started": "2026-10-29T07:47:34+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-sol-desk-v4-2026-08-18-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.9919,
+   "wall_s": 3482.1,
+   "started": "2026-10-29T08:19:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-sol-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: g \\n Container agent-env-local-680c1cdc-drl4dn63-gridsim-desk-v4-1 Creating \\n Container agent-env-local-680c1cdc-drl4dn63-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 510.7,
+   "started": "2026-10-29T07:47:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-sol-desk-v4-2026-08-18-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2182,
+   "wall_s": 3362.4,
+   "started": "2026-10-29T08:20:02+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-sol-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.2961,
+   "wall_s": 4755.5,
+   "started": "2026-10-29T08:20:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-sol-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.8082,
+   "wall_s": 5342.4,
+   "started": "2026-10-29T08:21:02+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-sol-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "infra error: \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=4c5d7693-880d-4a9d-893b-26374b77a0c0, agent_sandbox=local-6c602f3f): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through",
+   "usd": 1.6771,
+   "wall_s": 2738.7,
+   "started": "2026-10-29T08:21:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-sol-desk-v4-2026-08-26-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.6835,
+   "wall_s": 3280.0,
+   "started": "2026-10-29T09:11:40+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-sol-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.635,
+   "wall_s": 4637.4,
+   "started": "2026-10-29T08:21:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-sol-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "infra error: \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=de7ab83c-319a-45b0-ae51-d2cdd7f2ea57, agent_sandbox=local-cb526c51): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through",
+   "usd": 1.9866,
+   "wall_s": 3515.0,
+   "started": "2026-10-29T08:22:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "sol",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-sol-desk-v4-2026-08-26-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 6.7434,
+   "wall_s": 6534.0,
+   "started": "2026-10-29T09:21:05+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-luna-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: g \\n Container agent-env-local-ef19ea60-usnkkfqu-gridsim-desk-v4-1 Creating \\n Container agent-env-local-ef19ea60-usnkkfqu-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 584.1,
+   "started": "2026-10-29T07:41:24+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-luna-desk-v4-2026-01-23-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3718,
+   "wall_s": 3250.7,
+   "started": "2026-10-29T08:04:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-luna-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-a82d5966-hb7wv0es-gateway-1 Created \\n Container agent-env-local-a82d5966-hb7wv0es-servicedb-1 Starting \\n Container agent-env-local-a8",
+   "usd": 0,
+   "wall_s": 695.4,
+   "started": "2026-10-29T07:41:39+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-luna-desk-v4-2026-01-23-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3747,
+   "wall_s": 3089.6,
+   "started": "2026-10-29T08:04:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-luna-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.498,
+   "wall_s": 4770.8,
+   "started": "2026-10-29T07:41:54+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-luna-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ng \\n Container agent-env-local-e6faf48a-9xa1vd3p-gridsim-desk-v4-1 Creating \\n Container agent-env-local-e6faf48a-9xa1vd3p-gridsim-desk-v4-1 Created \\n Contain",
+   "usd": 0,
+   "wall_s": 803.3,
+   "started": "2026-10-29T07:42:09+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-luna-desk-v4-2026-01-23-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3174,
+   "wall_s": 2845.4,
+   "started": "2026-10-29T08:05:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-luna-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-092372a9-2b2rq56_-gateway-1 Created \\n Container agent-env-local-092372a9-2b2rq56_-servicedb-1 Starting \\n Container agent-env-local-09",
+   "usd": 0,
+   "wall_s": 602.3,
+   "started": "2026-10-29T07:42:25+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-luna-desk-v4-2026-03-16-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3788,
+   "wall_s": 3145.8,
+   "started": "2026-10-29T08:05:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-luna-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: g \\n Container agent-env-local-ff58d489-jigekyz9-gridsim-desk-v4-1 Creating \\n Container agent-env-local-ff58d489-jigekyz9-gridsim-desk-v4-1 Created \\n Containe",
+   "usd": 0,
+   "wall_s": 607.7,
+   "started": "2026-10-29T07:42:40+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-luna-desk-v4-2026-03-16-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "infra error: \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=23606831-aec4-41dc-b4fd-f262cf8265c0, agent_sandbox=local-ca918767): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through",
+   "usd": 0.3176,
+   "wall_s": 3204.2,
+   "started": "2026-10-29T08:06:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-luna-desk-v4-2026-03-16-S02-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2915,
+   "wall_s": 2715.9,
+   "started": "2026-10-29T09:00:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-luna-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 4-1 Creating \\n Container agent-env-local-7bdc22f0-tbb96708-pgweb-1 Creating \\n Container agent-env-local-7bdc22f0-tbb96708-pgweb-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 652.7,
+   "started": "2026-10-29T07:42:55+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-luna-desk-v4-2026-03-16-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "infra error: \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=8fc96de5-b90b-4b68-a009-8508fef4b506, agent_sandbox=local-29d570cb): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through",
+   "usd": 0.1498,
+   "wall_s": 1802.4,
+   "started": "2026-10-29T08:07:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-luna-desk-v4-2026-03-16-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1915,
+   "wall_s": 1693.6,
+   "started": "2026-10-29T08:37:43+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-luna-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2372,
+   "wall_s": 2706.9,
+   "started": "2026-10-29T07:43:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-luna-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-11d46ead (0cd02",
+   "usd": 0,
+   "wall_s": 659.7,
+   "started": "2026-10-29T07:45:12+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-luna-desk-v4-2026-04-03-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3065,
+   "wall_s": 2681.5,
+   "started": "2026-10-29T08:10:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-luna-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ontainer agent-env-local-07047c6d-0zpuntvh-gateway-1 Created \\n Container agent-env-local-07047c6d-0zpuntvh-servicedb-1 Starting \\n Container agent-env-local-07",
+   "usd": 0,
+   "wall_s": 662.2,
+   "started": "2026-10-29T07:43:25+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-luna-desk-v4-2026-04-17-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3038,
+   "wall_s": 2926.4,
+   "started": "2026-10-29T08:08:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-luna-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-61387da9-rhy2rc72-db-mcp-1 Creating \\n Container agent-env-local-61387da9-rhy2rc72-gridsim-desk-v4-1 Created \\n Contain",
+   "usd": 0,
+   "wall_s": 753.9,
+   "started": "2026-10-29T07:43:40+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-luna-desk-v4-2026-04-17-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-eaef39e5 (837a9",
+   "usd": 0,
+   "wall_s": 36.2,
+   "started": "2026-10-29T08:08:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-luna-desk-v4-2026-04-17-S02-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.269,
+   "wall_s": 2378.7,
+   "started": "2026-10-29T08:15:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-luna-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1926,
+   "wall_s": 2390.0,
+   "started": "2026-10-29T07:43:55+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-luna-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-b3947d2f-92vma2w3-gateway-1 Created \\n Container agent-env-local-b3947d2f-92vma2w3-servicedb-1 Starting \\n Container agent-env-local-b39",
+   "usd": 0,
+   "wall_s": 666.6,
+   "started": "2026-10-29T07:44:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-luna-desk-v4-2026-05-08-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3735,
+   "wall_s": 3202.3,
+   "started": "2026-10-29T08:09:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-luna-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3436,
+   "wall_s": 3454.3,
+   "started": "2026-10-29T07:44:26+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-luna-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3016,
+   "wall_s": 3307.6,
+   "started": "2026-10-29T07:44:41+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-luna-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.361,
+   "wall_s": 3361.5,
+   "started": "2026-10-29T07:44:57+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-luna-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3884,
+   "wall_s": 3626.4,
+   "started": "2026-10-29T07:45:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-luna-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=ac2f52f1-01b9-4ea4-ab4c-df9307e79026, agent_sandbox=local-9ff3e32b): codex CLI produced no output for 300s (stalled \\u2014 likely a hung model call through the proxy)\\n",
+   "usd": 0.1465,
+   "wall_s": 2201.1,
+   "started": "2026-10-29T07:45:44+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-luna-desk-v4-2026-07-04-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3433,
+   "wall_s": 2841.6,
+   "started": "2026-10-29T08:29:33+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-luna-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2811,
+   "wall_s": 2885.9,
+   "started": "2026-10-29T07:46:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-luna-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-9c82fea6-alvciui4-gateway-1 Created \\n Container agent-env-local-9c82fea6-alvciui4-servicedb-1 Starting \\n Container agent-env-local-9c8",
+   "usd": 0,
+   "wall_s": 574.8,
+   "started": "2026-10-29T07:46:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-luna-desk-v4-2026-07-04-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-1ead7837 (a9788",
+   "usd": 0,
+   "wall_s": 38.0,
+   "started": "2026-10-29T08:11:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-luna-desk-v4-2026-07-04-S04-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2887,
+   "wall_s": 2737.3,
+   "started": "2026-10-29T08:15:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-luna-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: ntainer agent-env-local-63721a0c-3kdpmbm3-gateway-1 Created \\n Container agent-env-local-63721a0c-3kdpmbm3-servicedb-1 Starting \\n Container agent-env-local-637",
+   "usd": 0,
+   "wall_s": 592.4,
+   "started": "2026-10-29T07:46:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-luna-desk-v4-2026-07-23-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: p-1 Creating \\n Container agent-env-local-a4bbf2d3-x2rqk4s9-pgweb-1 Created \\n Container agent-env-local-a4bbf2d3-x2rqk4s9-gridsim-desk-v4-1 Created \\n Containe",
+   "usd": 0,
+   "wall_s": 42.5,
+   "started": "2026-10-29T08:11:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-luna-desk-v4-2026-07-23-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2485,
+   "wall_s": 2035.5,
+   "started": "2026-10-29T08:16:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-luna-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2877,
+   "wall_s": 2513.8,
+   "started": "2026-10-29T07:46:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-luna-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: -1 Creating \\n Container agent-env-local-fc29fac3-wchgdsqm-db-mcp-1 Creating \\n Container agent-env-local-fc29fac3-wchgdsqm-pgweb-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 564.9,
+   "started": "2026-10-29T07:47:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-luna-desk-v4-2026-07-23-S03-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 4-1 Creating \\n Container agent-env-local-34e325a4-62ayn7xd-pgweb-1 Created \\n Container agent-env-local-34e325a4-62ayn7xd-db-mcp-1 Created \\n Container agent-e",
+   "usd": 0,
+   "wall_s": 42.1,
+   "started": "2026-10-29T08:12:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-luna-desk-v4-2026-07-23-S03-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4202,
+   "wall_s": 3415.6,
+   "started": "2026-10-29T08:17:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-luna-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy-agent did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint agent-local-f23a3b7a (e50da",
+   "usd": 0,
+   "wall_s": 500.8,
+   "started": "2026-10-29T07:47:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-luna-desk-v4-2026-07-23-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3159,
+   "wall_s": 3102.0,
+   "started": "2026-10-29T08:13:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-luna-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "setup step deploy did not complete: \"Script failed (exit 1):\\nstdout: \\nstderr: 1 Creating \\n Container agent-env-local-0caff20c-nuerx4r1-db-mcp-1 Creating \\n Container agent-env-local-0caff20c-nuerx4r1-pgweb-1 Created \\n Container agent-en",
+   "usd": 0,
+   "wall_s": 519.9,
+   "started": "2026-10-29T07:47:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-luna-desk-v4-2026-08-18-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2046,
+   "wall_s": 1960.3,
+   "started": "2026-10-29T08:14:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-luna-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2848,
+   "wall_s": 2848.2,
+   "started": "2026-10-29T07:47:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-luna-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2933,
+   "wall_s": 2458.7,
+   "started": "2026-10-29T07:57:02+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-luna-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2665,
+   "wall_s": 2150.1,
+   "started": "2026-10-29T07:57:17+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-luna-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3782,
+   "wall_s": 3003.7,
+   "started": "2026-10-29T07:57:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-luna-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2685,
+   "wall_s": 2110.2,
+   "started": "2026-10-29T07:57:47+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-luna-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4525,
+   "wall_s": 4062.3,
+   "started": "2026-10-29T07:58:03+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "luna",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-luna-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.5453,
+   "wall_s": 4404.7,
+   "started": "2026-10-29T07:58:18+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-qwen-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1431,
+   "wall_s": 1598.5,
+   "started": "2026-10-29T06:52:29+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-qwen-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0959,
+   "wall_s": 1270.5,
+   "started": "2026-10-29T06:54:22+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-qwen-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1188,
+   "wall_s": 1309.6,
+   "started": "2026-10-29T06:53:09+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-qwen-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0636,
+   "wall_s": 799.7,
+   "started": "2026-10-29T06:55:00+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-qwen-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6171,
+   "wall_s": 4619.9,
+   "started": "2026-10-29T06:52:50+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-qwen-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0747,
+   "wall_s": 1015.2,
+   "started": "2026-10-29T06:54:42+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-qwen-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0997,
+   "wall_s": 1142.6,
+   "started": "2026-10-29T06:53:29+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-qwen-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0767,
+   "wall_s": 1052.5,
+   "started": "2026-10-29T06:55:20+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-qwen-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0905,
+   "wall_s": 1274.0,
+   "started": "2026-10-29T06:56:01+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-qwen-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0837,
+   "wall_s": 978.1,
+   "started": "2026-10-29T06:53:10+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-qwen-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1143,
+   "wall_s": 1601.5,
+   "started": "2026-10-29T06:55:02+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-qwen-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1474,
+   "wall_s": 1708.8,
+   "started": "2026-10-29T06:53:49+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-qwen-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1185,
+   "wall_s": 1657.1,
+   "started": "2026-10-29T06:55:41+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-qwen-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2198,
+   "wall_s": 2583.6,
+   "started": "2026-10-29T06:53:30+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-qwen-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.0959,
+   "wall_s": 1342.7,
+   "started": "2026-10-29T06:55:22+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-qwen-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.11,
+   "wall_s": 1286.2,
+   "started": "2026-10-29T06:54:09+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-qwen-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1039,
+   "wall_s": 1209.2,
+   "started": "2026-10-29T07:09:53+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-qwen-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2432,
+   "wall_s": 2773.8,
+   "started": "2026-10-29T07:12:20+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-qwen-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1098,
+   "wall_s": 1271.5,
+   "started": "2026-10-29T07:13:02+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-qwen-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1626,
+   "wall_s": 2294.2,
+   "started": "2026-10-29T07:08:57+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-qwen-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1139,
+   "wall_s": 1332.2,
+   "started": "2026-10-29T07:19:30+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-qwen-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1292,
+   "wall_s": 1818.0,
+   "started": "2026-10-29T07:15:58+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-qwen-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6088,
+   "wall_s": 3101.2,
+   "started": "2026-10-29T07:15:24+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-qwen-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2704,
+   "wall_s": 2565.0,
+   "started": "2026-10-29T07:13:20+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-qwen-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1012,
+   "wall_s": 1051.3,
+   "started": "2026-10-29T07:30:38+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-qwen-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1247,
+   "wall_s": 1740.5,
+   "started": "2026-10-29T07:18:20+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-qwen-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.094,
+   "wall_s": 1103.5,
+   "started": "2026-10-29T07:16:01+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-qwen-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1383,
+   "wall_s": 1893.8,
+   "started": "2026-10-29T07:17:42+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-qwen-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1827,
+   "wall_s": 1352.8,
+   "started": "2026-10-29T07:37:01+00:00",
+   "box": "qwen1",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-qwen-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2181,
+   "wall_s": 2233.4,
+   "started": "2026-10-29T07:22:12+00:00",
+   "box": "qwen2",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-qwen-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2109,
+   "wall_s": 1591.6,
+   "started": "2026-10-29T07:22:54+00:00",
+   "box": "qwen3",
+   "instance_type": "g5.2xlarge",
+   "harness_version": "1.17.18"
+  },
+  {
+   "model": "qwen",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-qwen-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.1078,
+   "wall_s": 1501.6,
+   "started": "2026-10-29T07:23:50+00:00",
+   "box": "qwen4",
+   "instance_type": "g5.xlarge",
+   "harness_version": "1.17.18"
+  }
+ ],
+ "regraded": {
+  "refs": "the pack's task rows, frozen at desk-v4-freeze",
+  "diffs": []
+ },
+ "run": {
+  "framework": "0.9.1377 (API models), 0.9.1378 (Qwen3-4B)",
+  "bundle": "desk-v4-bench-run1",
+  "prereg": "docs/prereg/v4-bench.md",
+  "route": "ec2",
+  "harness_versions": {
+   "Claude Code": "2.1.280",
+   "Codex CLI": "0.147.0",
+   "OpenCode": "1.17.18"
+  },
+  "budget": {
+   "max_turns": 100,
+   "calls_per_turn": 14,
+   "max_reminders": 12
+  },
+  "core_versions": [
+   "desk-2.1"
+  ],
+  "metered_attempts": 88,
+  "deviations_ref": "desk-v4-bench-results",
+  "prices_per_mtok": {
+   "claude-opus-5-5": {
+    "in": 4.0,
+    "cached": 0.2,
+    "write": 5.0,
+    "write_1h": 8.0,
+    "out": 20.0
+   },
+   "gpt-6.1-sol": {
+    "in": 2.0,
+    "cached": 0.1,
+    "write": 2.5,
+    "out": 10.0,
+    "above": 272000,
+    "tier": {
+     "in": 4.0,
+     "cached": 0.2,
+     "write": 5.0,
+     "out": 15.0
+    }
+   },
+   "gpt-6-luna": {
+    "in": 0.1,
+    "cached": 0.01,
+    "write": 0.125,
+    "out": 0.5,
+    "above": 272000,
+    "tier": {
+     "in": 0.2,
+     "cached": 0.02,
+     "write": 0.25,
+     "out": 0.75
+    }
+   },
+   "qwen3-4b": {
+    "in": 0.0,
+    "cached": 0.0,
+    "write": 0.0,
+    "out": 0.0
+   }
+  }
+ },
+ "deviations": [
+  "Route C: the episodes ran on EC2 boxes with local Docker rather than in Modal sandboxes; the internet was closed by a host rule and a per-run model proxy instead of Modal's network policy (the pre-registration gives the reasons).",
+  "agentenv-framework 0.9.1377 on the API-model box and 0.9.1378 on the Qwen3-4B boxes; the agent images are identical by digest.",
+  "Infrastructure retries (Claude Opus 5.5 27, GPT-6.1 Sol 39, GPT-6 Luna 22, Qwen3-4B 0): every attempt is kept and its spend counted.",
+  "Retry rule, decided mid-run before the affected windows' results: an attempt that failed at env deploy for $0 because of our launcher's port race does not count toward the at-most-two-retries limit. All 81 such failures were port races (GPT-6.1 Sol 35, Claude Opus 5.5 27, GPT-6 Luna 19); only GPT-6.1 Sol's desk-v4-2026-03-16-S04 and desk-v4-2026-04-17-S02 were affected, both graded on attempt 4.",
+  "Stalls: Codex's 300 s inactivity watchdog at effort high stopped 4 GPT-6.1 Sol and 3 GPT-6 Luna attempts; they count as infrastructure and were retried, and their spend is included in the cost.",
+  "Cost basis: the chart plots the graded attempt's cost a window; the table also gives each model's total spend, retries and stalls included.",
+  "Gemini 4 Argon (Gemini CLI) was not run: deferred for cost, about $15–20 per window projected, 5–6× its approved budget."
+ ],
+ "defects": null,
+ "notes": null,
+ "deferred": [
+  "Gemini 4 Argon (Gemini CLI): deferred; projected $15–20 per window."
+ ],
+ "redactions": null,
+ "skipped": null,
+ "hero": {
+  "model": "sol",
+  "task_id": "desk-v4-2026-08-18-S02",
+  "episode": "episodes/sol/desk-v4-2026-08-18-S02.gpt-6.1-sol.json.gz",
+  "split": "post_cutoff",
+  "score": 7.003,
+  "why": "capture 1.42, beats anchor 1.00, beats operator 1.00, DAM bid 0.60, RT re-bids 1.00, spike 0.13, quote 0.30; day-ahead markets bid 3, real-time re-offers 19, reserves won, post_cutoff; chosen with --hero"
+ },
+ "text": {
+  "halves": "Every model scores lower on Jul–Aug than on Jan–May, and that includes Qwen3-4B, whose training predates every window. So the drop reflects harder windows (the Jan–May half includes winter storm Fern), not evidence of training-data contamination. No API model's post − pre interval excludes zero, so all 32 windows lead, by a rule set before any API result.",
+  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero.",
+  "valid": "Qwen3-4B made no valid submission on 7 of its 32 windows (R = 0 there).",
+  "reliability": "216 attempts for 128 model-windows; 88 did not reach the grade (infrastructure ×88). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0) didn't count toward the two-retry limit (see Deviations). No window is missing.",
+  "metered": "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory."
+ }
+}
