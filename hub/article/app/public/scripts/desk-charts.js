@@ -1,9 +1,9 @@
 /** The dataset card's desk charts from desk.json (scripts/hub_desk.py): hindsight capture across the ladder's versions
- * (a check such as v5 is not a step on it), and each one's capture day by day (front by front in v4), each at the card's
- * width and in a phone layout; and from bench.json (a desk bench's summary.json), capture against cost per window and
- * capture before and after the training cutoffs. Bare SVG on a transparent page in the theme on <html>; hub_desk.py
- * captures every [data-figure] at 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font
- * inlined, in light and dark. The article imports the bench charts and draws them in its own theme. */
+ * (a check such as v5 is not a step on it), and each one's capture day by day (front by front in v4), each at the
+ * card's width and in a phone layout; and from bench.json (a desk bench's summary.json), capture before and after the
+ * training cutoffs. Bare SVG on a transparent page in the theme on <html>; hub_desk.py captures every [data-figure] at
+ * 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font inlined, in light and dark. The
+ * article and the viewer's results page import the bench chart and draw it in their own themes. */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
@@ -315,8 +315,6 @@ const SIZES = { width: 600, lead: 660, phone: 350 };
 const bcol = (p) => BCOL[p.family] || BCOL[p.key] || "var(--ink-3)";
 const brank = (p) => (BENCH.includes(p.family) ? BENCH.indexOf(p.family) : BENCH.length);
 const bpts = (Bn) => [...Bn.plot.points].sort((a, b) => brank(a) - brank(b) || (a.key === a.family ? 0 : 1) - (b.key === b.family ? 0 : 1));
-const usdTick = (v) => (v >= 1 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);
-const usdVal = (v) => (v >= 10 ? `$${Math.round(v)}` : v >= 0.01 ? `$${v.toFixed(2)}` : "<$0.01");
 const pname = (p, narrow) => (narrow ? p.tag || p.short : p.name) + (p.variant && p.variant !== "untrained" ? ` · ${p.variant}` : p.variant && !narrow ? ` (${p.variant})` : "");
 const lw = (l) => measure(l.t, l.cls) + (l.tail ? measure(l.tail, "t-end-q") : 0);
 
@@ -326,47 +324,6 @@ function mark(shape, x, y, r, fill, cls = "mk", hollow = false) {
   if (shape === "diamond") { const s = r * 1.24; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s)},${f1(y)}L${f1(x)},${f1(y + s)}L${f1(x - s)},${f1(y)}Z" ${a}/>`; }
   if (shape === "triangle") { const s = r * 1.3; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s * 0.93)},${f1(y + s * 0.62)}L${f1(x - s * 0.93)},${f1(y + s * 0.62)}Z" ${a}/>`; }
   return `<circle cx="${f1(x)}" cy="${f1(y)}" r="${r}" ${a}/>`;
-}
-
-function placeBoxes(items, obstacles, bounds) {
-  const boxes = [...obstacles.boxes], dots = obstacles.dots, done = [];
-  const hit = (b) => dots.filter(([x, y]) => x > b[0] - 2 && x < b[2] + 2 && y > b[1] - 2 && y < b[3] + 2).length
-    + 6 * boxes.reduce((s, o) => s + Math.max(0, Math.min(b[2], o[2]) - Math.max(b[0], o[0])) * Math.max(0, Math.min(b[3], o[3]) - Math.max(b[1], o[1])) / 40, 0)
-    + (b[0] < bounds[0] || b[2] > bounds[2] || b[1] < bounds[1] || b[3] > bounds[3] ? 400 : 0);
-  for (const it of items) {
-    let best = null;
-    it.alts.forEach((lines, ai) => {
-      const w = Math.max(...lines.map(lw)), lh = lines.map((l) => l.size * 1.22), h = lh.reduce((a, b) => a + b, 0);
-      [1, 2.1].forEach((ring, ri) => {
-        const g = (it.r + 7) * ring, d = 4 * ring;
-        [["start", it.x + g, it.y - h / 2], ["end", it.x - g, it.y - h / 2], ["middle", it.x, it.y - g - h + 2], ["middle", it.x, it.y + g - 1],
-          ["start", it.x + g - d, it.y - g - h + d + 1], ["end", it.x - g + d, it.y - g - h + d + 1], ["start", it.x + g - d, it.y + g - d - 1], ["end", it.x - g + d, it.y + g - d - 1]]
-          .forEach(([a, x, top], i) => {
-            const x0 = a === "middle" ? x - w / 2 : a === "start" ? x : x - w, b = [x0, top, x0 + w, top + h];
-            const score = hit(b) + (i === (it.prefer ?? 0) ? 0 : 0.5 + i * 0.3) + ai * 2 + ri * 4;
-            if (!best || score < best.score) best = { a, x, top, b, score, lines, lh, far: ri > 0 };
-          });
-      });
-    });
-    boxes.push(best.b);
-    done.push({ ...it, mx: it.x, my: it.y, ...best });
-  }
-  return done;
-}
-
-function boxText(p) {
-  let y = p.top, s = "";
-  if (p.far) {
-    const qx = Math.min(Math.max(p.mx, p.b[0]), p.b[2]), qy = Math.min(Math.max(p.my, p.b[1]), p.b[3]);
-    const d = Math.hypot(qx - p.mx, qy - p.my) || 1, ux = (qx - p.mx) / d, uy = (qy - p.my) / d;
-    s += `<path class="lead" d="M${f1(p.mx + ux * (p.r + 3))},${f1(p.my + uy * (p.r + 3))}L${f1(qx - ux * 3)},${f1(qy - uy * 3)}"/>`;
-  }
-  p.lines.forEach((l, i) => {
-    const yy = y + l.size * 0.98, anchor = p.a === "start" ? "" : ` text-anchor="${p.a}"`;
-    s += l.tail ? `<text x="${f1(p.x)}" y="${f1(yy)}" class="${l.cls}"${anchor}>${esc(l.t)}<tspan class="t-end-q">${esc(l.tail)}</tspan></text>` : T(p.x, yy, l.t, l.cls, p.a);
-    y += p.lh[i];
-  });
-  return s;
 }
 
 function shapeKey(items, W, y0) {
@@ -384,77 +341,6 @@ function shapeKey(items, W, y0) {
 function watermark(Bn, W, H) {
   if (!Bn.fake) return "";
   return `<text x="${f1(W / 2)}" y="${f1(H / 2)}" class="wm" style="font-size:${f1(W / 13)}px" text-anchor="middle" transform="rotate(-22 ${f1(W / 2)} ${f1(H / 2)})">FAKE DATA · NOT RESULTS</text>`;
-}
-
-function logTicks(lo, hi) {
-  const steps = Math.log10(hi / lo) > 2.2 ? [1, 3] : [1, 2, 5], out = [];
-  for (let k = Math.floor(Math.log10(lo)) - 1; k <= Math.ceil(Math.log10(hi)) + 1; k++) {
-    for (const m of steps) {
-      const v = +(m * 10 ** k).toPrecision(3);
-      if (v >= lo * 0.999 && v <= hi * 1.001) out.push(v);
-    }
-  }
-  return out;
-}
-
-function costScore(Bn, W, narrow) {
-  const pts = bpts(Bn).filter((p) => p.usd > 0 && p.C.mean != null), op = Bn.plot.references.operator_replay;
-  const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
-  let [s, y] = header("Hindsight capture against cost", narrow ? "C, % · USD per three-day window" : "C, % of the hindsight optimum's profit over idle · USD per three-day window", W);
-  if (narrow) {
-    const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, false), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family })), W, y + 26);
-    s += k;
-    y = ky;
-  }
-  const cs = pts.map((p) => p.usd), steps = [1, 2, 5].flatMap((m) => [-3, -2, -1, 0, 1, 2].map((k) => m * 10 ** k)).sort((a, b) => a - b);
-  const x0 = [...steps].reverse().find((v) => v <= Math.min(...cs) / 1.5) ?? 0.001, x1 = steps.find((v) => v >= Math.max(...cs) * 1.6) ?? 100;
-  const vals = pts.map((p) => p.C.mean).concat(op?.all?.mean ?? []).filter((v) => v != null);
-  const lo = Math.min(0, Math.floor((Math.min(...vals) - 0.02) * 20) / 20), hi = Math.ceil((Math.max(...vals) + 0.05) * 10 - 1e-9) / 10;
-  const tk = ticks(lo, hi, hi - lo > 0.62 ? 0.2 : 0.1, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14, R = W - 6;
-  const ptop = y + (narrow ? 24 : 30), PH = narrow ? 262 : 310, bottom = ptop + PH;
-  const yv = lin(lo, hi, bottom, ptop), xl = lin(Math.log10(x0), Math.log10(x1), L + 10, R - 10), xv = (v) => xl(Math.log10(v));
-  let back = "", lines = "", marks = "", labels = "";
-  for (const k of tk) back += L_(L, yv(k.t), R, yv(k.t), k.t ? "grid" : "zero") + T(L - 8, yv(k.t) + 4.5, k.label, "t-tick", "end");
-  const tickBoxes = tk.map((k) => [L - 8 - k.w, yv(k.t) - 7, L - 4, yv(k.t) + 7]);
-  const xt = logTicks(x0, x1), shown = narrow && xt.length > 5 ? xt.filter((_, i) => i % 2 === 0) : xt;
-  for (const v of xt) back += L_(xv(v), ptop - 6, xv(v), bottom, "grid");
-  for (const v of shown) back += T(xv(v), bottom + 19, usdTick(v), "t-tick", "middle");
-  back += T((L + R) / 2, bottom + 40, narrow ? "USD per window, log scale" : "Cost per three-day window, USD, log scale", "t-unit", "middle");
-  const obst = { boxes: tickBoxes, dots: lo < 0 ? sample([[[L, yv(0)], [R, yv(0)]]]) : [] };
-  if (op?.all?.mean != null) {
-    const oy = yv(op.all.mean), t = narrow ? `Real operator ${pct(op.all.mean)}` : `Real operator's bids, replayed: ${pct(op.all.mean)}`, tw = measure(t, "t-end-q");
-    lines += `<path class="op" d="M${f1(L)},${f1(oy)}H${f1(R)}"/>`;
-    const clear = (dy) => !pts.some((p) => xv(p.usd) > R - tw - 16 && Math.abs(yv(p.C.mean) - (oy + dy)) < 16);
-    const ty = clear(-8) ? oy - 7 : oy + 17;
-    labels += T(R - 2, ty, t, "t-end-q", "end");
-    obst.boxes.push([R - 2 - tw, ty - 13, R, ty + 3]);
-    obst.dots.push(...sample([[[L, oy], [R, oy]]]));
-  }
-  const r = narrow ? 6.2 : 7.2;
-  for (const sr of Bn.plot.series) {
-    const ps = sr.points.map((k) => pts.find((p) => p.key === k)).filter(Boolean);
-    for (let i = 1; i < ps.length; i++) {
-      const [a, b] = [ps[0], ps[i]], ax = xv(a.usd), ay = yv(a.C.mean), bx = xv(b.usd), by = yv(b.C.mean), d = Math.hypot(bx - ax, by - ay) || 1;
-      const ux = (bx - ax) / d, uy = (by - ay) / d, ex = bx - ux * (r + 4), ey = by - uy * (r + 4);
-      lines += `<path class="fam" d="M${f1(ax + ux * (r + 3))},${f1(ay + uy * (r + 3))}L${f1(ex)},${f1(ey)}" stroke="${bcol(b)}"/>`;
-      lines += `<path d="M${f1(ex + ux * 2)},${f1(ey + uy * 2)}L${f1(ex - ux * 7 - uy * 4.5)},${f1(ey - uy * 7 + ux * 4.5)}L${f1(ex - ux * 7 + uy * 4.5)},${f1(ey - uy * 7 - ux * 4.5)}Z" fill="${bcol(b)}"/>`;
-      obst.dots.push(...sample([[[ax, ay], [ex, ey]]]));
-    }
-  }
-  for (const p of [...pts].reverse()) marks += mark(SHAPE[p.provider], xv(p.usd), yv(p.C.mean), p.key === top ? r + 0.8 : r, bcol(p), "mk", p.key !== p.family);
-  obst.boxes.push(...pts.map((p) => [xv(p.usd) - r - 2, yv(p.C.mean) - r - 2, xv(p.usd) + r + 2, yv(p.C.mean) + r + 2]));
-  const want = [...pts].sort((a, b) => b.C.mean - a.C.mean).map((p) => {
-    const nm = pname(p, narrow), cls = p.key === top ? "t-end b" : "t-end", v = `${pct(p.C.mean)} · ${usdVal(p.usd)}`;
-    return { key: p.key, x: xv(p.usd), y: yv(p.C.mean), r, prefer: xv(p.usd) > (L + R) / 2 + 40 ? 1 : 0,
-      alts: narrow ? [[{ t: nm, cls, size: 14, tail: ` ${pct(p.C.mean)}` }]]
-        : [[{ t: nm, cls, size: 14 }, { t: v, cls: "t-end-q", size: 12.5 }], [{ t: nm, cls, size: 14, tail: `  ${v}` }]] };
-  });
-  for (const p of placeBoxes(want, obst, [2, ptop - 22, W - 2, bottom - 2])) labels += boxText(p);
-  let fy = bottom + 44;
-  const foot = `Each point: a model in a native agent harness, its mean over ${Bn.n_windows} windows; 95% CIs are in the table.`;
-  for (const line of wrap(foot, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
-  const H = fy + 8;
-  return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture against cost per window, by model");
 }
 
 function splitsChart(Bn, W, narrow) {
@@ -492,7 +378,7 @@ function splitsChart(Bn, W, narrow) {
     const o = [[xs[0], yv(op.pre_cutoff.mean)], [xs[1], yv(op.post_cutoff.mean)]];
     lines += `<path class="op" d="${path(o)}"/>` + o.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>`).join("");
   }
-  for (const p of [...pts].reverse()) {
+  for (const p of [...pts].sort((a, b) => a.C.mean - b.C.mean)) {
     const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
     lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
     marks += q.map(([x, y]) => mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)).join("");
@@ -578,4 +464,4 @@ async function main() {
 
 if (document.getElementById("figs")) main();
 
-export { costScore, splitsChart };
+export { splitsChart };

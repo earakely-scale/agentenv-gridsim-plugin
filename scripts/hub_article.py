@@ -199,13 +199,17 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
     places, cost as the card prints it, and the open model's sampling as its harness config set it."""
     if s["fake"]:
         raise SystemExit("results/desk-v4-bench holds fake data; the article states real runs only")
-    block, refs = card.bench_block(s, grades, d).splitlines(), s["references"]
+    block, refs, ms = card.bench_block(s, grades, d).splitlines(), s["references"], card.bench_models(s)
     how = {x["head"]: x for x in map(bold, card.bench_how(s))}
+    late = next(m for m in ms if m.get("framework"))
+    gaps = {m["key"]: card.bench_pair(s, m["key"], "operator_replay") for m in ms}
     side = {k: {"name": card.bench_side(s, sp), "note": card.BENCH_SIDE[sp], "n": str(s["splits"][sp]["windows"]),
                 "fronts": str(len(s["splits"][sp]["fronts"]))} for k, sp in zip(SIDES, card.BENCH_SPLITS, strict=True)}
     out = {"pitch": card.bench_pitch(s).strip("*"), "n": str(s["n_windows"]), "fronts": str(s["n_fronts"]),
            "sites": str(len(s["sites"])), "framework": s["run"]["framework"], "side": side,
-           "m": {m["key"]: bench_model(m, s, grades, card) for m in card.bench_models(s)},
+           "m": {m["key"]: bench_model(m, s, grades, card) for m in ms},
+           "ahead": card.and_join([f"{m['name']} {card.pts_ci(gaps[m['key']], True)}" for m in ms
+                                   if gaps[m["key"]]["ci"][0] > 0]),
            "r": {k: {x: f"{card.pc(refs[k][sc]['C']['mean'])}%" for x, sc in SCOPES} | {"label": label}
                  for k, label in card.BENCH_REFS.items()},
            "say": dict(zip(("lead", "operator"), map(bold, card.bench_bullets(s)), strict=False)),
@@ -214,8 +218,10 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
                    "tools": how["The desk's 11 tools over MCP,"]},
            "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
            "route": colon(next(x for x in s["deviations"] if x.startswith("Route C"))),
-           "gemini": colon(next(x for x in s["deviations"] if x.startswith("Gemini"))),
-           "cap": {"splits": small(block, "C × 100"), "table": small(block, "C, hindsight capture")}}
+           "late": colon(next(x for x in s["deviations"] if x.startswith(f"{late['name']}:"))),
+           "errors": colon(next(x for x in s["deviations"] if x.startswith("Provider HTTP 400s"))),
+           "tag": s["run"]["deviations_ref"], "links": {"deviations": card.bench_deviations(s)},
+           "cap": {"splits": small(block, "C × 100"), "table": link(small(block, "C, hindsight capture"))}}
     q = json.loads(OPENCODE.read_text())
     agent, opts = q["agent"]["build"], next(iter(q["provider"].values()))["models"][s["models"]["qwen"]["model_id"]]
     if opts["options"]["chat_template_kwargs"]["enable_thinking"] != (s["models"]["qwen"]["setting"] == "thinking on"):
@@ -227,14 +233,17 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
 
 def lead(s: dict, grades: list[dict], card) -> dict:
     """The lead run, the dataset card's GIF and the article's banner, as the card's caption states it, with each model's
-    run of its window in the viewer's 3D replay."""
-    h, m = s["hero"], s["models"][s["hero"]["model"]]
+    run of its window in the viewer's 3D replay; the others the prose links leave out, as the card's caption does, a
+    model the viewer does not hold yet."""
+    h, m, ms = s["hero"], s["models"][s["hero"]["model"]], card.bench_models(s)
     g = next(x for x in grades if x["model"] == h["model"] and x["task_id"] == h["task_id"])
     return {"name": m["name"], "harness": m["harness"], "site": f"Battery {g['site']}", "region": g["region"],
             "battery": g["battery"], "span": span(g["dates"][0], len(g["dates"])),
             "kind": next(f["kind"] for f in s["fronts"] if f["front"] == g["front"]), "P": usd(g["p"]),
             "C": f"{card.pc(g['capture'])}%", "op": usd(g["p_operator_replay"]),
-            "replay": {x["key"]: card.bench_replay(x["key"], h["task_id"]) for x in card.bench_models(s)}}
+            "replay": {x["key"]: card.bench_replay(x["key"], h["task_id"]) for x in ms},
+            "others": [{"key": x["key"], "name": x["name"], "url": card.bench_replay(x["key"], h["task_id"])}
+                       for x in ms if x["key"] != h["model"] and x["key"] not in card.NOT_YET_IN_VIEWER]}
 
 
 SIDES = ("pre", "post")
@@ -268,6 +277,15 @@ def colon(x: str) -> dict:
     """A deviation as the card logs it, its subject apart from the rest."""
     head, text = x.split(": ", 1)
     return {"head": head, "text": text}
+
+
+MDLINK = re.compile(r"\[([^\]]+)\]\((https://[^)\s]+)\)")
+
+
+def link(x: str) -> dict:
+    """A card note with one Markdown link, split around it, so the prose renders the link as a link."""
+    m = MDLINK.search(x)
+    return {"before": x[:m.start()], "label": m[1], "url": m[2], "after": x[m.end():]}
 
 
 def small(block: list[str], head: str) -> str:
@@ -433,6 +451,7 @@ def check_rendered(f: dict) -> None:
     used = {e for p in CHAPTERS.glob("*.mdx") for e in FACT.findall(p.read_text())}
     missing = [f"{e} = {known[e]!r}" for e in sorted(used)
                if not (f'href="{known[e]}"' in links if known[e].startswith("https://") else known[e] in text)]
+    missing += [f"replay {o['url']}" for o in f["bench"]["lead"]["others"] if f'href="{o["url"]}"' not in links]
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
     print(f"rendered check: all {len(used)} facts on the page as formatted")

@@ -260,9 +260,13 @@ def test_article_states_the_bench_as_the_card_does(bench):
     assert f["pitch"] == hub_dataset.bench_pitch(s).strip("*") and "**" not in f["pitch"]
     for b in (*f["say"].values(), *f["how"].values(), *f["limits"].values()):
         assert f"- **{b['head']}** {b['text']}" in block
-    assert f"<small>{f['cap']['splits']}</small>" in block and f"<small>{f['cap']['table']}</small>" in block
-    assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["gemini"])] == [
-        x for x in s["deviations"] if x.startswith(("Route C", "Gemini"))]
+    t = f["cap"]["table"]
+    assert f"<small>{f['cap']['splits']}</small>" in block
+    assert f"<small>{t['before']}[{t['label']}]({t['url']}){t['after']}</small>" in block
+    assert t["url"] == f["links"]["deviations"] and f["tag"] in t["url"]
+    assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["late"], f["errors"])] == [
+        x for x in s["deviations"] if x.startswith(("Route C", "Gemini 4 Argon:", "Provider HTTP 400s"))]
+    assert f["ahead"] == f"GPT-6.1 Sol {f['m']['sol']['op']} and Claude Opus 5.5 {f['m']['opus']['op']}"
     for k, m in s["models"].items():
         got = f["m"][k]
         for name, scope in (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff")):
@@ -279,8 +283,10 @@ def test_article_states_the_bench_as_the_card_does(bench):
     assert b["days"] == lead["dates"] and b["model"] == "GPT-6.1 Sol in Codex CLI" and len(b["sites"]) == 4
     assert b["replay"]["url"] == f["lead"]["replay"]["sol"] == hub_dataset.bench_replay("sol", lead["task_id"])
     assert set(f["lead"]["replay"]) == set(s["models"]) and f["lead"]["C"] == f"{_pc(lead['capture'])}%"
+    gif = hub_dataset.bench_gif(s, grades, True)
     where = f"{f['lead']['site']} ({f['lead']['region']}, {f['lead']['battery']})"
-    assert where in hub_dataset.bench_gif(s, grades, True)
+    assert where in gif and all(f"[{o['name']}]({o['url']})" in gif for o in f["lead"]["others"])
+    assert {o["key"] for o in f["lead"]["others"]} == set(s["models"]) - {"sol", *hub_dataset.NOT_YET_IN_VIEWER}
     for site in b["sites"]:
         assert (len(site["rt"]), len(site["soc"]), len(site["mw"])) == (288, 289, 288)
         assert all(0 <= t < 3 * 1440 for t in site["wakes"]) and site["wakes"]
