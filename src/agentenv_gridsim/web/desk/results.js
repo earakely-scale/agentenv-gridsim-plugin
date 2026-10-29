@@ -163,7 +163,7 @@ function pagetabs(bench) {
   $("pagetabs").innerHTML = a("?v=bench", bench, "The v4 benchmark", "models in native agent harnesses") + a("?v=v4", !bench, "The development ladder", "v2 to v4 and the v5 price-impact check");
 }
 
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", qwen: "var(--c-qwen)" };
 const busd = (x) => (x < 100 ? `$${x.toFixed(2)}` : `$${whole(x).toLocaleString("en-US")}`);
 const isoPlus = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 const spanOf = (a, b) => {
@@ -234,7 +234,7 @@ function renderBench(B, C, D, pc, K) {
     replaysB,
     block("How it runs", "", `<ul class="models">${card.how.map((x) => `<li>${md(x)}</li>`).join("")}</ul>`),
     block("Known limitations of the benchmark", "", `<ul class="models">${card.limits.map((x) => `<li>${md(x)}</li>`).join("")}</ul>`),
-    block("Deviations from the pre-registration", `Logged after the runs and appended to the pre-registration at the tag <code>${esc(L.tag)}</code>: ${link(L.deviations, "its Deviations section")}.`, `<ul class="models">${B.deviations.map((x) => `<li>${md(x)}</li>`).join("")}</ul>`, "", "deviations"),
+    block("Deviations from the pre-registration", `Logged after the runs and appended to the pre-registration at the tag <code>${esc(L.tag)}</code>: ${link(L.deviations, "its Deviations section")}.`, B.deviations.map((g) => `${g.title ? `<h3 class="minor">${esc(g.title)}</h3>` : ""}<ol class="models" start="${g.items[0].n}">${g.items.map((x) => `<li>${md(x.text)}</li>`).join("")}</ol>`).join(""), "", "deviations"),
     block("Every number's source", "", `<div class="links-grid">
       <div><h3>On GitHub</h3><ul><li>${link(L.prereg, "The pre-registration")}, <code>docs/prereg/v4-bench.md</code> at <code>${esc(L.run_tag)}</code></li><li>${link(L.deviations, "Its deviations")} at <code>${esc(L.tag)}</code></li><li>${link(L.folder, "The results folder")}, <code>results/desk-v4-bench</code> at <code>${esc(L.tag)}</code></li></ul></div>
       <div><h3>On the dataset</h3><ul><li>${link(L.dataset, "<code>results/desk-v4-bench</code>")}: its README, <code>summary.json</code>, <code>grades.jsonl.gz</code> and every scored Episode JSON</li><li>config <code>desk_v4_bench</code>, splits <code>pre_cutoff</code> and <code>post_cutoff</code></li></ul></div>

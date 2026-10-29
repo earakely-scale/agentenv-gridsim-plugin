@@ -132,6 +132,7 @@ i.side.post_cutoff { background: var(--ink); }
 .vtabs.ladder { position: static; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 6px 0 0; padding: 0; border-bottom: 0; }
 .models { margin: 0; padding-left: 18px; max-width: 84ch; color: var(--ink-2); font-size: 14px; line-height: 1.55; }
 .models li + li { margin-top: 6px; }
+ol.models { padding-left: 26px; }
 .models b { color: var(--ink); font-weight: 620; }
 .tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 30px; }
 .tools div { font-size: 14px; color: var(--ink-2); line-height: 1.55; }

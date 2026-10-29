@@ -14,7 +14,9 @@ import importlib.util
 import json
 import re
 import shutil
+import subprocess
 import sys
+from collections import Counter
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -155,7 +157,7 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
             tok = g["tokens"]
             ev["usage"] = {"turns": g["turns"], "calls": g["desk_calls"], "cost_usd": g["usd"],
                            "input_tokens": tok["input"], "output_tokens": tok["output"], "cached_tokens": tok["cached"]}
-            ev["run"] = {"attempts": g["attempts"], "own": g["own_tools"],
+            ev["run"] = {"attempts": g["attempts"], "own": own_calls(g["own_tools"]),
                          "tokens": {k: tok[k] for k in ("input", "cached", "cache_write", "output", "reasoning")}}
             key = f"bench/{task_id}.{g['model']}"
             (data / "ep" / f"{key}.json").write_text(dumps(ev))
@@ -176,6 +178,15 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
             "lead": f"bench/{s['hero']['task_id']}.{s['hero']['model']}"}
 
 
+def own_calls(own: dict) -> dict:
+    """A run's calls outside the desk by kind: a name in the desk's MCP namespace that is not one of its tools is a call
+    the harness refused, and the framework's peer-agents tools lose their MCP prefix."""
+    out = Counter()
+    for k, n in own.items():
+        out["invalid" if re.match(r"mcp_env\d+_", k) else k.removeprefix("mcp_peeragents_")] += n
+    return dict(out)
+
+
 def put_task(data: Path, cat: dict, view: dict, meta: dict) -> None:
     """A task's view once: a window the benchmark shares with v4 keeps v4's, which must draw the same."""
     path = data / "task" / f"{view['task']}.json"
@@ -192,7 +203,7 @@ def bench_page(s: dict, grades: list[dict], desk: dict, card) -> dict:
     """The benchmark's results page: summary.json without its log of attempts, and the dataset card's own words for it
     (its pitch, findings, chart and table captions, how it runs and its limitations) with the links the page cites."""
     quick = "The Quick start below shows how."
-    return {k: v for k, v in s.items() if k != "attempts"} | {
+    return {k: v for k, v in s.items() if k not in ("attempts", "deviations")} | {"deviations": deviations(s)} | {
         "card": {"pitch": card.bench_pitch(s), "bullets": card.bench_bullets(s), "limits": card.bench_limits(s),
                  "how": [x.replace(quick, f"The dataset card's [Quick start]({DATASET}#quick-start) shows how.")
                          for x in card.bench_how(s)],
@@ -209,6 +220,31 @@ def captions(s: dict, grades: list[dict], desk: dict, card) -> list[str]:
     if len(out) != 2:
         raise SystemExit(f"the card's benchmark block has {len(out)} captions, not the chart's and the table's")
     return out
+
+
+def deviations(s: dict) -> list[dict]:
+    """The pre-registration's Deviations section at the tag the results cite, as numbered there (its own items, then
+    each later section's under its title), so the page lists what its link opens."""
+    ref = f"{s['run']['deviations_ref']}:{s['run']['prereg']}"
+    r = subprocess.run(["git", "-C", str(ROOT), "show", ref], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"git show {ref}: {r.stderr.strip()} (are the tags fetched?)")
+    groups, item = [{"title": None, "items": []}], None
+    for line in r.stdout.split("\n## Deviations\n", 1)[1].split("\n## ", 1)[0].splitlines():
+        if line.startswith("### "):
+            groups.append({"title": line[4:].strip(), "items": []})
+            item = None
+        elif m := re.match(r"(\d+)\. (.+)", line):
+            item = {"n": int(m[1]), "text": m[2]}
+            groups[-1]["items"].append(item)
+        elif line.strip():
+            if item is None:
+                raise SystemExit(f"{ref}: text outside a numbered deviation: {line.strip()[:80]}")
+            item["text"] += " " + line.strip()
+    ns = [x["n"] for g in groups for x in g["items"]]
+    if ns != list(range(1, len(ns) + 1)):
+        raise SystemExit(f"{ref}: its deviations are numbered {ns}")
+    return [g for g in groups if g["items"]]
 
 
 def sides(s: dict, card) -> dict:
