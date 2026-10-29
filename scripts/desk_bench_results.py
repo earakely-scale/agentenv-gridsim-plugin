@@ -46,19 +46,25 @@ MODELS = {
     "claude-opus-5-5": {"key": "opus", "name": "Claude Opus 5.5", "tag": "Opus 5.5", "provider": "Anthropic",
                         "harness": "Claude Code", "setting": "effort high", "weights": "API"},
     "gpt-6.1-sol": {"key": "sol", "name": "GPT-6.1 Sol", "tag": "Sol", "provider": "OpenAI", "harness": "Codex CLI",
-                    "setting": "effort high", "weights": "API"},
+                    "setting": "effort high", "weights": "API",
+                    "harness_note": "with OpenAI's catalog entries for the GPT-6 models"},
     "gpt-6-luna": {"key": "luna", "name": "GPT-6 Luna", "tag": "Luna", "provider": "OpenAI", "harness": "Codex CLI",
-                   "setting": "effort high", "weights": "API"},
+                   "setting": "effort high", "weights": "API",
+                   "harness_note": "with OpenAI's catalog entries for the GPT-6 models"},
     "gemini-4-argon": {"key": "argon", "name": "Gemini 4 Argon", "tag": "Argon", "provider": "Google",
                        "harness": "Gemini CLI", "setting": "thinking high", "weights": "API"},
     "qwen3-4b": {"key": "qwen", "name": "Qwen3-4B", "tag": "Qwen3-4B", "variant": "untrained", "provider": "Qwen",
-                 "harness": "OpenCode", "setting": "thinking on", "weights": "open"},
+                 "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0"},
 }
 HARNESS_VERSIONS = {"Claude Code": "2.1.280", "Codex CLI": "0.147.0", "Gemini CLI": "0.38.2", "OpenCode": "1.17.18"}
 GPU_USD_PER_S = {"T4": 0.000164, "L4": 0.000222, "A10": 0.000306, "L40S": 0.000542, "A100-40GB": 0.000583,
                  "A100-80GB": 0.000694, "H100": 0.001097, "H200": 0.001261, "B200": 0.001736}
 GPU_PRICE_SOURCE = "Modal's list price, modal.com/pricing, read 2026-10-29"
 SCALEDOWN_S = 300
+EC2_USD_PER_H = {"g5.xlarge": 1.006, "g5.2xlarge": 1.212}
+EC2_PRICE_SOURCE = "EC2 on-demand, us-west-2"
+CLASS_KIND = {"infra": "infrastructure", "agent": "agent-side error, final", "capped": "episode spend cap, final",
+              "stopped": "model spend cap, final"}
 SHELL = {"Bash", "command_execution", "run_shell_command", "bash", "shell", "local_shell"}
 REFS = (("idle", "p_idle", "Idle"), ("anchor", "p_anchor", "Anchor (the desk's optimiser, same information)"),
         ("hind", "p_hind", "Hindsight optimum"), ("hind_phys", "p_hind_phys", "Hindsight, DAM tied to dispatch"),
@@ -238,10 +244,54 @@ def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
             "wakes": wakes.get("env_episode"), "reminders": wakes.get("agent_reminders_set")}
 
 
+def route_c(bench: Path, row: dict, result: dict | None, labels: dict) -> dict:
+    """One attempt of the route-C driver on an EC2 box (its row in attempts.jsonl, runs/<unit>/report.json, and for a
+    graded window its results.jsonl row and episodes/<window>.<model>.json); its class says whether it reached the
+    grade."""
+    run = bench / "runs" / row["unit"]
+    rep = json.loads((run / "report.json").read_text()) if (run / "report.json").is_file() else {}
+    if not rep and result:
+        u = result.get("usage") or {}
+        rep = {"status": row.get("status"), "wall_s": row.get("wall_s"), "grade": result.get("grade"),
+               "harness": {"turns": u.get("turns"), "builtin_calls": u.get("harness_builtin_calls")}}
+    meta = {"harness": row["harness"], "task": row["task_id"], "started": row["t_start"], "wall_s": row["wall_s"]}
+    a = attempt(run, meta, rep, labels)
+    ok = row["class"] == "ok"
+    if ok and a["episode"] is None and (p := bench / "episodes" / f"{row['task_id']}.{a['model_id']}.json").is_file():
+        ep = json.loads(p.read_text())
+        a |= {"episode": ep, "grade": a["grade"] or ep.get("grade") or {}}
+    u = row.get("usage") or {}
+    version = re.search(r"\d+\.\d+\.\d+", row.get("agent_version") or "")
+    return a | {"graded": ok and a["episode"] is not None and bool(a["grade"]),
+                "harness_version": version[0] if version else None,
+                "kind": None if ok else CLASS_KIND.get(row["class"], row["class"]),
+                "error": clean(row.get("why")) or a["error"], "box": row.get("box"),
+                "instance_type": row.get("instance_type"), "ended": dt.datetime.fromisoformat(row["t_end"]),
+                "tokens": a["tokens"] or u.get("tokens") or {},
+                "usd": a["usd"] if a["usd"] is not None else u.get("cost_usd_list_price", row.get("proxy_cost_usd"))}
+
+
 def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[dict], Counter]:
-    """Every bench attempt under the roots, and what was passed over: other packs' and tasks' runs, checks that are
-    not the pre-registered episode (a turn cap, Codex on its own model metadata) and a second copy of a run."""
+    """Every bench attempt under the roots, from the Modal launcher's run folders (meta.json, report.json) or the
+    route-C driver's attempts.jsonl (a box's own over a merged copy above it), and what was passed over: other packs'
+    and tasks' runs, checks that are not the pre-registered episode (a turn cap, Codex on its own model metadata) and
+    a second copy of a run."""
     out, skipped, seen = [], Counter(), set()
+    benches = sorted({p.parent for r in roots for p in r.rglob("attempts.jsonl")})
+    for b in (b for b in benches if not any(o != b and o.is_relative_to(b) for o in benches)):
+        assign = next((json.loads(q.read_text()) for q in (b / "assignment.json", b.parent / "assignment.json",
+                                                            b.parent.parent / "assignment.json") if q.is_file()), {})
+        res = b / "results.jsonl"
+        results = {r["unit"]: r for r in map(json.loads, filter(str.strip, res.read_text().splitlines()))
+                   } if res.is_file() else {}
+        for row in map(json.loads, filter(str.strip, (b / "attempts.jsonl").read_text().splitlines())):
+            why = ("another pack" if assign.get("pack", pack) != pack else "another task" if row.get("task_id") not in
+                   tasks or row.get("harness") not in HARNESSES else None)
+            if why or (key := (row["harness"], row["task_id"], row["t_start"])) in seen:
+                skipped[why or "a copy of a run already read"] += 1
+                continue
+            seen.add(key)
+            out.append(route_c(b, row, results.get(row["unit"]), labels))
     for meta_path in sorted(p for r in roots for p in r.rglob("meta.json")):
         meta = json.loads(meta_path.read_text())
         if not isinstance(meta, dict) or meta.get("harness") not in HARNESSES:
@@ -277,10 +327,39 @@ def gpu_share(atts: list[dict], gpu: str, hours: float | None) -> dict:
     total, wall = seconds * GPU_USD_PER_S[gpu], sum(a["wall_s"] for a in atts)
     for a in atts:
         a["usd"] = total * a["wall_s"] / wall if wall else 0.0
-    return {"gpu": gpu, "usd_per_gpu_second": GPU_USD_PER_S[gpu], "price_source": GPU_PRICE_SOURCE,
+    return {"basis": "modal", "gpu": gpu, "usd_per_gpu_second": GPU_USD_PER_S[gpu], "price_source": GPU_PRICE_SOURCE,
             "gpu_hours": round(seconds / 3600, 3), "measured": hours is not None,
             "union_hours": round(union / 3600, 3), "scaledown_s": SCALEDOWN_S, "usd_total": round(total, 4),
-            "attempts": len(atts)}
+            "attempts": len(atts), "where": f"one {gpu} GPU on Modal",
+            "note": f"GPU time: {seconds / 3600:.2f} GPU-hours on one {gpu} at {GPU_PRICE_SOURCE} "
+                    f"(${GPU_USD_PER_S[gpu]} a GPU-second), shared across its runs by run time"}
+
+
+def ec2_share(atts: list[dict]) -> dict:
+    """Route C: each open-weight attempt's share of its GPU box's time, its interval divided among the attempts running
+    on that box at the same time (the boxes run nothing else), at the box's on-demand price."""
+    for box in sorted({a["box"] for a in atts}):
+        xs = [a for a in atts if a["box"] == box]
+        edges = sorted({a["started"].timestamp() for a in xs} | {a["ended"].timestamp() for a in xs})
+        share = defaultdict(float)
+        for lo, hi in itertools.pairwise(edges):
+            live = [a for a in xs if a["started"].timestamp() <= lo and a["ended"].timestamp() >= hi]
+            for a in live:
+                share[a["run"]] += (hi - lo) / len(live)
+        for a in xs:
+            if a["instance_type"] not in EC2_USD_PER_H:
+                raise SystemExit(f"{box}: no on-demand price for {a['instance_type']}: pass --ec2-price TYPE=USD")
+            a["gpu_s"] = share[a["run"]]
+            a["usd"] = share[a["run"]] / 3600 * EC2_USD_PER_H[a["instance_type"]]
+    types = sorted({a["instance_type"] for a in atts})
+    hours = sum(a["gpu_s"] for a in atts) / 3600
+    return {"basis": "ec2", "price_source": EC2_PRICE_SOURCE, "usd_per_hour": {k: EC2_USD_PER_H[k] for k in types},
+            "boxes": len({a["box"] for a in atts}), "gpu_hours": round(hours, 3),
+            "usd_total": round(sum(a["usd"] for a in atts), 4), "attempts": len(atts),
+            "where": f"EC2 GPU boxes ({', '.join(types)})",
+            "note": f"GPU time: {hours:.2f} box-hours on EC2 GPU boxes ("
+                    + ", ".join(f"{k} at ${v}/h" for k, v in EC2_USD_PER_H.items() if k in types)
+                    + f", {EC2_PRICE_SOURCE}), each run's share of its box's time while it ran"}
 
 
 def cap(p: float | None, r: dict) -> float | None:
@@ -290,12 +369,24 @@ def cap(p: float | None, r: dict) -> float | None:
 
 
 def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], list[dict]]:
-    """One row per model and window, its scored attempt regraded or the window marked missing, and every attempt."""
+    """One row per model and window of the pack, its scored attempt regraded or the window marked missing (with the
+    last attempt's failure, or no attempt at all), and every attempt."""
     by = defaultdict(list)
     for a in atts:
         by[(a["label"]["key"], a["task_id"])].append(a)
     rank = {k: i for i, k in enumerate(ORDER)}
     rows, log = [], []
+    for key in sorted({k for k, _ in by}, key=lambda k: (rank.get(k, 99), k)):
+        some = next(xs[0] for (k, _), xs in by.items() if k == key)
+        for tid in sorted(set(tasks) - {t for k, t in by if k == key}):
+            t, card = tasks[tid], tasks[tid]["site"].get("card") or {}
+            rows.append({"model": key, "name": some["label"]["name"], "family": some["label"]["family"],
+                         "harness": some["label"]["harness"], "harness_key": some["harness_key"],
+                         "model_id": some["model_id"], "task_id": tid, "split": t["tags"]["split"],
+                         "front": front_of[tid], "site": t["site"]["site_id"], "region": card.get("region"),
+                         "battery": card.get("size"), "dates": t["dates"], "status": "missing",
+                         "missing_reason": "no attempt", "attempts": 0, "retries": 0, "extra_attempts": 0, "usd": None,
+                         "usd_all_attempts": 0.0})
     for (key, tid), xs in sorted(by.items(), key=lambda kv: (rank.get(kv[0][0], 99), kv[0][0], kv[0][1])):
         xs.sort(key=lambda a: a["started"])
         i = next((j for j, a in enumerate(xs) if a["graded"]), None)
@@ -303,7 +394,9 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
             log.append({"model": key, "task_id": tid, "run": a["run"], "attempt": j + 1,
                         "role": "scored" if j == i else "extra" if i is not None and j > i else "failed",
                         "status": a["status"], "kind": a["kind"], "error": a["error"], "usd": round(a["usd"] or 0, 4),
-                        "wall_s": round(a["wall_s"], 1), "started": a["started"].isoformat(timespec="seconds")})
+                        "wall_s": round(a["wall_s"], 1), "started": a["started"].isoformat(timespec="seconds"),
+                        **({"box": a["box"], "instance_type": a["instance_type"],
+                            "harness_version": a["harness_version"]} if a.get("box") else {})})
         t, a = tasks[tid], xs[i if i is not None else -1]
         lab, card = a["label"], t["site"].get("card") or {}
         row = {"model": key, "name": lab["name"], "family": lab["family"], "harness": lab["harness"],
@@ -313,7 +406,8 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
                "status": "scored" if i is not None else "missing", "attempts": len(xs),
                "retries": i if i is not None else len(xs), "extra_attempts": len(xs) - i - 1 if i is not None else 0,
                "usd": round(a["usd"] or 0.0, 4) if i is not None else None,
-               "usd_all_attempts": round(sum(x["usd"] or 0.0 for x in xs), 4)}
+               "usd_all_attempts": round(sum(x["usd"] or 0.0 for x in xs), 4),
+               **({} if i is not None else {"missing_reason": xs[-1]["kind"] or "not graded"})}
         if i is not None:
             ep, refs = a["episode"], t["refs"]
             g = regrade({"valid": bool(a["grade"].get("valid"))}, ep, refs)
@@ -332,6 +426,7 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
                     "tokens": a["tokens"], "wall_s": round(a["wall_s"], 1),
                     "episode": f"episodes/{key}/{tid}.{a['model_id']}.json.gz"}
         rows.append(row)
+    rows.sort(key=lambda r: (rank.get(r["model"], 99), r["model"], r["task_id"]))
     return rows, log
 
 
@@ -366,6 +461,7 @@ def mean(rows: list[dict], key: str, nd: int = 2) -> float | None:
 def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) -> dict:
     key, done = rows[0]["model"], [r for r in rows if r["status"] == "scored"]
     tries = [x for x in log if x["model"] == key]
+    versions = Counter(x["harness_version"] for x in tries if x.get("harness_version"))
     tok = Counter()
     for r in done:
         tok.update({k: v or 0 for k, v in (r["tokens"] or {}).items()})
@@ -374,9 +470,10 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
         xs = [(r[f], r["front"], r["split"]) for r in done if r[f] is not None]
         gaps[k] = split_gap(*zip(*xs, strict=True)) if xs else {"mean": None, "ci": [None, None]}
     return {"key": key, **{k: lab.get(k) for k in ("name", "tag", "provider", "harness", "setting", "weights",
-                                                   "variant", "family")},
+                                                   "variant", "family", "harness_note", "server")},
             "model_id": rows[0]["model_id"], "harness_key": rows[0]["harness_key"],
-            "harness_version": HARNESS_VERSIONS.get(lab.get("harness")), "n": len(done),
+            "harness_version": versions.most_common(1)[0][0] if versions else HARNESS_VERSIONS.get(lab.get("harness")),
+            "harness_versions_recorded": dict(versions) or None, "n": len(done),
             "missing": sorted(r["task_id"] for r in rows if r["status"] == "missing"),
             **{s: model_scope(scope_rows(done, s)) for s in SCOPES}, "split_gap": gaps,
             "cost": {"basis": "gpu_time" if gpu else "list_price_tokens",
@@ -393,6 +490,8 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
                          "extra": sum(x["role"] == "extra" for x in tries),
                          "windows_retried": sum(1 for r in rows if r["retries"]),
                          "windows_missing": sum(r["status"] == "missing" for r in rows),
+                         "missing_reasons": dict(Counter(r["missing_reason"] for r in rows
+                                                         if r["status"] == "missing")),
                          "failure_kinds": dict(Counter(x["kind"] for x in tries if x["role"] == "failed"))}}
 
 
@@ -471,6 +570,7 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
     pairs |= {f"{x}-operator_replay": operator_block(x, scored[x]) for x in keys}
     refs = ref_block(tasks, front_of)
     man = json.loads((pack_dir(a.pack) / "manifest.json").read_text())
+    route = "ec2" if any(r.get("box") for r in log) else "modal"
     differ = [k for k in keys if (g := models[k]["split_gap"]["C"])["mean"] is not None and (
         g["ci"][0] > 0 or g["ci"][1] < 0)]
     return {
@@ -488,18 +588,22 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
                                                key=lambda k: -models[k]["all"]["C"]["mean"]),
         "halves_differ": differ, "lead_split": "post_cutoff" if differ else "all", "references": refs,
         "paired": pairs, "plot": plot_block(models, refs), "attempts": log, "regraded": regrade_check(rows),
-        "run": {"framework": a.framework, "bundle": a.bundle, "prereg": a.prereg,
+        "run": {"framework": a.framework, "bundle": a.bundle, "prereg": a.prereg, "route": route,
                 "harness_versions": {m["harness"]: m["harness_version"] for m in models.values()},
                 "budget": next((e.get("budget") for e in episodes if e.get("budget")), None),
                 "core_versions": sorted({e.get("core_version", "?") for e in episodes}),
                 "prices_per_mtok": {k: v for k, v in DBR.PRICES.items() if any(m["model_id"] == k
                                                                               for m in models.values())}},
-        "deviations": a.deviation or None, "defects": a.defect or None, "notes": a.note or None}
+        "deviations": [d.replace("{retries}", ", ".join(
+            f"{m['name']} {sum(x['kind'] == CLASS_KIND['infra'] for x in log if x['model'] == k)}"
+            for k, m in models.items())) for d in a.deviation] or None,
+        "defects": a.defect or None, "notes": a.note or None,
+        "deferred": a.deferred or None}
 
 
 def episodes_out(atts: list[dict], rows: list[dict], out: Path, redact: list[str]) -> dict[str, int]:
-    """Each scored Episode JSON beside the run's own grade, and, where the env left its policy empty, the agent that
-    played it (the hero GIF and the viewer name the model from it); each --redact term replaced and counted."""
+    """Each scored Episode JSON beside the run's own grade, its policy naming the agent that played it (the hero GIF
+    and the viewer name the model from it); each --redact term replaced and counted."""
     paths = {(r["model"], r["task_id"]): out / r["episode"] for r in rows if r["status"] == "scored"}
     shutil.rmtree(out / "episodes", ignore_errors=True)
     hits = Counter()
@@ -508,9 +612,8 @@ def episodes_out(atts: list[dict], rows: list[dict], out: Path, redact: list[str
         if p is None:
             continue
         lab = a["label"]
-        policy = a["episode"].get("policy") or {"kind": "model", "model": a["model_id"], "name": lab["name"],
-                                                 "tag": lab["tag"], "harness": lab["harness"],
-                                                 "setting": lab["setting"]}
+        policy = (a["episode"].get("policy") or {"kind": "model", "model": a["model_id"]}) | {
+            "name": lab["name"], "tag": lab["tag"], "harness_name": lab["harness"], "setting": lab["setting"]}
         text = json.dumps(dict(a["episode"], grade=a["grade"], policy=policy), ensure_ascii=False)
         for term in redact:
             hits[term] += text.count(term)
@@ -521,17 +624,32 @@ def episodes_out(atts: list[dict], rows: list[dict], out: Path, redact: list[str
     return dict(hits)
 
 
-def hero(s: dict, out: Path) -> dict | None:
-    """The lead GIF's episode: the best-looking run of the model with the highest C, by scripts/hub_desk_hero.py's
-    ranking (C, beating the anchor and the operator, day-ahead bids, re-bids, re-plans at events)."""
-    if not s["order_by_C"]:
-        return None
-    hh, top = module("hub_desk_hero", "scripts/hub_desk_hero.py"), s["order_by_C"][0]
-    ranked = sorted(((hh.score(hh.regraded(hh.read(p), p, out / "grades.jsonl.gz")), p)
-                     for p in sorted((out / "episodes" / top).glob("*.json.gz"))), key=lambda x: -x[0][0])
-    (score, why), path = ranked[0]
-    return {"model": top, "task_id": hh.read(path)["task_id"], "episode": path.relative_to(out).as_posix(),
-            "score": round(score, 3), "why": why}
+def hero(s: dict, rows: list[dict], out: Path) -> dict | None:
+    """The lead GIF's episode: a run of an API model with visible trading (accepted day-ahead offers and at least two
+    real-time re-offers), ranked by scripts/hub_desk_hero.py's score (C, beating the anchor and the operator, re-bids,
+    re-plans at events) plus a bonus per day-ahead market bid, for reserves won and for a window after every model's
+    training cutoff."""
+    hh, best = module("hub_desk_hero", "scripts/hub_desk_hero.py"), None
+    for r in rows:
+        if r["status"] != "scored" or s["models"][r["model"]]["weights"] == "open":
+            continue
+        path = out / r["episode"]
+        ep = hh.regraded(hh.read(path), path, out / "grades.jsonl.gz")
+        subs = [x for x in ep.get("submissions") or [] if x.get("accepted")]
+        dam = {x.get("day") for x in subs if x["tool"] == "submit_dam_offers" and not x.get("as")}
+        rt = sum(x["tool"] == "submit_rt_offers" and not x.get("as") for x in subs)
+        reserves = any(x.get("as") for x in subs) or any(
+            v for d in ep["dates"] for part in ("dam", "rt")
+            for h in ((ep.get(part) or {}).get(d, {}).get("as_award_mw") or []) for v in (h or {}).values())
+        if not dam or rt < 2:
+            continue
+        score, why = hh.score(ep)
+        score += 0.25 * len(dam) + 0.8 * reserves + 1.0 * (r["split"] == "post_cutoff")
+        if best is None or score > best["score"]:
+            best = {"model": r["model"], "task_id": r["task_id"], "episode": r["episode"], "score": round(score, 3),
+                    "why": f"{why}; day-ahead markets bid {len(dam)}, real-time re-offers {rt}, reserves "
+                           f"{'won' if reserves else 'none'}, {r['split']}"}
+    return best
 
 
 def leaks(out: Path, extra: list[str]) -> None:
@@ -642,6 +760,7 @@ def readme(s: dict) -> str:
         "prices_per_mtok"].items() if v["in"])
     fake = ("> **FAKE DATA.** Synthesized from the pilot records to exercise this pipeline; no benchmark run is "
             "behind any number here.\n\n" if s["fake"] else "")
+    deferred = "".join(f"\n\n{x}" for x in s.get("deferred") or [])
     lead = ("The halves differ for " + ", ".join(ms[k]["name"] for k in s["halves_differ"])
             + " (a post − pre CI that excludes zero), so the post-cutoff column leads." if s["halves_differ"] else
             "No model's post − pre CI in C excludes zero, so the all-window column leads.")
@@ -656,8 +775,8 @@ def readme(s: dict) -> str:
         f"{sp['post_cutoff']['windows']} windows, July and August 2026, after every model's reported training "
         f"cutoff. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} fronts (each split's "
         f"{len(sp['pre_cutoff']['fronts'])} within it).", "",
-        picture("cost-vs-score", "Hindsight capture against cost per window, one point per model"), "", t1, "",
-        lead, "", picture("splits", "Hindsight capture before and after the training cutoffs"), "",
+        picture("cost-vs-score", "Hindsight capture against cost per window, one point per model"), "",
+        t1 + deferred, "", lead, "", picture("splits", "Hindsight capture before and after the training cutoffs"), "",
         "## Paired gaps (the windows both played)", "", t2, "",
         "## Against the real operator's bids, replayed through the same clearing and settlement", "", t3, "",
         "## Post-cutoff minus pre-cutoff, each model", "",
@@ -669,6 +788,7 @@ def readme(s: dict) -> str:
         "frozen at `desk-v4-freeze`).", "", fr, "",
         "- Every episode is a plain `agent-env run` of the bench bundle (`scripts/desk_bench.py`)"
         + (f" at `{run['bundle']}`" if run.get("bundle") else "")
+        + (" on EC2 boxes with local Docker (route C)" if run.get("route") == "ec2" else "")
         + (f", agentenv-framework {run['framework']}" if run.get("framework") else "") + "; harnesses: "
         + ", ".join(f"{k} {v}" for k, v in run["harness_versions"].items()) + "; budget: "
         + ", ".join(f"{k} {v}" for k, v in (run.get("budget") or {}).items())
@@ -681,11 +801,7 @@ def readme(s: dict) -> str:
         + (": " + "; ".join(f"{who[d['model']]} {d['task_id']}" for d in diffs[:8]) if diffs else "") + ".",
         f"- CIs: {s['ci']['method']}; {s['ci']['resamples']:,} resamples, seed {s['ci']['seed']}.",
         "- Cost: tokens from the harness trajectories at public list prices, $ per million tokens "
-        f"input/cached/cache write/output: {prices}."
-        + (f" Open weights: {gpu['gpu_hours']:.2f} GPU-hours on one {gpu['gpu']} "
-           f"({'as billed' if gpu['measured'] else 'the union of its runs, each plus the 300 s scale-down window'}) "
-           f"at ${gpu['usd_per_gpu_second']} a GPU-second ({gpu['price_source']}), shared across its attempts by "
-           "run time." if gpu else ""),
+        f"input/cached/cache write/output: {prices}." + (f" Open weights: {gpu['note']}." if gpu else ""),
         *(["- Passed over under the run folders: " + ", ".join(f"{k} ×{v}" for k, v in s["skipped"].items()) + "."]
           if s.get("skipped") else []),
         *([f"- Redacted from the Episode JSON: {sum(s['redactions'].values())} occurrences of "
@@ -707,13 +823,18 @@ def main() -> None:
     ap.add_argument("--qwen-gpu", default="L4", choices=sorted(GPU_USD_PER_S), help="the open model endpoint's GPU")
     ap.add_argument("--qwen-gpu-hours", type=float, help="the endpoint's GPU-hours as billed; default: the union of "
                                                           "its runs' intervals, each plus the scale-down window")
+    ap.add_argument("--ec2-price", action="append", default=[], metavar="TYPE=USD_PER_HOUR",
+                    help="route C: another GPU box type's on-demand price (g5.xlarge and g5.2xlarge are known)")
+    ap.add_argument("--deferred", action="append", default=[], metavar="TEXT",
+                    help="a pre-registered model that did not run, as the card and README state it")
     ap.add_argument("--block-alias", action="append", default=[], metavar="DATE=FRONT")
     ap.add_argument("--model", action="append", default=[], metavar="MODEL_ID=KEY:NAME[:FAMILY]",
                     help="label a model the table lacks, e.g. a fine-tuned Qwen3-4B in the qwen family")
     ap.add_argument("--framework", help="the agentenv-framework version the runs used")
     ap.add_argument("--bundle", help="the bench bundle's tag or commit the runs played")
     ap.add_argument("--prereg", help="the pre-registration's path in the repo, e.g. docs/prereg/v4-bench.md")
-    ap.add_argument("--deviation", action="append", default=[], help="a deviation from the pre-registration")
+    ap.add_argument("--deviation", action="append", default=[], help="a deviation from the pre-registration; "
+                    "{retries} becomes each model's count of infrastructure retries")
     ap.add_argument("--defect", action="append", default=[], help="a known env defect")
     ap.add_argument("--note", action="append", default=[], help="a line for the README's method")
     ap.add_argument("--scan", action="append", default=[], metavar="TERM",
@@ -732,8 +853,11 @@ def main() -> None:
     if len(fake) > 1:
         raise SystemExit("FAKE and real attempts are mixed under --runs")
     labs = {x["label"]["key"]: x["label"] for x in atts}
-    gpus = {k: gpu_share([x for x in atts if x["label"]["key"] == k], a.qwen_gpu, a.qwen_gpu_hours)
-            for k, lab in labs.items() if lab["weights"] == "open"}
+    EC2_USD_PER_H.update({k: float(v) for k, v in (x.split("=", 1) for x in a.ec2_price)})
+    gpus = {}
+    for k in (k for k, lab in labs.items() if lab["weights"] == "open"):
+        xs = [x for x in atts if x["label"]["key"] == k]
+        gpus[k] = ec2_share(xs) if all(x.get("box") for x in xs) else gpu_share(xs, a.qwen_gpu, a.qwen_gpu_hours)
     rows, log = windows(atts, tasks, front_of)
     s = summarize(a, tasks, fr, front_of, rows, log, labs, gpus, [x["episode"] for x in atts if x["episode"]],
                   fake.pop())
@@ -743,7 +867,7 @@ def main() -> None:
     s["skipped"] = dict(skipped) or None
     with gzip.GzipFile(out / "grades.jsonl.gz", "wb", mtime=0) as f:
         f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode())
-    s["hero"] = hero(s, out)
+    s["hero"] = hero(s, rows, out)
     (out / "summary.json").write_text(json.dumps(s, indent=1, ensure_ascii=False) + "\n")
     if not a.no_figures:
         shutil.rmtree(out / "figures", ignore_errors=True)

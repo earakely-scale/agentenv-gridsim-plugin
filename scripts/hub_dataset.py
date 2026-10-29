@@ -915,19 +915,20 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
         f"the windows it finished; vertical lines, 95% CIs (a block bootstrap over the {s['n_fronts']} fronts). Cost "
         "a window: the tokens in each harness's own trajectories at the provider's public list price"
-        + (f"; Qwen3-4B's is GPU time, {gpu['gpu_hours']:.2f} GPU-hours on one {gpu['gpu']} at Modal's list price "
-           "shared across its runs" if gpu else "")
+        + (f"; {and_join([m['name'] for m in ms if m['cost'].get('gpu')])}'s is {gpu['note']}" if gpu else "")
         + ". Grey dashed: the real operator's own bids, replayed through the same clearing and settlement.</small>",
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
         f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
         "(four within each side of the cutoffs). Cost a window: list-price tokens, or the open model's GPU time. The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
-        "settlement.</small>", "",
+        "settlement.</small>", "", *(x for d in s.get("deferred") or [] for x in (md(d), "")),
         *chart("splits", alt2, charts["width"], charts["phone"]["media"], figs), "",
         *(f"- {x}" for x in bench_bullets(s)), "",
         "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
-        "### Known limitations of the benchmark", "", *(f"- {x}" for x in BENCH_LIMITS), "",
+        "### Known limitations of the benchmark", "", *(f"- {x}" for x in bench_limits(s)), "",
+        *(["### Deviations from the pre-registration", "", *(f"- {x}" for x in s["deviations"]), ""]
+          if s.get("deviations") else []),
         f"Every number is in [`{BENCH_DIR}`]({DATASET}/tree/main/{BENCH_DIR}) (its README, `summary.json`, "
         "`grades.jsonl.gz` and every scored Episode JSON) and in the `desk_v4_bench` config, one row per model and "
         "window, split `pre_cutoff` and `post_cutoff`."])
@@ -965,61 +966,79 @@ def bench_bullets(s: dict) -> list[str]:
                f"{bench_usd(paid[-1]['cost']['usd_per_window'])} ({paid[-1]['name']}); every attempt, retries "
                "included, cost " + and_join([f"{bench_usd(m['cost']['usd_all_attempts'])} for {m['name']}"
                                              for m in ms]) + ".")
+    invalid = [f"{m['name']} on {round((1 - m['all']['valid_share']) * m['n'])} of its {m['n']} windows"
+               for m in ranked if m["all"]["valid_share"] is not None and m["all"]["valid_share"] < 1]
+    if invalid:
+        out.append(f"**Valid submissions.** {and_join(invalid)} had no valid submission, which scores R = 0 there.")
     tries = sum(m["attempts"]["total"] for m in ms)
     failed = sum(m["attempts"]["failed"] for m in ms)
-    missing = [(m["name"], t) for m in ms for t in m["missing"]]
-    kinds = Counter()
+    kinds, why = Counter(), Counter()
     for m in ms:
         kinds.update(m["attempts"]["failure_kinds"])
+        why.update(m["attempts"].get("missing_reasons") or {})
+    missing = [(m["name"], len(m["missing"])) for m in ms if m["missing"]]
     out.append(f"**Reliability:** {tries} attempts for {sum(m['n'] + len(m['missing']) for m in ms)} model-windows; "
-               + (f"{failed} failed for infrastructure ({', '.join(f'{k} ×{v}' for k, v in kinds.most_common())}) "
-                  "and were retried, at most twice a window. " if failed else "none failed. ")
-               + (f"Missing after the retries and not imputed: {'; '.join(f'{n}, {t}' for n, t in missing)}."
-                  if missing else "No window is missing."))
+               + (f"{failed} did not reach the grade ({', '.join(f'{k} ×{v}' for k, v in kinds.most_common())}); "
+                  "infrastructure failures were retried, at most twice a window. " if failed else "every one reached "
+                  "the grade. ")
+               + (f"Not scored and not imputed: {'; '.join(f'{n}, {k} of its windows' for n, k in missing)} "
+                  f"({', '.join(f'{k} ×{v}' for k, v in why.most_common())})." if missing else
+                  "No window is missing."))
     return out
 
 
 def bench_how(s: dict) -> list[str]:
     ms, run = bench_models(s), s["run"]
-    by = {}
+    ec2, by = run.get("route") == "ec2", {}
     for m in ms:
-        by.setdefault((m["harness"], m["harness_version"]), []).append(m)
+        by.setdefault((m["harness"], m["harness_version"], m.get("harness_note")), []).append(m)
     harnesses = and_join([f"{and_join([m['name'] for m in xs])} in {h}" + (f" {v}" if v else "")
-                          for (h, v), xs in by.items()])
-    open_ = [m for m in ms if m["weights"] == "open"]
-    budget = run.get("budget") or {}
+                          + (f" {note}" if note else "") for (h, v, note), xs in by.items()])
+    open_ = [m for m in ms if m["weights"] == "open" and m["cost"].get("gpu")]
+    budget, ref = run.get("budget") or {}, run.get("bundle") or "main"
     return [
         f"**Each model in its own vendor's agent harness,** through AgentEnv: {harnesses}"
-        + (f"; {and_join([m['name'] for m in open_])} on a vLLM endpoint on one "
-           f"{open_[0]['cost']['gpu']['gpu']} GPU" if open_ and open_[0]["cost"].get("gpu") else "") + ".",
+        + (f"; {and_join([m['name'] for m in open_])} served by {open_[0].get('server') or 'vLLM'} on "
+           f"{open_[0]['cost']['gpu']['where']}" if open_ else "") + ".",
         "**At high effort:** " + "; ".join(f"{m['name']} {m['setting']}" for m in ms) + ".",
-        "**No internet.** Each agent's sandbox allows only its model's API host (and the sandbox platform's tunnel to "
-        "the env), and web search and fetch are off in each harness's own settings; checked from inside the "
-        "sandboxes before the runs.",
+        ("**No internet.** Each run's Docker network is closed to the internet by a host rule, and the model is "
+         "reached only through a proxy on the host that allows one API and one model per run and refuses provider-side "
+         "web, code-execution and remote-MCP tools; the agents hold only a placeholder key, which the proxy replaces. "
+         "Web search and fetch are also off in each harness's own settings; checked from inside the agent containers "
+         "before the runs." if ec2 else
+         "**No internet.** Each agent's sandbox allows only its model's API host (and the sandbox platform's tunnel to "
+         "the env), and web search and fetch are off in each harness's own settings; checked from inside the "
+         "sandboxes before the runs."),
         "**The desk's 11 tools over MCP,** beside the harness's own shell, files and planning tools"
         + (f"; v4's budget of {budget.get('max_turns')} turns, {budget.get('calls_per_turn')} desk calls a turn and "
            f"{budget.get('max_reminders')} reminders" if budget else "") + ". One run per model per window.",
-        "**Reproducible with `agent-env run`:** every episode is a plain run of the published bundle and a "
-        "config.toml"
+        "**Reproducible with `agent-env run`:** every episode is a plain run of the bench bundle"
+        + (f" (`{run['bundle']}`)" if run.get("bundle") else "") + " and a config.toml"
         + (f", on agentenv-framework {run['framework']}" if run.get("framework") else "")
-        + (f"; the bundle is `scripts/desk_bench.py` at `{run['bundle']}`" if run.get("bundle") else "")
-        + ". The Quick start below shows it."
-        + (f" Pre-registered in [{run['prereg']}]({REPO}/blob/main/{run['prereg']})." if run.get("prereg") else "")]
+        + ("; these ran on EC2 boxes with local Docker rather than in the Modal sandboxes the bundle was designed for, "
+           "a deviation logged below" if ec2 else "") + ". The Quick start below shows how."
+        + (f" Pre-registered in [{run['prereg']}]({REPO}/blob/{ref}/{run['prereg']})." if run.get("prereg") else "")]
 
 
-BENCH_LIMITS = (
-    "**The env's control endpoints are not authenticated** in this framework release, and an agent's shell can reach "
-    "the env through its tunnel; no pilot showed an attempt to use them, and the runs are not audited for it.",
-    "**The model key is in the agent's sandbox,** so an agent could call another model with it.",
-    "**Model plus harness.** Each harness's own prompts, tools and context handling are part of what is measured; the "
-    "harness versions are the ones the framework release pins. Gemini CLI drops its thought signatures when it "
-    "resumes a session (the provider accepted the requests in testing).",
-    "**The training cutoffs are third-party reports, unconfirmed.** The pre-cutoff half reuses v4's 16 windows, which "
-    "GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the desk's own runner (below).",
-    "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can carry a "
-    "model's dollars.",
-    "**Cost is list price:** tokens at each provider's public price per million, without batch or volume discounts "
-    "or long-context surcharges; the open model's GPU time is shared across its runs by run time.")
+def bench_limits(s: dict) -> list[str]:
+    """The benchmark's known limitations, as the pre-registration discloses them for the route the runs took."""
+    harnesses = {m["harness"] for m in s["models"].values()}
+    return [
+        "**The env's control endpoints are not authenticated** in this framework release, and an agent's shell can "
+        "reach the env through its tunnel; no pilot showed an attempt to use them, and the runs are not audited for "
+        "it.",
+        *([] if s["run"].get("route") == "ec2" else
+          ["**The model key is in the agent's sandbox,** so an agent could call another model with it."]),
+        "**Model plus harness.** Each harness's own prompts, tools and context handling are part of what is measured; "
+        "the harness versions are the ones the framework release pins."
+        + (" Gemini CLI drops its thought signatures when it resumes a session (the provider accepted the requests in "
+           "testing)." if "Gemini CLI" in harnesses else ""),
+        "**The training cutoffs are third-party reports, unconfirmed.** The pre-cutoff half reuses v4's 16 windows, "
+        "which GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the desk's own runner (below).",
+        "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
+        "carry a model's dollars.",
+        "**Cost is list price:** tokens at each provider's public price per million, without batch or volume "
+        "discounts or long-context surcharges; the open model's cost is its share of the GPU time."]
 
 
 def ladder(d: dict) -> list[dict]:
@@ -1507,7 +1526,7 @@ def dam_days(v: dict) -> list[str]:
                 for m in ms) + ". A mean above one means a desk rebid some of those markets as forecasts moved."]
 
 
-NUM = {2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight"}
+NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight"}
 
 
 def and_join(xs: list[str]) -> str:

@@ -62,11 +62,14 @@ def test_paired_counts_fronts_ahead():
     assert b["mean"] == 0.0 and b["ahead"] == 0.5 and b["fronts_ahead"] == 1
 
 
-def _episode(task: dict, p: float) -> dict:
+def _episode(task: dict, p: float, trades: bool = False) -> dict:
     third = round(p / 3, 2)
+    subs = [{"t": -1080, "tool": "submit_dam_offers", "day": "D0", "accepted": True, "codes": []},
+            *({"t": 600 * k, "tool": "submit_rt_offers", "day": "D0", "accepted": True, "codes": []} for k in range(3))]
     return {"schema": "gridsim.desk.episode/v1", "task_id": task["task_id"], "dates": task["dates"], "budget": {
         "max_turns": 100, "calls_per_turn": 14, "max_reminders": 12}, "core_version": "desk-2.1",
-        "site": {"card": task["site"]["card"]}, "policy": {}, "turns": [], "wakes": [], "submissions": [],
+        "site": {"card": task["site"]["card"]}, "policy": {}, "turns": [], "wakes": [],
+        "submissions": subs if trades else [],
         "rt": {d: {"lmp": [20.0, 60.0]} for d in task["dates"]},
         "statement": {"total": p, "days": {d: {"lines": {"dam_energy": third}, "total": third} for d in task["dates"]}}}
 
@@ -91,7 +94,7 @@ def _runs(root: Path) -> None:
                 if kind == "ok":
                     c = level + float(rng.normal(0, 0.05))
                     p = round(refs["p_idle"] + c * (refs["p_hind"] - refs["p_idle"]), 2)
-                    ep = _episode(task, p)
+                    ep = _episode(task, p, trades=h == "claude-code" or tid.endswith("S01"))
                     if (h, i) == ("claude-code", 0):
                         ep["turns"] = [{"turn": 0, "t": 0, "text": "noted ZZSECRET twice: ZZSECRET", "calls": []}]
                     g = desk_report.regrade({"valid": True}, ep, refs)
@@ -139,7 +142,8 @@ def test_results_score_first_graded_attempt_and_never_impute(bench):
     assert s["block_alias"] == {"2026-04-03": "2026-04-17"}
     assert len(grades) == 64 and opus["n"] == 31 and opus["missing"] == ["desk-v4-2026-08-26-S01"]
     assert opus["attempts"] == {"total": 35, "scored": 31, "failed": 4, "extra": 0, "windows_retried": 2,
-                                "windows_missing": 1, "failure_kinds": {"sandbox or tunnel": 4}}
+                                "windows_missing": 1, "missing_reasons": {"sandbox or tunnel": 1},
+                                "failure_kinds": {"sandbox or tunnel": 4}}
     assert qwen["attempts"]["extra"] == 1 and qwen["attempts"]["failed"] == 2 and qwen["n"] == 32
     roles = {(x["model"], x["task_id"], x["attempt"]): x["role"] for x in s["attempts"]}
     assert roles[("qwen", "desk-v4-2026-05-08-S03", 1)] == "scored"
@@ -174,6 +178,8 @@ def test_results_scopes_and_splits(bench):
     assert s["references"]["hind"]["all"]["C"]["mean"] == pytest.approx(1.0)
     assert s["references"]["operator_replay"]["all"]["n"] == 32
     assert s["order_by_C"] == ["opus", "qwen"] and s["hero"]["model"] == "opus"
+    hero = next(g for g in grades if g["model"] == "opus" and g["task_id"] == s["hero"]["task_id"])
+    assert hero["split"] == "post_cutoff" and "real-time re-offers 3" in s["hero"]["why"]
 
 
 def test_results_cost_list_price_and_gpu_share(bench):
@@ -233,3 +239,58 @@ def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
     files = hub_desk.bench_files(out, publish=False)
     assert {"desk_v4_bench/pre_cutoff.parquet", "desk_v4_bench/post_cutoff.parquet",
             "results/desk-v4-bench/summary.json"} <= set(files)
+
+
+def _route_c(root: Path) -> None:
+    tasks = {t["task_id"]: t for t in load_tasks(PACK)}
+    t0 = dt.datetime(2026, 10, 29, 7, tzinfo=dt.UTC)
+    plan = {"qwen": ("opencode-qwen", "g5.xlarge", [("desk-v4-2026-07-04-S01", 0, 1000, "ok"),
+                                                   ("desk-v4-2026-07-04-S02", 500, 1500, "ok")]),
+            "sol": ("codex-sol", "m7i.16xlarge", [("desk-v4-2026-07-04-S01", 0, 300, "infra"),
+                                                  ("desk-v4-2026-07-04-S01", 400, 900, "ok"),
+                                                  ("desk-v4-2026-07-04-S02", 0, 700, "agent")])}
+    for key, (harness, kind, runs) in plan.items():
+        bench = root / key / "box1" / "bench"
+        (bench / "episodes").mkdir(parents=True)
+        (root / key / "assignment.json").write_text(json.dumps({"pack": PACK}))
+        rows = []
+        for k, (tid, a, b, cls) in enumerate(runs):
+            unit = f"bench-{key}-{tid}-a{k}"
+            row = {"task_id": tid, "attempt": k + 1, "unit": unit, "class": cls, "why": "" if cls == "ok" else
+                   "setup step deploy did not complete", "t_start": (t0 + dt.timedelta(seconds=a)).isoformat(),
+                   "t_end": (t0 + dt.timedelta(seconds=b)).isoformat(), "wall_s": float(b - a), "box": "box1",
+                   "instance_type": kind, "harness": harness, "status": "completed" if cls == "ok" else "failed",
+                   "usage": {"tokens": {"input": 10}, "cost_usd_list_price": 0.0 if key == "qwen" else 1.25}}
+            rows.append(row)
+            if cls == "ok":
+                ep = _episode(tasks[tid], round(tasks[tid]["refs"]["p_idle"] + 1000, 2))
+                g = desk_report.regrade({"valid": True}, ep, tasks[tid]["refs"])
+                run = bench / "runs" / unit
+                run.mkdir(parents=True)
+                (run / "report.json").write_text(json.dumps({
+                    "status": "completed", "wall_s": float(b - a), "episode": ep, "usage": row["usage"],
+                    "grade": {x: g[x] for x in ("reward", "capture", "capture_phys", "p", "valid")}}))
+        (bench / "attempts.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+        (root / key / "attempts.jsonl").write_text((bench / "attempts.jsonl").read_text())
+
+
+def test_route_c_runs_box_shares_and_final_failures(tmp_path):
+    _route_c(tmp_path / "runs")
+    out = tmp_path / "out"
+    argv = sys.argv
+    sys.argv = ["desk_bench_results.py", "--runs", str(tmp_path / "runs"), "--out", str(out), "--no-figures",
+                "--deferred", "Gemini 4 Argon (Gemini CLI): deferred; projected $15–20 per window."]
+    try:
+        dbr.main()
+    finally:
+        sys.argv = argv
+    s = json.loads((out / "summary.json").read_text())
+    qwen, sol = s["models"]["qwen"], s["models"]["sol"]
+    assert s["run"]["route"] == "ec2" and not s["skipped"] and s["deferred"] and set(s["models"]) == {"sol", "qwen"}
+    assert qwen["cost"]["gpu"]["basis"] == "ec2" and qwen["cost"]["gpu"]["gpu_hours"] == pytest.approx(1500 / 3600,
+                                                                                                         abs=1e-3)
+    assert qwen["cost"]["usd_per_window"] == pytest.approx(750 / 3600 * 1.006, abs=1e-4) and qwen["n"] == 2
+    assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 3.75
+    assert sol["attempts"]["missing_reasons"] == {"agent-side error, final": 1, "no attempt": 30}
+    assert sol["attempts"]["failure_kinds"] == {"infrastructure": 1, "agent-side error, final": 1}
+    assert "Gemini 4 Argon (Gemini CLI): deferred" in (out / "README.md").read_text()
