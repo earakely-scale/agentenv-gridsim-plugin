@@ -34,6 +34,7 @@ import json
 import re
 import shutil
 import tomllib
+from collections import Counter
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from html import escape
@@ -761,19 +762,261 @@ def results_blocks(r: dict) -> dict[str, str]:
             "training-results": training_block(r), "worth": worth_block(r), "live": live_block(r)}
 
 
-def desk_blocks(d: dict) -> dict[str, str]:
-    """The card's blocks, from results/overview/desk.json (scripts/hub_desk.py writes it): the badges and the lead GIF,
-    the results across the ladder's versions, the newest one's results open and the earlier ones folded, then the
-    price-impact check, the quick start from main, the versions, the configs and files, and the line to the archived
-    v1."""
+def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool = False) -> dict[str, str]:
+    """The card's blocks: the v4 benchmark first, from results/desk-v4-bench/ alone (its pitch, lead GIF, charts,
+    table, how it runs and its limitations), then the earlier versions folded, from results/overview/desk.json
+    (scripts/hub_desk.py writes it): the results across the ladder's versions, each version's results and the
+    price-impact check; then the quick start, the versions, the configs and files, and the line to the archived v1."""
     vs = ladder(d)
-    results = [desk_results(v, d) for v in reversed(vs)]
-    results[1:] = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n{r}\n\n"
-                   "</details>" for v, r in zip(reversed(vs[:-1]), results[1:], strict=True)]
-    return {"badges": "\n".join(BADGES), "gif": gif_block(d["gif"]), "across": across(d),
-            "results": "\n\n".join(results + [price_check(v, d) for v in checks(d)]),
-            "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]), "ladder": ladder_block(d),
-            "models": models_block(d), "inside": inside(d), "archive": ARCHIVE}
+    results = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n"
+               f"{desk_results(v, d)}\n\n</details>" for v in reversed(vs)]
+    checked = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: a price-impact check on {v['check_of']}"
+               f"</summary>\n\n{price_check(v, d)}\n\n</details>" for v in checks(d)]
+    earlier = "\n\n".join([across(d), *results, *checked])
+    blocks = {"badges": "\n".join(BADGES), "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]),
+              "ladder": ladder_block(d), "models": models_block(d), "inside": inside(d, bench), "archive": ARCHIVE}
+    if bench is None:
+        return blocks | {"pitch": "", "gif": gif_block(d["gif"]), "bench": "", "earlier": f"## Results\n\n{earlier}"}
+    s, grades = bench
+    return blocks | {"pitch": bench_pitch(s), "gif": bench_gif(s, grades, gif),
+                     "bench": "## The v4 benchmark: each model in its own agent harness\n\n"
+                              + bench_block(s, grades, d),
+                     "earlier": "## Earlier versions\n\n<details>\n<summary><b>v2 to v4 on the desk's own runner, and "
+                                "the v5 price-impact check</b></summary>\n\n" + earlier + "\n\n</details>"}
+
+
+BENCH_DIR = "results/desk-v4-bench"
+BENCH_GIF = "assets/gridsim-desk-bench.gif"
+BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
+BENCH_SIDE = {"pre_cutoff": "before the cutoffs", "post_cutoff": "after the cutoffs"}
+BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
+BENCH_WHEN = {"pre_cutoff": "before every model's training cutoff",
+              "post_cutoff": "after every model's training cutoff"}
+FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
+        "records to exercise the pipeline. No benchmark run is behind any of them.")
+
+
+def bench_read(folder: Path) -> tuple[dict, list[dict]] | None:
+    """The v4 benchmark's summary.json and grades rows (scripts/desk_bench_results.py): the card's benchmark section
+    reads nothing else."""
+    if not (folder / "summary.json").is_file():
+        return None
+    with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
+        return json.loads((folder / "summary.json").read_text()), [json.loads(x) for x in f if x.strip()]
+
+
+def bench_models(s: dict) -> list[dict]:
+    """The models by C over every window, highest first; a model with no finished window last."""
+    return [s["models"][k] for k in s["order_by_C"]] + [m for k, m in s["models"].items() if k not in s["order_by_C"]]
+
+
+def bench_side(s: dict, split: str) -> str:
+    """A split's months: 'Jan–May 2026'."""
+    fr = sorted(f["front"] for f in s["fronts"] if f["split"] == split)
+    a, b = date.fromisoformat(fr[0]), date.fromisoformat(fr[-1]) + timedelta(days=2)
+    return f"{a:%b %Y}" if (a.year, a.month) == (b.year, b.month) else f"{a:%b}–{b:%b %Y}"
+
+
+def bench_pair(s: dict, a: str, b: str, scope: str = "all") -> dict | None:
+    """The paired gap a − b in C over the windows both finished."""
+    if x := s["paired"].get(f"{a}-{b}"):
+        return x[scope]["C"]
+    if x := s["paired"].get(f"{b}-{a}"):
+        c = x[scope]["C"]
+        return c | {"mean": -c["mean"], "ci": [-c["ci"][1], -c["ci"][0]]} if c["mean"] is not None else c
+    return None
+
+
+def pts_ci(b: dict, sign: bool = False) -> str:
+    """A C gap in points with its CI: '+4.7 pts [−2.4, +11.9]'."""
+    return f"{pc(b['mean'], 1, sign)} pts [{pc(b['ci'][0], 1, sign)}, {pc(b['ci'][1], 1, sign)}]"
+
+
+def bench_usd(x: float) -> str:
+    return f"${x:,.2f}" if x < 100 else f"${x:,.0f}"
+
+
+def bench_pitch(s: dict) -> str:
+    n = len(s["models"])
+    return "\n\n".join([f"**{NUM.get(n, n)} models, each in its own vendor's agent harness, run a real ERCOT battery's "
+                        f"trading desk for three days at a time across {s['n_fronts']} real Texas weather fronts, "
+                        "graded in dollars against the hindsight optimum and the battery's real operator.**",
+                        *([FAKE] if s["fake"] else [])])
+
+
+def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
+    """The lead GIF: the best-looking run of the model with the highest C (summary.json's `hero`), its caption from
+    that run's grade; without the GIF file, the slot it fills."""
+    h = s.get("hero")
+    if not h:
+        return ""
+    g = next(r for r in grades if r["model"] == h["model"] and r["task_id"] == h["task_id"])
+    m, front = s["models"][h["model"]], next(f for f in s["fronts"] if f["front"] == g["front"])
+    where, when = f"Battery {g['site']} ({g['region']}, {g['battery']})", long_(
+        {"days_per_task": len(g["dates"])}, g["dates"][0])
+    caption = (f"The v4 benchmark: {m['name']} in {m['harness']} trades {where}, a real ERCOT battery, over {when}, "
+               f"through a {front['kind']}, {BENCH_WHEN[g['split']]}. It settles at {usd0(g['p'])}, hindsight "
+               f"capture C {pc(g['capture'])}%"
+               + (f"; the real operator's own bids, replayed, earn {usd0(g['p_operator_replay'])}"
+                  if g["p_operator_replay"] is not None else "")
+               + f". [Its Episode JSON]({DATASET}/blob/main/{BENCH_DIR}/{g['episode']}). Data: ERCOT and NWS, "
+               "public; not affiliated with or endorsed by ERCOT.")
+    if not attached:
+        return "\n".join([f"> **Lead GIF slot.** {caption}", ">",
+                          f"> Filmed from `{BENCH_DIR}/{g['episode']}` by `scripts/hub_desk_hero.py`: the best-looking "
+                          f"run of the model with the highest C by its ranking ({h['why']})."])
+    alt = (f"{m['name']} at the desk of {where} over {when}: the node's prices as they post, the battery's state of "
+           "charge and dispatch, and each wake-up's tool calls with their results, then the settled grade")
+    return "\n".join([f'<img src="{BENCH_GIF}" alt="{escape(alt)}" width="100%">', "", f"<small>{caption}</small>"])
+
+
+def bench_block(s: dict, grades: list[dict], d: dict) -> str:
+    """The v4 benchmark: capture against cost, the table (C with CIs over every window and on each side of the
+    training cutoffs, cost a window), capture either side of the cutoffs, what the numbers say, how it runs and its
+    limitations; every number from results/desk-v4-bench/summary.json."""
+    ms, refs, charts = bench_models(s), s["references"], d["charts"]
+    cols = ["all", *BENCH_SPLITS] if s["lead_split"] == "all" else ["post_cutoff", "all", "pre_cutoff"]
+    head = {"all": f"C, all {s['n_windows']} windows",
+            **{x: f"{bench_side(s, x)}<br><small>{BENCH_SIDE[x]}</small>" for x in BENCH_SPLITS}}
+
+    def cell(b: dict, bold: bool) -> str:
+        if b["mean"] is None:
+            return "–"
+        v = f"{pc(b['mean'])}%"
+        return f"{f'**{v}**' if bold else v}<br><small>[{pc(b['ci'][0])}, {pc(b['ci'][1])}]</small>"
+
+    def who(m: dict) -> str:
+        c, n = m["cost"], m["n"]
+        cost = [] if c["usd_per_window"] is None else [
+            f"{bench_usd(c['usd_per_window'])} a window" + (", GPU time" if c["basis"] == "gpu_time" else "")]
+        return (f"**{m['name']}**<br><small>{m['harness']} · {m['setting']}<br>"
+                + " · ".join(cost + ([] if n == s["n_windows"] else [f"{n} of {s['n_windows']} windows"]))
+                + "</small>")
+
+    rows = [f"| {who(m)} | " + " | ".join(cell(m[c]["C"], c == cols[0]) for c in cols) + " |" for m in ms]
+    rows += [f"| *{BENCH_REFS[k]}* | " + " | ".join(f"*{pc(refs[k][c]['C']['mean'])}%*" for c in cols) + " |"
+             for k in BENCH_REFS]
+    gpu = next((m["cost"]["gpu"] for m in ms if m["cost"].get("gpu")), None)
+    op = refs["operator_replay"]
+    alt = ("Scatter chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, against "
+           "cost per three-day window on a log scale, one point per model: " + "; ".join(
+               f"{m['name']} in {m['harness']} {pc(m['all']['C']['mean'])}% at {bench_usd(m['cost']['usd_per_window'])}"
+               for m in ms if m["n"]) + f"; the real operator's bids, replayed, {pc(op['all']['C']['mean'])}%.")
+    alt2 = ("Line chart of hindsight capture C before and after the training cutoffs, one line per model: " + "; ".join(
+        f"{m['name']} {pc(m['pre_cutoff']['C']['mean'])}% then {pc(m['post_cutoff']['C']['mean'])}%"
+        for m in ms if m["n"]) + f"; the real operator's bids, replayed, {pc(op['pre_cutoff']['C']['mean'])}% then "
+        f"{pc(op['post_cutoff']['C']['mean'])}%.")
+    figs = f"{BENCH_DIR}/figures"
+    return "\n".join([
+        "**How much of the hindsight optimum each model captured, against what a three-day window cost**", "",
+        *chart("cost-vs-score", alt, charts["lead"], charts["phone"]["media"], figs), "",
+        "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
+        f"the windows it finished; vertical lines, 95% CIs (a block bootstrap over the {s['n_fronts']} fronts). Cost "
+        "a window: the tokens in each harness's own trajectories at the provider's public list price"
+        + (f"; Qwen3-4B's is GPU time, {gpu['gpu_hours']:.2f} GPU-hours on one {gpu['gpu']} at Modal's list price "
+           "shared across its runs" if gpu else "")
+        + ". Grey dashed: the real operator's own bids, replayed through the same clearing and settlement.</small>",
+        "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
+        f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
+        "(four within each side of the cutoffs). Cost a window: list-price tokens, or the open model's GPU time. The "
+        "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
+        "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
+        "settlement.</small>", "",
+        *chart("splits", alt2, charts["width"], charts["phone"]["media"], figs), "",
+        *(f"- {x}" for x in bench_bullets(s)), "",
+        "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
+        "### Known limitations of the benchmark", "", *(f"- {x}" for x in BENCH_LIMITS), "",
+        f"Every number is in [`{BENCH_DIR}`]({DATASET}/tree/main/{BENCH_DIR}) (its README, `summary.json`, "
+        "`grades.jsonl.gz` and every scored Episode JSON) and in the `desk_v4_bench` config, one row per model and "
+        "window, split `pre_cutoff` and `post_cutoff`."])
+
+
+def bench_bullets(s: dict) -> list[str]:
+    ms, op = bench_models(s), s["references"]["operator_replay"]
+    ranked = [m for m in ms if m["n"]]
+    top, out = ranked[0], []
+    lead = [(m, g) for m in ranked[1:2] if (g := bench_pair(s, top["key"], m["key"]))]
+    out.append(f"**{top['name']} captures the most of hindsight:** C {pc(top['all']['C']['mean'])}% "
+               f"[{pc(top['all']['C']['ci'][0])}, {pc(top['all']['C']['ci'][1])}] over its {top['n']} windows, at "
+               f"{bench_usd(top['cost']['usd_per_window'])} a window." + "".join(
+                   f" Paired by window, its lead over {m['name']}: {pts_ci(g, True)}"
+                   + (", a CI that includes zero." if g["ci"][0] <= 0 <= g["ci"][1] else ".") for m, g in lead))
+    ahead = [m["name"] for m in ranked if (g := bench_pair(s, m["key"], "operator_replay")) and g["ci"][0] > 0]
+    behind = [m["name"] for m in ranked if (g := bench_pair(s, m["key"], "operator_replay")) and g["ci"][1] < 0]
+    out.append(f"**Against the real operator:** its own bids, replayed through the same clearing and settlement, "
+               f"capture {pc(op['all']['C']['mean'])}%. Ahead of them paired by window, with a CI above zero: "
+               + (and_join(ahead) if ahead else "no model") + "."
+               + (f" Behind, with a CI below zero: {and_join(behind)}." if behind else ""))
+    gaps = "; ".join(f"{m['name']} {pts_ci(m['split_gap']['C'], True)}" for m in ranked
+                     if m["split_gap"]["C"]["mean"] is not None)
+    differ = [s["models"][k]["name"] for k in s["halves_differ"]]
+    out.append("**Before and after the cutoffs:** post-cutoff minus pre-cutoff C, "
+               f"{bench_side(s, 'post_cutoff')} against {bench_side(s, 'pre_cutoff')}: {gaps}. "
+               + (f"The CI excludes zero for {and_join(differ)}, so the post-cutoff column leads the table. "
+                  if differ else "Every CI includes zero: the halves do not differ measurably. ")
+               + "The cutoffs are third-party reports, unconfirmed.")
+    paid = sorted((m for m in ranked if m["cost"]["usd_per_window"] is not None),
+                  key=lambda m: m["cost"]["usd_per_window"])
+    out.append(f"**Cost a window** runs from {bench_usd(paid[0]['cost']['usd_per_window'])} ({paid[0]['name']}) to "
+               f"{bench_usd(paid[-1]['cost']['usd_per_window'])} ({paid[-1]['name']}); every attempt, retries "
+               "included, cost " + and_join([f"{bench_usd(m['cost']['usd_all_attempts'])} for {m['name']}"
+                                             for m in ms]) + ".")
+    tries = sum(m["attempts"]["total"] for m in ms)
+    failed = sum(m["attempts"]["failed"] for m in ms)
+    missing = [(m["name"], t) for m in ms for t in m["missing"]]
+    kinds = Counter()
+    for m in ms:
+        kinds.update(m["attempts"]["failure_kinds"])
+    out.append(f"**Reliability:** {tries} attempts for {sum(m['n'] + len(m['missing']) for m in ms)} model-windows; "
+               + (f"{failed} failed for infrastructure ({', '.join(f'{k} ×{v}' for k, v in kinds.most_common())}) "
+                  "and were retried, at most twice a window. " if failed else "none failed. ")
+               + (f"Missing after the retries and not imputed: {'; '.join(f'{n}, {t}' for n, t in missing)}."
+                  if missing else "No window is missing."))
+    return out
+
+
+def bench_how(s: dict) -> list[str]:
+    ms, run = bench_models(s), s["run"]
+    by = {}
+    for m in ms:
+        by.setdefault((m["harness"], m["harness_version"]), []).append(m)
+    harnesses = and_join([f"{and_join([m['name'] for m in xs])} in {h}" + (f" {v}" if v else "")
+                          for (h, v), xs in by.items()])
+    open_ = [m for m in ms if m["weights"] == "open"]
+    budget = run.get("budget") or {}
+    return [
+        f"**Each model in its own vendor's agent harness,** through AgentEnv: {harnesses}"
+        + (f"; {and_join([m['name'] for m in open_])} on a vLLM endpoint on one "
+           f"{open_[0]['cost']['gpu']['gpu']} GPU" if open_ and open_[0]["cost"].get("gpu") else "") + ".",
+        "**At high effort:** " + "; ".join(f"{m['name']} {m['setting']}" for m in ms) + ".",
+        "**No internet.** Each agent's sandbox allows only its model's API host (and the sandbox platform's tunnel to "
+        "the env); web search and fetch are off in each harness's own settings. Checked from inside every sandbox "
+        "before the runs.",
+        "**The same desk, tools and budget as every version:** the desk's 11 tools over MCP, beside the harness's own "
+        "shell, files and planning tools"
+        + (f"; {budget.get('max_turns')} turns, {budget.get('calls_per_turn')} desk calls a turn and "
+           f"{budget.get('max_reminders')} reminders" if budget else "") + ". One run per model per window.",
+        "**Reproducible with `agent-env run`:** every episode is a plain run of the published bundle and a "
+        "config.toml"
+        + (f", on agentenv-framework {run['framework']}" if run.get("framework") else "")
+        + (f"; the bundle is `scripts/desk_bench.py` at `{run['bundle']}`" if run.get("bundle") else "")
+        + ". The Quick start below shows it."
+        + (f" Pre-registered in [{run['prereg']}]({REPO}/blob/main/{run['prereg']})." if run.get("prereg") else "")]
+
+
+BENCH_LIMITS = (
+    "**The env's control endpoints are not authenticated** in this framework release, and an agent's shell can reach "
+    "the env through its tunnel; no pilot showed an attempt to use them, and the runs are not audited for it.",
+    "**The model key is in the agent's sandbox,** so an agent could call another model with it.",
+    "**Model plus harness.** Each harness's own prompts, tools and context handling are part of what is measured; the "
+    "harness versions are the ones the framework release pins. Gemini CLI drops its thought signatures when it "
+    "resumes a session (the provider accepted the requests in testing).",
+    "**The training cutoffs are third-party reports, unconfirmed.** The pre-cutoff half reuses v4's 16 windows, which "
+    "GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the desk's own runner (below).",
+    "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can carry a "
+    "model's dollars.",
+    "**Cost is list price:** tokens at each provider's public price per million, with no batch or volume discounts; "
+    "the open model's GPU time is shared across its runs by run time.")
 
 
 def ladder(d: dict) -> list[dict]:
@@ -784,22 +1027,31 @@ def checks(d: dict) -> list[dict]:
     return [v for v in d["versions"] if v["role"] == "check"]
 
 
-def inside(d: dict) -> str:
+def inside(d: dict, bench: tuple[dict, list[dict]] | None = None) -> str:
     n = {k: sum(v["rows"][k] for v in d["versions"]) for k in ("leaderboard", "runs", "tasks")}
     tick = lambda vs: and_join([f"`{v['version']}`" for v in vs])  # noqa: E731
+    lead = [f"| **`desk_v4_bench`**, the default | {len(bench[1]):,} | The v4 benchmark: each model's every window, "
+            "one split per side of the training cutoffs (`pre_cutoff`, `post_cutoff`): its harness and settings, the "
+            "grade (C, R, P and every reference), turns, wake-ups, desk and own-tool calls, tokens, cost, attempts "
+            "and the Episode JSON's path; a window a model never finished is a row marked `missing`. |"
+            ] if bench else []
     return "\n".join([
-        "| Config | Rows | What it holds |", "|---|---:|---|",
-        f"| **`desk_leaderboard`**, the default | {n['leaderboard']:,} | Each model and reference of each version: "
+        "| Config | Rows | What it holds |", "|---|---:|---|", *lead,
+        f"| **`desk_leaderboard`**{'' if bench else ', the default'} | {n['leaderboard']:,} | Each model and reference "
+        "of each version: "
         "each model's settings (`reasoning_effort`, `thinking`), C, P and R, the paired gaps to the anchor and to the "
         "real operator's bids with their CIs, cost and how it traded. |",
         f"| **`desk_runs`** | {n['runs']:,} | Each model's every task: its settings, its grade, every statement line, "
         "usage and its Episode JSON's path. |",
         f"| **`desk_tasks`** | {n['tasks']:,} | Every task of each version's pilot, eval and tune packs: its dates, "
         "anonymous site card, tags and the references it was graded against. |", "",
-        f"One split per version, {tick(ladder(d))}, and one for the price-impact check, {tick(checks(d))}. Each "
-        "one's folder, `results/desk-v<N>/`, holds its README, `summary.json`, `grades.jsonl.gz`, figures, raw runs "
-        "(`runs/<model>/results.jsonl.gz` and the per-call logs) and every Episode JSON "
-        "(`episodes/<model>/*.json.gz`); `assets/` holds the desk GIFs and this card's charts."])
+        f"The desk configs have one split per version, {tick(ladder(d))}, and one for the price-impact check, "
+        f"{tick(checks(d))}. Each one's folder, `results/desk-v<N>/`, holds its README, `summary.json`, "
+        "`grades.jsonl.gz`, figures, raw runs (`runs/<model>/results.jsonl.gz` and the per-call logs) and every "
+        "Episode JSON (`episodes/<model>/*.json.gz`)"
+        + ("; `results/desk-v4-bench/` holds the benchmark's README, `summary.json` (every number on this card's "
+           "benchmark section), `grades.jsonl.gz`, figures and every scored Episode JSON" if bench else "")
+        + "; `assets/` holds the desk GIFs and this card's charts."])
 
 
 QUICKSTART = """In process, with no Docker and no model key, play the anchor policy on v2's two pilot battery-days:
@@ -815,12 +1067,23 @@ plays any model behind an OpenAI-compatible endpoint the same way, with its key 
 packs are under `data/desk/`. On AgentEnv, after `agent-env gridsim setup`, `scripts/desk_e2e.py` plays a task through
 the gateway env, its post-turn hook and its verifier, and checks it against the in-process run byte for byte.
 
+The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py` writes for one
+harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), with a `.agentenv/config.toml` that
+names the model endpoint and its key and a sandbox provider that enforces the bundle's network allowlist (Modal for
+these runs):
+
+```bash
+uv run python scripts/desk_bench.py tasks --harness codex-luna --pack desk-v4-bench --out bundles/bench-codex-luna
+uv run agent-env run bundles/bench-codex-luna --task desk-v4-2026-07-04-S01
+```
+
 The tables:
 
 ```python
 from datasets import load_dataset
 
 repo = "earakely-scale/GridSimEnv-AgentEnv"
+bench = load_dataset(repo, "desk_v4_bench", split="post_cutoff")  # the benchmark, each model's every window
 board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
 runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's every task
 tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
@@ -882,13 +1145,13 @@ def desk_results(v: dict, d: dict) -> str:
         f"split `{v['version']}`; the code is the [`{v['ref']}`]({v['github']}) tag of the plugin."])
 
 
-def chart(name: str, alt: str, width: int, media: str) -> list[str]:
+def chart(name: str, alt: str, width: int, media: str, base: str = "assets/figures") -> list[str]:
     """One of the card's own charts (scripts/hub_desk.py draws them from hub/desk-charts) as SVG at the width it is
     drawn at, in the page's light or dark theme as the Hub's theme is, and on a phone in its phone layout (a source
     the Hub leaves as written, so its URL is absolute)."""
-    phone = f"{DATASET}/resolve/main/assets/figures/{name}-phone"
+    phone = f"{DATASET}/resolve/main/{base}/{name}-phone"
     return [f'<picture><source media="{media}" srcset="{phone}{sfx}.svg"><img class="{cls}" '
-            f'src="assets/figures/{name}{sfx}.svg" width="{width}" alt="{escape(alt)}"></picture>'
+            f'src="{base}/{name}{sfx}.svg" width="{width}" alt="{escape(alt)}"></picture>'
             for sfx, cls in (("", "dark:hidden"), ("-dark", "hidden dark:block"))]
 
 
@@ -1241,7 +1504,7 @@ def dam_days(v: dict) -> list[str]:
                 for m in ms) + ". A mean above one means a desk rebid some of those markets as forecasts moved."]
 
 
-NUM = {2: "Two", 3: "Three", 4: "Four", 5: "Five"}
+NUM = {2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight"}
 
 
 def and_join(xs: list[str]) -> str:
@@ -1268,10 +1531,14 @@ def usd0_ci(c: list[float], sign: bool = False) -> str:
     return f"[{usd0(c[0], sign)}, {usd0(c[1], sign)}]"
 
 
-def desk_configs(d: dict) -> list[dict]:
-    return [{"config_name": f"desk_{name}", **({"default": True} if name == "leaderboard" else {}), "data_files": [
-        {"split": v["version"], "path": f"desk_{name}/{v['version']}.parquet"} for v in d["versions"]]}
-        for name in ("leaderboard", "runs", "tasks")]
+def desk_configs(d: dict, bench: tuple[dict, list[dict]] | None = None) -> list[dict]:
+    """The desk's configs; with the benchmark, `desk_v4_bench` (one row per model and window, a split per side of
+    the training cutoffs) leads as the default."""
+    lead = [{"config_name": "desk_v4_bench", "default": True, "data_files": [
+        {"split": s, "path": f"desk_v4_bench/{s}.parquet"} for s in BENCH_SPLITS]}] if bench else []
+    return lead + [{"config_name": f"desk_{name}", **({"default": True} if name == "leaderboard" and not bench else {}),
+                    "data_files": [{"split": v["version"], "path": f"desk_{name}/{v['version']}.parquet"}
+                                   for v in d["versions"]]} for name in ("leaderboard", "runs", "tasks")]
 
 
 def eval_runs() -> dict[str, list[dict]]:
@@ -1282,17 +1549,19 @@ def eval_runs() -> dict[str, list[dict]]:
     return hr.eval_runs(BEAM)
 
 
-def card_text(results_dir: Path) -> str:
-    """The desk's card: hub/dataset/README.md with each block filled in from results/overview/desk.json and the desk's
-    configs as the only ones; the v1 files stay in the repo, outside every config."""
+def card_text(results_dir: Path, gif: bool = False) -> str:
+    """The desk's card: hub/dataset/README.md with each block filled in, the v4 benchmark's from
+    results/desk-v4-bench/ and the rest from results/overview/desk.json, and the desk's configs as the only ones; the
+    v1 files stay in the repo, outside every config. `gif`: the benchmark's lead GIF ships beside the card."""
     d = json.loads((results_dir / DESK).read_text())
+    bench = bench_read(results_dir / "desk-v4-bench")
     text = CARD.read_text()
-    for name, block in desk_blocks(d).items():
+    for name, block in desk_blocks(d, bench, gif).items():
         text, n = re.subn(rf"^<!-- {name} -->$", lambda m, b=block: b, text, flags=re.M)
         if n != 1:
             raise SystemExit(f"{CARD} has no <!-- {name} --> line")
-    out = DatasetCard(text)
-    out.data.configs = desk_configs(d)
+    out = DatasetCard(re.sub(r"\n{3,}", "\n\n", text))
+    out.data.configs = desk_configs(d, bench)
     return str(out)
 
 
@@ -1339,8 +1608,8 @@ def write(files: dict[str, bytes], out: Path) -> None:
         (out / path).write_bytes(content)
 
 
-def card_only(results_dir: Path) -> str:
-    return card_text(results_dir)
+def card_only(results_dir: Path, gif: bool = False) -> str:
+    return card_text(results_dir, gif)
 
 
 def main():

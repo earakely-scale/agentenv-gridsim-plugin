@@ -32,11 +32,23 @@ tags:
 
 <!-- badges -->
 
-<!-- gif -->
-
 </div>
 
 # GridSimEnv Desk
+
+<!-- pitch -->
+
+<!-- gif -->
+
+<!-- bench -->
+
+<!-- earlier -->
+
+## Quick start
+
+<!-- quickstart -->
+
+## The desk
 
 **An agent trades one real ERCOT battery from the day-ahead market through real time, on ERCOT's own market objects
 and on data as ERCOT posted it, graded in dollars against the hindsight optimum and the battery's real operator.**
@@ -57,18 +69,6 @@ and on data as ERCOT posted it, graded in dollars against the hindsight optimum 
 - **Three versions (v2–v4) plus a price-impact check (v5).** Each version adds one kind of realism to the same desk:
   v2 trades energy alone, v3 adds ERCOT's reserves and a solar option, v4 three-day weather fronts. v5 re-runs v3's
   battery-days with the desk's own day-ahead offers re-clearing the market.
-
-## Results
-
-<!-- across -->
-
-<!-- results -->
-
-## Quick start
-
-<!-- quickstart -->
-
-## The desk
 
 <!-- ladder -->
 
@@ -114,14 +114,19 @@ R = 0.
 - **Reviewed and piloted.** A review of the environment before v2's runs found two information-timing leaks, fixed
   before any scored episode. Each version is then piloted on one or two tasks before its eval; the pilots are
   mechanics checks, not results.
+- **The v4 benchmark** plays v4's desk, frozen at `desk-v4-freeze`, on 32 windows (v4's 16 and 16 after every
+  model's training cutoff) with each model in its own vendor's harness, under a pre-registration of its own.
+  `scripts/desk_bench_results.py` scores a model's first attempt on a window that reached the grade, counts every
+  attempt in the cost, and never imputes a window a model did not finish.
 - **Every grade replayed.** `scripts/desk_report.py` re-grades every Episode JSON against frozen references, and each
   version's `summary.json` records the references used and every difference from the runner's own grade.
 - **References on every task,** settled by the same clearing, physics and settlement code: idle; the anchor, the
   desk's own optimiser re-planning at every wake on the same information, its risk setting and DAM basis chosen blind
   on a separate tuning pack (`desk-v2-tune`); the hindsight optimum, and its variant with the DAM position tied to
   dispatch; the real operator's disclosed bids, replayed, and its actual awards and metered output, settled.
-- **Uncertainty.** 95% CIs come from a block bootstrap over operating days (in v4, over the four weather fronts):
-  10,000 resamples, seed 0, task-weighted. Paired gaps resample the tasks both sides played.
+- **Uncertainty.** 95% CIs come from a block bootstrap over operating days (in v4, over the four weather fronts; in
+  the benchmark, over its eight, four within each side of the cutoffs): 10,000 resamples, seed 0, task-weighted.
+  Paired gaps resample the tasks both sides played.
 <!-- models -->
 
 ## Limitations
@@ -186,7 +191,8 @@ the Iowa Environmental Mesonet.
   author = {Arakelyan, Edgar},
   year = {2026},
   url = {https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv},
-  note = {Desk versions v2 to v4 and a price-impact check (v5). Code:
+  note = {Desk versions v2 to v4, a price-impact check (v5) and the v4
+          benchmark of models in their own agent harnesses. Code:
           \url{https://github.com/earakely-scale/agentenv-gridsim-plugin}}
 }
 ```
