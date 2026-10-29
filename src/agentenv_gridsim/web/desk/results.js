@@ -1,11 +1,12 @@
 /** The desk's results. The landing, ?v=bench, is the v4 benchmark from bench.json (scripts/hub_space.py): the dataset
- * card's own words for it, its two charts drawn by the card's chart module (card-charts.js) at the page's width, the
- * board with every CI, the halves either side of the training cutoffs, paired gaps, every run as a replay, and the
- * links to the pre-registration, its deviations and the results folder. Then the development ladder from desk.json
- * (scripts/hub_desk.py): the findings, capture up the ladder (v2 to v4) beside the v5 price-impact check, then each
- * version's board, its capture and dollars against the anchor, the hindsight optimum and the real operator, where the
- * money came from, how each model traded and every run as a replay; the check's board leads with the price impact and
- * v5 against v3. ?v=v4 opens a version; ?export=1 draws the capture and dollars figures alone for the dataset card. */
+ * card's own words for it; its headline, capture either side of the training cutoffs, drawn by the card's chart module
+ * (card-charts.js) at the page's width, with each model's post − pre gap; the board with every CI, paired gaps, every
+ * run as a replay, and the links to the pre-registration, its deviations and the results folder. Then the development
+ * ladder from desk.json (scripts/hub_desk.py): the findings, capture up the ladder (v2 to v4) beside the v5
+ * price-impact check, then each version's board, its capture and dollars against the anchor, the hindsight optimum and
+ * the real operator, where the money came from, how each model traded and every run as a replay; the check's board
+ * leads with the price impact and v5 against v3. ?v=v4 opens a version; ?export=1 draws the capture and dollars figures
+ * alone for the dataset card. */
 const Q = new URLSearchParams(location.search);
 const EXPORT = Q.has("export");
 const DATASET = "https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv";
@@ -73,7 +74,7 @@ const lin = (d0, d1, r0, r1) => (v) => r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
 const svg = (w, h, body, label) => `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(label)}">${body}</svg>`;
 const txt = (x, y, s, cls, anchor = "start") => `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${s}</text>`;
 const line = (x1, y1, x2, y2, stroke, w = 1, dash = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
-const block = (h, sub, inner, fig = "", id = "") => `<section class="panel${fig ? " fig" : ""}"${fig ? ` data-figure="${fig}"` : ""}${id ? ` id="${id}"` : ""}><div class="panel-head"><h2>${h}</h2>${sub ? `<p class="sub">${sub}</p>` : ""}</div>${inner}</section>`;
+const block = (h, sub, inner, fig = "", id = "") => `<section class="panel${fig ? " fig" : ""}"${fig ? ` data-figure="${fig}"` : ""}${id ? ` id="${id}"` : ""}>${h ? `<div class="panel-head"><h2>${h}</h2>${sub ? `<p class="sub">${sub}</p>` : ""}</div>` : ""}${inner}</section>`;
 const who = (color, label, sub = "") => `<span class="who"><i style="background:${color}"></i><span>${label}${sub ? `<span class="sub">${sub}</span>` : ""}</span></span>`;
 let MS = {};
 const labelOf = (k) => (MS[k] ? MS[k].label : k);
@@ -202,7 +203,6 @@ function renderBench(B, C, D, pc, K) {
   $("lede").innerHTML = `${md(card.pitch.replace(/\*\*/g, ""))}${e ? ` <a href="./index.html?v=bench&m=${h.model}&task=${h.task_id}"><b>Replay the lead run</b></a>: ${esc(hm.name)} in ${esc(hm.harness)} trades ${esc(t.name)} (${esc(t.region)}, ${esc(t.size)}) over ${spanOf(t.dates[0], t.dates.at(-1))}, through a ${esc(front(e.front).kind)}, ${e.split === "post_cutoff" ? "after every model's training cutoff" : "a window that may be in the models' training data"}, and settles at ${usd(e.P)}, C ${pc(e.C)}.` : ""}`;
   $("findings").innerHTML = card.bullets.map((x, i) => `<li${i ? "" : ' class="lead"'}>${md(x)}</li>`).join("");
   const fig = (svg, label) => `<div class="cardfig" role="figure" aria-label="${esc(label)}">${svg}</div>`;
-  const cw = Math.min(W, narrow ? W : 820);
   const who_ = (m) => who(BCOL[m.key] || "var(--c-hind)", `<b>${esc(m.name)}</b>`, `${esc(m.harness)} · ${esc(m.setting)}<br>${busd(m.cost.usd_per_window)} a window${m.cost.basis === "gpu_time" ? ", GPU time" : ""} · ${busd(m.cost.usd_all_attempts)} in all${m.n === B.n_windows ? "" : ` · ${m.n} of ${B.n_windows} windows`}`);
   const cell = (l, b, bold = false) => `<td data-l="${esc(l)}">${b.mean == null ? "–" : `${bold ? `<b>${pc(b.mean)}</b>` : pc(b.mean)}<span class="sub">${cci(b)}</span>`}</td>`;
   const cols = [[`C, all ${B.n_windows} windows`, "all"], ...["pre_cutoff", "post_cutoff"].map((k) => [`${sides[k].label}`, k])];
@@ -228,9 +228,8 @@ function renderBench(B, C, D, pc, K) {
     `<div class="legend">${ms.map((m) => `<span><i class="sw" style="background:${BCOL[m.key]}"></i><span class="lab">${esc(m.name)}<small> · ${esc(m.harness)}</small></span></span>`).join("")}</div><div class="table-scroll"><table class="grid replays breplays"><thead><tr><th></th>${sites.map((s) => { const tk = Object.values(C.tasks).find((x) => x.site === s); return `<th>${esc(tk.name)}<small>${esc(tk.region)}, ${esc(tk.size)}</small></th>`; }).join("")}</tr></thead><tbody>${B.fronts.map((f) => `<tr><th scope="row"><i class="side ${f.split}"></i>${esc(spanOf(f.front, isoPlus(f.front, 2)).replace(/ \d{4}$/, ""))}<small>${esc(f.kind)}${named[f.front] ? `, ${esc(named[f.front])}` : ""}</small></th>${sites.map((s) => cellR(f, s)).join("")}</tr>`).join("")}</tbody></table></div>`, "", "replays");
   const ladder = D.versions.filter((v) => v.role === "ladder"), checkV = D.versions.find(isCheck);
   $("main").innerHTML = [
-    block("How much of the hindsight optimum each model captured, against what a window cost", "", `${fig(K.costScore(B, cw, narrow), "Hindsight capture against cost per window, one point per model")}<p class="note">${md(card.captions.cost)}</p>`, "", "cost"),
+    block("", "", `${fig(K.splitsChart(B, Math.min(W, narrow ? W : 760), narrow), "Hindsight capture before and after the training cutoffs")}<p class="note">${md(card.captions.splits)}</p><p class="note">${md(B.text.rule)}</p><h3 class="minor">Post-cutoff minus pre-cutoff, each model</h3><p class="note">The halves hold different windows, so each half's fronts are drawn apart (a stratified block bootstrap).</p>${gaps}`, "", "halves"),
     block("The board", `Each model ran each of the ${B.n_windows} windows once, in its native agent harness. C is the share of the hindsight optimum's profit over idle, the headline; R the contract's reward; P the settled ERCOT statement a window. Brackets: 95% CIs, a block bootstrap over the ${B.n_fronts} weather fronts (each half's 4 within it).`, board, "", "board"),
-    block("The two halves, either side of the training cutoffs", `${md(B.text.halves)}`, `${fig(K.splitsChart(B, Math.min(W, narrow ? W : 760), narrow), "Hindsight capture before and after the training cutoffs")}<p class="note">${md(B.text.rule)}</p><h3 class="minor">Post-cutoff minus pre-cutoff, each model</h3><p class="note">The halves hold different windows, so each half's fronts are drawn apart (a stratified block bootstrap).</p>${gaps}`, "", "halves"),
     block("Paired by window", `Each gap a − b over the ${B.n_windows} windows both played, with front-block 95% CIs; <i>a ahead</i> is the share of windows where a's C is higher, and <i>fronts a leads</i> counts the fronts on which a's mean C is higher.`, paired, "", "paired"),
     replaysB,
     block("How it runs", "", `<ul class="models">${card.how.map((x) => `<li>${md(x)}</li>`).join("")}</ul>`),
@@ -670,6 +669,11 @@ async function main() {
     clearTimeout(main.t);
     main.t = setTimeout(draw, 120);
   });
+  const id = location.hash.slice(1), to = { cost: "halves" }[id] || id;
+  if (to && $(to)) {
+    if (to !== id) history.replaceState(null, "", `#${to}`);
+    $(to).scrollIntoView();
+  }
   window.deskReady = true;
   window.resultsReady = true;
 }

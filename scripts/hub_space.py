@@ -196,13 +196,14 @@ def bench_page(s: dict, grades: list[dict], desk: dict, card) -> dict:
         "card": {"pitch": card.bench_pitch(s), "bullets": card.bench_bullets(s), "limits": card.bench_limits(s),
                  "how": [x.replace(quick, f"The dataset card's [Quick start]({DATASET}#quick-start) shows how.")
                          for x in card.bench_how(s)],
-                 "captions": dict(zip(("cost", "table"), captions(s, grades, desk, card), strict=True)),
+                 "captions": dict(zip(("splits", "table"), captions(s, grades, desk, card), strict=True)),
                  "refs": card.BENCH_REFS, "sides": sides(s, card)},
         "links": links(s)}
 
 
 def captions(s: dict, grades: list[dict], desk: dict, card) -> list[str]:
-    """The card's two captions for the benchmark, under its cost chart and under its table."""
+    """The card's two captions for the benchmark, under its headline chart (capture either side of the training
+    cutoffs) and under its table."""
     out = [x.removeprefix("<small>").removesuffix("</small>") for x in card.bench_block(s, grades, desk).splitlines()
            if x.startswith("<small>")]
     if len(out) != 2:
@@ -934,9 +935,8 @@ Beside the scene, the desk shows prices only as they posted, and every tool call
 stops at each of the agent's turns. The episode browser lists the benchmark's {len(grades)} runs first, by model,
 side of the cutoffs, front and battery, then the development runs.
 
-**[Results]({APP}/results.html?v=bench).** The benchmark's hindsight capture against cost, capture either side of the
-training cutoffs, the table with its CIs, paired gaps, how it runs, its limitations and deviations, and every run as a
-replay.
+**[Results]({APP}/results.html?v=bench).** The benchmark's hindsight capture either side of the training cutoffs, the
+table with its CIs, paired gaps, how it runs, its limitations and deviations, and every run as a replay.
 
 ## The development ladder
 

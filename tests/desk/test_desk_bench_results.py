@@ -396,7 +396,10 @@ def test_space_page_and_card_lead_with_the_benchmark():
     desk = json.loads((ROOT / "results/overview/desk.json").read_text())
     page = hub_space.bench_page(s, grades, desk, hub_dataset)
     assert "attempts" not in page and page["card"]["bullets"] == hub_dataset.bench_bullets(s)
-    assert [page["card"]["captions"][k][:12] for k in ("cost", "table")] == ["C × 100: the", "C, hindsight"]
+    cap, block = page["card"]["captions"], hub_dataset.bench_block(s, grades, desk)
+    assert [cap[k][:12] for k in ("splits", "table")] == ["C × 100: the", "C, hindsight"]
+    assert block.index("/figures/splits.svg") < block.index(cap["splits"]) < block.index("| Model |") < block.index(
+        cap["table"]) and "cost-vs-score" not in block
     assert not any("Quick start below" in x for x in page["card"]["how"])
     links = page["links"]
     assert links["prereg"] == f"{dbr.REPO}/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md"
@@ -405,6 +408,7 @@ def test_space_page_and_card_lead_with_the_benchmark():
     text = hub_space.readme({"versions": [], "episodes": {}}, desk, s, grades, hub_dataset)
     lead = f"{hub_space.APP}/index.html?v=bench&m={s['hero']['model']}&task={s['hero']['task_id']}"
     assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")
+    assert "against cost" not in text
     for m in s["models"].values():
         assert f"| **{m['name']}** | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
     gif = hub_dataset.bench_gif(s, grades, True)
