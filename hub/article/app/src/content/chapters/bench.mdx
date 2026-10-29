@@ -11,6 +11,14 @@ Each model runs in a native agent harness, once per window, on the same desk, to
 runs further down. The headline is C, hindsight capture: the share of the hindsight optimum's profit over idle that a
 desk captures.
 
+The banner above plays the lead run, the one the dataset card's GIF films: {F.bench.lead.name} in
+{F.bench.lead.harness} over {F.bench.lead.span}, a {F.bench.lead.kind}, at the four batteries. At {F.bench.lead.site}
+({F.bench.lead.region}, {F.bench.lead.battery}) it settles at {F.bench.lead.P}, hindsight capture C {F.bench.lead.C};
+the real operator's own bids, replayed, earn {F.bench.lead.op}. <a href={F.bench.lead.replay.sol}>Replay it in
+3D</a>, or watch <a href={F.bench.lead.replay.opus}>{F.bench.m.opus.name}</a>,
+<a href={F.bench.lead.replay.luna}>{F.bench.m.luna.name}</a> or <a href={F.bench.lead.replay.qwen}>{F.bench.m.qwen.name}</a>
+trade the same window.
+
 <HtmlEmbed
   src="d3-desk-bench.html"
   id="bench-cost"
@@ -85,7 +93,7 @@ desk captures.
 </table>
 </div>
 
-<p class="gs-table-note">{F.bench.cap.table} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0.</p>
+<p class="gs-table-note">{F.bench.cap.table} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0. The viewer's <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#board">board</a> adds each model's settled P.</p>
 
 <HtmlEmbed
   src="d3-desk-bench.html"
@@ -97,10 +105,12 @@ desk captures.
 
 ### What it shows
 
-- **{F.bench.say.lead.head}** {F.bench.say.lead.text}
+- **{F.bench.say.lead.head}** {F.bench.say.lead.text} Every pair of models, paired by window, is on the viewer's
+  [benchmark page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#paired).
 - **{F.bench.say.operator.head}** {F.bench.say.operator.text} Paired by window, in points of C: {F.bench.m.sol.name}
   {F.bench.m.sol.op} and {F.bench.m.opus.name} {F.bench.m.opus.op}.
-- **Before and after the cutoffs:** {F.bench.text.halves}
+- **Before and after the cutoffs:** {F.bench.text.halves} The viewer gives each model's
+  [post − pre gap](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#halves).
 - **{F.bench.m.qwen.name}, untrained, is the baseline for fine-tuning.** It made a valid submission on
   {F.bench.m.qwen.valid} of its {F.bench.m.qwen.n} windows and none on the other {F.bench.m.qwen.invalid}, where R is
   zero, and it captures {F.bench.m.qwen.C} {F.bench.m.qwen.Cci} of hindsight: near zero.
@@ -120,8 +130,8 @@ tools off and has its internet egress blocked.
 - **Pre-registered.** The
   [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
   was committed before the first scored episode, and every deviation from it is logged at its end, under
-  [Deviations](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations).
-  {F.bench.text.reliability}
+  [Deviations](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations),
+  which the viewer [lists too](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#deviations). {F.bench.text.reliability}
 - **{F.bench.gemini.head}:** {F.bench.gemini.text}
 
 **Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
@@ -138,7 +148,8 @@ uv run agent-env run bundles/bench-codex-luna \
 
 Every grade, its references and every scored Episode JSON are in
 [`results/desk-v4-bench`](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/tree/main/results/desk-v4-bench)
-and the dataset's `desk_v4_bench` config, one row per model and window.
+and the dataset's `desk_v4_bench` config, one row per model and window, and the viewer's
+[benchmark page](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#replays) replays every model's run of every window.
 
 ### Known limitations of the benchmark
 
@@ -147,3 +158,4 @@ and the dataset's `desk_v4_bench` config, one row per model and window.
 - **{F.bench.limits.l2.head}** {F.bench.limits.l2.text}
 - **{F.bench.limits.l3.head}** {F.bench.limits.l3.text}
 - **{F.bench.limits.l4.head}** {F.bench.limits.l4.text}
+- **{F.bench.limits.l5.head}** {F.bench.limits.l5.text}

@@ -63,7 +63,7 @@ def main():
     DATA.mkdir(parents=True, exist_ok=True)
     out = {"desk.json": desk, "facts.json": facts(desk) | {"bench": bench(s, grades, desk, card)},
            "bench.json": {k: s[k] for k in ("fake", "n_windows", "n_fronts", "splits", "fronts", "plot")},
-           "banner.json": hero(args.desk_repo / "results" / "desk-v4-bench", s, grades),
+           "banner.json": hero(args.desk_repo / "results" / "desk-v4-bench", s, grades, card),
            "curve.json": curve(args.desk_repo, desk)}
     for name in STALE:
         (DATA / name).unlink(missing_ok=True)
@@ -222,7 +222,19 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
         raise SystemExit(f"{OPENCODE.name} and summary.json disagree on Qwen3-4B's thinking")
     out["m"]["qwen"] |= {"temperature": str(agent["temperature"]), "top_p": str(agent["top_p"]),
                          "top_k": str(opts["options"]["top_k"])}
-    return out
+    return out | {"lead": lead(s, grades, card)}
+
+
+def lead(s: dict, grades: list[dict], card) -> dict:
+    """The lead run, the dataset card's GIF and the article's banner, as the card's caption states it, with each model's
+    run of its window in the viewer's 3D replay."""
+    h, m = s["hero"], s["models"][s["hero"]["model"]]
+    g = next(x for x in grades if x["model"] == h["model"] and x["task_id"] == h["task_id"])
+    return {"name": m["name"], "harness": m["harness"], "site": f"Battery {g['site']}", "region": g["region"],
+            "battery": g["battery"], "span": span(g["dates"][0], len(g["dates"])),
+            "kind": next(f["kind"] for f in s["fronts"] if f["front"] == g["front"]), "P": usd(g["p"]),
+            "C": f"{card.pc(g['capture'])}%", "op": usd(g["p_operator_replay"]),
+            "replay": {x["key"]: card.bench_replay(x["key"], h["task_id"]) for x in card.bench_models(s)}}
 
 
 SIDES = ("pre", "post")
@@ -263,10 +275,10 @@ def small(block: list[str], head: str) -> str:
     return next(x for x in block if x.startswith(f"<small>{head}")).removeprefix("<small>").removesuffix("</small>")
 
 
-def hero(folder: Path, s: dict, grades: list[dict]) -> dict:
+def hero(folder: Path, s: dict, grades: list[dict], card) -> dict:
     """The benchmark's lead front at all four batteries: the windows of summary.json's hero model on the front of its
     hero window, the dataset card's lead GIF, each battery's node prices, state of charge and metered output every 15
-    minutes over the three days, its wake-ups and its settled P from grades.jsonl.gz."""
+    minutes over the three days, its wake-ups and its settled P from grades.jsonl.gz, and the hero window's replay."""
     h = s["hero"]
     lead = next(g for g in grades if g["model"] == h["model"] and g["task_id"] == h["task_id"])
     rows = sorted((g for g in grades if g["model"] == h["model"] and g["front"] == lead["front"]
@@ -276,9 +288,9 @@ def hero(folder: Path, s: dict, grades: list[dict]) -> dict:
     sites = []
     for g in rows:
         ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
-        rt, card = [ep["rt"][iso] for iso in ep["dates"]], ep["site"]["card"]
+        rt, c = [ep["rt"][iso] for iso in ep["dates"]], ep["site"]["card"]
         soc, end = [x for r in rt[:-1] for x in r["soc_mwh"][:-1:3]] + rt[-1]["soc_mwh"][::3], 1440 * len(rt)
-        sites.append({"task": g["task_id"], "name": card["name"], "region": card["region"], "size": card["size"],
+        sites.append({"task": g["task_id"], "name": c["name"], "region": c["region"], "size": c["size"],
                       "e_max": ep["site"]["e_max_mwh"], "p_max": ep["site"]["hsl_mw"],
                       "rt": [round(x, 2) for r in rt for x in r["spp"]], "soc": [round(x, 2) for x in soc],
                       "mw": [round(float(np.mean(r["metered_mw"][i:i + 3])), 1) for r in rt for i in range(0, 288, 3)],
@@ -291,6 +303,7 @@ def hero(folder: Path, s: dict, grades: list[dict]) -> dict:
             "model": f"{m['name']} in {m['harness']}", "lead": h["task_id"],
             "regions": {k: {"lon": x, "lat": y} for k, (x, y) in REGIONS.items()},
             "texas": prev.get("texas") or texas(), "sites": sites,
+            "replay": {"task": h["task_id"], "url": card.bench_replay(h["model"], h["task_id"])},
             "source": "ERCOT's node prices as the episodes recorded them; Texas: U.S. Census Bureau via us-atlas"}
 
 
@@ -413,12 +426,13 @@ def check_order(s: dict) -> None:
 
 
 def check_rendered(f: dict) -> None:
-    """After the build: every fact the prose names appears on the page as facts.json formats it."""
+    """After the build: every fact the prose names appears on the page as facts.json formats it, a link as an href."""
     html = (APP / "dist" / "index.html").read_text()
     text = re.sub(r"<[^>]+>", "", html).replace("&#36;", "$").replace("&amp;", "&").replace("&#39;", "'")
-    known = leaves(f)
+    known, links = leaves(f), html.replace("&amp;", "&")
     used = {e for p in CHAPTERS.glob("*.mdx") for e in FACT.findall(p.read_text())}
-    missing = [f"{e} = {known[e]!r}" for e in sorted(used) if known[e] not in text]
+    missing = [f"{e} = {known[e]!r}" for e in sorted(used)
+               if not (f'href="{known[e]}"' in links if known[e].startswith("https://") else known[e] in text)]
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
     print(f"rendered check: all {len(used)} facts on the page as formatted")
