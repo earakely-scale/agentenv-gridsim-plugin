@@ -24,7 +24,6 @@ svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-l
 .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
 .gap { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 1.5 3; stroke-linecap: round; }
 .fern { fill: var(--fern); }
-.ci { fill: none; stroke-width: 2.4; stroke-opacity: 0.38; stroke-linecap: round; }
 .fam { fill: none; stroke-width: 1.6; stroke-linecap: round; }
 svg text.wm { fill: var(--wm); fill-opacity: 0.2; stroke: none; font-weight: 700; letter-spacing: 0.04em; }
 
