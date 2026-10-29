@@ -1,11 +1,12 @@
 # Qwen3-4B on GridSim desk operating days through AgentEnv: the GRPO pilot kit (one H100)
 
 The kit for fine-tuning Qwen3-4B (revision `1cfa9a72`, thinking on, LoRA) with TRL's `GRPOTrainer` on the GridSim
-desk, every rollout an AgentEnv episode: the `desk-v4-train` bundle is served on a CPU box by
-`agent_env.openenv.build_app` (`scripts/serve.py`), and the trainer on one H100 reads it with
-`agent_env.training.trl.AgentEnv("http://ENV_HOST:8000")`. A rollout is one operating day under the v4 layer and env,
+desk, every rollout an AgentEnv episode: the `desk-v4-train` bundle is served by
+`agent_env.openenv.build_app` (`scripts/serve.py`, under systemd on the GPU box), and the trainer reads it with
+`agent_env.training.trl.AgentEnv("http://127.0.0.1:8000")`. A rollout is one operating day under the v4 layer and env,
 with the benchmark's eleven desk tools, and its reward is the hindsight capture C floored at -1. The first run is a
-10-step pilot. Nothing here has run on a GPU yet; the CPU checks below have.
+10-step pilot on one GPU box that runs the env server too. Nothing here has run on a GPU yet; the CPU checks below
+have.
 
 ## The data: `desk-v4-train`
 
@@ -72,32 +73,58 @@ box serves, and `get_reward()` returns max(C, -1) for a scored rollout and `None
 
 ## Commands
 
-The env box (CPU, Docker; 16 vCPU and 64 GB hold 32 concurrent episodes at about 260 MB each), from its home:
+One GPU box runs both the env server and the trainer, the server under systemd on `127.0.0.1:8000` (no traffic between
+boxes). The Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04, Docker included), 400 GB root, as `ubuntu`:
 
 ```bash
-git clone https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
-bash plugin/results/train/desk-4b/scripts/setup-env.sh      # FRAMEWORK and PLUGIN_REF override the pins
-AGENT_ENV_CONFIG=$HOME/envbox.toml XDG_STATE_HOME=$HOME/state BUNDLE=bundles/desk-v4-train MAX_CONCURRENT_ENVS=48 \
-  envbox/bin/python plugin/results/train/desk-4b/scripts/serve.py      # :8000, reachable from the trainer only
+git clone -b desk-train https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
+sudo bash plugin/results/train/desk-4b/scripts/setup-box.sh    # FRAMEWORK=0.9.1387, PLUGIN_REF=desk-train by default
+# the pilot: 10 steps, the 36 val days evaluated at step 0 and step 10, LoRA checkpoints at steps 5 and 10
+OUT=out-pilot MAX_STEPS=10 bash plugin/results/train/desk-4b/scripts/run.sh > pilot.log 2>&1
+# an eval only (one sample per val day; EVAL_LIMIT=8 for a quick one; EVAL_SPLIT=bench for the three-day windows)
+OUT=out-base MAX_STEPS=0 bash plugin/results/train/desk-4b/scripts/run.sh
 ```
 
-The trainer box (one H100, `p5.4xlarge`), from its home:
+`setup-box.sh` (as root): inotify limits, `ubuntu` in the `docker` group, then `setup-env.sh` (the plugin, a venv with
+`agentenv-framework[openenv]`, the bundle in `~/bundles/desk-v4-train`, a local agent-env profile) and `setup.sh` (a
+venv with `agentenv-framework[trl]`, `trl[vllm,peft]==1.16.*`, `vllm==0.29.*`, Qwen3-4B at `1cfa9a72` in
+`~/models/Qwen3-4B`, a GPU check) as `ubuntu`, then the `desk-env` unit (`desk-env.service`, log in
+`~/desk-env.log`), whose first start builds the env image; it returns once the server answers. Both installs fall back
+to the framework wheel's URL from PyPI's JSON API while the simple index lags a release. `MAX_CONCURRENT_ENVS=48`: the
+trainer holds one session per rollout in flight (32; the val eval's 12 reuse them) plus the factory's probe, with room
+for a dropped session's replacement while the old one closes. A run under `systemd-run` survives a dropped SSM session:
+`sudo systemd-run --uid=ubuntu --unit=desk-pilot --setenv=HOME=/home/ubuntu --setenv=OUT=out-pilot
+--setenv=MAX_STEPS=10 --property=StandardOutput=append:/home/ubuntu/pilot.log bash
+/home/ubuntu/plugin/results/train/desk-4b/scripts/run.sh`.
 
-```bash
-git clone https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
-bash plugin/results/train/desk-4b/scripts/setup.sh
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-# the pilot: evals the 36 val days at step 0 and step 10, LoRA checkpoints at steps 5 and 10
-ENV_URL=http://ENV_HOST:8000 MODEL=models/Qwen3-4B OUT=out-pilot MAX_STEPS=10 \
-  trainer/bin/python plugin/results/train/desk-4b/scripts/train.py > pilot.log 2>&1
-# an eval only (one sample per val day); EVAL_SPLIT=bench plays the 32 three-day windows, which overflow the context
-ENV_URL=http://ENV_HOST:8000 OUT=out-base MAX_STEPS=0 trainer/bin/python plugin/results/train/desk-4b/scripts/train.py
-```
+`run.sh` picks vLLM's mode from the GPU count (`VLLM_MODE` overrides):
+
+- **One GPU:** `vllm_mode="colocate"`, vLLM beside the trainer at `vllm_gpu_memory_utilization=0.35` (`VLLM_MEM`).
+- **N > 1 GPUs:** `vllm_mode="server"`: `trl vllm-serve` on GPUs 1..N-1 with data parallel N-1 and tensor parallel 1
+  (Qwen3-4B fits on one GPU), the same model files, `max_model_len` 40,960, on `127.0.0.1:8001`; the trainer on GPU 0.
+  The server needs no LoRA flags: TRL 1.16 merges the adapter, streams the merged weights to the server over NCCL
+  (vLLM's weight-transfer engine, 0.28 and later) and unmerges, every step. In TRL 1.16 the tool loop,
+  `environment_factory` and PEFT take the same path in either mode (generation from token IDs; the trainer bounds a
+  rollout by the model's 40,960 positions instead of vLLM's `max_model_len`). Not run on a multi-GPU box yet.
+
+Everything else is the same in both modes: the settings below, 32 rollouts a step, the C reward and the eval.
+
+On separate boxes, run `setup-env.sh` and `serve.py` (with `HOST=0.0.0.0`) on a CPU box with Docker, `setup.sh` on the
+GPU box, and set `ENV_URL=http://ENV_HOST:8000`.
+
+**GPUs.** The H100 (`p5.4xlarge`) is what the settings assume. The RTX PRO 6000 Blackwell (`g7e`, 96 GB) is compute
+capability 12.0 (`sm_120`): the PyPI torch 2.13 and vLLM 0.29 wheels are CUDA 13 builds (base Qwen's bench boxes ran
+torch 2.13.0+cu130), which need NVIDIA driver 580 or later and kernels built for `sm_120`; `setup.sh`'s check prints
+the driver, the arch and whether torch was built for it, and FlashAttention 3 being Hopper-only, vLLM takes its
+FlashAttention 2 or FlashInfer backend there, as on Ada. The card's memory
+bandwidth is about half an H100's, so generation is slower; with 96 GB `VLLM_MEM=0.4` leaves the trainer as much as on
+the H100. On an L40S (48 GB) colocated memory is tight at 40k-token sequences. On A100 40 GB boxes the trainer has 40 GB
+for 40k-token sequences in server mode.
 
 The leaderboard score of a trained LoRA comes from OpenCode on the 32 bench windows, as base Qwen's did:
 [`opencode_eval.md`](opencode_eval.md), with a two-window check for a pilot checkpoint.
 
-The CPU check (no model, any machine with Docker; `AGENT_ENV_CONFIG` and `XDG_STATE_HOME` as on the env box):
+The CPU check (no model, any machine with Docker; `AGENT_ENV_CONFIG` and `XDG_STATE_HOME` as in `desk-env.service`):
 
 ```bash
 python results/train/desk-4b/scripts/replay.py --bundle bundles/desk-v4-train \
@@ -116,13 +143,13 @@ python results/train/desk-4b/scripts/replay.py --bundle bundles/desk-v4-train \
 | learning rate | 2e-5, constant after 2 warmup steps (`LR`) | the v1 run's rate, flat for a 10-step pilot |
 | steps | 10 (`MAX_STEPS`) | the pilot |
 | context | `vllm_max_model_length=40960` | Qwen3-4B's native positions |
-| completion | `max_completion_length=32256` (40,960 - 8,704) | the longest row prompt is 8,367 tokens |
+| completion | `max_completion_length=31744` (40,960 - 9,216) | the longest row prompt is 8,669 tokens |
 | tool loop | `max_tool_calling_iterations=64` | see Token budget |
-| vLLM | colocated, `vllm_gpu_memory_utilization=0.35` (`VLLM_MEM`) | leaves room for the backward pass at 40k tokens; raise it if memory allows |
+| vLLM | colocated at `vllm_gpu_memory_utilization=0.35` (`VLLM_MEM`) on one GPU, a server on the others with more (`run.sh`) | colocated, it leaves room for the backward pass at 40k tokens |
 | memory | bf16, gradient checkpointing, `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` | |
 | eval | the 36 val days at step 0 and at the last step (`EVAL_STEPS`), one sample each, 12 at a time (`EVAL_BATCH`) | monitoring; the leaderboard eval is OpenCode's |
 | checkpoints | the LoRA every 5 steps (`save_steps=5`, `save_only_model=True`) and at the end in `$OUT/adapter` | |
-| env client | `AgentEnv(ENV_URL, split="train", tool_timeout=300, reset_timeout=1800)` | 32 concurrent deploys on the env box take minutes |
+| env client | `AgentEnv(ENV_URL, split="train", tool_timeout=300, reset_timeout=1800)`, `ENV_URL` `http://127.0.0.1:8000` | 32 concurrent deploys take minutes |
 
 ## Token budget
 
@@ -132,24 +159,39 @@ train and val days played by the anchor, and from base Qwen3-4B's own bench play
 
 | tokens per day | p50 | p90 | max |
 |---|---|---|---|
-| row prompt as `train.py` edits it (OpenCode context, 12 tools, start wake) | 6,669 | 7,553 | 8,367 |
-| row prompt as the bundle serves it | 4,583 | 5,454 | 6,259 |
-| anchor-played day, without reasoning | 33,044 | 64,726 | 130,411 |
-| anchor-played day, with base Qwen's mean reasoning per message (485 tokens) | 47,943 | 95,905 | 188,126 |
-| base Qwen's own play (its 32 bench windows / 3, with this prompt), without reasoning | 13,471 | 17,966 | 21,434 |
-| base Qwen's own play, with its reasoning | 20,860 | 30,650 | 35,349 |
+| row prompt as `train.py` edits it (OpenCode context, 12 tools, start wake) | 6,971 | 7,855 | 8,669 |
+| row prompt as the bundle serves it | 4,885 | 5,756 | 6,561 |
+| anchor-played day, without reasoning | 33,346 | 65,028 | 130,713 |
+| anchor-played day, with base Qwen's mean reasoning per message (485 tokens) | 48,245 | 96,207 | 188,428 |
+| base Qwen's own play (its 32 bench windows / 3, with this prompt), without reasoning | 13,773 | 18,268 | 21,736 |
+| base Qwen's own play, with its reasoning | 21,162 | 30,952 | 35,651 |
+
+The prompts are rendered with agentenv-framework 0.9.1387, whose factory hands TRL each desk tool's full JSON Schema
+(the nested `curves` and `as_offers` items included); that adds 302 tokens to every prompt over the 0.9.1386 prose
+schemas the day counts were taken with, and the day rows include it.
 
 The OpenCode context adds 2,047 tokens to the system message and the JSON-string wakes about 80 a day. The anchor
 calls `optimize` about 10 times a day and its outputs are half the anchor's tokens; it sends 31 assistant messages at
 the median (70 at p90, 119 at most), base Qwen about 22.
 
-So a p90 day as base Qwen plays it (30.7k tokens in all) fits the 40,960-token context, and a day played like the anchor
+So a p90 day as base Qwen plays it (31.0k tokens in all) fits the 40,960-token context, and a day played like the anchor
 does not: 245 of the 251 anchor days pass 40,960 once reasoning is counted. A rollout that reaches the budget ends
 cleanly: TRL drops the tool result that would overflow and stops generating, and `get_reward` ends the open turns with
 empty replies, so the day plays out on the offers in force and is scored. At about 1.3k tokens a message the budget
 ends a long day near 25 messages, so the 64-iteration cap only stops a loop of short calls. If the pilot shows many
 days cut short, the lever is YaRN (rope scaling 2 to 81,920 tokens in both the trainer and vLLM), at the cost of a
 further gap to the 32,768-token eval.
+
+## Tool schemas
+
+agentenv-framework 0.9.1387 (#397) gives each environment instance a `SchemaTool` per desk tool: TRL takes it from the
+instance, and transformers renders it as the env's JSON Schema, as OpenCode passes it. Rendered through `train.py`'s
+class with Qwen3-4B's template, `submit_dam_offers` reaches the model with
+`"curves": {"type": "array", "items": {"type": "object", "properties": {"hours": {"anyOf": [{"type": "string"},
+{"type": "array", "items": {"type": "integer"}}]}, "points": {"type": "array", "items": {"type": "array", "items":
+{"type": "number"}, "minItems": 2, "maxItems": 2}}}, "required": ["hours"]}}` (descriptions left out here), where
+0.9.1386 gave a prose list of fields. `end_turn` stays a method, and `train.py`'s wrapper keeps its schema; the trainer
+needed no change for it.
 
 ## Turn convention and the OpenCode context
 
@@ -186,10 +228,6 @@ a change outside this kit:
   Training shows the 11 and `end_turn`: the others act on the agent's sandbox and its peers, which an OpenEnv session
   doesn't have, and stubs would teach tools that do nothing. They are 6,375 of the 13,648 tokens of base Qwen's first
   bench request.
-- **Tool schemas.** The factory's methods describe nested arguments (the offer curves, AS offers) in prose, through
-  transformers' `get_json_schema`; OpenCode passes the full JSON Schema (3,586 tokens for the 11 desk tools). The
-  framework change that passes the full schema into the factory is in progress elsewhere; set `FRAMEWORK` to the
-  release that has it on both boxes.
 - **Reasoning and context.** Qwen3's chat template drops the reasoning of turns before the latest user message, so
   in OpenCode each wake starts without the earlier wakes' reasoning, at 32,768 tokens with OpenCode's auto-compaction.
   In TRL the day is one completion: every reasoning block stays, at 40,960 tokens, and overflow ends the rollout.
@@ -197,8 +235,9 @@ a change outside this kit:
 
 ## CPU verification
 
-On the Mac with Docker, agentenv-framework 0.9.1386, the bundle as `desk_train.py` writes it (its env image built
-from the freeze and both pack commits), `replay.py` (`replay.json`):
+On the Mac with Docker, the bundle as `desk_train.py` writes it (its env image built from the freeze and both pack
+commits), `replay.py` (`replay.json`), with agentenv-framework 0.9.1386 and again on 0.9.1387 (four of the train days:
+the same outputs and rewards, the desk tools now `SchemaTool`s):
 
 - **Eight train days with the anchor**, four at once, each environment reset again for a second day as TRL reuses
   its pool: 12-29 S01, 01-05 S02, 01-18 S03, 05-17 S03, 05-27 S02 (outage), 06-16 S04 (outage; 25 wakes, 74 calls),
@@ -216,11 +255,13 @@ from the freeze and both pack commits), `replay.py` (`replay.json`):
 
 ## Files
 
-- `scripts/setup-env.sh`, `scripts/serve.py`: the env box's install and server.
-- `scripts/setup.sh`, `scripts/train.py`: the trainer box's install, and GRPO with the val evals (`MAX_STEPS=0`: an
-  eval only). It writes `$OUT/metrics.jsonl` (per log line: the rollouts' C mean and median, R mean, the shares
-  beating idle, beating the anchor and at the -1 floor, and TRL's own metrics), `$OUT/rollouts.jsonl` (task, C, R per
-  rollout), `$OUT/log_history.json`, `$OUT/checkpoint-5`, `$OUT/checkpoint-10` and `$OUT/adapter`.
+- `scripts/setup-box.sh`, `scripts/desk-env.service`: one box's setup and its env server unit.
+- `scripts/setup-env.sh`, `scripts/serve.py`: the env server's install and server.
+- `scripts/setup.sh`, `scripts/run.sh`, `scripts/train.py`: the trainer's install, the launcher that picks vLLM's mode,
+  and GRPO with the val evals (`MAX_STEPS=0`: an eval only). It writes `$OUT/metrics.jsonl` (per log line: the rollouts' C mean and median, R mean, the shares
+  beating idle, beating the anchor, at the -1 floor and finished by the model's own end_turn calls, and TRL's own
+  metrics), `$OUT/rollouts.jsonl` (task, C, R per
+  rollout, with its tool calls), `$OUT/log_history.json`, `$OUT/checkpoint-5`, `$OUT/checkpoint-10` and `$OUT/adapter`.
 - `scripts/replay.py`: the CPU check.
 - `opencode_context.json`: OpenCode's system context around the desk brief.
 - `anchor_c.json`: the anchor's C per task (train, val and bench), for the beats-anchor share.

@@ -1,13 +1,15 @@
 """GRPO of Qwen3-4B (thinking on, LoRA) on GridSim desk operating days through AgentEnv's TRL integration: the
-desk-v4-train bundle served on the env box by serve.py (reward: hindsight capture C floored at -1), read here with
-AgentEnv(ENV_URL), every rollout one operating day the env deploys, plays and grades. TRL evaluates the val days at the
-start and every EVAL_STEPS; MAX_STEPS=0 only evaluates EVAL_SPLIT (val, or bench for the 32 three-day windows).
+desk-v4-train bundle served by serve.py (reward: hindsight capture C floored at -1), read here with AgentEnv(ENV_URL),
+every rollout one operating day the env deploys, plays and grades. TRL evaluates the val days (the first EVAL_LIMIT) at
+the start and every EVAL_STEPS; MAX_STEPS=0 only evaluates EVAL_SPLIT (val, or bench for the 32 three-day windows).
+VLLM_MODE=colocate runs vLLM beside the trainer on its GPU; server reads a `trl vllm-serve` on VLLM_PORT (run.sh picks
+the mode from the GPU count and starts the server).
 
 The rows get the system context Qwen sees in OpenCode at bench time (opencode_context.json: OpenCode's prompt before the
 desk brief, its skills block after it) and one line on ending a turn with end_turn, since TRL ends a rollout at a reply
 without a tool call; each wake reaches the model as a JSON string, as OpenCode delivers it. A callback writes each log
 line to $OUT/metrics.jsonl with the rollouts' C (the reward), R and the share beating idle and the anchor since the line
-before."""
+before; $OUT/rollouts.jsonl gets each rollout's tool calls."""
 
 import functools
 import json
@@ -31,7 +33,7 @@ ANCHOR_C = json.loads((KIT / "anchor_c.json").read_text())
 END_TURN = ("In this session you end your turn by calling end_turn with your reply; a reply without a tool call ends "
             "the session.")
 CONTEXT_TOKENS = 40960
-MAX_PROMPT_TOKENS = 8704
+MAX_PROMPT_TOKENS = 9216
 MAX_TOOL_ITERATIONS = 64
 STARTED = time.monotonic()
 
@@ -50,10 +52,12 @@ def opencode(row: dict) -> dict:
                        {"role": "user", "content": json.dumps(wake["content"], ensure_ascii=False)}]}
 
 
-env = AgentEnv(os.environ.get("ENV_URL", "http://localhost:8000"), split="train", tool_timeout=300,
+env = AgentEnv(os.environ.get("ENV_URL", "http://127.0.0.1:8000"), split="train", tool_timeout=300,
                reset_timeout=1800)
 EVAL_SPLIT = os.environ.get("EVAL_SPLIT", "val")
-train_rows, eval_rows = env.dataset.map(opencode), env.dataset_for(EVAL_SPLIT).map(opencode)
+eval_split = env.dataset_for(EVAL_SPLIT)
+EVAL_LIMIT = int(os.environ.get("EVAL_LIMIT", str(len(eval_split))))
+train_rows, eval_rows = env.dataset.map(opencode), eval_split.select(range(EVAL_LIMIT)).map(opencode)
 log.info("%d train rows, %d %s rows at %s in %ss", len(train_rows), len(eval_rows), EVAL_SPLIT, env.url,
          round(time.monotonic() - STARTED))
 
@@ -68,8 +72,14 @@ def end_turn(self, *args, **kwargs) -> str:
 
 
 def reset(self, **row) -> None:
-    self.task_id = row["task_id"].rsplit("/", 1)[-1]
+    self.task_id, self.calls = row["task_id"].rsplit("/", 1)[-1], []
     Base.reset(self, **row)
+
+
+def _call(self, name, arguments):
+    answer = Base._call(self, name, arguments)
+    self.calls.append({"tool": name, "args": arguments, "answer": answer[:400]})
+    return answer
 
 
 def _answer(self, rollout, name, result):
@@ -80,13 +90,15 @@ def _answer(self, rollout, name, result):
 
 def get_reward(self) -> float | None:
     rollout = self._rollout
+    finished = rollout is not None and rollout.done
     reward = Base.get_reward(self)
     scores = getattr(rollout, "scores", None) or {}
-    ROLLOUTS.append({"task_id": self.task_id, "reward": reward, "r": scores.get("grade")})
+    ROLLOUTS.append({"task_id": self.task_id, "reward": reward, "r": scores.get("grade"), "finished_by_model": finished,
+                     "calls": self.calls})
     return reward
 
 
-Desk = type(Base.__name__, (Base,), {"end_turn": end_turn, "reset": reset, "_answer": _answer,
+Desk = type(Base.__name__, (Base,), {"end_turn": end_turn, "reset": reset, "_call": _call, "_answer": _answer,
                                      "get_reward": get_reward})
 
 
@@ -101,7 +113,8 @@ def rates(rollouts: list[dict]) -> dict:
             "beats_idle_rate": round(sum(x > 0 for x in c) / len(c), 4),
             "at_floor_rate": round(sum(x <= -1 for x in c) / len(c), 4),
             "beats_anchor_rate": round(sum(x > a for x, a in zip(c, anchor, strict=True)) / len(c), 4),
-            "anchor_c_mean": round(statistics.fmean(anchor), 4)}
+            "anchor_c_mean": round(statistics.fmean(anchor), 4),
+            "finished_by_model_rate": round(sum(r["finished_by_model"] for r in scored) / len(scored), 4)}
 
 
 class Metrics(TrainerCallback):
@@ -143,7 +156,9 @@ trainer = GRPOTrainer(
         beta=0.0,
         epsilon_high=0.28,
         use_vllm=True,
-        vllm_mode="colocate",
+        vllm_mode=os.environ.get("VLLM_MODE", "colocate"),
+        vllm_server_host="127.0.0.1",
+        vllm_server_port=int(os.environ.get("VLLM_PORT", "8001")),
         vllm_gpu_memory_utilization=float(os.environ.get("VLLM_MEM", "0.35")),
         vllm_max_model_length=CONTEXT_TOKENS,
         bf16=True,

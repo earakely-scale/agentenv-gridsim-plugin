@@ -1,0 +1,21 @@
+[Unit]
+Description=desk-v4-train OpenEnv server for the trainer (agent_env.openenv.build_app, envs in local Docker)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+User=@USER@
+SupplementaryGroups=docker
+WorkingDirectory=@HOME@
+Environment=HOME=@HOME@ AGENT_ENV_CONFIG=@HOME@/envbox.toml XDG_STATE_HOME=@HOME@/state BUNDLE=bundles/desk-v4-train
+Environment=MAX_CONCURRENT_ENVS=48 HOST=127.0.0.1 PORT=8000 PYTHONUNBUFFERED=1
+ExecStart=@HOME@/envbox/bin/python @HOME@/plugin/results/train/desk-4b/scripts/serve.py
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=900
+LimitNOFILE=65536
+StandardOutput=append:@HOME@/desk-env.log
+StandardError=append:@HOME@/desk-env.log
+
+[Install]
+WantedBy=multi-user.target

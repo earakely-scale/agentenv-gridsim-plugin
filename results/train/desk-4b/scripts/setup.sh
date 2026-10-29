@@ -1,16 +1,44 @@
-# The trainer box (one H100): the framework's trl extra with TRL, PEFT and vLLM, Qwen3-4B at the benchmark's revision
-# in ~/models/Qwen3-4B (the trainer and its colocated vLLM load the same files), and this kit from the plugin repo. No
-# Docker and no GridSim install: the envs run on the env box.
+# The trainer's install, as the user that runs it (setup-box.sh runs it as ubuntu): the framework's trl extra with TRL,
+# PEFT and vLLM, Qwen3-4B at the benchmark's revision in ~/models/Qwen3-4B (the trainer and vLLM load the same files),
+# and the plugin for this kit. No Docker and no GridSim install: the envs run in the env server.
 set -euxo pipefail
-nvidia-smi --query-gpu=index,name,memory.total,driver_version --format=csv
-command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh
+cd "$HOME"
 export PATH=$HOME/.local/bin:$PATH
-[ -d trainer ] || uv venv -q -p 3.12 trainer
-VIRTUAL_ENV=$HOME/trainer uv pip install "agentenv-framework[trl]==${FRAMEWORK:-0.9.1386}" "trl[vllm,peft]==1.16.*" \
-  "vllm==0.29.*" > install.log 2>&1
-VIRTUAL_ENV=$HOME/trainer uv pip freeze > pip_freeze.txt
-trainer/bin/hf download Qwen/Qwen3-4B --revision 1cfa9a7208912126459214e8b04321603b3df60c --local-dir models/Qwen3-4B \
-  > download.log 2>&1
+FRAMEWORK=${FRAMEWORK:-0.9.1387}
+REF=${PLUGIN_REF:-desk-train}
+nvidia-smi --query-gpu=index,name,memory.total,driver_version,compute_cap --format=csv
+command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh
 [ -d plugin ] || git clone -q https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
-git -C plugin fetch -q origin && git -C plugin checkout -q "${PLUGIN_REF:-desk-train}"
-trainer/bin/python -c "import trl, vllm, transformers, torch, peft, agent_env.training.trl, importlib.metadata as m; print('trl', trl.__version__, 'vllm', vllm.__version__, 'transformers', transformers.__version__, 'torch', torch.__version__, 'cuda', torch.cuda.is_available(), 'agentenv-framework', m.version('agentenv-framework'))"
+git -C plugin fetch -q origin
+git -C plugin checkout -q --detach "origin/$REF" 2>/dev/null || git -C plugin checkout -q --detach "$REF"
+[ -d trainer ] || uv venv -q -p 3.12 trainer
+STACK=("trl[vllm,peft]==1.16.*" "vllm==0.29.*")
+install_framework() {  # the pinned release, or its wheel from PyPI's JSON API while the simple index lags behind it
+  for _ in 1 2 3; do
+    VIRTUAL_ENV=$HOME/trainer uv pip install --refresh-package agentenv-framework \
+      "agentenv-framework[trl]==$FRAMEWORK" "${STACK[@]}" > install.log 2>&1 && return 0
+    sleep 30
+  done
+  url=$(curl -fsS "https://pypi.org/pypi/agentenv-framework/$FRAMEWORK/json" | python3 -c \
+    'import json, sys; print(next(f["url"] for f in json.load(sys.stdin)["urls"] if f["filename"].endswith(".whl")))')
+  VIRTUAL_ENV=$HOME/trainer uv pip install "agentenv-framework[trl] @ $url" "${STACK[@]}" > install.log 2>&1
+}
+install_framework
+VIRTUAL_ENV=$HOME/trainer uv pip freeze > pip_freeze.txt
+[ -f models/Qwen3-4B/config.json ] || trainer/bin/hf download Qwen/Qwen3-4B --revision \
+  1cfa9a7208912126459214e8b04321603b3df60c --local-dir models/Qwen3-4B > download.log 2>&1
+trainer/bin/python - <<'PY'
+import importlib.metadata as m
+
+import torch
+import transformers
+import trl
+import vllm
+
+cap = torch.cuda.get_device_capability(0)
+arch = f"sm_{cap[0]}{cap[1]}"
+print("trainer: trl", trl.__version__, "vllm", vllm.__version__, "transformers", transformers.__version__, "torch",
+      torch.__version__, "cuda", torch.version.cuda, "agentenv-framework", m.version("agentenv-framework"))
+print("gpu:", torch.cuda.device_count(), "x", torch.cuda.get_device_name(0), arch, "in torch's arch list:",
+      arch in torch.cuda.get_arch_list())
+PY
