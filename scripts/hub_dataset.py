@@ -774,6 +774,9 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
     earlier = "\n\n".join([across(d), *results, *checked])
     quick = QUICKSTART.replace("{bench}", BENCH_QUICKSTART + "\n\n" if bench else "").replace(
         "{bench_table}", BENCH_TABLE if bench else "").replace("{latest}", vs[-1]["version"])
+    if bench:
+        run = bench[0]["run"]
+        quick = quick.replace("{deviations}", f"{REPO}/blob/{run['deviations_ref']}/{run['prereg']}#deviations")
     blocks = {"badges": "\n".join(BADGES), "quickstart": quick,
               "ladder": ladder_block(d), "models": models_block(d), "inside": inside(d, bench), "archive": ARCHIVE}
     if bench is None:
@@ -1027,7 +1030,10 @@ def bench_limits(s: dict) -> list[str]:
         "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
         "carry a model's dollars.",
         "**Cost is list price:** tokens at each provider's public price per million, without batch or volume "
-        "discounts or long-context surcharges; the open model's cost is its share of the GPU time."]
+        "discounts or long-context surcharges; the open model's cost is its share of the GPU time.",
+        "**A known env defect, K1, in the benchmark too.** An empty reserve-offer list drew a spurious ASO-02 note "
+        "while the energy curves in the same call were accepted and applied; there is no settlement effect. It is "
+        "fixed on the head; the frozen runs keep it, and the benchmark plays v4's freeze."]
 
 
 def ladder(d: dict) -> list[dict]:
@@ -1090,8 +1096,10 @@ tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, 
 ```"""
 BENCH_QUICKSTART = """The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py`
 writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), with a
-`.agentenv/config.toml` that names the model endpoint and its key and a sandbox provider that enforces the bundle's
-network allowlist (Modal for these runs):
+`.agentenv/config.toml` that names the model endpoint and its key. By default the bundle's network allowlist holds
+only the harness vendor's API host, for a sandbox provider that enforces it, such as Modal, which the bundle was built
+for. Our runs took route C instead: local Docker on EC2 boxes, with a host egress rule and a per-run model proxy
+([deviations]({deviations})):
 
 ```bash
 uv run python scripts/desk_bench.py tasks --harness codex-luna --pack desk-v4-bench --out bundles/bench-codex-luna
