@@ -4,7 +4,8 @@
 Each harness is a framework agent (claude-code, codex, gemini, opencode) on its model at its effort. The bundle holds:
 - the pack's gridsim-desk tasks with the harness's agent and model, a `harness-config` load_artifact step that puts the
   harness's own configuration file into the agent's sandbox before the first turn (web search and fetch off; for Gemini
-  the thinking level, for OpenCode the sampling, thinking and context limit), and the agent's network policy: an
+  the thinking level, for OpenCode the sampling, thinking and context limit, for Codex OpenAI's catalog entries for the
+  GPT-6 models, which Codex 0.147 lacks), and the agent's network policy: an
   allowlist of the model endpoint's host (the sandbox platform adds its own tunnel hosts, where the env is reached);
 - the gridsim-desk env itself, `envs/<env>/`, built where it deploys from the plugin's tree at desk-v4-freeze;
 - a `netcheck` task that deploys the same env and agent and asks the agent to curl hosts outside the allowlist and to
@@ -34,10 +35,10 @@ REPO = "earakely-scale/agentenv-gridsim-plugin"
 HARNESSES = {
     "claude-code": {"agent": "claude-code", "model": "claude-opus-5-5", "effort": "high",
                     "config": ("bench-claude-code", "/etc/claude-code"), "hosts": ["api.anthropic.com"]},
-    "codex-sol": {"agent": "codex", "model": "gpt-6.1-sol", "effort": "high", "config": ("bench-codex", "/etc/codex"),
-                  "hosts": ["api.openai.com"]},
-    "codex-luna": {"agent": "codex", "model": "gpt-6-luna", "effort": "high", "config": ("bench-codex", "/etc/codex"),
-                   "hosts": ["api.openai.com"]},
+    "codex-sol": {"agent": "codex", "model": "gpt-6.1-sol", "effort": "high",
+                  "config": ("bench-codex-catalog", "/etc/codex"), "hosts": ["api.openai.com"]},
+    "codex-luna": {"agent": "codex", "model": "gpt-6-luna", "effort": "high",
+                   "config": ("bench-codex-catalog", "/etc/codex"), "hosts": ["api.openai.com"]},
     "gemini": {"agent": "gemini", "model": "gemini-4-argon", "effort": None, "config": ("bench-gemini", "/etc/gemini-cli"),
                "hosts": ["generativelanguage.googleapis.com"]},
     "opencode-qwen": {"agent": "opencode", "model": "qwen3-4b", "effort": None,
@@ -99,10 +100,10 @@ def netcheck_steps(desk: list[dict], h: dict) -> list[dict]:
 
 
 def write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: list[str] | None = None,
-          codex_catalog: bool = False) -> list[str]:
+          codex_as_installed: bool = False) -> list[str]:
     h = HARNESSES[name]
-    if codex_catalog and h["agent"] == "codex":
-        h = h | {"config": ("bench-codex-catalog", "/etc/codex")}
+    if codex_as_installed and h["agent"] == "codex":
+        h = h | {"config": ("bench-codex", "/etc/codex")}
     hosts = hosts or h["hosts"]
     if not hosts:
         raise SystemExit(f"{name} has no default model host: pass --allow-host")
@@ -139,10 +140,11 @@ def main() -> None:
     t.add_argument("--task", action="append", dest="task_ids")
     t.add_argument("--allow-host", action="append", dest="hosts", help="the model endpoint's host (repeatable), in "
                    "place of the harness vendor's API host")
-    t.add_argument("--codex-catalog", action="store_true", help="give Codex OpenAI's catalog entries for the GPT-6 models")
+    t.add_argument("--codex-as-installed", action="store_true", help="run Codex on its own model metadata, without "
+                   "OpenAI's catalog entries for the GPT-6 models")
     t.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
-    ids = write(a.harness, a.pack, a.out, a.task_ids, a.hosts, a.codex_catalog)
+    ids = write(a.harness, a.pack, a.out, a.task_ids, a.hosts, a.codex_as_installed)
     print(f"Wrote {len(ids)} desk tasks and netcheck into {a.out}")
 
 
