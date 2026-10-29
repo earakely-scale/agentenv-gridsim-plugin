@@ -29,6 +29,7 @@ from pathlib import Path
 from agentenv_gridsim.desk_tasks import generate
 
 CONFIGS = Path(__file__).resolve().parent.parent / "bench" / "harness"
+CONSTRAINTS = Path(__file__).resolve().parent.parent / "bench" / "env" / "constraints.txt"
 AGENT_NAME = "default-agent"
 FREEZE = "be6ff8c8ac2403da414b765009bcdc99e9cd9061"
 REPO = "earakely-scale/agentenv-gridsim-plugin"
@@ -49,10 +50,11 @@ NETCHECK = ("Run this exact command in your shell and include its complete outpu
             "curl -sS -m 20 -o /dev/null -w \"$u HTTP=%{http_code}\\n\" \"$u\" 2>&1; echo \"EXIT=$?\"; done\n\n"
             "Then call the desk's get_asset_status tool once and add the soc_mwh it returns.")
 ENV_TOML = 'environment_name = "{name}"\nenv_provider_type = "gateway"\n'
-ENV_DOCKERFILE = f"""FROM python:3.12-slim
+ENV_DOCKERFILE = f"""FROM python:3.12.16-slim@sha256:8523d6abeb48ceae0b7240d30c5808fc26cb79c1a635bacdf19cf3baecfbec07
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONPATH=/app
-RUN pip install "agentenv-framework-protocol==0.1.370" "fastmcp==3.4.8" "mcp==1.30.0" "pydantic==2.13.5" "numpy>=2,<3" \\
-    "highspy==1.15.1"
+COPY constraints.txt /tmp/constraints.txt
+RUN pip install -c /tmp/constraints.txt "agentenv-framework-protocol==0.1.370" "fastmcp==3.4.8" "mcp==1.30.0" \\
+    "pydantic==2.13.5" "numpy>=2,<3" "highspy==1.15.1"
 WORKDIR /app
 ADD https://codeload.github.com/{REPO}/tar.gz/{FREEZE} /tmp/src.tar.gz
 RUN mkdir /tmp/src && tar -xzf /tmp/src.tar.gz -C /tmp/src --strip-components=1 \\
@@ -120,6 +122,7 @@ def write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: li
         folder = out / "envs" / env
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "Dockerfile").write_text(ENV_DOCKERFILE)
+        shutil.copy(CONSTRAINTS, folder / "constraints.txt")
         (folder / "env.toml").write_text(ENV_TOML.format(name=env))
     artifact = h["config"][0]
     shutil.copytree(CONFIGS / artifact, out / "artifacts" / artifact, dirs_exist_ok=True)
