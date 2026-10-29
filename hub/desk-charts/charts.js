@@ -3,7 +3,8 @@
  * width and in a phone layout; and from bench.json (a desk bench's summary.json), capture against cost per window and
  * capture before and after the training cutoffs. Bare SVG on a transparent page in the theme on <html>; hub_desk.py
  * captures every [data-figure] at 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font
- * inlined, in light and dark. */
+ * inlined, in light and dark. The viewer Space's results page imports costScore and splitsChart to draw the same two
+ * benchmark charts at its own width; a page that imports them holds an svg.chart#ruler for measuring text. */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
@@ -389,7 +390,7 @@ function logTicks(lo, hi) {
   return out;
 }
 
-function costScore(Bn, W, narrow) {
+export function costScore(Bn, W, narrow) {
   const pts = bpts(Bn).filter((p) => p.usd > 0 && p.C.mean != null), op = Bn.plot.references.operator_replay;
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
   let [s, y] = header("Hindsight capture against cost", narrow ? "C, % · USD per three-day window" : "C, % of the hindsight optimum's profit over idle · USD per three-day window", W);
@@ -457,7 +458,7 @@ function costScore(Bn, W, narrow) {
   return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture against cost per window, by model");
 }
 
-function splitsChart(Bn, W, narrow) {
+export function splitsChart(Bn, W, narrow) {
   const pts = bpts(Bn).filter((p) => p.pre_cutoff?.mean != null && p.post_cutoff?.mean != null), op = Bn.plot.references.operator_replay;
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
   let [s, y] = header("Before and after the training cutoffs", narrow ? "C, %" : "C, %, the mean of each side's windows", W);
@@ -577,4 +578,4 @@ async function main() {
   window.chartsReady = true;
 }
 
-main();
+if (document.getElementById("figs")) main();
