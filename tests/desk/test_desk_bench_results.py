@@ -177,6 +177,8 @@ def test_results_scopes_and_splits(bench):
     assert pair["n"] == 31 and pair["C"]["mean"] > 0.2
     assert s["references"]["hind"]["all"]["C"]["mean"] == pytest.approx(1.0)
     assert s["references"]["operator_replay"]["all"]["n"] == 32
+    assert s["lead_rule"]["exposed"] == ["opus"] and set(s["halves_differ"]) <= {"opus"}
+    assert s["lead_split"] == ("post_cutoff" if s["halves_differ"] else "all")
     assert s["order_by_C"] == ["opus", "qwen"] and s["hero"]["model"] == "opus"
     hero = next(g for g in grades if g["model"] == "opus" and g["task_id"] == s["hero"]["task_id"])
     assert hero["split"] == "post_cutoff" and "real-time re-offers 3" in s["hero"]["why"]
@@ -207,7 +209,7 @@ def test_card_numbers_are_summary_json(bench, tmp_path):
     shutil.copytree(out, results / "desk-v4-bench")
     card = hub_dataset.card_text(results)
     section = card[card.index("## The v4 benchmark"):card.index("## Earlier versions")]
-    assert hub_dataset.FAKE in card and "Lead GIF slot" in card
+    assert hub_dataset.FAKE in card and "Lead GIF slot" in card and s["lead_rule"]["text"] in card
     scopes = ("all", "pre_cutoff", "post_cutoff") if s["lead_split"] == "all" else ("post_cutoff", "all", "pre_cutoff")
     head = next(x for x in section.splitlines() if x.startswith("| Model |"))
     assert [h.split("<br>")[0].strip() for h in head.split(" | ")[1:]] == [
@@ -291,6 +293,12 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
                                                                                                          abs=1e-3)
     assert qwen["cost"]["usd_per_window"] == pytest.approx(750 / 3600 * 1.006, abs=1e-4) and qwen["n"] == 2
     assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 3.75
-    assert sol["attempts"]["missing_reasons"] == {"agent-side error, final": 1, "no attempt": 30}
-    assert sol["attempts"]["failure_kinds"] == {"infrastructure": 1, "agent-side error, final": 1}
-    assert "Gemini 4 Argon (Gemini CLI): deferred" in (out / "README.md").read_text()
+    agent = "agent-side failure, final, no grade possible"
+    assert sol["attempts"]["missing_reasons"] == {agent: 1, "no attempt": 30}
+    assert sol["attempts"]["failure_kinds"] == {"infrastructure": 1, agent: 1}
+    assert s["deviations"] == ["Agent-side failures with no grade (GPT-6.1 Sol 1): the harness failed during play, so "
+                               "the verifier never ran and these windows could not be scored as settled; they are "
+                               "reported missing and not imputed."]
+    assert s["lead_rule"]["exposed"] == ["sol"] and s["lead_rule"]["unexposed"] == ["qwen"]
+    readme = (out / "README.md").read_text()
+    assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and "Qwen3-4B's (2024) cutoff precedes" in readme

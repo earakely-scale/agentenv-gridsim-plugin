@@ -954,12 +954,9 @@ def bench_bullets(s: dict) -> list[str]:
                + (f" Behind, with a CI below zero: {and_join(behind)}." if behind else ""))
     gaps = "; ".join(f"{m['name']} {pts_ci(m['split_gap']['C'], True)}" for m in ranked
                      if m["split_gap"]["C"]["mean"] is not None)
-    differ = [s["models"][k]["name"] for k in s["halves_differ"]]
     out.append("**Before and after the cutoffs:** post-cutoff minus pre-cutoff C, "
                f"{bench_side(s, 'post_cutoff')} against {bench_side(s, 'pre_cutoff')}: {gaps}. "
-               + (f"The CI excludes zero for {and_join(differ)}, so the post-cutoff column leads the table. "
-                  if differ else "Every CI includes zero: the halves do not differ measurably. ")
-               + "The cutoffs are third-party reports, unconfirmed.")
+               f"{s['lead_rule']['text']} The cutoffs are third-party reports, unconfirmed.")
     paid = sorted((m for m in ranked if m["cost"]["usd_per_window"] is not None),
                   key=lambda m: m["cost"]["usd_per_window"])
     out.append(f"**Cost a window** runs from {bench_usd(paid[0]['cost']['usd_per_window'])} ({paid[0]['name']}) to "
@@ -972,17 +969,16 @@ def bench_bullets(s: dict) -> list[str]:
         out.append(f"**Valid submissions.** {and_join(invalid)} had no valid submission, which scores R = 0 there.")
     tries = sum(m["attempts"]["total"] for m in ms)
     failed = sum(m["attempts"]["failed"] for m in ms)
-    kinds, why = Counter(), Counter()
+    kinds = Counter()
     for m in ms:
         kinds.update(m["attempts"]["failure_kinds"])
-        why.update(m["attempts"].get("missing_reasons") or {})
-    missing = [(m["name"], len(m["missing"])) for m in ms if m["missing"]]
+    missing = [f"{m['name']}, " + ", ".join(f"{k} ×{v}" for k, v in m["attempts"]["missing_reasons"].items())
+               for m in ms if m["missing"]]
     out.append(f"**Reliability:** {tries} attempts for {sum(m['n'] + len(m['missing']) for m in ms)} model-windows; "
                + (f"{failed} did not reach the grade ({', '.join(f'{k} ×{v}' for k, v in kinds.most_common())}); "
                   "infrastructure failures were retried, at most twice a window. " if failed else "every one reached "
                   "the grade. ")
-               + (f"Not scored and not imputed: {'; '.join(f'{n}, {k} of its windows' for n, k in missing)} "
-                  f"({', '.join(f'{k} ×{v}' for k, v in why.most_common())})." if missing else
+               + (f"Windows not scored and not imputed: {'; '.join(missing)}." if missing else
                   "No window is missing."))
     return out
 

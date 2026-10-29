@@ -44,17 +44,18 @@ SCOPES = ("all", *SPLITS)
 ORDER = ("opus", "sol", "luna", "argon", "qwen")
 MODELS = {
     "claude-opus-5-5": {"key": "opus", "name": "Claude Opus 5.5", "tag": "Opus 5.5", "provider": "Anthropic",
-                        "harness": "Claude Code", "setting": "effort high", "weights": "API"},
+                        "harness": "Claude Code", "setting": "effort high", "weights": "API", "cutoff": "2026-06"},
     "gpt-6.1-sol": {"key": "sol", "name": "GPT-6.1 Sol", "tag": "Sol", "provider": "OpenAI", "harness": "Codex CLI",
-                    "setting": "effort high", "weights": "API",
+                    "setting": "effort high", "weights": "API", "cutoff": "2026-04-30",
                     "harness_note": "with OpenAI's catalog entries for the GPT-6 models"},
     "gpt-6-luna": {"key": "luna", "name": "GPT-6 Luna", "tag": "Luna", "provider": "OpenAI", "harness": "Codex CLI",
-                   "setting": "effort high", "weights": "API",
+                   "setting": "effort high", "weights": "API", "cutoff": "2026-05-18",
                    "harness_note": "with OpenAI's catalog entries for the GPT-6 models"},
     "gemini-4-argon": {"key": "argon", "name": "Gemini 4 Argon", "tag": "Argon", "provider": "Google",
-                       "harness": "Gemini CLI", "setting": "thinking high", "weights": "API"},
+                       "harness": "Gemini CLI", "setting": "thinking high", "weights": "API", "cutoff": "2026-03"},
     "qwen3-4b": {"key": "qwen", "name": "Qwen3-4B", "tag": "Qwen3-4B", "variant": "untrained", "provider": "Qwen",
-                 "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0"},
+                 "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0",
+                 "cutoff": "2024"},
 }
 HARNESS_VERSIONS = {"Claude Code": "2.1.280", "Codex CLI": "0.147.0", "Gemini CLI": "0.38.2", "OpenCode": "1.17.18"}
 GPU_USD_PER_S = {"T4": 0.000164, "L4": 0.000222, "A10": 0.000306, "L40S": 0.000542, "A100-40GB": 0.000583,
@@ -63,8 +64,8 @@ GPU_PRICE_SOURCE = "Modal's list price, modal.com/pricing, read 2026-10-29"
 SCALEDOWN_S = 300
 EC2_USD_PER_H = {"g5.xlarge": 1.006, "g5.2xlarge": 1.212}
 EC2_PRICE_SOURCE = "EC2 on-demand, us-west-2"
-CLASS_KIND = {"infra": "infrastructure", "agent": "agent-side error, final", "capped": "episode spend cap, final",
-              "stopped": "model spend cap, final"}
+CLASS_KIND = {"infra": "infrastructure", "agent": "agent-side failure, final, no grade possible",
+              "capped": "episode spend cap, final", "stopped": "model spend cap, final"}
 SHELL = {"Bash", "command_execution", "run_shell_command", "bash", "shell", "local_shell"}
 REFS = (("idle", "p_idle", "Idle"), ("anchor", "p_anchor", "Anchor (the desk's optimiser, same information)"),
         ("hind", "p_hind", "Hindsight optimum"), ("hind_phys", "p_hind_phys", "Hindsight, DAM tied to dispatch"),
@@ -470,7 +471,7 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
         xs = [(r[f], r["front"], r["split"]) for r in done if r[f] is not None]
         gaps[k] = split_gap(*zip(*xs, strict=True)) if xs else {"mean": None, "ci": [None, None]}
     return {"key": key, **{k: lab.get(k) for k in ("name", "tag", "provider", "harness", "setting", "weights",
-                                                   "variant", "family", "harness_note", "server")},
+                                                   "variant", "family", "harness_note", "server", "cutoff")},
             "model_id": rows[0]["model_id"], "harness_key": rows[0]["harness_key"],
             "harness_version": versions.most_common(1)[0][0] if versions else HARNESS_VERSIONS.get(lab.get("harness")),
             "harness_versions_recorded": dict(versions) or None, "n": len(done),
@@ -560,6 +561,28 @@ def regrade_check(rows: list[dict]) -> dict:
     return {"refs": "the pack's task rows, frozen at desk-v4-freeze", "diffs": diffs}
 
 
+def join(xs: list[str]) -> str:
+    return xs[0] if len(xs) == 1 else f"{', '.join(xs[:-1])} and {xs[-1]}"
+
+
+def lead_text(models: dict, exposed: list[str], differ: list[str]) -> str:
+    """The pre-registration's lead-split rule as read before any API-model result, and what it gave: the rule guards
+    against training-data contamination, so only a model whose training cutoff falls inside the pre-cutoff windows
+    can trigger it."""
+    unexposed = [m for k, m in models.items() if k not in exposed]
+    rule = ("Which half leads, a reading set before any API-model result: the rule guards against training-data "
+            "contamination, so the post-cutoff half leads only if a model whose reported training cutoff falls inside "
+            "the pre-cutoff windows (" + join([models[k]["name"] for k in exposed] or ["none here"]) + ") has a "
+            "post − pre C interval that excludes zero")
+    if unexposed:
+        rule += ("; " + join([f"{m['name']}'s ({m.get('cutoff') or 'unknown'})" for m in unexposed])
+                 + f" cutoff{'s precede' if len(unexposed) > 1 else ' precedes'} every window, so both halves are "
+                 "unseen and the gap cannot be contamination")
+    return rule + (f". {join([models[k]['name'] for k in differ])} meet{'s' if len(differ) == 1 else ''} it, so the "
+                   "post-cutoff column leads." if differ else
+                   ". None does, so all the windows lead, with both halves shown.")
+
+
 def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: list[dict], labs: dict, gpus: dict,
               episodes: list[dict], fake: bool) -> dict:
     rank = {k: i for i, k in enumerate(ORDER)}
@@ -571,8 +594,12 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
     refs = ref_block(tasks, front_of)
     man = json.loads((pack_dir(a.pack) / "manifest.json").read_text())
     route = "ec2" if any(r.get("box") for r in log) else "modal"
-    differ = [k for k in keys if (g := models[k]["split_gap"]["C"])["mean"] is not None and (
+    first = min(t["dates"][0] for t in tasks.values() if t["tags"]["split"] == "pre_cutoff")
+    exposed = [k for k in keys if (models[k].get("cutoff") or "") >= first]
+    differ = [k for k in exposed if (g := models[k]["split_gap"]["C"])["mean"] is not None and (
         g["ci"][0] > 0 or g["ci"][1] < 0)]
+    agent = {m["name"]: n for m in models.values()
+             if (n := m["attempts"]["missing_reasons"].get(CLASS_KIND["agent"]))}
     return {
         "schema": "gridsim.desk.bench/v1", "fake": fake, "pack": a.pack, "layer": "v4", "unit": "3-day window",
         "generated": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "n_windows": len(tasks),
@@ -586,6 +613,8 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
                "resamples": B, "seed": SEED, "level": 0.95, "blocks": "front"},
         "models": models, "order_by_C": sorted((k for k in keys if models[k]["n"]),
                                                key=lambda k: -models[k]["all"]["C"]["mean"]),
+        "lead_rule": {"exposed": exposed, "unexposed": [k for k in keys if k not in exposed], "first_window": first,
+                      "set": "before any API-model result", "text": lead_text(models, exposed, differ)},
         "halves_differ": differ, "lead_split": "post_cutoff" if differ else "all", "references": refs,
         "paired": pairs, "plot": plot_block(models, refs), "attempts": log, "regraded": regrade_check(rows),
         "run": {"framework": a.framework, "bundle": a.bundle, "prereg": a.prereg, "route": route,
@@ -596,7 +625,10 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
                                                                               for m in models.values())}},
         "deviations": [d.replace("{retries}", ", ".join(
             f"{m['name']} {sum(x['kind'] == CLASS_KIND['infra'] for x in log if x['model'] == k)}"
-            for k, m in models.items())) for d in a.deviation] or None,
+            for k, m in models.items())) for d in a.deviation] + ([
+                f"Agent-side failures with no grade ({', '.join(f'{n} {k}' for n, k in agent.items())}): the harness "
+                "failed during play, so the verifier never ran and these windows could not be scored as settled; they "
+                "are reported missing and not imputed."] if agent else []) or None,
         "defects": a.defect or None, "notes": a.note or None,
         "deferred": a.deferred or None}
 
@@ -761,9 +793,7 @@ def readme(s: dict) -> str:
     fake = ("> **FAKE DATA.** Synthesized from the pilot records to exercise this pipeline; no benchmark run is "
             "behind any number here.\n\n" if s["fake"] else "")
     deferred = "".join(f"\n\n{x}" for x in s.get("deferred") or [])
-    lead = ("The halves differ for " + ", ".join(ms[k]["name"] for k in s["halves_differ"])
-            + " (a post − pre CI that excludes zero), so the post-cutoff column leads." if s["halves_differ"] else
-            "No model's post − pre CI in C excludes zero, so the all-window column leads.")
+    lead = s["lead_rule"]["text"]
     diffs = s["regraded"]["diffs"]
     lines = [
         f"# GridSimEnv desk v4 benchmark: results on `{s['pack']}`", "", fake.rstrip(), "" if fake else None,
