@@ -370,7 +370,7 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
 def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
     s, grades = hub_dataset.bench_read(hub_space.BENCH)
     hero = s["hero"]
-    rows = [g for g in grades if g["task_id"] in (hero["task_id"], "desk-v4-2026-03-16-S01")]
+    rows = [g for g in grades if g["task_id"] in (hero["task_id"], "desk-v4-2026-03-16-S01", "desk-v4-2026-05-08-S01")]
     monkeypatch.setattr(hub_space, "task_view", lambda key, task, raw, ser: (
         {"task": task["task_id"], "version": key}, {"site": task["site"]["site_id"]}))
     (tmp_path / "ep" / "bench").mkdir(parents=True)
@@ -389,9 +389,11 @@ def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
         assert (e["C"], e["R"], e["P"], e["valid"], e["usd"], e["own"]) == (
             g["capture"], g["reward"], g["p"], g["valid"], g["usd"], g["own_tool_calls"])
         assert (e["split"], e["front"], view["version"], view["run"]["own"]) == (
-            g["split"], g["front"], "bench", g["own_tools"])
+            g["split"], g["front"], "bench", hub_space.own_calls(g["own_tools"]))
         assert all(len(t["q"]) <= 901 and (len(t["q"]) < 901 or t["q"].endswith("…")) for t in view["turns"])
     assert cat["episodes"]["bench/desk-v4-2026-03-16-S01.qwen"]["own"] > 0
+    view = json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-05-08-S01.argon.json").read_text())
+    assert view["run"]["own"] == {"list_directory": 1, "peer_list": 1, "invalid": 1}
 
 
 def test_space_keeps_one_task_view_and_refuses_a_different_one(tmp_path):
@@ -410,6 +412,8 @@ def test_space_page_and_card_lead_with_the_benchmark():
     desk = json.loads((ROOT / "results/overview/desk.json").read_text())
     page = hub_space.bench_page(s, grades, desk, hub_dataset)
     assert "attempts" not in page and page["card"]["bullets"] == hub_dataset.bench_bullets(s)
+    dev = [x["n"] for g in page["deviations"] for x in g["items"]]
+    assert dev == list(range(1, len(dev) + 1)) and [g["title"] for g in page["deviations"]] == [None, "Gemini 4 Argon"]
     cap, block = page["card"]["captions"], hub_dataset.bench_block(s, grades, desk)
     assert [cap[k][:12] for k in ("splits", "table")] == ["C × 100: the", "C, hindsight"]
     assert block.index("/figures/splits.svg") < block.index(cap["splits"]) < block.index("| Model |") < block.index(
