@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import desk_bench_results as dbr  # noqa: E402
 import desk_report  # noqa: E402
+import hub_article  # noqa: E402
 import hub_dataset  # noqa: E402
 import hub_desk  # noqa: E402
 import hub_space  # noqa: E402
@@ -245,6 +246,40 @@ def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
     files = hub_desk.bench_files(out, publish=False)
     assert {"desk_v4_bench/pre_cutoff.parquet", "desk_v4_bench/post_cutoff.parquet",
             "results/desk-v4-bench/summary.json"} <= set(files)
+
+
+def test_article_states_the_bench_as_the_card_does(bench):
+    _, _, fake, fake_grades = bench
+    d = json.loads((ROOT / "results/overview/desk.json").read_text())
+    with pytest.raises(SystemExit, match="fake"):
+        hub_article.bench(fake, fake_grades, d, hub_dataset)
+    folder = ROOT / "results/desk-v4-bench"
+    s, grades = hub_dataset.bench_read(folder)
+    f = hub_article.bench(s, grades, d, hub_dataset)
+    block = hub_dataset.bench_block(s, grades, d)
+    assert f["pitch"] == hub_dataset.bench_pitch(s).strip("*") and "**" not in f["pitch"]
+    for b in (*f["say"].values(), *f["how"].values(), *f["limits"].values()):
+        assert f"- **{b['head']}** {b['text']}" in block
+    assert f"<small>{f['cap']['cost']}</small>" in block and f"<small>{f['cap']['table']}</small>" in block
+    assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["gemini"])] == [
+        x for x in s["deviations"] if x.startswith(("Route C", "Gemini"))]
+    for k, m in s["models"].items():
+        got = f["m"][k]
+        for name, scope in (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff")):
+            b = m[scope]["C"]
+            assert (got[name], got[f"{name}ci"]) == (f"{_pc(b['mean'])}%", f"[{_pc(b['ci'][0])}, {_pc(b['ci'][1])}]")
+        assert got["usd"] == f"${m['cost']['usd_per_window']:,.2f}"
+        assert int(got["valid"]) + int(got["invalid"]) == m["n"] == 32
+        assert (got["harness"], got["version"], got["setting"]) == (m["harness"], m["harness_version"], m["setting"])
+    assert (f["m"]["qwen"]["valid"], f["m"]["qwen"]["temperature"], f["m"]["qwen"]["top_k"]) == ("25", "0.6", "20")
+    hub_article.check_prose(hub_article.facts(d) | {"bench": f})
+    hub_article.check_order(s)
+    b = hub_article.hero(folder, s, grades)
+    lead = next(g for g in grades if g["task_id"] == s["hero"]["task_id"] and g["model"] == s["hero"]["model"])
+    assert b["days"] == lead["dates"] and b["model"] == "GPT-6.1 Sol in Codex CLI" and len(b["sites"]) == 4
+    for site in b["sites"]:
+        assert (len(site["rt"]), len(site["soc"]), len(site["mw"])) == (288, 289, 288)
+        assert all(0 <= t < 3 * 1440 for t in site["wakes"]) and site["wakes"]
 
 
 def _route_c(root: Path) -> None:

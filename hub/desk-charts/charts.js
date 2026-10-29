@@ -3,8 +3,7 @@
  * width and in a phone layout; and from bench.json (a desk bench's summary.json), capture against cost per window and
  * capture before and after the training cutoffs. Bare SVG on a transparent page in the theme on <html>; hub_desk.py
  * captures every [data-figure] at 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font
- * inlined, in light and dark. The viewer Space's results page imports costScore and splitsChart to draw the same two
- * benchmark charts at its own width; a page that imports them holds an svg.chart#ruler for measuring text. */
+ * inlined, in light and dark. The article imports the bench charts and draws them in its own theme. */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
@@ -390,7 +389,7 @@ function logTicks(lo, hi) {
   return out;
 }
 
-export function costScore(Bn, W, narrow) {
+function costScore(Bn, W, narrow) {
   const pts = bpts(Bn).filter((p) => p.usd > 0 && p.C.mean != null), op = Bn.plot.references.operator_replay;
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
   let [s, y] = header("Hindsight capture against cost", narrow ? "C, % · USD per three-day window" : "C, % of the hindsight optimum's profit over idle · USD per three-day window", W);
@@ -401,8 +400,8 @@ export function costScore(Bn, W, narrow) {
   }
   const cs = pts.map((p) => p.usd), steps = [1, 2, 5].flatMap((m) => [-3, -2, -1, 0, 1, 2].map((k) => m * 10 ** k)).sort((a, b) => a - b);
   const x0 = [...steps].reverse().find((v) => v <= Math.min(...cs) / 1.5) ?? 0.001, x1 = steps.find((v) => v >= Math.max(...cs) * 1.6) ?? 100;
-  const vals = pts.flatMap((p) => [p.C.ci[0], p.C.ci[1], p.C.mean]).concat(op?.all?.mean ?? []).filter((v) => v != null);
-  const lo = Math.min(0, Math.floor((Math.min(...vals) - 0.02) * 20) / 20), hi = Math.ceil((Math.max(...vals) + 0.03) * 10) / 10;
+  const vals = pts.map((p) => p.C.mean).concat(op?.all?.mean ?? []).filter((v) => v != null);
+  const lo = Math.min(0, Math.floor((Math.min(...vals) - 0.02) * 20) / 20), hi = Math.ceil((Math.max(...vals) + 0.05) * 10 - 1e-9) / 10;
   const tk = ticks(lo, hi, hi - lo > 0.62 ? 0.2 : 0.1, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 14, R = W - 6;
   const ptop = y + (narrow ? 24 : 30), PH = narrow ? 262 : 310, bottom = ptop + PH;
   const yv = lin(lo, hi, bottom, ptop), xl = lin(Math.log10(x0), Math.log10(x1), L + 10, R - 10), xv = (v) => xl(Math.log10(v));
@@ -434,12 +433,6 @@ export function costScore(Bn, W, narrow) {
       obst.dots.push(...sample([[[ax, ay], [ex, ey]]]));
     }
   }
-  for (const p of pts) {
-    if (p.C.ci[0] == null) continue;
-    const x = xv(p.usd);
-    lines += `<path class="ci" d="M${f1(x)},${f1(yv(p.C.ci[0]))}V${f1(yv(p.C.ci[1]))}" stroke="${bcol(p)}"/>`;
-    obst.dots.push(...sample([[[x, yv(p.C.ci[0])], [x, yv(p.C.ci[1])]]]));
-  }
   for (const p of [...pts].reverse()) marks += mark(SHAPE[p.provider], xv(p.usd), yv(p.C.mean), p.key === top ? r + 0.8 : r, bcol(p), "mk", p.key !== p.family);
   obst.boxes.push(...pts.map((p) => [xv(p.usd) - r - 2, yv(p.C.mean) - r - 2, xv(p.usd) + r + 2, yv(p.C.mean) + r + 2]));
   const want = [...pts].sort((a, b) => b.C.mean - a.C.mean).map((p) => {
@@ -450,15 +443,13 @@ export function costScore(Bn, W, narrow) {
   });
   for (const p of placeBoxes(want, obst, [2, ptop - 22, W - 2, bottom - 2])) labels += boxText(p);
   let fy = bottom + 44;
-  const n = Bn.n_windows, foot = narrow
-    ? `Each point: a model in a native agent harness, its mean over ${n} windows; lines: 95% CIs over ${Bn.n_fronts} fronts.`
-    : `Each point: a model in a native agent harness, its mean over ${n} windows · vertical lines: 95% CIs over ${Bn.n_fronts} fronts.`;
+  const foot = `Each point: a model in a native agent harness, its mean over ${Bn.n_windows} windows; 95% CIs are in the table.`;
   for (const line of wrap(foot, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
   const H = fy + 8;
   return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture against cost per window, by model");
 }
 
-export function splitsChart(Bn, W, narrow) {
+function splitsChart(Bn, W, narrow) {
   const pts = bpts(Bn).filter((p) => p.pre_cutoff?.mean != null && p.post_cutoff?.mean != null), op = Bn.plot.references.operator_replay;
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
   let [s, y] = header("Before and after the training cutoffs", narrow ? "C, %" : "C, %, the mean of each side's windows", W);
@@ -579,3 +570,5 @@ async function main() {
 }
 
 if (document.getElementById("figs")) main();
+
+export { costScore, splitsChart };

@@ -1,10 +1,14 @@
 import HtmlEmbed from "../../components/HtmlEmbed.astro";
 import F from "../assets/data/facts.json";
 
-## The ladder, v2 to v4
+## The development ladder, v2 to v4
 
-Each version adds one kind of realism to the same desk, tools and grading. Each was pre-registered, piloted, frozen
-and then run once per model on real days at least 60 days old, at the same four real batteries.
+Before the benchmark, the desk climbed a ladder of three versions on the same tools and grading, each adding one kind
+of realism: v2, the live market; v3, ERCOT's reserve products and a co-located solar option; v4, three operating days
+across a weather front. These are the development runs: GPT-6.1 Sol and GPT-6 Luna at high reasoning effort, and the
+untrained Qwen3-4B with thinking off, on the desk's own runner rather than in agent harnesses. Each version was
+pre-registered, piloted, frozen and then run once per model on real days at least 60 days old, at the same four real
+batteries.
 
 ### v2, The Live Grid
 
@@ -50,17 +54,19 @@ capacity-short charges, and a co-located solar option at some batteries (modelle
 - **One day weighs on Sol.** On {F.v3.sens.day} Sol made more than half of its total P; without it Sol averages
   {F.v3.sens.without.sol} a battery-day. Post hoc.
 
-### v4, Weather Front
+### v4, Weather Front: the development run
 
 Three operating days in a row across a weather front, on ERCOT's load, wind and solar forecasts as each was issued,
 with three day-ahead markets to bid. {F.v4.n} three-day windows at four batteries across {F.v4.blocks} fronts;
-P is summed over each window, and the CIs resample fronts.
+P is summed over each window, and the CIs resample fronts. This is v4's development run on the desk's own runner, not
+the benchmark: the benchmark's {F.bench.side.pre.name} half plays these same windows again, each model in its agent
+harness.
 
 <HtmlEmbed
   src="d3-desk-version.html"
   wide
   config={{ version: "v4" }}
-  title="v4, Weather Front: capture and dollars"
+  title="v4, Weather Front, the development run: capture and dollars"
   desc="As for v2, a 3-day window at a time, with front-block CIs."
 />
 

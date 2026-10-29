@@ -1,0 +1,109 @@
+<div class="gs-bench"></div>
+<style>
+  :is(.gs-bench, .gs-bench-ruler) { --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); }
+  .html-embed__card.is-frameless .gs-bench { --halo: var(--page-bg); }
+  .gs-bench { position: relative; }
+  .gs-bench-ruler { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; visibility: hidden; }
+  :is(.gs-bench, .gs-bench-ruler) svg.chart { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
+  :is(.gs-bench, .gs-bench-ruler) svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+  .gs-bench .grid { stroke: var(--line); stroke-width: 1; }
+  .gs-bench .zero { stroke: var(--ink-3); stroke-width: 1.25; }
+  .gs-bench .lead { stroke: var(--ink-3); stroke-width: 1; fill: none; }
+  .gs-bench :is(.ln, .ln-s) { fill: none; stroke-linejoin: round; stroke-linecap: round; stroke-width: 2.6; }
+  .gs-bench .ln-s { stroke-width: 2.1; }
+  .gs-bench .ln.ln-b { stroke-width: 3.4; }
+  .gs-bench .mk { stroke: var(--halo); stroke-width: 2; stroke-linejoin: round; }
+  .gs-bench .mk-s { stroke: var(--halo); stroke-width: 1.5; }
+  .gs-bench .mk-o { stroke-width: 2.4; stroke-linejoin: round; }
+  .gs-bench .op { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dasharray: 5 4; }
+  .gs-bench .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
+  .gs-bench .fam { fill: none; stroke-width: 1.6; stroke-linecap: round; }
+  .gs-bench .hit { fill: transparent; stroke: none; cursor: pointer; }
+  :is(.gs-bench, .gs-bench-ruler) .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler) .t-head-s { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) .t-tick { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) .t-val { font-size: 13px; font-weight: 600; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler) .t-val.b { font-size: 14px; font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler) .t-end { font-size: 14px; font-weight: 560; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler) .t-end.b { font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler) .t-end.op-t { font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) .t-end-v { font-size: 14px; font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler) .t-end-v.op-t { font-weight: 600; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) :is(.t-end-q, .t-key-q) { font-size: 12.5px; font-weight: 400; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) .t-key { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler) .t-key.b { font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler) .t-key.op-t { font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) .t-ver { font-size: 16.5px; font-weight: 650; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler) .t-name { font-size: 13.5px; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler) .t-unit { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler) .t-foot { font-size: 12.5px; fill: var(--ink-3); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-bench");
+    if (!root) return;
+    const kind = K.config(root).chart === "splits" ? "splits" : "cost";
+    if (!document.getElementById("ruler")) {
+      const box = document.createElement("div");
+      box.className = "gs-bench-ruler";
+      box.setAttribute("aria-hidden", "true");
+      box.innerHTML = '<svg id="ruler" class="chart"></svg>';
+      document.body.appendChild(box);
+    }
+    const fonts = Promise.all(["400 13px", "600 13px", "650 16px", "700 14px"].map((f) => document.fonts.load(`${f} "Source Sans 3"`)))
+      .catch(() => null);
+
+    Promise.all([K.data("bench.json"), K.data("facts.json"), import("/scripts/desk-charts.js"), fonts]).then(([B, F, C]) => {
+      const tip = K.tip(root);
+      const plot = document.createElement("div");
+      root.appendChild(plot);
+      const fb = F.bench, side = { pre_cutoff: fb.side.pre, post_cutoff: fb.side.post };
+      const who = (k) => fb.m[k];
+      const head = (el, m, color) => {
+        K.t.title(el, m.name, color);
+        K.t.row(el, m.harness, `${m.version} · ${m.setting}`);
+        if (m.temperature) K.t.row(el, "sampling", `temperature ${m.temperature} · top_p ${m.top_p} · top_k ${m.top_k}`);
+      };
+      const card = (el, m, color, sp) => {
+        head(el, m, color);
+        const rows = sp ? [[side[sp].name, sp === "pre_cutoff" ? `${m.pre} ${m.preci}` : `${m.post} ${m.postci}`], [`C, all ${fb.n} windows`, `${m.C} ${m.Cci}`]]
+          : [[`C, all ${fb.n} windows`, `${m.C} ${m.Cci}`], [fb.side.pre.name, `${m.pre} ${m.preci}`], [fb.side.post.name, `${m.post} ${m.postci}`],
+            ["R", `${m.R} ${m.Rci}`], ["cost a window", m.basis ? `${m.usd}, ${m.basis}` : m.usd], ["every attempt", m.spent]];
+        rows.forEach(([a, b]) => K.t.row(el, a, b));
+        if (m.valid !== m.n) K.t.note(el, `A valid submission on ${m.valid} of ${m.n} windows.`);
+      };
+
+      function render() {
+        const W = Math.max(280, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 460;
+        plot.innerHTML = kind === "splits" ? C.splitsChart(B, W, narrow) : C.costScore(B, W, narrow);
+        const svg = plot.querySelector("svg");
+        svg.removeAttribute("height");
+        const marks = [...svg.querySelectorAll(".mk, .mk-o")].map((el) => {
+          const fill = el.classList.contains("mk-o") ? el.getAttribute("stroke") : el.getAttribute("fill");
+          const fam = (/--c-([a-z]+)/.exec(fill || "") || [])[1], b = el.getBBox();
+          return { el, fam, x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        }).filter((m) => m.fam && fb.m[m.fam]);
+        for (const m of marks) {
+          const twins = marks.filter((o) => o.fam === m.fam);
+          const sp = kind === "splits" ? (m.x <= Math.min(...twins.map((o) => o.x)) ? "pre_cutoff" : "post_cutoff") : null;
+          const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          hit.setAttribute("class", "hit");
+          hit.setAttribute("cx", m.x.toFixed(1));
+          hit.setAttribute("cy", m.y.toFixed(1));
+          hit.setAttribute("r", "15");
+          const color = `var(--c-${m.fam})`, show = (ev) => tip.show((el) => card(el, who(m.fam), color, sp), ev);
+          hit.addEventListener("pointerenter", show);
+          hit.addEventListener("pointermove", show);
+          hit.addEventListener("pointerdown", show);
+          hit.addEventListener("pointerleave", () => tip.hide());
+          svg.appendChild(hit);
+        }
+      }
+
+      render();
+      document.fonts.addEventListener("loadingdone", render);
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = "The benchmark's chart did not load: " + e.message; });
+  })();
+</script>

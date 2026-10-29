@@ -8,10 +8,12 @@ app_port: 8080
 header: mini
 pinned: false
 license: cc-by-4.0
-short_description: A real ERCOT battery's trading desk as an RL environment
+short_description: Models in agent harnesses run a real ERCOT battery desk
 tags:
   - research-article-template
   - rl-environments
+  - benchmark
+  - agents
   - reinforcement-learning
   - simulation
   - energy
@@ -29,15 +31,18 @@ thumbnail: >-
 A long-form research article on **GridSimEnv Desk**, an RL environment in which an agent runs a real Texas grid
 battery's trading desk through ERCOT's day-ahead market and real time. It submits ERCOT's own market objects (energy
 bid/offer curves, the Current Operating Plan, from v3 reserve offers) on prices, forecasts, notices and alerts as each
-was posted, while AgentEnv's virtual clock stands still in a turn and runs between turns. Every day settles on the
+was posted, while AgentEnv's virtual clock stands still in a turn and runs between turns. Every task settles on the
 battery's ERCOT statement and is graded against the hindsight optimum and the battery's real operator, whose bids ERCOT
-discloses 60 days later. The article covers the desk, its clock and tools, the ladder of versions v2 to v4 and the v5
-price-impact check, played by GPT-6.1 Sol and GPT-6 Luna at high reasoning effort and the untrained Qwen3-4B with
-thinking off, what each taught, the methods and the limitations.
+discloses 60 days later. The article leads with the v4 benchmark: models in native agent harnesses (Claude Code, Codex
+CLI, and OpenCode for the open Qwen3-4B) run the desk for three days at a time across real Texas weather fronts, and
+it reports their hindsight capture against what a window cost, before and after the models' training cutoffs. Then
+come the desk itself, its clock and tools, the development ladder of versions v2 to v4 and the v5 price-impact check,
+the methods and the limitations.
 
 - **Dataset:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv),
-  every desk task, reference, grade, Episode JSON and run log under `results/desk-v2` to `results/desk-v5`.
-- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv), the desk's runs version by version: [the results](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4) and [the hero day's replay](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02).
+  the benchmark's grades and Episode JSON under `results/desk-v4-bench`, and every development task, reference, grade,
+  Episode JSON and run log under `results/desk-v2` to `results/desk-v5`.
+- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv), the desk's development runs version by version: [the results](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4).
 - **Code:** [agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin), a plugin for the
   [AgentEnv Framework](https://www.agentenvframework.com).
 
@@ -56,10 +61,10 @@ and `scripts/hub_article.py` there rebuilds the article's data and publishes thi
 | --- | --- |
 | `app/src/content/article.mdx` | Front matter and the chapter registry, in running order |
 | `app/src/content/chapters/` | One `.mdx` per section; every number in the prose is read from `facts.json` |
-| `app/src/content/embeds/` | The D3 figures, one file each |
-| `app/src/content/assets/data/` | The figures' data: `desk.json` (from `results/overview/desk.json`), `facts.json` (the prose's numbers, formatted from it), and the hero day and the bid curve, read from the desk's committed episodes and grades |
+| `app/src/content/embeds/` | The D3 figures, one file each; the benchmark's two draw with the dataset card's own chart code |
+| `app/src/content/assets/data/` | The figures' data: `bench.json` (from `results/desk-v4-bench/summary.json`), `desk.json` (from `results/overview/desk.json`), `facts.json` (the prose's numbers, formatted from both), and the banner's front and the bid curve, read from the committed episodes and grades |
 | `app/src/content/bibliography.bib` | References, cited as `[@key]` |
-| `app/public/` | The social card |
+| `app/public/` | The social card, and `scripts/desk-charts.js`, the dataset card's chart code (`hub/desk-charts/charts.js`) |
 
 ```bash
 cd app && npm ci && npm run dev     # http://localhost:4321
