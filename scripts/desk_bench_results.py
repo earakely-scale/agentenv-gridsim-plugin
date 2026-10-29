@@ -607,7 +607,7 @@ def texts(s: dict, retry_note: str | None) -> dict:
                    f"No API model's post − pre interval excludes zero, so all {s['n_windows']} windows lead")
                   + ", by a rule set before any API result.")
     valid = " ".join(f"{m['name']} made no valid submission on {round((1 - m['all']['valid_share']) * m['n'])} of its "
-                     f"{m['n']} windows (R = 0 there)." for m in ms.values()
+                     f"{m['n']} windows (R\u00a0=\u00a00 there)." for m in ms.values()
                      if m["all"]["valid_share"] is not None and m["all"]["valid_share"] < 1) or None
     tries = sum(m["attempts"]["total"] for m in ms.values())
     failed = sum(m["attempts"]["failed"] for m in ms.values())
