@@ -34,7 +34,6 @@ import json
 import re
 import shutil
 import tomllib
-from collections import Counter
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from html import escape
@@ -778,13 +777,15 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
     blocks = {"badges": "\n".join(BADGES), "quickstart": quick,
               "ladder": ladder_block(d), "models": models_block(d), "inside": inside(d, bench), "archive": ARCHIVE}
     if bench is None:
-        return blocks | {"pitch": "", "gif": gif_block(d["gif"]), "bench": "", "earlier": f"## Results\n\n{earlier}"}
+        return blocks | {"pitch": "", "gif": gif_block(d["gif"]), "bench": "", "earlier": f"## Results\n\n{earlier}",
+                         "bench-rule": ""}
     s, grades = bench
     return blocks | {"pitch": bench_pitch(s), "gif": bench_gif(s, grades, gif),
                      "bench": "## The v4 benchmark: each model in its own agent harness\n\n"
                               + bench_block(s, grades, d),
                      "earlier": "## Earlier versions\n\n<details>\n<summary><b>v2 to v4 on the desk's own runner, and "
-                                "the v5 price-impact check</b></summary>\n\n" + earlier + "\n\n</details>"}
+                                "the v5 price-impact check</b></summary>\n\n" + earlier + "\n\n</details>",
+                     "bench-rule": f"- **Which half of the benchmark leads.** {s['text']['rule']}"}
 
 
 BENCH_DIR = "results/desk-v4-bench"
@@ -954,34 +955,16 @@ def bench_bullets(s: dict) -> list[str]:
                f"capture {pc(op['all']['C']['mean'])}%. Ahead of them paired by window, with a CI above zero: "
                + (and_join(ahead) if ahead else "no model") + "."
                + (f" Behind, with a CI below zero: {and_join(behind)}." if behind else ""))
-    gaps = "; ".join(f"{m['name']} {pts_ci(m['split_gap']['C'], True)}" for m in ranked
-                     if m["split_gap"]["C"]["mean"] is not None)
-    out.append("**Before and after the cutoffs:** post-cutoff minus pre-cutoff C, "
-               f"{bench_side(s, 'post_cutoff')} against {bench_side(s, 'pre_cutoff')}: {gaps}. "
-               f"{s['lead_rule']['text']} The cutoffs are third-party reports, unconfirmed.")
+    out.append(f"**Before and after the cutoffs:** {s['text']['halves']}")
     paid = sorted((m for m in ranked if m["cost"]["usd_per_window"] is not None),
                   key=lambda m: m["cost"]["usd_per_window"])
     out.append(f"**Cost a window** runs from {bench_usd(paid[0]['cost']['usd_per_window'])} ({paid[0]['name']}) to "
                f"{bench_usd(paid[-1]['cost']['usd_per_window'])} ({paid[-1]['name']}); every attempt, retries "
                "included, cost " + and_join([f"{bench_usd(m['cost']['usd_all_attempts'])} for {m['name']}"
                                              for m in ms]) + ".")
-    invalid = [f"{m['name']} on {round((1 - m['all']['valid_share']) * m['n'])} of its {m['n']} windows"
-               for m in ranked if m["all"]["valid_share"] is not None and m["all"]["valid_share"] < 1]
-    if invalid:
-        out.append(f"**Valid submissions.** {and_join(invalid)} had no valid submission, which scores R = 0 there.")
-    tries = sum(m["attempts"]["total"] for m in ms)
-    failed = sum(m["attempts"]["failed"] for m in ms)
-    kinds = Counter()
-    for m in ms:
-        kinds.update(m["attempts"]["failure_kinds"])
-    missing = [f"{m['name']}, " + ", ".join(f"{k} ×{v}" for k, v in m["attempts"]["missing_reasons"].items())
-               for m in ms if m["missing"]]
-    out.append(f"**Reliability:** {tries} attempts for {sum(m['n'] + len(m['missing']) for m in ms)} model-windows; "
-               + (f"{failed} did not reach the grade ({', '.join(f'{k} ×{v}' for k, v in kinds.most_common())}); "
-                  "infrastructure failures were retried, at most twice a window. " if failed else "every one reached "
-                  "the grade. ")
-               + (f"Windows not scored and not imputed: {'; '.join(missing)}." if missing else
-                  "No window is missing."))
+    if s["text"]["valid"]:
+        out.append(f"**Valid submissions.** {s['text']['valid']}")
+    out.append(f"**Reliability:** {s['text']['reliability']}")
     return out
 
 

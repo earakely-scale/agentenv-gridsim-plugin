@@ -210,6 +210,7 @@ def test_card_numbers_are_summary_json(bench, tmp_path):
     card = hub_dataset.card_text(results)
     section = card[card.index("## The v4 benchmark"):card.index("## Earlier versions")]
     assert hub_dataset.FAKE in card and "Lead GIF slot" in card and s["lead_rule"]["text"] in card
+    assert s["text"]["halves"] in section and s["text"]["reliability"] in section
     scopes = ("all", "pre_cutoff", "post_cutoff") if s["lead_split"] == "all" else ("post_cutoff", "all", "pre_cutoff")
     head = next(x for x in section.splitlines() if x.startswith("| Model |"))
     assert [h.split("<br>")[0].strip() for h in head.split(" | ")[1:]] == [
@@ -301,4 +302,5 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
                                "reported missing and not imputed."]
     assert s["lead_rule"]["exposed"] == ["sol"] and s["lead_rule"]["unexposed"] == ["qwen"]
     readme = (out / "README.md").read_text()
-    assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and "Qwen3-4B's (2024) cutoff precedes" in readme
+    assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and s["text"]["halves"] in readme
+    assert "GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1;" in s["text"]["reliability"]

@@ -65,6 +65,7 @@ GPU_PRICE_SOURCE = "Modal's list price, modal.com/pricing, read 2026-10-29"
 SCALEDOWN_S = 300
 EC2_USD_PER_H = {"g5.xlarge": 1.006, "g5.2xlarge": 1.212}
 EC2_PRICE_SOURCE = "EC2 on-demand, us-west-2"
+NAMED_FRONTS = {"2026-01-23": "winter storm Fern"}
 CLASS_KIND = {"infra": "infrastructure", "agent": "agent-side failure, final, no grade possible",
               "capped": "episode spend cap, final", "stopped": "model spend cap, final"}
 SHELL = {"Bash", "command_execution", "run_shell_command", "bash", "shell", "local_shell"}
@@ -566,23 +567,61 @@ def join(xs: list[str]) -> str:
     return xs[0] if len(xs) == 1 else f"{', '.join(xs[:-1])} and {xs[-1]}"
 
 
-def lead_text(models: dict, exposed: list[str], differ: list[str]) -> str:
-    """The pre-registration's lead-split rule as read before any API-model result, and what it gave: the rule guards
-    against training-data contamination, so only a model whose training cutoff falls inside the pre-cutoff windows
-    can trigger it."""
-    unexposed = [m for k, m in models.items() if k not in exposed]
-    rule = ("Which half leads, a reading set before any API-model result: the rule guards against training-data "
-            "contamination, so the post-cutoff half leads only if a model whose reported training cutoff comes after "
-            "the first pre-cutoff window, so that those windows may be in its training data ("
-            + join([models[k]["name"] for k in exposed] or ["none here"]) + "), has a post − pre C interval that "
-            "excludes zero")
-    if unexposed:
-        rule += ("; " + join([f"{m['name']}'s ({m.get('cutoff') or 'unknown'})" for m in unexposed])
-                 + f" cutoff{'s precede' if len(unexposed) > 1 else ' precedes'} every window, so both halves are "
-                 "unseen and the gap cannot be contamination")
-    return rule + (f". {join([models[k]['name'] for k in differ])} meet{'s' if len(differ) == 1 else ''} it, so the "
-                   "post-cutoff column leads." if differ else
-                   ". None does, so all the windows lead, with both halves shown.")
+def lead_text(models: dict, exposed: list[str]) -> str:
+    """The pre-registration's lead-split rule as read before any API-model result, in one sentence."""
+    return ("The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data "
+            "contamination, so, as read before any API-model result, only a model whose reported training cutoff comes "
+            "after the first pre-cutoff window (" + join([models[k]["name"] for k in exposed] or ["none here"])
+            + ") can trigger it, when its post − pre interval in C excludes zero.")
+
+
+def months(s: dict, split: str) -> str:
+    fr = sorted(f["front"] for f in s["fronts"] if f["split"] == split)
+    a, b = dt.date.fromisoformat(fr[0]), dt.date.fromisoformat(fr[-1]) + dt.timedelta(days=2)
+    return f"{a:%b}–{b:%b}" if a.month != b.month else f"{a:%b}"
+
+
+def texts(s: dict, retry_note: str | None) -> dict:
+    """The sentences the README and the card share: the two halves, valid submissions and reliability."""
+    ms, rule = s["models"], s["lead_rule"]
+    pre, post = months(s, "pre_cutoff"), months(s, "post_cutoff")
+    have = [k for k, m in ms.items() if m["pre_cutoff"]["C"]["mean"] is not None
+            and m["post_cutoff"]["C"]["mean"] is not None]
+    lower = [k for k in have if ms[k]["post_cutoff"]["C"]["mean"] < ms[k]["pre_cutoff"]["C"]["mean"]]
+    unseen = [ms[k]["name"] for k in rule["unexposed"] if k in lower]
+    named = [NAMED_FRONTS[f["front"]] for f in s["fronts"] if f["split"] == "pre_cutoff" and f["front"] in NAMED_FRONTS]
+    halves = []
+    if len(have) > 1 and lower == have:
+        halves.append(f"Every model scores lower on {post} than on {pre}"
+                      + (f", and that includes {join(unseen)}, whose training predates every window" if unseen else "")
+                      + ".")
+        if unseen:
+            halves.append("So the drop reflects harder windows" + (f" (the {pre} half includes {join(named)})"
+                                                                   if named else "")
+                          + ", not evidence of training-data contamination.")
+    elif lower:
+        halves.append(f"{join([ms[k]['name'] for k in lower])} score{'s' if len(lower) == 1 else ''} lower on {post} "
+                      f"than on {pre}.")
+    differ = [ms[k]["name"] for k in s["halves_differ"]]
+    halves.append((f"{join(differ)}'s post − pre interval excludes zero, so the post-cutoff half leads" if differ else
+                   f"No API model's post − pre interval excludes zero, so all {s['n_windows']} windows lead")
+                  + ", by a rule set before any API result.")
+    valid = " ".join(f"{m['name']} made no valid submission on {round((1 - m['all']['valid_share']) * m['n'])} of its "
+                     f"{m['n']} windows (R = 0 there)." for m in ms.values()
+                     if m["all"]["valid_share"] is not None and m["all"]["valid_share"] < 1) or None
+    tries = sum(m["attempts"]["total"] for m in ms.values())
+    failed = sum(m["attempts"]["failed"] for m in ms.values())
+    kinds = sum((Counter(m["attempts"]["failure_kinds"]) for m in ms.values()), Counter())
+    missing = [f"{m['name']}, " + ", ".join(f"{k} ×{v}" for k, v in m["attempts"]["missing_reasons"].items())
+               for m in ms.values() if m["missing"]]
+    reliability = (f"{tries} attempts for {sum(m['n'] + len(m['missing']) for m in ms.values())} model-windows; "
+                   + (f"{failed} did not reach the grade ({', '.join(f'{k} ×{v}' for k, v in kinds.most_common())}). "
+                      "Infrastructure failures were retried" + (f"; {retry_note}" if retry_note else
+                                                                ", at most twice a window") + "."
+                      if failed else "every one reached the grade.")
+                   + (f" Windows not scored and not imputed: {'; '.join(missing)}." if missing else
+                      " No window is missing."))
+    return {"halves": " ".join(halves), "rule": rule["text"], "valid": valid, "reliability": reliability}
 
 
 def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: list[dict], labs: dict, gpus: dict,
@@ -616,7 +655,7 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
         "models": models, "order_by_C": sorted((k for k in keys if models[k]["n"]),
                                                key=lambda k: -models[k]["all"]["C"]["mean"]),
         "lead_rule": {"exposed": exposed, "unexposed": [k for k in keys if k not in exposed], "first_window": first,
-                      "set": "before any API-model result", "text": lead_text(models, exposed, differ)},
+                      "set": "before any API-model result", "text": lead_text(models, exposed)},
         "halves_differ": differ, "lead_split": "post_cutoff" if differ else "all", "references": refs,
         "paired": pairs, "plot": plot_block(models, refs), "attempts": log, "regraded": regrade_check(rows),
         "run": {"framework": a.framework, "bundle": a.bundle, "prereg": a.prereg, "route": route,
@@ -800,7 +839,9 @@ def readme(s: dict) -> str:
     fake = ("> **FAKE DATA.** Synthesized from the pilot records to exercise this pipeline; no benchmark run is "
             "behind any number here.\n\n" if s["fake"] else "")
     deferred = "".join(f"\n\n{x}" for x in s.get("deferred") or [])
-    lead = s["lead_rule"]["text"]
+    said = [f"- **Before and after the cutoffs.** {s['text']['halves']}",
+            *([f"- **Valid submissions.** {s['text']['valid']}"] if s["text"]["valid"] else []),
+            f"- **Reliability.** {s['text']['reliability']}"]
     diffs = s["regraded"]["diffs"]
     lines = [
         f"# GridSimEnv desk v4 benchmark: results on `{s['pack']}`", "", fake.rstrip(), "" if fake else None,
@@ -813,7 +854,8 @@ def readme(s: dict) -> str:
         f"cutoff. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} fronts (each split's "
         f"{len(sp['pre_cutoff']['fronts'])} within it).", "",
         picture("cost-vs-score", "Hindsight capture against cost per window, one point per model"), "",
-        t1 + deferred, "", lead, "", picture("splits", "Hindsight capture before and after the training cutoffs"), "",
+        t1 + deferred, "", picture("splits", "Hindsight capture before and after the training cutoffs"), "",
+        "## What the numbers say", "", *said, "",
         "## Paired gaps (the windows both played)", "", t2, "",
         "## Against the real operator's bids, replayed through the same clearing and settlement", "", t3, "",
         "## Post-cutoff minus pre-cutoff, each model", "",
@@ -830,6 +872,7 @@ def readme(s: dict) -> str:
         + ", ".join(f"{k} {v}" for k, v in run["harness_versions"].items()) + "; budget: "
         + ", ".join(f"{k} {v}" for k, v in (run.get("budget") or {}).items())
         + f"; core {', '.join(run['core_versions'])}.",
+        f"- Which half leads: {s['text']['rule']}",
         "- A model's scored attempt on a window is its first that reached the grade; earlier attempts are retries "
         "(infrastructure failures), later ones extra and never scored; a window no attempt reached is missing and "
         "never imputed (each model's n says how many it has).",
@@ -880,6 +923,8 @@ def main() -> None:
                     help="replace TERM in every Episode JSON with <redacted>, counted in summary.json (for a term the "
                          "leak scan stops on, such as a host an agent printed)")
     ap.add_argument("--hero", metavar="MODEL:TASK_ID", help="the lead GIF's episode, in place of the ranking's pick")
+    ap.add_argument("--retry-note", help="how the retry limit was applied, the clause after 'Infrastructure "
+                                         "failures were retried;'")
     ap.add_argument("--no-figures", action="store_true")
     a = ap.parse_args()
     tasks = {t["task_id"]: t for t in load_tasks(a.pack)}
@@ -906,6 +951,7 @@ def main() -> None:
     with gzip.GzipFile(out / "grades.jsonl.gz", "wb", mtime=0) as f:
         f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode())
     s["hero"] = hero(s, rows, out, a.hero)
+    s["text"] = texts(s, a.retry_note)
     (out / "summary.json").write_text(json.dumps(s, indent=1, ensure_ascii=False) + "\n")
     if not a.no_figures:
         shutil.rmtree(out / "figures", ignore_errors=True)

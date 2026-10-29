@@ -118,6 +118,7 @@ R = 0.
   model's training cutoff) with each model in its own vendor's harness, under a pre-registration of its own.
   `scripts/desk_bench_results.py` scores a model's first attempt on a window that reached the grade, counts every
   attempt in the cost, and never imputes a window a model did not finish.
+<!-- bench-rule -->
 - **Every grade replayed.** `scripts/desk_report.py` re-grades every Episode JSON against frozen references, and each
   version's `summary.json` records the references used and every difference from the runner's own grade.
 - **References on every task,** settled by the same clearing, physics and settlement code: idle; the anchor, the
