@@ -157,11 +157,11 @@ def report(a) -> dict:
     ep_calls = [c for t in ep_turns for c in t.get("calls") or []]
     task = load_task(a.pack, a.task) if a.pack else None
     idle = policies.run(task, load_series(a.pack, task), "idle").episode() if task else None
-    created, done = inst.get("created_at_utc"), inst.get("completed_at_utc")
+    ran = re.findall(r"\] (?:passed|failed|scored below 1|cancelled) in ([\d.]+)s", run_log)
     return {
         "harness": a.harness, "instance_id": inst.get("instance_id"), "status": inst.get("status"),
         "error": inst.get("error"), "completed_steps": inst.get("completed_steps"), "total_steps": inst.get("total_steps"),
-        "wall_s": (datetime.fromisoformat(done) - datetime.fromisoformat(created)).total_seconds() if created and done else None,
+        "wall_s": float(ran[-1]) if ran else None,
         "step_seconds": steps,
         "grade": {k: grade.get(k) for k in ("reward", "capture", "capture_phys", "p", "p_idle", "p_anchor", "p_hind",
                                             "p_hind_phys", "p_operator_replay", "valid") if k in grade},
