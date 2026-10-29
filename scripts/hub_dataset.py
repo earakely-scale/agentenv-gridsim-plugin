@@ -795,7 +795,7 @@ BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
 BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
-NOT_YET_IN_VIEWER = ("argon",)
+NOT_YET_IN_VIEWER = ()
 BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
               "post_cutoff": "after every model's training cutoff"}
 FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
