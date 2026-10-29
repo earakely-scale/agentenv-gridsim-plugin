@@ -459,3 +459,40 @@ passes and `c_undefined` is 0 of 32. 8 of 32 windows are floored:
 
 On 08-26 S04 the anchor loses money (−$33.1k against idle +$25.4k). Most of the loss is the RT AS imbalance on
 08-26 (−$75.6k): the anchor's DAM AS awards are bought back at scarcity RT prices. Hindsight there is $464k.
+
+## 14. v4 training days (`desk-v4-train`)
+
+**What it is.** 288 single-day tasks under the v4 layer (`n_days: 1`, `desk-v4-<date>-<site>`), every operating day
+D0, D1 and D2 of 24 three-day windows at all four sites (96 site-windows), for fine-tuning on one operating day per
+episode. A day task is what `build_task` makes of one day: history D-7..D-1, RT and system series D-1..D, the desk's
+single-day forecast vintages and the store's ERCOT vintages (72 h covers a day), soc0 from the disclosed D-1 SoC.
+`tags.window` and `tags.window_day` name each day's window and its place in it.
+
+**Windows.** Only 2025-12-20..2026-01-22 and 2026-05-11..2026-07-03, so the benchmark's January–May half and its
+July–August post-cutoff half keep their regimes to themselves. Each window keeps D-7..D2 clear of DST, has every RT
+and DAM interval in the price history (which rules out the windows holding 2026-01-08 and 2026-06-04), and every
+day more than 3 days from every day of `desk-v4-bench`, `desk-v4-eval` and `desk-v4-pilot`. Within those rules the
+windows are disjoint and as many as each period holds (9 and 15), placed on the strongest weather and notice fronts
+where the count allows: 12-20, 12-23, 12-26, 12-29, 01-01, 01-04, 01-09, 01-13, 01-17; 05-14, 05-17, 05-20, 05-23,
+05-26, 05-29, 06-01, 06-06, 06-09, 06-12, 06-15, 06-18, 06-22, 06-25, 06-28. Seven days are also days of older packs
+of other layers (`desk-v2-tune` 01-14, 05-20, 05-27, 06-17; `desk-v2-eval` 06-24; `desk-v3-eval` and `desk-v5-eval`
+05-26, 06-06).
+
+**Splits.** `val` is every day of the windows 01-13, 06-06 and 06-09 at all four sites (36 days; one of the nine
+December–January windows and two of the fifteen May–June ones, drawn with numpy `default_rng(0)`); the other 252
+days are `train`.
+
+**operator_ok.** 251 of 288. It fails on 12-20..12-28 at every site, where the 60-day SCED Resource AS Offers return
+no rows for the four resources (they resume on 12-29), and on 06-03 at S02. Only the operator
+replay reference reads that disclosure; the training bundle (`scripts/desk_train.py`) leaves these 37 days out unless
+asked for them.
+
+**Desk forecast.** Single-day vintages from `desk_data_forecast.py --packs desk-v4-train` with the months 2025-11,
+2025-12, 2026-01, 2026-04, 2026-05 and 2026-06. Every month whose previous month is refit too reproduces
+`report.json` exactly (2025-12, 2026-01, 2026-05, 2026-06, the months of the training days), so `report.json` is
+unchanged.
+
+**References.** `desk_run.py --refs-only` on the core at `desk-v4-freeze` (desk-2.1, anchor risk 1.5 / spread).
+`c_undefined` is 0 of 288; 114 days are floored and on 74 the anchor ends below idle, as a one-day information-matched
+anchor often does. On the 251 operator_ok days the anchor's C (hindsight capture) averages 0.076 on train (median
+0.071, above idle on 73% of days) and 0.051 on val; idle's is 0.

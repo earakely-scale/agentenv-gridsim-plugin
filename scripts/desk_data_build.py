@@ -96,6 +96,25 @@ PACKS = {
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
 PACKS.update(V3.PACKS)
+TRAIN_WINDOWS = ("2025-12-20", "2025-12-23", "2025-12-26", "2025-12-29", "2026-01-01", "2026-01-04", "2026-01-09",
+                 "2026-01-13", "2026-01-17", "2026-05-14", "2026-05-17", "2026-05-20", "2026-05-23", "2026-05-26",
+                 "2026-05-29", "2026-06-01", "2026-06-06", "2026-06-09", "2026-06-12", "2026-06-15", "2026-06-18",
+                 "2026-06-22", "2026-06-25", "2026-06-28")
+TRAIN_VAL_WINDOWS = ("2026-01-13", "2026-06-06", "2026-06-09")
+TRAIN_DAYS = {str(dt.date.fromisoformat(w) + dt.timedelta(days=k)): (w, f"D{k}")
+              for w in TRAIN_WINDOWS for k in range(3)}
+PACKS["desk-v4-train"] = {
+    "split": "train", "layer": "v4", "n_days": 1, "windows": TRAIN_DAYS,
+    "val": {day for day, (w, _) in TRAIN_DAYS.items() if w in TRAIN_VAL_WINDOWS},
+    "tasks": [(day, s) for day in TRAIN_DAYS for s in SITES],
+    "selection": {"periods": ["2025-12-20..2026-01-22", "2026-05-11..2026-07-03"],
+                  "rule": "three-day windows D0..D2 with no DST change in D-7..D2, every RT and DAM interval in the "
+                          "price history, and more than 3 days between every window day and every day of "
+                          "desk-v4-bench, desk-v4-eval and desk-v4-pilot; disjoint, the most windows per period, "
+                          "aligned to the strongest weather and notice fronts where the count allows",
+                  "unit": "one task per operating day of a window (n_days 1)",
+                  "val": "every day of the windows " + ", ".join(TRAIN_VAL_WINDOWS) + " at all four sites "
+                         "(numpy default_rng(0): one of the nine Dec-Jan windows, two of the fifteen May-Jun ones)"}}
 
 
 # ---------------------------------------------------------------- time
@@ -883,13 +902,16 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
     site.pop("county", None)
     extra = V3.extend(ser, site, days, era, spec, d0, sid, info) if spec["layer"] != "v2" else {}
     s = json.dumps(ser, separators=(",", ":"), allow_nan=False)
+    window = spec.get("windows", {}).get(d0)
     task = {"task_id": tid, "schema": "gridsim.desk.task/v1", "desk_version": "2.0", "pack": pack,
-            "split": spec["split"], "layer": spec["layer"], "era": era, "dates": [str(d) for d in days], "site": site,
+            "split": "val" if d0 in spec.get("val", ()) else spec["split"], "layer": spec["layer"], "era": era,
+            "dates": [str(d) for d in days], "site": site,
             "series": f"series/{tid}.json.gz", "series_sha": hashlib.sha256(s.encode()).hexdigest(),
             "operator_ok": bool(ok and extra.get("operator_ok", True)),
             "tags": {"season": season, "day_kind": kind, "notices": n_not, "max_rt_lmp": max(lmps),
                      "min_rt_lmp": min(lmps), "dam_spread": round(max(dams) - min(dams), 2),
-                     "neg_lmp_intervals": sum(v < 0 for v in lmps), **extra.get("tags", {})}}
+                     "neg_lmp_intervals": sum(v < 0 for v in lmps), **extra.get("tags", {}),
+                     **({"window": window[0], "window_day": window[1]} if window else {})}}
     info["unit_events"] = len(ser["unit_events"])
     info["notices"] = len(ser["notices"])
     info["nws"] = len(ser["nws"])
@@ -924,7 +946,7 @@ def main():
         spec = PACKS[pack]
         out = DESK / pack
         (out / "series").mkdir(parents=True, exist_ok=True)
-        tasks, infos = [], {}
+        tasks, infos, skipped = [], {}, {}
         old = reused(spec)
         old_cov = json.loads((DESK / spec["reuse"] / "manifest.json").read_text())["coverage"] if old else {}
         for d0, sid in spec["tasks"]:
@@ -937,7 +959,14 @@ def main():
                 tasks.append(cutoff_tag(old[tid], spec))
                 infos[tid] = old_cov[tid]
                 continue
-            task, s, info = build_task(pack, spec, d0, sid, reg, cal)
+            try:
+                task, s, info = build_task(pack, spec, d0, sid, reg, cal)
+            except ValueError as e:
+                if "windows" not in spec:
+                    raise
+                skipped[tid] = str(e)
+                print(f"[build] {tid}: skipped, {e}", flush=True)
+                continue
             task = cutoff_tag(task, spec)
             (out / "series" / f"{task['task_id']}.json.gz").write_bytes(gzip.compress(s.encode(), mtime=0))
             tasks.append(task)
@@ -961,6 +990,10 @@ def main():
             manifest["cutoff"] = {**spec["cutoff"], "splits": dict(Counter(t["tags"]["split"] for t in tasks))}
         if spec.get("fronts"):
             manifest["fronts"] = spec["fronts"]
+        if spec.get("selection"):
+            manifest["selection"] = spec["selection"] | {"windows": sorted({w for w, _ in spec["windows"].values()}),
+                                                         "splits": dict(Counter(t["split"] for t in tasks)),
+                                                         "skipped": skipped}
         (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
 
 

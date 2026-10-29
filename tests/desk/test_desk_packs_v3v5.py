@@ -1,3 +1,5 @@
+import datetime as dt
+
 import pytest
 
 from gridsim_core.desk import data
@@ -42,3 +44,32 @@ def test_v5_market_reclear_without_battery_posts_real_price(pack):
             floor, cap = limits(d)
             st = Stack(day, s["dam_spp"][d], floor, cap)
             assert all(abs(st.clear(h, None, True)[0] - s["dam_spp"][d][h]) < 1e-3 for h in range(24))
+
+
+TRAIN = data_root() / "desk" / "desk-v4-train"
+HELD = ("desk-v4-bench", "desk-v4-eval", "desk-v4-pilot")
+PERIODS = (("2025-12-20", "2026-01-22"), ("2026-05-11", "2026-07-03"))
+
+
+@pytest.mark.skipif(not (TRAIN / "tasks.jsonl.gz").exists(), reason="no desk-v4-train pack")
+def test_v4_train_days_come_from_disjoint_three_day_windows_away_from_the_benchmark():
+    tasks = data.load_tasks(str(TRAIN))
+    day = dt.date.fromisoformat
+    held = {day(d) for p in HELD for t in data.load_tasks(p) for d in t["dates"]}
+    windows: dict[str, set] = {}
+    for t in tasks:
+        [d] = t["dates"]
+        w, k = t["tags"]["window"], int(t["tags"]["window_day"][1:])
+        assert (t["layer"], t["era"], t["task_id"]) == ("v4", "rtcb", f"desk-v4-{d}-{t['site']['site_id']}")
+        assert day(d) == day(w) + dt.timedelta(days=k) and t["split"] in ("train", "val")
+        assert any(a <= d <= b for a, b in PERIODS) and min(abs((day(d) - h).days) for h in held) > 3
+        assert t["refs"]["series_sha"] and t["refs"]["p_hind"] >= t["refs"]["p_idle"] - 1
+        windows.setdefault(w, set()).add((d, t["site"]["site_id"], t["split"]))
+    starts = sorted(map(day, windows))
+    assert all(b - a >= dt.timedelta(days=3) for a, b in zip(starts, starts[1:], strict=False))
+    assert all(len({s for _, _, s in v}) == 1 for v in windows.values())
+    val = [w for w, v in windows.items() if {s for _, _, s in v} == {"val"}]
+    assert len(val) == 3 and all(len(windows[w]) == 12 for w in val)
+    series = data.load_series(str(TRAIN), tasks[0])
+    [dam] = [v for v in series["desk_forecast"] if v["market"] == "dam"]
+    assert dam["issued_at"].startswith(str(day(tasks[0]["dates"][0]) - dt.timedelta(days=1)) + "T06:00")
