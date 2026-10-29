@@ -656,14 +656,14 @@ def episodes_out(atts: list[dict], rows: list[dict], out: Path, redact: list[str
     return dict(hits)
 
 
-def hero(s: dict, rows: list[dict], out: Path) -> dict | None:
-    """The lead GIF's episode: a run of an API model with visible trading (accepted day-ahead offers and at least two
-    real-time re-offers), ranked by scripts/hub_desk_hero.py's score (C, beating the anchor and the operator, re-bids,
-    re-plans at events) plus a bonus per day-ahead market bid, for reserves won and for a window after every model's
-    training cutoff."""
-    hh, best = module("hub_desk_hero", "scripts/hub_desk_hero.py"), None
+def hero(s: dict, rows: list[dict], out: Path, pick: str | None) -> dict | None:
+    """The lead GIF's episode (MODEL:TASK_ID with --hero): a run of an API model with visible trading (accepted
+    day-ahead offers and at least two real-time re-offers), a window after every model's training cutoff when one
+    qualifies, ranked by scripts/hub_desk_hero.py's score plus a bonus per day-ahead market bid and for reserves won."""
+    hh, cands = module("hub_desk_hero", "scripts/hub_desk_hero.py"), []
     for r in rows:
-        if r["status"] != "scored" or s["models"][r["model"]]["weights"] == "open":
+        if r["status"] != "scored" or s["models"][r["model"]]["weights"] == "open" or (
+                pick and pick != f"{r['model']}:{r['task_id']}"):
             continue
         path = out / r["episode"]
         ep = hh.regraded(hh.read(path), path, out / "grades.jsonl.gz")
@@ -673,15 +673,18 @@ def hero(s: dict, rows: list[dict], out: Path) -> dict | None:
         reserves = any(x.get("as") for x in subs) or any(
             v for d in ep["dates"] for part in ("dam", "rt")
             for h in ((ep.get(part) or {}).get(d, {}).get("as_award_mw") or []) for v in (h or {}).values())
-        if not dam or rt < 2:
+        if not pick and (not dam or rt < 2):
             continue
         score, why = hh.score(ep)
-        score += 0.25 * len(dam) + 0.8 * reserves + 1.0 * (r["split"] == "post_cutoff")
-        if best is None or score > best["score"]:
-            best = {"model": r["model"], "task_id": r["task_id"], "episode": r["episode"], "score": round(score, 3),
-                    "why": f"{why}; day-ahead markets bid {len(dam)}, real-time re-offers {rt}, reserves "
-                           f"{'won' if reserves else 'none'}, {r['split']}"}
-    return best
+        cands.append({"model": r["model"], "task_id": r["task_id"], "episode": r["episode"], "split": r["split"],
+                      "score": round(score + 0.25 * len(dam) + 0.8 * reserves, 3),
+                      "why": f"{why}; day-ahead markets bid {len(dam)}, real-time re-offers {rt}, reserves "
+                             f"{'won' if reserves else 'none'}, {r['split']}"
+                             + ("; chosen with --hero" if pick else "")})
+    if pick and not cands:
+        raise SystemExit(f"--hero {pick}: no scored API-model run of that window")
+    post = [c for c in cands if c["split"] == "post_cutoff"]
+    return max(post or cands, key=lambda c: c["score"], default=None)
 
 
 def leaks(out: Path, extra: list[str]) -> None:
@@ -872,6 +875,7 @@ def main() -> None:
     ap.add_argument("--redact", action="append", default=[], metavar="TERM",
                     help="replace TERM in every Episode JSON with <redacted>, counted in summary.json (for a term the "
                          "leak scan stops on, such as a host an agent printed)")
+    ap.add_argument("--hero", metavar="MODEL:TASK_ID", help="the lead GIF's episode, in place of the ranking's pick")
     ap.add_argument("--no-figures", action="store_true")
     a = ap.parse_args()
     tasks = {t["task_id"]: t for t in load_tasks(a.pack)}
@@ -897,7 +901,7 @@ def main() -> None:
     s["skipped"] = dict(skipped) or None
     with gzip.GzipFile(out / "grades.jsonl.gz", "wb", mtime=0) as f:
         f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode())
-    s["hero"] = hero(s, rows, out)
+    s["hero"] = hero(s, rows, out, a.hero)
     (out / "summary.json").write_text(json.dumps(s, indent=1, ensure_ascii=False) + "\n")
     if not a.no_figures:
         shutil.rmtree(out / "figures", ignore_errors=True)
