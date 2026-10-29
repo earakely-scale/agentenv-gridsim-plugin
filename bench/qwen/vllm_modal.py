@@ -1,5 +1,5 @@
 """Qwen3-4B for the desk bench on a Modal GPU: vLLM 0.29.0 serving Qwen/Qwen3-4B at the revision the g5 run host
-serves, with that host's flags (bf16, 32k context, hermes tool calls, prefix caching, thinking off unless a request
+serves, on CUDA 13 with nvcc as there (vLLM JIT-compiles FlashInfer kernels), with that host's flags (bf16, 32k context, hermes tool calls, prefix caching, thinking off unless a request
 turns it on) plus the Qwen3 reasoning parser, which hands OpenCode the thinking as reasoning_content. The weights are
 baked into the image; the API key comes from the Modal secret QWEN_SECRET names, as VLLM_API_KEY.
 
@@ -27,9 +27,8 @@ def download() -> None:
     snapshot_download(MODEL, revision=REVISION, local_dir=WEIGHTS)
 
 
-image = (modal.Image.debian_slim(python_version="3.12")
-         .pip_install("vllm==0.29.0", "huggingface_hub[hf_transfer]")
-         .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
+image = (modal.Image.from_registry("nvidia/cuda:13.0.3-devel-ubuntu24.04", add_python="3.12")
+         .pip_install("vllm==0.29.0", "huggingface_hub")
          .run_function(download))
 app = modal.App("gridsim-qwen3-4b")
 
