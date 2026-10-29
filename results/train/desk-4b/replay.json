@@ -1,0 +1,765 @@
+{
+ "note": "CPU replay of desk-v4-train through AgentEnv.local (agentenv-framework 0.9.1386) with the training reward (2 * capture - 1); a core policy plays each day through the factory's tool methods and end_turn, checked against an in-process Session byte for byte and against its capture floored at -1",
+ "factory": {
+  "tools": [
+   {
+    "name": "get_prices",
+    "description": "Posted prices only (ERCOT public reports): DAM SPP hourly, RT SPP 15-min, SCED LMP 5-min, at your node or your hub.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "market": {
+       "type": "string",
+       "enum": [
+        "dam",
+        "rt",
+        "sced",
+        "as_dam",
+        "as_rt",
+        "asdc"
+       ]
+      },
+      "point": {
+       "type": "string",
+       "enum": [
+        "node",
+        "hub"
+       ]
+      },
+      "day": {
+       "type": "string",
+       "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+      },
+      "start": {
+       "type": "string",
+       "description": "a time as shown (\"Sun 04-26 09:00\" or \"04-26 09:00\"), or \"D0 14:35\", \"D-1 10:00\", \"14:35\" (on the day) or ISO"
+      },
+      "end": {
+       "type": "string",
+       "description": "a time as shown (\"Sun 04-26 09:00\" or \"04-26 09:00\"), or \"D0 14:35\", \"D-1 10:00\", \"14:35\" (on the day) or ISO"
+      },
+      "step": {
+       "type": "string",
+       "enum": [
+        "5m",
+        "15m",
+        "1h"
+       ]
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "get_forecasts",
+    "description": "As-issued forecasts: the desk price forecast (P10/P50/P90, modelled), ERCOT load, wind, solar and net load, outage capacity, NWS alerts.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "price",
+        "load",
+        "wind",
+        "solar",
+        "net_load",
+        "outages",
+        "weather",
+        "as_price",
+        "pv"
+       ]
+      },
+      "market": {
+       "type": "string",
+       "enum": [
+        "dam",
+        "rt"
+       ]
+      },
+      "day": {
+       "type": "string",
+       "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+      },
+      "vintage": {
+       "type": "string",
+       "description": "\"latest\" or a past time to read an earlier issue"
+      },
+      "step": {
+       "type": "string",
+       "enum": [
+        "15m",
+        "1h"
+       ]
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "get_grid_conditions",
+    "description": "System conditions on the 5-minute grid: PRC (or its labelled proxy), system lambda, load, wind, solar, EEA level and recent ERCOT notices.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "start": {
+       "type": "string",
+       "description": "a time as shown (\"Sun 04-26 09:00\" or \"04-26 09:00\"), or \"D0 14:35\", \"D-1 10:00\", \"14:35\" (on the day) or ISO"
+      },
+      "end": {
+       "type": "string",
+       "description": "a time as shown (\"Sun 04-26 09:00\" or \"04-26 09:00\"), or \"D0 14:35\", \"D-1 10:00\", \"14:35\" (on the day) or ISO"
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "get_asset_status",
+    "description": "Plant telemetry: status, SoC, limits, last base points, outages, cycles, parameters.",
+    "input_schema": {
+     "type": "object",
+     "properties": {},
+     "required": []
+    }
+   },
+   {
+    "name": "get_position",
+    "description": "Your book: DAM awards, RT dispatch, curves in force, COP and the shadow statement.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "day": {
+       "type": "string",
+       "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+      },
+      "detail": {
+       "type": "string",
+       "enum": [
+        "summary",
+        "hourly"
+       ]
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "submit_dam_offers",
+    "description": "Submit DAM offers for an operating day (one ESR Energy Bid/Offer Curve per hour); before 10:00 the day before. Accepted hours replace earlier curves for those hours. AS offers ride in as_offers.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "day": {
+       "type": "string",
+       "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+      },
+      "curves": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "hours": {
+          "description": "operating hours: \"HE07-HE10\", \"HE07\", \"all\", or a list like [7, 8]",
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "array",
+            "items": {
+             "type": "integer"
+            }
+           }
+          ]
+         },
+         "points": {
+          "type": "array",
+          "items": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2
+          },
+          "description": "[[mw, price], ...] from max charge (negative MW) to max discharge; MW and price non-decreasing; 2-10 points"
+         }
+        },
+        "required": [
+         "hours"
+        ]
+       }
+      },
+      "as_offers": {
+       "type": "array",
+       "description": "AS offers per product and hour: {hours, product, blocks: [[mw, $/MW/h], ...]} (up to 5 blocks, the same each hour; [] cancels) or {hours, product, mw: [...], price: [...]} (one block per hour; 0 MW cancels). Products: regup, regdn, rrspfr, rrsffr, ecrs, nspin; price $0..$5,000/MW/h; min 0.1 MW; at most HSL - LSL.",
+       "items": {
+        "type": "object",
+        "properties": {
+         "hours": {
+          "description": "operating hours: \"HE07-HE10\", \"HE07\", \"all\", or a list like [7, 8]",
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "array",
+            "items": {
+             "type": "integer"
+            }
+           }
+          ]
+         },
+         "product": {
+          "type": "string",
+          "enum": [
+           "regup",
+           "regdn",
+           "rrspfr",
+           "rrsffr",
+           "ecrs",
+           "nspin"
+          ]
+         },
+         "blocks": {
+          "type": "array",
+          "items": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           }
+          }
+         },
+         "mw": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          }
+         },
+         "price": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          }
+         }
+        },
+        "required": [
+         "hours",
+         "product"
+        ]
+       }
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "submit_rt_offers",
+    "description": "Submit real-time offers (one ESR Energy Bid/Offer Curve per hour); from 18:00 the day before until the hour ends; used from the next SCED run. AS offers ride in as_offers.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "day": {
+       "type": "string",
+       "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+      },
+      "curves": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "hours": {
+          "description": "operating hours: \"HE07-HE10\", \"HE07\", \"all\", or a list like [7, 8]",
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "array",
+            "items": {
+             "type": "integer"
+            }
+           }
+          ]
+         },
+         "points": {
+          "type": "array",
+          "items": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "minItems": 2,
+           "maxItems": 2
+          },
+          "description": "[[mw, price], ...] from max charge (negative MW) to max discharge; MW and price non-decreasing; 2-10 points"
+         }
+        },
+        "required": [
+         "hours"
+        ]
+       }
+      },
+      "as_offers": {
+       "type": "array",
+       "description": "AS offers per product and hour: {hours, product, blocks: [[mw, $/MW/h], ...]} (up to 5 blocks, the same each hour; [] cancels) or {hours, product, mw: [...], price: [...]} (one block per hour; 0 MW cancels). Products: regup, regdn, rrspfr, rrsffr, ecrs, nspin; price $0..$2,000/MW/h; min 0.1 MW; at most HSL - LSL.",
+       "items": {
+        "type": "object",
+        "properties": {
+         "hours": {
+          "description": "operating hours: \"HE07-HE10\", \"HE07\", \"all\", or a list like [7, 8]",
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "array",
+            "items": {
+             "type": "integer"
+            }
+           }
+          ]
+         },
+         "product": {
+          "type": "string",
+          "enum": [
+           "regup",
+           "regdn",
+           "rrspfr",
+           "rrsffr",
+           "ecrs",
+           "nspin"
+          ]
+         },
+         "blocks": {
+          "type": "array",
+          "items": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           }
+          }
+         },
+         "mw": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          }
+         },
+         "price": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          }
+         }
+        },
+        "required": [
+         "hours",
+         "product"
+        ]
+       }
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "update_cop",
+    "description": "Update your Current Operating Plan per hour (status, HSL/LSL, HBSOC, MinSOC/MaxSOC); an hour freezes 60 minutes before it starts.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "day": {
+       "type": "string",
+       "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+      },
+      "rows": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "hours": {
+          "description": "operating hours: \"HE07-HE10\", \"HE07\", \"all\", or a list like [7, 8]",
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "array",
+            "items": {
+             "type": "integer"
+            }
+           }
+          ]
+         },
+         "status": {
+          "type": "string"
+         },
+         "hsl_mw": {
+          "type": "number"
+         },
+         "lsl_mw": {
+          "type": "number"
+         },
+         "hbsoc_mwh": {
+          "anyOf": [
+           {
+            "type": "number"
+           },
+           {
+            "type": "array",
+            "items": {
+             "type": "number"
+            }
+           }
+          ]
+         },
+         "min_soc_mwh": {
+          "type": "number"
+         },
+         "max_soc_mwh": {
+          "type": "number"
+         },
+         "as_capability": {
+          "type": "object",
+          "description": "AS capability MW per product; SCED awards no more"
+         }
+        },
+        "required": [
+         "hours"
+        ]
+       }
+      }
+     },
+     "required": [
+      "rows"
+     ]
+    }
+   },
+   {
+    "name": "check_submission",
+    "description": "Validate a DAM, RT or COP submission without sending it (ERCOT-style codes).",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "enum": [
+        "dam",
+        "rt",
+        "cop"
+       ]
+      },
+      "payload": {
+       "type": "object",
+       "description": "the arguments you would pass to the submit tool"
+      }
+     },
+     "required": [
+      "kind",
+      "payload"
+     ]
+    }
+   },
+   {
+    "name": "optimize",
+    "description": "Co-optimise DAM and RT on YOUR price view (\"desk\" = the latest desk forecast, or your own paths); returns proposed curves, COP and projected P&L. Proposals only; it never sees unposted prices.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "price_view": {
+       "anyOf": [
+        {
+         "type": "string",
+         "enum": [
+          "desk"
+         ]
+        },
+        {
+         "type": "object",
+         "properties": {
+          "dam": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "description": "24 hourly $/MWh per day"
+          },
+          "rt": {
+           "type": "array",
+           "items": {
+            "type": "number"
+           },
+           "description": "24 hourly or 96 15-min per day"
+          },
+          "scenarios": {
+           "type": "array",
+           "items": {
+            "type": "object"
+           }
+          }
+         }
+        }
+       ]
+      },
+      "risk": {
+       "type": "number",
+       "description": "0 = act on the median only, 1 = widen curves to the scenario range, up to 2"
+      },
+      "constraints": {
+       "type": "object",
+       "properties": {
+        "end_soc_mwh": {
+         "type": "number"
+        },
+        "max_cycles": {
+         "type": "number"
+        },
+        "hours": {
+         "description": "operating hours: \"HE07-HE10\", \"HE07\", \"all\", or a list like [7, 8]",
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "array",
+           "items": {
+            "type": "integer"
+           }
+          }
+         ]
+        },
+        "day": {
+         "type": "string",
+         "description": "\"D0\" (the operating day), \"D-1\" (the day you start on), \"D1\", \"D2\" (v4) or an ISO date; default the day in progress"
+        },
+        "dam_position": {
+         "type": "string",
+         "enum": [
+          "physical",
+          "spread"
+         ],
+         "description": "physical (default): DAM curves capped at the planned dispatch; spread: also take the forecast DAM/RT spread"
+        }
+       }
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "name": "set_reminder",
+    "description": "Wake yourself at a time (5-minute grid). Ending your turn waits until the next event.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "at": {
+       "type": "string",
+       "description": "a time as shown (\"Sun 04-26 09:00\" or \"04-26 09:00\"), or \"D0 14:35\", \"D-1 10:00\", \"14:35\" (on the day) or ISO"
+      },
+      "note": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "at"
+     ]
+    }
+   },
+   {
+    "name": "end_turn",
+    "description": "End your turn with your reply. The episode goes on to your next turn, or ends and is scored.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "response": {
+       "type": "string",
+       "description": "Your reply."
+      }
+     }
+    }
+   }
+  ]
+ },
+ "train_anchor": {
+  "server_start_s": 1.37,
+  "factory_s": 22.41,
+  "tools_are_desk_and_end_turn": true,
+  "split_rows": 215,
+  "tasks": [
+   {
+    "task_id": "desk-v4-2025-12-29-S01",
+    "reward": 0.007894000000000068,
+    "capture": 0.007894,
+    "r": 0.328249,
+    "anchor_capture": 0.007894,
+    "wakes": 7,
+    "calls": 20,
+    "wall_s": 26.69,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-01-05-S02",
+    "reward": 0.138023,
+    "capture": 0.138023,
+    "r": 1.0,
+    "anchor_capture": 0.138023,
+    "wakes": 7,
+    "calls": 20,
+    "wall_s": 27.01,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-01-18-S03",
+    "reward": 0.19070600000000004,
+    "capture": 0.190706,
+    "r": 1.0,
+    "anchor_capture": 0.190706,
+    "wakes": 8,
+    "calls": 23,
+    "wall_s": 27.28,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-05-17-S03",
+    "reward": 0.054923000000000055,
+    "capture": 0.054923,
+    "r": 1.0,
+    "anchor_capture": 0.054923,
+    "wakes": 7,
+    "calls": 20,
+    "wall_s": 27.12,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-05-27-S02",
+    "reward": -0.03987300000000005,
+    "capture": -0.039873,
+    "r": 0.0,
+    "anchor_capture": -0.039873,
+    "wakes": 13,
+    "calls": 38,
+    "wall_s": 30.49,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-06-16-S04",
+    "reward": 0.08366000000000007,
+    "capture": 0.08366,
+    "r": 1.0,
+    "anchor_capture": 0.08366,
+    "wakes": 25,
+    "calls": 74,
+    "wall_s": 34.98,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-06-24-S01",
+    "reward": 0.05485399999999996,
+    "capture": 0.054854,
+    "r": 1.0,
+    "anchor_capture": 0.054854,
+    "wakes": 20,
+    "calls": 55,
+    "wall_s": 32.73,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-06-30-S04",
+    "reward": 0.0017810000000000326,
+    "capture": 0.001781,
+    "r": 0.235544,
+    "anchor_capture": 0.001781,
+    "wakes": 8,
+    "calls": 23,
+    "wall_s": 29.19,
+    "problems": []
+   }
+  ],
+  "rollouts_wall_s": 62.06,
+  "total_s": 87.34,
+  "summary": {
+   "rollouts": 8,
+   "problems": 0,
+   "reward_mean": 0.0615,
+   "wall_s_median": 28.235
+  }
+ },
+ "val_anchor": {
+  "server_start_s": 1.59,
+  "factory_s": 22.59,
+  "tools_are_desk_and_end_turn": true,
+  "split_rows": 36,
+  "tasks": [
+   {
+    "task_id": "desk-v4-2026-01-15-S01",
+    "reward": 0.16072299999999995,
+    "capture": 0.160723,
+    "r": 1.0,
+    "anchor_capture": 0.160723,
+    "wakes": 9,
+    "calls": 26,
+    "wall_s": 25.84,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-06-08-S02",
+    "reward": 0.158725,
+    "capture": 0.158725,
+    "r": 1.0,
+    "anchor_capture": 0.158725,
+    "wakes": 19,
+    "calls": 54,
+    "wall_s": 28.86,
+    "problems": []
+   }
+  ],
+  "rollouts_wall_s": 28.89,
+  "total_s": 54.54,
+  "summary": {
+   "rollouts": 2,
+   "problems": 0,
+   "reward_mean": 0.1597,
+   "wall_s_median": 27.35
+  }
+ },
+ "train_idle": {
+  "server_start_s": 1.38,
+  "factory_s": 22.65,
+  "tools_are_desk_and_end_turn": true,
+  "split_rows": 215,
+  "tasks": [
+   {
+    "task_id": "desk-v4-2026-01-05-S02",
+    "reward": 0.0,
+    "capture": 0.0,
+    "r": 0.2,
+    "anchor_capture": 0.138023,
+    "wakes": 7,
+    "calls": 1,
+    "wall_s": 24.11,
+    "problems": []
+   },
+   {
+    "task_id": "desk-v4-2026-06-16-S04",
+    "reward": 0.0,
+    "capture": 0.0,
+    "r": 0.2,
+    "anchor_capture": 0.08366,
+    "wakes": 25,
+    "calls": 1,
+    "wall_s": 26.52,
+    "problems": []
+   }
+  ],
+  "rollouts_wall_s": 26.55,
+  "total_s": 52.04,
+  "summary": {
+   "rollouts": 2,
+   "problems": 0,
+   "reward_mean": 0.0,
+   "wall_s_median": 25.314999999999998
+  }
+ }
+}
