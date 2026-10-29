@@ -856,7 +856,8 @@ def bench_pitch(s: dict) -> str:
 
 def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
     """The lead GIF: the best-looking run of the model with the highest C (summary.json's `hero`), its caption from
-    that run's grade; without the GIF file, the slot it fills."""
+    that run's grade, with links to that run and to each other model's run of its window in the viewer Space's 3D
+    replay; without the GIF file, the slot it fills."""
     h = s.get("hero")
     if not h:
         return ""
@@ -864,11 +865,16 @@ def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
     m, front = s["models"][h["model"]], next(f for f in s["fronts"] if f["front"] == g["front"])
     where, when = f"Battery {g['site']} ({g['region']}, {g['battery']})", long_(
         {"days_per_task": len(g["dates"])}, g["dates"][0])
+    others = [f"[{x['name']}]({bench_replay(x['key'], h['task_id'])})" for x in bench_models(s)
+              if x["key"] != h["model"]]
     caption = (f"The v4 benchmark: {m['name']} in {m['harness']} trades {where}, a real ERCOT battery, over {when}, "
                f"through a {front['kind']}, {BENCH_WHEN[g['split']]}. It settles at {usd0(g['p'])}, hindsight "
                f"capture C {pc(g['capture'])}%"
                + (f"; the real operator's own bids, replayed, earn {usd0(g['p_operator_replay'])}"
                   if g["p_operator_replay"] is not None else "")
+               + f". [Replay it in 3D]({bench_replay(h['model'], h['task_id'])})"
+               + (f", or watch {' or '.join([', '.join(others[:-1]), others[-1]] if len(others) > 1 else others)} "
+                  "trade the same window" if others else "")
                + f". [Its Episode JSON]({DATASET}/blob/main/{BENCH_DIR}/{g['episode']}). Data: ERCOT and NWS, "
                "public; not affiliated with or endorsed by ERCOT.")
     if not attached:
@@ -877,7 +883,12 @@ def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
                           f"run of the model with the highest C by its ranking ({h['why']})."])
     alt = (f"{m['name']} at the desk of {where} over {when}: the node's prices as they post, the battery's state of "
            "charge and dispatch, and each wake-up's tool calls with their results, then the settled grade")
-    return "\n".join([f'<img src="{BENCH_GIF}" alt="{escape(alt)}" width="100%">', "", f"<small>{caption}</small>"])
+    return "\n".join([f'<a href="{bench_replay(h["model"], h["task_id"])}"><img src="{BENCH_GIF}" '
+                      f'alt="{escape(alt)}" width="100%"></a>', "", f"<small>{caption}</small>"])
+
+
+def bench_replay(model: str, task: str) -> str:
+    return f"{APP}/index.html?v=bench&m={model}&task={task}"
 
 
 def bench_block(s: dict, grades: list[dict], d: dict) -> str:

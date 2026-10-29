@@ -403,6 +403,12 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")
     for m in s["models"].values():
         assert f"| **{m['name']}** | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
+    gif = hub_dataset.bench_gif(s, grades, True)
+    assert gif.startswith(f'<a href="{lead}"><img src="{hub_dataset.BENCH_GIF}"')
+    assert f"[Replay it in 3D]({lead})" in gif
+    for k, m in s["models"].items():
+        assert (f"[{m['name']}]({hub_space.APP}/index.html?v=bench&m={k}&task={s['hero']['task_id']})" in gif) == (
+            k != s["hero"]["model"])
 
 
 def test_space_scan_reads_gzip_and_refuses_what_it_cannot_read(tmp_path):
