@@ -866,8 +866,8 @@ def readme(s: dict) -> str:
         f"{sp['post_cutoff']['windows']} windows, July and August 2026, after every model's reported training "
         f"cutoff. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} fronts (each split's "
         f"{len(sp['pre_cutoff']['fronts'])} within it).", "",
-        picture("cost-vs-score", "Hindsight capture against cost per window, one point per model"), "",
-        t1 + deferred, "", picture("splits", "Hindsight capture before and after the training cutoffs"), "",
+        picture("splits", "Hindsight capture before and after the training cutoffs, one line per model"), "",
+        t1 + deferred, "",
         "## What the numbers say", "", *said, "",
         "## Paired gaps (the windows both played)", "", t2, "",
         "## Against the real operator's bids, replayed through the same clearing and settlement", "", t3, "",

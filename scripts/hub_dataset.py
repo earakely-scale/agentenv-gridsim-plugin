@@ -892,9 +892,9 @@ def bench_replay(model: str, task: str) -> str:
 
 
 def bench_block(s: dict, grades: list[dict], d: dict) -> str:
-    """The v4 benchmark: capture against cost, the table (C with CIs over every window and on each side of the
-    training cutoffs, cost a window), capture either side of the cutoffs, what the numbers say, how it runs and its
-    limitations; every number from results/desk-v4-bench/summary.json."""
+    """The v4 benchmark: capture either side of the training cutoffs, the headline; the table (C with CIs over every
+    window and on each side of the cutoffs, cost a window); what the numbers say, how it runs and its limitations;
+    every number from results/desk-v4-bench/summary.json."""
     ms, refs, charts = bench_models(s), s["references"], d["charts"]
     cols = ["all", *BENCH_SPLITS] if s["lead_split"] == "all" else ["post_cutoff", "all", "pre_cutoff"]
     head = {"all": f"C, all {s['n_windows']} windows",
@@ -920,32 +920,30 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
              for k in BENCH_REFS]
     gpu = next((m["cost"]["gpu"] for m in ms if m["cost"].get("gpu")), None)
     op = refs["operator_replay"]
-    alt = ("Scatter chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, against "
-           "cost per three-day window on a log scale, one point per model: " + "; ".join(
-               f"{m['name']} in {m['harness']} {pc(m['all']['C']['mean'])}% at {bench_usd(m['cost']['usd_per_window'])}"
-               for m in ms if m["n"]) + f"; the real operator's bids, replayed, {pc(op['all']['C']['mean'])}%.")
-    alt2 = ("Line chart of hindsight capture C before and after the training cutoffs, one line per model: " + "; ".join(
-        f"{m['name']} {pc(m['pre_cutoff']['C']['mean'])}% then {pc(m['post_cutoff']['C']['mean'])}%"
-        for m in ms if m["n"]) + f"; the real operator's bids, replayed, {pc(op['pre_cutoff']['C']['mean'])}% then "
-        f"{pc(op['post_cutoff']['C']['mean'])}%.")
-    figs = f"{BENCH_DIR}/figures"
+    alt = ("Line chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, before and "
+           "after the training cutoffs, one line per model: " + "; ".join(
+               f"{m['name']} in {m['harness']} {pc(m['pre_cutoff']['C']['mean'])}% then "
+               f"{pc(m['post_cutoff']['C']['mean'])}%" for m in ms if m["n"])
+           + f"; the real operator's bids, replayed, {pc(op['pre_cutoff']['C']['mean'])}% then "
+           f"{pc(op['post_cutoff']['C']['mean'])}%.")
+    sides = " and ".join(f"{bench_side(s, x)} ({BENCH_SIDE[x]})" for x in BENCH_SPLITS)
     return "\n".join([
-        "**How much of the hindsight optimum each model captured, against what a three-day window cost**", "",
-        *chart("cost-vs-score", alt, charts["lead"], charts["phone"]["media"], figs), "",
+        "**How much of the hindsight optimum each model captured, before and after the training cutoffs**", "",
+        *chart("splits", alt, charts["lead"], charts["phone"]["media"], f"{BENCH_DIR}/figures"), "",
         "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
-        f"the windows it finished; 95% CIs, a block bootstrap over the {s['n_fronts']} fronts, are in the table below. "
-        "Cost a window: the tokens in each harness's own trajectories at the provider's public list price"
-        + (f"; {and_join([m['name'] for m in ms if m['cost'].get('gpu')])}'s is {gpu['note']}" if gpu else "")
-        + ". Grey dashed: the real operator's own bids, replayed through the same clearing and settlement.</small>",
+        f"the windows it finished on each side of the models' reported training cutoffs, {sides}; 95% CIs, a block "
+        f"bootstrap over the {s['n_fronts']} fronts, are in the table below. Grey dashed: the real operator's own "
+        "bids, replayed through the same clearing and settlement.</small>",
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
         f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
-        "(four within each side of the cutoffs). Cost a window: the graded attempt's list-price tokens, or the open "
-        "model's GPU time; in all: every attempt, retries and stalls included." + (f" {s['text']['metered']}" if s[
+        "(four within each side of the cutoffs). Cost a window: the graded attempt's tokens in its harness's own "
+        "trajectory at the provider's public list price"
+        + (f"; {and_join([m['name'] for m in ms if m['cost'].get('gpu')])}'s is {gpu['note']}" if gpu else "")
+        + "; in all: every attempt, retries and stalls included." + (f" {s['text']['metered']}" if s[
             "text"].get("metered") else "") + " The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
         "settlement.</small>", "", *(x for d in s.get("deferred") or [] for x in (md(d), "")),
-        *chart("splits", alt2, charts["width"], charts["phone"]["media"], figs), "",
         *(f"- {x}" for x in bench_bullets(s)), "",
         "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
         "### Known limitations of the benchmark", "", *(f"- {x}" for x in bench_limits(s)), "",

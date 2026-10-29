@@ -3,7 +3,7 @@
 
 32 three-day windows (8 real ERCOT weather fronts × 4 real batteries), 4 models in native agent harnesses at high effort. C, the headline, is hindsight capture (P − P_idle)/(P_hind − P_idle), the share of the hindsight optimum's profit over idle; R the contract reward (anchor 1.0, idle 0.2); P the settled ERCOT statement in $ per window. `pre_cutoff`: 16 windows, January to May 2026; `post_cutoff`: 16 windows, July and August 2026, after every model's reported training cutoff. Brackets: 95% CIs, a block bootstrap over the 8 fronts (each split's 4 within it).
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="figures/cost-vs-score-dark.png"><img src="figures/cost-vs-score.png" width="660" alt="Hindsight capture against cost per window, one point per model"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="figures/splits-dark.png"><img src="figures/splits.png" width="660" alt="Hindsight capture before and after the training cutoffs, one line per model"></picture>
 
 | model | harness | n | C | C, pre_cutoff | C, post_cutoff | R | P | $ / window |
 |---|---|---|---|---|---|---|---|---|
@@ -13,8 +13,6 @@
 | **Qwen3-4B** | OpenCode · thinking on | 32 | −2.1% [−5.9, 1.4] | 1.0% [−1.1, 4.9] | −5.2% [−10.8, −0.9] | 0.14 [0.06, 0.25] | −$3,525 [−$8,531, $1,232] | $0.16 |
 
 Gemini 4 Argon (Gemini CLI): deferred; projected $15–20 per window.
-
-<picture><source media="(prefers-color-scheme: dark)" srcset="figures/splits-dark.png"><img src="figures/splits.png" width="660" alt="Hindsight capture before and after the training cutoffs"></picture>
 
 ## What the numbers say
 
@@ -199,7 +197,7 @@ The halves hold different windows, so each split's fronts are drawn apart (a str
 - Deviation: Infrastructure retries (Claude Opus 5.5 27, GPT-6.1 Sol 39, GPT-6 Luna 22, Qwen3-4B 0): every attempt is kept and its spend counted.
 - Deviation: Retry rule, decided mid-run before the affected windows' results: an attempt that failed at env deploy for $0 because of our launcher's port race does not count toward the at-most-two-retries limit. All 81 such failures were port races (GPT-6.1 Sol 35, Claude Opus 5.5 27, GPT-6 Luna 19); only GPT-6.1 Sol's desk-v4-2026-03-16-S04 and desk-v4-2026-04-17-S02 were affected, both graded on attempt 4.
 - Deviation: Stalls: Codex's 300 s inactivity watchdog at effort high stopped 4 GPT-6.1 Sol and 3 GPT-6 Luna attempts; they count as infrastructure and were retried, and their spend is included in the cost.
-- Deviation: Cost basis: the chart plots the graded attempt's cost a window; the table also gives each model's total spend, retries and stalls included.
+- Deviation: Cost basis: the table gives the graded attempt's cost a window and each model's total spend, retries and stalls included.
 - Deviation: Gemini 4 Argon (Gemini CLI) was not run: deferred for cost, about $15–20 per window projected, 5–6× its approved budget.
 - Deviations as appended to the pre-registration: [docs/prereg/v4-bench.md#deviations](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations).
 - Files: `summary.json`, `grades.jsonl.gz` (one row per model and window), `episodes/<model>/*.json.gz` (Episode JSON with the run's own grade), `figures/`.

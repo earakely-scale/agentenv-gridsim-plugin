@@ -67,9 +67,17 @@ const span = (v, iso, year) => {
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 function header(head, sub, W, y0 = 17) {
-  const hx = measure(head, "t-head") + 8;
-  if (hx + measure(sub, "t-head-s") <= W) return [T(0, y0, head, "t-head") + T(hx, y0, sub, "t-head-s"), y0];
-  return [T(0, y0, head, "t-head") + T(0, y0 + 19, sub, "t-head-s"), y0 + 19];
+  const hs = balance(head, "t-head", W), y = y0 + 21 * (hs.length - 1), hx = measure(hs.at(-1), "t-head") + 8;
+  const s = hs.map((t, i) => T(0, y0 + 21 * i, t, "t-head")).join("");
+  if (hs.length === 1 && hx + measure(sub, "t-head-s") <= W) return [s + T(hx, y, sub, "t-head-s"), y];
+  return [s + T(0, y + 19, sub, "t-head-s"), y + 19];
+}
+
+function balance(s, cls, W) {
+  const n = wrap(s, cls, W).length;
+  let lo = W / n, hi = W;
+  while (hi - lo > 1) { const m = (lo + hi) / 2; if (wrap(s, cls, m).length > n) lo = m; else hi = m; }
+  return wrap(s, cls, hi);
 }
 
 function dodge(items, lo, hi, gap) {
@@ -451,11 +459,11 @@ function costScore(Bn, W, narrow) {
 
 function splitsChart(Bn, W, narrow) {
   const pts = bpts(Bn).filter((p) => p.pre_cutoff?.mean != null && p.post_cutoff?.mean != null), op = Bn.plot.references.operator_replay;
-  const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
-  let [s, y] = header("Before and after the training cutoffs", narrow ? "C, %" : "C, %, the mean of each side's windows", W);
+  const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key, hasOp = op?.pre_cutoff?.mean != null && op?.post_cutoff?.mean != null;
+  let [s, y] = header("Hindsight capture before and after the training cutoffs", "C, %, the mean of each side's windows", W);
   if (narrow) {
     const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family }))
-      .concat(op?.pre_cutoff?.mean != null ? [{ op: true, label: "Real operator", cls: "t-key op-t" }] : []), W, y + 26);
+      .concat(hasOp ? [{ op: true, label: "Real operator", cls: "t-key op-t" }] : []), W, y + 26);
     s += k;
     y = ky;
   }
@@ -465,53 +473,52 @@ function splitsChart(Bn, W, narrow) {
     return { range: `${m(a)}–${m(b)} ${b.slice(0, 4)}`, n: Bn.splits[sp].windows, f: Bn.splits[sp].fronts.length };
   };
   const sides = [side("pre_cutoff"), side("post_cutoff")];
-  const vals = pts.flatMap((p) => [p.pre_cutoff.mean, p.post_cutoff.mean]).concat(op ? [op.pre_cutoff?.mean, op.post_cutoff?.mean] : []).filter((v) => v != null);
-  const lo = Math.min(0, Math.floor((Math.min(...vals) - 0.02) * 20) / 20), hi = Math.ceil((Math.max(...vals) + 0.05) * 10) / 10;
-  const tk = ticks(lo, hi, hi - lo > 0.62 ? 0.2 : 0.1, "t-tick"), L = narrow ? 2 : Math.max(...tk.map((k) => k.w)) + 14;
-  const ends = narrow ? [] : [...pts.map((p) => ({ key: p.key, c: p.post_cutoff.mean, val: pct(p.post_cutoff.mean), name: [p.name, `${p.harness} · ${p.setting}`], bold: p.key === top })),
-    ...(op?.post_cutoff?.mean != null ? [{ key: "op", c: op.post_cutoff.mean, val: pct(op.post_cutoff.mean), op: true, name: ["Real operator", "bids replayed"] }] : [])];
-  const vw = Math.max(0, ...ends.map((e) => measure(e.val, "t-end-v"))) + 7;
-  const ew = ends.length ? vw + Math.max(...ends.map((e) => Math.max(measure(e.name[0], e.bold ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) : 0;
-  const rv = narrow ? Math.max(...pts.map((p) => measure(pct(p.post_cutoff.mean), "t-val b"))) + 26 : 0;
-  const xw = Math.max(...sides.map((sd) => measure(sd.range, "t-ver"))) / 2;
-  const lv = Math.max(...pts.map((p) => measure(pct(p.pre_cutoff.mean), "t-val b"))) + 21;
-  const R = W - (ends.length ? ew + 34 : Math.max(rv, xw - 20) + 6), pad = narrow ? 50 : 70, xs = [Math.max(L + pad, xw, lv), R - (narrow ? 8 : pad / 2)];
-  const ptop = y + (narrow ? 24 : 30), PH = narrow ? 250 : 270, bottom = ptop + PH, yv = lin(lo, hi, bottom, ptop);
+  const rows = [...pts.map((p) => ({ key: p.key, p, pre: p.pre_cutoff.mean, post: p.post_cutoff.mean, b: p.key === top, name: [p.name, `${p.harness} · ${p.setting}`] })),
+    ...(hasOp ? [{ key: "op", pre: op.pre_cutoff.mean, post: op.post_cutoff.mean, op: true, name: ["Real operator", "bids replayed"] }] : [])];
+  const vcls = (r) => (r.op ? "t-end-v op-t" : "t-end-v");
+  const vals = rows.flatMap((r) => [r.pre, r.post]), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const r = narrow ? 5.2 : 6, gap = r + 9;
+  const lw = Math.max(...rows.map((e) => measure(pct(e.pre), vcls(e)))), rw = Math.max(...rows.map((e) => measure(pct(e.post), vcls(e))));
+  const notes = ["may be in the training data", "after every model's cutoff"], fits = notes.every((t) => measure(t, "t-name") <= W / 2 - 8);
+  const subs = notes.map((t) => (fits ? [t] : balance(t, "t-name", measure(t, "t-name") * 0.6)));
+  const xw = sides.map((sd, i) => Math.max(measure(sd.range, "t-ver"), ...subs[i].map((t) => measure(t, "t-name"))) / 2);
+  const ends = narrow ? [] : rows.map((e) => ({ ...e, c: e.post }));
+  const nw = ends.length ? Math.max(...ends.map((e) => Math.max(measure(e.name[0], e.b ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) : 0;
+  const x0 = Math.max(lw + gap + 4, xw[0]), x1 = narrow ? W - Math.max(rw + gap + 4, xw[1]) : W - (rw + 8 + nw) - gap - 20;
+  const xs = [x0, Math.max(x0 + 90, x1)];
+  const ptop = y + (narrow ? 30 : 36), PH = narrow ? 236 : 262, bottom = ptop + PH, yv = lin(lo, hi, bottom - 9, ptop + 9);
   let back = "", lines = "", marks = "", labels = "";
-  for (const k of tk) back += L_(L, yv(k.t), R + 6, yv(k.t), k.t ? "grid" : "zero") + (narrow ? "" : T(L - 8, yv(k.t) + 4.5, k.label, "t-tick", "end"));
-  if (op?.pre_cutoff?.mean != null && op?.post_cutoff?.mean != null) {
+  if (hasOp) {
     const o = [[xs[0], yv(op.pre_cutoff.mean)], [xs[1], yv(op.post_cutoff.mean)]];
     lines += `<path class="op" d="${path(o)}"/>` + o.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>`).join("");
   }
-  const r = narrow ? 5.2 : 6;
   for (const p of [...pts].reverse()) {
     const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
     lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
     marks += q.map(([x, y]) => mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)).join("");
   }
-  const side_ = (k, x, dir) => {
-    for (const e of dodge(pts.map((p) => ({ key: p.key, y: yv(p[k].mean), h: 15, text: pct(p[k].mean), b: p.key === top })), ptop - 6, bottom + 8, 3)) {
-      if (Math.abs(e.ly - e.y) > 2) labels += `<path class="lead" d="M${f1(x + dir * (r + 3))},${f1(e.y)}L${f1(x + dir * 15)},${f1(e.ly)}"/>`;
-      labels += T(x + dir * 17, e.ly + 4.5, e.text, e.b ? "t-val b" : "t-val", dir < 0 ? "end" : "start");
+  const values = (k, x, dir) => {
+    for (const e of dodge(rows.map((e) => ({ ...e, y: yv(e[k]), h: 16 })), ptop - 4, bottom + 4, 2)) {
+      if (Math.abs(e.ly - e.y) > 1.5) labels += `<path class="lead" d="M${f1(x + dir * (e.op ? 5 : r + 3))},${f1(e.y)}L${f1(x + dir * (gap - 3))},${f1(e.ly)}"/>`;
+      labels += T(x + dir * gap, e.ly + 5, pct(e[k]), vcls(e), dir < 0 ? "end" : "start");
     }
   };
-  side_("pre_cutoff", xs[0], -1);
-  if (narrow) side_("post_cutoff", xs[1], 1);
-  const ex = xs[1] + 26;
-  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c) + 7, h: 31 })), ptop - 10, bottom + 30, 3)) {
-    const y0 = e.ly - 7, at = yv(e.c);
-    labels += `<path class="lead" d="M${f1(xs[1] + 9)},${f1(at)}L${f1(ex - 5)},${f1(y0 - 4.5)}"/>`;
-    labels += T(ex + vw - 7, y0, e.val, e.op ? "t-end-v op-t" : "t-end-v", "end") + T(ex + vw, y0, e.name[0], e.op ? "t-end op-t" : e.bold ? "t-end b" : "t-end");
-    labels += T(ex + vw, y0 + 15, e.name[1], "t-end-q");
+  values("pre", xs[0], -1);
+  if (narrow) values("post", xs[1], 1);
+  const ex = xs[1] + gap + 14;
+  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c) + 7.5, h: 32 })), ptop - 8, bottom + 12, 3)) {
+    const y0 = e.ly - 7.5, at = yv(e.c), tx = ex + rw - measure(pct(e.c), vcls(e));
+    labels += `<path class="lead" d="M${f1(xs[1] + (e.op ? 5 : r + 3))},${f1(at)}L${f1(tx - 4)},${f1(y0 - 5)}"/>`;
+    labels += T(ex + rw, y0, pct(e.c), vcls(e), "end") + T(ex + rw + 8, y0, e.name[0], e.op ? "t-end op-t" : e.b ? "t-end b" : "t-end");
+    labels += T(ex + rw + 8, y0 + 15, e.name[1], "t-end-q");
   }
   let maxY = bottom;
   sides.forEach((sd, i) => {
-    let ly = bottom + 25;
-    const sub = i ? "after every model's cutoff" : "may be in the training data";
+    let ly = bottom + 30;
     const cx = (t, cls) => Math.min(Math.max(xs[i], measure(t, cls) / 2), W - measure(t, cls) / 2);
     labels += T(cx(sd.range, "t-ver"), ly, sd.range, "t-ver", "middle");
-    labels += T(cx(sub, "t-name"), (ly += 18), sub, "t-name", "middle");
-    if (!narrow) labels += T(xs[i], (ly += 17), `${sd.n} windows over ${sd.f} fronts`, "t-unit", "middle");
+    for (const t of subs[i]) labels += T(cx(t, "t-name"), (ly += 18), t, "t-name", "middle");
+    if (!narrow) labels += T(cx(`${sd.n} windows over ${sd.f} fronts`, "t-unit"), (ly += 17), `${sd.n} windows over ${sd.f} fronts`, "t-unit", "middle");
     maxY = Math.max(maxY, ly);
   });
   maxY += 10;
@@ -561,7 +568,7 @@ async function main() {
   }
   if (Bn) {
     const c = D ? { lead: D.charts.lead, width: D.charts.width, phone: D.charts.phone.width } : SIZES;
-    figs.push(...[["", false], ["-phone", true]].flatMap(([sfx, narrow]) => [[`bench-cost-vs-score${sfx}`, costScore(Bn, narrow ? c.phone : c.lead, narrow)], [`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.width, narrow)]]));
+    figs.push(...[["", false], ["-phone", true]].map(([sfx, narrow]) => [`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)]));
   }
   document.getElementById("figs").innerHTML = figs.map(([id, body]) => `<section class="fig" data-figure="${id}">${body}</section>`).join("");
   const font = await woff2();

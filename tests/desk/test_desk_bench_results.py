@@ -260,7 +260,7 @@ def test_article_states_the_bench_as_the_card_does(bench):
     assert f["pitch"] == hub_dataset.bench_pitch(s).strip("*") and "**" not in f["pitch"]
     for b in (*f["say"].values(), *f["how"].values(), *f["limits"].values()):
         assert f"- **{b['head']}** {b['text']}" in block
-    assert f"<small>{f['cap']['cost']}</small>" in block and f"<small>{f['cap']['table']}</small>" in block
+    assert f"<small>{f['cap']['splits']}</small>" in block and f"<small>{f['cap']['table']}</small>" in block
     assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["gemini"])] == [
         x for x in s["deviations"] if x.startswith(("Route C", "Gemini"))]
     for k, m in s["models"].items():

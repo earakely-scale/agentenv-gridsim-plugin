@@ -215,7 +215,7 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
            "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
            "route": colon(next(x for x in s["deviations"] if x.startswith("Route C"))),
            "gemini": colon(next(x for x in s["deviations"] if x.startswith("Gemini"))),
-           "cap": {"cost": small(block, "C × 100"), "table": small(block, "C, hindsight capture")}}
+           "cap": {"splits": small(block, "C × 100"), "table": small(block, "C, hindsight capture")}}
     q = json.loads(OPENCODE.read_text())
     agent, opts = q["agent"]["build"], next(iter(q["provider"].values()))["models"][s["models"]["qwen"]["model_id"]]
     if opts["options"]["chat_template_kwargs"]["enable_thinking"] != (s["models"]["qwen"]["setting"] == "thinking on"):
