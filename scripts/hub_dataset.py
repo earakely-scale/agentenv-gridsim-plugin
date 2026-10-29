@@ -773,7 +773,9 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
     checked = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: a price-impact check on {v['check_of']}"
                f"</summary>\n\n{price_check(v, d)}\n\n</details>" for v in checks(d)]
     earlier = "\n\n".join([across(d), *results, *checked])
-    blocks = {"badges": "\n".join(BADGES), "quickstart": QUICKSTART.replace("{latest}", vs[-1]["version"]),
+    quick = QUICKSTART.replace("{bench}", BENCH_QUICKSTART + "\n\n" if bench else "").replace(
+        "{bench_table}", BENCH_TABLE if bench else "").replace("{latest}", vs[-1]["version"])
+    blocks = {"badges": "\n".join(BADGES), "quickstart": quick,
               "ladder": ladder_block(d), "models": models_block(d), "inside": inside(d, bench), "archive": ARCHIVE}
     if bench is None:
         return blocks | {"pitch": "", "gif": gif_block(d["gif"]), "bench": "", "earlier": f"## Results\n\n{earlier}"}
@@ -1068,27 +1070,27 @@ plays any model behind an OpenAI-compatible endpoint the same way, with its key 
 packs are under `data/desk/`. On AgentEnv, after `agent-env gridsim setup`, `scripts/desk_e2e.py` plays a task through
 the gateway env, its post-turn hook and its verifier, and checks it against the in-process run byte for byte.
 
-The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py` writes for one
-harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), with a `.agentenv/config.toml` that
-names the model endpoint and its key and a sandbox provider that enforces the bundle's network allowlist (Modal for
-these runs):
-
-```bash
-uv run python scripts/desk_bench.py tasks --harness codex-luna --pack desk-v4-bench --out bundles/bench-codex-luna
-uv run agent-env run bundles/bench-codex-luna --task desk-v4-2026-07-04-S01
-```
-
-The tables:
+{bench}The tables:
 
 ```python
 from datasets import load_dataset
 
 repo = "earakely-scale/GridSimEnv-AgentEnv"
-bench = load_dataset(repo, "desk_v4_bench", split="post_cutoff")  # the benchmark, each model's every window
-board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
+{bench_table}board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
 runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's every task
 tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
 ```"""
+BENCH_QUICKSTART = """The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py`
+writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), with a
+`.agentenv/config.toml` that names the model endpoint and its key and a sandbox provider that enforces the bundle's
+network allowlist (Modal for these runs):
+
+```bash
+uv run python scripts/desk_bench.py tasks --harness codex-luna --pack desk-v4-bench --out bundles/bench-codex-luna
+uv run agent-env run bundles/bench-codex-luna --task desk-v4-2026-07-04-S01
+```"""
+BENCH_TABLE = ('bench = load_dataset(repo, "desk_v4_bench", split="post_cutoff")  '
+               "# the benchmark, each model's every window\n")
 ARCHIVE = ("GridSimEnv v1 (one-shot day-ahead schedule, training results) is archived at revision "
            f"[6ae10fcc]({DATASET}/tree/6ae10fcc7fea8037716a0ea7f4ef761786a34f87).")
 
