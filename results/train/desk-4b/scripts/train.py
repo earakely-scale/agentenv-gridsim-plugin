@@ -9,7 +9,8 @@ The rows get the system context Qwen sees in OpenCode at bench time (opencode_co
 desk brief, its skills block after it) and one line on ending a turn with end_turn, since TRL ends a rollout at a reply
 without a tool call; each wake reaches the model as a JSON string, as OpenCode delivers it. A callback writes each log
 line to $OUT/metrics.jsonl with the rollouts' C (the reward), R and the share beating idle and the anchor since the line
-before; $OUT/rollouts.jsonl gets each rollout's tool calls."""
+before, and the latest generation batch's completions to $OUT/completions-<phase>-<step>.jsonl; $OUT/rollouts.jsonl
+gets each rollout's tool calls."""
 
 import functools
 import json
@@ -119,7 +120,7 @@ def rates(rollouts: list[dict]) -> dict:
 
 class Metrics(TrainerCallback):
     def __init__(self):
-        self.seen = 0
+        self.seen, self.trainer = 0, None
         OUT.mkdir(parents=True, exist_ok=True)
         self.file = (OUT / "metrics.jsonl").open("a")
 
@@ -131,6 +132,11 @@ class Metrics(TrainerCallback):
                **{key: value for key, value in logs.items() if isinstance(value, (int, float))}}
         self.file.write(json.dumps(row) + "\n")
         self.file.flush()
+        recent = self.trainer._logs
+        rewards = next(iter(recent["rewards"].values()), [])
+        (OUT / f"completions-{phase}-{state.global_step}.jsonl").write_text("".join(
+            json.dumps({"completion": c, "reward": r, "advantage": a}, default=str) + "\n"
+            for c, r, a in zip(recent["completion"], rewards, recent["advantages"], strict=False)))
         log.info("%s step %s: %s", phase, state.global_step,
                  json.dumps({key: row.get(key) for key in ("rollouts", "unscored", "c_mean", "r_mean",
                                                            "beats_idle_rate", "beats_anchor_rate", "at_floor_rate",
@@ -170,7 +176,7 @@ trainer = GRPOTrainer(
         per_device_eval_batch_size=int(os.environ.get("EVAL_BATCH", "12")),
         logging_steps=1,
         save_strategy="steps",
-        save_steps=5,
+        save_steps=int(os.environ.get("SAVE_STEPS", "5")),
         save_only_model=True,
         report_to="none",
         seed=0,
@@ -179,8 +185,9 @@ trainer = GRPOTrainer(
     eval_dataset=eval_rows,
     environment_factory=Desk,
     peft_config=LoraConfig(r=32, lora_alpha=64, target_modules="all-linear", task_type="CAUSAL_LM"),
-    callbacks=[Metrics()],
+    callbacks=[metrics := Metrics()],
 )
+metrics.trainer = trainer
 if MAX_STEPS == 0:
     trainer.evaluate()
 else:
