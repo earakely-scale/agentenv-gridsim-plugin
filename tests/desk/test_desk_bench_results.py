@@ -274,9 +274,13 @@ def test_article_states_the_bench_as_the_card_does(bench):
     assert (f["m"]["qwen"]["valid"], f["m"]["qwen"]["temperature"], f["m"]["qwen"]["top_k"]) == ("25", "0.6", "20")
     hub_article.check_prose(hub_article.facts(d) | {"bench": f})
     hub_article.check_order(s)
-    b = hub_article.hero(folder, s, grades)
+    b = hub_article.hero(folder, s, grades, hub_dataset)
     lead = next(g for g in grades if g["task_id"] == s["hero"]["task_id"] and g["model"] == s["hero"]["model"])
     assert b["days"] == lead["dates"] and b["model"] == "GPT-6.1 Sol in Codex CLI" and len(b["sites"]) == 4
+    assert b["replay"]["url"] == f["lead"]["replay"]["sol"] == hub_dataset.bench_replay("sol", lead["task_id"])
+    assert set(f["lead"]["replay"]) == set(s["models"]) and f["lead"]["C"] == f"{_pc(lead['capture'])}%"
+    where = f"{f['lead']['site']} ({f['lead']['region']}, {f['lead']['battery']})"
+    assert where in hub_dataset.bench_gif(s, grades, True)
     for site in b["sites"]:
         assert (len(site["rt"]), len(site["soc"]), len(site["mw"])) == (288, 289, 288)
         assert all(0 <= t < 3 * 1440 for t in site["wakes"]) and site["wakes"]
