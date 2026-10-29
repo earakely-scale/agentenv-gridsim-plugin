@@ -15,11 +15,13 @@ import argparse
 import json
 import re
 import sqlite3
+import tempfile
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from desk_bench import pack_source
 from gridsim_core.desk import load_series, load_task, policies
 
 PRICES = {"claude-opus-5-5": {"in": 4.0, "cached": 0.2, "write": 5.0, "write_1h": 8.0, "out": 20.0},
@@ -207,16 +209,19 @@ def report(a) -> dict:
                                                                   run_log, re.S)}
     ep_turns = episode.get("turns") or []
     ep_calls = [c for t in ep_turns for c in t.get("calls") or []]
-    task = load_task(a.pack, a.task) if a.pack else None
-    idle = policies.run(task, load_series(a.pack, task), "idle").episode() if task else None
+    idle = None
+    if a.pack:
+        with tempfile.TemporaryDirectory() as tmp:
+            pack = pack_source(a.pack, Path(tmp))
+            task = load_task(pack, a.task)
+            idle = policies.run(task, load_series(pack, task), "idle").episode()
     ran = re.findall(r"\] (?:passed|failed|scored below 1|cancelled) in ([\d.]+)s", run_log)
     return {
         "harness": a.harness, "instance_id": inst.get("instance_id"), "status": inst.get("status"),
         "error": inst.get("error"), "completed_steps": inst.get("completed_steps"), "total_steps": inst.get("total_steps"),
         "wall_s": float(ran[-1]) if ran else None,
         "step_seconds": steps,
-        "grade": {k: grade.get(k) for k in ("reward", "capture", "capture_phys", "p", "p_idle", "p_anchor", "p_hind",
-                                            "p_hind_phys", "p_operator_replay", "valid") if k in grade},
+        "grade": grade,
         "wakes": {"env_episode": len(episode.get("wakes") or []),
                   "env_reasons": dict(Counter(r for w in episode.get("wakes") or [] for r in w.get("reasons") or [])),
                   "hook_delivered": sum(1 for h in hooks if h.get("reasons")) + 1,

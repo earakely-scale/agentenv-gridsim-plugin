@@ -22,17 +22,23 @@ replaces it, for a run whose model endpoint is elsewhere.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import shutil
+import subprocess
+import tarfile
+import tempfile
 from pathlib import Path
 
 from agentenv_gridsim.desk_tasks import generate
 
-CONFIGS = Path(__file__).resolve().parent.parent / "bench" / "harness"
-CONSTRAINTS = Path(__file__).resolve().parent.parent / "bench" / "env" / "constraints.txt"
+ROOT = Path(__file__).resolve().parent.parent
+CONFIGS = ROOT / "bench" / "harness"
+CONSTRAINTS = ROOT / "bench" / "env" / "constraints.txt"
 AGENT_NAME = "default-agent"
 FREEZE = "be6ff8c8ac2403da414b765009bcdc99e9cd9061"
 REPO = "earakely-scale/agentenv-gridsim-plugin"
+PACKS = {"desk-v4-bench": "629630ab7662aa1f6ff5db2a5d16be69a7e0f0bb"}
 HARNESSES = {
     "claude-code": {"agent": "claude-code", "model": "claude-opus-5-5", "effort": "high",
                     "config": ("bench-claude-code", "/etc/claude-code"), "hosts": ["api.anthropic.com"]},
@@ -49,6 +55,10 @@ NETCHECK = ("Run this exact command in your shell and include its complete outpu
             "for u in https://www.ercot.com https://github.com https://pypi.org/simple/ https://1.1.1.1; do "
             "curl -sS -m 20 -o /dev/null -w \"$u HTTP=%{http_code}\\n\" \"$u\" 2>&1; echo \"EXIT=$?\"; done\n\n"
             "Then call the desk's get_asset_status tool once and add the soc_mwh it returns.")
+PACK_LAYER = f"""ADD https://codeload.github.com/{REPO}/tar.gz/{{commit}} /tmp/pack.tar.gz
+RUN mkdir /tmp/pack && tar -xzf /tmp/pack.tar.gz -C /tmp/pack --strip-components=1 \\
+    && cp -r /tmp/pack/data/desk/{{pack}} /app/gridsim_core/data/desk/{{pack}} && rm -rf /tmp/pack /tmp/pack.tar.gz
+"""
 ENV_TOML = 'environment_name = "{name}"\nenv_provider_type = "gateway"\n'
 ENV_DOCKERFILE = f"""FROM python:3.12.16-slim@sha256:8523d6abeb48ceae0b7240d30c5808fc26cb79c1a635bacdf19cf3baecfbec07
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONPATH=/app
@@ -61,7 +71,7 @@ RUN mkdir /tmp/src && tar -xzf /tmp/src.tar.gz -C /tmp/src --strip-components=1 
     && cp /tmp/src/LICENSE /tmp/src/NOTICE /app/ && mkdir /app/gridsim_core && cp -r /tmp/src/data /app/gridsim_core/data \\
     && cp -r /tmp/src/src/gridsim_core/. /app/gridsim_core/ && cp -r /tmp/src/src/agentenv_gridsim /app/agentenv_gridsim \\
     && rm -rf /app/agentenv_gridsim/web /tmp/src /tmp/src.tar.gz
-RUN useradd --create-home --uid 1000 gridsim
+{{pack}}RUN useradd --create-home --uid 1000 gridsim
 USER gridsim
 EXPOSE 18765
 CMD ["python", "-m", "agentenv_gridsim.server"]
@@ -101,15 +111,31 @@ def netcheck_steps(desk: list[dict], h: dict) -> list[dict]:
          "criteria": [{"type": "response_contains", "needles": ["EXIT="]}]}]
 
 
+def pack_source(pack: str, tmp: Path) -> str:
+    """A pack added after the freeze, read from its commit (the env image adds it from the same commit)."""
+    if pack not in PACKS:
+        return pack
+    tar = subprocess.run(["git", "-C", str(ROOT), "archive", PACKS[pack], f"data/desk/{pack}"], check=True,
+                         capture_output=True).stdout
+    tarfile.open(fileobj=io.BytesIO(tar)).extractall(tmp, filter="data")
+    return str(tmp / "data" / "desk" / pack)
+
+
 def write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: list[str] | None = None,
           codex_as_installed: bool = False) -> list[str]:
+    with tempfile.TemporaryDirectory() as tmp:
+        return _write(name, pack, out, task_ids, hosts, codex_as_installed, Path(tmp))
+
+
+def _write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: list[str] | None,
+           codex_as_installed: bool, tmp: Path) -> list[str]:
     h = HARNESSES[name]
     if codex_as_installed and h["agent"] == "codex":
         h = h | {"config": ("bench-codex", "/etc/codex")}
     hosts = hosts or h["hosts"]
     if not hosts:
         raise SystemExit(f"{name} has no default model host: pass --allow-host")
-    ids = generate(pack, out, task_ids=task_ids)
+    ids = generate(pack_source(pack, tmp), out, task_ids=task_ids)
     envs = set()
     for task_id in ids:
         path = out / "tasks" / f"{task_id}.json"
@@ -121,7 +147,8 @@ def write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: li
     for env in sorted(envs):
         folder = out / "envs" / env
         folder.mkdir(parents=True, exist_ok=True)
-        (folder / "Dockerfile").write_text(ENV_DOCKERFILE)
+        layer = PACK_LAYER.format(commit=PACKS[pack], pack=pack) if pack in PACKS else ""
+        (folder / "Dockerfile").write_text(ENV_DOCKERFILE.replace("{pack}", layer))
         shutil.copy(CONSTRAINTS, folder / "constraints.txt")
         (folder / "env.toml").write_text(ENV_TOML.format(name=env))
     artifact = h["config"][0]
@@ -130,7 +157,8 @@ def write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: li
     readme.write_text(readme.read_text() + f"\nHarness {name}: agent {h['agent']}, model {h['model']}, effort "
                       f"{h['effort'] or 'harness default'}; {artifact} loaded into {h['config'][1]}; the agent's "
                       f"network allows {', '.join(hosts)} and the sandbox platform's tunnel hosts. The env "
-                      f"{', '.join(sorted(envs))} builds where it deploys from {REPO} at {FREEZE[:7]} (desk-v4-freeze).\n")
+                      f"{', '.join(sorted(envs))} builds where it deploys from {REPO} at {FREEZE[:7]} (desk-v4-freeze)"
+                      + (f", with the {pack} pack from {PACKS[pack][:7]}" if pack in PACKS else "") + ".\n")
     return ids
 
 
