@@ -308,6 +308,8 @@ def _route_c(root: Path) -> None:
                    "usage": {"tokens": {"input": 10}, "cost_usd_list_price": 0.0 if key == "qwen" else 1.25}}
             if key == "sol" and cls != "agent":
                 row["proxy_cost_usd"] = 0.4 if cls == "infra" else 1.3
+            if key == "sol":
+                row["agent_version"] = "codex 0.147.0 (src-0d9e; agentenv-framework 0.9.1383)"
             rows.append(row)
             if cls == "ok":
                 ep = _episode(tasks[tid], round(tasks[tid]["refs"]["p_idle"] + 1000, 2))
@@ -340,6 +342,10 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     assert qwen["cost"]["usd_per_window"] == pytest.approx(750 / 3600 * 1.006, abs=1e-4) and qwen["n"] == 2
     assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 2.9
     assert s["run"]["metered_attempts"] == 1 and s["text"]["metered"] == dbr.METERED
+    assert (sol["harness_version"], sol["framework"], qwen["framework"]) == ("0.147.0", "0.9.1383", None)
+    assert sol["ran"] == {"from": "2026-10-29T07:00:00+00:00", "to": "2026-10-29T07:15:00+00:00"}
+    assert s["order_by_C"] == ["qwen", "sol"] and list(s["paired"]) == ["qwen-sol", "qwen-operator_replay",
+                                                                         "sol-operator_replay"]
     agent = "agent-side failure, final, no grade possible"
     assert sol["attempts"]["missing_reasons"] == {agent: 1, "no attempt": 30}
     assert sol["attempts"]["failure_kinds"] == {"infrastructure": 1, agent: 1}
@@ -348,9 +354,11 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
                                "reported missing and not imputed."]
     assert s["lead_rule"]["exposed"] == ["sol"] and s["lead_rule"]["unexposed"] == ["qwen"]
     readme = (out / "README.md").read_text()
+    assert readme.index("| **Qwen3-4B** |") < readme.index("| **GPT-6.1 Sol** |")
     assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and s["text"]["halves"] in readme and dbr.METERED in readme
     assert f"({dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations)" in readme
-    assert "GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1;" in s["text"]["reliability"]
+    assert ("Qwen3-4B, no attempt ×30; GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1."
+            in s["text"]["reliability"])
 
 
 def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
@@ -403,8 +411,10 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert not any("Quick start below" in x for x in page["card"]["how"])
     links = page["links"]
     assert links["prereg"] == f"{dbr.REPO}/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md"
-    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations"
-    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results/results/desk-v4-bench"
+    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-2/docs/prereg/v4-bench.md#deviations"
+    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-2/results/desk-v4-bench"
+    assert (f"Gemini 4 Argon ran after the others, on agentenv-framework 0.9.1383; see the [deviations]"
+            f"({links['deviations']}).</small>") in block
     text = hub_space.readme({"versions": [], "episodes": {}}, desk, s, grades, hub_dataset)
     lead = f"{hub_space.APP}/index.html?v=bench&m={s['hero']['model']}&task={s['hero']['task_id']}"
     assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")
@@ -416,7 +426,7 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert f"[Replay it in 3D]({lead})" in gif
     for k, m in s["models"].items():
         assert (f"[{m['name']}]({hub_space.APP}/index.html?v=bench&m={k}&task={s['hero']['task_id']})" in gif) == (
-            k != s["hero"]["model"])
+            k != s["hero"]["model"] and k not in hub_dataset.NOT_YET_IN_VIEWER)
 
 
 def test_space_scan_reads_gzip_and_refuses_what_it_cannot_read(tmp_path):

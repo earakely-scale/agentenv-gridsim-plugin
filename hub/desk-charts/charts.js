@@ -378,7 +378,7 @@ function splitsChart(Bn, W, narrow) {
     const o = [[xs[0], yv(op.pre_cutoff.mean)], [xs[1], yv(op.post_cutoff.mean)]];
     lines += `<path class="op" d="${path(o)}"/>` + o.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>`).join("");
   }
-  for (const p of [...pts].reverse()) {
+  for (const p of [...pts].sort((a, b) => a.C.mean - b.C.mean)) {
     const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
     lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
     marks += q.map(([x, y]) => mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)).join("");

@@ -4,7 +4,7 @@
  "pack": "desk-v4-bench",
  "layer": "v4",
  "unit": "3-day window",
- "generated": "2026-10-29T11:55:04Z",
+ "generated": "2026-10-29T20:12:39Z",
  "n_windows": 32,
  "n_fronts": 8,
  "sites": [
@@ -134,6 +134,11 @@
    "harness_version": "2.1.280",
    "harness_versions_recorded": {
     "2.1.280": 59
+   },
+   "framework": null,
+   "ran": {
+    "from": "2026-10-29T07:41:19+00:00",
+    "to": "2026-10-29T08:33:44+00:00"
    },
    "n": 32,
    "missing": [],
@@ -381,9 +386,9 @@
     "input": 120.8,
     "cached": 3838520.7,
     "cache_write": 129609.1,
-    "cache_write_1h": 0.0,
     "output": 29045.0,
-    "reasoning": 12526.9
+    "reasoning": 12526.9,
+    "cache_write_1h": 0.0
    },
    "behaviour": {
     "turns": 28.16,
@@ -429,6 +434,11 @@
    "harness_version": "0.147.0",
    "harness_versions_recorded": {
     "0.147.0": 71
+   },
+   "framework": null,
+   "ran": {
+    "from": "2026-10-29T07:41:14+00:00",
+    "to": "2026-10-29T11:09:59+00:00"
    },
    "n": 32,
    "missing": [],
@@ -724,6 +734,11 @@
    "harness_versions_recorded": {
     "0.147.0": 54
    },
+   "framework": null,
+   "ran": {
+    "from": "2026-10-29T07:41:24+00:00",
+    "to": "2026-10-29T09:45:46+00:00"
+   },
    "n": 32,
    "missing": [],
    "all": {
@@ -999,6 +1014,310 @@
     }
    }
   },
+  "argon": {
+   "key": "argon",
+   "name": "Gemini 4 Argon",
+   "tag": "Argon",
+   "provider": "Google",
+   "harness": "Gemini CLI",
+   "setting": "thinking high",
+   "weights": "API",
+   "variant": null,
+   "family": "argon",
+   "harness_note": null,
+   "server": null,
+   "cutoff": "2026-03",
+   "model_id": "gemini-4-argon",
+   "harness_key": "gemini",
+   "harness_version": "0.38.2",
+   "harness_versions_recorded": {
+    "0.38.2": 52
+   },
+   "framework": "0.9.1383",
+   "ran": {
+    "from": "2026-10-29T16:41:20+00:00",
+    "to": "2026-10-29T19:45:03+00:00"
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.1985,
+     "ci": [
+      0.0514,
+      0.3345
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.691,
+     "ci": [
+      0.4445,
+      0.9011
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 93543.0928,
+     "ci": [
+      -11197.4862,
+      265901.788
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.4289,
+     "ci": [
+      0.1242,
+      0.7125
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -43240.9584,
+     "ci": [
+      -127645.8141,
+      13568.5945
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 69179.9522,
+     "ci": [
+      -26017.3477,
+      218600.1445
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1248,
+     "ci": [
+      -0.0105,
+      0.2502
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.5312,
+    "usd_per_window": 6.6892
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.2818,
+     "ci": [
+      0.1549,
+      0.4143
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.8358,
+     "ci": [
+      0.6717,
+      1.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 188984.6856,
+     "ci": [
+      17125.4375,
+      505274.1169
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.6018,
+     "ci": [
+      0.3142,
+      0.8895
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -64778.0894,
+     "ci": [
+      -231221.0706,
+      31601.9175
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 152646.7144,
+     "ci": [
+      4673.02,
+      418504.4875
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1979,
+     "ci": [
+      0.0667,
+      0.3311
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.6875,
+    "usd_per_window": 7.4864
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1152,
+     "ci": [
+      -0.1014,
+      0.3173
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.5461,
+     "ci": [
+      0.1747,
+      0.9175
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": -1898.5,
+     "ci": [
+      -56564.3188,
+      42235.5025
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.2559,
+     "ci": [
+      -0.1755,
+      0.6808
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -21703.8275,
+     "ci": [
+      -65630.2863,
+      2246.1938
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -14286.81,
+     "ci": [
+      -77846.1388,
+      30206.0838
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0517,
+     "ci": [
+      -0.1568,
+      0.2271
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.375,
+    "usd_per_window": 5.892
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.1666,
+     "ci": [
+      -0.4321,
+      0.0867
+     ]
+    },
+    "R": {
+     "mean": -0.2897,
+     "ci": [
+      -0.7122,
+      0.1069
+     ]
+    },
+    "P": {
+     "mean": -190883.1856,
+     "ci": [
+      -507172.6169,
+      4731.6919
+     ]
+    }
+   },
+   "cost": {
+    "basis": "list_price_tokens",
+    "usd_per_window": 6.6892,
+    "usd_median": 6.3486,
+    "usd_scored_total": 214.0546,
+    "usd_all_attempts": 305.9279
+   },
+   "tokens_per_window": {
+    "input": 2571768.1,
+    "cached": 9228548.3,
+    "cache_write": 0.0,
+    "output": 62282.2,
+    "reasoning": 24126.7
+   },
+   "behaviour": {
+    "turns": 32.28,
+    "wakes": 32.28,
+    "desk_calls": 212.16,
+    "own_tool_calls": 2.0,
+    "shell_calls": 0.0,
+    "reminders": 7.09,
+    "submissions": 65.91,
+    "rejected": 0.09,
+    "compactions": 0.0,
+    "wall_s": 2548.87
+   },
+   "own_tools": {
+    "mcp_peeragents_peer_list": 31,
+    "list_directory": 30,
+    "glob": 2,
+    "mcp_env1773_get_ position": 1
+   },
+   "attempts": {
+    "total": 52,
+    "scored": 32,
+    "failed": 20,
+    "extra": 0,
+    "windows_retried": 16,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 20
+    }
+   }
+  },
   "qwen": {
    "key": "qwen",
    "name": "Qwen3-4B",
@@ -1017,6 +1336,11 @@
    "harness_version": "1.17.18",
    "harness_versions_recorded": {
     "1.17.18": 32
+   },
+   "framework": null,
+   "ran": {
+    "from": "2026-10-29T06:52:29+00:00",
+    "to": "2026-10-29T08:09:49+00:00"
    },
    "n": 32,
    "missing": [],
@@ -1314,14 +1638,16 @@
  },
  "order_by_C": [
   "sol",
+  "argon",
   "opus",
   "luna",
   "qwen"
  ],
  "lead_rule": {
   "exposed": [
-   "opus",
    "sol",
+   "argon",
+   "opus",
    "luna"
   ],
   "unexposed": [
@@ -1329,7 +1655,7 @@
   ],
   "first_window": "2026-01-23",
   "set": "before any API-model result",
-  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero."
+  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5 and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero."
  },
  "halves_differ": [],
  "lead_split": "all",
@@ -1894,165 +2220,44 @@
   }
  },
  "paired": {
-  "opus-sol": {
-   "a": "opus",
-   "b": "sol",
+  "sol-argon": {
+   "a": "sol",
+   "b": "argon",
    "all": {
     "n": 32,
     "C": {
-     "mean": -0.102,
+     "mean": 0.0714,
      "ci": [
-      -0.1994,
-      0.0094
+      0.028,
+      0.1167
      ],
      "n": 32,
      "fronts": 8,
-     "ahead": 0.2812,
+     "ahead": 0.6875,
      "level": 0.0,
-     "fronts_ahead": 1
+     "fronts_ahead": 6
     },
     "R": {
-     "mean": -0.0646,
+     "mean": 0.0877,
      "ci": [
-      -0.209,
-      0.1106
+      0.0085,
+      0.1958
      ],
      "n": 32,
      "fronts": 8,
-     "ahead": 0.1875,
-     "level": 0.3438,
-     "fronts_ahead": 2
-    },
-    "P": {
-     "mean": -36734.1997,
-     "ci": [
-      -113999.3066,
-      20263.4022
-     ],
-     "n": 32,
-     "fronts": 8,
-     "ahead": 0.2812,
-     "level": 0.0,
-     "fronts_ahead": 1
-    }
-   },
-   "pre_cutoff": {
-    "n": 16,
-    "C": {
-     "mean": -0.1478,
-     "ci": [
-      -0.1812,
-      -0.1141
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.1875,
-     "level": 0.0,
-     "fronts_ahead": 0
-    },
-    "R": {
-     "mean": -0.1308,
-     "ci": [
-      -0.222,
-      -0.0402
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.125,
-     "level": 0.4375,
-     "fronts_ahead": 0
-    },
-    "P": {
-     "mean": -83544.8331,
-     "ci": [
-      -209611.1631,
-      -12504.1138
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.1875,
-     "level": 0.0,
-     "fronts_ahead": 0
-    }
-   },
-   "post_cutoff": {
-    "n": 16,
-    "C": {
-     "mean": -0.0563,
-     "ci": [
-      -0.262,
-      0.1486
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.375,
-     "level": 0.0,
-     "fronts_ahead": 1
-    },
-    "R": {
-     "mean": 0.0015,
-     "ci": [
-      -0.2607,
-      0.294
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.25,
-     "level": 0.25,
-     "fronts_ahead": 2
-    },
-    "P": {
-     "mean": 10076.4338,
-     "ci": [
-      -34583.4894,
-      68115.3906
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.375,
-     "level": 0.0,
-     "fronts_ahead": 1
-    }
-   }
-  },
-  "opus-luna": {
-   "a": "opus",
-   "b": "luna",
-   "all": {
-    "n": 32,
-    "C": {
-     "mean": 0.0312,
-     "ci": [
-      -0.0067,
-      0.0689
-     ],
-     "n": 32,
-     "fronts": 8,
-     "ahead": 0.5938,
-     "level": 0.0,
-     "fronts_ahead": 7
-    },
-    "R": {
-     "mean": 0.1144,
-     "ci": [
-      0.0102,
-      0.2235
-     ],
-     "n": 32,
-     "fronts": 8,
-     "ahead": 0.5312,
-     "level": 0.1875,
+     "ahead": 0.3125,
+     "level": 0.5312,
      "fronts_ahead": 5
     },
     "P": {
-     "mean": 24179.2881,
+     "mean": 37247.3737,
      "ci": [
-      -2049.4747,
-      71945.5022
+      3027.7496,
+      99048.7091
      ],
      "n": 32,
      "fronts": 8,
-     "ahead": 0.5938,
+     "ahead": 0.6875,
      "level": 0.0,
      "fronts_ahead": 6
     }
@@ -2060,38 +2265,38 @@
    "pre_cutoff": {
     "n": 16,
     "C": {
-     "mean": 0.0414,
+     "mean": 0.0945,
      "ci": [
-      0.0088,
-      0.0897
+      0.0292,
+      0.1357
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.625,
+     "ahead": 0.6875,
      "level": 0.0,
-     "fronts_ahead": 4
-    },
-    "R": {
-     "mean": 0.0958,
-     "ci": [
-      0.0325,
-      0.1384
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.5,
-     "level": 0.3125,
      "fronts_ahead": 3
     },
-    "P": {
-     "mean": 47330.4019,
+    "R": {
+     "mean": 0.1177,
      "ci": [
-      -1067.1975,
-      140824.3944
+      -0.0181,
+      0.308
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.625,
+     "ahead": 0.3125,
+     "level": 0.5,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 68515.885,
+     "ci": [
+      2780.0194,
+      188782.1781
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
      "level": 0.0,
      "fronts_ahead": 3
     }
@@ -2099,120 +2304,120 @@
    "post_cutoff": {
     "n": 16,
     "C": {
-     "mean": 0.021,
+     "mean": 0.0483,
      "ci": [
-      -0.0504,
-      0.091
+      0.0009,
+      0.1172
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.5625,
+     "ahead": 0.6875,
      "level": 0.0,
      "fronts_ahead": 3
     },
     "R": {
-     "mean": 0.133,
+     "mean": 0.0577,
      "ci": [
-      -0.0744,
-      0.3403
+      0.0004,
+      0.1336
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.5625,
-     "level": 0.0625,
-     "fronts_ahead": 2
+     "ahead": 0.3125,
+     "level": 0.5625,
+     "fronts_ahead": 3
     },
     "P": {
-     "mean": 1028.1744,
+     "mean": 5978.8625,
      "ci": [
-      -7293.3844,
-      6934.5437
+      -907.2075,
+      16248.8337
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.5625,
+     "ahead": 0.6875,
      "level": 0.0,
      "fronts_ahead": 3
     }
    }
   },
-  "opus-qwen": {
-   "a": "opus",
-   "b": "qwen",
+  "sol-opus": {
+   "a": "sol",
+   "b": "opus",
    "all": {
     "n": 32,
     "C": {
-     "mean": 0.1886,
+     "mean": 0.102,
      "ci": [
-      0.1199,
-      0.2804
+      -0.0094,
+      0.1994
      ],
      "n": 32,
      "fronts": 8,
-     "ahead": 0.9688,
+     "ahead": 0.7188,
      "level": 0.0,
-     "fronts_ahead": 8
+     "fronts_ahead": 7
     },
     "R": {
-     "mean": 0.5728,
+     "mean": 0.0646,
      "ci": [
-      0.4863,
-      0.6592
+      -0.1106,
+      0.209
      ],
      "n": 32,
      "fronts": 8,
-     "ahead": 0.875,
-     "level": 0.125,
-     "fronts_ahead": 8
+     "ahead": 0.4688,
+     "level": 0.3438,
+     "fronts_ahead": 5
     },
     "P": {
-     "mean": 97581.4587,
+     "mean": 36734.1997,
      "ci": [
-      14676.0741,
-      258135.5609
+      -20263.4022,
+      113999.3066
      ],
      "n": 32,
      "fronts": 8,
-     "ahead": 0.9688,
+     "ahead": 0.7188,
      "level": 0.0,
-     "fronts_ahead": 8
+     "fronts_ahead": 7
     }
    },
    "pre_cutoff": {
     "n": 16,
     "C": {
-     "mean": 0.2183,
+     "mean": 0.1478,
      "ci": [
-      0.1251,
-      0.3846
+      0.1141,
+      0.1812
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.9375,
+     "ahead": 0.8125,
      "level": 0.0,
      "fronts_ahead": 4
     },
     "R": {
-     "mean": 0.6105,
+     "mean": 0.1308,
      "ci": [
-      0.5266,
-      0.7072
+      0.0402,
+      0.222
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.875,
-     "level": 0.125,
-     "fronts_ahead": 4
+     "ahead": 0.4375,
+     "level": 0.4375,
+     "fronts_ahead": 3
     },
     "P": {
-     "mean": 176363.5625,
+     "mean": 83544.8331,
      "ci": [
-      13631.315,
-      495810.0013
+      12504.1138,
+      209611.1631
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.9375,
+     "ahead": 0.8125,
      "level": 0.0,
      "fronts_ahead": 4
     }
@@ -2220,40 +2425,40 @@
    "post_cutoff": {
     "n": 16,
     "C": {
-     "mean": 0.1589,
+     "mean": 0.0563,
      "ci": [
-      0.0847,
-      0.2179
+      -0.1486,
+      0.262
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 1.0,
+     "ahead": 0.625,
      "level": 0.0,
-     "fronts_ahead": 4
+     "fronts_ahead": 3
     },
     "R": {
-     "mean": 0.5351,
+     "mean": -0.0015,
      "ci": [
-      0.4094,
-      0.6608
+      -0.294,
+      0.2607
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 0.875,
-     "level": 0.125,
-     "fronts_ahead": 4
+     "ahead": 0.5,
+     "level": 0.25,
+     "fronts_ahead": 2
     },
     "P": {
-     "mean": 18799.355,
+     "mean": -10076.4338,
      "ci": [
-      12533.0287,
-      27397.4225
+      -68115.3906,
+      34583.4894
      ],
      "n": 16,
      "fronts": 4,
-     "ahead": 1.0,
+     "ahead": 0.625,
      "level": 0.0,
-     "fronts_ahead": 4
+     "fronts_ahead": 3
     }
    }
   },
@@ -2499,6 +2704,611 @@
     }
    }
   },
+  "argon-opus": {
+   "a": "argon",
+   "b": "opus",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0306,
+     "ci": [
+      -0.0541,
+      0.1075
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": -0.0231,
+     "ci": [
+      -0.1881,
+      0.131
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4062,
+     "level": 0.3125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": -513.1741,
+     "ci": [
+      -29294.3216,
+      20283.2554
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0533,
+     "ci": [
+      -0.0045,
+      0.1419
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.0131,
+     "ci": [
+      -0.0946,
+      0.1016
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.375,
+     "level": 0.4375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 15028.9481,
+     "ci": [
+      -1481.3438,
+      31539.24
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0079,
+     "ci": [
+      -0.1528,
+      0.1449
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.0592,
+     "ci": [
+      -0.3525,
+      0.2341
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.1875,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -16055.2962,
+     "ci": [
+      -67208.1831,
+      18334.6556
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
+  "argon-luna": {
+   "a": "argon",
+   "b": "luna",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0618,
+     "ci": [
+      -0.026,
+      0.1353
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.0913,
+     "ci": [
+      -0.1094,
+      0.2763
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4688,
+     "level": 0.2812,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": 23666.1141,
+     "ci": [
+      -23701.5449,
+      86381.3221
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0947,
+     "ci": [
+      0.0162,
+      0.1731
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1089,
+     "ci": [
+      -0.0206,
+      0.2384
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 62359.35,
+     "ci": [
+      752.665,
+      161842.0275
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0289,
+     "ci": [
+      -0.1198,
+      0.1382
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.0737,
+     "ci": [
+      -0.3205,
+      0.4203
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -15027.1219,
+     "ci": [
+      -61780.3063,
+      12469.8825
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "argon-qwen": {
+   "a": "argon",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.2192,
+     "ci": [
+      0.0789,
+      0.3499
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.5497,
+     "ci": [
+      0.324,
+      0.7418
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.1875,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 97068.2847,
+     "ci": [
+      -8349.2813,
+      273933.2679
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2717,
+     "ci": [
+      0.1234,
+      0.4199
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.6236,
+     "ci": [
+      0.4912,
+      0.7955
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 191392.5106,
+     "ci": [
+      12825.7775,
+      515778.1231
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1668,
+     "ci": [
+      -0.0641,
+      0.3415
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.4759,
+     "ci": [
+      0.1204,
+      0.8235
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 2744.0588,
+     "ci": [
+      -50418.8038,
+      44527.805
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "opus-luna": {
+   "a": "opus",
+   "b": "luna",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0312,
+     "ci": [
+      -0.0067,
+      0.0689
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.1144,
+     "ci": [
+      0.0102,
+      0.2235
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5312,
+     "level": 0.1875,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": 24179.2881,
+     "ci": [
+      -2049.4747,
+      71945.5022
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0414,
+     "ci": [
+      0.0088,
+      0.0897
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.0958,
+     "ci": [
+      0.0325,
+      0.1384
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 47330.4019,
+     "ci": [
+      -1067.1975,
+      140824.3944
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.021,
+     "ci": [
+      -0.0504,
+      0.091
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.133,
+     "ci": [
+      -0.0744,
+      0.3403
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0625,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 1028.1744,
+     "ci": [
+      -7293.3844,
+      6934.5437
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "opus-qwen": {
+   "a": "opus",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1886,
+     "ci": [
+      0.1199,
+      0.2804
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.9688,
+     "level": 0.0,
+     "fronts_ahead": 8
+    },
+    "R": {
+     "mean": 0.5728,
+     "ci": [
+      0.4863,
+      0.6592
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 8
+    },
+    "P": {
+     "mean": 97581.4587,
+     "ci": [
+      14676.0741,
+      258135.5609
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.9688,
+     "level": 0.0,
+     "fronts_ahead": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2183,
+     "ci": [
+      0.1251,
+      0.3846
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.6105,
+     "ci": [
+      0.5266,
+      0.7072
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 176363.5625,
+     "ci": [
+      13631.315,
+      495810.0013
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1589,
+     "ci": [
+      0.0847,
+      0.2179
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 1.0,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.5351,
+     "ci": [
+      0.4094,
+      0.6608
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 18799.355,
+     "ci": [
+      12533.0287,
+      27397.4225
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 1.0,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
   "luna-qwen": {
    "a": "luna",
    "b": "qwen",
@@ -2620,91 +3430,6 @@
     }
    }
   },
-  "opus-operator_replay": {
-   "a": "opus",
-   "b": "operator_replay",
-   "all": {
-    "n": 32,
-    "P": {
-     "mean": 69693.1263,
-     "ci": [
-      -793.9608,
-      202590.5078
-     ],
-     "n": 32,
-     "fronts": 8,
-     "ahead": 0.8438,
-     "level": 0.0,
-     "fronts_ahead": 7
-    },
-    "C": {
-     "mean": 0.0942,
-     "ci": [
-      0.0296,
-      0.1825
-     ],
-     "n": 32,
-     "fronts": 8,
-     "ahead": 0.8438,
-     "level": 0.0,
-     "fronts_ahead": 7
-    }
-   },
-   "pre_cutoff": {
-    "n": 16,
-    "P": {
-     "mean": 137617.7663,
-     "ci": [
-      5727.2625,
-      397675.5025
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.875,
-     "level": 0.0,
-     "fronts_ahead": 4
-    },
-    "C": {
-     "mean": 0.1446,
-     "ci": [
-      0.0538,
-      0.2934
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.875,
-     "level": 0.0,
-     "fronts_ahead": 4
-    }
-   },
-   "post_cutoff": {
-    "n": 16,
-    "P": {
-     "mean": 1768.4862,
-     "ci": [
-      -10637.9556,
-      11871.4281
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.8125,
-     "level": 0.0,
-     "fronts_ahead": 3
-    },
-    "C": {
-     "mean": 0.0438,
-     "ci": [
-      -0.012,
-      0.0997
-     ],
-     "n": 16,
-     "fronts": 4,
-     "ahead": 0.8125,
-     "level": 0.0,
-     "fronts_ahead": 3
-    }
-   }
-  },
   "sol-operator_replay": {
    "a": "sol",
    "b": "operator_replay",
@@ -2785,6 +3510,176 @@
      "n": 16,
      "fronts": 4,
      "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "argon-operator_replay": {
+   "a": "argon",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 69179.9522,
+     "ci": [
+      -26017.3477,
+      218600.1445
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "C": {
+     "mean": 0.1248,
+     "ci": [
+      -0.0105,
+      0.2502
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 152646.7144,
+     "ci": [
+      4673.02,
+      418504.4875
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "C": {
+     "mean": 0.1979,
+     "ci": [
+      0.0667,
+      0.3311
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -14286.81,
+     "ci": [
+      -77846.1388,
+      30206.0838
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.0517,
+     "ci": [
+      -0.1568,
+      0.2271
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "opus-operator_replay": {
+   "a": "opus",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 69693.1263,
+     "ci": [
+      -793.9608,
+      202590.5078
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "C": {
+     "mean": 0.0942,
+     "ci": [
+      0.0296,
+      0.1825
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 137617.7663,
+     "ci": [
+      5727.2625,
+      397675.5025
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "C": {
+     "mean": 0.1446,
+     "ci": [
+      0.0538,
+      0.2934
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 1768.4862,
+     "ci": [
+      -10637.9556,
+      11871.4281
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.0438,
+     "ci": [
+      -0.012,
+      0.0997
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
      "level": 0.0,
      "fronts_ahead": 3
     }
@@ -3087,6 +3982,47 @@
     }
    },
    {
+    "key": "argon",
+    "family": "argon",
+    "name": "Gemini 4 Argon",
+    "tag": "Argon",
+    "variant": null,
+    "provider": "Google",
+    "harness": "Gemini CLI",
+    "setting": "thinking high",
+    "weights": "API",
+    "n": 32,
+    "usd": 6.6892,
+    "basis": "list_price_tokens",
+    "C": {
+     "mean": 0.1985,
+     "ci": [
+      0.0514,
+      0.3345
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.2818,
+     "ci": [
+      0.1549,
+      0.4143
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.1152,
+     "ci": [
+      -0.1014,
+      0.3173
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
     "key": "qwen",
     "family": "qwen",
     "name": "Qwen3-4B",
@@ -3145,6 +4081,12 @@
     "family": "luna",
     "points": [
      "luna"
+    ]
+   },
+   {
+    "family": "argon",
+    "points": [
+     "argon"
     ]
    },
    {
@@ -6163,6 +7105,890 @@
    "harness_version": "0.147.0"
   },
   {
+   "model": "argon",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-gemini-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 9.6909,
+   "wall_s": 2040.5,
+   "started": "2026-10-29T16:41:20+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-gemini-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=0a4a3213-8c77-4877-9f17-12aff0858563, agent_sandbox=local-76464f34): gemini CLI exited with code 144: [API Error: {\\\"error\\\":{\\\"message\\\":\\\"b'{\\\\\\\\n  \\\\\\\"error\\\\\\\": {\\\\",
+   "usd": 3.0858,
+   "wall_s": 1131.5,
+   "started": "2026-10-29T16:41:35+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-gemini-desk-v4-2026-01-23-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 10.0625,
+   "wall_s": 2384.0,
+   "started": "2026-10-29T17:02:39+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-gemini-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.7374,
+   "wall_s": 3748.9,
+   "started": "2026-10-29T16:41:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-gemini-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=4e3ecedf-f9ab-4ec2-8f8a-72ff1ff88a21, agent_sandbox=local-73ba0e77): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 5.4606,
+   "wall_s": 1974.8,
+   "started": "2026-10-29T16:42:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-gemini-desk-v4-2026-01-23-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 7.2534,
+   "wall_s": 1838.8,
+   "started": "2026-10-29T17:16:14+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-gemini-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.0576,
+   "wall_s": 2496.8,
+   "started": "2026-10-29T16:42:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-gemini-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 6.955,
+   "wall_s": 2549.0,
+   "started": "2026-10-29T16:42:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-gemini-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.5822,
+   "wall_s": 2853.6,
+   "started": "2026-10-29T16:42:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-gemini-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=e409165d-8266-4068-b613-ab61343902d4, agent_sandbox=local-4e6b5a57): gemini CLI exited with code 144: [API Error: {\\\"error\\\":{\\\"message\\\":\\\"b'{\\\\\\\\n  \\\\\\\"error\\\\\\\": {\\\\",
+   "usd": 1.5626,
+   "wall_s": 1325.9,
+   "started": "2026-10-29T16:43:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-gemini-desk-v4-2026-03-16-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.0734,
+   "wall_s": 1820.1,
+   "started": "2026-10-29T17:14:54+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-gemini-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=00cc71a7-23c1-48ef-9ed1-9d2e832a5241, agent_sandbox=local-6fb22a08): gemini CLI exited with code 144: [API Error: {\\\"error\\\":{\\\"message\\\":\\\"b'{\\\\\\\\n  \\\\\\\"error\\\\\\\": {\\\\",
+   "usd": 2.401,
+   "wall_s": 1358.4,
+   "started": "2026-10-29T16:45:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-gemini-desk-v4-2026-04-03-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.4537,
+   "wall_s": 4061.7,
+   "started": "2026-10-29T17:15:39+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-gemini-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=d649b638-acfd-490e-9963-c2288e7f05cc, agent_sandbox=local-75bd4d02): gemini CLI exited with code 144: [API Error: {\\\"error\\\":{\\\"message\\\":\\\"b'{\\\\\\\\n  \\\\\\\"error\\\\\\\": {\\\\",
+   "usd": 2.8727,
+   "wall_s": 1440.9,
+   "started": "2026-10-29T16:43:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-gemini-desk-v4-2026-04-17-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.0874,
+   "wall_s": 2529.2,
+   "started": "2026-10-29T17:15:09+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-gemini-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.2927,
+   "wall_s": 3363.3,
+   "started": "2026-10-29T16:43:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-gemini-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 11.7353,
+   "wall_s": 2346.2,
+   "started": "2026-10-29T16:43:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-gemini-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=0445d1b1-db17-4b2b-b93d-88f13352abb2, agent_sandbox=local-ee7575e5): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 4.1529,
+   "wall_s": 2075.3,
+   "started": "2026-10-29T16:44:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-gemini-desk-v4-2026-05-08-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.2592,
+   "wall_s": 2813.9,
+   "started": "2026-10-29T17:19:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-gemini-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.2729,
+   "wall_s": 2340.1,
+   "started": "2026-10-29T16:44:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-gemini-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=62513302-14e8-4566-9834-b0fe879dfe8a, agent_sandbox=local-10effc3c): gemini CLI exited with code 144: [API Error: {\\\"error\\\":{\\\"message\\\":\\\"b'{\\\\\\\\n  \\\\\\\"error\\\\\\\": {\\\\",
+   "usd": 2.7135,
+   "wall_s": 1468.7,
+   "started": "2026-10-29T16:44:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-gemini-desk-v4-2026-05-08-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.2488,
+   "wall_s": 2768.6,
+   "started": "2026-10-29T17:15:24+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-gemini-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.0208,
+   "wall_s": 2324.2,
+   "started": "2026-10-29T16:44:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-gemini-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=1e3330fd-574c-42b0-ba29-e945699362e6, agent_sandbox=local-c3ae209c): gemini CLI exited with code 144: [API Error: {\\\"error\\\":{\\\"message\\\":\\\"b'{\\\\\\\\n  \\\\\\\"error\\\\\\\": {\\\\",
+   "usd": 2.4347,
+   "wall_s": 1598.5,
+   "started": "2026-10-29T16:45:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-gemini-desk-v4-2026-07-04-S01-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.4656,
+   "wall_s": 1943.4,
+   "started": "2026-10-29T17:15:54+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-gemini-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=02cb23d2-8d9f-439b-a0ad-28d05f9f99d3, agent_sandbox=local-db8b3178): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 2.5104,
+   "wall_s": 2089.3,
+   "started": "2026-10-29T16:45:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-gemini-desk-v4-2026-07-04-S02-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=e7c05f7e-7899-4d05-931a-f930904a1735, agent_sandbox=local-e603f7c5): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 5.5055,
+   "wall_s": 2032.8,
+   "started": "2026-10-29T17:20:54+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-gemini-desk-v4-2026-07-04-S02-a3",
+   "attempt": 3,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=eef41737-0990-4e99-a280-a46901d91a16, agent_sandbox=local-354a83d2): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 4.5072,
+   "wall_s": 1669.9,
+   "started": "2026-10-29T18:06:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-gemini-desk-v4-2026-07-04-S02-a4",
+   "attempt": 4,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.637,
+   "wall_s": 4229.5,
+   "started": "2026-10-29T18:34:34+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-gemini-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=cdb1be81-02b9-4375-a639-1e4b3989af6e, agent_sandbox=local-85e84b15): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 3.2682,
+   "wall_s": 2795.3,
+   "started": "2026-10-29T16:45:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-gemini-desk-v4-2026-07-04-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 6.0155,
+   "wall_s": 2110.2,
+   "started": "2026-10-29T17:32:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-gemini-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=bbb221c5-b531-48ad-93ab-1d0727b7190b, agent_sandbox=local-32790e9a): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 3.3981,
+   "wall_s": 1934.1,
+   "started": "2026-10-29T16:46:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-gemini-desk-v4-2026-07-04-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=e77db6b9-68fc-4482-8829-2221fe194143, agent_sandbox=local-cfc581d0): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 6.9357,
+   "wall_s": 3415.0,
+   "started": "2026-10-29T17:18:48+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-gemini-desk-v4-2026-07-04-S04-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.8324,
+   "wall_s": 2096.1,
+   "started": "2026-10-29T18:16:13+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-gemini-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 6.6817,
+   "wall_s": 1830.2,
+   "started": "2026-10-29T16:46:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-gemini-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "lane spend cap",
+   "usd": 15.0161,
+   "wall_s": 2922.6,
+   "started": "2026-10-29T16:46:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-gemini-desk-v4-2026-07-23-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.8935,
+   "wall_s": 1741.5,
+   "started": "2026-10-29T17:36:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-gemini-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.7829,
+   "wall_s": 2028.1,
+   "started": "2026-10-29T16:46:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-gemini-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.7262,
+   "wall_s": 2631.7,
+   "started": "2026-10-29T16:47:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-gemini-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=e6920741-f5de-4d1c-960e-e967d6d20538, agent_sandbox=local-39e8113e): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 4.5271,
+   "wall_s": 2578.2,
+   "started": "2026-10-29T16:47:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-gemini-desk-v4-2026-08-18-S01-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=769f8089-77f3-45c6-b432-cac9691811c1, agent_sandbox=local-7dbba8dc): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 6.3166,
+   "wall_s": 2119.3,
+   "started": "2026-10-29T17:30:58+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-gemini-desk-v4-2026-08-18-S01-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 7.0655,
+   "wall_s": 2402.3,
+   "started": "2026-10-29T18:06:48+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-gemini-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.5733,
+   "wall_s": 3163.3,
+   "started": "2026-10-29T16:47:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-gemini-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.8828,
+   "wall_s": 2368.9,
+   "started": "2026-10-29T16:48:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-gemini-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=8b16c6a8-0230-4daf-a99f-ae21e7fcabde, agent_sandbox=local-8bb43460): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 4.144,
+   "wall_s": 2342.5,
+   "started": "2026-10-29T16:48:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-gemini-desk-v4-2026-08-18-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 7.4165,
+   "wall_s": 1570.6,
+   "started": "2026-10-29T17:27:54+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-gemini-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.4532,
+   "wall_s": 2960.4,
+   "started": "2026-10-29T16:48:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-gemini-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=bdfe8512-0786-478d-a675-abb7ca8b1f64, agent_sandbox=local-d12fb006): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 4.9305,
+   "wall_s": 2594.1,
+   "started": "2026-10-29T16:48:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-gemini-desk-v4-2026-08-26-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.6252,
+   "wall_s": 2522.5,
+   "started": "2026-10-29T17:32:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-gemini-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 400 INVALID_ARGUMENT (transient 4xx): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=98b842a9-3149-48f3-a1fd-64f820242f73, agent_sandbox=local-007b6de4): gemini CLI exited with code 144: [API Error: {\\",
+   "usd": 6.1301,
+   "wall_s": 2761.5,
+   "started": "2026-10-29T16:49:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-gemini-desk-v4-2026-08-26-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 7.6196,
+   "wall_s": 3062.3,
+   "started": "2026-10-29T17:35:25+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
+   "model": "argon",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-gemini-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.6005,
+   "wall_s": 2623.8,
+   "started": "2026-10-29T16:49:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "0.38.2",
+   "framework": "0.9.1383"
+  },
+  {
    "model": "qwen",
    "task_id": "desk-v4-2026-01-23-S01",
    "run": "bench-qwen-desk-v4-2026-01-23-S01-a1",
@@ -6680,13 +8506,14 @@
   "diffs": []
  },
  "run": {
-  "framework": "0.9.1377 (API models), 0.9.1378 (Qwen3-4B)",
+  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B) and 0.9.1383 (Gemini 4 Argon)",
   "bundle": "desk-v4-bench-run1",
   "prereg": "docs/prereg/v4-bench.md",
   "route": "ec2",
   "harness_versions": {
    "Claude Code": "2.1.280",
    "Codex CLI": "0.147.0",
+   "Gemini CLI": "0.38.2",
    "OpenCode": "1.17.18"
   },
   "budget": {
@@ -6697,8 +8524,8 @@
   "core_versions": [
    "desk-2.1"
   ],
-  "metered_attempts": 88,
-  "deviations_ref": "desk-v4-bench-results",
+  "metered_attempts": 108,
+  "deviations_ref": "desk-v4-bench-results-2",
   "prices_per_mtok": {
    "claude-opus-5-5": {
     "in": 4.0,
@@ -6733,6 +8560,12 @@
      "out": 0.75
     }
    },
+   "gemini-4-argon": {
+    "in": 2.0,
+    "cached": 0.1,
+    "write": 0.0,
+    "out": 10.0
+   },
    "qwen3-4b": {
     "in": 0.0,
     "cached": 0.0,
@@ -6743,18 +8576,20 @@
  },
  "deviations": [
   "Route C: the episodes ran on EC2 boxes with local Docker rather than in Modal sandboxes; the internet was closed by a host rule and a per-run model proxy instead of Modal's network policy (the pre-registration gives the reasons).",
-  "agentenv-framework 0.9.1377 on the API-model box and 0.9.1378 on the Qwen3-4B boxes; the agent images are identical by digest.",
-  "Infrastructure retries (Claude Opus 5.5 27, GPT-6.1 Sol 39, GPT-6 Luna 22, Qwen3-4B 0): every attempt is kept and its spend counted.",
+  "agentenv-framework 0.9.1377 on the box that ran Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna, and 0.9.1378 on the Qwen3-4B boxes; the agent images are identical by digest.",
+  "Infrastructure retries (GPT-6.1 Sol 39, Gemini 4 Argon 20, Claude Opus 5.5 27, GPT-6 Luna 22, Qwen3-4B 0): every attempt is kept and its spend counted.",
   "Retry rule, decided mid-run before the affected windows' results: an attempt that failed at env deploy for $0 because of our launcher's port race does not count toward the at-most-two-retries limit. All 81 such failures were port races (GPT-6.1 Sol 35, Claude Opus 5.5 27, GPT-6 Luna 19); only GPT-6.1 Sol's desk-v4-2026-03-16-S04 and desk-v4-2026-04-17-S02 were affected, both graded on attempt 4.",
   "Stalls: Codex's 300 s inactivity watchdog at effort high stopped 4 GPT-6.1 Sol and 3 GPT-6 Luna attempts; they count as infrastructure and were retried, and their spend is included in the cost.",
-  "Cost basis: the table gives the graded attempt's cost a window and each model's total spend, retries and stalls included.",
-  "Gemini 4 Argon (Gemini CLI) was not run: deferred for cost, about $15–20 per window projected, 5–6× its approved budget."
+  "Cost basis: cost a window is the graded attempt's; the table also gives each model's total spend, retries and stalls included.",
+  "Gemini 4 Argon: first deferred for cost, it ran on 2026-10-29 from 16:41 to 19:45 UTC, after the others, by route C on its own box, on agentenv-framework 0.9.1383, whose Gemini harness no longer names its system-prompt file anew each turn (before, every turn start missed the prompt cache).",
+  "Provider HTTP 400s: 19 of Gemini 4 Argon's 1,488 wake starts (1.28%) drew HTTP 400 INVALID_ARGUMENT, all on a wake's first request from turn 12 on and more often at larger prompts; the identical request succeeded on replay, so they are transient and infrastructure under the pre-registered rule, and were retried. From 18:06 UTC they did not count toward the two-retry limit, with a safety stop at 6 attempts a window; no window used more than 4.",
+  "Caps: Gemini 4 Argon's per-episode cap rose from $15 to $30 after one attempt stopped at $15.02, which was retried as infrastructure, and its model cap from $300 to $330.",
+  "Selection, descriptive: Gemini 4 Argon's attempts that failed on a 400 ended at turn 21.4 on average, at a 172k-token prompt, against 32.3 turns and a 207k-token largest prompt for its graded attempts; its windows graded on the first try average C 17.0%, those graded after a retry 22.7%.",
+  "Prompt cache: 61% of Gemini 4 Argon's wake starts hit the cache fully and 32% only its first ~15k tokens, because Gemini CLI drops a thought signature when it resumes a session, a known harness issue."
  ],
  "defects": null,
  "notes": null,
- "deferred": [
-  "Gemini 4 Argon (Gemini CLI): deferred; projected $15–20 per window."
- ],
+ "deferred": null,
  "redactions": null,
  "skipped": null,
  "hero": {
@@ -6767,9 +8602,9 @@
  },
  "text": {
   "halves": "Every model scores lower on Jul–Aug than on Jan–May, and that includes Qwen3-4B, whose training predates every window. So the drop reflects harder windows (the Jan–May half includes winter storm Fern), not evidence of training-data contamination. No API model's post − pre interval excludes zero, so all 32 windows lead, by a rule set before any API result.",
-  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero.",
+  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5 and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero.",
   "valid": "Qwen3-4B made no valid submission on 7 of its 32 windows (R = 0 there).",
-  "reliability": "216 attempts for 128 model-windows; 88 did not reach the grade (infrastructure ×88). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0) didn't count toward the two-retry limit (see Deviations). No window is missing.",
+  "reliability": "268 attempts for 160 model-windows; 108 did not reach the grade (infrastructure ×108). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), and from 18:06 UTC Gemini 4 Argon's attempts ended by a transient provider 400, didn't count toward the two-retry limit (see Deviations). No window is missing.",
   "metered": "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory."
  }
 }

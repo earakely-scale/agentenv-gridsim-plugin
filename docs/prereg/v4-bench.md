@@ -98,3 +98,32 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
    spend is counted. A longer watchdog (900 s) is recommended for the next run.
 6. No window is missing: each model run has exactly one graded run on each of the 32 windows. Qwen3-4B submitted
    nothing valid on 7 windows, which are scored as settled (R = 0).
+
+### Gemini 4 Argon
+
+7. Deferred on cost under 3 (at $15–20 a window, the projection was well past its share of the cap), Gemini 4 Argon
+   was then run after the others, on 2026-10-29 from 16:41 to 19:45 UTC, on agentenv-framework 0.9.1383. That release
+   contains scaleapi/agentenv-framework#388: the Gemini harness used to write the AgentEnv system prompt to a file named
+   with a new UUID each turn, and Gemini CLI puts that path into the system instruction, so every turn start missed the
+   prompt cache. 0.9.1383 and 0.9.1377 differ only in the Gemini harness and in `agent_env.openenv` and
+   `agent_env.training`, which `agent-env run` does not use. The bundle was generated at `desk-v4-bench-run1`
+   (2523700), exactly as for the other harnesses.
+8. The same route C, on its own box (m7i.8xlarge) with separate state and its own port cursor.
+9. Provider HTTP 400 INVALID_ARGUMENT: 19 of 1,488 wake starts (1.28%), all on a wake's first request from turn 12
+   onwards, rising with prompt size (0% under 75k tokens, 2.7% at 175k and above). The identical request succeeded on
+   replay, so these are transient 4xx and infrastructure under the pre-registered rule. The driver first classed them
+   as agent-side, and 6 attempts were reclassified by hand. From 18:06 UTC, decided while the run was in progress, an
+   attempt that ended on this 400 did not count toward the two-retry limit, with a safety stop at 6 attempts a window.
+   No window used more than 4: 16 took 1, 13 took 2, 2 took 3 and 1 took 4.
+10. From 18:08:39 UTC, new attempts went through a proxy that resends such a 400 once. It carried 2 attempts and resent
+    nothing.
+11. Caps: the per-episode cap was raised from $15 to $30 at 17:35:50 UTC, after the first attempt on 2026-07-23 S02
+    had been stopped at $15.02; that attempt was retried as infrastructure. The Gemini model cap was raised from $300
+    to $330 at 18:06 UTC.
+12. Admission was paused from 17:09:53 to 17:14:54 and from 17:38:20 to 18:06:16 UTC, so retries ran out of pack
+    order. The driver restarted nine times, each time adopting the running units.
+13. Selection, descriptive: attempts that failed on a 400 ended at turn 21.4 on average, at a 172k-token prompt;
+    graded attempts averaged 32.3 turns and a largest prompt of 207k tokens. Windows graded on the first try: 32.5
+    turns, 204k tokens, C 0.170; windows graded after a retry: 32.1 turns, 210k tokens, C 0.227.
+14. Prompt cache: 61% of wake starts hit the cache fully, and 32% hit only the ~15k-token prefix, because Gemini CLI
+    drops a thoughtSignature when it resumes a session; that remains a known harness issue.

@@ -41,6 +41,7 @@ from gridsim_core.desk.data import load_tasks, pack_dir  # noqa: E402
 
 B, SEED = 10_000, 0
 SPLITS = ("pre_cutoff", "post_cutoff")
+TOKENS = ("input", "cached", "cache_write", "output", "reasoning")
 SCOPES = ("all", *SPLITS)
 ORDER = ("opus", "sol", "luna", "argon", "qwen")
 MODELS = {
@@ -267,11 +268,12 @@ def route_c(bench: Path, row: dict, result: dict | None, labels: dict) -> dict:
         a |= {"episode": ep, "grade": a["grade"] or ep.get("grade") or {}}
     u = row.get("usage") or {}
     version = re.search(r"\d+\.\d+\.\d+", row.get("agent_version") or "")
+    framework = re.search(r"agentenv-framework (\d+\.\d+\.\d+)", row.get("agent_version") or "")
     metered = not ok and row.get("proxy_cost_usd") is not None
     usd = row["proxy_cost_usd"] if metered else a["usd"] if a["usd"] is not None else u.get(
         "cost_usd_list_price", row.get("proxy_cost_usd"))
     return a | {"graded": ok and a["episode"] is not None and bool(a["grade"]),
-                "harness_version": version[0] if version else None,
+                "harness_version": version[0] if version else None, "framework": framework[1] if framework else None,
                 "kind": None if ok else CLASS_KIND.get(row["class"], row["class"]),
                 "error": clean(row.get("why")) or a["error"], "box": row.get("box"),
                 "instance_type": row.get("instance_type"), "ended": dt.datetime.fromisoformat(row["t_end"]),
@@ -403,7 +405,8 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
                         "status": a["status"], "kind": a["kind"], "error": a["error"], "usd": round(a["usd"] or 0, 4),
                         "wall_s": round(a["wall_s"], 1), "started": a["started"].isoformat(timespec="seconds"),
                         **({"box": a["box"], "instance_type": a["instance_type"],
-                            "harness_version": a["harness_version"]} if a.get("box") else {})})
+                            "harness_version": a["harness_version"]} if a.get("box") else {}),
+                        **({"framework": a["framework"]} if a.get("framework") else {})})
         t, a = tasks[tid], xs[i if i is not None else -1]
         lab, card = a["label"], t["site"].get("card") or {}
         row = {"model": key, "name": lab["name"], "family": lab["family"], "harness": lab["harness"],
@@ -430,7 +433,7 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
                     "own_tool_calls": a["own_calls"], "shell_calls": a["shell_calls"], "own_tools": a["own_by_tool"],
                     "reminders": a["reminders"], "compactions": a["compactions"], "sessions": a["sessions"],
                     "submissions": len(subs), "rejected": sum(not s.get("accepted") for s in subs),
-                    "tokens": a["tokens"], "wall_s": round(a["wall_s"], 1),
+                    "tokens": dict.fromkeys(TOKENS, 0) | a["tokens"], "wall_s": round(a["wall_s"], 1),
                     "episode": f"episodes/{key}/{tid}.{a['model_id']}.json.gz"}
         rows.append(row)
     rows.sort(key=lambda r: (rank.get(r["model"], 99), r["model"], r["task_id"]))
@@ -469,6 +472,9 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
     key, done = rows[0]["model"], [r for r in rows if r["status"] == "scored"]
     tries = [x for x in log if x["model"] == key]
     versions = Counter(x["harness_version"] for x in tries if x.get("harness_version"))
+    frameworks = Counter(x["framework"] for x in tries if x.get("framework"))
+    starts = [dt.datetime.fromisoformat(x["started"]) for x in tries]
+    ends = [s + dt.timedelta(seconds=x["wall_s"]) for s, x in zip(starts, tries, strict=True)]
     tok = Counter()
     for r in done:
         tok.update({k: v or 0 for k, v in (r["tokens"] or {}).items()})
@@ -480,7 +486,10 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
                                                    "variant", "family", "harness_note", "server", "cutoff")},
             "model_id": rows[0]["model_id"], "harness_key": rows[0]["harness_key"],
             "harness_version": versions.most_common(1)[0][0] if versions else HARNESS_VERSIONS.get(lab.get("harness")),
-            "harness_versions_recorded": dict(versions) or None, "n": len(done),
+            "harness_versions_recorded": dict(versions) or None,
+            "framework": frameworks.most_common(1)[0][0] if frameworks else None,
+            "ran": {"from": min(starts).isoformat(timespec="seconds"), "to": max(ends).isoformat(timespec="seconds")},
+            "n": len(done),
             "missing": sorted(r["task_id"] for r in rows if r["status"] == "missing"),
             **{s: model_scope(scope_rows(done, s)) for s in SCOPES}, "split_gap": gaps,
             "cost": {"basis": "gpu_time" if gpu else "list_price_tokens",
@@ -587,7 +596,7 @@ def months(s: dict, split: str) -> str:
 
 def texts(s: dict, retry_note: str | None) -> dict:
     """The sentences the README and the card share: the two halves, valid submissions and reliability."""
-    ms, rule = s["models"], s["lead_rule"]
+    ms, rule = ranked(s), s["lead_rule"]
     pre, post = months(s, "pre_cutoff"), months(s, "post_cutoff")
     have = [k for k, m in ms.items() if m["pre_cutoff"]["C"]["mean"] is not None
             and m["post_cutoff"]["C"]["mean"] is not None]
@@ -634,18 +643,20 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
     rank = {k: i for i, k in enumerate(ORDER)}
     keys = sorted({r["model"] for r in rows}, key=lambda k: (rank.get(k, 99), k))
     models = {k: model_block([r for r in rows if r["model"] == k], log, labs[k], gpus.get(k)) for k in keys}
+    order = sorted((k for k in keys if models[k]["n"]), key=lambda k: -models[k]["all"]["C"]["mean"])
+    ranked = [*order, *(k for k in keys if k not in order)]
     scored = {k: {r["task_id"]: r for r in rows if r["model"] == k and r["status"] == "scored"} for k in keys}
-    pairs = {f"{x}-{y}": pair_block(x, y, scored[x], scored[y]) for x, y in itertools.combinations(keys, 2)}
-    pairs |= {f"{x}-operator_replay": operator_block(x, scored[x]) for x in keys}
+    pairs = {f"{x}-{y}": pair_block(x, y, scored[x], scored[y]) for x, y in itertools.combinations(ranked, 2)}
+    pairs |= {f"{x}-operator_replay": operator_block(x, scored[x]) for x in ranked}
     refs = ref_block(tasks, front_of)
     man = json.loads((pack_dir(a.pack) / "manifest.json").read_text())
     route = "ec2" if any(r.get("box") for r in log) else "modal"
     first = min(t["dates"][0] for t in tasks.values() if t["tags"]["split"] == "pre_cutoff")
-    exposed = [k for k in keys if (models[k].get("cutoff") or "") >= first]
+    exposed = [k for k in ranked if (models[k].get("cutoff") or "") >= first]
     differ = [k for k in exposed if (g := models[k]["split_gap"]["C"])["mean"] is not None and (
         g["ci"][0] > 0 or g["ci"][1] < 0)]
-    agent = {m["name"]: n for m in models.values()
-             if (n := m["attempts"]["missing_reasons"].get(CLASS_KIND["agent"]))}
+    agent = {models[k]["name"]: n for k in ranked
+             if (n := models[k]["attempts"]["missing_reasons"].get(CLASS_KIND["agent"]))}
     return {
         "schema": "gridsim.desk.bench/v1", "fake": fake, "pack": a.pack, "layer": "v4", "unit": "3-day window",
         "generated": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "n_windows": len(tasks),
@@ -657,9 +668,8 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
         "ci": {"method": "block bootstrap, the pack's weather fronts as blocks, task-weighted means; a split's CI "
                          "draws its own fronts; post − pre draws each split's fronts apart",
                "resamples": B, "seed": SEED, "level": 0.95, "blocks": "front"},
-        "models": models, "order_by_C": sorted((k for k in keys if models[k]["n"]),
-                                               key=lambda k: -models[k]["all"]["C"]["mean"]),
-        "lead_rule": {"exposed": exposed, "unexposed": [k for k in keys if k not in exposed], "first_window": first,
+        "models": models, "order_by_C": order,
+        "lead_rule": {"exposed": exposed, "unexposed": [k for k in ranked if k not in exposed], "first_window": first,
                       "set": "before any API-model result", "text": lead_text(models, exposed)},
         "halves_differ": differ, "lead_split": "post_cutoff" if differ else "all", "references": refs,
         "paired": pairs, "plot": plot_block(models, refs), "attempts": log, "regraded": regrade_check(rows),
@@ -671,8 +681,8 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
                 "prices_per_mtok": {k: v for k, v in DBR.PRICES.items() if any(m["model_id"] == k
                                                                               for m in models.values())}},
         "deviations": [d.replace("{retries}", ", ".join(
-            f"{m['name']} {sum(x['kind'] == CLASS_KIND['infra'] for x in log if x['model'] == k)}"
-            for k, m in models.items())) for d in a.deviation] + ([
+            f"{models[k]['name']} {sum(x['kind'] == CLASS_KIND['infra'] for x in log if x['model'] == k)}"
+            for k in ranked)) for d in a.deviation] + ([
                 f"Agent-side failures with no grade ({', '.join(f'{n} {k}' for n, k in agent.items())}): the harness "
                 "failed during play, so the verifier never ran and these windows could not be scored as settled; they "
                 "are reported missing and not imputed."] if agent else []) or None,
@@ -801,7 +811,7 @@ def deviations_link(s: dict) -> str | None:
 
 
 def readme(s: dict) -> str:
-    ms, refs, sp = s["models"], s["references"], s["splits"]
+    ms, refs, sp = ranked(s), s["references"], s["splits"]
     who = {k: m["name"] for k, m in ms.items()} | {"operator_replay": "the operator's bids, replayed"}
     t1 = table(["model", "harness", "n", "C", "C, pre_cutoff", "C, post_cutoff", "R", "P", "$ / window"],
                [[f"**{m['name']}**", f"{m['harness']} · {m['setting']}", str(m["n"]), pci(m["all"]["C"]),
@@ -823,12 +833,11 @@ def readme(s: dict) -> str:
     t5 = table(["reference", "C", "C, pre_cutoff", "C, post_cutoff", "P"],
                [[r["label"], pci(r["all"]["C"]), pci(r["pre_cutoff"]["C"]), pci(r["post_cutoff"]["C"]),
                  usd_ci(r["all"]["P"])] for r in refs.values()])
-    tok = ("input", "cached", "cache_write", "output", "reasoning")
-    t6 = table(["model", "$ / window", "basis", *[f"{k.replace('_', ' ')} tok" for k in tok], "turns", "wakes",
+    t6 = table(["model", "$ / window", "basis", *[f"{k.replace('_', ' ')} tok" for k in TOKENS], "turns", "wakes",
                 "desk calls", "own-tool calls", "shell", "reminders", "rejected"],
                [[m["name"], usd(m["cost"]["usd_per_window"]),
                  "GPU time" if m["cost"]["basis"] == "gpu_time" else "list price",
-                 *[f"{m['tokens_per_window'].get(k, 0):,.0f}" for k in tok],
+                 *[f"{m['tokens_per_window'].get(k, 0):,.0f}" for k in TOKENS],
                  *[("—" if m["behaviour"][k] is None else f"{m['behaviour'][k]:g}") for k in (
                      "turns", "wakes", "desk_calls", "own_tool_calls", "shell_calls", "reminders", "rejected")]]
                 for m in ms.values()])
@@ -910,6 +919,11 @@ def readme(s: dict) -> str:
         "(Episode JSON with the run's own grade), `figures/`.", ""]
     return "\n".join(x for x in lines if x is not None)
 
+
+
+def ranked(s: dict) -> dict:
+    """The models by C over every window, highest first, then any with no scored window."""
+    return {k: s["models"][k] for k in [*s["order_by_C"], *(k for k in s["models"] if k not in s["order_by_C"])]}
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
