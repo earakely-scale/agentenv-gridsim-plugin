@@ -115,7 +115,7 @@ R = 0.
   before any scored episode. Each version is then piloted on one or two tasks before its eval; the pilots are
   mechanics checks, not results.
 - **The v4 benchmark** plays v4's desk, frozen at `desk-v4-freeze`, on 32 windows (v4's 16 and 16 after every
-  model's training cutoff) with each model in its own vendor's harness, under a pre-registration of its own.
+  model's training cutoff) with each model in a native agent harness, under a pre-registration of its own.
   `scripts/desk_bench_results.py` scores a model's first attempt on a window that reached the grade, counts every
   attempt in the cost, and never imputes a window a model did not finish.
 <!-- bench-rule -->
@@ -193,7 +193,7 @@ the Iowa Environmental Mesonet.
   year = {2026},
   url = {https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv},
   note = {Desk versions v2 to v4, a price-impact check (v5) and the v4
-          benchmark of models in their own agent harnesses. Code:
+          benchmark of models in native agent harnesses. Code:
           \url{https://github.com/earakely-scale/agentenv-gridsim-plugin}}
 }
 ```

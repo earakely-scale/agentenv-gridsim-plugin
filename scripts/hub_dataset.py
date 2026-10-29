@@ -781,7 +781,7 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
                          "bench-rule": ""}
     s, grades = bench
     return blocks | {"pitch": bench_pitch(s), "gif": bench_gif(s, grades, gif),
-                     "bench": "## The v4 benchmark: each model in its own agent harness\n\n"
+                     "bench": "## The v4 benchmark: models in native agent harnesses\n\n"
                               + bench_block(s, grades, d),
                      "earlier": "## Earlier versions\n\n<details>\n<summary><b>v2 to v4 on the desk's own runner, and "
                                 "the v5 price-impact check</b></summary>\n\n" + earlier + "\n\n</details>",
@@ -840,8 +840,12 @@ def bench_usd(x: float) -> str:
 
 
 def bench_pitch(s: dict) -> str:
-    n = len(s["models"])
-    return "\n\n".join([f"**{NUM.get(n, n)} models, each in its own vendor's agent harness, run a real ERCOT battery's "
+    ms = list(s["models"].values())
+    n, opened = len(ms), [m for m in ms if m["weights"] == "open"]
+    used = [*dict.fromkeys(m["harness"] for m in ms if m["weights"] != "open"),
+            *(f"{m['harness']} for the open {m['name']}" for m in opened)]
+    harnesses = used[0] if len(used) == 1 else f"{', '.join(used[:-1])}, and {used[-1]}"
+    return "\n\n".join([f"**{NUM.get(n, n)} models in native agent harnesses ({harnesses}) run a real ERCOT battery's "
                         f"trading desk for three days at a time across {s['n_fronts']} real Texas weather fronts, "
                         "graded in dollars against the hindsight optimum and the battery's real operator.**",
                         *([FAKE] if s["fake"] else [])])
@@ -978,7 +982,7 @@ def bench_how(s: dict) -> list[str]:
     open_ = [m for m in ms if m["weights"] == "open" and m["cost"].get("gpu")]
     budget, ref = run.get("budget") or {}, run.get("bundle") or "main"
     return [
-        f"**Each model in its own vendor's agent harness,** through AgentEnv: {harnesses}"
+        f"**Each model in a native agent harness,** through AgentEnv: {harnesses}"
         + (f"; {and_join([m['name'] for m in open_])} served by {open_[0].get('server') or 'vLLM'} on "
            f"{open_[0]['cost']['gpu']['where']}" if open_ else "") + ".",
         "**At high effort:** " + "; ".join(f"{m['name']} {m['setting']}" for m in ms) + ".",

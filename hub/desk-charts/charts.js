@@ -450,8 +450,8 @@ function costScore(Bn, W, narrow) {
   for (const p of placeBoxes(want, obst, [2, ptop - 22, W - 2, bottom - 2])) labels += boxText(p);
   let fy = bottom + 44;
   const n = Bn.n_windows, foot = narrow
-    ? `Each point: a model in its own agent harness, its mean over ${n} windows; lines: 95% CIs over ${Bn.n_fronts} fronts.`
-    : `Each point: a model in its own agent harness, its mean over ${n} windows · vertical lines: 95% CIs over ${Bn.n_fronts} fronts.`;
+    ? `Each point: a model in a native agent harness, its mean over ${n} windows; lines: 95% CIs over ${Bn.n_fronts} fronts.`
+    : `Each point: a model in a native agent harness, its mean over ${n} windows · vertical lines: 95% CIs over ${Bn.n_fronts} fronts.`;
   for (const line of wrap(foot, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
   const H = fy + 8;
   return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture against cost per window, by model");

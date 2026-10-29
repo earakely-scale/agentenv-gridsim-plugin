@@ -846,7 +846,7 @@ def readme(s: dict) -> str:
     lines = [
         f"# GridSimEnv desk v4 benchmark: results on `{s['pack']}`", "", fake.rstrip(), "" if fake else None,
         f"{s['n_windows']} three-day windows ({s['n_fronts']} real ERCOT weather fronts × {len(s['sites'])} real "
-        f"batteries), {len(ms)} models, each in its own vendor's agent harness at high effort. C, the headline, is "
+        f"batteries), {len(ms)} models in native agent harnesses at high effort. C, the headline, is "
         "hindsight capture (P − P_idle)/(P_hind − P_idle), the share of the hindsight optimum's profit over idle; R "
         "the contract reward (anchor 1.0, idle 0.2); P the settled ERCOT statement in $ per window. "
         f"`pre_cutoff`: {sp['pre_cutoff']['windows']} windows, January to May 2026; `post_cutoff`: "
