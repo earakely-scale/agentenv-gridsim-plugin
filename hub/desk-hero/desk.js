@@ -19,7 +19,7 @@
     $("#hp .nm").textContent = D.model;
     $("#hd .site").textContent = D.site;
     const inner = $("#hp .in");
-    const who = D.model.split(" ").at(-1);
+    const who = D.who;
     groups = D.groups.map((g) => {
       const node = el("div", "wg", `<div class="gh"><span class="tm">${g.time}</span><span class="lb">${esc(g.reasons)}</span><span class="chips">${g.chips}</span></div>`);
       const items = g.items.map((it) => { const n = el("div", `it ${it.kind}${it.cls && it.kind === "event" ? " " + it.cls : ""}`, it.html); node.append(n); return { ...it, node: n }; });

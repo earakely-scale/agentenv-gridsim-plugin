@@ -505,7 +505,8 @@ def episodes_out(atts: list[dict], rows: list[dict], out: Path, redact: list[str
             continue
         lab = a["label"]
         policy = a["episode"].get("policy") or {"kind": "model", "model": a["model_id"], "name": lab["name"],
-                                                 "harness": lab["harness"], "setting": lab["setting"]}
+                                                 "tag": lab["tag"], "harness": lab["harness"],
+                                                 "setting": lab["setting"]}
         text = json.dumps(dict(a["episode"], grade=a["grade"], policy=policy), ensure_ascii=False)
         for term in redact:
             hits[term] += text.count(term)

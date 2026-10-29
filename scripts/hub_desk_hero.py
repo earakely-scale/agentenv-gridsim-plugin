@@ -538,7 +538,8 @@ def page_data(ep: dict, series: dict | None, d0: date, k: float, t_start: int, t
     modelled = [MODELLED.get(x, x.replace("_", " ")) for x in statement.get("modelled", [])
                 if any(x in v["lines"] for v in statement["days"].values())]
     return {
-        "model": name(ep), "site": " · ".join(x for x in (card.get("name"), card.get("region"), card.get("size")) if x),
+        "model": name(ep), "who": (ep.get("policy") or {}).get("tag") or name(ep).split(" ")[-1],
+        "site": " · ".join(x for x in (card.get("name"), card.get("region"), card.get("size")) if x),
         "d0": dates[0], "nd": nd, "k": k, "t0": t_start, "t1": t_end, "days": [day_label(d) for d in dates],
         "dayBefore": day_label((d0 - timedelta(1)).isoformat()), "eMax": ep["site"]["e_max_mwh"],
         "hsl": ep["site"]["hsl_mw"], "lsl": ep["site"]["lsl_mw"], "dam": cat("dam", "spp"),
