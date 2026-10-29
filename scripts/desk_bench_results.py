@@ -57,7 +57,7 @@ MODELS = {
 HARNESS_VERSIONS = {"Claude Code": "2.1.280", "Codex CLI": "0.147.0", "Gemini CLI": "0.38.2", "OpenCode": "1.17.18"}
 GPU_USD_PER_S = {"T4": 0.000164, "L4": 0.000222, "A10": 0.000306, "L40S": 0.000542, "A100-40GB": 0.000583,
                  "A100-80GB": 0.000694, "H100": 0.001097, "H200": 0.001261, "B200": 0.001736}
-GPU_PRICE_SOURCE = "Modal's list price per GPU-second (modal.com/pricing, read 2026-10-29)"
+GPU_PRICE_SOURCE = "Modal's list price, modal.com/pricing, read 2026-10-29"
 SCALEDOWN_S = 300
 SHELL = {"Bash", "command_execution", "run_shell_command", "bash", "shell", "local_shell"}
 REFS = (("idle", "p_idle", "Idle"), ("anchor", "p_anchor", "Anchor (the desk's optimiser, same information)"),
@@ -189,11 +189,32 @@ def watched_usd(run: Path) -> float | None:
     return costs[-1] if costs else None
 
 
+def state_verdict(run: Path) -> tuple[dict, dict | None]:
+    """The verifier's grade and Episode JSON as the run's own document store holds them, for a report written
+    without --with-episode (or none at all)."""
+    log = run / "run.log"
+    if not (log.is_file() and (run / "state").is_dir()):
+        return {}, None
+    try:
+        inst = DBR.instance(run / "state", log.read_text())
+    except (SystemExit, OSError, ValueError):
+        return {}, None
+    rows = (((inst.get("context") or {}).get("metadata") or {}).get("verifications") or {}).get("gridsim-desk") or {}
+    first = (rows.get("results") or [{}])[0]
+    ep = first.get("episode")
+    return (first.get("metadata") or {}).get("grade") or {}, ep if isinstance(ep, dict) and "statement" in ep else None
+
+
 def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
     task = meta["task"]
     pr = rep.get("prompt_response") or {}
     model_id = pr.get("model") or play_model(run, task) or HARNESSES[meta["harness"]]["model"]
     ep = rep.get("episode") if isinstance(rep.get("episode"), dict) and "statement" in rep["episode"] else None
+    if ep is None and rep.get("grade") is not None:
+        grade, ep = state_verdict(run)
+        rep = rep | {"grade": rep.get("grade") or grade}
+    if rep.get("grade") and "valid" not in rep["grade"]:
+        raise SystemExit(f"{run}: the report's grade has no 'valid'; rerun scripts/desk_bench_report.py there")
     usage = rep.get("usage") or {}
     if not usage.get("tokens"):
         usage = state_usage(run, task, model_id) or usage
@@ -211,21 +232,29 @@ def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
             "graded": bool(rep.get("grade")) and ep is not None, "grade": rep.get("grade") or {}, "episode": ep,
             "error": clean(error), "kind": None if rep.get("grade") else failure_kind(error or rep.get("status")),
             "tokens": usage.get("tokens") or {}, "usd": usd, "fake": bool(meta.get("fake")),
-            "turns": calls.get("turns"), "desk_calls": calls.get("desk_calls"), "own_calls": calls.get("builtin_calls"),
+            "turns": calls.get("turns"), "own_calls": calls.get("builtin_calls"),
             "own_by_tool": own, "shell_calls": sum(v for k, v in own.items() if k in SHELL),
             "compactions": calls.get("compaction_events"), "sessions": len(calls.get("session_ids") or []),
             "wakes": wakes.get("env_episode"), "reminders": wakes.get("agent_reminders_set")}
 
 
-def load(roots: list[Path], tasks: dict, labels: dict) -> list[dict]:
-    out = []
+def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[dict], Counter]:
+    """Every bench attempt under the roots, and what was passed over: other packs' and tasks' runs, and checks that
+    are not the pre-registered episode (a turn cap, Codex on its own model metadata)."""
+    out, skipped = [], Counter()
     for meta_path in sorted(p for r in roots for p in r.rglob("meta.json")):
         meta = json.loads(meta_path.read_text())
-        if not isinstance(meta, dict) or meta.get("task") not in tasks or meta.get("harness") not in HARNESSES:
+        if not isinstance(meta, dict) or meta.get("harness") not in HARNESSES:
+            continue
+        why = ("another pack" if meta.get("pack", pack) != pack else "another task" if meta.get("task") not in tasks
+               else "a turn cap" if meta.get("max_turns") else "Codex as installed" if meta.get(
+                   "codex_as_installed") else None)
+        if why:
+            skipped[why] += 1
             continue
         rep = meta_path.parent / "report.json"
         out.append(attempt(meta_path.parent, meta, json.loads(rep.read_text()) if rep.is_file() else {}, labels))
-    return out
+    return out, skipped
 
 
 def gpu_share(atts: list[dict], gpu: str, hours: float | None) -> dict:
@@ -292,8 +321,7 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
                     "verifier": {k: a["grade"].get(k) for k in CHECKED}, "lines": statement_lines(ep),
                     "turns": a["turns"] if a["turns"] is not None else len(ep.get("turns") or []),
                     "wakes": a["wakes"] if a["wakes"] is not None else len(ep.get("wakes") or []),
-                    "desk_calls": a["desk_calls"] if a["desk_calls"] is not None else sum(
-                        len(x.get("calls") or []) for x in ep.get("turns") or []),
+                    "desk_calls": sum(len(x.get("calls") or []) for x in ep.get("turns") or []),
                     "own_tool_calls": a["own_calls"], "shell_calls": a["shell_calls"], "own_tools": a["own_by_tool"],
                     "reminders": a["reminders"], "compactions": a["compactions"], "sessions": a["sessions"],
                     "submissions": len(subs), "rejected": sum(not s.get("accepted") for s in subs),
@@ -465,11 +493,12 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
         "deviations": a.deviation or None, "defects": a.defect or None, "notes": a.note or None}
 
 
-def episodes_out(atts: list[dict], rows: list[dict], out: Path) -> None:
+def episodes_out(atts: list[dict], rows: list[dict], out: Path, redact: list[str]) -> dict[str, int]:
     """Each scored Episode JSON beside the run's own grade, and, where the env left its policy empty, the agent that
-    played it (the hero GIF and the viewer name the model from it)."""
+    played it (the hero GIF and the viewer name the model from it); each --redact term replaced and counted."""
     paths = {(r["model"], r["task_id"]): out / r["episode"] for r in rows if r["status"] == "scored"}
     shutil.rmtree(out / "episodes", ignore_errors=True)
+    hits = Counter()
     for a in atts:
         p = paths.pop((a["label"]["key"], a["task_id"]), None) if a["graded"] else None
         if p is None:
@@ -477,9 +506,14 @@ def episodes_out(atts: list[dict], rows: list[dict], out: Path) -> None:
         lab = a["label"]
         policy = a["episode"].get("policy") or {"kind": "model", "model": a["model_id"], "name": lab["name"],
                                                  "harness": lab["harness"], "setting": lab["setting"]}
+        text = json.dumps(dict(a["episode"], grade=a["grade"], policy=policy), ensure_ascii=False)
+        for term in redact:
+            hits[term] += text.count(term)
+            text = text.replace(term, "<redacted>")
         p.parent.mkdir(parents=True, exist_ok=True)
         with gzip.GzipFile(p, "wb", compresslevel=9, mtime=0) as f:
-            f.write(json.dumps(dict(a["episode"], grade=a["grade"], policy=policy), ensure_ascii=False).encode())
+            f.write(text.encode())
+    return dict(hits)
 
 
 def hero(s: dict, out: Path) -> dict | None:
@@ -501,6 +535,7 @@ def leaks(out: Path, extra: list[str]) -> None:
     hr, hd = module("hub_results", "scripts/hub_results.py"), module("hub_desk", "scripts/hub_desk.py")
     files = {p.relative_to(out).as_posix(): p.read_bytes() for p in sorted(out.rglob("*"))
              if p.is_file() and p.suffix != ".png"}
+    files = {k: re.sub(rb"base64,[\w+/=]+", b"base64,", v) if k.endswith(".svg") else v for k, v in files.items()}
     hr.leaks(files)
     hd.anonymous(files, hd.names(ROOT) + extra)
 
@@ -644,8 +679,13 @@ def readme(s: dict) -> str:
         f"input/cached/cache write/output: {prices}."
         + (f" Open weights: {gpu['gpu_hours']:.2f} GPU-hours on one {gpu['gpu']} "
            f"({'as billed' if gpu['measured'] else 'the union of its runs, each plus the 300 s scale-down window'}) "
-           f"at ${gpu['usd_per_gpu_second']}/GPU-second ({gpu['price_source']}), shared across its attempts by run "
-           "time." if gpu else ""),
+           f"at ${gpu['usd_per_gpu_second']} a GPU-second ({gpu['price_source']}), shared across its attempts by "
+           "run time." if gpu else ""),
+        *(["- Passed over under the run folders: " + ", ".join(f"{k} ×{v}" for k, v in s["skipped"].items()) + "."]
+          if s.get("skipped") else []),
+        *([f"- Redacted from the Episode JSON: {sum(s['redactions'].values())} occurrences of "
+           f"{len(s['redactions'])} term{'s' if len(s['redactions']) > 1 else ''} the leak scan refused."]
+          if s.get("redactions") else []),
         *[f"- Deviation: {d}" for d in s.get("deviations") or []],
         *[f"- Known env defect: {d}" for d in s.get("defects") or []],
         *[f"- {n}" for n in s.get("notes") or []],
@@ -673,11 +713,14 @@ def main() -> None:
     ap.add_argument("--note", action="append", default=[], help="a line for the README's method")
     ap.add_argument("--scan", action="append", default=[], metavar="TERM",
                     help="another term the leak scan refuses, beside the desk's real site and operator names")
+    ap.add_argument("--redact", action="append", default=[], metavar="TERM",
+                    help="replace TERM in every Episode JSON with <redacted>, counted in summary.json (for a term the "
+                         "leak scan stops on, such as a host an agent printed)")
     ap.add_argument("--no-figures", action="store_true")
     a = ap.parse_args()
     tasks = {t["task_id"]: t for t in load_tasks(a.pack)}
     fr, front_of = fronts(a.pack, tasks, dict(x.split("=", 1) for x in a.block_alias))
-    atts = load(a.runs, tasks, labels_of(a.model))
+    atts, skipped = load(a.runs, a.pack, tasks, labels_of(a.model))
     if not atts:
         raise SystemExit(f"no attempts on {a.pack} under {', '.join(map(str, a.runs))}")
     fake = {x["fake"] for x in atts}
@@ -691,7 +734,8 @@ def main() -> None:
                   fake.pop())
     out = a.out
     out.mkdir(parents=True, exist_ok=True)
-    episodes_out(atts, rows, out)
+    s["redactions"] = episodes_out(atts, rows, out, a.redact) or None
+    s["skipped"] = dict(skipped) or None
     with gzip.GzipFile(out / "grades.jsonl.gz", "wb", mtime=0) as f:
         f.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows).encode())
     s["hero"] = hero(s, out)

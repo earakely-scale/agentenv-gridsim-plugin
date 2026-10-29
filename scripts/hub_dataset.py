@@ -990,11 +990,10 @@ def bench_how(s: dict) -> list[str]:
            f"{open_[0]['cost']['gpu']['gpu']} GPU" if open_ and open_[0]["cost"].get("gpu") else "") + ".",
         "**At high effort:** " + "; ".join(f"{m['name']} {m['setting']}" for m in ms) + ".",
         "**No internet.** Each agent's sandbox allows only its model's API host (and the sandbox platform's tunnel to "
-        "the env); web search and fetch are off in each harness's own settings. Checked from inside every sandbox "
-        "before the runs.",
-        "**The same desk, tools and budget as every version:** the desk's 11 tools over MCP, beside the harness's own "
-        "shell, files and planning tools"
-        + (f"; {budget.get('max_turns')} turns, {budget.get('calls_per_turn')} desk calls a turn and "
+        "the env), and web search and fetch are off in each harness's own settings; checked from inside the "
+        "sandboxes before the runs.",
+        "**The desk's 11 tools over MCP,** beside the harness's own shell, files and planning tools"
+        + (f"; v4's budget of {budget.get('max_turns')} turns, {budget.get('calls_per_turn')} desk calls a turn and "
            f"{budget.get('max_reminders')} reminders" if budget else "") + ". One run per model per window.",
         "**Reproducible with `agent-env run`:** every episode is a plain run of the published bundle and a "
         "config.toml"
@@ -1015,8 +1014,8 @@ BENCH_LIMITS = (
     "GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the desk's own runner (below).",
     "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can carry a "
     "model's dollars.",
-    "**Cost is list price:** tokens at each provider's public price per million, with no batch or volume discounts; "
-    "the open model's GPU time is shared across its runs by run time.")
+    "**Cost is list price:** tokens at each provider's public price per million, without batch or volume discounts "
+    "or long-context surcharges; the open model's GPU time is shared across its runs by run time.")
 
 
 def ladder(d: dict) -> list[dict]:

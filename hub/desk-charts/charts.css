@@ -19,6 +19,7 @@ svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-l
 .ln-s.ln-b { stroke-width: 2.7; }
 .mk { stroke: var(--halo); stroke-width: 2; stroke-linejoin: round; }
 .mk-s { stroke: var(--halo); stroke-width: 1.5; }
+.mk-o { stroke-width: 2.4; stroke-linejoin: round; }
 .op { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dasharray: 5 4; }
 .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
 .gap { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 1.5 3; stroke-linecap: round; }

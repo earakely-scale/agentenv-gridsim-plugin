@@ -312,8 +312,8 @@ const usdVal = (v) => (v >= 10 ? `$${Math.round(v)}` : v >= 0.01 ? `$${v.toFixed
 const pname = (p, narrow) => (narrow ? p.tag || p.short : p.name) + (p.variant && p.variant !== "untrained" ? ` · ${p.variant}` : p.variant && !narrow ? ` (${p.variant})` : "");
 const lw = (l) => measure(l.t, l.cls) + (l.tail ? measure(l.tail, "t-end-q") : 0);
 
-function mark(shape, x, y, r, fill, cls = "mk") {
-  const a = `fill="${fill}" class="${cls}"`;
+function mark(shape, x, y, r, fill, cls = "mk", hollow = false) {
+  const a = hollow ? `fill="var(--halo)" stroke="${fill}" class="mk-o"` : `fill="${fill}" class="${cls}"`;
   if (shape === "square") { const s = r * 0.86; return `<rect x="${f1(x - s)}" y="${f1(y - s)}" width="${f1(2 * s)}" height="${f1(2 * s)}" rx="1.5" ${a}/>`; }
   if (shape === "diamond") { const s = r * 1.24; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s)},${f1(y)}L${f1(x)},${f1(y + s)}L${f1(x - s)},${f1(y)}Z" ${a}/>`; }
   if (shape === "triangle") { const s = r * 1.3; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s * 0.93)},${f1(y + s * 0.62)}L${f1(x - s * 0.93)},${f1(y + s * 0.62)}Z" ${a}/>`; }
@@ -366,7 +366,7 @@ function shapeKey(items, W, y0) {
   for (const it of items) {
     const w = 18 + measure(it.label, it.cls);
     if (x > 0 && x + w > W) (x = 0), (y += 21);
-    s += it.op ? `<path class="op" d="M${f1(x)},${f1(y - 4.5)}H${f1(x + 12)}"/>` : mark(it.shape, x + 6, y - 4.5, 5, it.color, "mk-s");
+    s += it.op ? `<path class="op" d="M${f1(x)},${f1(y - 4.5)}H${f1(x + 12)}"/>` : mark(it.shape, x + 6, y - 4.5, 5, it.color, "mk-s", it.hollow);
     s += T(x + 18, y, it.label, it.cls);
     x += w + 14;
   }
@@ -394,7 +394,7 @@ function costScore(Bn, W, narrow) {
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
   let [s, y] = header("Hindsight capture against cost", narrow ? "C, % · USD per three-day window" : "C, % of the hindsight optimum's profit over idle · USD per three-day window", W);
   if (narrow) {
-    const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, false), cls: p.key === top ? "t-key b" : "t-key" })), W, y + 26);
+    const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, false), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family })), W, y + 26);
     s += k;
     y = ky;
   }
@@ -439,7 +439,7 @@ function costScore(Bn, W, narrow) {
     lines += `<path class="ci" d="M${f1(x)},${f1(yv(p.C.ci[0]))}V${f1(yv(p.C.ci[1]))}" stroke="${bcol(p)}"/>`;
     obst.dots.push(...sample([[[x, yv(p.C.ci[0])], [x, yv(p.C.ci[1])]]]));
   }
-  for (const p of [...pts].reverse()) marks += mark(SHAPE[p.provider], xv(p.usd), yv(p.C.mean), p.key === top ? r + 0.8 : r, bcol(p));
+  for (const p of [...pts].reverse()) marks += mark(SHAPE[p.provider], xv(p.usd), yv(p.C.mean), p.key === top ? r + 0.8 : r, bcol(p), "mk", p.key !== p.family);
   obst.boxes.push(...pts.map((p) => [xv(p.usd) - r - 2, yv(p.C.mean) - r - 2, xv(p.usd) + r + 2, yv(p.C.mean) + r + 2]));
   const want = [...pts].sort((a, b) => b.C.mean - a.C.mean).map((p) => {
     const nm = pname(p, narrow), cls = p.key === top ? "t-end b" : "t-end", v = `${pct(p.C.mean)} · ${usdVal(p.usd)}`;
@@ -451,7 +451,7 @@ function costScore(Bn, W, narrow) {
   let fy = bottom + 44;
   const n = Bn.n_windows, foot = narrow
     ? `Each point: a model in its own agent harness, its mean over ${n} windows; lines: 95% CIs over ${Bn.n_fronts} fronts.`
-    : `Each point: a model in its own agent harness, its mean over ${n} windows · vertical lines: 95% CIs over ${Bn.n_fronts} weather fronts.`;
+    : `Each point: a model in its own agent harness, its mean over ${n} windows · vertical lines: 95% CIs over ${Bn.n_fronts} fronts.`;
   for (const line of wrap(foot, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
   const H = fy + 8;
   return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture against cost per window, by model");
@@ -462,7 +462,7 @@ function splitsChart(Bn, W, narrow) {
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key;
   let [s, y] = header("Before and after the training cutoffs", narrow ? "C, %" : "C, %, the mean of each side's windows", W);
   if (narrow) {
-    const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key" }))
+    const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family }))
       .concat(op?.pre_cutoff?.mean != null ? [{ op: true, label: "Real operator", cls: "t-key op-t" }] : []), W, y + 26);
     s += k;
     y = ky;
@@ -495,7 +495,7 @@ function splitsChart(Bn, W, narrow) {
   for (const p of [...pts].reverse()) {
     const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
     lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
-    marks += q.map(([x, y]) => mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p))).join("");
+    marks += q.map(([x, y]) => mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)).join("");
   }
   const side_ = (k, x, dir) => {
     for (const e of dodge(pts.map((p) => ({ key: p.key, y: yv(p[k].mean), h: 15, text: pct(p[k].mean), b: p.key === top })), ptop - 6, bottom + 8, 3)) {
