@@ -515,7 +515,7 @@ function splitsChart(Bn, W, narrow) {
   let maxY = bottom;
   sides.forEach((sd, i) => {
     let ly = bottom + 25;
-    const sub = i ? "after every model's cutoff" : "before every model's cutoff";
+    const sub = i ? "after every model's cutoff" : "may be in the training data";
     const cx = (t, cls) => Math.min(Math.max(xs[i], measure(t, cls) / 2), W - measure(t, cls) / 2);
     labels += T(cx(sd.range, "t-ver"), ly, sd.range, "t-ver", "middle");
     labels += T(cx(sub, "t-name"), (ly += 18), sub, "t-name", "middle");

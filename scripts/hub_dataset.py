@@ -790,9 +790,9 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
 BENCH_DIR = "results/desk-v4-bench"
 BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
-BENCH_SIDE = {"pre_cutoff": "before the cutoffs", "post_cutoff": "after the cutoffs"}
+BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
-BENCH_WHEN = {"pre_cutoff": "before every model's training cutoff",
+BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
               "post_cutoff": "after every model's training cutoff"}
 FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
         "records to exercise the pipeline. No benchmark run is behind any of them.")

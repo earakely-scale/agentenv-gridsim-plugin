@@ -571,9 +571,10 @@ def lead_text(models: dict, exposed: list[str], differ: list[str]) -> str:
     can trigger it."""
     unexposed = [m for k, m in models.items() if k not in exposed]
     rule = ("Which half leads, a reading set before any API-model result: the rule guards against training-data "
-            "contamination, so the post-cutoff half leads only if a model whose reported training cutoff falls inside "
-            "the pre-cutoff windows (" + join([models[k]["name"] for k in exposed] or ["none here"]) + ") has a "
-            "post − pre C interval that excludes zero")
+            "contamination, so the post-cutoff half leads only if a model whose reported training cutoff comes after "
+            "the first pre-cutoff window, so that those windows may be in its training data ("
+            + join([models[k]["name"] for k in exposed] or ["none here"]) + "), has a post − pre C interval that "
+            "excludes zero")
     if unexposed:
         rule += ("; " + join([f"{m['name']}'s ({m.get('cutoff') or 'unknown'})" for m in unexposed])
                  + f" cutoff{'s precede' if len(unexposed) > 1 else ' precedes'} every window, so both halves are "
