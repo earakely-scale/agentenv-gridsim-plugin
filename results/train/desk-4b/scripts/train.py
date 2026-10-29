@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 
+import torch
 from agent_env.training.trl import ENDED, FAILED, AgentEnv
 from peft import LoraConfig
 from transformers import TrainerCallback
@@ -143,7 +144,21 @@ class Metrics(TrainerCallback):
                                                            "elapsed_s")}))
 
 
-trainer = GRPOTrainer(
+class DeskGRPOTrainer(GRPOTrainer):
+    """Evaluates by the episodes' rewards alone: TRL's eval step would also run the model over the whole eval batch at
+    once (the loss, and the old log-probs of vLLM's importance-sampling correction), which runs out of memory at
+    40k-token sequences."""
+
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        corrected, self.vllm_importance_sampling_correction = self.vllm_importance_sampling_correction, False
+        try:
+            self._prepare_inputs(inputs)
+        finally:
+            self.vllm_importance_sampling_correction = corrected
+        return torch.zeros((), device=self.accelerator.device), None, None
+
+
+trainer = DeskGRPOTrainer(
     model=os.environ.get("MODEL", "models/Qwen3-4B"),
     args=GRPOConfig(
         output_dir=str(OUT),
@@ -167,6 +182,7 @@ trainer = GRPOTrainer(
         vllm_server_port=int(os.environ.get("VLLM_PORT", "8001")),
         vllm_gpu_memory_utilization=float(os.environ.get("VLLM_MEM", "0.35")),
         vllm_max_model_length=CONTEXT_TOKENS,
+        vllm_enable_sleep_mode=os.environ.get("VLLM_SLEEP") == "1",
         bf16=True,
         gradient_checkpointing=True,
         eval_strategy="steps",

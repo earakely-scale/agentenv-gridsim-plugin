@@ -39,6 +39,8 @@ cap = torch.cuda.get_device_capability(0)
 arch = f"sm_{cap[0]}{cap[1]}"
 print("trainer: trl", trl.__version__, "vllm", vllm.__version__, "transformers", transformers.__version__, "torch",
       torch.__version__, "cuda", torch.version.cuda, "agentenv-framework", m.version("agentenv-framework"))
-print("gpu:", torch.cuda.device_count(), "x", torch.cuda.get_device_name(0), arch, "in torch's arch list:",
-      arch in torch.cuda.get_arch_list())
+print("gpu:", torch.cuda.device_count(), "x", torch.cuda.get_device_name(0), arch, "torch archs",
+      torch.cuda.get_arch_list(), "bf16 matmul on it:", float((torch.ones(64, 64, device="cuda",
+                                                                       dtype=torch.bfloat16) @ torch.ones(64, 64,
+                                                                       device="cuda", dtype=torch.bfloat16))[0, 0]))
 PY
