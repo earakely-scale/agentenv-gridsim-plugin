@@ -1,14 +1,14 @@
 ---
 title: "GridSimEnv Desk: a real ERCOT battery's trading desk as an RL environment"
-description: "An agent runs a real Texas grid battery's trading desk through the day-ahead market and real time, on ERCOT's own market objects and on prices, forecasts and notices as each was posted, graded in dollars against hindsight and the battery's real operator. A ladder of three versions and a price-impact check, three models."
-seoImageAlt: "GridSimEnv Desk: a dot map of Texas with four anonymised batteries, in the Far West, North, Houston and South, charging and discharging through one real ERCOT operating day, 23 August 2026."
+description: "Four models in native agent harnesses (Claude Code, Codex CLI, and OpenCode for the open Qwen3-4B) run a real ERCOT battery's trading desk for three days at a time across 8 real Texas weather fronts, graded in dollars against the hindsight optimum and the battery's real operator."
+seoImageAlt: "GridSimEnv Desk: a dot map of Texas with four anonymised batteries, in the Far West, Houston, the North and the South, charging and discharging as GPT-6.1 Sol in Codex CLI traded them in the benchmark over a real weather front, a heat wave, 18 to 20 August 2026."
 authors:
   - name: "Edgar Arakelyan"
     url: "https://huggingface.co/earakely-scale"
     affiliations: [1]
 affiliations:
   - name: "Scale AI"
-published: "October 28, 2026"
+published: "October 29, 2026"
 links:
   - label: "GitHub"
     url: "https://github.com/earakely-scale/agentenv-gridsim-plugin"
@@ -30,6 +30,8 @@ tags:
   - electricity markets
   - battery storage
   - ERCOT
+  - benchmark
+  - agent harnesses
   - day-ahead market
   - real-time market
   - ancillary services
@@ -46,6 +48,7 @@ showPdf: false
   The import list is the chapter registry: the order of the elements below is the running order.
 */}
 
+import Bench from "./chapters/bench.mdx";
 import Introduction from "./chapters/introduction.mdx";
 import Time from "./chapters/time.mdx";
 import Tools from "./chapters/tools.mdx";
@@ -56,6 +59,7 @@ import Check from "./chapters/check.mdx";
 import Methods from "./chapters/methods.mdx";
 import Limits from "./chapters/limits.mdx";
 
+<Bench />
 <Introduction />
 <Time />
 <Tools />

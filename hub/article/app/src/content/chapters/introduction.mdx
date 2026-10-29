@@ -1,7 +1,6 @@
 import HtmlEmbed from "../../components/HtmlEmbed.astro";
-import F from "../assets/data/facts.json";
 
-## Why a desk
+## The desk
 
 Most RL environments ask an agent for one answer. A grid battery is not run that way. Behind it sits a trading desk
 that bids the next day's market in the morning, learns its awards after lunch, offers its real-time curves in the
@@ -21,7 +20,7 @@ own plant to react to. **GridSimEnv Desk** turns that job into an environment, o
   becomes visible at the minute it was posted, never earlier.
 - **Graded in dollars.** P is the battery's settled ERCOT statement. The headline, C, is the share of the hindsight
   optimum's profit over idle that the desk captures, and the battery's real operator, through its own disclosed bids,
-  is the benchmark.
+  is the yardstick.
 
 <HtmlEmbed
   src="d3-desk-curve.html"
@@ -30,12 +29,5 @@ own plant to react to. **GridSimEnv Desk** turns that job into an environment, o
   desc="An hour of a real submission. The curve runs from full charge to full discharge, and the day-ahead market clears it at the node's real price: the award is where the two meet. The strip above is the whole day's awards; pick an hour."
 />
 
-The desk climbs a ladder of three versions on the same tools and grading. Each adds one kind of realism: v2, the live
-market; v3, ERCOT's reserve products and a co-located solar option; v4, three operating days across a weather front.
-Beside the ladder, v5 is a price-impact check, not a fourth step: it plays v3's battery-days again with the day-ahead
-market re-cleared against the agent's own offers. GPT-6.1 Sol and GPT-6 Luna at high reasoning effort, and the
-untrained Qwen3-4B with thinking off, play each version's real days under pre-registered settings; every result in
-this article is read from those runs' committed files.
-
-**The headline.** {F.across} The price-impact check finds that one battery moves the day-ahead price by cents; its
-runs reproduce v3's within noise.
+The benchmark above plays the desk's v4. The chapters below show how the desk works: its clock, its tools and the real
+operator it is graded against. Then come the development ladder that led to v4, and the price-impact check beside it.

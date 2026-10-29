@@ -1,7 +1,10 @@
 """The GridSimEnv desk article: a research-article Space built with tfrere's research-article-template (Astro, MDX
-chapters, D3 embeds) under hub/article. Its charts read results/overview/desk.json (scripts/hub_desk.py) and the
-desk's committed episodes and grades; the prose states no number of its own: it reads them from facts.json, which this
-script formats from desk.json under the same rules as the dataset card and the viewer Space.
+chapters, D3 embeds) under hub/article. It leads with the v4 benchmark, read from results/desk-v4-bench
+(scripts/desk_bench_results.py) and drawn by the dataset card's own bench charts (hub/desk-charts/charts.js); then the
+desk's development ladder, read from results/overview/desk.json (scripts/hub_desk.py) and the desk's committed episodes
+and grades. The prose states no number of its own: it reads them from facts.json, which this script formats from
+summary.json and desk.json under the same rules as the dataset card and the viewer Space, and the front matter's
+description is the card's pitch, written here.
 
     .venv/bin/python scripts/hub_article.py --desk-repo DIR             # the data, the numbers check, the scans
     .venv/bin/python scripts/hub_article.py --desk-repo DIR --build     # then npm ci (once) and npm run build
@@ -21,6 +24,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import numpy as np
+from agentenv_hf.scan import known_values, scan
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTICLE = ROOT / "hub" / "article"
@@ -29,11 +33,11 @@ DATA = APP / "src" / "content" / "assets" / "data"
 CHAPTERS = APP / "src" / "content" / "chapters"
 SPACE = "earakely-scale/GridSimEnv"
 DESK = ROOT / "results" / "overview" / "desk.json"
+MDX = APP / "src" / "content" / "article.mdx"
+CHARTS = ROOT / "hub" / "desk-charts" / "charts.js"
+OPENCODE = ROOT / "bench" / "harness" / "bench-opencode" / "opencode.json"
 ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json"
 STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json")
-HERO = ("v2", "2026-08-23", "sol")
-VIEWER = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
-REPLAY = "desk-v2-2026-08-23-S02"
 CURVE = ("v2", "desk-v2-2026-08-23-S02", "sol", 18)
 REGIONS = {"Far West": (-102.4, 31.3), "North": (-97.0, 32.9), "Houston": (-95.4, 29.8), "South": (-98.3, 28.2)}
 CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%"}
@@ -54,19 +58,25 @@ def main():
     desk = json.loads(DESK.read_text())
     if not (args.desk_repo / "results" / "desk-v2" / "summary.json").is_file():
         raise SystemExit(f"{args.desk_repo} holds no desk results: pass --desk-repo")
+    card = module("hub_dataset", "scripts/hub_dataset.py")
+    s, grades = card.bench_read(args.desk_repo / "results" / "desk-v4-bench")
     DATA.mkdir(parents=True, exist_ok=True)
-    out = {"desk.json": desk, "facts.json": facts(desk), "banner.json": hero(args.desk_repo, desk),
+    out = {"desk.json": desk, "facts.json": facts(desk) | {"bench": bench(s, grades, desk, card)},
+           "bench.json": {k: s[k] for k in ("fake", "n_windows", "n_fronts", "splits", "fronts", "plot")},
+           "banner.json": hero(args.desk_repo / "results" / "desk-v4-bench", s, grades),
            "curve.json": curve(args.desk_repo, desk)}
     for name in STALE:
         (DATA / name).unlink(missing_ok=True)
     for name, obj in out.items():
         (DATA / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
         print(f"{name:16} {(DATA / name).stat().st_size / 1e3:7.1f} kB")
+    (APP / "public" / "scripts" / "desk-charts.js").write_bytes(CHARTS.read_bytes())
+    describe(out["facts.json"]["bench"]["pitch"], out["banner.json"])
     check_prose(out["facts.json"])
+    check_order(s)
     leaks(files_to_publish())
     hk = module("hub_desk", "scripts/hub_desk.py")
-    hk.anonymous({k: p.read_bytes() for k, p in files_to_publish().items() if p.suffix in TEXT},
-                 hk.names(args.desk_repo))
+    hk.anonymous(texts(files_to_publish()), hk.names(args.desk_repo))
     if args.build or args.publish:
         build()
         check_rendered(out["facts.json"])
@@ -183,40 +193,104 @@ def models(d: dict) -> dict:
     return out
 
 
-def hero(repo: Path, d: dict) -> dict:
-    """One real desk day at all four batteries: GPT-6.1 Sol's v2 episodes on HERO's day, each battery's node prices,
-    state of charge and metered output every 15 minutes, its wake-ups and its settled P from grades.jsonl.gz, and the
-    viewer's replay of REPLAY, the v2 hero."""
-    key, iso, model = HERO
-    folder = repo / "results" / f"desk-{key}"
-    with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
-        grades = {g["task_id"]: g for g in map(json.loads, filter(str.strip, f)) if g["model"] == model}
+def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
+    """The v4 benchmark under the dataset card's rules (scripts/hub_dataset.py, the card): from its summary.json and
+    grades, the card's pitch, bullets, notes and captions word for word, C in % half-up on the stored decimal, R to two
+    places, cost as the card prints it, and the open model's sampling as its harness config set it."""
+    if s["fake"]:
+        raise SystemExit("results/desk-v4-bench holds fake data; the article states real runs only")
+    block, refs = card.bench_block(s, grades, d).splitlines(), s["references"]
+    how = {x["head"]: x for x in map(bold, card.bench_how(s))}
+    side = {k: {"name": card.bench_side(s, sp), "note": card.BENCH_SIDE[sp], "n": str(s["splits"][sp]["windows"]),
+                "fronts": str(len(s["splits"][sp]["fronts"]))} for k, sp in zip(SIDES, card.BENCH_SPLITS, strict=True)}
+    out = {"pitch": card.bench_pitch(s).strip("*"), "n": str(s["n_windows"]), "fronts": str(s["n_fronts"]),
+           "sites": str(len(s["sites"])), "framework": s["run"]["framework"], "side": side,
+           "m": {m["key"]: bench_model(m, s, grades, card) for m in card.bench_models(s)},
+           "r": {k: {x: f"{card.pc(refs[k][sc]['C']['mean'])}%" for x, sc in SCOPES} | {"label": label}
+                 for k, label in card.BENCH_REFS.items()},
+           "say": dict(zip(("lead", "operator"), map(bold, card.bench_bullets(s)), strict=False)),
+           "text": {k: s["text"][k] for k in ("halves", "reliability", "rule")},
+           "how": {"harness": how["Each model in a native agent harness,"], "internet": how["No internet."],
+                   "tools": how["The desk's 11 tools over MCP,"]},
+           "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
+           "route": colon(next(x for x in s["deviations"] if x.startswith("Route C"))),
+           "gemini": colon(next(x for x in s["deviations"] if x.startswith("Gemini"))),
+           "cap": {"cost": small(block, "C × 100"), "table": small(block, "C, hindsight capture")}}
+    q = json.loads(OPENCODE.read_text())
+    agent, opts = q["agent"]["build"], next(iter(q["provider"].values()))["models"][s["models"]["qwen"]["model_id"]]
+    if opts["options"]["chat_template_kwargs"]["enable_thinking"] != (s["models"]["qwen"]["setting"] == "thinking on"):
+        raise SystemExit(f"{OPENCODE.name} and summary.json disagree on Qwen3-4B's thinking")
+    out["m"]["qwen"] |= {"temperature": str(agent["temperature"]), "top_p": str(agent["top_p"]),
+                         "top_k": str(opts["options"]["top_k"])}
+    return out
+
+
+SIDES = ("pre", "post")
+SCOPES = (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff"))
+
+
+def bench_model(m: dict, s: dict, grades: list[dict], card) -> dict:
+    scored = [g for g in grades if g["model"] == m["key"] and g["status"] == "scored"]
+    c, gap, valid = m["cost"], card.bench_pair(s, m["key"], "operator_replay"), sum(g["valid"] for g in scored)
+    out = {"name": m["name"], "harness": m["harness"], "version": m["harness_version"], "setting": m["setting"],
+           "n": str(m["n"]), "valid": str(valid), "invalid": str(len(scored) - valid),
+           "R": h(m["all"]["R"]["mean"], 2), "Rci": ci(m["all"]["R"]["ci"], 2),
+           "usd": card.bench_usd(c["usd_per_window"]), "spent": card.bench_usd(c["usd_all_attempts"]),
+           "op": card.pts_ci(gap, True)}
+    for k, sc in SCOPES:
+        b = m[sc]["C"]
+        out |= {k: f"{card.pc(b['mean'])}%", f"{k}ci": f"[{card.pc(b['ci'][0])}, {card.pc(b['ci'][1])}]"}
+    return out | ({"basis": "GPU time"} if c["basis"] == "gpu_time" else {})
+
+
+BOLD = re.compile(r"\*\*(.+?)\*\*\s*(.*)", re.S)
+
+
+def bold(x: str) -> dict:
+    """A card bullet, its bold lead apart from the rest."""
+    m = BOLD.fullmatch(x)
+    return {"head": m[1], "text": m[2]}
+
+
+def colon(x: str) -> dict:
+    """A deviation as the card logs it, its subject apart from the rest."""
+    head, text = x.split(": ", 1)
+    return {"head": head, "text": text}
+
+
+def small(block: list[str], head: str) -> str:
+    """One of the card's notes under the benchmark's charts and table, by its first words."""
+    return next(x for x in block if x.startswith(f"<small>{head}")).removeprefix("<small>").removesuffix("</small>")
+
+
+def hero(folder: Path, s: dict, grades: list[dict]) -> dict:
+    """The benchmark's lead front at all four batteries: the windows of summary.json's hero model on the front of its
+    hero window, the dataset card's lead GIF, each battery's node prices, state of charge and metered output every 15
+    minutes over the three days, its wake-ups and its settled P from grades.jsonl.gz."""
+    h = s["hero"]
+    lead = next(g for g in grades if g["model"] == h["model"] and g["task_id"] == h["task_id"])
+    rows = sorted((g for g in grades if g["model"] == h["model"] and g["front"] == lead["front"]
+                   and g["status"] == "scored"), key=lambda g: g["site"])
+    if len(rows) != 4:
+        raise SystemExit(f"hero: {len(rows)} {h['model']} windows on the {lead['front']} front, expected 4")
     sites = []
-    for tid, g in sorted(grades.items()):
-        if g["date"] != iso:
-            continue
+    for g in rows:
         ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
-        rt, dam = ep["rt"][iso], ep["dam"][iso]
-        card = ep["site"]["card"]
-        sites.append({"task": tid, "name": card["name"], "region": card["region"], "size": card["size"],
+        rt, card = [ep["rt"][iso] for iso in ep["dates"]], ep["site"]["card"]
+        soc, end = [x for r in rt[:-1] for x in r["soc_mwh"][:-1:3]] + rt[-1]["soc_mwh"][::3], 1440 * len(rt)
+        sites.append({"task": g["task_id"], "name": card["name"], "region": card["region"], "size": card["size"],
                       "e_max": ep["site"]["e_max_mwh"], "p_max": ep["site"]["hsl_mw"],
-                      "rt": [round(x, 2) for x in rt["spp"]], "dam": [round(x, 2) for x in dam["spp"]],
-                      "soc": [round(x, 2) for x in rt["soc_mwh"][::3]],
-                      "mw": [round(float(np.mean(rt["metered_mw"][i:i + 3])), 1) for i in range(0, 288, 3)],
-                      "wakes": [w["t"] for w in ep["wakes"] if w.get("turn") is not None and 0 <= w["t"] < 1440],
+                      "rt": [round(x, 2) for r in rt for x in r["spp"]], "soc": [round(x, 2) for x in soc],
+                      "mw": [round(float(np.mean(r["metered_mw"][i:i + 3])), 1) for r in rt for i in range(0, 288, 3)],
+                      "wakes": [w["t"] for w in ep["wakes"] if w.get("turn") is not None and 0 <= w["t"] < end],
                       "p": round(g["p"], 2), "p_operator_replay": g["p_operator_replay"]})
-    if len(sites) != 4:
-        raise SystemExit(f"hero: {len(sites)} {model} episodes on {iso} in {folder}, expected 4")
-    if REPLAY not in {s["task"] for s in sites}:
-        raise SystemExit(f"hero: {REPLAY}, the replay the banner links, is not one of its four episodes")
-    v = next(x for x in d["versions"] if x["version"] == key)
+    m, front = s["models"][h["model"]], next(f for f in s["fronts"] if f["front"] == lead["front"])
     old = DATA / "banner.json"
     prev = json.loads(old.read_text()) if old.is_file() else {}
-    return {"version": key, "name": v["name"], "date": iso,
-            "model": d["models"][model]["label"],
+    return {"days": lead["dates"], "span": span(lead["dates"][0], len(lead["dates"])), "kind": front["kind"],
+            "model": f"{m['name']} in {m['harness']}", "lead": h["task_id"],
             "regions": {k: {"lon": x, "lat": y} for k, (x, y) in REGIONS.items()},
             "texas": prev.get("texas") or texas(), "sites": sites,
-            "replay": {"task": REPLAY, "url": f"{VIEWER}/index.html?v={key}&m={model}&task={REPLAY}"},
             "source": "ERCOT's node prices as the episodes recorded them; Texas: U.S. Census Bureau via us-atlas"}
 
 
@@ -310,7 +384,32 @@ def check_prose(f: dict) -> None:
                 bad.append(f"{p.name}: {n!r} is written into the prose; read it from facts.json")
     if bad:
         raise SystemExit("numbers check failed:\n  " + "\n  ".join(bad))
-    print(f"numbers check: {len(used)} stated numbers read from facts.json, formatted from desk.json; none written in")
+    print(f"numbers check: {len(used)} stated numbers read from facts.json, formatted from summary.json and desk.json; "
+          "none written in")
+
+
+def describe(pitch: str, b: dict) -> None:
+    """The front matter's two lines that state results: the description, the hero's subtitle and the page's meta
+    description, is the card's pitch; the social image's alt text names the banner's front."""
+    alt = ("GridSimEnv Desk: a dot map of Texas with four anonymised batteries, in the Far West, Houston, the North "
+           f"and the South, charging and discharging as {b['model']} traded them in the benchmark over a real weather "
+           f"front, a {b['kind']}, {b['span']}.")
+    text = MDX.read_text()
+    for key, value in (("description", pitch), ("seoImageAlt", alt)):
+        text, n = re.subn(rf'^{key}: ".*"$', lambda _, k=key, v=value: f"{k}: {json.dumps(v, ensure_ascii=False)}",
+                          text, count=1, flags=re.M)
+        if n != 1:
+            raise SystemExit(f"{MDX.name} has no one-line {key} to write")
+    MDX.write_text(text)
+
+
+def check_order(s: dict) -> None:
+    """The benchmark's table lists the models as the card does: by C over every window, highest first."""
+    text = (CHAPTERS / "bench.mdx").read_text()
+    body = text[text.index("<tbody>"):text.index("</tbody>")]
+    at = [body.find(f"{{F.bench.m.{k}.name}}") for k in s["order_by_C"]]
+    if -1 in at or at != sorted(at):
+        raise SystemExit(f"bench.mdx's table does not list {', '.join(s['order_by_C'])} in that order")
 
 
 def check_rendered(f: dict) -> None:
@@ -335,12 +434,26 @@ def files_to_publish() -> dict[str, Path]:
     return out
 
 
-TEXT = (".md", ".mdx", ".html", ".json", ".js", ".mjs", ".astro", ".ts", ".css", ".bib", ".txt")
+IMAGES = (".jpg", ".png", ".webp")
+
+
+def texts(files: dict[str, Path]) -> dict[str, bytes]:
+    """Every published file the scans read: all of them but the images, which must be images."""
+    out = {}
+    for k, p in files.items():
+        b = p.read_bytes()
+        try:
+            b.decode()
+        except UnicodeDecodeError:
+            if p.suffix not in IMAGES:
+                raise SystemExit(f"{k} is neither text nor an image; nothing was published") from None
+            continue
+        out[k] = b
+    return out
 
 
 def leaks(files: dict[str, Path]) -> None:
-    from agentenv_hf.scan import known_values, scan
-    text = {k: p.read_bytes() for k, p in files.items() if p.suffix in TEXT}
+    text = texts(files)
     scan(text, known_values())
     for k, v in text.items():
         if hit := LEAK.search(v.decode()):
@@ -368,7 +481,7 @@ def publish() -> str:
     ops += [CommitOperationAdd(path_in_repo=k, path_or_fileobj=str(p)) for k, p in files.items()]
     ops += [CommitOperationDelete(path_in_repo=k) for k in sorted(live - set(files) - {".gitattributes"})]
     info = api.create_commit(SPACE, repo_type="space", operations=ops, commit_message=(
-        "GridSimEnv Desk article: the ladder, v2 to v4, and the v5 price-impact check"))
+        "GridSimEnv Desk article: the v4 benchmark, then the ladder, v2 to v4, and the v5 price-impact check"))
     return info.commit_url
 
 

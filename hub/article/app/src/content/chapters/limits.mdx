@@ -3,9 +3,10 @@
 - **DAM credit screening is not modelled.** ERCOT screens each QSE's day-ahead positions against its credit; here
   they are bounded only by the battery's megawatt limits, which favours the large day-ahead sales bought back in real
   time that carry v2's 25 January and v4's winter storm Fern.
-- **A known env defect, K1, in v3, v4 and the v5 check.** An empty reserve-offer list drew a spurious ASO-02 note
-  while the energy curves in the same call were accepted and applied; there is no settlement effect, and the reserve
-  figures leave those calls out of the refused offers. It is fixed on the head; the frozen runs keep it.
+- **A known env defect, K1, in v3, v4, the v5 check and the benchmark.** An empty reserve-offer list drew a spurious
+  ASO-02 note while the energy curves in the same call were accepted and applied; there is no settlement effect, and the
+  reserve figures leave those calls out of the refused offers. It is fixed on the head; the frozen runs keep it, and
+  the benchmark plays v4's freeze.
 - **Modelled, and labelled so.** Degradation, warranty overage, the end-of-day energy charge, capacity-short charges,
   the co-located solar's output and the desk's own price forecast are modelled. The prices, forecasts, notices, alerts
   and the operators' disclosures are ERCOT's and NWS's public records, and the market clears the agent's curves at
@@ -16,8 +17,8 @@
   fleet.
 
 **Next steps.** A fleet desk, a QSE trading a portfolio of batteries into the same day-ahead market, is where price
-impact can matter. And the desk is an RL environment: its reward R is ready to train on, starting with a desk that
-always submits.
+impact can matter. And the desk is an RL environment: its reward R is ready to train on, from the benchmark's
+untrained Qwen3-4B baseline, starting with a desk that always submits.
 
 ### Run it
 
@@ -27,16 +28,18 @@ each one's Episode JSON and grade.
 ```bash
 git clone https://github.com/earakely-scale/agentenv-gridsim-plugin
 cd agentenv-gridsim-plugin && uv sync --extra dev
-uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor --out runs/anchor
+uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor \
+  --out runs/anchor
 ```
 
 `--policy model` with `--base-url` plays any model behind an OpenAI-compatible endpoint. Every battery-day, reference,
 grade and Episode JSON is in the [dataset](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv) under
-`results/desk-v2` to `results/desk-v5`, and the viewer replays every run: its results pages for
+`results/desk-v2` to `results/desk-v5`, and the benchmark's under `results/desk-v4-bench`. The viewer replays every
+development run: its results pages for
 [v2](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v2), [v3](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v3)
 and [v4](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v4), and for the
 [v5 price-impact check](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=v5), list each task
-with a replay of each model's run, and [GPT-6.1 Sol's day at Battery S02](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02), one of the four in the banner, replays in 3D.
+with a replay of each model's run, and [GPT-6.1 Sol's v2 day at Battery S02](https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html?v=v2&m=sol&task=desk-v2-2026-08-23-S02) replays in 3D.
 
 <small>GridSimEnv v1 (one-shot day-ahead schedule, training results) is archived at revision
 [fcf2a721](https://huggingface.co/spaces/earakely-scale/GridSimEnv/tree/fcf2a721790ca530f222c5206ae7df2d7a4becd0).</small>

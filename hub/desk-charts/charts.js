@@ -3,7 +3,7 @@
  * width and in a phone layout; and from bench.json (a desk bench's summary.json), capture against cost per window and
  * capture before and after the training cutoffs. Bare SVG on a transparent page in the theme on <html>; hub_desk.py
  * captures every [data-figure] at 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font
- * inlined, in light and dark. */
+ * inlined, in light and dark. The article imports the bench charts and draws them in its own theme. */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
@@ -577,4 +577,6 @@ async function main() {
   window.chartsReady = true;
 }
 
-main();
+if (document.getElementById("figs")) main();
+
+export { costScore, splitsChart };
