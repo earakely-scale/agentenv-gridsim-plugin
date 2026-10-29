@@ -6,6 +6,9 @@ viewer Space builds and publishes itself.
 
     .venv/bin/python scripts/hub_desk.py --desk results --ref v2=desk-v2-results ... --gif v4 TASK GIF --lead v4
     .venv/bin/python scripts/hub_desk.py --desk results --ref v2=desk-v2-results ... --lead v4 --publish
+
+With results/desk-v4-bench/ (scripts/desk_bench_results.py), the card leads with the v4 benchmark, its folder ships
+under results/ and its rows as the desk_v4_bench config; --bench-gif adds its lead GIF.
 """
 
 import argparse
@@ -98,6 +101,20 @@ TASKS = pa.schema([
     ("p_operator_replay", F64), ("p_operator_actual", F64), ("floored", BOOL), ("anchor_risk", F64),
     ("anchor_dam_position", STR), ("core_version", STR),
 ])
+BENCH = pa.schema([
+    ("pack", STR), ("model", STR), ("name", STR), ("family", STR), ("model_id", STR), ("harness", STR),
+    ("harness_version", STR), ("setting", STR), ("weights", STR), ("task_id", STR), ("split", STR), ("front", STR),
+    ("front_kind", STR), ("site", STR), ("region", STR), ("battery", STR), ("dates", pa.list_(STR)), ("status", STR),
+    ("missing_reason", STR), ("attempts", I64), ("retries", I64), ("valid", BOOL), ("capture", F64),
+    ("capture_phys", F64), ("reward", F64),
+    ("p_usd", F64), ("p_idle", F64), ("p_anchor", F64), ("p_hind", F64), ("p_hind_phys", F64),
+    ("p_operator_replay", F64), ("p_operator_actual", F64), ("capture_operator_replay", F64), ("floored", BOOL),
+    ("beats_anchor", BOOL), ("turns", I64), ("wakes", I64), ("desk_calls", I64), ("own_tool_calls", I64),
+    ("shell_calls", I64), ("reminders", I64), ("submissions", I64), ("rejected", I64),
+    *((f"{k}_tokens", I64) for k in ("input", "cached", "cache_write", "output", "reasoning")),
+    ("usd", F64), ("usd_all_attempts", F64), ("cost_basis", STR), ("wall_seconds", F64), ("episode", STR),
+])
+BENCH_GIF = "assets/gridsim-desk-bench.gif"
 ROLES = ("pilot", "eval", "tune")
 GRADED = ("p_idle", "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual")
 
@@ -114,14 +131,19 @@ def main():
     ap.add_argument("--results", type=Path, default=ROOT / "results",
                     help="Where overview/desk.json goes, beside overview/results.json; the card is built from both.")
     ap.add_argument("--gif", nargs=3, action="append", default=[], metavar=("VERSION", "TASK", "PATH"),
-                    help="A desk GIF (scripts/hub_desk_hero.py) of the model's episode on TASK; one per version.")
+                    help="A desk GIF (scripts/hub_desk_hero.py) of the model's episode on TASK; one per version. "
+                         "Without any, desk.json keeps the GIFs it names, already on the dataset.")
     ap.add_argument("--gif-model", default="sol", help="The model whose episodes the GIFs film.")
     ap.add_argument("--lead", metavar="VERSION", help="The version whose GIF leads the card; else the first GIF opens "
                                                      "the desk section. Every GIF links its episode's replay.")
     ap.add_argument("--publish", action="store_true", help="Upload to the dataset; the viewer Space publishes itself.")
     ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
+    ap.add_argument("--bench-gif", type=Path, help="The v4 benchmark's lead GIF (scripts/hub_desk_hero.py) of the "
+                                                   "episode results/desk-v4-bench/summary.json names as its hero.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
+    out = args.results / "overview" / "desk.json"
+    prev = json.loads(out.read_text()) if out.is_file() and not args.gif else {}
     desk, files = build(args.desk, refs, args.only)
     lead = args.lead or (args.gif[0][0] if args.gif else None)
     desk["gifs"] = {}
@@ -140,9 +162,14 @@ def main():
         one = [k for k in [lead, *desk["gifs"]] if next(v for v in desk["versions"] if v["version"] == k)[
             "days_per_task"] == 1]
         desk["story_version"] = one[0] if one else lead
+    if prev.get("gifs"):
+        desk |= {k: prev[k] for k in ("gifs", "gif", "story_version") if k in prev}
+        for v in desk["versions"]:
+            old = next((x for x in prev["versions"] if x["version"] == v["version"]), {})
+            if v["version"] in prev["gifs"] and "story" in old:
+                v["story"] = old["story"]
     hd = module("hub_dataset", "scripts/hub_dataset.py")
     desk["across"], desk["models_lines"] = hd.across_text(desk), hd.models_lines(desk)
-    out = args.results / "overview" / "desk.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(desk, indent=1, ensure_ascii=False) + "\n")
     hr = module("hub_results", "scripts/hub_results.py")
@@ -156,8 +183,11 @@ def main():
         (space / src.name).write_bytes(src.read_bytes())
     (space / "desk.json").write_text(json.dumps(desk, ensure_ascii=False, separators=(",", ":")))
     figs = figures(space, [v["version"] for v in desk["versions"]], hr)
-    card = hd.card_only(args.results)
-    ds = files | figs | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
+    bench = bench_files(args.results / "desk-v4-bench", args.publish)
+    if args.bench_gif:
+        bench[BENCH_GIF] = args.bench_gif.read_bytes()
+    card = hd.card_only(args.results, gif=bool(args.bench_gif))
+    ds = files | figs | bench | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
     text = {k: re.sub(rb"base64,[\w+/=]+", b"base64,", v) if k.endswith(".svg") else v for k, v in ds.items()
             if not k.endswith(".gif")}
     hr.leaks(text)
@@ -173,6 +203,61 @@ def main():
     if args.publish:
         done = ", ".join(v["version"] for v in desk["versions"])
         print("dataset:", hr.publish("dataset", ds, f"The desk: {done} results and tables"))
+
+
+def bench_files(folder: Path, publish: bool) -> dict[str, bytes]:
+    """The v4 benchmark's results folder as the dataset ships it, under results/desk-v4-bench/, with its config
+    desk_v4_bench (a split per side of the training cutoffs); its grades must reproduce its summary.json, and a FAKE
+    set never reaches the Hub."""
+    if not (folder / "summary.json").is_file():
+        return {}
+    s = json.loads((folder / "summary.json").read_text())
+    if s["fake"] and publish:
+        raise SystemExit(f"{folder} holds FAKE benchmark results; nothing was published")
+    with gzip.open(folder / "grades.jsonl.gz", "rt") as f:
+        grades = [json.loads(x) for x in f if x.strip()]
+    check_bench(s, grades)
+    kinds = {f["front"]: f["kind"] for f in s["fronts"]}
+    rows = [bench_row(s, g, kinds) for g in grades]
+    files = {f"desk_v4_bench/{sp}.parquet": parquet([r for r in rows if r["split"] == sp], BENCH)
+             for sp in ("pre_cutoff", "post_cutoff")}
+    for path in sorted(p for p in folder.rglob("*") if p.is_file()):
+        files[f"results/desk-v4-bench/{path.relative_to(folder).as_posix()}"] = path.read_bytes()
+    return files
+
+
+def check_bench(s: dict, grades: list[dict]) -> None:
+    """Each model's grades reproduce its summary.json rows: the count, and mean C, R and P over every window and
+    each side of the cutoffs."""
+    for k, m in s["models"].items():
+        for scope in ("all", "pre_cutoff", "post_cutoff"):
+            rows = [g for g in grades if g["model"] == k and g["status"] == "scored" and scope in ("all", g["split"])]
+            if len(rows) != m[scope]["n"]:
+                raise Mismatch(f"bench {k} {scope}: {len(rows)} scored rows, summary.json {m[scope]['n']}")
+            for x, f in (("C", "capture"), ("R", "reward"), ("P", "p")):
+                v = [g[f] for g in rows if g[f] is not None]
+                want = m[scope][x]["mean"]
+                if v and abs(sum(v) / len(v) - want) > 5.001e-5:
+                    raise Mismatch(f"bench {k} {scope} {x}: grades give {sum(v) / len(v):.6f}, summary.json {want}")
+
+
+def bench_row(s: dict, g: dict, kinds: dict[str, str]) -> dict:
+    m, tok = s["models"][g["model"]], g.get("tokens") or {}
+    return {"pack": s["pack"], **{k: g.get(k) for k in ("model", "name", "family", "model_id", "task_id", "split",
+                                                        "front", "site", "region", "battery", "dates", "status",
+                                                        "missing_reason", "attempts", "retries", "valid", "capture",
+                                                        "capture_phys",
+                                                        "reward", "p_idle", "p_anchor", "p_hind", "p_hind_phys",
+                                                        "p_operator_replay", "p_operator_actual", "floored",
+                                                        "beats_anchor", "turns", "wakes", "desk_calls",
+                                                        "own_tool_calls", "shell_calls", "reminders", "submissions",
+                                                        "rejected", "usd", "usd_all_attempts")},
+            "harness": m["harness"], "harness_version": m["harness_version"], "setting": m["setting"],
+            "weights": m["weights"], "front_kind": kinds[g["front"]], "p_usd": g.get("p"),
+            "capture_operator_replay": g.get("c_operator_replay"),
+            **{f"{k}_tokens": tok.get(k) for k in ("input", "cached", "cache_write", "output", "reasoning")},
+            "cost_basis": m["cost"]["basis"], "wall_seconds": g.get("wall_s"),
+            "episode": f"results/desk-v4-bench/{g['episode']}" if g.get("episode") else None}
 
 
 def build(desk_dir: Path, refs: dict[str, str], only: list[str] | None) -> tuple[dict, dict[str, bytes]]:
@@ -655,6 +740,44 @@ def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
                 out[f"assets/figures/{path.name}"] = path.read_bytes()
             for name, svg in page.js("chartsSvg()").items():
                 out[f"assets/figures/{name}{suffix}.svg"] = svg.encode()
+        page.call("Emulation.setDefaultBackgroundColorOverride")
+    return out
+
+
+def bench_figures(summary: dict) -> dict[str, bytes]:
+    """A desk bench's charts (hub/desk-charts) from its summary.json, for its results folder's figures/: capture against
+    cost per window and capture either side of the training cutoffs, each as standalone SVG at the card's width and in
+    the phone layout and as PNG at twice the card's width, light and dark, on a transparent background."""
+    hr = module("hub_results", "scripts/hub_results.py")
+    space = BUILD / "bench"
+    shutil.rmtree(space, ignore_errors=True)
+    for n, src in PAGE.items():
+        if n == "base.css" or n.startswith("fonts/"):
+            (space / n).parent.mkdir(parents=True, exist_ok=True)
+            (space / n).write_bytes((WEB / src).read_bytes())
+    for src in CHARTS.iterdir():
+        (space / src.name).write_bytes(src.read_bytes())
+    (space / "bench.json").write_text(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
+    out = {}
+    with hr.browser(space, None) as (page, base):
+        page.call("Emulation.setDeviceMetricsOverride", width=760, height=900, deviceScaleFactor=2, mobile=False)
+        page.call("Page.navigate", url=f"{base}/charts.html")
+        page.js("new Promise((r, j) => { const s = Date.now(); const f = () => window.chartsReady ? r() : "
+                "Date.now() - s > 30000 ? j('timeout') : setTimeout(f, 50); f(); })")
+        page.js("document.fonts.ready.then(() => new Promise((r) => setTimeout(r, 400)))")
+        page.call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
+        for suffix, theme, hub_bg in hr.THEMES:
+            page.js(f"document.documentElement.dataset.theme = '{theme}'; "
+                    f"document.documentElement.style.setProperty('--halo', '{hub_bg}')")
+            for b in page.js(hr.BOXES):
+                name = b["id"].removeprefix("bench-")
+                if name.endswith("-phone"):
+                    continue
+                path = BUILD / "bench-figures" / f"{name}{suffix}.png"
+                hr.shot(page, path, {k: b[k] for k in ("x", "y", "width", "height")})
+                out[f"{name}{suffix}.png"] = path.read_bytes()
+            for name, svg in page.js("chartsSvg()").items():
+                out[f"{name.removeprefix('bench-')}{suffix}.svg"] = svg.encode()
         page.call("Emulation.setDefaultBackgroundColorOverride")
     return out
 

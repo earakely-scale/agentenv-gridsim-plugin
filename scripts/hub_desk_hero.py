@@ -4,6 +4,7 @@ results the run recorded, then the settled grade. The clock stands still while t
 
     .venv/bin/python scripts/hub_desk_hero.py --episode EPISODE.json[.gz] --out build/hub/hero/gridsim-desk-hero.gif
     .venv/bin/python scripts/hub_desk_hero.py --results results/desk-v2 --out ...   # the best-looking Sol episode
+    .venv/bin/python scripts/hub_desk_hero.py --results results/desk-v4-bench --model opus --out ...
 """
 
 import argparse
@@ -44,6 +45,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--episode", type=Path, help="A gridsim.desk.episode/v1 JSON, plain or gzipped.")
     ap.add_argument("--results", type=Path, help="A results/desk-v<N> folder: rank its Sol episodes and film the best.")
+    ap.add_argument("--model", default="sol", help="With --results, the model whose episodes are ranked.")
     ap.add_argument("--series", type=Path, help="The task's series JSON (for the operator's disclosed SoC at the end).")
     ap.add_argument("--grades", type=Path, help="The version's grades.jsonl.gz (desk_report.py): the end card shows "
                                                 "its regraded P, references and capture; --results reads its own.")
@@ -56,7 +58,7 @@ def main():
     ap.add_argument("--frames", type=Path, help="Keep the PNG frames in this folder.")
     ap.add_argument("--stills", help="Comma-separated GIF seconds: write those frames as PNGs beside --out, no GIF.")
     args = ap.parse_args()
-    path = args.episode or best(args.results)
+    path = args.episode or best(args.results, args.model)
     ep = regraded(read(path), path, args.grades or (args.results / "grades.jsonl.gz" if args.results else None))
     series = read(args.series) if args.series else None
     holds = [int(x) for x in args.hold.split(",")] if args.hold else None
@@ -95,20 +97,20 @@ def regraded(ep: dict, path: Path, grades: Path | None) -> dict:
         return ep
     with gzip.open(grades, "rt") as f:
         row = next(g for g in map(json.loads, filter(str.strip, f))
-                   if g["task_id"] == ep["task_id"] and Path(g["episode"]).name == path.name)
+                   if g["task_id"] == ep["task_id"] and Path(g.get("episode") or "").name == path.name)
     keys = ("p", "p_idle", "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual", "capture",
             "reward", "valid")
     return {**ep, "grade": {**ep["grade"], **{k: row[k] for k in keys}}}
 
 
-def best(results: Path) -> Path:
+def best(results: Path, model: str = "sol") -> Path:
     ranked = sorted(((score(regraded(read(p), p, results / "grades.jsonl.gz")), p)
-                     for p in sorted((results / "episodes/sol").glob("*.json*"))),
+                     for p in sorted((results / "episodes" / model).glob("*.json*"))),
                     key=lambda x: -x[0][0])
     for (s, why), p in ranked[:5]:
         print(f"{s:6.2f}  {p.name}  {why}")
     if not ranked:
-        raise SystemExit(f"no Sol episodes under {results}/episodes/sol")
+        raise SystemExit(f"no {model} episodes under {results}/episodes/{model}")
     return ranked[0][1]
 
 
@@ -536,7 +538,8 @@ def page_data(ep: dict, series: dict | None, d0: date, k: float, t_start: int, t
     modelled = [MODELLED.get(x, x.replace("_", " ")) for x in statement.get("modelled", [])
                 if any(x in v["lines"] for v in statement["days"].values())]
     return {
-        "model": name(ep), "site": " · ".join(x for x in (card.get("name"), card.get("region"), card.get("size")) if x),
+        "model": name(ep), "who": (ep.get("policy") or {}).get("tag") or name(ep).split(" ")[-1],
+        "site": " · ".join(x for x in (card.get("name"), card.get("region"), card.get("size")) if x),
         "d0": dates[0], "nd": nd, "k": k, "t0": t_start, "t1": t_end, "days": [day_label(d) for d in dates],
         "dayBefore": day_label((d0 - timedelta(1)).isoformat()), "eMax": ep["site"]["e_max_mwh"],
         "hsl": ep["site"]["hsl_mw"], "lsl": ep["site"]["lsl_mw"], "dam": cat("dam", "spp"),
@@ -627,6 +630,8 @@ def day_label(d: str) -> str:
 
 def name(ep: dict) -> str:
     pol = ep.get("policy") or {}
+    if pol.get("name"):
+        return pol["name"]
     if pol.get("kind") != "model":
         return f"{str(pol.get('kind', 'scripted')).capitalize()} policy"
     base = str(pol.get("model", "")).split("/")[-1]

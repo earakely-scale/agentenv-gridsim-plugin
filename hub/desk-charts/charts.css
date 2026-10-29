@@ -1,6 +1,6 @@
-:root { --halo: #ffffff; --fern: rgba(20, 32, 43, 0.055); }
-:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); } }
+:root { --halo: #ffffff; --fern: rgba(20, 32, 43, 0.055); --c-argon: #eda100; --c-opus: #e87ba4; --wm: #d03b3b; }
+:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --wm: #e66767; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --wm: #e66767; } }
 
 html, body { background: transparent; }
 body { margin: 0; padding: 12px; }
@@ -17,12 +17,16 @@ svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-l
 .ln-s { stroke-width: 2.1; }
 .ln.ln-b { stroke-width: 3.4; }
 .ln-s.ln-b { stroke-width: 2.7; }
-.mk { stroke: var(--halo); stroke-width: 2; }
+.mk { stroke: var(--halo); stroke-width: 2; stroke-linejoin: round; }
 .mk-s { stroke: var(--halo); stroke-width: 1.5; }
+.mk-o { stroke-width: 2.4; stroke-linejoin: round; }
 .op { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dasharray: 5 4; }
 .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
 .gap { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 1.5 3; stroke-linecap: round; }
 .fern { fill: var(--fern); }
+.ci { fill: none; stroke-width: 2.4; stroke-opacity: 0.38; stroke-linecap: round; }
+.fam { fill: none; stroke-width: 1.6; stroke-linecap: round; }
+svg text.wm { fill: var(--wm); fill-opacity: 0.2; stroke: none; font-weight: 700; letter-spacing: 0.04em; }
 
 .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
 .t-head-s { font-size: 13px; fill: var(--ink-3); }

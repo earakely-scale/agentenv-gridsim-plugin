@@ -1,0 +1,20 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {"temperature": 0.6, "top_p": 0.95, "permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}},
+    "plan": {"temperature": 0.6, "top_p": 0.95, "permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}},
+    "general": {"temperature": 0.6, "top_p": 0.95, "permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}},
+    "explore": {"temperature": 0.6, "top_p": 0.95, "permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}}
+  },
+  "provider": {
+    "litellm": {
+      "models": {
+        "qwen3-4b": {
+          "temperature": true,
+          "limit": {"context": 32768, "output": 8192},
+          "options": {"top_k": 20, "min_p": 0.0, "chat_template_kwargs": {"enable_thinking": true}}
+        }
+      }
+    }
+  }
+}

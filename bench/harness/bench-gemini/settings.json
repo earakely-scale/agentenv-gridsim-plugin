@@ -1,0 +1,13 @@
+{
+  "tools": {
+    "exclude": ["google_web_search", "web_fetch"]
+  },
+  "modelConfigs": {
+    "customAliases": {
+      "gemini-4-argon": {
+        "extends": "chat-base-3",
+        "modelConfig": {"model": "gemini-4-argon"}
+      }
+    }
+  }
+}
