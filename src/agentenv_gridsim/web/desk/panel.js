@@ -1,14 +1,18 @@
 /** The desk beside the scene: the clock and the market's phase, the node's prices as posted, the battery and the
  * settled statement, the day's awards, every wake-up with its tool calls as the replay reaches it, and ERCOT's
- * statement at the end. */
+ * statement at the end. A benchmark run also names its harness, what it did outside the desk's tools (counted from the
+ * harness's own trajectory, which the desk's log does not place in time) and what the run cost. */
 import { buildCharts } from "./charts.js";
-import { AS_NAMES, EVENTFUL, REASONS, clock, dayLong, dayShort, esc, mw as mwText, num, price, usd, weekday, when } from "./fmt.js";
+import { AS_NAMES, EVENTFUL, REASONS, clock, dayLong, dayShort, esc, mw as mwText, num, pc, price, usd, weekday, when } from "./fmt.js";
 
 const ACT = new Set(["submit_dam_offers", "submit_rt_offers", "update_cop", "optimize"]);
 const MID = new Set(["check_submission", "set_reminder"]);
 const LINES = { dam_energy: "DAM energy", rt_energy_imbalance: "RT imbalance", deviation: "Set-point deviation", load_allocated: "Load-allocated", dam_as_capacity: "DAM ancillary capacity", rt_as_imbalance: "RT ancillary imbalance", capacity_short: "Capacity short", failure_to_provide: "Failure to provide", pv_energy: "Solar energy", degradation: "Degradation", warranty_overage: "Warranty overage", end_soc_shortfall: "End-of-window energy" };
 const REFS = [["p_anchor", "Anchor", "anchor"], ["p_operator_replay", "Operator's bids, replayed", "op"], ["p_operator_actual", "Operator, as settled", "op"], ["p_hind_phys", "Hindsight, DAM tied to dispatch", "hind"], ["p_hind", "Hindsight optimum", "hind"]];
+const OWN = { bash: ["shell command", "shell commands"], edit: ["file edit", "file edits"], read: ["file read", "file reads"], write: ["file write", "file writes"] };
 const $ = (id) => document.getElementById(id);
+const md = (s) => esc(s).replace(/^#{1,6}\s+(.+)$/gm, "<b>$1</b>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>").replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/^(\s*)[-*] /gm, "$1• ");
+const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n));
 
 /** Seconds each part of a turn holds at 1×: busy turns (an act or an event) slower than reading turns. */
 export function plan(turn) {
@@ -24,8 +28,12 @@ export function plan(turn) {
   return { steps, quote, total: s + 0.2, busy };
 }
 
-export function buildPanel(M, { model, label }) {
+export function buildPanel(M, { model, label, ms }) {
   const T = M.T, E = M.E;
+  const note = harness(E, ms);
+  $("harness").innerHTML = note;
+  $("harness").className = `harness${E.run && Object.keys(E.run.own).length ? " own" : ""}`;
+  $("harness").hidden = !note;
   const charts = buildCharts(M, $("charts"));
   const cache = {};
   const set = (id, html) => {
@@ -54,7 +62,7 @@ export function buildPanel(M, { model, label }) {
     const sum = summary(x);
     a.innerHTML = `<button class="th" type="button" aria-expanded="false"><time>${clock(x.t)}</time><span class="why">${esc(x.why.map((r) => REASONS[r] || r).join(", "))}</span><span class="sum">${sum}</span></button>
       <div class="tb">${x.ev.length ? `<ul class="inbox">${x.ev.map((e) => `<li class="ev ${esc(e.k)}"><b>${esc(e.at)}</b> ${esc(e.x)}</li>`).join("")}</ul>` : ""}
-      <ol class="calls">${x.calls.map((c, i) => call(c, i)).join("")}</ol>${x.q ? `<blockquote class="q">${esc(x.q)}</blockquote>` : ""}</div>`;
+      <ol class="calls">${x.calls.map((c, i) => call(c, i)).join("")}</ol>${x.q ? `<blockquote class="q">${md(x.q)}</blockquote>` : ""}</div>`;
     a.querySelector(".th").addEventListener("click", () => {
       const open = !a.classList.contains("open");
       a.classList.toggle("open", open);
@@ -66,7 +74,7 @@ export function buildPanel(M, { model, label }) {
   });
   const endcard = document.createElement("section");
   endcard.className = "endcard later";
-  endcard.innerHTML = statement(M, label);
+  endcard.innerHTML = statement(M, ms.harness ? `${ms.name} in ${ms.harness}` : label, ms);
   feed.append(endcard);
   let userScroll = -Infinity;
   feed.addEventListener("wheel", () => (userScroll = performance.now()), { passive: true });
@@ -108,9 +116,12 @@ export function buildPanel(M, { model, label }) {
           c.classList.toggle("cur", on && (i === steps.length - 1 ? x.plan.quote == null || p < x.plan.quote : p < steps[i + 1]));
         });
         it.q?.classList.toggle("wait", x.plan.quote == null || p < x.plan.quote);
+        const shown = x.plan.quote != null && p >= x.plan.quote ? it.q : it.calls.findLast((c, i) => p >= steps[i]);
+        if (shown && shown !== it.shown) (it.shown = shown), follow(shown);
       } else if (it.wasHeld) {
         it.calls.forEach((c) => c.classList.remove("wait", "cur"));
         it.q?.classList.remove("wait");
+        it.shown = null;
       }
       it.wasHeld = held;
       if (done || held) cur = Math.max(cur, x.i);
@@ -128,6 +139,12 @@ export function buildPanel(M, { model, label }) {
       reveal(endcard, false, true);
     }
     if (S.t < M.t1) endcard.dataset.shown = "";
+  }
+
+  function follow(el) {
+    if (performance.now() - userScroll < 5000 || getComputedStyle(feed).overflowY === "visible") return;
+    const bottom = el.offsetTop + el.offsetHeight + 10;
+    if (bottom > feed.scrollTop + feed.clientHeight) feed.scrollTo({ top: bottom - feed.clientHeight, behavior: "smooth" });
   }
 
   function reveal(el, start, smooth) {
@@ -213,8 +230,8 @@ function summary(x) {
   return chips.join("") || "<i>no calls</i>";
 }
 
-function statement(M, model) {
-  const g = M.E.grade, st = M.E.statement, refs = M.T.refs;
+function statement(M, model, ms) {
+  const g = M.E.grade, st = M.E.statement, refs = M.T.refs, run = M.E.run;
   const rows = [[model, g.p, "me"], ...REFS.filter(([k]) => refs[k] != null).map(([k, l, c]) => [l, refs[k], c])];
   const lo = Math.min(0, ...rows.map((r) => r[1])), hi = Math.max(...rows.map((r) => r[1]), 1);
   const x = (v) => (100 * (v - lo)) / (hi - lo);
@@ -223,9 +240,26 @@ function statement(M, model) {
     .map(([k, v]) => `<span>${esc(LINES[k] || k)}${st.modelled.includes(k) ? ' <small>modelled</small>' : ""}</span><span class="v">${usd(v, { sign: true })}</span>`).join("");
   return `<h3>ERCOT's statement</h3>
     <div class="big"><span>${usd(g.p)}</span><small>settled over the ${M.n > 1 ? `${M.n} operating days` : "operating day"}</small></div>
-    <p class="cr">${g.capture == null ? "Hindsight capture undefined on this task" : `<b>C ${num(g.capture)}</b> of the hindsight optimum's profit over idle`}, <b>R ${num(g.reward, 2)}</b>${g.beats_anchor ? ", ahead of the anchor" : ""}.</p>
+    <p class="cr">${g.capture == null ? "Hindsight capture undefined on this task" : `<b>C ${run ? pc(g.capture) : num(g.capture)}</b> of the hindsight optimum's profit over idle`}, <b>R ${num(g.reward, 2)}</b>${g.beats_anchor ? ", ahead of the anchor" : ""}.${g.valid === false ? " No valid submission in the window, so R is 0." : ""}</p>
     <div class="refs">${bars}</div>
-    <details><summary>Statement lines</summary><div class="lines">${lines}</div></details>`;
+    <details><summary>Statement lines</summary><div class="lines">${lines}</div></details>${run ? `<p class="run">${runLine(M.E, ms)}</p>` : ""}`;
+}
+
+function harness(E, ms) {
+  if (!E.run) return "";
+  const own = Object.entries(E.run.own), h = esc(ms.harness), refused = E.run.own.invalid || 0;
+  const head = `<b>${h} ${esc(ms.version)}</b> · ${esc(ms.setting)}. `;
+  if (!own.length) return `${head}Every tool call went to the desk: none to ${h}'s own shell, files or planning tools.`;
+  const parts = [...(refused ? [`${refused} call${refused > 1 ? "s" : ""} ${h} refused before ${refused > 1 ? "they" : "it"} ran (malformed arguments, or a tool it does not have)`] : []),
+    ...own.filter(([k]) => k !== "invalid").sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${(OWN[k] || [k, k])[n > 1 ? 1 : 0]}`)];
+  return `${head}Outside the desk's tools, from ${h}'s own trajectory, which the replay cannot place in time: ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}.`;
+}
+
+function runLine(E, ms) {
+  const u = E.usage, t = E.run.tokens, a = E.run.attempts, input = t.input + t.cached + t.cache_write;
+  const cost = `$${u.cost_usd.toFixed(2)} ${ms.basis === "gpu_time" ? "of GPU time" : "at list price"}`;
+  const tries = a > 1 ? `graded on attempt ${a}, after ${a - 1} infrastructure failure${a > 2 ? "s" : ""}` : "graded on its first attempt";
+  return `<b>The run</b> ${esc(ms.harness)} ${esc(ms.version)} · ${esc(ms.setting)}: ${cost}; ${tokens(input)} input tokens, ${Math.round((100 * t.cached) / input)}% of them cached, and ${tokens(t.output)} output; ${tries}.`;
 }
 
 function footer(M) {

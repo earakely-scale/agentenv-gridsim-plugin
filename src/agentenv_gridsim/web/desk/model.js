@@ -16,7 +16,7 @@ export function modelOf(C, T, E) {
   const wakes = E.wakes.map(([t, why, turn], i) => ({ t, why, turn: turn == null ? null : turns[turn] ?? null, i }));
   const M = {
     C, T, E, n, t0, t1, d0: T.dates[0], sced, s0, dam, real, posted, preDam, turns, wakes, fcDam, fcRt,
-    v5: T.version === "v5", pv: !!T.pv, as: !!E.as,
+    v5: E.version === "v5", pv: !!T.pv, as: !!E.as,
     scedCount: (t) => clamp(Math.floor((t - s0 - 1) / 5), 0, sced.length),
     sppCount: (t) => clamp(Math.floor((t - 2) / 15), 0, 96 * n),
     damPosted: (j, t) => j >= 0 && j < n && t >= posted[j],
