@@ -1,0 +1,149 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import F from "../assets/data/facts.json";
+
+## The v4 benchmark
+
+The benchmark plays the desk's v4, Weather Front: three operating days in a row across a real Texas weather front,
+from 06:00 the day before the first, with three day-ahead markets to bid as ERCOT's forecasts move. Its {F.bench.n}
+windows cover {F.bench.fronts} fronts at {F.bench.sites} real batteries, half from {F.bench.side.pre.name}, which may
+be in the models' training data, and half from {F.bench.side.post.name}, after every model's reported training cutoff.
+Each model runs in a native agent harness, once per window, on the same desk, tools and grading as the development
+runs further down. The headline is C, hindsight capture: the share of the hindsight optimum's profit over idle that a
+desk captures.
+
+<HtmlEmbed
+  src="d3-desk-bench.html"
+  id="bench-cost"
+  wide
+  config={{ chart: "cost" }}
+  title="How much of the hindsight optimum each model captured, against what a three-day window cost"
+  desc={F.bench.cap.cost}
+/>
+
+<div class="table-scroll gs-bench-wrap">
+<table class="gs-bench-table">
+<thead>
+<tr>
+<th>Model, harness and settings</th>
+<th>C, all {F.bench.n} windows</th>
+<th>{F.bench.side.pre.name}<small>{F.bench.side.pre.note}</small></th>
+<th>{F.bench.side.post.name}<small>{F.bench.side.post.note}</small></th>
+<th>R</th>
+<th>Cost a window</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="var(--c-sol)" /></svg><b>{F.bench.m.sol.name}</b><small>{F.bench.m.sol.harness} {F.bench.m.sol.version} · {F.bench.m.sol.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.sol.C}</b><small>{F.bench.m.sol.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.sol.pre}<small>{F.bench.m.sol.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.sol.post}<small>{F.bench.m.sol.postci}</small></td>
+<td data-label="R">{F.bench.m.sol.R}<small>{F.bench.m.sol.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.sol.usd}<small>{F.bench.m.sol.spent} in all</small></td>
+</tr>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.4L11.6 6L6 11.6L0.4 6Z" fill="var(--c-opus)" /></svg><b>{F.bench.m.opus.name}</b><small>{F.bench.m.opus.harness} {F.bench.m.opus.version} · {F.bench.m.opus.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.opus.C}</b><small>{F.bench.m.opus.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.opus.pre}<small>{F.bench.m.opus.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.opus.post}<small>{F.bench.m.opus.postci}</small></td>
+<td data-label="R">{F.bench.m.opus.R}<small>{F.bench.m.opus.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.opus.usd}<small>{F.bench.m.opus.spent} in all</small></td>
+</tr>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="var(--c-luna)" /></svg><b>{F.bench.m.luna.name}</b><small>{F.bench.m.luna.harness} {F.bench.m.luna.version} · {F.bench.m.luna.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.luna.C}</b><small>{F.bench.m.luna.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.luna.pre}<small>{F.bench.m.luna.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.luna.post}<small>{F.bench.m.luna.postci}</small></td>
+<td data-label="R">{F.bench.m.luna.R}<small>{F.bench.m.luna.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.luna.usd}<small>{F.bench.m.luna.spent} in all</small></td>
+</tr>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.6L11.6 10.8H0.4Z" fill="var(--c-qwen)" /></svg><b>{F.bench.m.qwen.name}</b><small>{F.bench.m.qwen.harness} {F.bench.m.qwen.version} · {F.bench.m.qwen.setting}</small><small>temperature {F.bench.m.qwen.temperature} · top_p {F.bench.m.qwen.top_p} · top_k {F.bench.m.qwen.top_k}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.qwen.C}</b><small>{F.bench.m.qwen.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.qwen.pre}<small>{F.bench.m.qwen.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.qwen.post}<small>{F.bench.m.qwen.postci}</small></td>
+<td data-label="R">{F.bench.m.qwen.R}<small>{F.bench.m.qwen.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.qwen.usd}<small>{F.bench.m.qwen.basis}</small><small>{F.bench.m.qwen.spent} in all</small></td>
+</tr>
+<tr class="ref">
+<td>{F.bench.r.operator_replay.label}</td>
+<td data-label="C, all windows">{F.bench.r.operator_replay.C}</td>
+<td data-label={F.bench.side.pre.name}>{F.bench.r.operator_replay.pre}</td>
+<td data-label={F.bench.side.post.name}>{F.bench.r.operator_replay.post}</td>
+<td class="na">–</td>
+<td class="na">–</td>
+</tr>
+<tr class="ref">
+<td>{F.bench.r.anchor.label}</td>
+<td data-label="C, all windows">{F.bench.r.anchor.C}</td>
+<td data-label={F.bench.side.pre.name}>{F.bench.r.anchor.pre}</td>
+<td data-label={F.bench.side.post.name}>{F.bench.r.anchor.post}</td>
+<td class="na">–</td>
+<td class="na">–</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p class="gs-table-note">{F.bench.cap.table} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0.</p>
+
+<HtmlEmbed
+  src="d3-desk-bench.html"
+  id="bench-splits"
+  config={{ chart: "splits" }}
+  title="Hindsight capture before and after the training cutoffs"
+  desc={`Each model's C on the ${F.bench.side.pre.n} windows of ${F.bench.side.pre.name}, which may be in its training data, and on the ${F.bench.side.post.n} windows of ${F.bench.side.post.name}, after every model's reported cutoff. Grey dashed: the real operator's own bids, replayed. Each side's 95% CI is in the table above.`}
+/>
+
+### What it shows
+
+- **{F.bench.say.lead.head}** {F.bench.say.lead.text}
+- **{F.bench.say.operator.head}** {F.bench.say.operator.text} Paired by window, in points of C: {F.bench.m.sol.name}
+  {F.bench.m.sol.op} and {F.bench.m.opus.name} {F.bench.m.opus.op}.
+- **Before and after the cutoffs:** {F.bench.text.halves}
+- **{F.bench.m.qwen.name}, untrained, is the baseline for fine-tuning.** It made a valid submission on
+  {F.bench.m.qwen.valid} of its {F.bench.m.qwen.n} windows and none on the other {F.bench.m.qwen.invalid}, where R is
+  zero, and it captures {F.bench.m.qwen.C} {F.bench.m.qwen.Cci} of hindsight: near zero.
+
+### How it was run
+
+Each episode is a plain `agent-env run` of the published bundle `bench/desk-v4-bench`, at the tag
+[`desk-v4-bench-run1`](https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/desk-v4-bench-run1/bench), with a
+config.toml that names the model endpoint, on agentenv-framework {F.bench.framework}. The desk inside the bundle is
+v4's, frozen at `desk-v4-freeze`, with its own hook and verifier. Each harness keeps its local workspace, has its web
+tools off and has its internet egress blocked.
+
+- **{F.bench.how.harness.head}** {F.bench.how.harness.text}
+- **{F.bench.how.tools.head}** {F.bench.how.tools.text}
+- **{F.bench.how.internet.head}** {F.bench.how.internet.text}
+- **{F.bench.route.head}, because the Modal route wasn't available to us:** {F.bench.route.text}
+- **Pre-registered.** The
+  [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
+  was committed before the first scored episode, and every deviation from it is logged at its end, under
+  [Deviations](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations).
+  {F.bench.text.reliability}
+- **{F.bench.gemini.head}:** {F.bench.gemini.text}
+
+**Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
+(`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), and `agent-env run` plays one window of it,
+with a `.agentenv/config.toml` that names the model endpoint and its key and a sandbox provider that enforces the
+bundle's network allowlist:
+
+```bash
+uv run python scripts/desk_bench.py tasks --harness codex-luna \
+  --pack desk-v4-bench --out bundles/bench-codex-luna
+uv run agent-env run bundles/bench-codex-luna \
+  --task desk-v4-2026-07-04-S01
+```
+
+Every grade, its references and every scored Episode JSON are in
+[`results/desk-v4-bench`](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv/tree/main/results/desk-v4-bench)
+and the dataset's `desk_v4_bench` config, one row per model and window.
+
+### Known limitations of the benchmark
+
+- **{F.bench.limits.l0.head}** {F.bench.limits.l0.text}
+- **{F.bench.limits.l1.head}** {F.bench.limits.l1.text}
+- **{F.bench.limits.l2.head}** {F.bench.limits.l2.text}
+- **{F.bench.limits.l3.head}** {F.bench.limits.l3.text}
+- **{F.bench.limits.l4.head}** {F.bench.limits.l4.text}

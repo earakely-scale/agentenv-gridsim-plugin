@@ -919,8 +919,8 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         "**How much of the hindsight optimum each model captured, against what a three-day window cost**", "",
         *chart("cost-vs-score", alt, charts["lead"], charts["phone"]["media"], figs), "",
         "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
-        f"the windows it finished; vertical lines, 95% CIs (a block bootstrap over the {s['n_fronts']} fronts). Cost "
-        "a window: the tokens in each harness's own trajectories at the provider's public list price"
+        f"the windows it finished; 95% CIs, a block bootstrap over the {s['n_fronts']} fronts, are in the table below. "
+        "Cost a window: the tokens in each harness's own trajectories at the provider's public list price"
         + (f"; {and_join([m['name'] for m in ms if m['cost'].get('gpu')])}'s is {gpu['note']}" if gpu else "")
         + ". Grey dashed: the real operator's own bids, replayed through the same clearing and settlement.</small>",
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",

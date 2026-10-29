@@ -24,8 +24,8 @@ and the environment runs the market forward to that minute: the DAM clears at th
   price two minutes after; DAM prices, forecast vintages and notices at their posting time. The real operator's bids
   stay hidden until ERCOT discloses them, 60 days later.
 - **The turn budget is the scarce resource.** A desk that wakes for everything runs out of turns before the evening
-  peak. The runs here play the same environment in process; its tests check that the in-process path and AgentEnv's
-  gateway give byte-identical tool outputs and wake-ups.
+  peak. The benchmark plays the desk through AgentEnv's gateway and the development runs play it in process; the
+  desk's tests check that the two paths give byte-identical tool outputs and wake-ups.
 
 <HtmlEmbed
   src="d3-desk-day.html"
