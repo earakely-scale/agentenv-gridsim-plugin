@@ -934,6 +934,8 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
 def bench_bullets(s: dict) -> list[str]:
     ms, op = bench_models(s), s["references"]["operator_replay"]
     ranked = [m for m in ms if m["n"]]
+    if not ranked:
+        return []
     top, out = ranked[0], []
     lead = [(m, g) for m in ranked[1:2] if (g := bench_pair(s, top["key"], m["key"]))]
     out.append(f"**{top['name']} captures the most of hindsight:** C {pc(top['all']['C']['mean'])}% "
