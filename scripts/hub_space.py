@@ -907,7 +907,7 @@ sdk: static
 app_file: index.html
 pinned: false
 license: apache-2.0
-short_description: Four agents trade a real ERCOT battery, replayed in 3D
+short_description: {card.NUM[len(s['models'])]} agents trade a real ERCOT battery, replayed in 3D
 ---
 
 # GridSimEnv Desk
