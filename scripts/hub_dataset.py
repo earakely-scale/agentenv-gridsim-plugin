@@ -890,7 +890,8 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
     def who(m: dict) -> str:
         c, n = m["cost"], m["n"]
         cost = [] if c["usd_per_window"] is None else [
-            f"{bench_usd(c['usd_per_window'])} a window" + (", GPU time" if c["basis"] == "gpu_time" else "")]
+            f"{bench_usd(c['usd_per_window'])} a window" + (", GPU time" if c["basis"] == "gpu_time" else ""),
+            f"{bench_usd(c['usd_all_attempts'])} in all"]
         return (f"**{m['name']}**<br><small>{m['harness']} · {m['setting']}<br>"
                 + " · ".join(cost + ([] if n == s["n_windows"] else [f"{n} of {s['n_windows']} windows"]))
                 + "</small>")
@@ -919,7 +920,8 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         + ". Grey dashed: the real operator's own bids, replayed through the same clearing and settlement.</small>",
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
         f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
-        "(four within each side of the cutoffs). Cost a window: list-price tokens, or the open model's GPU time. The "
+        "(four within each side of the cutoffs). Cost a window: the graded attempt's list-price tokens, or the open "
+        "model's GPU time; in all: every attempt, retries and stalls included. The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
         "settlement.</small>", "", *(x for d in s.get("deferred") or [] for x in (md(d), "")),
