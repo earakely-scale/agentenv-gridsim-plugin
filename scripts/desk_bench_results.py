@@ -24,6 +24,7 @@ import re
 import shutil
 import sys
 from collections import Counter, defaultdict
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import numpy as np
@@ -707,9 +708,11 @@ def module(name: str, rel: str):
 
 
 def pc(x: float | None, sign: bool = False) -> str:
+    """C as a percentage to one decimal, half-up from the stored value, as the card and charts print it."""
     if x is None:
         return "—"
-    return f"{'−' if x < -5e-4 else '+' if sign and x > 5e-4 else ''}{abs(100 * x):.1f}"
+    q = (Decimal(str(x)) * 100).quantize(Decimal("0.1"), ROUND_HALF_UP)
+    return f"{'−' if q < 0 else '+' if sign and q > 0 else ''}{abs(q)}"
 
 
 def pci(b: dict, sign: bool = False, unit: str = "%") -> str:
