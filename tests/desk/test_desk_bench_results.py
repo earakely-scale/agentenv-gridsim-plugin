@@ -105,6 +105,8 @@ def _runs(root: Path) -> None:
                 (run / "meta.json").write_text(json.dumps(meta))
                 (run / "report.json").write_text(json.dumps(rep))
                 start += dt.timedelta(seconds=wall + 30)
+    first = "claude-code-desk-v4-2026-01-23-S01-0"
+    shutil.copytree(root / first, root / "copies" / first)
     for k, extra in enumerate(({"max_turns": 4}, {"codex_as_installed": True}, {"pack": "desk-v4-pilot"})):
         run = root / f"check-{k}"
         run.mkdir(parents=True)
@@ -147,7 +149,8 @@ def test_results_score_first_graded_attempt_and_never_impute(bench):
     assert missing["retries"] == 3 and "capture" not in missing and missing["usd_all_attempts"] == 1.5
     assert not s["regraded"]["diffs"]
     assert len(list((out / "episodes" / "opus").glob("*.json.gz"))) == 31
-    assert s["skipped"] == {"a turn cap": 1, "Codex as installed": 1, "another pack": 1} and "luna" not in s["models"]
+    assert s["skipped"] == {"a turn cap": 1, "Codex as installed": 1, "another pack": 1,
+                            "a copy of a run already read": 1} and "luna" not in s["models"]
     assert s["redactions"] == {"ZZSECRET": 2}
     first = gzip.decompress((out / grades[0]["episode"]).read_bytes()).decode()
     assert "ZZSECRET" not in first and "<redacted>" in first and '"name": "Claude Opus 5.5"' in first

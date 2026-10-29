@@ -239,9 +239,9 @@ def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
 
 
 def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[dict], Counter]:
-    """Every bench attempt under the roots, and what was passed over: other packs' and tasks' runs, and checks that
-    are not the pre-registered episode (a turn cap, Codex on its own model metadata)."""
-    out, skipped = [], Counter()
+    """Every bench attempt under the roots, and what was passed over: other packs' and tasks' runs, checks that are
+    not the pre-registered episode (a turn cap, Codex on its own model metadata) and a second copy of a run."""
+    out, skipped, seen = [], Counter(), set()
     for meta_path in sorted(p for r in roots for p in r.rglob("meta.json")):
         meta = json.loads(meta_path.read_text())
         if not isinstance(meta, dict) or meta.get("harness") not in HARNESSES:
@@ -252,6 +252,10 @@ def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[
         if why:
             skipped[why] += 1
             continue
+        if (key := (meta["harness"], meta["task"], meta.get("started"))) in seen:
+            skipped["a copy of a run already read"] += 1
+            continue
+        seen.add(key)
         rep = meta_path.parent / "report.json"
         out.append(attempt(meta_path.parent, meta, json.loads(rep.read_text()) if rep.is_file() else {}, labels))
     return out, skipped
