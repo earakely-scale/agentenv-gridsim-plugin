@@ -18,6 +18,7 @@ import desk_bench_results as dbr  # noqa: E402
 import desk_report  # noqa: E402
 import hub_dataset  # noqa: E402
 import hub_desk  # noqa: E402
+import hub_space  # noqa: E402
 
 from gridsim_core.desk.data import load_tasks  # noqa: E402
 
@@ -311,3 +312,75 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and s["text"]["halves"] in readme and dbr.METERED in readme
     assert f"({dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations)" in readme
     assert "GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1;" in s["text"]["reliability"]
+
+
+def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
+    s, grades = hub_dataset.bench_read(hub_space.BENCH)
+    hero = s["hero"]
+    rows = [g for g in grades if g["task_id"] in (hero["task_id"], "desk-v4-2026-03-16-S01")]
+    monkeypatch.setattr(hub_space, "task_view", lambda key, task, raw, ser: (
+        {"task": task["task_id"], "version": key}, {"site": task["site"]["site_id"]}))
+    (tmp_path / "ep" / "bench").mkdir(parents=True)
+    (tmp_path / "task").mkdir()
+    cat = {"tasks": {}, "episodes": {}}
+    v = hub_space.bench(s, rows, tmp_path, cat, hub_dataset)
+    assert set(cat["episodes"]) == {f"bench/{g['task_id']}.{g['model']}" for g in rows}
+    assert v["lead"] == f"bench/{hero['task_id']}.{hero['model']}" and v["models"] == s["order_by_C"]
+    assert {k: r["label"] for k, r in v["roster"].items()} == {
+        k: f"{m['name']} · {m['harness']} · {m['setting']}" for k, m in s["models"].items()}
+    assert [x["label"] for x in v["splits"].values()] == ["Jan–May 2026", "Jul–Aug 2026"] and v["days_per_task"] == 3
+    for g in rows:
+        key = f"bench/{g['task_id']}.{g['model']}"
+        view = json.loads((tmp_path / "ep" / f"{key}.json").read_text())
+        e = cat["episodes"][key]
+        assert (e["C"], e["R"], e["P"], e["valid"], e["usd"], e["own"]) == (
+            g["capture"], g["reward"], g["p"], g["valid"], g["usd"], g["own_tool_calls"])
+        assert (e["split"], e["front"], view["version"], view["run"]["own"]) == (
+            g["split"], g["front"], "bench", g["own_tools"])
+        assert all(len(t["q"]) <= 901 and (len(t["q"]) < 901 or t["q"].endswith("…")) for t in view["turns"])
+    assert cat["episodes"]["bench/desk-v4-2026-03-16-S01.qwen"]["own"] > 0
+
+
+def test_space_keeps_one_task_view_and_refuses_a_different_one(tmp_path):
+    (tmp_path / "task").mkdir()
+    cat, view = {"tasks": {}}, {"task": "desk-v4-2026-01-23-S01", "version": "v4", "prices": [1.0]}
+    hub_space.put_task(tmp_path, cat, view, {"m": 1})
+    hub_space.put_task(tmp_path, cat, view | {"version": "bench"}, {"m": 2})
+    assert json.loads((tmp_path / "task" / f"{view['task']}.json").read_text()) == view
+    assert cat["tasks"] == {view["task"]: {"m": 1}}
+    with pytest.raises(SystemExit, match="task views differ"):
+        hub_space.put_task(tmp_path, cat, view | {"version": "bench", "prices": [2.0]}, {})
+
+
+def test_space_page_and_card_lead_with_the_benchmark():
+    s, grades = hub_dataset.bench_read(hub_space.BENCH)
+    desk = json.loads((ROOT / "results/overview/desk.json").read_text())
+    page = hub_space.bench_page(s, grades, desk, hub_dataset)
+    assert "attempts" not in page and page["card"]["bullets"] == hub_dataset.bench_bullets(s)
+    assert [page["card"]["captions"][k][:12] for k in ("cost", "table")] == ["C × 100: the", "C, hindsight"]
+    assert not any("Quick start below" in x for x in page["card"]["how"])
+    links = page["links"]
+    assert links["prereg"] == f"{dbr.REPO}/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md"
+    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations"
+    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results/results/desk-v4-bench"
+    text = hub_space.readme({"versions": [], "episodes": {}}, desk, s, grades, hub_dataset)
+    lead = f"{hub_space.APP}/index.html?v=bench&m={s['hero']['model']}&task={s['hero']['task_id']}"
+    assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")
+    for m in s["models"].values():
+        assert f"| **{m['name']}** | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
+
+
+def test_space_scan_reads_gzip_and_refuses_what_it_cannot_read(tmp_path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "catalog.json").write_text('{"episodes": {}}')
+    hub_space.scan(tmp_path)
+    real = next(x for x in hub_desk.names(ROOT) if len(x) > 4)
+    for body, why in ((f'{{"name": "{real}"}}', "real site or operator"), ('{"host": "ip-10-0-1-2"}', "or host")):
+        (tmp_path / "data" / "ep.json.gz").write_bytes(gzip.compress(body.encode()))
+        with pytest.raises(SystemExit, match=why):
+            hub_space.scan(tmp_path)
+    (tmp_path / "data" / "ep.json.gz").unlink()
+    (tmp_path / "data" / "ep.bin").write_bytes(b"\0")
+    with pytest.raises(SystemExit, match="no scan reads a .bin file"):
+        hub_space.scan(tmp_path)
+

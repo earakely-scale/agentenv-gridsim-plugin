@@ -1,6 +1,7 @@
 /** The desk viewer: one recorded desk episode replayed on the battery site in 3D beside the desk. The clock runs on its
- * own between the agent's turns and stops at each turn while its tool calls play; ?v=v4&m=sol&task=desk-v4-... opens
- * an episode, &t=MINUTES a moment (minutes from the first operating day's midnight). */
+ * own between the agent's turns and stops at each turn while its tool calls play. ?v=bench&m=sol&task=desk-v4-... opens
+ * a benchmark run and ?v=v4&m=sol&task=desk-v4-... a development run, &t=MINUTES a moment (minutes from the first
+ * operating day's midnight); with neither, the benchmark's lead run. */
 import * as THREE from "three";
 import { GridStage } from "gridsim/stage/stage.js";
 import { describe } from "gridsim/stage/weather.js";
@@ -26,18 +27,25 @@ async function json(url) {
   return r.json();
 }
 
+const lead = () => (C.episodes[C.lead] ? C.lead : C.featured[0].key);
+const versionOf = (E) => C.versions.find((x) => x.version === E.version);
+const rosterOf = (E) => (versionOf(E)?.roster || C.models)[E.model];
+
 function keyOf(v, m, task) {
-  const ok = (k) => k && C.episodes[k];
-  if (task && !v) v = task.split("-")[1];
-  if (task) return ok(`${task}.${m || "sol"}`) ? `${task}.${m || "sol"}` : ok(`${task}.sol`) ? `${task}.sol` : null;
-  const f = C.featured.find((x) => !v || x.key.startsWith(`desk-${v}-`));
+  const ok = (k) => (k && C.episodes[k] ? k : null);
+  if (v === "bench" || (!v && !task)) {
+    const [, t, lm] = /^bench\/(.+)\.(\w+)$/.exec(lead()) || [];
+    return t ? ok(`bench/${task || t}.${m || lm}`) || ok(`bench/${task || t}.sol`) || lead() : lead();
+  }
+  if (task) return ok(`${task}.${m || "sol"}`) || ok(`${task}.sol`) || ok(`bench/${task}.${m || "sol"}`);
+  const f = C.featured.find((x) => x.key.startsWith(`desk-${v}-`));
   const k = f ? (m ? f.key.replace(/\.\w+$/, `.${m}`) : f.key) : null;
-  return ok(k) ? k : f?.key ?? C.featured[0].key;
+  return ok(k) || f?.key || lead();
 }
 
 async function main() {
   C = await json("./data/catalog.json");
-  const key = keyOf(Q.get("v"), Q.get("m"), Q.get("task")) || C.featured[0].key;
+  const key = keyOf(Q.get("v"), Q.get("m"), Q.get("task")) || lead();
   sheet = buildSheet(C, { onPick: (k) => open(k, { push: true }) });
   $("open-sheet").addEventListener("click", () => sheet.show(current));
   controls();
@@ -57,15 +65,15 @@ async function open(key, { t = null, play = true, push = false } = {}) {
   stage = null;
   M = modelOf(C, T, E);
   D = sceneOf(T, E);
-  const ms = C.models[E.model];
-  plate(T, E, ms);
-  panel = buildPanel(M, { model: ms.name, label: ms.label });
+  const ms = rosterOf(E);
+  plate(T, E, ms, e);
+  panel = buildPanel(M, { model: ms.tag || ms.name, label: ms.label, ms });
   timeline = buildTimeline(M, $("scrub"), { onSeek: seek });
   S.t = t ?? M.t0 - 0.01;
   S.hold = null;
   S.playing = play;
   const u = new URL(location.href);
-  for (const [k, v] of [["v", T.version], ["m", E.model], ["task", T.task]]) u.searchParams.set(k, v);
+  for (const [k, v] of [["v", E.version], ["m", E.model], ["task", T.task]]) u.searchParams.set(k, v);
   u.searchParams.delete("t");
   history[push ? "pushState" : "replaceState"](null, "", u);
   document.title = `${T.site.name}, ${span(T.dates)}, ${ms.label} · GridSimEnv Desk`;
@@ -85,12 +93,17 @@ async function open(key, { t = null, play = true, push = false } = {}) {
   window.gridsim.resolveReady?.();
 }
 
-function plate(T, E, ms) {
-  const v = C.versions.find((x) => x.version === T.version);
-  $("p-ver").textContent = v?.label || `${T.version} ${v?.name || ""}`;
+function plate(T, E, ms, e) {
+  const v = versionOf(E), front = v?.fronts?.find((f) => f.front === e.front), side = v?.splits?.[e.split];
+  $("p-ver").textContent = v?.label || `${E.version} ${v?.name || ""}`;
   $("p-site").innerHTML = `${esc(T.site.name)}, ${esc(T.site.region)}<small>${esc(T.site.size)}</small>`;
-  $("p-who").innerHTML = `<b>${esc(ms.name)}</b><span class="set"> · ${esc(ms.setting)}</span> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
+  $("p-who").innerHTML = `<b>${esc(ms.name)}</b><span class="set">${ms.harness ? ` in ${esc(ms.harness)}` : ""} · ${esc(ms.setting)}</span> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
+  const named = front && v.names[front.front];
+  $("p-ctx").innerHTML = front ? `<i class="side ${e.split}"></i>${esc(cap(front.kind))}${named ? `, ${esc(named)}` : ""}<span> · ${esc(side.note)}</span>` : "";
+  $("to-results").href = `./results.html?v=${E.version}`;
 }
+
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 function seek(t) {
   S.t = Math.max(M.t0 - 0.01, Math.min(M.t1 + 1, t));
@@ -158,7 +171,7 @@ function draw(dt) {
 }
 
 function holdPill() {
-  const h = $("hold"), model = SHORT[M.E.model] || M.E.name;
+  const h = $("hold"), model = rosterOf(M.E).tag || SHORT[M.E.model] || M.E.name;
   let text = "";
   if (S.hold) {
     const p = S.hold.p, pl = S.hold.turn.plan, k = pl.steps.filter((s) => s <= p).length;
@@ -232,6 +245,11 @@ function place(f) {
   }
   const [y, pv] = tags || [];
   if (y && pv && y.show && pv.show && Math.abs(y.x - pv.x) < 190 && Math.abs(y.y - pv.y) < 90) pv.show = false;
+  const P = $("plate").getBoundingClientRect(), top = P.bottom - r.top, left = P.left - r.left, right = P.right - r.left;
+  for (const a of tags || []) {
+    if (a.el.offsetWidth) (a.w = a.el.offsetWidth), (a.h = a.el.offsetHeight);
+    if (a.show && a.w && a.y - a.h < top && a.x + a.w / 2 > left && a.x - a.w / 2 < right) a.show = false;
+  }
   for (const a of tags || []) {
     a.el.style.display = a.show ? "" : "none";
     if (a.show) a.el.style.transform = `translate(${a.x}px, ${a.y}px) translate(-50%, -100%)`;

@@ -1,9 +1,10 @@
 """Build the desk viewer Space: the 3D desk replay (index.html) and the results (results.html, alias desk.html) from
-web/desk, each desk v2-v5 episode as a compact view, each task's posted prices, desk forecasts, alerts, observed
-weather, references and reference paths, and the Space card. Every text file is scanned for the real site and operator
-names (design decision D9) and for leaks before anything goes to the Hub.
+web/desk, led by the v4 benchmark (results/desk-v4-bench): each benchmark and desk v2-v5 episode as a compact view, each
+task's posted prices, desk forecasts, alerts, observed weather, references and reference paths, the benchmark's page
+data with the card's own words and charts (hub/desk-charts), and the Space card. Every file is scanned for the real
+site and operator names (design decision D9) and for leaks before anything goes to the Hub.
 
-usage: python scripts/hub_space.py [--out build/hub/space] [--only v4] [--publish]
+usage: python scripts/hub_space.py [--out build/hub/space] [--only bench v4] [--publish]
 """
 
 import argparse
@@ -34,6 +35,10 @@ from gridsim_core.desk.settle import deviation, partial  # noqa: E402
 
 WEB = ROOT / "src" / "agentenv_gridsim" / "web"
 DESK = WEB / "desk"
+CARD = {"card-charts.js": ROOT / "hub" / "desk-charts" / "charts.js",
+        "card-charts.css": ROOT / "hub" / "desk-charts" / "charts.css"}
+BENCH = ROOT / "results" / "desk-v4-bench"
+BENCH_TAG = "desk-v4-bench-results"
 SPACE = "earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
@@ -52,6 +57,9 @@ FEATURED = (("desk-v4-2026-05-08-S04.sol", "Three days of spring thunderstorms i
             ("desk-v5-2026-07-21-S02.sol", "The price-impact check: that heat-wave day, its DAM re-cleared"))
 D9 = re.compile(r"CROSSETT|CLO_ESR|WIG_ESS|WFTANK|\bJupiter\b|\bMEA\b|\bHabitat\b|\bTenaska\b|\b[A-Z0-9]+_RN\b|"
                 r"\b[A-Z0-9]+_ESR\w*\b|\b[A-Z0-9]+_ESS\w*\b")
+BOXES = re.compile(r"\bi-0[0-9a-f]{8,17}\b|\bip-\d{1,3}(?:-\d{1,3}){3}\b|\.(?:compute|ec2)\.internal\b|"
+                   r"\b127\.0\.0\.1\b|\blocalhost:\d|agent-env-local-[\w-]+")
+TEXT = (".json", ".html", ".js", ".css", ".md", ".txt")
 PRODUCTS = ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")
 NOTICE_LEVELS = {"Watch", "Emergency", "Advisory", "OCN", "EEA", "EEA1", "EEA2", "EEA3"}
 CACHE = ROOT / "cache" / "viewer-desk"
@@ -61,7 +69,7 @@ WEATHER = ROOT / "cache" / "weather" / "iem-desk"
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--out", type=Path, default=ROOT / "build" / "hub" / "space")
-    ap.add_argument("--only", nargs="+", choices=VERSIONS, help="Build these versions only (a dev build).")
+    ap.add_argument("--only", nargs="+", choices=("bench", *VERSIONS), help="Build these only (a dev build).")
     ap.add_argument("--publish", action="store_true", help="Replace the Space's files with the build.")
     args = ap.parse_args()
     out = args.out
@@ -69,18 +77,24 @@ def main() -> int:
         shutil.rmtree(out)
     data = out / "data"
     (data / "task").mkdir(parents=True)
-    (data / "ep").mkdir(parents=True)
+    (data / "ep" / "bench").mkdir(parents=True)
     desk = json.loads((ROOT / "results" / "overview" / "desk.json").read_text())
-    cat = {"schema": "gridsim.desk.catalog/v1", "archive": ARCHIVE, "models": desk["models"], "versions": [],
+    card = module("hub_dataset", "scripts/hub_dataset.py")
+    s, grades = card.bench_read(BENCH)
+    cat = {"schema": "gridsim.desk.catalog/v2", "archive": ARCHIVE, "models": desk["models"], "versions": [],
            "tasks": {}, "episodes": {}}
     for key in VERSIONS:
         if not args.only or key in args.only:
             cat["versions"].append(version(key, desk, data, cat))
+    if not args.only or "bench" in args.only:
+        cat["versions"].insert(0, bench(s, grades, data, cat, card))
+        cat["lead"] = cat["versions"][0]["lead"]
+        (out / "bench.json").write_text(dumps(bench_page(s, grades, desk, card)))
     cat["featured"] = featured(cat)
     (data / "catalog.json").write_text(dumps(cat))
     (out / "desk.json").write_text(dumps(desk))
     site(out)
-    (out / "README.md").write_text(readme(cat, desk))
+    (out / "README.md").write_text(readme(cat, desk, s, grades, card))
     scan(out)
     files = [p for p in out.rglob("*") if p.is_file()]
     print(f"{len(files)} files, {sum(p.stat().st_size for p in files) / 1e6:.1f} MB, {len(cat['episodes'])} "
@@ -108,9 +122,7 @@ def version(key: str, desk: dict, data: Path, cat: dict) -> dict:
         task = rows[task_id] if rows[task_id].get("refs") else {**rows[task_id], "refs": frozen[task_id]}
         raw = load_series(pack, task)
         ser = build_series(task, raw)
-        tv, meta = task_view(key, task, raw, ser)
-        (data / "task" / f"{task_id}.json").write_text(dumps(tv))
-        cat["tasks"][task_id] = meta
+        put_task(data, cat, *task_view(key, task, raw, ser))
         for g in (x for x in grades if x["task_id"] == task_id):
             ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
             ev, row = episode_view(key, task, ser, ep, g, desk["models"][g["model"]]["name"])
@@ -123,6 +135,92 @@ def version(key: str, desk: dict, data: Path, cat: dict) -> dict:
             "days_per_task": v["days_per_task"], "block": v.get("block", "day"), "budget": v["budget"],
             "models": [m["key"] for m in v["models"]], "sites": v["sites"], "tasks": tasks,
             "names": (v.get("sensitivity") or {}).get("names") or {}}
+
+
+def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
+    """The v4 benchmark's episodes by key bench/<task>.<model>, each with its harness run (cost, tokens, attempts and
+    the calls that went to the harness's own tools rather than the desk), its models as each harness ran them, and its
+    windows by weather front and side of the training cutoffs."""
+    pack, ms = s["pack"], s["models"]
+    rows = {t["task_id"]: t for t in load_tasks(pack)}
+    tasks = sorted({g["task_id"] for g in grades})
+    for task_id in tasks:
+        task = rows[task_id]
+        raw = load_series(pack, task)
+        ser = build_series(task, raw)
+        put_task(data, cat, *task_view("bench", task, raw, ser))
+        for g in (x for x in grades if x["task_id"] == task_id):
+            ep = json.loads(gzip.decompress((BENCH / g["episode"]).read_bytes()))
+            ev, row = episode_view("bench", task, ser, ep, g, ms[g["model"]]["name"])
+            tok = g["tokens"]
+            ev["usage"] = {"turns": g["turns"], "calls": g["desk_calls"], "cost_usd": g["usd"],
+                           "input_tokens": tok["input"], "output_tokens": tok["output"], "cached_tokens": tok["cached"]}
+            ev["run"] = {"attempts": g["attempts"], "own": g["own_tools"],
+                         "tokens": {k: tok[k] for k in ("input", "cached", "cache_write", "output", "reasoning")}}
+            key = f"bench/{task_id}.{g['model']}"
+            (data / "ep" / f"{key}.json").write_text(dumps(ev))
+            cat["episodes"][key] = row | {"split": g["split"], "front": g["front"], "usd": g["usd"],
+                                          "own": g["own_tool_calls"]}
+        print(f"bench {task_id}")
+    budget = s["run"]["budget"]
+    return {"version": "bench", "name": "The v4 benchmark", "label": "v4 benchmark", "role": "bench", "pack": pack,
+            "days_per_task": max(len(g["dates"]) for g in grades), "block": "front",
+            "budget": ", ".join(f"{k} {budget[k]}" for k in ("max_turns", "calls_per_turn", "max_reminders")),
+            "models": s["order_by_C"],
+            "roster": {k: {"name": m["name"], "tag": m["tag"], "harness": m["harness"], "version": m["harness_version"],
+                           "setting": m["setting"], "label": f"{m['name']} · {m['harness']} · {m['setting']}",
+                           "weights": m["weights"], "basis": m["cost"]["basis"]} for k, m in ms.items()},
+            "tasks": tasks, "names": module("hub_desk", "scripts/hub_desk.py").NAMED["v4"],
+            "fronts": [{k: f[k] for k in ("front", "split", "kind")} for f in s["fronts"]],
+            "splits": sides(s, card),
+            "lead": f"bench/{s['hero']['task_id']}.{s['hero']['model']}"}
+
+
+def put_task(data: Path, cat: dict, view: dict, meta: dict) -> None:
+    """A task's view once: a window the benchmark shares with v4 keeps v4's, which must draw the same."""
+    path = data / "task" / f"{view['task']}.json"
+    if path.is_file():
+        old = json.loads(path.read_text())
+        if old | {"version": None} != view | {"version": None}:
+            raise SystemExit(f"{view['task']}: its {old['version']} and {view['version']} task views differ")
+        return
+    path.write_text(dumps(view))
+    cat["tasks"][view["task"]] = meta
+
+
+def bench_page(s: dict, grades: list[dict], desk: dict, card) -> dict:
+    """The benchmark's results page: summary.json without its log of attempts, and the dataset card's own words for it
+    (its pitch, findings, chart and table captions, how it runs and its limitations) with the links the page cites."""
+    quick = "The Quick start below shows how."
+    return {k: v for k, v in s.items() if k != "attempts"} | {
+        "card": {"pitch": card.bench_pitch(s), "bullets": card.bench_bullets(s), "limits": card.bench_limits(s),
+                 "how": [x.replace(quick, f"The dataset card's [Quick start]({DATASET}#quick-start) shows how.")
+                         for x in card.bench_how(s)],
+                 "captions": dict(zip(("cost", "table"), captions(s, grades, desk, card), strict=True)),
+                 "refs": card.BENCH_REFS, "sides": sides(s, card)},
+        "links": links(s)}
+
+
+def captions(s: dict, grades: list[dict], desk: dict, card) -> list[str]:
+    """The card's two captions for the benchmark, under its cost chart and under its table."""
+    out = [x.removeprefix("<small>").removesuffix("</small>") for x in card.bench_block(s, grades, desk).splitlines()
+           if x.startswith("<small>")]
+    if len(out) != 2:
+        raise SystemExit(f"the card's benchmark block has {len(out)} captions, not the chart's and the table's")
+    return out
+
+
+def sides(s: dict, card) -> dict:
+    return {sp: {"label": card.bench_side(s, sp), "note": card.BENCH_SIDE[sp]} for sp in card.BENCH_SPLITS}
+
+
+def links(s: dict) -> dict:
+    """The pre-registration at the run's tag, its appended deviations and the results folder at the results tag."""
+    run = s["run"]
+    return {"prereg": f"{REPO}/blob/{run['bundle']}/{run['prereg']}", "run_tag": run["bundle"], "tag": BENCH_TAG,
+            "deviations": f"{REPO}/blob/{run['deviations_ref']}/{run['prereg']}#deviations",
+            "folder": f"{REPO}/tree/{BENCH_TAG}/results/desk-v4-bench",
+            "dataset": f"{DATASET}/tree/main/results/desk-v4-bench"}
 
 
 def frozen_refs(pack: str) -> dict:
@@ -310,7 +408,7 @@ def shadow(site, ser, award, bp, metered, anc, rtcb: bool) -> list[int]:
             run += sum(mcpc(ser.dam_mcpc, p, i // 4) * v for p, v in aw.items()) / 4
             rt_as = anc.get("rt_as")
             if rtcb and rt_as is not None:
-                for p in set(aw) | {p for k in range(k0, k0 + 3) for p in (rt_as[k] or {})}:
+                for p in sorted(set(aw) | {p for k in range(k0, k0 + 3) for p in (rt_as[k] or {})}):
                     pk = PRICE_KEY[p]
                     price_ = ser.rt_mcpc_15[pk][i] if pk in ser.rt_mcpc_15 else 0.0
                     r = sum((rt_as[k] or {}).get(p, 0.0) for k in range(k0, k0 + 3)) / 3
@@ -431,7 +529,12 @@ ACTS = {"submit_dam_offers": "DAM offers", "submit_rt_offers": "RT offers", "upd
 def turn(t: dict) -> dict:
     w = t.get("wake") or {}
     return {"t": t["t"], "why": w.get("reasons") or [], "ev": [x for x in map(event, w.get("events") or []) if x],
-            "calls": [call(c) for c in t["calls"]], "q": re.sub(r"[ \t]+\n", "\n", (t.get("text") or "").strip())[:900]}
+            "calls": [call(c) for c in t["calls"]], "q": quote(t.get("text"))}
+
+
+def quote(text: str | None) -> str:
+    q = re.sub(r"[ \t]+\n", "\n", (text or "").strip())
+    return q if len(q) <= 900 else f"{q[:900].rstrip()}…"
 
 
 def stamp(label) -> str:
@@ -711,15 +814,17 @@ def featured(cat: dict) -> list[dict]:
 
 
 def site(out: Path) -> None:
-    """The pages, their stylesheets and fonts at the root, and every module they import, followed from each page's
-    scripts: the desk's own, the stage's under stage/, three.js under vendor/. The v1 live board's page stays at its
-    address, outside the desk's navigation."""
+    """The pages, their stylesheets and fonts at the root, the dataset card's chart module and styles (card-charts),
+    and every module they import, followed from each page's scripts: the desk's own, the stage's under stage/, three.js
+    under vendor/. The v1 live board's page stays at its address, outside the desk's navigation."""
     for f in DESK.rglob("*"):
         if f.is_file() and f.name != ".DS_Store":
             dst = out / f.relative_to(DESK)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(f, dst)
     shutil.copy(out / "results.html", out / "desk.html")
+    for name, src in CARD.items():
+        shutil.copy(src, out / name)
     for name in LIVE:
         shutil.copy(WEB / name, out / name)
     todo, seen = [f for f in DESK.glob("*.js")], set()
@@ -748,12 +853,14 @@ def resolve(spec: str, f: Path) -> Path | None:
         return THREE / "examples" / "jsm" / spec.removeprefix("three/addons/")
     if spec.startswith("gridsim/"):
         return WEB / spec.removeprefix("gridsim/")
+    if spec.removeprefix("./") in CARD:
+        return None
     if spec.startswith("."):
         return (f.parent / spec).resolve()
     raise SystemExit(f"{f}: cannot resolve import {spec!r}")
 
 
-def readme(cat: dict, desk: dict) -> str:
+def readme(cat: dict, desk: dict, s: dict, grades: list[dict], card) -> str:
     count = {v["version"]: sum(1 for e in cat["episodes"].values() if e["version"] == v["version"])
              for v in cat["versions"]}
     ladder = "\n".join(f"- **{v['version']}, {v['name']}:** {v['adds']} ({count[v['version']]} replays)."
@@ -765,10 +872,31 @@ def readme(cat: dict, desk: dict) -> str:
         f"battery the price moves by cents, and every paired {v['version']} − {v['check_of']} gap is within noise; a "
         "fleet desk, a QSE trading a portfolio of batteries, is where price impact would matter."
         for v in cat["versions"] if v["role"] == "check")
-    lead = cat["featured"][0]["key"]
-    task, model = lead.rsplit(".", 1)
+    task, model = FEATURED[0][0].rsplit(".", 1)
     how, *each = desk["models_lines"]
     settings = "\n".join([how, "", *(f"- {x}" for x in each)])
+    h, ms, sp, L = s["hero"], card.bench_models(s), sides(s, card), links(s)
+    g = next(r for r in grades if r["model"] == h["model"] and r["task_id"] == h["task_id"])
+    front, m = next(f for f in s["fronts"] if f["front"] == g["front"]), s["models"][h["model"]]
+    replay = lambda k: f"{APP}/index.html?v=bench&m={k}&task={h['task_id']}"  # noqa: E731
+    ci = lambda b: f"{card.pc(b['mean'])}% [{card.pc(b['ci'][0])}, {card.pc(b['ci'][1])}]"  # noqa: E731
+    cost = lambda x: (f"{card.bench_usd(x['cost']['usd_per_window'])} a window"  # noqa: E731
+                      + (", GPU time" if x["cost"]["basis"] == "gpu_time" else "")
+                      + f" · {card.bench_usd(x['cost']['usd_all_attempts'])} in all")
+    rows = "\n".join(f"| **{x['name']}** | {x['harness']} · {x['setting']} | "
+                     + " | ".join(ci(x[k]["C"]) for k in ("all", "pre_cutoff", "post_cutoff"))
+                     + f" | {cost(x)} | [replay]({replay(x['key'])}) |" for x in ms)
+    refs = "\n".join(f"| *{label}* | | " + " | ".join(f"*{card.pc(s['references'][k][x]['C']['mean'])}%*"
+                                                   for x in ("all", "pre_cutoff", "post_cutoff")) + " | | |"
+                     for k, label in card.BENCH_REFS.items())
+    harness = card.bench_how(s)[0].removeprefix("**Each model in a native agent harness,** through AgentEnv: ")
+    halves = " | ".join(f"{x['label']}<br><small>{x['note']}</small>" for x in sp.values())
+    when = card.long_({"days_per_task": len(g["dates"])}, g["dates"][0])
+    lead = (f"**[Replay the lead run]({replay(h['model'])}).** {m['name']} in {m['harness']} trades Battery "
+            f"{g['site']} ({g['region']}, {g['battery']}) over {when}, through a {front['kind']}, "
+            f"{card.BENCH_WHEN[g['split']]}. It settles at {card.usd0(g['p'])}, hindsight capture C "
+            f"{card.pc(g['capture'])}%; the real operator's own bids, replayed, earn "
+            f"{card.usd0(g['p_operator_replay'])}.")
     return f"""---
 title: GridSimEnv Desk
 emoji: 🔋
@@ -778,10 +906,21 @@ sdk: static
 app_file: index.html
 pinned: false
 license: apache-2.0
-short_description: An agent trades a real ERCOT battery, replayed in 3D
+short_description: Four agents trade a real ERCOT battery, replayed in 3D
 ---
 
 # GridSimEnv Desk
+
+{card.bench_pitch(s)}
+
+{lead}
+
+| Model | Harness · settings | C, all {s['n_windows']} windows | {halves} | Cost | The lead window |
+|---|---|---:|---:|---:|---:|---|
+{rows}
+{refs}
+
+<small>{captions(s, grades, desk, card)[1]}</small>
 
 An agent works as the battery trader at a QSE for one real ERCOT battery at its own node. It submits ERCOT's own
 objects: day-ahead and real-time energy offer curves, ancillary-service offers and its current operating plan. The
@@ -792,34 +931,45 @@ reminders it sets. The day settles on ERCOT's rules.
 the weather observed at the region's airport. The containers' light strips fill with the state of charge, power runs
 along the line as the battery charges or discharges, and the co-located solar tracks the sun on the days that have it.
 Beside the scene, the desk shows prices only as they posted, and every tool call as the model made it. The clock
-stops at each of the agent's turns.
+stops at each of the agent's turns. The episode browser lists the benchmark's {len(grades)} runs first, by model,
+side of the cutoffs, front and battery, then the development runs.
 
-**[Results]({APP}/results.html).** Hindsight capture, reward and settled dollars for GPT-6.1 Sol and GPT-6 Luna at
-high reasoning effort and an untrained Qwen3-4B with thinking off, version by version. Each is set against the anchor,
-the hindsight optimum and the battery's real operator.
+**[Results]({APP}/results.html?v=bench).** The benchmark's hindsight capture against cost, capture either side of the
+training cutoffs, the table with its CIs, paired gaps, how it runs, its limitations and deviations, and every run as a
+replay.
 
-The ladder adds one kind of realism a version:
+## The development ladder
+
+Before the benchmark, GPT-6.1 Sol and GPT-6 Luna at high reasoning effort and an untrained Qwen3-4B with thinking off
+climbed a ladder on the desk's own runner ([results]({APP}/results.html?v=v4)). It adds one kind of realism a version:
 
 {ladder}
 
 {checks}
 
-**The headline.** {desk['across']}
+**Across the ladder.** {desk['across']}
 
-There are {len(cat['episodes'])} replays: every model on every task of each version's eval pack. Each replay is a
-recorded episode (`gridsim.desk.episode/v1`) converted for the viewer, and nothing here calls a model. The running
-statement is the desk's shadow settlement, recomputed from the episode and checked against the environment's own.
+There are {len(cat['episodes'])} replays: every benchmark run, and every model on every task of each version's eval
+pack. Each replay is a recorded episode (`gridsim.desk.episode/v1`) converted for the viewer, and nothing here calls a
+model. The running statement is the desk's shadow settlement, recomputed from the episode and checked against the
+environment's own.
 
 ## Models and settings
 
-{settings}
+**The benchmark.** {harness} {card.bench_how(s)[1]}
+
+**The development ladder.** {settings}
 
 ## Links
 
-- One episode: `index.html?v=v4&m={model}&task={task}`. Add `&t=` for a moment, in minutes from the first operating
-  day's midnight (CPT).
-- One version's results: `results.html?v=v4`; the price-impact check's, `results.html?v=v5`. `desk.html` is the
-  same page.
+- One benchmark run: `index.html?v=bench&m={h['model']}&task={h['task_id']}`, with `m` one of
+  {", ".join(f"`{x['key']}`" for x in ms)}. Add `&t=` for a moment, in minutes from the first operating day's midnight
+  (CPT). With no parameters, the Space opens on that run.
+- The benchmark's results: `results.html?v=bench`, the results landing; `desk.html` is the same page.
+- One development run: `index.html?v=v4&m={model}&task={task}`; one version's results, `results.html?v=v4`; the
+  price-impact check's, `results.html?v=v5`.
+- The pre-registration: [{s['run']['prereg']}]({L['prereg']}) at `{L['run_tag']}`, its
+  [deviations]({L['deviations']}), and the [results folder]({L['folder']}) at `{L['tag']}`.
 - The episodes, tasks and results are in the dataset [earakely-scale/GridSimEnv-AgentEnv]({DATASET}).
 - The write-up is the article Space [earakely-scale/GridSimEnv]({ARTICLE}).
 - The environment and this viewer are in [agentenv-gridsim-plugin]({REPO}).
@@ -845,20 +995,28 @@ statement is the desk's shadow settlement, recomputed from the episode and check
 
 
 def scan(out: Path) -> None:
+    """Every file but three.js under vendor/ and the fonts, gzip read as its text; a file no scan can read stops it."""
     hd = module("hub_desk", "scripts/hub_desk.py")
     hr = module("hub_results", "scripts/hub_results.py")
-    text = (".json", ".html", ".js", ".css", ".md", ".txt")
-    files = {str(p.relative_to(out)): p.read_bytes() for p in out.rglob("*")
-             if p.is_file() and p.suffix in text and "vendor" not in p.parts}
+    files = {}
+    for p in sorted(out.rglob("*")):
+        rel = p.relative_to(out).as_posix()
+        if not p.is_file() or p.parts[len(out.parts)] == "vendor" or rel.startswith("fonts/") and p.suffix == ".woff2":
+            continue
+        if p.suffix not in TEXT + (".gz",):
+            raise SystemExit(f"{rel}: no scan reads a {p.suffix or 'bare'} file; nothing was published")
+        files[rel] = p.read_bytes()
+    plain = {k: gzip.decompress(v) if k.endswith(".gz") else v for k, v in files.items()}
     hd.anonymous(files, hd.names(ROOT) + ["MEA"])
     hr.leaks(files)
+    hr.scan({f"{k} (text)": v for k, v in plain.items() if k.endswith(".gz")}, hr.known_values())
     keys = re.compile(r'"(resource|resource_pre|settlement_point|qse|load_zone)"\s*:')
-    for k, v in files.items():
+    for k, v in plain.items():
         if keys.search(v.decode()):
             raise SystemExit(f"{k} carries a resource, node or QSE field; nothing was published")
-        if hit := D9.search(v.decode()):
-            raise SystemExit(f"{k} names {hit[0]!r}, a real resource, node or operator; nothing was published")
-    print(f"scan: {len(files)} text files clean")
+        if hit := D9.search(v.decode()) or BOXES.search(v.decode()):
+            raise SystemExit(f"{k} names {hit[0]!r}, a real resource, node, operator or host; nothing was published")
+    print(f"scan: {len(files)} files clean, {sum(k.endswith('.gz') for k in files)} of them gzip")
 
 
 def module(name: str, rel: str):
@@ -876,8 +1034,8 @@ def publish(out: Path) -> str:
     ops = [CommitOperationDelete(path_in_repo=f) for f in stale] + [
         CommitOperationAdd(path_in_repo=f, path_or_fileobj=str(out / f)) for f in files]
     info = api.create_commit(SPACE, repo_type="space", operations=ops, commit_message=(
-        "The desk viewer: the ladder v2 to v4 and the v5 price-impact check, every episode in 3D beside the desk, and "
-        "the results"))
+        "The desk viewer: the v4 benchmark first, every run in 3D beside the desk and its results, then the ladder v2 "
+        "to v4 and the v5 price-impact check"))
     return f"{info.commit_url} ({len(files)} files, {len(stale)} removed)"
 
 

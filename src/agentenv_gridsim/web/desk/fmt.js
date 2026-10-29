@@ -23,6 +23,15 @@ export const mw = (x) => `${Math.abs(x) >= 9.95 ? Math.round(Math.abs(x)) : Math
 export const pct = (x) => `${Math.round(100 * x)}%`;
 export const num = (x, n = 3) => minus((Math.round(x * 10 ** n) / 10 ** n).toFixed(n));
 
+/** C as a percentage, half up from its decimal digits as the dataset card rounds it: 0.711231 is "71.1%". */
+export function pc(x, n = 1) {
+  const [i, f = ""] = Math.abs(x).toString().split(".");
+  if (/e/.test(i)) return `${minus((100 * x).toFixed(n))}%`;
+  const g = f.slice(2), v = BigInt(i + f.slice(0, 2).padEnd(2, "0") + g.slice(0, n).padEnd(n, "0")) + (g[n] >= "5" ? 1n : 0n);
+  const s = v.toString().padStart(n + 1, "0");
+  return `${x < 0 && v ? "−" : ""}${s.slice(0, s.length - n)}${n ? `.${s.slice(-n)}` : ""}%`;
+}
+
 /** The calendar date of a minute (its operating day), as a UTC Date at noon. */
 export function dateAt(d0, min) {
   return new Date(Date.parse(`${d0}T12:00:00Z`) + Math.floor(min / 1440) * 86400000);
