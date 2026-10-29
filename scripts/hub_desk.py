@@ -745,9 +745,9 @@ def figures(space: Path, versions: list[str], hr) -> dict[str, bytes]:
 
 
 def bench_figures(summary: dict) -> dict[str, bytes]:
-    """A desk bench's charts (hub/desk-charts) from its summary.json, for its results folder's figures/: capture against
-    cost per window and capture either side of the training cutoffs, each as standalone SVG at the card's width and in
-    the phone layout and as PNG at twice the card's width, light and dark, on a transparent background."""
+    """A desk bench's chart (hub/desk-charts) from its summary.json, for its results folder's figures/: capture either
+    side of the training cutoffs, as standalone SVG at the card's width and in the phone layout and as PNG at twice the
+    card's width, light and dark, on a transparent background."""
     hr = module("hub_results", "scripts/hub_results.py")
     space = BUILD / "bench"
     shutil.rmtree(space, ignore_errors=True)
