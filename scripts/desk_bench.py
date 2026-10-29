@@ -1,11 +1,16 @@
-"""Desk bench: a desk pack's tasks for one native agent harness through AgentEnv, as a folder bundle.
+"""Desk bench: a desk pack's tasks for one native agent harness through AgentEnv, as a folder bundle a plain
+`agent-env run` plays with a config.toml.
 
-Each harness is a framework agent (claude-code, codex, gemini, opencode) on its model at its effort. The bundle holds the
-pack's gridsim-desk tasks with the harness's agent and model, plus a `harness-config` load_artifact step that puts the
-harness's own configuration file into the agent's sandbox before the first turn (web search and fetch off; for Gemini
-the thinking level, for OpenCode the sampling, thinking and context limit), and a `netcheck` task that deploys the same
-agent with the same configuration and asks it to curl www.ercot.com from its shell. The env, the hook and the verifier
-are gridsim-desk's, unchanged.
+Each harness is a framework agent (claude-code, codex, gemini, opencode) on its model at its effort. The bundle holds:
+- the pack's gridsim-desk tasks with the harness's agent and model, a `harness-config` load_artifact step that puts the
+  harness's own configuration file into the agent's sandbox before the first turn (web search and fetch off; for Gemini
+  the thinking level, for OpenCode the sampling, thinking and context limit), and the agent's network policy: an
+  allowlist of the model endpoint's host (the sandbox platform adds its own tunnel hosts, where the env is reached);
+- the gridsim-desk env itself, `envs/<env>/`, built where it deploys from the plugin's tree at desk-v4-freeze;
+- a `netcheck` task that deploys the same env and agent and asks the agent to curl hosts outside the allowlist and to
+  call a desk tool.
+The hook and the verifier are gridsim-desk's, unchanged. The allowlist names each vendor's API host; `--allow-host`
+replaces it, for a run whose model endpoint is elsewhere.
 
     python scripts/desk_bench.py tasks --harness codex-sol --pack desk-v4-pilot --out results/bundles/bench-codex-sol
     agent-env run results/bundles/bench-codex-sol --task netcheck
@@ -23,17 +28,40 @@ from agentenv_gridsim.desk_tasks import generate
 
 CONFIGS = Path(__file__).resolve().parent.parent / "bench" / "harness"
 AGENT_NAME = "default-agent"
+FREEZE = "be6ff8c8ac2403da414b765009bcdc99e9cd9061"
+REPO = "earakely-scale/agentenv-gridsim-plugin"
 HARNESSES = {
     "claude-code": {"agent": "claude-code", "model": "claude-opus-5-5", "effort": "high",
-                    "config": ("bench-claude-code", "/etc/claude-code")},
-    "codex-sol": {"agent": "codex", "model": "gpt-6.1-sol", "effort": "high", "config": ("bench-codex", "/etc/codex")},
-    "codex-luna": {"agent": "codex", "model": "gpt-6-luna", "effort": "high", "config": ("bench-codex", "/etc/codex")},
-    "gemini": {"agent": "gemini", "model": "gemini-4-argon", "effort": None, "config": ("bench-gemini", "/etc/gemini-cli")},
+                    "config": ("bench-claude-code", "/etc/claude-code"), "hosts": ["api.anthropic.com"]},
+    "codex-sol": {"agent": "codex", "model": "gpt-6.1-sol", "effort": "high", "config": ("bench-codex", "/etc/codex"),
+                  "hosts": ["api.openai.com"]},
+    "codex-luna": {"agent": "codex", "model": "gpt-6-luna", "effort": "high", "config": ("bench-codex", "/etc/codex"),
+                   "hosts": ["api.openai.com"]},
+    "gemini": {"agent": "gemini", "model": "gemini-4-argon", "effort": None, "config": ("bench-gemini", "/etc/gemini-cli"),
+               "hosts": ["generativelanguage.googleapis.com"]},
     "opencode-qwen": {"agent": "opencode", "model": "qwen3-4b", "effort": None,
-                      "config": ("bench-opencode", "/data/config/opencode")},
+                      "config": ("bench-opencode", "/data/config/opencode"), "hosts": []},
 }
-NETCHECK = ("Run this exact command in your shell and reply with its complete output and nothing else:\n\n"
-            "curl -sS -m 20 -o /dev/null -w 'HTTP=%{http_code}\\n' https://www.ercot.com; echo EXIT=$?")
+NETCHECK = ("Run this exact command in your shell and include its complete output in your reply:\n\n"
+            "for u in https://www.ercot.com https://github.com https://pypi.org/simple/ https://1.1.1.1; do "
+            "curl -sS -m 20 -o /dev/null -w \"$u HTTP=%{http_code}\\n\" \"$u\" 2>&1; echo \"EXIT=$?\"; done\n\n"
+            "Then call the desk's get_asset_status tool once and add the soc_mwh it returns.")
+ENV_TOML = 'environment_name = "{name}"\nenv_provider_type = "gateway"\n'
+ENV_DOCKERFILE = f"""FROM python:3.12-slim
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONPATH=/app
+RUN pip install "agentenv-framework-protocol==0.1.370" "fastmcp==3.4.8" "mcp==1.30.0" "pydantic==2.13.5" "numpy>=2,<3" \\
+    "highspy==1.15.1"
+WORKDIR /app
+ADD https://codeload.github.com/{REPO}/tar.gz/{FREEZE} /tmp/src.tar.gz
+RUN mkdir /tmp/src && tar -xzf /tmp/src.tar.gz -C /tmp/src --strip-components=1 \\
+    && cp /tmp/src/LICENSE /tmp/src/NOTICE /app/ && mkdir /app/gridsim_core && cp -r /tmp/src/data /app/gridsim_core/data \\
+    && cp -r /tmp/src/src/gridsim_core/. /app/gridsim_core/ && cp -r /tmp/src/src/agentenv_gridsim /app/agentenv_gridsim \\
+    && rm -rf /app/agentenv_gridsim/web /tmp/src /tmp/src.tar.gz
+RUN useradd --create-home --uid 1000 gridsim
+USER gridsim
+EXPOSE 18765
+CMD ["python", "-m", "agentenv_gridsim.server"]
+"""
 
 
 def config_step(h: dict) -> dict:
@@ -42,12 +70,13 @@ def config_step(h: dict) -> dict:
             "destination_path": destination}
 
 
-def harness_steps(steps: list[dict], h: dict) -> list[dict]:
+def harness_steps(steps: list[dict], h: dict, hosts: list[str]) -> list[dict]:
     out = []
     for step in steps:
         step = dict(step)
         if step["type"] == "deploy_agent":
-            out += [step | {"a2a_agent_id": h["agent"]}, config_step(h)]
+            policy = {"mode": "allowlist", "allow_hosts": hosts}
+            out += [step | {"a2a_agent_id": h["agent"], "network_policy": policy}, config_step(h)]
             continue
         if step["type"] == "prompt_agent":
             step.pop("model_params", None)
@@ -57,26 +86,44 @@ def harness_steps(steps: list[dict], h: dict) -> list[dict]:
     return out
 
 
-def netcheck_steps(h: dict) -> list[dict]:
-    return [{"id": "deploy-agent", "type": "deploy_agent", "a2a_agent_id": h["agent"], "env_ids": []}, config_step(h),
-            {"id": "ask", "type": "prompt_agent", "prompt_id": "netcheck", "prompt": NETCHECK, "model": h["model"],
-             "timeout_seconds": 900} | ({"effort": h["effort"]} if h["effort"] else {}),
-            {"id": "check", "type": "agent_prompt_response_verifier", "prompt_id": "netcheck", "verifier_id": "netcheck",
-             "criteria": [{"type": "response_contains", "needles": ["EXIT="]}]}]
+def netcheck_steps(desk: list[dict], h: dict) -> list[dict]:
+    setup = desk[:[s["id"] for s in desk].index("play")]
+    return setup + [
+        {"id": "ask", "type": "prompt_agent", "prompt_id": "netcheck", "prompt": NETCHECK, "model": h["model"],
+         "timeout_seconds": 900} | ({"effort": h["effort"]} if h["effort"] else {}),
+        {"id": "check", "type": "agent_prompt_response_verifier", "prompt_id": "netcheck", "verifier_id": "netcheck",
+         "criteria": [{"type": "response_contains", "needles": ["EXIT="]}]}]
 
 
-def write(name: str, pack: str, out: Path, task_ids: list[str] | None) -> list[str]:
+def write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: list[str] | None = None,
+          codex_catalog: bool = False) -> list[str]:
     h = HARNESSES[name]
+    if codex_catalog and h["agent"] == "codex":
+        h = h | {"config": ("bench-codex-catalog", "/etc/codex")}
+    hosts = hosts or h["hosts"]
+    if not hosts:
+        raise SystemExit(f"{name} has no default model host: pass --allow-host")
     ids = generate(pack, out, task_ids=task_ids)
+    envs = set()
     for task_id in ids:
         path = out / "tasks" / f"{task_id}.json"
-        path.write_text(json.dumps(harness_steps(json.loads(path.read_text()), h), indent=2, ensure_ascii=False) + "\n")
-    (out / "tasks" / "netcheck.json").write_text(json.dumps(netcheck_steps(h), indent=2) + "\n")
+        steps = harness_steps(json.loads(path.read_text()), h, hosts)
+        envs |= {s["env_id"] for s in steps if s["type"] == "deploy_env"}
+        path.write_text(json.dumps(steps, indent=2, ensure_ascii=False) + "\n")
+    first = json.loads((out / "tasks" / f"{ids[0]}.json").read_text())
+    (out / "tasks" / "netcheck.json").write_text(json.dumps(netcheck_steps(first, h), indent=2, ensure_ascii=False) + "\n")
+    for env in sorted(envs):
+        folder = out / "envs" / env
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "Dockerfile").write_text(ENV_DOCKERFILE)
+        (folder / "env.toml").write_text(ENV_TOML.format(name=env))
     artifact = h["config"][0]
     shutil.copytree(CONFIGS / artifact, out / "artifacts" / artifact, dirs_exist_ok=True)
     readme = out / "README.md"
     readme.write_text(readme.read_text() + f"\nHarness {name}: agent {h['agent']}, model {h['model']}, effort "
-                      f"{h['effort'] or 'harness default'}; {artifact} loaded into {h['config'][1]}.\n")
+                      f"{h['effort'] or 'harness default'}; {artifact} loaded into {h['config'][1]}; the agent's "
+                      f"network allows {', '.join(hosts)} and the sandbox platform's tunnel hosts. The env "
+                      f"{', '.join(sorted(envs))} builds where it deploys from {REPO} at {FREEZE[:7]} (desk-v4-freeze).\n")
     return ids
 
 
@@ -87,9 +134,12 @@ def main() -> None:
     t.add_argument("--harness", required=True, choices=sorted(HARNESSES))
     t.add_argument("--pack", required=True)
     t.add_argument("--task", action="append", dest="task_ids")
+    t.add_argument("--allow-host", action="append", dest="hosts", help="the model endpoint's host (repeatable), in "
+                   "place of the harness vendor's API host")
+    t.add_argument("--codex-catalog", action="store_true", help="give Codex OpenAI's catalog entries for the GPT-6 models")
     t.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
-    ids = write(a.harness, a.pack, a.out, a.task_ids)
+    ids = write(a.harness, a.pack, a.out, a.task_ids, a.hosts, a.codex_catalog)
     print(f"Wrote {len(ids)} desk tasks and netcheck into {a.out}")
 
 

@@ -1,5 +1,6 @@
-"""One desk bench run's report: the framework's task instance (prompt responses, post-turn hook records, the verifier's
-grade and Episode JSON, the harness's per-turn trajectories) joined with the model proxy's per-call log.
+"""One desk bench run's report from what the run recorded: the framework's task instance (prompt responses, post-turn
+hook records, the verifier's grade and Episode JSON) and the harness's per-turn trajectories, whose usage gives the
+tokens and, at public list prices (LiteLLM's price map), the cost; a model proxy's per-call log joins it when given.
 
     python scripts/desk_bench_report.py --state <XDG_STATE_HOME> --run-log <run.log> --proxy-log <run.jsonl> \
         --harness codex-luna --out report.json
@@ -21,6 +22,13 @@ from urllib.parse import urlparse
 
 from gridsim_core.desk import load_series, load_task, policies
 
+PRICES = {"claude-opus-5-5": {"in": 4.0, "cached": 0.2, "write": 5.0, "write_1h": 8.0, "out": 20.0},
+          "gpt-6.1-sol": {"in": 2.0, "cached": 0.1, "write": 2.5, "out": 10.0,
+                          "above": 272000, "tier": {"in": 4.0, "cached": 0.2, "write": 5.0, "out": 15.0}},
+          "gpt-6-luna": {"in": 0.1, "cached": 0.01, "write": 0.125, "out": 0.5,
+                         "above": 272000, "tier": {"in": 0.2, "cached": 0.02, "write": 0.25, "out": 0.75}},
+          "gemini-4-argon": {"in": 2.0, "cached": 0.1, "write": 0.0, "out": 10.0},
+          "qwen3-4b": {"in": 0.0, "cached": 0.0, "write": 0.0, "out": 0.0}}
 DESK_TOOLS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position",
               "submit_dam_offers", "submit_rt_offers", "update_cop", "check_submission", "optimize", "set_reminder")
 BUDGET = "budget: end your turn"
@@ -111,6 +119,50 @@ def harness_side(turns: list[list[dict]]) -> dict:
             "turns_with_session_id": sum(1 for ids in sessions if ids)}
 
 
+def usage_of(turns: list[list[dict]], model: str) -> dict:
+    """Tokens from the turns' own usage records: Claude Code's per-turn result (and its cumulative total_cost_usd),
+    Codex's turn.completed (cumulative over the thread), Gemini CLI's per-turn result stats (thinking is total less
+    input and output) and OpenCode's per-step step_finish."""
+    u, claude_cost, codex = Counter(), None, None
+    for events in turns:
+        for e in events:
+            if not isinstance(e, dict):
+                continue
+            t = e.get("type")
+            if t == "result" and "usage" in e:
+                x = e["usage"]
+                hour = (x.get("cache_creation") or {}).get("ephemeral_1h_input_tokens") or 0
+                u.update({"input": x.get("input_tokens", 0), "cached": x.get("cache_read_input_tokens", 0),
+                          "cache_write": x.get("cache_creation_input_tokens", 0), "cache_write_1h": hour,
+                          "output": x.get("output_tokens", 0),
+                          "reasoning": (x.get("output_tokens_details") or {}).get("thinking_tokens", 0)})
+                claude_cost = max(claude_cost or 0, e.get("total_cost_usd") or 0)
+            elif t == "result" and "stats" in e:
+                s = e["stats"]
+                thoughts = (s.get("total_tokens") or 0) - (s.get("input_tokens") or 0) - (s.get("output_tokens") or 0)
+                u.update({"input": s.get("input", 0), "cached": s.get("cached", 0),
+                          "output": (s.get("output_tokens") or 0) + thoughts, "reasoning": thoughts})
+            elif t == "turn.completed":
+                codex = e.get("usage") or {}
+            elif t == "step_finish":
+                tk = (e.get("part") or {}).get("tokens") or {}
+                u.update({"input": tk.get("input", 0), "cached": (tk.get("cache") or {}).get("read", 0),
+                          "cache_write": (tk.get("cache") or {}).get("write", 0),
+                          "output": tk.get("output", 0) + tk.get("reasoning", 0), "reasoning": tk.get("reasoning", 0)})
+    if codex is not None:
+        cached, write = codex.get("cached_input_tokens", 0), codex.get("cache_write_input_tokens", 0)
+        u = Counter({"input": codex.get("input_tokens", 0) - cached - write, "cached": cached, "cache_write": write,
+                     "output": codex.get("output_tokens", 0), "reasoning": codex.get("reasoning_output_tokens", 0)})
+    p = next((v for k, v in PRICES.items() if k in (model or "")), None)
+    cost = None
+    if p is not None:
+        cost = (u["input"] * p["in"] + u["cached"] * p["cached"] + (u["cache_write"] - u["cache_write_1h"]) * p["write"]
+                + u["cache_write_1h"] * p.get("write_1h", p["write"]) + u["output"] * p["out"]) / 1e6
+    return {"tokens": dict(u), "cost_usd_list_price": None if cost is None else round(cost, 4),
+            "claude_code_total_cost_usd": claude_cost,
+            "note": "Codex counts are its cumulative thread totals; per-call long-context tiers are not applied"}
+
+
 def proxy_side(path: Path | None) -> dict:
     if path is None or not path.exists():
         return {}
@@ -178,6 +230,7 @@ def report(a) -> dict:
         "prompt_response": {k: play.get(k) for k in ("tool_call_count", "agent_session_id", "a2a_context_id",
                                                      "error_type", "error_code", "error_message", "model")},
         "harness": harness_side(trajectories(play)),
+        "usage": usage_of(trajectories(play), play.get("model")),
         "proxy": proxy_side(Path(a.proxy_log) if a.proxy_log else None),
         "episode": episode if a.with_episode else {"keys": sorted(episode)},
     }
