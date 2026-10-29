@@ -462,7 +462,7 @@ function splitsChart(Bn, W, narrow) {
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key, hasOp = op?.pre_cutoff?.mean != null && op?.post_cutoff?.mean != null;
   let [s, y] = header("Hindsight capture before and after the training cutoffs", "C, %, the mean of each side's windows", W);
   if (narrow) {
-    const [k, ky] = shapeKey(pts.map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family }))
+    const [k, ky] = shapeKey([...pts].sort((a, b) => b.pre_cutoff.mean - a.pre_cutoff.mean).map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family }))
       .concat(hasOp ? [{ op: true, label: "Real operator", cls: "t-key op-t" }] : []), W, y + 26);
     s += k;
     y = ky;

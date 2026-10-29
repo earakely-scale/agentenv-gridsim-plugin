@@ -928,7 +928,6 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
            f"{pc(op['post_cutoff']['C']['mean'])}%.")
     sides = " and ".join(f"{bench_side(s, x)} ({BENCH_SIDE[x]})" for x in BENCH_SPLITS)
     return "\n".join([
-        "**How much of the hindsight optimum each model captured, before and after the training cutoffs**", "",
         *chart("splits", alt, charts["lead"], charts["phone"]["media"], f"{BENCH_DIR}/figures"), "",
         "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
         f"the windows it finished on each side of the models' reported training cutoffs, {sides}; 95% CIs, a block "
