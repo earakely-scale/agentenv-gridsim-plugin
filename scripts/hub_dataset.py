@@ -775,8 +775,7 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
     quick = QUICKSTART.replace("{bench}", BENCH_QUICKSTART + "\n\n" if bench else "").replace(
         "{bench_table}", BENCH_TABLE if bench else "").replace("{latest}", vs[-1]["version"])
     if bench:
-        run = bench[0]["run"]
-        quick = quick.replace("{deviations}", f"{REPO}/blob/{run['deviations_ref']}/{run['prereg']}#deviations")
+        quick = quick.replace("{deviations}", bench_deviations(bench[0]))
     blocks = {"badges": "\n".join(BADGES), "quickstart": quick,
               "ladder": ladder_block(d), "models": models_block(d), "inside": inside(d, bench), "archive": ARCHIVE}
     if bench is None:
@@ -796,6 +795,7 @@ BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
 BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
+NOT_YET_IN_VIEWER = ("argon",)
 BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
               "post_cutoff": "after every model's training cutoff"}
 FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
@@ -866,7 +866,7 @@ def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
     where, when = f"Battery {g['site']} ({g['region']}, {g['battery']})", long_(
         {"days_per_task": len(g["dates"])}, g["dates"][0])
     others = [f"[{x['name']}]({bench_replay(x['key'], h['task_id'])})" for x in bench_models(s)
-              if x["key"] != h["model"]]
+              if x["key"] != h["model"] and x["key"] not in NOT_YET_IN_VIEWER]
     caption = (f"The v4 benchmark: {m['name']} in {m['harness']} trades {where}, a real ERCOT battery, over {when}, "
                f"through a {front['kind']}, {BENCH_WHEN[g['split']]}. It settles at {usd0(g['p'])}, hindsight "
                f"capture C {pc(g['capture'])}%"
@@ -889,6 +889,12 @@ def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
 
 def bench_replay(model: str, task: str) -> str:
     return f"{APP}/index.html?v=bench&m={model}&task={task}"
+
+
+def bench_deviations(s: dict) -> str | None:
+    run = s["run"]
+    return f"{REPO}/blob/{run['deviations_ref']}/{run['prereg']}#deviations" if run.get("prereg") and run.get(
+        "deviations_ref") else None
 
 
 def bench_block(s: dict, grades: list[dict], d: dict) -> str:
@@ -942,14 +948,19 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
             "text"].get("metered") else "") + " The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
-        "settlement.</small>", "", *(x for d in s.get("deferred") or [] for x in (md(d), "")),
+        "settlement." + "".join(
+            f" {m['name']} ran" + (" after the others," if all(m["ran"]["from"] > x["ran"]["to"] for x in ms
+                                                              if x is not m) else "")
+            + f" on agentenv-framework {m['framework']}"
+            + (f"; see the [deviations]({bench_deviations(s)})" if bench_deviations(s) else "") + "."
+            for m in ms if m.get("framework")) + "</small>", "",
+        *(x for d in s.get("deferred") or [] for x in (md(d), "")),
         *(f"- {x}" for x in bench_bullets(s)), "",
         "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
         "### Known limitations of the benchmark", "", *(f"- {x}" for x in bench_limits(s)), "",
         *(["### Deviations from the pre-registration", "", *(f"- {x}" for x in s["deviations"]), "",
-           *([f"The pre-registration lists its deviations at its end: [{s['run']['prereg']}#deviations]({REPO}/blob/"
-              f"{s['run']['deviations_ref']}/{s['run']['prereg']}#deviations).", ""]
-             if s["run"].get("prereg") and s["run"].get("deviations_ref") else [])]
+           *([f"The pre-registration lists its deviations at its end: [{s['run']['prereg']}#deviations]"
+              f"({bench_deviations(s)}).", ""] if bench_deviations(s) else [])]
           if s.get("deviations") else []),
         f"Every number is in [`{BENCH_DIR}`]({DATASET}/tree/main/{BENCH_DIR}) (its README, `summary.json`, "
         "`grades.jsonl.gz` and every scored Episode JSON) and in the `desk_v4_bench` config, one row per model and "
@@ -1031,8 +1042,8 @@ def bench_limits(s: dict) -> list[str]:
           ["**The model key is in the agent's sandbox,** so an agent could call another model with it."]),
         "**Model plus harness.** Each harness's own prompts, tools and context handling are part of what is measured; "
         "the harness versions are the ones the framework release pins."
-        + (" Gemini CLI drops its thought signatures when it resumes a session (the provider accepted the requests in "
-           "testing)." if "Gemini CLI" in harnesses else ""),
+        + (" Gemini CLI drops a thought signature when it resumes a session, which costs it prompt-cache hits and "
+           "raises its cost, a known harness issue." if "Gemini CLI" in harnesses else ""),
         "**The training cutoffs are third-party reports, unconfirmed.** The pre-cutoff half reuses v4's 16 windows, "
         "which GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the desk's own runner (below).",
         "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
