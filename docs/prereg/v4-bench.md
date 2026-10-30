@@ -145,7 +145,8 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     tasks, hook and verifier are the others'.
 17. agentenv-framework 0.9.1396 (protocol 0.1.411). Its OpenCode agent, source and image, is unchanged since 0.9.1377;
     the releases since 0.9.1383 add security fixes (sandbox shell code, artifact staging, the gateway's compose file)
-    and features this bundle does not use.
+    and features this bundle does not use (the gateway's new notifications have nothing to deliver to it). The smoke
+    in 23 ran this release.
 18. Training cutoff: Beam's reported cutoff is 2026-06-30, so the 16 `post_cutoff` windows (from 2026-07-04) are after
     it and the 16 `pre_cutoff` windows before it.
 19. The same route C on the Gemini box (resized to m7i.2xlarge), with separate state and its own port cursor: egress
