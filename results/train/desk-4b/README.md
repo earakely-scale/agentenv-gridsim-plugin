@@ -254,10 +254,11 @@ a change outside this kit:
 - **Sampling.** Training samples at 0.8 / 0.95 / 20; OpenCode runs Qwen at 0.6 / 0.95 / 20, as the trainer's eval
   does.
 
-## Qwen3.5-9B on an 8-GPU box (pilot config 2)
+## Qwen3.5-9B on one GPU box (pilot config 2)
 
-`Qwen/Qwen3.5-9B` at revision `c202236235762e1c871ad0ccb60c8ee5ba337b9a` (thinking on), run by `scripts/run_9b.sh` on
-one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plugin`:
+`Qwen/Qwen3.5-9B` at revision `c202236235762e1c871ad0ccb60c8ee5ba337b9a` (thinking on), run by `scripts/run_9b.sh` as
+root after `git clone -b desk-train-9b … /home/ubuntu/plugin`, with `MAX_HOURS` the box's lifetime: a `p5.4xlarge`
+(one H100, colocated), a `p5.48xlarge` (eight H100s) or a `p4de.24xlarge` (eight A100s 80 GB), both in server mode:
 
 - **Template and tool calls:** the model's chat template is the one TRL 1.16 ships as `qwen3_5_think.jinja`, byte for
   byte, so TRL parses its XML tool calls (`<tool_call><function=…><parameter=…>`; a nested argument such as `curves` is
@@ -283,14 +284,28 @@ one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plu
   log-probs; `memprobe9b.sh` in the ops notes) peaks at 21.8, 25.7, 29.6, 35.1 and 41.9 GiB at 4k, 8k, 12k, 16k and
   20k tokens (2.0k to 13.5k of them completion), and 24k runs out of the L40S's 44 GiB. That fits about 18.1 GiB plus
   0.14 GiB per 1k tokens plus 1.52 GiB per 1k completion tokens (the 248k-wide logits), so with an 8k prompt about
-  6 GiB plus 1.66 GiB per 1k tokens of context, and the optimiser state adds about 1.5 GiB. On an 80 GB H100 by
-  itself, CONTEXT 32,768 (`run_9b.sh`'s default) peaks near 62 GiB; 36,864 would reach about 69 and 40,960 about 76.
-- **vLLM:** a `trl vllm-serve` server, data parallel over GPUs 1-7, tensor parallel 1, `max_model_len` = CONTEXT, with
-  the weights TRL streams in after merging the LoRA every step; the trainer has GPU 0 to itself.
-- **Order:** setup (the model downloads while the env image builds), a sanity eval of one val day through the server,
+  6 GiB plus 1.66 GiB per 1k tokens of context, and the optimiser state adds about 1.5 GiB. With completions capped at
+  CONTEXT − 9,216 tokens, CONTEXT 32,768 (`run_9b.sh`'s default) peaks near 60 GiB; 36,864 would reach about 67 and
+  40,960 about 74, against an 80 GB GPU's 79 GiB.
+- **vLLM on eight GPUs:** a `trl vllm-serve` server, data parallel over GPUs 1-7, tensor parallel 1, `max_model_len` =
+  CONTEXT, with the weights TRL streams in over NCCL after merging the LoRA every step; the trainer has GPU 0 to itself.
+- **vLLM on one 80 GB GPU:** colocated at 0.6 of the GPU (`VLLM_MEM`), asleep at level 2 (weights and KV cache
+  released) while the trainer optimises, its weights loaded from the trainer's merged LoRA when it wakes. Awake: the
+  trainer's bf16 weights, LoRA, gradients and Adam state (about 19.5 GiB) beside vLLM's 47.5 GiB (its 18.6 GiB of
+  weights, CUDA graphs and TRL's 4,096-token batches, and about 26 GiB of KV cache, some 800k tokens at the 8
+  full-attention layers' 32 KiB a token; the 24 linear-attention layers keep about 50 MB of state a sequence), about
+  67 GiB of the 79 GiB. Asleep: the trainer's peak at CONTEXT 32,768 (a 7-9k prompt and the rest completion) is
+  about 60 GiB with the optimiser state, plus a few GiB vLLM keeps (graphs, its CUDA context), so 13 GiB or more
+  spare in both phases.
+- **A100s:** nothing here needs Hopper. torch 2.13 (cu130) ships sm_80; vLLM 0.29's kernels carry sm_80 SASS, its
+  FlashAttention 2 is built for sm_80 (FlashAttention 3, sm_90 only, is what it picks on H100s) and the L40S above ran
+  that same non-Hopper path; flash-linear-attention is Triton, where Hopper only changes autotuning and TMA is opt-in
+  (`FLA_USE_TMA`, sm_90 and up). bf16 runs on sm_80, and nothing in the kit uses FP8.
+- **Order:** setup (the model downloads while the env image builds), a sanity eval of one val day (on eight GPUs the
+  first NCCL weight transfer; the server then restarts, since vLLM doesn't guard a second trainer joining its group),
   then the pilot: the base eval of the 36 val days at step 0 (all 36 at once, `EVAL_BATCH=36`), up to 10 steps, the
-  final eval. Training ends after the last step that leaves 25 min before the deadline (boot + 2 h 45 min) for the
-  final eval and the copies (`STOP_AT`).
+  final eval. Training ends after the last step that leaves 25 min before the deadline (boot + `MAX_HOURS` − 15 min)
+  for the final eval and the copies (`STOP_AT`).
 
 ### The 9B on the L40S (2026-10-30)
 

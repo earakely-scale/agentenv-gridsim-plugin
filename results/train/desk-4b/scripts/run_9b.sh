@@ -1,16 +1,18 @@
-# Qwen3.5-9B on one 8-GPU box (p5.48xlarge), as root, the plugin cloned in /home/ubuntu/plugin: setup (setup-box.sh with
-# the 9B; the model downloads while the env image builds), a sanity eval of one val day through the vLLM server (server
-# mode generation, the LoRA weight sync, one episode and its reward), then pilot config 2: the base eval of the 36 val
-# days at step 0, up to 10 steps, the final eval. vLLM runs data parallel on GPUs 1-7 and the trainer on GPU 0
-# (run.sh). Training ends after the last step that leaves 25 min before DEADLINE (epoch seconds; default boot +
-# 2 h 45 min) for the final eval and the copies. The vLLM server restarts between the sanity and the pilot, so the
-# pilot's trainer opens the weight-transfer group with a fresh server. One line per stage goes to
-# /home/ubuntu/run_9b.progress.
+# Qwen3.5-9B on one GPU box, as root, the plugin cloned in /home/ubuntu/plugin: setup (setup-box.sh with the 9B; the
+# model downloads while the env image builds), a sanity eval of one val day (generation, the LoRA weight sync, one
+# episode and its reward), then pilot config 2: the base eval of the 36 val days at step 0, up to 10 steps, the final
+# eval. run.sh picks the mode from the GPU count: one GPU (a p5.4xlarge's H100) colocates vLLM with the trainer, vLLM
+# asleep while the trainer optimises; more (a p5.48xlarge's H100s, a p4de.24xlarge's A100s) run vLLM data parallel on
+# GPUs 1..N-1 and the trainer on GPU 0. MAX_HOURS is the box's lifetime from boot; training ends after the last step
+# that leaves 25 min before boot + MAX_HOURS - 15 min for the final eval and the copies. In server mode the vLLM server
+# restarts between the sanity and the pilot, so the pilot's trainer opens the weight-transfer group with a fresh
+# server. One line per stage goes to /home/ubuntu/run_9b.progress.
 set -uo pipefail
 H=/home/ubuntu
 KIT=$H/plugin/results/train/desk-4b/scripts
 BOOT=$(date -d "$(uptime -s)" +%s)
-DEADLINE=${DEADLINE:-$((BOOT + 165 * 60))}
+: "${MAX_HOURS:?the box lifetime in hours}"
+DEADLINE=$(awk -v boot="$BOOT" -v hours="$MAX_HOURS" 'BEGIN {printf "%d", boot + hours * 3600 - 15 * 60}')
 export MODEL_ID=Qwen/Qwen3.5-9B MODEL_REV=c202236235762e1c871ad0ccb60c8ee5ba337b9a PLUGIN_REF=${PLUGIN_REF:-desk-train-9b}
 SETTINGS=(HOME=$H MODEL=models/Qwen3.5-9B MODEL_DTYPE=bfloat16 SERVED_MODEL=qwen3.5-9b CONTEXT=${CONTEXT:-32768}
           EVAL_BATCH=36 VLLM_PREFIX_CACHING=${VLLM_PREFIX_CACHING:-True}
@@ -18,7 +20,7 @@ SETTINGS=(HOME=$H MODEL=models/Qwen3.5-9B MODEL_DTYPE=bfloat16 SERVED_MODEL=qwen
 progress() { echo "$(date -u +%FT%TZ) $*" | tee -a $H/run_9b.progress; }
 run() { sudo -u ubuntu env "${SETTINGS[@]}" "$@" bash $KIT/run.sh; }
 
-progress "setup (deadline $(date -u -d @"$DEADLINE" +%H:%M) UTC)"
+progress "setup on $(nvidia-smi -L | wc -l) GPU(s), MAX_HOURS $MAX_HOURS, deadline $(date -u -d @"$DEADLINE" +%H:%M) UTC"
 bash $KIT/setup-box.sh > $H/setup-box.log 2>&1 || { progress "SETUP FAILED: $(tail -3 $H/setup-box.log)"; exit 1; }
 progress "setup done: $(grep -E '^(trainer|gpu):|setup took' $H/setup-box.log | tr '\n' ' ')"
 
