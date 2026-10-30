@@ -253,6 +253,8 @@ a change outside this kit:
   In TRL the day is one completion: every reasoning block stays, at 40,960 tokens, and overflow ends the rollout.
 - **Sampling.** Training samples at 0.8 / 0.95 / 20; OpenCode runs Qwen at 0.6 / 0.95 / 20, as the trainer's eval
   does.
+- **Thinking budget.** The main run caps each turn's thinking at 2,048 tokens (`THINK_BUDGET`) in training and in its
+  val evals alike; OpenCode at the bench sets no budget, so a bench turn can think longer than any trained turn.
 
 ## Qwen3.5-9B on one GPU box (pilot config 2)
 
@@ -348,6 +350,37 @@ sanity runs it first on the p5.
   `VLLM_USE_FLASHINFER_SAMPLER=0` on a box without `ninja`.
 - **AsyncGRPO** (TRL 1.16) refuses Qwen3.5: its tree packing routes only attention layers, and the 24 linear-attention
   layers would scan across samples.
+
+### The main run (pilot config 2 at 96k, one GPU)
+
+`scripts/run_main.sh` on one 80 or 96 GB GPU (a `p5.4xlarge` H100 or a `g7e` RTX PRO 6000 Blackwell), as root after
+`setup-box.sh` at `desk-train-main`; `sanity` first, then `main`:
+
+- **Recipe:** pilot config 2 unchanged (32 rollouts a step, 4 days × 8, training at 0.8 / 0.95 / 20, the val evals at
+  0.6 / 0.95 / 20, C floored at −1 with the −0.1 format penalty, LoRA r 32), 20 steps, the 36 val days evaluated at
+  steps 0, 10 and 20.
+- **Long days:** CONTEXT 98,304 (a full day as played is about 84k tokens), `MAX_TOOL_ITERATIONS=200`, each turn's
+  thinking capped at 2,048 tokens (`THINK_BUDGET`; vLLM's `thinking_token_budget` with the `qwen3` reasoning parser,
+  which `train.py` passes to the colocated `LLM`; `run.sh` sets `VLLM_USE_FLASHINFER_SAMPLER=0` so no kernel compiles
+  at sampling), `vllm_max_model_length` 2 × CONTEXT − 9,216 as for a server. The metrics record thinking tokens per
+  turn and the share of turns the budget cut (`think_cut_share`).
+- **Memory:** the trainer keeps about 19.5 GiB between passes and peaks at 64.5 GiB on a 96k sequence with
+  `OFFLOAD_ACTIVATIONS=1` (measured on the RTX PRO 6000: 77 s for its forward and backward). vLLM, asleep while the
+  trainer optimises, gets the GPU less 23.5 GiB when awake: 0.754 of the RTX PRO 6000, 0.705 of an H100. Its KV cache
+  holds the 8 full-attention layers at 32 KiB a token: about 1.6M tokens on the RTX PRO 6000 and 1.1M on the H100, so
+  when 32 days near 96k at once exceed it, vLLM queues turns and recomputes.
+- **vLLM stays awake through a batch's tool loop** (`VLLM_HOLD_AWAKE`, on by default): TRL 1.16 colocated with sleep
+  mode sleeps vLLM after every generate call, that is every turn, so each turn pushed the weights again and prefilled
+  every day from its first token. `DeskGRPOTrainer._generate` pushes the weights once per batch, keeps the prefix
+  cache through the loop, and puts vLLM to sleep before the trainer's passes.
+- **Checkpoints and resume:** a checkpoint every step with the optimizer, scheduler and RNG state
+  (`save_only_model=False`); `KEEP_CHECKPOINTS=10,20` keeps those and the latest. A run whose `main/` holds a
+  checkpoint resumes from the last one, without the step-0 eval; `launch_main.sh` (ops) unpacks a snapshot the watcher
+  saved after each step onto a new box first. Checked on CPU (`CPU_CHECK=1`: a tiny random Qwen3.5 against `serve.py`
+  on a four-day bundle): two steps with evals at 0 and 2, then a relaunch resumed at step 3 without the step-0 eval and
+  pruned checkpoint 2, then again to step 5.
+- **Deadline:** `MAX_HOURS` (24 on spot, 21 on demand) from boot less 15 min, and `RESERVE_MIN` (120) before that for
+  the final eval, the adapter and the copies; training ends after the last step that fits.
 
 ## GPU check (L40S, 2026-10-30)
 

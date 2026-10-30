@@ -234,13 +234,14 @@ class DeskGRPOTrainer(GRPOTrainer):
 
     def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
         corrected, self.vllm_importance_sampling_correction = self.vllm_importance_sampling_correction, False
-        sampling = {key: getattr(self.vllm_generation, key) for key in EVAL_SAMPLING}
-        self.vllm_generation.__dict__.update(EVAL_SAMPLING)
+        generation = self.vllm_generation if self.use_vllm else self.generation_config
+        sampling = {key: getattr(generation, key) for key in EVAL_SAMPLING}
+        generation.__dict__.update(EVAL_SAMPLING)
         try:
             self._prepare_inputs(inputs)
         finally:
             self.vllm_importance_sampling_correction = corrected
-            self.vllm_generation.__dict__.update(sampling)
+            generation.__dict__.update(sampling)
         return torch.zeros((), device=self.accelerator.device), None, None
 
     def _generate(self, prompts):
@@ -248,10 +249,10 @@ class DeskGRPOTrainer(GRPOTrainer):
         every turn of the tool loop, so each turn prefills every day from its start. VLLM_HOLD_AWAKE (the default)
         keeps it awake, its weights pushed once and its prefix cache, through a batch's whole loop, then puts it to
         sleep before the trainer's passes."""
-        generation = self.vllm_generation
-        if not (self.use_vllm and generation.mode == "colocate" and generation.enable_sleep_mode
+        if not (self.use_vllm and self.vllm_generation.mode == "colocate" and self.vllm_generation.enable_sleep_mode
                 and os.environ.get("VLLM_HOLD_AWAKE", "1") == "1"):
             return super()._generate(prompts)
+        generation = self.vllm_generation
         llm, awake, synced = generation.llm, set(), []
         sleep, wake_up, sync_weights = llm.sleep, llm.wake_up, generation.sync_weights
 
@@ -341,7 +342,9 @@ else:
     if RESUME:
         log.info("resuming from %s", RESUME)
     trainer.train(resume_from_checkpoint=RESUME)
-    if EVAL_LIMIT and trainer.state.global_step % trainer.args.eval_steps:
+    step = trainer.state.global_step
+    if EVAL_LIMIT and not any(h.get("step") == step and any(key.startswith("eval_") for key in h)
+                              for h in trainer.state.log_history):
         trainer.evaluate()
     trainer.save_model(str(OUT / "adapter"))
 (OUT / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=1))
