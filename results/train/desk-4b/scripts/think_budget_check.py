@@ -9,6 +9,7 @@ import sys
 
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
+from vllm.config.reasoning import ReasoningConfig
 
 path, out_path = sys.argv[1], sys.argv[2]
 reasoning = {"reasoning_parser": "qwen3"} | ({"reasoning_end_str": sys.argv[3]} if len(sys.argv) > 3 else {})
@@ -25,7 +26,8 @@ question = ("You run a 100 MW / 400 MWh battery. Tomorrow's forecast day-ahead p
 ids = tok.apply_chat_template([{"role": "user", "content": question}], tools=tools, add_generation_prompt=True,
                               enable_thinking=True, tokenize=True, return_dict=False)
 end_id = tok.convert_tokens_to_ids("</think>")
-llm = LLM(model=path, max_model_len=16384, gpu_memory_utilization=0.85, reasoning_config=reasoning)
+llm = LLM(model=path, max_model_len=16384, gpu_memory_utilization=0.85, reasoning_parser="qwen3",
+          reasoning_config=ReasoningConfig(**reasoning))
 result = {"reasoning": reasoning, "runs": []}
 for budget in (None, 64, 256, 1024):
     params = SamplingParams(n=4, temperature=0.8, top_p=0.95, top_k=20, max_tokens=6144, seed=0,
