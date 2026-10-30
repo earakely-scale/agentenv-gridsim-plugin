@@ -13,10 +13,12 @@ before, and the latest generation batch's completions to $OUT/completions-<phase
 gets each rollout's tool calls as it is logged.
 
 Long days (pilot config 2 at 96k): THINK_BUDGET caps each turn's thinking (vLLM's thinking_token_budget, the qwen3
-reasoning parser), MAX_TOOL_ITERATIONS bounds the turns, OFFLOAD_ACTIVATIONS keeps the saved activations in CPU memory,
-and in colocate mode vLLM stays awake through a batch's whole tool loop (VLLM_HOLD_AWAKE), keeping its prefix cache,
-and sleeps once before the trainer's passes. SAVE_STEPS checkpoints (weights, optimizer, step) and KEEP_CHECKPOINTS
-names the steps kept besides the latest; a run whose OUT holds a checkpoint resumes from the last one. CPU_CHECK=1 runs
+reasoning parser) and TURN_MAX_TOKENS each turn's output, MAX_TOOL_ITERATIONS bounds the turns, STEPS_PER_GENERATION
+generates a step's rollouts in waves (8: one day's group at a time, so the KV cache holds every day of a wave),
+OFFLOAD_ACTIVATIONS keeps the saved activations in CPU memory, and in colocate mode vLLM stays awake through a batch's
+whole tool loop (VLLM_HOLD_AWAKE), keeping its prefix cache, and sleeps once before the trainer's passes. SAVE_STEPS
+checkpoints (weights, optimizer, step) and KEEP_CHECKPOINTS names the steps kept besides the latest; a run whose OUT
+holds a checkpoint resumes from the last one. CPU_CHECK=1 runs
 the same loop without vLLM or a GPU, for checks with a tiny model."""
 
 import contextlib
@@ -55,6 +57,7 @@ CONTEXT_TOKENS = int(os.environ.get("CONTEXT", "40960"))
 MAX_PROMPT_TOKENS = 9216
 MAX_TOOL_ITERATIONS = int(os.environ.get("MAX_TOOL_ITERATIONS", "64"))
 THINK_BUDGET = int(os.environ.get("THINK_BUDGET", "0"))
+TURN_MAX_TOKENS = int(os.environ.get("TURN_MAX_TOKENS", "0"))
 CPU_CHECK = os.environ.get("CPU_CHECK") == "1"
 VLLM_MODE = os.environ.get("VLLM_MODE", "colocate")
 KEEP_CHECKPOINTS = {int(step) for step in os.environ.get("KEEP_CHECKPOINTS", "").split(",") if step}
@@ -298,7 +301,10 @@ trainer = DeskGRPOTrainer(
         max_tool_calling_iterations=MAX_TOOL_ITERATIONS,
         chat_template_kwargs={"enable_thinking": True},
         **TRAIN_SAMPLING,
-        generation_kwargs={"thinking_token_budget": THINK_BUDGET} if THINK_BUDGET and not CPU_CHECK else None,
+        generation_kwargs=None if CPU_CHECK else {
+            **({"thinking_token_budget": THINK_BUDGET} if THINK_BUDGET else {}),
+            **({"max_tokens": TURN_MAX_TOKENS} if TURN_MAX_TOKENS else {})} or None,
+        steps_per_generation=int(os.environ.get("STEPS_PER_GENERATION", "0")) or None,
         learning_rate=float(os.environ.get("LR", "2e-5")),
         lr_scheduler_type="constant",
         loss_type="dr_grpo",
@@ -336,6 +342,10 @@ trainer = DeskGRPOTrainer(
     callbacks=[metrics := Metrics(), Deadline()] + ([Prune()] if KEEP_CHECKPOINTS else []),
 )
 metrics.trainer = trainer
+if trainer.use_vllm and VLLM_MODE == "colocate":
+    cache = trainer.vllm_generation.llm.llm_engine.vllm_config.cache_config
+    log.info("vLLM KV cache: %s blocks of %s tokens, %s tokens", cache.num_gpu_blocks, cache.block_size,
+             cache.num_gpu_blocks * cache.block_size)
 if MAX_STEPS == 0:
     trainer.evaluate()
 else:

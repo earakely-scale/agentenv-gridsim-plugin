@@ -5,8 +5,9 @@
 # step (the latest and steps 10 and 20 kept), the final eval and the adapter, in /home/ubuntu/main; a main/ holding a
 # checkpoint resumes from it. ROLLOUTS, EVAL_STEPS and EVAL_ON_START override the run's 32, 10 and 1. vLLM (colocated, asleep while the trainer optimises) gets the GPU less 23.5 GiB for the
 # trainer. MAX_HOURS is the box's lifetime from boot: training ends after the last step that leaves RESERVE_MIN
-# (default 120) before boot + MAX_HOURS - 15 min for the final eval and the copies. One line per stage goes to
-# /home/ubuntu/run_main.progress.
+# (default 120) before boot + MAX_HOURS - 15 min for the final eval and the copies. A turn writes at most 4,096 tokens,
+# 2,048 of them thinking; a step's days are generated one group of 8 at a time and the evals 9 days at a time, so
+# every day in flight fits vLLM's KV cache. One line per stage goes to /home/ubuntu/run_main.progress.
 set -uo pipefail
 STAGE=${1:?sanity or main}
 H=/home/ubuntu
@@ -17,7 +18,8 @@ DEADLINE=$(awk -v boot="$BOOT" -v hours="$MAX_HOURS" 'BEGIN {printf "%d", boot +
 TOTAL_MIB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1)
 VLLM_MEM=$(awk -v mib="$TOTAL_MIB" 'BEGIN {printf "%.3f", (mib / 1024 - 23.5) / (mib / 1024)}')
 SETTINGS=(HOME=$H MODEL=models/Qwen3.5-9B MODEL_DTYPE=bfloat16 SERVED_MODEL=qwen3.5-9b CONTEXT=98304
-          OFFLOAD_ACTIVATIONS=1 THINK_BUDGET=2048 VLLM_MEM=$VLLM_MEM EVAL_BATCH=36 FORMAT_PENALTY=0.1
+          OFFLOAD_ACTIVATIONS=1 THINK_BUDGET=2048 TURN_MAX_TOKENS=4096 STEPS_PER_GENERATION=8 VLLM_MEM=$VLLM_MEM
+          EVAL_BATCH=9 FORMAT_PENALTY=0.1
           PATH=$H/.local/bin:/usr/local/bin:/usr/bin:/bin)
 progress() { echo "$(date -u +%FT%TZ) $*" | tee -a $H/run_main.progress; }
 run() { sudo -u ubuntu env "${SETTINGS[@]}" "$@" bash $KIT/run.sh; }
