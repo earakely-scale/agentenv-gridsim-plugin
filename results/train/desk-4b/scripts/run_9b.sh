@@ -21,7 +21,10 @@ progress() { echo "$(date -u +%FT%TZ) $*" | tee -a $H/run_9b.progress; }
 run() { sudo -u ubuntu env "${SETTINGS[@]}" "$@" bash $KIT/run.sh; }
 
 progress "setup on $(nvidia-smi -L | wc -l) GPU(s), MAX_HOURS $MAX_HOURS, deadline $(date -u -d @"$DEADLINE" +%H:%M) UTC"
-bash $KIT/setup-box.sh > $H/setup-box.log 2>&1 || { progress "SETUP FAILED: $(tail -3 $H/setup-box.log)"; exit 1; }
+if [ ! -f $H/setup-box.done ]; then
+  bash $KIT/setup-box.sh > $H/setup-box.log 2>&1 || { progress "SETUP FAILED: $(tail -3 $H/setup-box.log)"; exit 1; }
+  touch $H/setup-box.done
+fi
 progress "setup done: $(grep -E '^(trainer|gpu):|setup took' $H/setup-box.log | tr '\n' ' ')"
 
 progress "sanity: one val day, generation and the weight sync"
