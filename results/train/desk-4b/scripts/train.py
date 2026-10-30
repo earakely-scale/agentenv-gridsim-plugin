@@ -107,9 +107,10 @@ def get_reward(self) -> float | None:
 
 
 def malformed_call(completions, **kwargs) -> list[float]:
-    """-FORMAT_PENALTY for a rollout whose last message holds a tool call TRL could not parse, which ended it."""
-    return [-FORMAT_PENALTY if not messages[-1].get("tool_calls") and "<tool_call>" in str(messages[-1].get("content"))
-            else 0.0 for messages in completions]
+    """-FORMAT_PENALTY for a rollout whose last message ends in a whole tool call TRL could not parse, which ended it;
+    a call the length cap cut off is not the model's error."""
+    return [-FORMAT_PENALTY if not messages[-1].get("tool_calls")
+            and str(messages[-1].get("content")).rstrip().endswith("</tool_call>") else 0.0 for messages in completions]
 
 
 Desk = type(Base.__name__, (Base,), {"end_turn": end_turn, "reset": reset, "_call": _call, "_answer": _answer,
@@ -170,11 +171,12 @@ class Metrics(TrainerCallback):
         self.file.flush()
         with (OUT / "rollouts.jsonl").open("a") as f:
             f.writelines(json.dumps(r | {"phase": phase, "step": state.global_step}) + "\n" for r in new)
-        recent = self.trainer._logs
-        rewards = next(iter(recent["rewards"].values()), [])
-        (OUT / f"completions-{phase}-{state.global_step}.jsonl").write_text("".join(
-            json.dumps({"completion": c, "reward": r, "advantage": a}, default=str) + "\n"
-            for c, r, a in zip(recent["completion"], rewards, recent["advantages"], strict=False)))
+        if new:
+            recent = self.trainer._logs
+            rewards = next(iter(recent["rewards"].values()), [])
+            (OUT / f"completions-{phase}-{state.global_step}.jsonl").write_text("".join(
+                json.dumps({"completion": c, "reward": r, "advantage": a}, default=str) + "\n"
+                for c, r, a in zip(recent["completion"], rewards, recent["advantages"], strict=False)))
         log.info("%s step %s: %s", phase, state.global_step,
                  json.dumps({key: row.get(key) for key in ("rollouts", "unscored", "c_mean", "c_sd", "r_mean",
                                                            "beats_idle_rate", "valid_offer_rate", "tool_error_share",

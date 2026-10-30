@@ -151,12 +151,14 @@ python results/train/desk-4b/scripts/replay.py --bundle bundles/desk-v4-train \
 |---|---|---|
 | model | Qwen3-4B at `1cfa9a72`, LoRA r 32, α 64, all linear | the benchmark's revision; the v1 run's adapter |
 | thinking | `chat_template_kwargs={"enable_thinking": True}` | as the benchmark's Qwen |
-| rollouts | 32 a step: 4 days × 8 generations (`per_device_train_batch_size=1`, `gradient_accumulation_steps=32`, `num_generations=8`) | one sequence per micro-batch: sequences run to 40k tokens |
-| sampling | temperature 1.0 | GRPO exploration |
+| rollouts | 32 a step: 4 days × 8 generations (`per_device_train_batch_size=1`, `gradient_accumulation_steps=32` (`ROLLOUTS`), `num_generations=8` (`GENERATIONS`)) | one sequence per micro-batch: sequences run to 40k tokens |
+| sampling | training 0.8, top_p 0.95, top_k 20; the eval 0.6 / 0.95 / 20 | pilot config 2: exploration a little under TRL's 1.0, the eval at the benchmark's sampling |
+| format penalty | −0.1 (`FORMAT_PENALTY`) for a rollout whose last message ends in a whole tool call TRL could not parse | such a call ends the rollout; a call the length cap cuts off is not the model's error and is not penalised |
+| rows | the OpenCode context, the `end_turn` line and "Keep every curve short: 2 to 4 [MW, price] points." | pilot config 2: long curves were where the 4B's JSON broke |
 | loss | `dr_grpo`, β 0, ε_high 0.28 | as decided; ε_high as the v1 run |
 | learning rate | 2e-5, constant (`LR`) | the v1 run's rate; a warmup's first step runs at 0 |
 | importance sampling | `vllm_importance_sampling_mode="token_truncate"` (C_max 3) | TRL's default, sequence-level masking, masked nearly every rollout on the L40S: a day's thousands of sampled tokens sum small vLLM/trainer logprob differences past the clip |
-| steps | 10 (`MAX_STEPS`) | the pilot |
+| steps | 10 (`MAX_STEPS`); with `STOP_AT` (epoch seconds) training ends after the last step whose successor, timed by the longest step so far, could not finish by then | the pilot; a box with a fixed lifetime still runs the final eval |
 | context | `vllm_max_model_length=40960` (`CONTEXT`) | Qwen3-4B's native positions; smaller on GPUs under 80 GB |
 | completion | `max_completion_length=31744` (`CONTEXT` - 9,216) | the longest row prompt is 8,669 tokens |
 | tool loop | `max_tool_calling_iterations=64` | see Token budget |
@@ -249,7 +251,8 @@ a change outside this kit:
 - **Reasoning and context.** Qwen3's chat template drops the reasoning of turns before the latest user message, so
   in OpenCode each wake starts without the earlier wakes' reasoning, at 32,768 tokens with OpenCode's auto-compaction.
   In TRL the day is one completion: every reasoning block stays, at 40,960 tokens, and overflow ends the rollout.
-- **Sampling.** Training samples at temperature 1.0; OpenCode runs Qwen at 0.6, top_p 0.95, top_k 20.
+- **Sampling.** Training samples at 0.8 / 0.95 / 20; OpenCode runs Qwen at 0.6 / 0.95 / 20, as the trainer's eval
+  does.
 
 ## Qwen3.5-9B on an 8-GPU box (pilot config 2)
 
@@ -260,6 +263,14 @@ one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plu
   byte, so TRL parses its XML tool calls (`<tool_call><function=…><parameter=…>`; a nested argument such as `curves` is
   one JSON value inside its parameter) with its Qwen3.5 response schema. With thinking on, the generation prompt opens
   `<think>`.
+- **What a broken call does** (TRL 1.16 and transformers 5.22, which types each argument by the tool's schema): a
+  nested value that isn't valid JSON (a `curves` missing its last bracket) and a word where a number belongs still
+  parse as calls, carrying the string, and the env answers with an error the model can act on; a call to a tool
+  that doesn't exist parses too. A call the length cap cuts off parses with empty arguments when its `<function=…>`
+  tag is complete. Only a whole call without a function tag, or in Qwen3's JSON form (`<tool_call>{"name": …}`), falls
+  back to text and ends the rollout. So the 4B's dominant ending, malformed JSON that ended the day, mostly becomes
+  a refused tool call for the 9B: the format penalty fires less, and the metrics count the env's refusals as
+  `tool_error_share`.
 - **Rows:** the OpenCode context names the served model (`SERVED_MODEL=qwen3.5-9b`: "You are powered by the model named
   qwen3.5-9b. The exact model ID is litellm/qwen3.5-9b"), and the template's own tool preamble replaces the 4B's: a row
   prompt runs 7,247 tokens at the median, 8,131 at p90 and 8,945 at most, within the 9,216 the trainer budgets.
@@ -268,11 +279,18 @@ one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plu
 - **Trainer:** bf16 weights (`MODEL_DTYPE`), LoRA r 32 on every linear layer but the vision tower, flash-linear-attention
   for the linear-attention layers, and the 248k vocabulary's log-probs one sequence at a time
   (`per_device_train_batch_size=1`; the eval scores rewards alone).
+- **Memory:** one training sequence on the L40S (bf16 9B, the LoRA, gradient checkpointing, the completion's
+  log-probs; `memprobe9b.sh` in the ops notes) peaks at 21.8, 25.7, 29.6, 35.1 and 41.9 GiB at 4k, 8k, 12k, 16k and
+  20k tokens (2.0k to 13.5k of them completion), and 24k runs out of the L40S's 44 GiB. That fits about 18.1 GiB plus
+  0.14 GiB per 1k tokens plus 1.52 GiB per 1k completion tokens (the 248k-wide logits), so with an 8k prompt about
+  6 GiB plus 1.66 GiB per 1k tokens of context, and the optimiser state adds about 1.5 GiB. On an 80 GB H100 by
+  itself, CONTEXT 32,768 (`run_9b.sh`'s default) peaks near 62 GiB; 36,864 would reach about 69 and 40,960 about 76.
 - **vLLM:** a `trl vllm-serve` server, data parallel over GPUs 1-7, tensor parallel 1, `max_model_len` = CONTEXT, with
   the weights TRL streams in after merging the LoRA every step; the trainer has GPU 0 to itself.
 - **Order:** setup (the model downloads while the env image builds), a sanity eval of one val day through the server,
   then the pilot: the base eval of the 36 val days at step 0 (all 36 at once, `EVAL_BATCH=36`), up to 10 steps, the
-  final eval. A deadline stops training after the step that would leave too little time for the final eval.
+  final eval. Training ends after the last step that leaves 25 min before the deadline (boot + 2 h 45 min) for the
+  final eval and the copies (`STOP_AT`).
 
 ## GPU check (L40S, 2026-10-30)
 

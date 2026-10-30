@@ -121,8 +121,9 @@ def serve(log: str) -> subprocess.Popen:
 
 
 def endings(out: str) -> dict:
-    """How each logged rollout ended, with its mean C: the model's own end_turn through the day, a parsed tool call TRL
-    did not run (the length or iteration cap), an unparseable tool call, or a reply without one."""
+    """How each logged rollout ended, with its mean C: the model's own end_turn through the day, a tool call TRL did not
+    run (parsed, or cut off: the length or iteration cap), a whole tool call TRL could not parse, or a reply without
+    one."""
     rollouts = [json.loads(line) for line in open(f"{out}/rollouts.jsonl")]
     summary = {}
     for path in glob.glob(f"{out}/completions-*-*.jsonl"):
@@ -134,8 +135,10 @@ def endings(out: str) -> dict:
         for done, rollout in zip(completions[len(completions) - size:], logged[len(logged) - size:], strict=True):
             last = done["completion"][-1]
             text = str(last.get("content") or "")
-            kind = ("full_day" if rollout["finished_by_model"] else "cap" if last.get("tool_calls")
-                    else "malformed" if "<tool_call>" in text else "plain" if text.strip() else "empty")
+            whole = text.rstrip().endswith("</tool_call>")
+            kind = ("full_day" if rollout["finished_by_model"] else "malformed" if not last.get("tool_calls") and whole
+                    else "cap" if last.get("tool_calls") or "<tool_call>" in text
+                    else "plain" if text.strip() else "empty")
             kinds.setdefault(kind, []).append(rollout["reward"] if rollout["reward"] is not None else float("nan"))
         summary[f"{phase}{step}"] = {kind: [len(c), round(statistics.fmean(c), 4)] for kind, c in sorted(kinds.items())}
     return summary
