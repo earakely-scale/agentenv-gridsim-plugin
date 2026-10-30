@@ -321,6 +321,34 @@ malformed ending (one full day, two at the length cap after 30 and 54 calls, one
 characters a message). Server-mode weight transfer (NCCL, trainer on GPU 0) can't run on one GPU; `run_9b.sh`'s
 sanity runs it first on the p5.
 
+### Long-context spike: the trainer's memory and a thinking budget (L40S, 2026-10-30)
+
+- **No Liger loss, none needed.** TRL 1.16's `GRPOTrainer` always scores the loss through its own fused LM head
+  (`add_fused_lm_head`, `trl/kernels/chunked_logprob.py`: Triton tiles of 4,096 tokens by 32,768 vocabulary entries,
+  fp32 accumulation, completion positions only), so the 248k-wide logits are never built. It works under PEFT and
+  Qwen3.5's vision wrapper. On a 2k-token sequence its log-probs match a plain `log_softmax` of the full logits to
+  3.8e-6 (max) and 2.6e-7 (mean). `use_liger_kernel` is deprecated there and its fused cross-entropy refused.
+- **Memory per token** (`fused_probe.py`; one sequence, an 8k prompt, the rest completion, LoRA r 32, gradient
+  checkpointing; the trainer holds 17.85 GiB loaded): 29.2 GiB at 16k and 40.6 GiB at 32k, out of memory at 48k on
+  the L40S, about 0.70 GiB per 1k tokens: 0.25 for the checkpointed layer inputs and the rest for one layer's
+  backward at full length. With `OFFLOAD_ACTIVATIONS=1` (what the forward saves for backward goes to pinned CPU
+  memory, about 256 KiB a token) the peaks are 25.9, 33.6 and 41.3 GiB at 16k, 32k and 48k, about 0.48 GiB per 1k.
+  So on an 80 GB GPU the trainer reaches about 80k tokens as TRL runs it and about 120k with the offload: 96k needs
+  it (about 64 GiB, plus the optimiser state and vLLM asleep).
+- **A colocated step at CONTEXT 40,960 with the offload** ran end to end (2 rollouts, loss −0.105, grad norm 0.073,
+  IS ratio 0.992, 18 min), the GPU at 41 GB or less while optimising. Its longer rollout stopped at the 64-iteration
+  cap (81 tool results, about 27k tokens), so a full day at 96k also needs `MAX_TOOL_ITERATIONS` near 200. In colocate
+  mode `torch_peak_gib` counts vLLM's sleeping pool; read it in server mode.
+- **Thinking budget** (`think_budget_check.py`): vLLM 0.29's `thinking_token_budget` works on Qwen3.5 with the
+  `qwen3` reasoning parser. It counts from the `<think>` the generation prompt opens and forces `</think>` at exactly N
+  tokens: at 64, 256 and 1,024 every sample stopped there (one ended on its own at 945) and went on to a tool call,
+  where without a budget two of four samples thought past 6,144 tokens with no call. In TRL it is
+  `GRPOConfig(generation_kwargs={"thinking_token_budget": N})` with `--reasoning-parser qwen3` on the server; colocated
+  vLLM also needs the parser passed to `LLM`. This path samples with FlashInfer, which compiles on first use, so set
+  `VLLM_USE_FLASHINFER_SAMPLER=0` on a box without `ninja`.
+- **AsyncGRPO** (TRL 1.16) refuses Qwen3.5: its tree packing routes only attention layers, and the 24 linear-attention
+  layers would scan across samples.
+
 ## GPU check (L40S, 2026-10-30)
 
 One g6e.4xlarge (1× L40S, 16 vCPU), set up with `setup-box.sh` in 288 s (driver 595, agentenv-framework 0.9.1387,
