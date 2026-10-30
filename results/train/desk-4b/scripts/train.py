@@ -34,6 +34,10 @@ CONTEXT = json.loads((KIT / "opencode_context.json").read_text())
 ANCHOR_C = json.loads((KIT / "anchor_c.json").read_text())
 END_TURN = ("Every reply must call a tool. When you are done with this wake, call end_turn (with an optional short "
             "note); never end with a plain reply, or the rest of the day runs without you.")
+SHORT_CURVES = "Keep every curve short: 2 to 4 [MW, price] points."
+TRAIN_SAMPLING = {"temperature": 0.8, "top_p": 0.95, "top_k": 20}
+EVAL_SAMPLING = {"temperature": 0.6, "top_p": 0.95, "top_k": 20}
+FORMAT_PENALTY = float(os.environ.get("FORMAT_PENALTY", "0.1"))
 CONTEXT_TOKENS = int(os.environ.get("CONTEXT", "40960"))
 MAX_PROMPT_TOKENS = 9216
 MAX_TOOL_ITERATIONS = 64
@@ -49,8 +53,8 @@ log = logging.getLogger("desk_grpo")
 
 def opencode(row: dict) -> dict:
     system, wake = row["prompt"]
-    return {"prompt": [{"role": "system", "content": CONTEXT["head"] + system["content"] + "\n" + END_TURN
-                        + CONTEXT["tail"]},
+    return {"prompt": [{"role": "system", "content": CONTEXT["head"] + system["content"] + "\n" + END_TURN + "\n"
+                        + SHORT_CURVES + CONTEXT["tail"]},
                        {"role": "user", "content": json.dumps(wake["content"], ensure_ascii=False)}]}
 
 
@@ -98,6 +102,12 @@ def get_reward(self) -> float | None:
     ROLLOUTS.append({"task_id": self.task_id, "reward": reward, "r": scores.get("grade"), "finished_by_model": finished,
                      "calls": self.calls})
     return reward
+
+
+def malformed_call(completions, **kwargs) -> list[float]:
+    """-FORMAT_PENALTY for a rollout whose last message holds a tool call TRL could not parse, which ended it."""
+    return [-FORMAT_PENALTY if not messages[-1].get("tool_calls") and "<tool_call>" in str(messages[-1].get("content"))
+            else 0.0 for messages in completions]
 
 
 Desk = type(Base.__name__, (Base,), {"end_turn": end_turn, "reset": reset, "_call": _call, "_answer": _answer,
@@ -152,21 +162,25 @@ class Metrics(TrainerCallback):
 
 
 class DeskGRPOTrainer(GRPOTrainer):
-    """Evaluates by the episodes' rewards alone: TRL's eval step would also run the model over the whole eval batch at
-    once (the loss, and the old log-probs of vLLM's importance-sampling correction), which runs out of memory at
-    40k-token sequences."""
+    """Evaluates by the episodes' rewards alone, sampling at EVAL_SAMPLING (the benchmark's): TRL's eval step would also
+    run the model over the whole eval batch at once (the loss, and the old log-probs of vLLM's importance-sampling
+    correction), which runs out of memory at 40k-token sequences."""
 
     def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
         corrected, self.vllm_importance_sampling_correction = self.vllm_importance_sampling_correction, False
+        sampling = {key: getattr(self.vllm_generation, key) for key in EVAL_SAMPLING}
+        self.vllm_generation.__dict__.update(EVAL_SAMPLING)
         try:
             self._prepare_inputs(inputs)
         finally:
             self.vllm_importance_sampling_correction = corrected
+            self.vllm_generation.__dict__.update(sampling)
         return torch.zeros((), device=self.accelerator.device), None, None
 
 
 trainer = DeskGRPOTrainer(
     model=os.environ.get("MODEL", "models/Qwen3-4B"),
+    reward_funcs=[malformed_call] if FORMAT_PENALTY else None,
     args=GRPOConfig(
         output_dir=str(OUT),
         max_steps=max(1, MAX_STEPS),
@@ -176,7 +190,7 @@ trainer = DeskGRPOTrainer(
         max_completion_length=CONTEXT_TOKENS - MAX_PROMPT_TOKENS,
         max_tool_calling_iterations=MAX_TOOL_ITERATIONS,
         chat_template_kwargs={"enable_thinking": True},
-        temperature=1.0,
+        **TRAIN_SAMPLING,
         learning_rate=float(os.environ.get("LR", "2e-5")),
         lr_scheduler_type="constant",
         loss_type="dr_grpo",
