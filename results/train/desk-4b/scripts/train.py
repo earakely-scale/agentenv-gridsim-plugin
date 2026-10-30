@@ -138,11 +138,19 @@ def rates(rollouts: list[dict]) -> dict:
 
 
 class Deadline(TrainerCallback):
-    """Ends training after the step that passes STOP_AFTER_S seconds, so a box with a fixed lifetime keeps its
-    outputs; the final eval then runs, off its schedule if need be."""
+    """Ends training after the last step whose successor could not finish before STOP_AT (epoch seconds; the longest
+    step so far times the next), so a box with a fixed lifetime still runs the final eval, off its schedule if need
+    be, and keeps its outputs."""
+
+    def __init__(self):
+        self.began, self.longest = 0.0, 0.0
+
+    def on_step_begin(self, args, state, control, **kwargs):
+        self.began = time.time()
 
     def on_step_end(self, args, state, control, **kwargs):
-        if time.monotonic() - STARTED > float(os.environ.get("STOP_AFTER_S", "inf")):
+        self.longest = max(self.longest, time.time() - self.began)
+        if time.time() + self.longest > float(os.environ.get("STOP_AT", "inf")):
             control.should_training_stop = True
 
 
