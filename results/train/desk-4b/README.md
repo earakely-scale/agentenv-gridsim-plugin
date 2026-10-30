@@ -5,8 +5,8 @@ desk, every rollout an AgentEnv episode: the `desk-v4-train` bundle is served by
 `agent_env.openenv.build_app` (`scripts/serve.py`, under systemd on the GPU box), and the trainer reads it with
 `agent_env.training.trl.AgentEnv("http://127.0.0.1:8000")`. A rollout is one operating day under the v4 layer and env,
 with the benchmark's eleven desk tools, and its reward is the hindsight capture C floored at -1. The first run is a
-10-step pilot on one GPU box that runs the env server too. Nothing here has run on a GPU yet; the CPU checks below
-have.
+10-step pilot on one GPU box that runs the env server too. One step has run on an L40S (GPU check below); the
+pilot itself hasn't run.
 
 ## The data: `desk-v4-train`
 
@@ -99,7 +99,7 @@ for a dropped session's replacement while the old one closes. A run under `syste
 
 `run.sh` picks vLLM's mode from the GPU count (`VLLM_MODE` overrides):
 
-- **One GPU:** `vllm_mode="colocate"`, vLLM beside the trainer at `vllm_gpu_memory_utilization=0.35` (`VLLM_MEM`).
+- **One GPU:** `vllm_mode="colocate"`, vLLM beside the trainer, asleep while it optimises (see GPU memory).
 - **N > 1 GPUs:** `vllm_mode="server"`: `trl vllm-serve` on GPUs 1..N-1 with data parallel N-1 and tensor parallel 1
   (Qwen3-4B fits on one GPU), the same model files, `max_model_len` 40,960, on `127.0.0.1:8001`; the trainer on GPU 0.
   The server needs no LoRA flags: TRL 1.16 merges the adapter, streams the merged weights to the server over NCCL
@@ -112,14 +112,28 @@ Everything else is the same in both modes: the settings below, 32 rollouts a ste
 On separate boxes, run `setup-env.sh` and `serve.py` (with `HOST=0.0.0.0`) on a CPU box with Docker, `setup.sh` on the
 GPU box, and set `ENV_URL=http://ENV_HOST:8000`.
 
-**GPUs.** The H100 (`p5.4xlarge`) is what the settings assume. The RTX PRO 6000 Blackwell (`g7e`, 96 GB) is compute
-capability 12.0 (`sm_120`): the PyPI torch 2.13 and vLLM 0.29 wheels are CUDA 13 builds (base Qwen's bench boxes ran
-torch 2.13.0+cu130), which need NVIDIA driver 580 or later and kernels built for `sm_120`; `setup.sh`'s check prints
-the driver, the arch and whether torch was built for it, and FlashAttention 3 being Hopper-only, vLLM takes its
-FlashAttention 2 or FlashInfer backend there, as on Ada. The card's memory
-bandwidth is about half an H100's, so generation is slower; with 96 GB `VLLM_MEM=0.4` leaves the trainer as much as on
-the H100. On an L40S (48 GB) colocated memory is tight at 40k-token sequences. On A100 40 GB boxes the trainer has 40 GB
-for 40k-token sequences in server mode.
+**GPU memory.** Training one sequence (Qwen3-4B, LoRA r 32 on all linear layers, gradient checkpointing, the
+log-probs of every completion token over the 151,936-token vocabulary) peaks, measured on the L40S:
+
+| sequence (tokens) | 8,192 | 16,384 | 24,576 | 32,768 | 40,960 |
+|---|---|---|---|---|---|
+| peak GiB | 15.0 | 22.7 | 31.1 | 39.5 | out of memory on 44.4 (about 48 by the trend) |
+
+So at 40,960 tokens training needs about 48 GB on its own, beside vLLM's weights and cache. On one GPU vLLM therefore
+sleeps while the trainer optimises (`vllm_enable_sleep_mode`, `VLLM_SLEEP=1`, the default) and takes 0.6 of the GPU
+while it generates (`VLLM_MEM`): TRL re-merges the LoRA and reloads the weights at every generation call, which costs
+far less than the KV cache it frees (on the L40S, generation took 17 minutes a step this way against 29 with vLLM
+resident at 0.35). By GPU:
+
+- **H100 80 GB** (`p5.4xlarge`): the settings as they are.
+- **RTX PRO 6000 Blackwell 96 GB** (`g7e`): the settings as they are. Compute capability 12.0 (`sm_120`): the PyPI
+  torch 2.13 and vLLM 0.29 wheels are CUDA 13 builds (base Qwen's bench boxes ran torch 2.13.0+cu130), which need
+  NVIDIA driver 580 or later; `setup.sh` prints the driver and the arch and runs a bf16 matmul on the card. vLLM uses
+  FlashAttention 2 or FlashInfer there (FlashAttention 3 is Hopper-only). Its memory bandwidth is about half an H100's,
+  so generation is slower.
+- **L40S 48 GB** (`g6e`): `CONTEXT=28672`, which the GPU check below ran; 40,960 runs out of memory in the backward pass.
+- **A100 40 GB** (`p4d.24xlarge`, server mode, the trainer alone on GPU 0): `CONTEXT=28672` as on the L40S.
+- **Several GPUs** (server mode): the trainer's GPU holds no vLLM; 80 GB cards take 40,960.
 
 The leaderboard score of a trained LoRA comes from OpenCode on the 32 bench windows, as base Qwen's did:
 [`opencode_eval.md`](opencode_eval.md), with a two-window check for a pilot checkpoint.
@@ -140,14 +154,15 @@ python results/train/desk-4b/scripts/replay.py --bundle bundles/desk-v4-train \
 | rollouts | 32 a step: 4 days × 8 generations (`per_device_train_batch_size=1`, `gradient_accumulation_steps=32`, `num_generations=8`) | one sequence per micro-batch: sequences run to 40k tokens |
 | sampling | temperature 1.0 | GRPO exploration |
 | loss | `dr_grpo`, β 0, ε_high 0.28 | as decided; ε_high as the v1 run |
-| learning rate | 2e-5, constant after 2 warmup steps (`LR`) | the v1 run's rate, flat for a 10-step pilot |
+| learning rate | 2e-5, constant (`LR`) | the v1 run's rate; a warmup's first step runs at 0 |
+| importance sampling | `vllm_importance_sampling_mode="token_truncate"` (C_max 3) | TRL's default, sequence-level masking, masked nearly every rollout on the L40S: a day's thousands of sampled tokens sum small vLLM/trainer logprob differences past the clip |
 | steps | 10 (`MAX_STEPS`) | the pilot |
-| context | `vllm_max_model_length=40960` | Qwen3-4B's native positions |
-| completion | `max_completion_length=31744` (40,960 - 9,216) | the longest row prompt is 8,669 tokens |
+| context | `vllm_max_model_length=40960` (`CONTEXT`) | Qwen3-4B's native positions; smaller on GPUs under 80 GB |
+| completion | `max_completion_length=31744` (`CONTEXT` - 9,216) | the longest row prompt is 8,669 tokens |
 | tool loop | `max_tool_calling_iterations=64` | see Token budget |
-| vLLM | colocated at `vllm_gpu_memory_utilization=0.35` (`VLLM_MEM`) on one GPU, a server on the others with more (`run.sh`) | colocated, it leaves room for the backward pass at 40k tokens |
+| vLLM | on one GPU colocated, asleep while the trainer optimises, 0.6 of the GPU awake (`VLLM_SLEEP`, `VLLM_MEM`); on more a server on the others (`run.sh`) | see GPU memory |
 | memory | bf16, gradient checkpointing, `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` | |
-| eval | the 36 val days at step 0 and at the last step (`EVAL_STEPS`), one sample each, 12 at a time (`EVAL_BATCH`) | monitoring; the leaderboard eval is OpenCode's |
+| eval | the 36 val days at step 0 and at the last step (`EVAL_STEPS`, `EVAL_LIMIT`), one sample each, 12 at a time (`EVAL_BATCH`), scored by their rewards alone | TRL's eval step would run the model over the whole eval batch at once; monitoring only, the leaderboard eval is OpenCode's |
 | checkpoints | the LoRA every 5 steps (`save_steps=5`, `save_only_model=True`) and at the end in `$OUT/adapter` | |
 | env client | `AgentEnv(ENV_URL, split="train", tool_timeout=300, reset_timeout=1800)`, `ENV_URL` `http://127.0.0.1:8000` | 32 concurrent deploys take minutes |
 
@@ -233,6 +248,34 @@ a change outside this kit:
   In TRL the day is one completion: every reasoning block stays, at 40,960 tokens, and overflow ends the rollout.
 - **Sampling.** Training samples at temperature 1.0; OpenCode runs Qwen at 0.6, top_p 0.95, top_k 20.
 
+## GPU check (L40S, 2026-10-30)
+
+One g6e.4xlarge (1× L40S, 16 vCPU), set up with `setup-box.sh` in 288 s (driver 595, agentenv-framework 0.9.1387,
+TRL 1.16.0, vLLM 0.29.0, transformers 5.22.0, torch 2.13.0+cu130), the env server under systemd; one GRPO step on 4
+train days × 8 rollouts and 4 val days, at `CONTEXT=28672` (`gpu_check_l40s.json`):
+
+- **The loop works end to end**: the desk tools render with their nested schemas, rollouts call them and `end_turn`
+  advances the wakes, all 32 rollouts are scored (none unscored), `get_reward` returns C, a rollout that reached the
+  budget ended cleanly and was scored, `checkpoint-1` and the adapter save, `metrics.jsonl` and the completions fill.
+- **Time**: 44 minutes for the step (TRL's `step_time` 2,632 s): generation 20 minutes with all 32 rollouts in
+  flight, collecting the 32 rewards 2.5, optimisation 23. Four val days take 4 minutes. GPU memory 43 GB while
+  generating. Projections, at the base model's rollout lengths (they grow as the model learns to play the whole day):
+  about 8 hours for the 10-step pilot with its two 36-day evals on this L40S; on an H100 about 12 minutes a step
+  (memory bandwidth 3.9×, compute 5×, the same env side), about 2 hours for the pilot.
+- **Fixed on the way**, now in the kit: the eval step's out-of-memory (TRL ran the model over the whole eval batch at
+  once); Docker running out of address pools for 32 concurrent episodes (rollouts left unscored); the backward pass at
+  40,960 tokens on 48 GB (`CONTEXT`); TRL's default sequence-level masked importance sampling, which masked nearly
+  every rollout (ratio mean 0.03; token-level truncation gives 0.9996 and a grad norm of 0.026 against 0.0014); and
+  the LR warmup that ran the first step at learning rate 0.
+- **What base Qwen does in the loop** (the same 4 days, two runs): 41-47% of rollouts place an accepted offer, C is
+  0 on 53-59%, below 0 on 25-34%, above 0 on 6-22%; mean C -0.049 and -0.050, standard deviation 0.16-0.18; every
+  group's rewards spread (standard deviation 0.03-0.28 within a day), so GRPO has signal. Every tool call parsed and
+  reached the env (TRL's tool failure rate 0): the nested `curves` arrive as well-formed arrays, and rejections are the
+  desk's own (more than 10 points, a closed DAM, the D-1 day, the 14-call turn budget). But the model rarely plays
+  the whole day: 1.3-2.7 `end_turn` calls a rollout and 2 of 32 finish the day; most end the rollout with a reply
+  that calls no tool, as OpenCode's convention and the brief teach, and the day then runs on the offers in force.
+  Completions average 4.5-5.2k tokens (11.6k at most); one rollout of 32 reached the budget.
+
 ## CPU verification
 
 On the Mac with Docker, the bundle as `desk_train.py` writes it (its env image built from the freeze and both pack
@@ -266,4 +309,4 @@ the same outputs and rewards, the desk tools now `SchemaTool`s):
 - `opencode_context.json`: OpenCode's system context around the desk brief.
 - `anchor_c.json`: the anchor's C per task (train, val and bench), for the beats-anchor share.
 - `opencode_eval.md`: the leaderboard eval of a LoRA in OpenCode.
-- `replay.json`, `tokens.json`: the CPU check's and the token count's outputs.
+- `replay.json`, `tokens.json`, `gpu_check_l40s.json`: the CPU check's, the token count's and the L40S check's outputs.
