@@ -336,7 +336,7 @@ sanity runs it first on the p5.
   So on an 80 GB GPU the trainer reaches about 80k tokens as TRL runs it and about 120k with the offload: 96k needs
   it (about 64 GiB, plus the optimiser state and vLLM asleep).
 - **A colocated step at CONTEXT 40,960 with the offload** ran end to end (2 rollouts, loss −0.105, grad norm 0.073,
-  IS ratio 0.992, 18 min), the GPU at 41 GB or less while optimising. Its longer rollout stopped at the 64-iteration
+  IS ratio 0.992, 18 min), at most 39.8 GiB on the GPU while optimising. Its longer rollout stopped at the 64-iteration
   cap (81 tool results, about 27k tokens), so a full day at 96k also needs `MAX_TOOL_ITERATIONS` near 200. In colocate
   mode `torch_peak_gib` counts vLLM's sleeping pool; read it in server mode.
 - **Thinking budget** (`think_budget_check.py`): vLLM 0.29's `thinking_token_budget` works on Qwen3.5 with the
