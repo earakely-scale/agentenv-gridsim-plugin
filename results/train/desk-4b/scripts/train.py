@@ -12,6 +12,7 @@ line to $OUT/metrics.jsonl with the rollouts' C (the reward), R and the share be
 before, and the latest generation batch's completions to $OUT/completions-<phase>-<step>.jsonl; $OUT/rollouts.jsonl
 gets each rollout's tool calls as it is logged."""
 
+import contextlib
 import functools
 import json
 import logging
@@ -166,6 +167,7 @@ class Metrics(TrainerCallback):
         phase = "eval" if any(key.startswith("eval_") for key in logs) else "train"
         new, self.seen = ROLLOUTS[self.seen:], len(ROLLOUTS)
         row = {"phase": phase, "step": state.global_step, "elapsed_s": round(time.monotonic() - STARTED), **rates(new),
+               "torch_peak_gib": round(torch.cuda.max_memory_allocated() / 2**30, 2),
                **{key: value for key, value in logs.items() if isinstance(value, (int, float))}}
         self.file.write(json.dumps(row) + "\n")
         self.file.flush()
@@ -200,6 +202,14 @@ class DeskGRPOTrainer(GRPOTrainer):
             self.vllm_generation.__dict__.update(sampling)
         return torch.zeros((), device=self.accelerator.device), None, None
 
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        """OFFLOAD_ACTIVATIONS=1 keeps what the forward saves for backward (the checkpointed layer inputs, about 256 KiB
+        a token) in pinned CPU memory."""
+        offload = os.environ.get("OFFLOAD_ACTIVATIONS") == "1"
+        with torch.autograd.graph.save_on_cpu(pin_memory=True) if offload else contextlib.nullcontext():
+            return super().compute_loss(model, inputs, return_outputs=return_outputs,
+                                        num_items_in_batch=num_items_in_batch)
+
 
 trainer = DeskGRPOTrainer(
     model=os.environ.get("MODEL", "models/Qwen3-4B"),
@@ -230,9 +240,9 @@ trainer = DeskGRPOTrainer(
         bf16=True,
         model_init_kwargs={"dtype": os.environ.get("MODEL_DTYPE", "float32")},
         gradient_checkpointing=True,
-        eval_strategy="steps",
+        eval_strategy="steps" if EVAL_LIMIT else "no",
         eval_steps=int(os.environ.get("EVAL_STEPS", str(max(1, MAX_STEPS)))),
-        eval_on_start=os.environ.get("EVAL_ON_START", "1") == "1",
+        eval_on_start=os.environ.get("EVAL_ON_START", "1") == "1" and EVAL_LIMIT > 0,
         num_generations_eval=1,
         per_device_eval_batch_size=int(os.environ.get("EVAL_BATCH", "12")),
         logging_steps=1,
@@ -243,7 +253,7 @@ trainer = DeskGRPOTrainer(
         seed=0,
     ),
     train_dataset=train_rows,
-    eval_dataset=eval_rows,
+    eval_dataset=eval_rows if EVAL_LIMIT else None,
     environment_factory=Desk,
     peft_config=LoraConfig(r=32, lora_alpha=64, target_modules="all-linear", exclude_modules=r".*visual.*",
                            task_type="CAUSAL_LM"),
@@ -254,7 +264,7 @@ if MAX_STEPS == 0:
     trainer.evaluate()
 else:
     trainer.train()
-    if trainer.state.global_step % trainer.args.eval_steps:
+    if EVAL_LIMIT and trainer.state.global_step % trainer.args.eval_steps:
         trainer.evaluate()
     trainer.save_model(str(OUT / "adapter"))
 (OUT / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=1))
