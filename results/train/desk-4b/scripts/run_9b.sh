@@ -3,7 +3,9 @@
 # mode generation, the LoRA weight sync, one episode and its reward), then pilot config 2: the base eval of the 36 val
 # days at step 0, up to 10 steps, the final eval. vLLM runs data parallel on GPUs 1-7 and the trainer on GPU 0
 # (run.sh). Training ends after the last step that leaves 25 min before DEADLINE (epoch seconds; default boot +
-# 2 h 45 min) for the final eval and the copies. One line per stage goes to /home/ubuntu/run_9b.progress.
+# 2 h 45 min) for the final eval and the copies. The vLLM server restarts between the sanity and the pilot, so the
+# pilot's trainer opens the weight-transfer group with a fresh server. One line per stage goes to
+# /home/ubuntu/run_9b.progress.
 set -uo pipefail
 H=/home/ubuntu
 KIT=$H/plugin/results/train/desk-4b/scripts
@@ -23,6 +25,11 @@ progress "setup done: $(grep -E '^(trainer|gpu):|setup took' $H/setup-box.log | 
 progress "sanity: one val day through the vLLM server"
 run OUT=sanity MAX_STEPS=0 EVAL_LIMIT=1 > $H/sanity.log 2>&1 || { progress "SANITY FAILED: $(tail -3 $H/sanity.log)"; exit 1; }
 progress "sanity done: $(grep -o 'eval step 0: .*' $H/sanity.log)"
+pkill -f "vllm-serve"; pkill -f "vllm.entrypoints"
+for _ in $(seq 1 60); do
+  nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | awk '$1 > 2000 {busy = 1} END {exit !busy}' || break
+  sleep 5
+done
 
 STOP_AT=$((DEADLINE - 25 * 60))
 progress "pilot: base eval, up to 10 steps ending by $(date -u -d @$STOP_AT +%H:%M) UTC, final eval"

@@ -292,6 +292,20 @@ one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plu
   final eval. Training ends after the last step that leaves 25 min before the deadline (boot + 2 h 45 min) for the
   final eval and the copies (`STOP_AT`).
 
+### The 9B on the L40S (2026-10-30)
+
+On the L40S box, at `de84fd0`'s train.py: `trl vllm-serve` with the 9B and `run.sh`'s server flags
+(`max_model_len` 32768, prefix caching on the hybrid model) came up in 3 min 16 s and answered TRL's client with XML
+calls (`<function=get_prices>`, then `<function=end_turn>`), 5 s for two 190-token completions. A one-step train smoke
+in colocate mode (CONTEXT 16384, 2 rollouts, `ROLLOUTS=2 GENERATIONS=2`) took 8 min: generation, the env's rewards,
+the format reward, one optimiser step (grad norm 0.14, IS ratio 0.995), the LoRA checkpoint (350 MB) and the adapter,
+and a one-day eval after the weight sync (C +0.056, 2 `end_turn` calls). The base eval of the first 4 val days at
+CONTEXT 28672 and 0.6 / 0.95 / 20 took 17.6 min: C mean +0.047 (sd 0.20; the 4B on the same days +0.055), R 0.60,
+valid offers 4 of 4, 3 of 4 beat idle, 11.25 `end_turn` calls a rollout, 0.6% of tool calls refused by the env, no
+malformed ending (one full day, two at the length cap after 30 and 54 calls, one cut off while reasoning, at 9k
+characters a message). Server-mode weight transfer (NCCL, trainer on GPU 0) can't run on one GPU; `run_9b.sh`'s
+sanity runs it first on the p5.
+
 ## GPU check (L40S, 2026-10-30)
 
 One g6e.4xlarge (1× L40S, 16 vCPU), set up with `setup-box.sh` in 288 s (driver 595, agentenv-framework 0.9.1387,
