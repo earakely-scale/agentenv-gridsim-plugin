@@ -216,8 +216,11 @@ env and the frozen desk brief as they are:
 
 - the system message becomes the one Qwen saw in OpenCode at bench time (`opencode_context.json`, taken from base
   Qwen's first bench request): OpenCode's own prompt, the model and environment lines and the instructions-file line
-  before the desk brief, the skills block after it, plus one line after the brief: "In this session you end your turn
-  by calling end_turn with your reply; a reply without a tool call ends the session.";
+  before the desk brief, the skills block after it, plus one line after the brief: "Every reply must call a tool. When
+  you are done with this wake, call end_turn (with an optional short note); never end with a plain reply, or the rest
+  of the day runs without you." It replaced a softer line ("In this session you end your turn by calling end_turn
+  with your reply; a reply without a tool call ends the session."), under which base Qwen ended 30 of 32 rollouts of
+  the GPU check with a plain reply;
 - the start wake, and every later wake `end_turn` returns, reaches the model as a JSON string, as OpenCode delivered
   each wake (the row's user message reproduces base Qwen's first bench request byte for byte).
 
@@ -301,9 +304,9 @@ the same outputs and rewards, the desk tools now `SchemaTool`s):
 - `scripts/setup-box.sh`, `scripts/desk-env.service`: one box's setup and its env server unit.
 - `scripts/setup-env.sh`, `scripts/serve.py`: the env server's install and server.
 - `scripts/setup.sh`, `scripts/run.sh`, `scripts/train.py`: the trainer's install, the launcher that picks vLLM's mode,
-  and GRPO with the val evals (`MAX_STEPS=0`: an eval only). It writes `$OUT/metrics.jsonl` (per log line: the rollouts' C mean and median, R mean, the shares
-  beating idle, beating the anchor, at the -1 floor and finished by the model's own end_turn calls, and TRL's own
-  metrics), `$OUT/rollouts.jsonl` (task, C, R per
+  and GRPO with the val evals (`MAX_STEPS=0`: an eval only). It writes `$OUT/metrics.jsonl` (per log line: the rollouts' C mean, median and spread, R mean, the shares
+  beating idle, beating the anchor, at the -1 floor, with an accepted offer and finished by the model's own end_turn
+  calls, end_turn calls a rollout, and TRL's own metrics), `$OUT/rollouts.jsonl` (task, C, R per
   rollout, with its tool calls), `$OUT/log_history.json`, `$OUT/checkpoint-5`, `$OUT/checkpoint-10` and `$OUT/adapter`.
 - `scripts/replay.py`: the CPU check.
 - `opencode_context.json`: OpenCode's system context around the desk brief.

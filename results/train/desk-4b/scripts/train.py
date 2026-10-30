@@ -10,7 +10,7 @@ desk brief, its skills block after it) and one line on ending a turn with end_tu
 without a tool call; each wake reaches the model as a JSON string, as OpenCode delivers it. A callback writes each log
 line to $OUT/metrics.jsonl with the rollouts' C (the reward), R and the share beating idle and the anchor since the line
 before, and the latest generation batch's completions to $OUT/completions-<phase>-<step>.jsonl; $OUT/rollouts.jsonl
-gets each rollout's tool calls."""
+gets each rollout's tool calls as it is logged."""
 
 import functools
 import json
@@ -32,8 +32,8 @@ OUT = Path(os.environ.get("OUT", "out"))
 MAX_STEPS = int(os.environ.get("MAX_STEPS", "10"))
 CONTEXT = json.loads((KIT / "opencode_context.json").read_text())
 ANCHOR_C = json.loads((KIT / "anchor_c.json").read_text())
-END_TURN = ("In this session you end your turn by calling end_turn with your reply; a reply without a tool call ends "
-            "the session.")
+END_TURN = ("Every reply must call a tool. When you are done with this wake, call end_turn (with an optional short "
+            "note); never end with a plain reply, or the rest of the day runs without you.")
 CONTEXT_TOKENS = int(os.environ.get("CONTEXT", "40960"))
 MAX_PROMPT_TOKENS = 9216
 MAX_TOOL_ITERATIONS = 64
@@ -115,8 +115,12 @@ def rates(rollouts: list[dict]) -> dict:
             "beats_idle_rate": round(sum(x > 0 for x in c) / len(c), 4),
             "at_floor_rate": round(sum(x <= -1 for x in c) / len(c), 4),
             "beats_anchor_rate": round(sum(x > a for x, a in zip(c, anchor, strict=True)) / len(c), 4),
-            "anchor_c_mean": round(statistics.fmean(anchor), 4),
-            "finished_by_model_rate": round(sum(r["finished_by_model"] for r in scored) / len(scored), 4)}
+            "anchor_c_mean": round(statistics.fmean(anchor), 4), "c_sd": round(statistics.pstdev(c), 4),
+            "finished_by_model_rate": round(sum(r["finished_by_model"] for r in scored) / len(scored), 4),
+            "end_turns_per_rollout": round(sum(c["tool"] == "end_turn" for r in scored for c in r["calls"])
+                                           / len(scored), 2),
+            "valid_offer_rate": round(sum(any(c["tool"].startswith("submit") and '"accepted_hours":"HE' in c["answer"]
+                                              for c in r["calls"]) for r in scored) / len(scored), 4)}
 
 
 class Metrics(TrainerCallback):
@@ -133,14 +137,17 @@ class Metrics(TrainerCallback):
                **{key: value for key, value in logs.items() if isinstance(value, (int, float))}}
         self.file.write(json.dumps(row) + "\n")
         self.file.flush()
+        with (OUT / "rollouts.jsonl").open("a") as f:
+            f.writelines(json.dumps(r | {"phase": phase, "step": state.global_step}) + "\n" for r in new)
         recent = self.trainer._logs
         rewards = next(iter(recent["rewards"].values()), [])
         (OUT / f"completions-{phase}-{state.global_step}.jsonl").write_text("".join(
             json.dumps({"completion": c, "reward": r, "advantage": a}, default=str) + "\n"
             for c, r, a in zip(recent["completion"], rewards, recent["advantages"], strict=False)))
         log.info("%s step %s: %s", phase, state.global_step,
-                 json.dumps({key: row.get(key) for key in ("rollouts", "unscored", "c_mean", "r_mean",
-                                                           "beats_idle_rate", "beats_anchor_rate", "at_floor_rate",
+                 json.dumps({key: row.get(key) for key in ("rollouts", "unscored", "c_mean", "c_sd", "r_mean",
+                                                           "beats_idle_rate", "valid_offer_rate",
+                                                           "end_turns_per_rollout", "finished_by_model_rate",
                                                            "elapsed_s")}))
 
 
@@ -210,6 +217,5 @@ else:
     trainer.train()
     trainer.save_model(str(OUT / "adapter"))
 (OUT / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=1))
-(OUT / "rollouts.jsonl").write_text("".join(json.dumps(r) + "\n" for r in ROLLOUTS))
 log.info("done in %ss: %s", round(time.monotonic() - STARTED), json.dumps(rates(ROLLOUTS)))
 env.close()
