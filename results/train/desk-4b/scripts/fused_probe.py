@@ -1,12 +1,15 @@
 """Peak training memory of one Qwen3.5-9B sequence as GRPOTrainer trains it in TRL 1.16: bf16 weights, LoRA r 32 on
 every linear layer but the vision tower, gradient checkpointing, and TRL's fused LM head (`add_fused_lm_head`), which
 scores the completion's log-probs in tiles without the full logits. Sequences are desk-shaped: an 8k prompt, the rest
-completion. First, the fused log-probs against plain `log_softmax` of the full logits on a short sequence.
+completion. First, the fused log-probs against plain `log_softmax` of the full logits on a short sequence. OFFLOAD=1
+keeps the tensors saved for backward (the checkpointed layer inputs) in pinned CPU memory.
 
     python fused_probe.py MODEL_DIR OUT.json 32768 65536 98304
 """
 
+import contextlib
 import json
+import os
 import sys
 import time
 
@@ -60,17 +63,22 @@ for n in lengths:
     torch.cuda.reset_peak_memory_stats()
     ids, labels = batch(n)
     started = time.time()
+    offload = torch.autograd.graph.save_on_cpu(pin_memory=True) if os.environ.get("OFFLOAD") == "1" else (
+        contextlib.nullcontext())
     try:
-        out = model(input_ids=ids, labels=labels, fused_lm_head=True)
-        mask = labels[:, 1:] != -100
-        (-(out.log_probs * mask).sum() / mask.sum()).backward()
+        with offload:
+            out = model(input_ids=ids, labels=labels, fused_lm_head=True)
+            mask = labels[:, 1:] != -100
+            loss = -(out.log_probs * mask).sum() / mask.sum()
+        forward_gib = round(torch.cuda.max_memory_allocated() / 2**30, 2)
+        loss.backward()
         model.zero_grad(set_to_none=True)
-        row = {"tokens": n, "completion": int(mask.sum()),
+        row = {"tokens": n, "completion": int(mask.sum()), "forward_peak_gib": forward_gib,
                "peak_gib": round(torch.cuda.max_memory_allocated() / 2**30, 2),
                "reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 2), "s": round(time.time() - started, 1)}
     except torch.OutOfMemoryError:
         row = {"tokens": n, "oom_at_gib": round(torch.cuda.max_memory_allocated() / 2**30, 2)}
-    out = None
+    out = loss = None
     result["peaks"].append(row)
     print(row, flush=True)
     if "oom_at_gib" in row:
