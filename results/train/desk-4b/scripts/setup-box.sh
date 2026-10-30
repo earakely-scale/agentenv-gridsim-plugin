@@ -1,6 +1,7 @@
 # One GPU box for the pilot, the env server and the trainer together; run as root (e.g. through SSM). System prep, then
 # setup-env.sh and setup.sh as BOX_USER (ubuntu), then the env server as the systemd unit desk-env on 127.0.0.1:8000,
 # whose first start builds the env image. Waits until the server answers. FRAMEWORK and PLUGIN_REF pass through.
+# Docker gets 256 /24 address pools: every episode makes a network, and the default pools hold about 30.
 set -euxo pipefail
 T0=$(date +%s)
 U=${BOX_USER:-ubuntu}
@@ -9,6 +10,14 @@ systemctl stop unattended-upgrades apt-daily.timer apt-daily-upgrade.timer 2>/de
 printf 'fs.inotify.max_user_instances=8192\nfs.inotify.max_user_watches=1048576\n' > /etc/sysctl.d/90-inotify.conf
 sysctl -q -p /etc/sysctl.d/90-inotify.conf
 usermod -aG docker "$U"
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path("/etc/docker/daemon.json")
+d = json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {}
+d["default-address-pools"] = [{"base": "10.200.0.0/16", "size": 24}]
+p.write_text(json.dumps(d, indent=1) + "\n")
+PY
+systemctl restart docker
 nvidia-smi --query-gpu=index,name,memory.total,driver_version,compute_cap --format=csv
 docker --version
 REF=${PLUGIN_REF:-desk-train}

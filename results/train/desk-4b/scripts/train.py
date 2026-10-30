@@ -34,7 +34,7 @@ CONTEXT = json.loads((KIT / "opencode_context.json").read_text())
 ANCHOR_C = json.loads((KIT / "anchor_c.json").read_text())
 END_TURN = ("In this session you end your turn by calling end_turn with your reply; a reply without a tool call ends "
             "the session.")
-CONTEXT_TOKENS = 40960
+CONTEXT_TOKENS = int(os.environ.get("CONTEXT", "40960"))
 MAX_PROMPT_TOKENS = 9216
 MAX_TOOL_ITERATIONS = 64
 STARTED = time.monotonic()
