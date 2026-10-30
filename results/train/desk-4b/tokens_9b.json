@@ -1,0 +1,2058 @@
+{
+ "note": "Qwen3.5-9B (c2022362, thinking on): row prompts as pilot config 2 edits them (SERVED_MODEL qwen3.5-9b), and the anchor's 251 bundle days through the model's chat template (XML tool calls, a think block per assistant turn); with reasoning = plus base Qwen3-4B's reasoning tokens per message (mean 485, p90 683) as a stand-in",
+ "summary": {
+  "prompt": {
+   "p50": 7247,
+   "p90": 8131,
+   "max": 8945
+  },
+  "total": {
+   "p50": 34089,
+   "p90": 66322,
+   "max": 132910
+  },
+  "messages": {
+   "p50": 31,
+   "p90": 70,
+   "max": 119
+  },
+  "total_reasoning_mean": {
+   "p50": 49012,
+   "p90": 97529,
+   "max": 190625
+  },
+  "total_reasoning_p90": {
+   "p50": 55150,
+   "p90": 110499,
+   "max": 214187
+  },
+  "over": {
+   "24576": {
+    "no_reasoning": 245,
+    "reasoning_mean": 248
+   },
+   "28672": {
+    "no_reasoning": 245,
+    "reasoning_mean": 245
+   },
+   "32768": {
+    "no_reasoning": 163,
+    "reasoning_mean": 245
+   },
+   "40960": {
+    "no_reasoning": 89,
+    "reasoning_mean": 245
+   }
+  }
+ },
+ "days": [
+  {
+   "task_id": "desk-v4-2025-12-29-S01",
+   "prompt": 7244,
+   "total": 31376,
+   "messages": 27,
+   "total_reasoning_mean": 44471,
+   "total_reasoning_p90": 49817
+  },
+  {
+   "task_id": "desk-v4-2025-12-29-S02",
+   "prompt": 7247,
+   "total": 31927,
+   "messages": 27,
+   "total_reasoning_mean": 45022,
+   "total_reasoning_p90": 50368
+  },
+  {
+   "task_id": "desk-v4-2025-12-29-S03",
+   "prompt": 7245,
+   "total": 32417,
+   "messages": 27,
+   "total_reasoning_mean": 45512,
+   "total_reasoning_p90": 50858
+  },
+  {
+   "task_id": "desk-v4-2025-12-29-S04",
+   "prompt": 7243,
+   "total": 32364,
+   "messages": 27,
+   "total_reasoning_mean": 45459,
+   "total_reasoning_p90": 50805
+  },
+  {
+   "task_id": "desk-v4-2025-12-30-S01",
+   "prompt": 7373,
+   "total": 31393,
+   "messages": 27,
+   "total_reasoning_mean": 44488,
+   "total_reasoning_p90": 49834
+  },
+  {
+   "task_id": "desk-v4-2025-12-30-S02",
+   "prompt": 7247,
+   "total": 30935,
+   "messages": 27,
+   "total_reasoning_mean": 44030,
+   "total_reasoning_p90": 49376
+  },
+  {
+   "task_id": "desk-v4-2025-12-30-S03",
+   "prompt": 7245,
+   "total": 31018,
+   "messages": 27,
+   "total_reasoning_mean": 44113,
+   "total_reasoning_p90": 49459
+  },
+  {
+   "task_id": "desk-v4-2025-12-30-S04",
+   "prompt": 7247,
+   "total": 31176,
+   "messages": 27,
+   "total_reasoning_mean": 44271,
+   "total_reasoning_p90": 49617
+  },
+  {
+   "task_id": "desk-v4-2025-12-31-S01",
+   "prompt": 7307,
+   "total": 31311,
+   "messages": 27,
+   "total_reasoning_mean": 44406,
+   "total_reasoning_p90": 49752
+  },
+  {
+   "task_id": "desk-v4-2025-12-31-S02",
+   "prompt": 7245,
+   "total": 31872,
+   "messages": 27,
+   "total_reasoning_mean": 44967,
+   "total_reasoning_p90": 50313
+  },
+  {
+   "task_id": "desk-v4-2025-12-31-S03",
+   "prompt": 7245,
+   "total": 31595,
+   "messages": 27,
+   "total_reasoning_mean": 44690,
+   "total_reasoning_p90": 50036
+  },
+  {
+   "task_id": "desk-v4-2025-12-31-S04",
+   "prompt": 7245,
+   "total": 32644,
+   "messages": 27,
+   "total_reasoning_mean": 45739,
+   "total_reasoning_p90": 51085
+  },
+  {
+   "task_id": "desk-v4-2026-01-01-S01",
+   "prompt": 7306,
+   "total": 33337,
+   "messages": 27,
+   "total_reasoning_mean": 46432,
+   "total_reasoning_p90": 51778
+  },
+  {
+   "task_id": "desk-v4-2026-01-01-S02",
+   "prompt": 7245,
+   "total": 32771,
+   "messages": 27,
+   "total_reasoning_mean": 45866,
+   "total_reasoning_p90": 51212
+  },
+  {
+   "task_id": "desk-v4-2026-01-01-S03",
+   "prompt": 7245,
+   "total": 33104,
+   "messages": 27,
+   "total_reasoning_mean": 46199,
+   "total_reasoning_p90": 51545
+  },
+  {
+   "task_id": "desk-v4-2026-01-01-S04",
+   "prompt": 7247,
+   "total": 33290,
+   "messages": 27,
+   "total_reasoning_mean": 46385,
+   "total_reasoning_p90": 51731
+  },
+  {
+   "task_id": "desk-v4-2026-01-02-S01",
+   "prompt": 7243,
+   "total": 31929,
+   "messages": 27,
+   "total_reasoning_mean": 45024,
+   "total_reasoning_p90": 50370
+  },
+  {
+   "task_id": "desk-v4-2026-01-02-S02",
+   "prompt": 7247,
+   "total": 31817,
+   "messages": 27,
+   "total_reasoning_mean": 44912,
+   "total_reasoning_p90": 50258
+  },
+  {
+   "task_id": "desk-v4-2026-01-02-S03",
+   "prompt": 7245,
+   "total": 31958,
+   "messages": 27,
+   "total_reasoning_mean": 45053,
+   "total_reasoning_p90": 50399
+  },
+  {
+   "task_id": "desk-v4-2026-01-02-S04",
+   "prompt": 7245,
+   "total": 32788,
+   "messages": 27,
+   "total_reasoning_mean": 45883,
+   "total_reasoning_p90": 51229
+  },
+  {
+   "task_id": "desk-v4-2026-01-03-S01",
+   "prompt": 7243,
+   "total": 30405,
+   "messages": 27,
+   "total_reasoning_mean": 43500,
+   "total_reasoning_p90": 48846
+  },
+  {
+   "task_id": "desk-v4-2026-01-03-S02",
+   "prompt": 7245,
+   "total": 31735,
+   "messages": 27,
+   "total_reasoning_mean": 44830,
+   "total_reasoning_p90": 50176
+  },
+  {
+   "task_id": "desk-v4-2026-01-03-S03",
+   "prompt": 7245,
+   "total": 31865,
+   "messages": 27,
+   "total_reasoning_mean": 44960,
+   "total_reasoning_p90": 50306
+  },
+  {
+   "task_id": "desk-v4-2026-01-03-S04",
+   "prompt": 7247,
+   "total": 32486,
+   "messages": 27,
+   "total_reasoning_mean": 45581,
+   "total_reasoning_p90": 50927
+  },
+  {
+   "task_id": "desk-v4-2026-01-04-S01",
+   "prompt": 7243,
+   "total": 30808,
+   "messages": 27,
+   "total_reasoning_mean": 43903,
+   "total_reasoning_p90": 49249
+  },
+  {
+   "task_id": "desk-v4-2026-01-04-S02",
+   "prompt": 7245,
+   "total": 31304,
+   "messages": 27,
+   "total_reasoning_mean": 44399,
+   "total_reasoning_p90": 49745
+  },
+  {
+   "task_id": "desk-v4-2026-01-04-S03",
+   "prompt": 7245,
+   "total": 31089,
+   "messages": 27,
+   "total_reasoning_mean": 44184,
+   "total_reasoning_p90": 49530
+  },
+  {
+   "task_id": "desk-v4-2026-01-04-S04",
+   "prompt": 7245,
+   "total": 32162,
+   "messages": 27,
+   "total_reasoning_mean": 45257,
+   "total_reasoning_p90": 50603
+  },
+  {
+   "task_id": "desk-v4-2026-01-05-S01",
+   "prompt": 7243,
+   "total": 31776,
+   "messages": 27,
+   "total_reasoning_mean": 44871,
+   "total_reasoning_p90": 50217
+  },
+  {
+   "task_id": "desk-v4-2026-01-05-S02",
+   "prompt": 7245,
+   "total": 31303,
+   "messages": 27,
+   "total_reasoning_mean": 44398,
+   "total_reasoning_p90": 49744
+  },
+  {
+   "task_id": "desk-v4-2026-01-05-S03",
+   "prompt": 7245,
+   "total": 31537,
+   "messages": 27,
+   "total_reasoning_mean": 44632,
+   "total_reasoning_p90": 49978
+  },
+  {
+   "task_id": "desk-v4-2026-01-05-S04",
+   "prompt": 7244,
+   "total": 32502,
+   "messages": 27,
+   "total_reasoning_mean": 45597,
+   "total_reasoning_p90": 50943
+  },
+  {
+   "task_id": "desk-v4-2026-01-06-S01",
+   "prompt": 7243,
+   "total": 32020,
+   "messages": 27,
+   "total_reasoning_mean": 45115,
+   "total_reasoning_p90": 50461
+  },
+  {
+   "task_id": "desk-v4-2026-01-06-S02",
+   "prompt": 7246,
+   "total": 32211,
+   "messages": 27,
+   "total_reasoning_mean": 45306,
+   "total_reasoning_p90": 50652
+  },
+  {
+   "task_id": "desk-v4-2026-01-06-S03",
+   "prompt": 7245,
+   "total": 31968,
+   "messages": 27,
+   "total_reasoning_mean": 45063,
+   "total_reasoning_p90": 50409
+  },
+  {
+   "task_id": "desk-v4-2026-01-06-S04",
+   "prompt": 7243,
+   "total": 32751,
+   "messages": 27,
+   "total_reasoning_mean": 45846,
+   "total_reasoning_p90": 51192
+  },
+  {
+   "task_id": "desk-v4-2026-01-09-S01",
+   "prompt": 7243,
+   "total": 15906,
+   "messages": 17,
+   "total_reasoning_mean": 24151,
+   "total_reasoning_p90": 27517
+  },
+  {
+   "task_id": "desk-v4-2026-01-09-S02",
+   "prompt": 7245,
+   "total": 16225,
+   "messages": 19,
+   "total_reasoning_mean": 25440,
+   "total_reasoning_p90": 29202
+  },
+  {
+   "task_id": "desk-v4-2026-01-09-S03",
+   "prompt": 7245,
+   "total": 15752,
+   "messages": 17,
+   "total_reasoning_mean": 23997,
+   "total_reasoning_p90": 27363
+  },
+  {
+   "task_id": "desk-v4-2026-01-09-S04",
+   "prompt": 7245,
+   "total": 15904,
+   "messages": 17,
+   "total_reasoning_mean": 24149,
+   "total_reasoning_p90": 27515
+  },
+  {
+   "task_id": "desk-v4-2026-01-10-S01",
+   "prompt": 7244,
+   "total": 32782,
+   "messages": 27,
+   "total_reasoning_mean": 45877,
+   "total_reasoning_p90": 51223
+  },
+  {
+   "task_id": "desk-v4-2026-01-10-S02",
+   "prompt": 7243,
+   "total": 36605,
+   "messages": 31,
+   "total_reasoning_mean": 51640,
+   "total_reasoning_p90": 57778
+  },
+  {
+   "task_id": "desk-v4-2026-01-10-S03",
+   "prompt": 7245,
+   "total": 33201,
+   "messages": 27,
+   "total_reasoning_mean": 46296,
+   "total_reasoning_p90": 51642
+  },
+  {
+   "task_id": "desk-v4-2026-01-10-S04",
+   "prompt": 7243,
+   "total": 32261,
+   "messages": 27,
+   "total_reasoning_mean": 45356,
+   "total_reasoning_p90": 50702
+  },
+  {
+   "task_id": "desk-v4-2026-01-11-S01",
+   "prompt": 7243,
+   "total": 29250,
+   "messages": 27,
+   "total_reasoning_mean": 42345,
+   "total_reasoning_p90": 47691
+  },
+  {
+   "task_id": "desk-v4-2026-01-11-S02",
+   "prompt": 7312,
+   "total": 30518,
+   "messages": 27,
+   "total_reasoning_mean": 43613,
+   "total_reasoning_p90": 48959
+  },
+  {
+   "task_id": "desk-v4-2026-01-11-S03",
+   "prompt": 7245,
+   "total": 30449,
+   "messages": 27,
+   "total_reasoning_mean": 43544,
+   "total_reasoning_p90": 48890
+  },
+  {
+   "task_id": "desk-v4-2026-01-11-S04",
+   "prompt": 7245,
+   "total": 31354,
+   "messages": 27,
+   "total_reasoning_mean": 44449,
+   "total_reasoning_p90": 49795
+  },
+  {
+   "task_id": "desk-v4-2026-01-13-S01",
+   "prompt": 7243,
+   "total": 33222,
+   "messages": 27,
+   "total_reasoning_mean": 46317,
+   "total_reasoning_p90": 51663
+  },
+  {
+   "task_id": "desk-v4-2026-01-13-S02",
+   "prompt": 7245,
+   "total": 33104,
+   "messages": 27,
+   "total_reasoning_mean": 46199,
+   "total_reasoning_p90": 51545
+  },
+  {
+   "task_id": "desk-v4-2026-01-13-S03",
+   "prompt": 7247,
+   "total": 33568,
+   "messages": 27,
+   "total_reasoning_mean": 46663,
+   "total_reasoning_p90": 52009
+  },
+  {
+   "task_id": "desk-v4-2026-01-13-S04",
+   "prompt": 7243,
+   "total": 32843,
+   "messages": 27,
+   "total_reasoning_mean": 45938,
+   "total_reasoning_p90": 51284
+  },
+  {
+   "task_id": "desk-v4-2026-01-14-S01",
+   "prompt": 7241,
+   "total": 32383,
+   "messages": 27,
+   "total_reasoning_mean": 45478,
+   "total_reasoning_p90": 50824
+  },
+  {
+   "task_id": "desk-v4-2026-01-14-S02",
+   "prompt": 7245,
+   "total": 31952,
+   "messages": 27,
+   "total_reasoning_mean": 45047,
+   "total_reasoning_p90": 50393
+  },
+  {
+   "task_id": "desk-v4-2026-01-14-S03",
+   "prompt": 7245,
+   "total": 32164,
+   "messages": 27,
+   "total_reasoning_mean": 45259,
+   "total_reasoning_p90": 50605
+  },
+  {
+   "task_id": "desk-v4-2026-01-14-S04",
+   "prompt": 7243,
+   "total": 32795,
+   "messages": 27,
+   "total_reasoning_mean": 45890,
+   "total_reasoning_p90": 51236
+  },
+  {
+   "task_id": "desk-v4-2026-01-15-S01",
+   "prompt": 7243,
+   "total": 37921,
+   "messages": 35,
+   "total_reasoning_mean": 54896,
+   "total_reasoning_p90": 61826
+  },
+  {
+   "task_id": "desk-v4-2026-01-15-S02",
+   "prompt": 7247,
+   "total": 30701,
+   "messages": 27,
+   "total_reasoning_mean": 43796,
+   "total_reasoning_p90": 49142
+  },
+  {
+   "task_id": "desk-v4-2026-01-15-S03",
+   "prompt": 7247,
+   "total": 31456,
+   "messages": 27,
+   "total_reasoning_mean": 44551,
+   "total_reasoning_p90": 49897
+  },
+  {
+   "task_id": "desk-v4-2026-01-15-S04",
+   "prompt": 7247,
+   "total": 32215,
+   "messages": 27,
+   "total_reasoning_mean": 45310,
+   "total_reasoning_p90": 50656
+  },
+  {
+   "task_id": "desk-v4-2026-01-17-S01",
+   "prompt": 7243,
+   "total": 34730,
+   "messages": 34,
+   "total_reasoning_mean": 51220,
+   "total_reasoning_p90": 57952
+  },
+  {
+   "task_id": "desk-v4-2026-01-17-S02",
+   "prompt": 7245,
+   "total": 38040,
+   "messages": 38,
+   "total_reasoning_mean": 56470,
+   "total_reasoning_p90": 63994
+  },
+  {
+   "task_id": "desk-v4-2026-01-17-S03",
+   "prompt": 7245,
+   "total": 34326,
+   "messages": 34,
+   "total_reasoning_mean": 50816,
+   "total_reasoning_p90": 57548
+  },
+  {
+   "task_id": "desk-v4-2026-01-17-S04",
+   "prompt": 7243,
+   "total": 46802,
+   "messages": 46,
+   "total_reasoning_mean": 69112,
+   "total_reasoning_p90": 78220
+  },
+  {
+   "task_id": "desk-v4-2026-01-18-S01",
+   "prompt": 7352,
+   "total": 34082,
+   "messages": 31,
+   "total_reasoning_mean": 49117,
+   "total_reasoning_p90": 55255
+  },
+  {
+   "task_id": "desk-v4-2026-01-18-S02",
+   "prompt": 7356,
+   "total": 35724,
+   "messages": 34,
+   "total_reasoning_mean": 52214,
+   "total_reasoning_p90": 58946
+  },
+  {
+   "task_id": "desk-v4-2026-01-18-S03",
+   "prompt": 7356,
+   "total": 32974,
+   "messages": 31,
+   "total_reasoning_mean": 48009,
+   "total_reasoning_p90": 54147
+  },
+  {
+   "task_id": "desk-v4-2026-01-18-S04",
+   "prompt": 7482,
+   "total": 36661,
+   "messages": 34,
+   "total_reasoning_mean": 53151,
+   "total_reasoning_p90": 59883
+  },
+  {
+   "task_id": "desk-v4-2026-01-19-S01",
+   "prompt": 7364,
+   "total": 42419,
+   "messages": 39,
+   "total_reasoning_mean": 61334,
+   "total_reasoning_p90": 69056
+  },
+  {
+   "task_id": "desk-v4-2026-01-19-S02",
+   "prompt": 7428,
+   "total": 41705,
+   "messages": 39,
+   "total_reasoning_mean": 60620,
+   "total_reasoning_p90": 68342
+  },
+  {
+   "task_id": "desk-v4-2026-01-19-S03",
+   "prompt": 7368,
+   "total": 42393,
+   "messages": 39,
+   "total_reasoning_mean": 61308,
+   "total_reasoning_p90": 69030
+  },
+  {
+   "task_id": "desk-v4-2026-01-19-S04",
+   "prompt": 7550,
+   "total": 42818,
+   "messages": 39,
+   "total_reasoning_mean": 61733,
+   "total_reasoning_p90": 69455
+  },
+  {
+   "task_id": "desk-v4-2026-05-14-S01",
+   "prompt": 7735,
+   "total": 33977,
+   "messages": 31,
+   "total_reasoning_mean": 49012,
+   "total_reasoning_p90": 55150
+  },
+  {
+   "task_id": "desk-v4-2026-05-14-S02",
+   "prompt": 7737,
+   "total": 32581,
+   "messages": 27,
+   "total_reasoning_mean": 45676,
+   "total_reasoning_p90": 51022
+  },
+  {
+   "task_id": "desk-v4-2026-05-14-S03",
+   "prompt": 7739,
+   "total": 33441,
+   "messages": 27,
+   "total_reasoning_mean": 46536,
+   "total_reasoning_p90": 51882
+  },
+  {
+   "task_id": "desk-v4-2026-05-14-S04",
+   "prompt": 7737,
+   "total": 32871,
+   "messages": 27,
+   "total_reasoning_mean": 45966,
+   "total_reasoning_p90": 51312
+  },
+  {
+   "task_id": "desk-v4-2026-05-15-S01",
+   "prompt": 7241,
+   "total": 38973,
+   "messages": 35,
+   "total_reasoning_mean": 55948,
+   "total_reasoning_p90": 62878
+  },
+  {
+   "task_id": "desk-v4-2026-05-15-S02",
+   "prompt": 7243,
+   "total": 31333,
+   "messages": 27,
+   "total_reasoning_mean": 44428,
+   "total_reasoning_p90": 49774
+  },
+  {
+   "task_id": "desk-v4-2026-05-15-S03",
+   "prompt": 7244,
+   "total": 32023,
+   "messages": 27,
+   "total_reasoning_mean": 45118,
+   "total_reasoning_p90": 50464
+  },
+  {
+   "task_id": "desk-v4-2026-05-15-S04",
+   "prompt": 7243,
+   "total": 32641,
+   "messages": 27,
+   "total_reasoning_mean": 45736,
+   "total_reasoning_p90": 51082
+  },
+  {
+   "task_id": "desk-v4-2026-05-16-S01",
+   "prompt": 7308,
+   "total": 31000,
+   "messages": 30,
+   "total_reasoning_mean": 45550,
+   "total_reasoning_p90": 51490
+  },
+  {
+   "task_id": "desk-v4-2026-05-16-S02",
+   "prompt": 7246,
+   "total": 31569,
+   "messages": 27,
+   "total_reasoning_mean": 44664,
+   "total_reasoning_p90": 50010
+  },
+  {
+   "task_id": "desk-v4-2026-05-16-S03",
+   "prompt": 7245,
+   "total": 30409,
+   "messages": 27,
+   "total_reasoning_mean": 43504,
+   "total_reasoning_p90": 48850
+  },
+  {
+   "task_id": "desk-v4-2026-05-16-S04",
+   "prompt": 7247,
+   "total": 31472,
+   "messages": 27,
+   "total_reasoning_mean": 44567,
+   "total_reasoning_p90": 49913
+  },
+  {
+   "task_id": "desk-v4-2026-05-17-S01",
+   "prompt": 7308,
+   "total": 31892,
+   "messages": 27,
+   "total_reasoning_mean": 44987,
+   "total_reasoning_p90": 50333
+  },
+  {
+   "task_id": "desk-v4-2026-05-17-S02",
+   "prompt": 7245,
+   "total": 31360,
+   "messages": 27,
+   "total_reasoning_mean": 44455,
+   "total_reasoning_p90": 49801
+  },
+  {
+   "task_id": "desk-v4-2026-05-17-S03",
+   "prompt": 7243,
+   "total": 31903,
+   "messages": 27,
+   "total_reasoning_mean": 44998,
+   "total_reasoning_p90": 50344
+  },
+  {
+   "task_id": "desk-v4-2026-05-17-S04",
+   "prompt": 7243,
+   "total": 33023,
+   "messages": 27,
+   "total_reasoning_mean": 46118,
+   "total_reasoning_p90": 51464
+  },
+  {
+   "task_id": "desk-v4-2026-05-18-S01",
+   "prompt": 7243,
+   "total": 32357,
+   "messages": 27,
+   "total_reasoning_mean": 45452,
+   "total_reasoning_p90": 50798
+  },
+  {
+   "task_id": "desk-v4-2026-05-18-S02",
+   "prompt": 7243,
+   "total": 32370,
+   "messages": 27,
+   "total_reasoning_mean": 45465,
+   "total_reasoning_p90": 50811
+  },
+  {
+   "task_id": "desk-v4-2026-05-18-S03",
+   "prompt": 7245,
+   "total": 32808,
+   "messages": 27,
+   "total_reasoning_mean": 45903,
+   "total_reasoning_p90": 51249
+  },
+  {
+   "task_id": "desk-v4-2026-05-18-S04",
+   "prompt": 7243,
+   "total": 36081,
+   "messages": 38,
+   "total_reasoning_mean": 54511,
+   "total_reasoning_p90": 62035
+  },
+  {
+   "task_id": "desk-v4-2026-05-19-S01",
+   "prompt": 7243,
+   "total": 54184,
+   "messages": 55,
+   "total_reasoning_mean": 80859,
+   "total_reasoning_p90": 91749
+  },
+  {
+   "task_id": "desk-v4-2026-05-19-S02",
+   "prompt": 7245,
+   "total": 34604,
+   "messages": 31,
+   "total_reasoning_mean": 49639,
+   "total_reasoning_p90": 55777
+  },
+  {
+   "task_id": "desk-v4-2026-05-19-S03",
+   "prompt": 7244,
+   "total": 40083,
+   "messages": 35,
+   "total_reasoning_mean": 57058,
+   "total_reasoning_p90": 63988
+  },
+  {
+   "task_id": "desk-v4-2026-05-19-S04",
+   "prompt": 7243,
+   "total": 73622,
+   "messages": 66,
+   "total_reasoning_mean": 105632,
+   "total_reasoning_p90": 118700
+  },
+  {
+   "task_id": "desk-v4-2026-05-20-S01",
+   "prompt": 7243,
+   "total": 49272,
+   "messages": 53,
+   "total_reasoning_mean": 74977,
+   "total_reasoning_p90": 85471
+  },
+  {
+   "task_id": "desk-v4-2026-05-20-S02",
+   "prompt": 7245,
+   "total": 36965,
+   "messages": 31,
+   "total_reasoning_mean": 52000,
+   "total_reasoning_p90": 58138
+  },
+  {
+   "task_id": "desk-v4-2026-05-20-S03",
+   "prompt": 7243,
+   "total": 36547,
+   "messages": 33,
+   "total_reasoning_mean": 52552,
+   "total_reasoning_p90": 59086
+  },
+  {
+   "task_id": "desk-v4-2026-05-20-S04",
+   "prompt": 7836,
+   "total": 58343,
+   "messages": 51,
+   "total_reasoning_mean": 83078,
+   "total_reasoning_p90": 93176
+  },
+  {
+   "task_id": "desk-v4-2026-05-21-S01",
+   "prompt": 7704,
+   "total": 37452,
+   "messages": 34,
+   "total_reasoning_mean": 53942,
+   "total_reasoning_p90": 60674
+  },
+  {
+   "task_id": "desk-v4-2026-05-21-S02",
+   "prompt": 7310,
+   "total": 32878,
+   "messages": 27,
+   "total_reasoning_mean": 45973,
+   "total_reasoning_p90": 51319
+  },
+  {
+   "task_id": "desk-v4-2026-05-21-S03",
+   "prompt": 7376,
+   "total": 32518,
+   "messages": 27,
+   "total_reasoning_mean": 45613,
+   "total_reasoning_p90": 50959
+  },
+  {
+   "task_id": "desk-v4-2026-05-21-S04",
+   "prompt": 7902,
+   "total": 74312,
+   "messages": 59,
+   "total_reasoning_mean": 102927,
+   "total_reasoning_p90": 114609
+  },
+  {
+   "task_id": "desk-v4-2026-05-22-S01",
+   "prompt": 7308,
+   "total": 41328,
+   "messages": 42,
+   "total_reasoning_mean": 61698,
+   "total_reasoning_p90": 70014
+  },
+  {
+   "task_id": "desk-v4-2026-05-22-S02",
+   "prompt": 7245,
+   "total": 33043,
+   "messages": 27,
+   "total_reasoning_mean": 46138,
+   "total_reasoning_p90": 51484
+  },
+  {
+   "task_id": "desk-v4-2026-05-22-S03",
+   "prompt": 7243,
+   "total": 33278,
+   "messages": 27,
+   "total_reasoning_mean": 46373,
+   "total_reasoning_p90": 51719
+  },
+  {
+   "task_id": "desk-v4-2026-05-22-S04",
+   "prompt": 7836,
+   "total": 40467,
+   "messages": 31,
+   "total_reasoning_mean": 55502,
+   "total_reasoning_p90": 61640
+  },
+  {
+   "task_id": "desk-v4-2026-05-23-S01",
+   "prompt": 7306,
+   "total": 55650,
+   "messages": 55,
+   "total_reasoning_mean": 82325,
+   "total_reasoning_p90": 93215
+  },
+  {
+   "task_id": "desk-v4-2026-05-23-S02",
+   "prompt": 7243,
+   "total": 56459,
+   "messages": 51,
+   "total_reasoning_mean": 81194,
+   "total_reasoning_p90": 91292
+  },
+  {
+   "task_id": "desk-v4-2026-05-23-S03",
+   "prompt": 7245,
+   "total": 50374,
+   "messages": 43,
+   "total_reasoning_mean": 71229,
+   "total_reasoning_p90": 79743
+  },
+  {
+   "task_id": "desk-v4-2026-05-23-S04",
+   "prompt": 7506,
+   "total": 66936,
+   "messages": 59,
+   "total_reasoning_mean": 95551,
+   "total_reasoning_p90": 107233
+  },
+  {
+   "task_id": "desk-v4-2026-05-24-S01",
+   "prompt": 7441,
+   "total": 39301,
+   "messages": 40,
+   "total_reasoning_mean": 58701,
+   "total_reasoning_p90": 66621
+  },
+  {
+   "task_id": "desk-v4-2026-05-24-S02",
+   "prompt": 7377,
+   "total": 46923,
+   "messages": 41,
+   "total_reasoning_mean": 66808,
+   "total_reasoning_p90": 74926
+  },
+  {
+   "task_id": "desk-v4-2026-05-24-S03",
+   "prompt": 7507,
+   "total": 43728,
+   "messages": 43,
+   "total_reasoning_mean": 64583,
+   "total_reasoning_p90": 73097
+  },
+  {
+   "task_id": "desk-v4-2026-05-24-S04",
+   "prompt": 7247,
+   "total": 57693,
+   "messages": 64,
+   "total_reasoning_mean": 88733,
+   "total_reasoning_p90": 101405
+  },
+  {
+   "task_id": "desk-v4-2026-05-25-S01",
+   "prompt": 7506,
+   "total": 36058,
+   "messages": 31,
+   "total_reasoning_mean": 51093,
+   "total_reasoning_p90": 57231
+  },
+  {
+   "task_id": "desk-v4-2026-05-25-S02",
+   "prompt": 7639,
+   "total": 33158,
+   "messages": 27,
+   "total_reasoning_mean": 46253,
+   "total_reasoning_p90": 51599
+  },
+  {
+   "task_id": "desk-v4-2026-05-25-S03",
+   "prompt": 7508,
+   "total": 41408,
+   "messages": 43,
+   "total_reasoning_mean": 62263,
+   "total_reasoning_p90": 70777
+  },
+  {
+   "task_id": "desk-v4-2026-05-25-S04",
+   "prompt": 7770,
+   "total": 38167,
+   "messages": 36,
+   "total_reasoning_mean": 55627,
+   "total_reasoning_p90": 62755
+  },
+  {
+   "task_id": "desk-v4-2026-05-26-S01",
+   "prompt": 7241,
+   "total": 38344,
+   "messages": 38,
+   "total_reasoning_mean": 56774,
+   "total_reasoning_p90": 64298
+  },
+  {
+   "task_id": "desk-v4-2026-05-26-S02",
+   "prompt": 7243,
+   "total": 30233,
+   "messages": 36,
+   "total_reasoning_mean": 47693,
+   "total_reasoning_p90": 54821
+  },
+  {
+   "task_id": "desk-v4-2026-05-26-S03",
+   "prompt": 7506,
+   "total": 33675,
+   "messages": 30,
+   "total_reasoning_mean": 48225,
+   "total_reasoning_p90": 54165
+  },
+  {
+   "task_id": "desk-v4-2026-05-26-S04",
+   "prompt": 7440,
+   "total": 46044,
+   "messages": 60,
+   "total_reasoning_mean": 75144,
+   "total_reasoning_p90": 87024
+  },
+  {
+   "task_id": "desk-v4-2026-05-27-S01",
+   "prompt": 7306,
+   "total": 38786,
+   "messages": 34,
+   "total_reasoning_mean": 55276,
+   "total_reasoning_p90": 62008
+  },
+  {
+   "task_id": "desk-v4-2026-05-27-S02",
+   "prompt": 7243,
+   "total": 39925,
+   "messages": 51,
+   "total_reasoning_mean": 64660,
+   "total_reasoning_p90": 74758
+  },
+  {
+   "task_id": "desk-v4-2026-05-27-S03",
+   "prompt": 7310,
+   "total": 33379,
+   "messages": 27,
+   "total_reasoning_mean": 46474,
+   "total_reasoning_p90": 51820
+  },
+  {
+   "task_id": "desk-v4-2026-05-27-S04",
+   "prompt": 7247,
+   "total": 132910,
+   "messages": 119,
+   "total_reasoning_mean": 190625,
+   "total_reasoning_p90": 214187
+  },
+  {
+   "task_id": "desk-v4-2026-05-28-S01",
+   "prompt": 7374,
+   "total": 32874,
+   "messages": 27,
+   "total_reasoning_mean": 45969,
+   "total_reasoning_p90": 51315
+  },
+  {
+   "task_id": "desk-v4-2026-05-28-S02",
+   "prompt": 7633,
+   "total": 14567,
+   "messages": 27,
+   "total_reasoning_mean": 27662,
+   "total_reasoning_p90": 33008
+  },
+  {
+   "task_id": "desk-v4-2026-05-28-S03",
+   "prompt": 7245,
+   "total": 41665,
+   "messages": 39,
+   "total_reasoning_mean": 60580,
+   "total_reasoning_p90": 68302
+  },
+  {
+   "task_id": "desk-v4-2026-05-28-S04",
+   "prompt": 8492,
+   "total": 64182,
+   "messages": 51,
+   "total_reasoning_mean": 88917,
+   "total_reasoning_p90": 99015
+  },
+  {
+   "task_id": "desk-v4-2026-05-29-S01",
+   "prompt": 7241,
+   "total": 34959,
+   "messages": 31,
+   "total_reasoning_mean": 49994,
+   "total_reasoning_p90": 56132
+  },
+  {
+   "task_id": "desk-v4-2026-05-29-S02",
+   "prompt": 7633,
+   "total": 14565,
+   "messages": 27,
+   "total_reasoning_mean": 27660,
+   "total_reasoning_p90": 33006
+  },
+  {
+   "task_id": "desk-v4-2026-05-29-S03",
+   "prompt": 7245,
+   "total": 37026,
+   "messages": 36,
+   "total_reasoning_mean": 54486,
+   "total_reasoning_p90": 61614
+  },
+  {
+   "task_id": "desk-v4-2026-05-29-S04",
+   "prompt": 8430,
+   "total": 34533,
+   "messages": 27,
+   "total_reasoning_mean": 47628,
+   "total_reasoning_p90": 52974
+  },
+  {
+   "task_id": "desk-v4-2026-05-30-S01",
+   "prompt": 7241,
+   "total": 33611,
+   "messages": 30,
+   "total_reasoning_mean": 48161,
+   "total_reasoning_p90": 54101
+  },
+  {
+   "task_id": "desk-v4-2026-05-30-S02",
+   "prompt": 7307,
+   "total": 30844,
+   "messages": 31,
+   "total_reasoning_mean": 45879,
+   "total_reasoning_p90": 52017
+  },
+  {
+   "task_id": "desk-v4-2026-05-30-S03",
+   "prompt": 7442,
+   "total": 33037,
+   "messages": 27,
+   "total_reasoning_mean": 46132,
+   "total_reasoning_p90": 51478
+  },
+  {
+   "task_id": "desk-v4-2026-05-30-S04",
+   "prompt": 7243,
+   "total": 32896,
+   "messages": 27,
+   "total_reasoning_mean": 45991,
+   "total_reasoning_p90": 51337
+  },
+  {
+   "task_id": "desk-v4-2026-05-31-S01",
+   "prompt": 7306,
+   "total": 31746,
+   "messages": 27,
+   "total_reasoning_mean": 44841,
+   "total_reasoning_p90": 50187
+  },
+  {
+   "task_id": "desk-v4-2026-05-31-S02",
+   "prompt": 7245,
+   "total": 31773,
+   "messages": 27,
+   "total_reasoning_mean": 44868,
+   "total_reasoning_p90": 50214
+  },
+  {
+   "task_id": "desk-v4-2026-05-31-S03",
+   "prompt": 7245,
+   "total": 31683,
+   "messages": 27,
+   "total_reasoning_mean": 44778,
+   "total_reasoning_p90": 50124
+  },
+  {
+   "task_id": "desk-v4-2026-05-31-S04",
+   "prompt": 7243,
+   "total": 31830,
+   "messages": 27,
+   "total_reasoning_mean": 44925,
+   "total_reasoning_p90": 50271
+  },
+  {
+   "task_id": "desk-v4-2026-06-01-S01",
+   "prompt": 7241,
+   "total": 32610,
+   "messages": 27,
+   "total_reasoning_mean": 45705,
+   "total_reasoning_p90": 51051
+  },
+  {
+   "task_id": "desk-v4-2026-06-01-S02",
+   "prompt": 7245,
+   "total": 32508,
+   "messages": 27,
+   "total_reasoning_mean": 45603,
+   "total_reasoning_p90": 50949
+  },
+  {
+   "task_id": "desk-v4-2026-06-01-S03",
+   "prompt": 7245,
+   "total": 32956,
+   "messages": 27,
+   "total_reasoning_mean": 46051,
+   "total_reasoning_p90": 51397
+  },
+  {
+   "task_id": "desk-v4-2026-06-01-S04",
+   "prompt": 7243,
+   "total": 32907,
+   "messages": 27,
+   "total_reasoning_mean": 46002,
+   "total_reasoning_p90": 51348
+  },
+  {
+   "task_id": "desk-v4-2026-06-02-S01",
+   "prompt": 7243,
+   "total": 32042,
+   "messages": 27,
+   "total_reasoning_mean": 45137,
+   "total_reasoning_p90": 50483
+  },
+  {
+   "task_id": "desk-v4-2026-06-02-S02",
+   "prompt": 7245,
+   "total": 47744,
+   "messages": 51,
+   "total_reasoning_mean": 72479,
+   "total_reasoning_p90": 82577
+  },
+  {
+   "task_id": "desk-v4-2026-06-02-S03",
+   "prompt": 7245,
+   "total": 40391,
+   "messages": 39,
+   "total_reasoning_mean": 59306,
+   "total_reasoning_p90": 67028
+  },
+  {
+   "task_id": "desk-v4-2026-06-02-S04",
+   "prompt": 7243,
+   "total": 32522,
+   "messages": 27,
+   "total_reasoning_mean": 45617,
+   "total_reasoning_p90": 50963
+  },
+  {
+   "task_id": "desk-v4-2026-06-03-S01",
+   "prompt": 7241,
+   "total": 31909,
+   "messages": 27,
+   "total_reasoning_mean": 45004,
+   "total_reasoning_p90": 50350
+  },
+  {
+   "task_id": "desk-v4-2026-06-03-S03",
+   "prompt": 7245,
+   "total": 36321,
+   "messages": 36,
+   "total_reasoning_mean": 53781,
+   "total_reasoning_p90": 60909
+  },
+  {
+   "task_id": "desk-v4-2026-06-03-S04",
+   "prompt": 7243,
+   "total": 31340,
+   "messages": 27,
+   "total_reasoning_mean": 44435,
+   "total_reasoning_p90": 49781
+  },
+  {
+   "task_id": "desk-v4-2026-06-06-S01",
+   "prompt": 7738,
+   "total": 59098,
+   "messages": 62,
+   "total_reasoning_mean": 89168,
+   "total_reasoning_p90": 101444
+  },
+  {
+   "task_id": "desk-v4-2026-06-06-S02",
+   "prompt": 7738,
+   "total": 58446,
+   "messages": 62,
+   "total_reasoning_mean": 88516,
+   "total_reasoning_p90": 100792
+  },
+  {
+   "task_id": "desk-v4-2026-06-06-S03",
+   "prompt": 7740,
+   "total": 65430,
+   "messages": 74,
+   "total_reasoning_mean": 101320,
+   "total_reasoning_p90": 115972
+  },
+  {
+   "task_id": "desk-v4-2026-06-06-S04",
+   "prompt": 7738,
+   "total": 60189,
+   "messages": 64,
+   "total_reasoning_mean": 91229,
+   "total_reasoning_p90": 103901
+  },
+  {
+   "task_id": "desk-v4-2026-06-07-S01",
+   "prompt": 7732,
+   "total": 54865,
+   "messages": 60,
+   "total_reasoning_mean": 83965,
+   "total_reasoning_p90": 95845
+  },
+  {
+   "task_id": "desk-v4-2026-06-07-S02",
+   "prompt": 7736,
+   "total": 54728,
+   "messages": 60,
+   "total_reasoning_mean": 83828,
+   "total_reasoning_p90": 95708
+  },
+  {
+   "task_id": "desk-v4-2026-06-07-S03",
+   "prompt": 7734,
+   "total": 65110,
+   "messages": 71,
+   "total_reasoning_mean": 99545,
+   "total_reasoning_p90": 113603
+  },
+  {
+   "task_id": "desk-v4-2026-06-07-S04",
+   "prompt": 7738,
+   "total": 59792,
+   "messages": 64,
+   "total_reasoning_mean": 90832,
+   "total_reasoning_p90": 103504
+  },
+  {
+   "task_id": "desk-v4-2026-06-08-S01",
+   "prompt": 7824,
+   "total": 58406,
+   "messages": 73,
+   "total_reasoning_mean": 93811,
+   "total_reasoning_p90": 108265
+  },
+  {
+   "task_id": "desk-v4-2026-06-08-S02",
+   "prompt": 7826,
+   "total": 61659,
+   "messages": 73,
+   "total_reasoning_mean": 97064,
+   "total_reasoning_p90": 111518
+  },
+  {
+   "task_id": "desk-v4-2026-06-08-S03",
+   "prompt": 8026,
+   "total": 62254,
+   "messages": 73,
+   "total_reasoning_mean": 97659,
+   "total_reasoning_p90": 112113
+  },
+  {
+   "task_id": "desk-v4-2026-06-08-S04",
+   "prompt": 7892,
+   "total": 60591,
+   "messages": 73,
+   "total_reasoning_mean": 95996,
+   "total_reasoning_p90": 110450
+  },
+  {
+   "task_id": "desk-v4-2026-06-09-S01",
+   "prompt": 7740,
+   "total": 73976,
+   "messages": 89,
+   "total_reasoning_mean": 117141,
+   "total_reasoning_p90": 134763
+  },
+  {
+   "task_id": "desk-v4-2026-06-09-S02",
+   "prompt": 7742,
+   "total": 74771,
+   "messages": 89,
+   "total_reasoning_mean": 117936,
+   "total_reasoning_p90": 135558
+  },
+  {
+   "task_id": "desk-v4-2026-06-09-S03",
+   "prompt": 7742,
+   "total": 75159,
+   "messages": 89,
+   "total_reasoning_mean": 118324,
+   "total_reasoning_p90": 135946
+  },
+  {
+   "task_id": "desk-v4-2026-06-09-S04",
+   "prompt": 7808,
+   "total": 78314,
+   "messages": 89,
+   "total_reasoning_mean": 121479,
+   "total_reasoning_p90": 139101
+  },
+  {
+   "task_id": "desk-v4-2026-06-10-S01",
+   "prompt": 8392,
+   "total": 65203,
+   "messages": 62,
+   "total_reasoning_mean": 95273,
+   "total_reasoning_p90": 107549
+  },
+  {
+   "task_id": "desk-v4-2026-06-10-S02",
+   "prompt": 8394,
+   "total": 68153,
+   "messages": 62,
+   "total_reasoning_mean": 98223,
+   "total_reasoning_p90": 110499
+  },
+  {
+   "task_id": "desk-v4-2026-06-10-S03",
+   "prompt": 8394,
+   "total": 67459,
+   "messages": 62,
+   "total_reasoning_mean": 97529,
+   "total_reasoning_p90": 109805
+  },
+  {
+   "task_id": "desk-v4-2026-06-10-S04",
+   "prompt": 8392,
+   "total": 69061,
+   "messages": 62,
+   "total_reasoning_mean": 99131,
+   "total_reasoning_p90": 111407
+  },
+  {
+   "task_id": "desk-v4-2026-06-11-S01",
+   "prompt": 8326,
+   "total": 41556,
+   "messages": 48,
+   "total_reasoning_mean": 64836,
+   "total_reasoning_p90": 74340
+  },
+  {
+   "task_id": "desk-v4-2026-06-11-S02",
+   "prompt": 8326,
+   "total": 41779,
+   "messages": 48,
+   "total_reasoning_mean": 65059,
+   "total_reasoning_p90": 74563
+  },
+  {
+   "task_id": "desk-v4-2026-06-11-S03",
+   "prompt": 8326,
+   "total": 41701,
+   "messages": 48,
+   "total_reasoning_mean": 64981,
+   "total_reasoning_p90": 74485
+  },
+  {
+   "task_id": "desk-v4-2026-06-11-S04",
+   "prompt": 8326,
+   "total": 41759,
+   "messages": 48,
+   "total_reasoning_mean": 65039,
+   "total_reasoning_p90": 74543
+  },
+  {
+   "task_id": "desk-v4-2026-06-12-S01",
+   "prompt": 7335,
+   "total": 48562,
+   "messages": 43,
+   "total_reasoning_mean": 69417,
+   "total_reasoning_p90": 77931
+  },
+  {
+   "task_id": "desk-v4-2026-06-12-S02",
+   "prompt": 7335,
+   "total": 49931,
+   "messages": 43,
+   "total_reasoning_mean": 70786,
+   "total_reasoning_p90": 79300
+  },
+  {
+   "task_id": "desk-v4-2026-06-12-S03",
+   "prompt": 7335,
+   "total": 48959,
+   "messages": 43,
+   "total_reasoning_mean": 69814,
+   "total_reasoning_p90": 78328
+  },
+  {
+   "task_id": "desk-v4-2026-06-12-S04",
+   "prompt": 7337,
+   "total": 49430,
+   "messages": 43,
+   "total_reasoning_mean": 70285,
+   "total_reasoning_p90": 78799
+  },
+  {
+   "task_id": "desk-v4-2026-06-13-S01",
+   "prompt": 7742,
+   "total": 31596,
+   "messages": 27,
+   "total_reasoning_mean": 44691,
+   "total_reasoning_p90": 50037
+  },
+  {
+   "task_id": "desk-v4-2026-06-13-S02",
+   "prompt": 7744,
+   "total": 32833,
+   "messages": 27,
+   "total_reasoning_mean": 45928,
+   "total_reasoning_p90": 51274
+  },
+  {
+   "task_id": "desk-v4-2026-06-13-S03",
+   "prompt": 7744,
+   "total": 33182,
+   "messages": 27,
+   "total_reasoning_mean": 46277,
+   "total_reasoning_p90": 51623
+  },
+  {
+   "task_id": "desk-v4-2026-06-13-S04",
+   "prompt": 7744,
+   "total": 33799,
+   "messages": 27,
+   "total_reasoning_mean": 46894,
+   "total_reasoning_p90": 52240
+  },
+  {
+   "task_id": "desk-v4-2026-06-14-S01",
+   "prompt": 7243,
+   "total": 54855,
+   "messages": 72,
+   "total_reasoning_mean": 89775,
+   "total_reasoning_p90": 104031
+  },
+  {
+   "task_id": "desk-v4-2026-06-14-S02",
+   "prompt": 7243,
+   "total": 42396,
+   "messages": 56,
+   "total_reasoning_mean": 69556,
+   "total_reasoning_p90": 80644
+  },
+  {
+   "task_id": "desk-v4-2026-06-14-S03",
+   "prompt": 7306,
+   "total": 43745,
+   "messages": 56,
+   "total_reasoning_mean": 70905,
+   "total_reasoning_p90": 81993
+  },
+  {
+   "task_id": "desk-v4-2026-06-14-S04",
+   "prompt": 7245,
+   "total": 43535,
+   "messages": 56,
+   "total_reasoning_mean": 70695,
+   "total_reasoning_p90": 81783
+  },
+  {
+   "task_id": "desk-v4-2026-06-15-S01",
+   "prompt": 7243,
+   "total": 79637,
+   "messages": 99,
+   "total_reasoning_mean": 127652,
+   "total_reasoning_p90": 147254
+  },
+  {
+   "task_id": "desk-v4-2026-06-15-S02",
+   "prompt": 7243,
+   "total": 75386,
+   "messages": 87,
+   "total_reasoning_mean": 117581,
+   "total_reasoning_p90": 134807
+  },
+  {
+   "task_id": "desk-v4-2026-06-15-S03",
+   "prompt": 7306,
+   "total": 75819,
+   "messages": 87,
+   "total_reasoning_mean": 118014,
+   "total_reasoning_p90": 135240
+  },
+  {
+   "task_id": "desk-v4-2026-06-15-S04",
+   "prompt": 7243,
+   "total": 78662,
+   "messages": 95,
+   "total_reasoning_mean": 124737,
+   "total_reasoning_p90": 143547
+  },
+  {
+   "task_id": "desk-v4-2026-06-16-S01",
+   "prompt": 8493,
+   "total": 75371,
+   "messages": 83,
+   "total_reasoning_mean": 115626,
+   "total_reasoning_p90": 132060
+  },
+  {
+   "task_id": "desk-v4-2026-06-16-S02",
+   "prompt": 8231,
+   "total": 79000,
+   "messages": 87,
+   "total_reasoning_mean": 121195,
+   "total_reasoning_p90": 138421
+  },
+  {
+   "task_id": "desk-v4-2026-06-16-S03",
+   "prompt": 8231,
+   "total": 76208,
+   "messages": 83,
+   "total_reasoning_mean": 116463,
+   "total_reasoning_p90": 132897
+  },
+  {
+   "task_id": "desk-v4-2026-06-16-S04",
+   "prompt": 8229,
+   "total": 94023,
+   "messages": 99,
+   "total_reasoning_mean": 142038,
+   "total_reasoning_p90": 161640
+  },
+  {
+   "task_id": "desk-v4-2026-06-17-S01",
+   "prompt": 8381,
+   "total": 66322,
+   "messages": 63,
+   "total_reasoning_mean": 96877,
+   "total_reasoning_p90": 109351
+  },
+  {
+   "task_id": "desk-v4-2026-06-17-S02",
+   "prompt": 8386,
+   "total": 67297,
+   "messages": 62,
+   "total_reasoning_mean": 97367,
+   "total_reasoning_p90": 109643
+  },
+  {
+   "task_id": "desk-v4-2026-06-17-S03",
+   "prompt": 8385,
+   "total": 61933,
+   "messages": 55,
+   "total_reasoning_mean": 88608,
+   "total_reasoning_p90": 99498
+  },
+  {
+   "task_id": "desk-v4-2026-06-17-S04",
+   "prompt": 8515,
+   "total": 79946,
+   "messages": 71,
+   "total_reasoning_mean": 114381,
+   "total_reasoning_p90": 128439
+  },
+  {
+   "task_id": "desk-v4-2026-06-18-S01",
+   "prompt": 8191,
+   "total": 42635,
+   "messages": 47,
+   "total_reasoning_mean": 65430,
+   "total_reasoning_p90": 74736
+  },
+  {
+   "task_id": "desk-v4-2026-06-18-S02",
+   "prompt": 8131,
+   "total": 44097,
+   "messages": 44,
+   "total_reasoning_mean": 65437,
+   "total_reasoning_p90": 74149
+  },
+  {
+   "task_id": "desk-v4-2026-06-18-S03",
+   "prompt": 8131,
+   "total": 39499,
+   "messages": 37,
+   "total_reasoning_mean": 57444,
+   "total_reasoning_p90": 64770
+  },
+  {
+   "task_id": "desk-v4-2026-06-18-S04",
+   "prompt": 8255,
+   "total": 57589,
+   "messages": 63,
+   "total_reasoning_mean": 88144,
+   "total_reasoning_p90": 100618
+  },
+  {
+   "task_id": "desk-v4-2026-06-19-S01",
+   "prompt": 7715,
+   "total": 41413,
+   "messages": 38,
+   "total_reasoning_mean": 59843,
+   "total_reasoning_p90": 67367
+  },
+  {
+   "task_id": "desk-v4-2026-06-19-S02",
+   "prompt": 7595,
+   "total": 42200,
+   "messages": 38,
+   "total_reasoning_mean": 60630,
+   "total_reasoning_p90": 68154
+  },
+  {
+   "task_id": "desk-v4-2026-06-19-S03",
+   "prompt": 7469,
+   "total": 34089,
+   "messages": 30,
+   "total_reasoning_mean": 48639,
+   "total_reasoning_p90": 54579
+  },
+  {
+   "task_id": "desk-v4-2026-06-19-S04",
+   "prompt": 7777,
+   "total": 39609,
+   "messages": 37,
+   "total_reasoning_mean": 57554,
+   "total_reasoning_p90": 64880
+  },
+  {
+   "task_id": "desk-v4-2026-06-20-S01",
+   "prompt": 7714,
+   "total": 35726,
+   "messages": 31,
+   "total_reasoning_mean": 50761,
+   "total_reasoning_p90": 56899
+  },
+  {
+   "task_id": "desk-v4-2026-06-20-S02",
+   "prompt": 7650,
+   "total": 42048,
+   "messages": 39,
+   "total_reasoning_mean": 60963,
+   "total_reasoning_p90": 68685
+  },
+  {
+   "task_id": "desk-v4-2026-06-20-S03",
+   "prompt": 7398,
+   "total": 35542,
+   "messages": 31,
+   "total_reasoning_mean": 50577,
+   "total_reasoning_p90": 56715
+  },
+  {
+   "task_id": "desk-v4-2026-06-20-S04",
+   "prompt": 7834,
+   "total": 37080,
+   "messages": 31,
+   "total_reasoning_mean": 52115,
+   "total_reasoning_p90": 58253
+  },
+  {
+   "task_id": "desk-v4-2026-06-22-S01",
+   "prompt": 7456,
+   "total": 44158,
+   "messages": 55,
+   "total_reasoning_mean": 70833,
+   "total_reasoning_p90": 81723
+  },
+  {
+   "task_id": "desk-v4-2026-06-22-S02",
+   "prompt": 7592,
+   "total": 41320,
+   "messages": 47,
+   "total_reasoning_mean": 64115,
+   "total_reasoning_p90": 73421
+  },
+  {
+   "task_id": "desk-v4-2026-06-22-S03",
+   "prompt": 7336,
+   "total": 45173,
+   "messages": 51,
+   "total_reasoning_mean": 69908,
+   "total_reasoning_p90": 80006
+  },
+  {
+   "task_id": "desk-v4-2026-06-22-S04",
+   "prompt": 7334,
+   "total": 40079,
+   "messages": 47,
+   "total_reasoning_mean": 62874,
+   "total_reasoning_p90": 72180
+  },
+  {
+   "task_id": "desk-v4-2026-06-23-S01",
+   "prompt": 7490,
+   "total": 53964,
+   "messages": 54,
+   "total_reasoning_mean": 80154,
+   "total_reasoning_p90": 90846
+  },
+  {
+   "task_id": "desk-v4-2026-06-23-S02",
+   "prompt": 7372,
+   "total": 50122,
+   "messages": 47,
+   "total_reasoning_mean": 72917,
+   "total_reasoning_p90": 82223
+  },
+  {
+   "task_id": "desk-v4-2026-06-23-S03",
+   "prompt": 7310,
+   "total": 54940,
+   "messages": 51,
+   "total_reasoning_mean": 79675,
+   "total_reasoning_p90": 89773
+  },
+  {
+   "task_id": "desk-v4-2026-06-23-S04",
+   "prompt": 7247,
+   "total": 51436,
+   "messages": 47,
+   "total_reasoning_mean": 74231,
+   "total_reasoning_p90": 83537
+  },
+  {
+   "task_id": "desk-v4-2026-06-24-S01",
+   "prompt": 7992,
+   "total": 51544,
+   "messages": 75,
+   "total_reasoning_mean": 87919,
+   "total_reasoning_p90": 102769
+  },
+  {
+   "task_id": "desk-v4-2026-06-24-S02",
+   "prompt": 7868,
+   "total": 53512,
+   "messages": 75,
+   "total_reasoning_mean": 89887,
+   "total_reasoning_p90": 104737
+  },
+  {
+   "task_id": "desk-v4-2026-06-24-S03",
+   "prompt": 7806,
+   "total": 54980,
+   "messages": 78,
+   "total_reasoning_mean": 92810,
+   "total_reasoning_p90": 108254
+  },
+  {
+   "task_id": "desk-v4-2026-06-24-S04",
+   "prompt": 7740,
+   "total": 55027,
+   "messages": 75,
+   "total_reasoning_mean": 91402,
+   "total_reasoning_p90": 106252
+  },
+  {
+   "task_id": "desk-v4-2026-06-25-S01",
+   "prompt": 7334,
+   "total": 66421,
+   "messages": 70,
+   "total_reasoning_mean": 100371,
+   "total_reasoning_p90": 114231
+  },
+  {
+   "task_id": "desk-v4-2026-06-25-S02",
+   "prompt": 7464,
+   "total": 74643,
+   "messages": 70,
+   "total_reasoning_mean": 108593,
+   "total_reasoning_p90": 122453
+  },
+  {
+   "task_id": "desk-v4-2026-06-25-S03",
+   "prompt": 7402,
+   "total": 74973,
+   "messages": 70,
+   "total_reasoning_mean": 108923,
+   "total_reasoning_p90": 122783
+  },
+  {
+   "task_id": "desk-v4-2026-06-25-S04",
+   "prompt": 7336,
+   "total": 73576,
+   "messages": 70,
+   "total_reasoning_mean": 107526,
+   "total_reasoning_p90": 121386
+  },
+  {
+   "task_id": "desk-v4-2026-06-26-S01",
+   "prompt": 8816,
+   "total": 31720,
+   "messages": 27,
+   "total_reasoning_mean": 44815,
+   "total_reasoning_p90": 50161
+  },
+  {
+   "task_id": "desk-v4-2026-06-26-S02",
+   "prompt": 8945,
+   "total": 33652,
+   "messages": 27,
+   "total_reasoning_mean": 46747,
+   "total_reasoning_p90": 52093
+  },
+  {
+   "task_id": "desk-v4-2026-06-26-S03",
+   "prompt": 8817,
+   "total": 33518,
+   "messages": 27,
+   "total_reasoning_mean": 46613,
+   "total_reasoning_p90": 51959
+  },
+  {
+   "task_id": "desk-v4-2026-06-26-S04",
+   "prompt": 8815,
+   "total": 33493,
+   "messages": 27,
+   "total_reasoning_mean": 46588,
+   "total_reasoning_p90": 51934
+  },
+  {
+   "task_id": "desk-v4-2026-06-27-S01",
+   "prompt": 7243,
+   "total": 31004,
+   "messages": 27,
+   "total_reasoning_mean": 44099,
+   "total_reasoning_p90": 49445
+  },
+  {
+   "task_id": "desk-v4-2026-06-27-S02",
+   "prompt": 7373,
+   "total": 31940,
+   "messages": 27,
+   "total_reasoning_mean": 45035,
+   "total_reasoning_p90": 50381
+  },
+  {
+   "task_id": "desk-v4-2026-06-27-S03",
+   "prompt": 7245,
+   "total": 31694,
+   "messages": 27,
+   "total_reasoning_mean": 44789,
+   "total_reasoning_p90": 50135
+  },
+  {
+   "task_id": "desk-v4-2026-06-27-S04",
+   "prompt": 7243,
+   "total": 32047,
+   "messages": 27,
+   "total_reasoning_mean": 45142,
+   "total_reasoning_p90": 50488
+  },
+  {
+   "task_id": "desk-v4-2026-06-28-S01",
+   "prompt": 7243,
+   "total": 30261,
+   "messages": 27,
+   "total_reasoning_mean": 43356,
+   "total_reasoning_p90": 48702
+  },
+  {
+   "task_id": "desk-v4-2026-06-28-S02",
+   "prompt": 7374,
+   "total": 31761,
+   "messages": 27,
+   "total_reasoning_mean": 44856,
+   "total_reasoning_p90": 50202
+  },
+  {
+   "task_id": "desk-v4-2026-06-28-S03",
+   "prompt": 7245,
+   "total": 32022,
+   "messages": 27,
+   "total_reasoning_mean": 45117,
+   "total_reasoning_p90": 50463
+  },
+  {
+   "task_id": "desk-v4-2026-06-28-S04",
+   "prompt": 7245,
+   "total": 31118,
+   "messages": 27,
+   "total_reasoning_mean": 44213,
+   "total_reasoning_p90": 49559
+  },
+  {
+   "task_id": "desk-v4-2026-06-29-S01",
+   "prompt": 7243,
+   "total": 30437,
+   "messages": 27,
+   "total_reasoning_mean": 43532,
+   "total_reasoning_p90": 48878
+  },
+  {
+   "task_id": "desk-v4-2026-06-29-S02",
+   "prompt": 7372,
+   "total": 31797,
+   "messages": 27,
+   "total_reasoning_mean": 44892,
+   "total_reasoning_p90": 50238
+  },
+  {
+   "task_id": "desk-v4-2026-06-29-S03",
+   "prompt": 7245,
+   "total": 31297,
+   "messages": 27,
+   "total_reasoning_mean": 44392,
+   "total_reasoning_p90": 49738
+  },
+  {
+   "task_id": "desk-v4-2026-06-29-S04",
+   "prompt": 7245,
+   "total": 31493,
+   "messages": 27,
+   "total_reasoning_mean": 44588,
+   "total_reasoning_p90": 49934
+  },
+  {
+   "task_id": "desk-v4-2026-06-30-S01",
+   "prompt": 7243,
+   "total": 34134,
+   "messages": 31,
+   "total_reasoning_mean": 49169,
+   "total_reasoning_p90": 55307
+  },
+  {
+   "task_id": "desk-v4-2026-06-30-S02",
+   "prompt": 7372,
+   "total": 35247,
+   "messages": 31,
+   "total_reasoning_mean": 50282,
+   "total_reasoning_p90": 56420
+  },
+  {
+   "task_id": "desk-v4-2026-06-30-S03",
+   "prompt": 7245,
+   "total": 35196,
+   "messages": 31,
+   "total_reasoning_mean": 50231,
+   "total_reasoning_p90": 56369
+  },
+  {
+   "task_id": "desk-v4-2026-06-30-S04",
+   "prompt": 7245,
+   "total": 35882,
+   "messages": 31,
+   "total_reasoning_mean": 50917,
+   "total_reasoning_p90": 57055
+  }
+ ]
+}

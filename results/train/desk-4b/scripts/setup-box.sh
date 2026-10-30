@@ -1,6 +1,7 @@
 # One GPU box for the pilot, the env server and the trainer together; run as root (e.g. through SSM). System prep, then
 # setup-env.sh and setup.sh as BOX_USER (ubuntu), then the env server as the systemd unit desk-env on 127.0.0.1:8000,
-# whose first start builds the env image. Waits until the server answers. FRAMEWORK and PLUGIN_REF pass through.
+# whose first start builds the env image, while setup.sh installs the trainer and downloads the model. Waits until
+# both are done and the server answers. FRAMEWORK, PLUGIN_REF, MODEL_ID and MODEL_REV pass through.
 # Docker gets 256 /24 address pools: every episode makes a network, and the default pools hold about 30.
 set -euxo pipefail
 T0=$(date +%s)
@@ -24,9 +25,11 @@ REF=${PLUGIN_REF:-desk-train}
 [ -d "$H/plugin" ] || sudo -iu "$U" git clone -q https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
 sudo -iu "$U" git -C plugin fetch -q origin
 sudo -iu "$U" git -C plugin checkout -q --detach "origin/$REF" 2>/dev/null || sudo -iu "$U" git -C plugin checkout -q --detach "$REF"
-ARGS=(env FRAMEWORK="${FRAMEWORK:-0.9.1387}" PLUGIN_REF="$REF")
+ARGS=(env FRAMEWORK="${FRAMEWORK:-0.9.1387}" PLUGIN_REF="$REF" MODEL_ID="${MODEL_ID:-Qwen/Qwen3-4B}"
+      MODEL_REV="${MODEL_REV:-1cfa9a7208912126459214e8b04321603b3df60c}")
+sudo -iu "$U" "${ARGS[@]}" bash "$H/plugin/results/train/desk-4b/scripts/setup.sh" > "$H/setup-trainer.log" 2>&1 &
+TRAINER=$!
 sudo -iu "$U" "${ARGS[@]}" bash "$H/plugin/results/train/desk-4b/scripts/setup-env.sh"
-sudo -iu "$U" "${ARGS[@]}" bash "$H/plugin/results/train/desk-4b/scripts/setup.sh"
 sed "s#@HOME@#$H#g; s#@USER@#$U#g" "$H/plugin/results/train/desk-4b/scripts/desk-env.service" \
   > /etc/systemd/system/desk-env.service
 systemctl daemon-reload
@@ -38,4 +41,6 @@ for _ in $(seq 1 180); do
   sleep 10
 done
 curl -sf -m 5 http://127.0.0.1:8000/list_environments
+wait "$TRAINER" || { tail -30 "$H/setup-trainer.log"; exit 1; }
+grep -E "^(trainer|gpu):" "$H/setup-trainer.log"
 echo "setup took $(( $(date +%s) - T0 ))s"

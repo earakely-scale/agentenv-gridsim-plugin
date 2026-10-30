@@ -251,6 +251,29 @@ a change outside this kit:
   In TRL the day is one completion: every reasoning block stays, at 40,960 tokens, and overflow ends the rollout.
 - **Sampling.** Training samples at temperature 1.0; OpenCode runs Qwen at 0.6, top_p 0.95, top_k 20.
 
+## Qwen3.5-9B on an 8-GPU box (pilot config 2)
+
+`Qwen/Qwen3.5-9B` at revision `c202236235762e1c871ad0ccb60c8ee5ba337b9a` (thinking on), run by `scripts/run_9b.sh` on
+one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plugin`:
+
+- **Template and tool calls:** the model's chat template is the one TRL 1.16 ships as `qwen3_5_think.jinja`, byte for
+  byte, so TRL parses its XML tool calls (`<tool_call><function=…><parameter=…>`; a nested argument such as `curves` is
+  one JSON value inside its parameter) with its Qwen3.5 response schema. With thinking on, the generation prompt opens
+  `<think>`.
+- **Rows:** the OpenCode context names the served model (`SERVED_MODEL=qwen3.5-9b`: "You are powered by the model named
+  qwen3.5-9b. The exact model ID is litellm/qwen3.5-9b"), and the template's own tool preamble replaces the 4B's: a row
+  prompt runs 7,247 tokens at the median, 8,131 at p90 and 8,945 at most, within the 9,216 the trainer budgets.
+- **Sampling:** training 0.8 / 0.95 / 20 and the eval 0.6 / 0.95 / 20, which is also Qwen's recommendation for
+  thinking mode on precise tasks (its general thinking setting is 1.0 / 0.95 / 20 with presence penalty 1.5).
+- **Trainer:** bf16 weights (`MODEL_DTYPE`), LoRA r 32 on every linear layer but the vision tower, flash-linear-attention
+  for the linear-attention layers, and the 248k vocabulary's log-probs one sequence at a time
+  (`per_device_train_batch_size=1`; the eval scores rewards alone).
+- **vLLM:** a `trl vllm-serve` server, data parallel over GPUs 1-7, tensor parallel 1, `max_model_len` = CONTEXT, with
+  the weights TRL streams in after merging the LoRA every step; the trainer has GPU 0 to itself.
+- **Order:** setup (the model downloads while the env image builds), a sanity eval of one val day through the server,
+  then the pilot: the base eval of the 36 val days at step 0 (all 36 at once, `EVAL_BATCH=36`), up to 10 steps, the
+  final eval. A deadline stops training after the step that would leave too little time for the final eval.
+
 ## GPU check (L40S, 2026-10-30)
 
 One g6e.4xlarge (1× L40S, 16 vCPU), set up with `setup-box.sh` in 288 s (driver 595, agentenv-framework 0.9.1387,

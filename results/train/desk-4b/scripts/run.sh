@@ -14,7 +14,7 @@ if [ "$MODE" = server ]; then
   if ! curl -sf -m 5 "http://127.0.0.1:$VLLM_PORT/health" > /dev/null; then
     CUDA_VISIBLE_DEVICES=$(seq -s, 1 $((GPUS - 1))) nohup trainer/bin/trl vllm-serve --model "$MODEL" \
       --tensor_parallel_size 1 --data_parallel_size $((GPUS - 1)) --max_model_len "${CONTEXT:-40960}" --host 127.0.0.1 \
-      --port "$VLLM_PORT" --enable_prefix_caching True > vllm-serve.log 2>&1 &
+      --port "$VLLM_PORT" --enable_prefix_caching "${VLLM_PREFIX_CACHING:-True}" > vllm-serve.log 2>&1 &
     SERVER=$!
     until curl -sf -m 5 "http://127.0.0.1:$VLLM_PORT/health" > /dev/null; do
       kill -0 "$SERVER" 2>/dev/null || { tail -30 vllm-serve.log; exit 1; }

@@ -135,6 +135,15 @@ def rates(rollouts: list[dict]) -> dict:
                                               for c in r["calls"]) for r in scored) / len(scored), 4)}
 
 
+class Deadline(TrainerCallback):
+    """Ends training after the step that passes STOP_AFTER_S seconds, so a box with a fixed lifetime keeps its
+    outputs; the final eval then runs, off its schedule if need be."""
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if time.monotonic() - STARTED > float(os.environ.get("STOP_AFTER_S", "inf")):
+            control.should_training_stop = True
+
+
 class Metrics(TrainerCallback):
     def __init__(self):
         self.seen, self.trainer = 0, None
@@ -226,13 +235,15 @@ trainer = DeskGRPOTrainer(
     environment_factory=Desk,
     peft_config=LoraConfig(r=32, lora_alpha=64, target_modules="all-linear", exclude_modules=r".*visual.*",
                            task_type="CAUSAL_LM"),
-    callbacks=[metrics := Metrics()],
+    callbacks=[metrics := Metrics(), Deadline()],
 )
 metrics.trainer = trainer
 if MAX_STEPS == 0:
     trainer.evaluate()
 else:
     trainer.train()
+    if trainer.state.global_step % trainer.args.eval_steps:
+        trainer.evaluate()
     trainer.save_model(str(OUT / "adapter"))
 (OUT / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=1))
 log.info("done in %ss: %s", round(time.monotonic() - STARTED), json.dumps(rates(ROLLOUTS)))

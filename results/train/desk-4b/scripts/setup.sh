@@ -1,18 +1,24 @@
 # The trainer's install, as the user that runs it (setup-box.sh runs it as ubuntu): the framework's trl extra with TRL,
-# PEFT and vLLM, Qwen3-4B at the benchmark's revision in ~/models/Qwen3-4B (the trainer and vLLM load the same files),
-# and the plugin for this kit. No Docker and no GridSim install: the envs run in the env server.
+# PEFT and vLLM (and flash-linear-attention for Qwen3.5's linear-attention layers), the model at its pinned revision in
+# ~/models/<name> (MODEL_ID, MODEL_REV; Qwen3-4B at the benchmark's revision by default; the trainer and vLLM load the
+# same files), and the plugin for this kit. No Docker and no GridSim install: the envs run in the env server.
 set -euxo pipefail
 cd "$HOME"
 export PATH=$HOME/.local/bin:$PATH
 FRAMEWORK=${FRAMEWORK:-0.9.1387}
 REF=${PLUGIN_REF:-desk-train}
+MODEL_ID=${MODEL_ID:-Qwen/Qwen3-4B}
+MODEL_REV=${MODEL_REV:-1cfa9a7208912126459214e8b04321603b3df60c}
 nvidia-smi --query-gpu=index,name,memory.total,driver_version,compute_cap --format=csv
 command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh
 [ -d plugin ] || git clone -q https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
 git -C plugin fetch -q origin
 git -C plugin checkout -q --detach "origin/$REF" 2>/dev/null || git -C plugin checkout -q --detach "$REF"
+[ -f "models/${MODEL_ID##*/}/config.json" ] || uvx -q --from "huggingface-hub==1.33.0" hf download "$MODEL_ID" \
+  --revision "$MODEL_REV" --local-dir "models/${MODEL_ID##*/}" > download.log 2>&1 &
+DOWNLOAD=$!
 [ -d trainer ] || uv venv -q -p 3.12 trainer
-STACK=("trl[vllm,peft]==1.16.*" "vllm==0.29.*")
+STACK=("trl[vllm,peft]==1.16.*" "vllm==0.29.*" "flash-linear-attention")
 install_framework() {  # the pinned release, or its wheel from PyPI's JSON API while the simple index lags behind it
   for _ in 1 2 3; do
     VIRTUAL_ENV=$HOME/trainer uv pip install --refresh-package agentenv-framework \
@@ -25,8 +31,8 @@ install_framework() {  # the pinned release, or its wheel from PyPI's JSON API w
 }
 install_framework
 VIRTUAL_ENV=$HOME/trainer uv pip freeze > pip_freeze.txt
-[ -f models/Qwen3-4B/config.json ] || trainer/bin/hf download Qwen/Qwen3-4B --revision \
-  1cfa9a7208912126459214e8b04321603b3df60c --local-dir models/Qwen3-4B > download.log 2>&1
+wait "$DOWNLOAD" || { tail -5 download.log; exit 1; }
+du -sh "models/${MODEL_ID##*/}"
 trainer/bin/python - <<'PY'
 import importlib.metadata as m
 
