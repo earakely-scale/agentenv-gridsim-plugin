@@ -294,7 +294,7 @@ one `p5.48xlarge` as root after `git clone -b desk-train-9b … /home/ubuntu/plu
 
 ### The 9B on the L40S (2026-10-30)
 
-On the L40S box, at `de84fd0`'s train.py: `trl vllm-serve` with the 9B and `run.sh`'s server flags
+On the L40S box, at `e9d81b7`: `trl vllm-serve` with the 9B and `run.sh`'s server flags
 (`max_model_len` 32768, prefix caching on the hybrid model) came up in 3 min 16 s and answered TRL's client with XML
 calls (`<function=get_prices>`, then `<function=end_turn>`), 5 s for two 190-token completions. A one-step train smoke
 in colocate mode (CONTEXT 16384, 2 rollouts, `ROLLOUTS=2 GENERATIONS=2`) took 8 min: generation, the env's rewards,
