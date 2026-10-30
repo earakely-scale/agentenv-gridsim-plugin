@@ -132,7 +132,9 @@ def rates(rollouts: list[dict]) -> dict:
             "end_turns_per_rollout": round(sum(c["tool"] == "end_turn" for r in scored for c in r["calls"])
                                            / len(scored), 2),
             "valid_offer_rate": round(sum(any(c["tool"].startswith("submit") and '"accepted_hours":"HE' in c["answer"]
-                                              for c in r["calls"]) for r in scored) / len(scored), 4)}
+                                              for c in r["calls"]) for r in scored) / len(scored), 4),
+            "tool_error_share": round(sum('"error":' in c["answer"] for r in scored for c in r["calls"])
+                                      / max(1, sum(len(r["calls"]) for r in scored)), 4)}
 
 
 class Deadline(TrainerCallback):
@@ -167,7 +169,7 @@ class Metrics(TrainerCallback):
             for c, r, a in zip(recent["completion"], rewards, recent["advantages"], strict=False)))
         log.info("%s step %s: %s", phase, state.global_step,
                  json.dumps({key: row.get(key) for key in ("rollouts", "unscored", "c_mean", "c_sd", "r_mean",
-                                                           "beats_idle_rate", "valid_offer_rate",
+                                                           "beats_idle_rate", "valid_offer_rate", "tool_error_share",
                                                            "end_turns_per_rollout", "finished_by_model_rate",
                                                            "elapsed_s")}))
 
@@ -196,8 +198,8 @@ trainer = DeskGRPOTrainer(
         output_dir=str(OUT),
         max_steps=max(1, MAX_STEPS),
         per_device_train_batch_size=1,
-        gradient_accumulation_steps=32,
-        num_generations=8,
+        gradient_accumulation_steps=int(os.environ.get("ROLLOUTS", "32")),
+        num_generations=int(os.environ.get("GENERATIONS", "8")),
         max_completion_length=CONTEXT_TOKENS - MAX_PROMPT_TOKENS,
         max_tool_calling_iterations=MAX_TOOL_ITERATIONS,
         chat_template_kwargs={"enable_thinking": True},
