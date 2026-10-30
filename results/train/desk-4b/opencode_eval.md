@@ -66,3 +66,31 @@ adapter's drop-in in place, then `pull.py` for the results and each attempt's GP
 `scripts/desk_bench_results.py` to score them beside the five models (C with its interval, pre and post cutoff,
 cost per window). The fine-tuned model is an added entry, so its runs are reported against the pre-registered rules
 with a deviation note for the added model.
+
+## Qwen3.5-9B
+
+The leaderboard rows for Qwen3.5-9B (base and fine-tuned) run the same way, with the `opencode-qwen35` harness:
+`desk_bench.py tasks --harness opencode-qwen35 --pack desk-v4-bench --allow-host 127.0.0.1` writes the bench bundle
+for model id `qwen3.5-9b`, and `bench/harness/bench-opencode-qwen35/opencode.json` is the 4B's OpenCode config with
+that model id (temperature 0.6, top_p 0.95, top_k 20, thinking on, 32,768 tokens of context). Base Qwen3.5-9B has no
+bench run yet, so it needs one as well, under the same harness.
+
+- **Box:** the weights are 19 GB in bf16, too many for the A10G's 24 GB with a 32k context. Use one L40S
+  (`g6e.xlarge`) or larger. Download `Qwen/Qwen3.5-9B` at revision `c202236235762e1c871ad0ccb60c8ee5ba337b9a`.
+- **vLLM 0.29**, the bench run's other flags kept, the parsers Qwen3.5 needs, and the vision tower left out:
+
+```bash
+vllm serve /home/ubuntu/gl/models/Qwen3.5-9B --served-model-name qwen3.5-9b --host 127.0.0.1 --port 8000 \
+  --gpu-memory-utilization 0.88 --dtype bfloat16 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+  --reasoning-parser qwen3 --default-chat-template-kwargs '{"enable_thinking": false}' --enable-prefix-caching \
+  --max-model-len 32768 --enable-prompt-tokens-details --language-model-only
+```
+
+  Qwen3.5 writes tool calls as XML (`<tool_call><function=…><parameter=…>`), which vLLM's `qwen3_coder` parser reads.
+  OpenCode turns thinking on per request, as for the 4B.
+- **The fine-tuned model:** merge the adapter into the base (`PeftModel.from_pretrained(base, adapter)
+  .merge_and_unload().save_pretrained(...)`, with the base's tokenizer and processor files copied beside it) and serve
+  the merged folder under the same name with the same flags. This avoids depending on vLLM's LoRA support for
+  Qwen3.5's linear-attention projections, which the adapter also covers.
+- **The quick check and the full run** are as above, with `--harness opencode-qwen35` and `--key qwen35-base` or
+  `--key qwen35-ft`. The proxy lane's `models` list is `["qwen3.5-9b"]`.
