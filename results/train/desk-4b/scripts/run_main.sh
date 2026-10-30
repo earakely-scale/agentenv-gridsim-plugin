@@ -3,7 +3,7 @@
 # (fused_probe.py), then one val day through train.py at the full config, its turns capped at 40. `run_main.sh main`:
 # the base eval of the 36 val days, up to 20 steps of 32 rollouts with evals at steps 10 and 20, a checkpoint every
 # step (the latest and steps 10 and 20 kept), the final eval and the adapter, in /home/ubuntu/main; a main/ holding a
-# checkpoint resumes from it. vLLM (colocated, asleep while the trainer optimises) gets the GPU less 23.5 GiB for the
+# checkpoint resumes from it. ROLLOUTS, EVAL_STEPS and EVAL_ON_START override the run's 32, 10 and 1. vLLM (colocated, asleep while the trainer optimises) gets the GPU less 23.5 GiB for the
 # trainer. MAX_HOURS is the box's lifetime from boot: training ends after the last step that leaves RESERVE_MIN
 # (default 120) before boot + MAX_HOURS - 15 min for the final eval and the copies. One line per stage goes to
 # /home/ubuntu/run_main.progress.
@@ -38,6 +38,8 @@ fi
 STOP_AT=$((DEADLINE - ${RESERVE_MIN:-120} * 60))
 LAST=$(ls -d $H/main/checkpoint-* 2>/dev/null | sed 's/.*-//' | sort -n | tail -1)
 progress "main: up to 20 steps ending by $(date -u -d @$STOP_AT +%H:%M) UTC, deadline $(date -u -d @"$DEADLINE" +%H:%M) UTC, vLLM at $VLLM_MEM${LAST:+, resuming after step $LAST}"
-run OUT=main MAX_STEPS=20 EVAL_STEPS=10 SAVE_STEPS=1 KEEP_CHECKPOINTS=10,20 MAX_TOOL_ITERATIONS=200 STOP_AT=$STOP_AT \
-  > $H/main.log 2>&1 || progress "MAIN FAILED: $(tail -3 $H/main.log)"
+progress "main settings: ROLLOUTS ${ROLLOUTS:-32}, EVAL_STEPS ${EVAL_STEPS:-10}, EVAL_ON_START ${EVAL_ON_START:-1}"
+run OUT=main MAX_STEPS=20 EVAL_STEPS=${EVAL_STEPS:-10} EVAL_ON_START=${EVAL_ON_START:-1} ROLLOUTS=${ROLLOUTS:-32} \
+  SAVE_STEPS=1 KEEP_CHECKPOINTS=10,20 MAX_TOOL_ITERATIONS=200 STOP_AT=$STOP_AT >> $H/main.log 2>&1 \
+  || progress "MAIN FAILED: $(tail -3 $H/main.log)"
 progress "main done: $(grep -o '[a-z]* step [0-9]*: .*' $H/main.log | tail -3 | tr '\n' ' ')"
