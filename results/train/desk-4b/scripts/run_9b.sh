@@ -24,7 +24,7 @@ progress "setup on $(nvidia-smi -L | wc -l) GPU(s), MAX_HOURS $MAX_HOURS, deadli
 bash $KIT/setup-box.sh > $H/setup-box.log 2>&1 || { progress "SETUP FAILED: $(tail -3 $H/setup-box.log)"; exit 1; }
 progress "setup done: $(grep -E '^(trainer|gpu):|setup took' $H/setup-box.log | tr '\n' ' ')"
 
-progress "sanity: one val day through the vLLM server"
+progress "sanity: one val day, generation and the weight sync"
 run OUT=sanity MAX_STEPS=0 EVAL_LIMIT=1 > $H/sanity.log 2>&1 || { progress "SANITY FAILED: $(tail -3 $H/sanity.log)"; exit 1; }
 progress "sanity done: $(grep -o 'eval step 0: .*' $H/sanity.log)"
 pkill -f "vllm-serve"; pkill -f "vllm.entrypoints"
