@@ -1,17 +1,22 @@
-"""Pilot config 2 on one Modal H100: train.py as committed, at CONTEXT 40,960 with vLLM asleep while the trainer
-optimises, and the desk-v4-train bundle served in the same container by serve.py with every episode a Modal sandbox,
-its env image built on Modal from the bundle's build context (desk-v4-freeze plus both packs). Modal keys come from AWS
-Secrets Manager in this process (profile agent-environments-admin) and reach the container as a secret that lives as
-long as the run; nothing prints or stores them. Outputs (metrics, rollouts, completions, checkpoints, the adapter and
-the server's log) land in the gridsim-desk-train volume under RUN.
+"""Pilot config 2 on one Modal H100: train.py with the desk-v4-train bundle served in the same container by serve.py,
+every episode a Modal sandbox whose env image Modal builds from the bundle's build context (desk-v4-freeze plus both
+packs). MODEL picks the model (a Hub id at a pinned revision; Qwen3.5-9B by default) and with it the served name the
+OpenCode-aligned rows carry, the context and the trainer's dtype. Modal keys come from AWS Secrets Manager in this
+process (profile agent-environments-admin) and reach the container as a secret that lives as long as the run; nothing
+prints or stores them. Outputs (metrics, rollouts, completions, endings, checkpoints, the adapter, the logs) land in the
+gridsim-desk-train volume under RUN.
 
-    python modal_pilot.py check                     # no GPU: the images, one episode as a sandbox, the rendered tools
-    RUN=pilot2-h100 python modal_pilot.py train     # the pilot, detached; MAX_STEPS, EVAL_LIMIT, ... pass through
+    python modal_pilot.py check                          # no GPU: images, one episode as a sandbox, the rendered tools
+    RUN=base-9b python modal_pilot.py eval               # the base model on the 36 val days, detached
+    RUN=pilot2-9b python modal_pilot.py train            # the 10-step pilot, detached; MAX_STEPS, EVAL_LIMIT, ... pass
 """
 
+import glob
 import inspect
 import json
 import os
+import re
+import statistics
 import subprocess
 import sys
 import time
@@ -20,15 +25,23 @@ import urllib.request
 import modal
 
 NAME = "gridsim-desk-train"
-REF = os.environ.get("PLUGIN_REF", "desk-train-v2")
-REV = "1cfa9a7208912126459214e8b04321603b3df60c"
+REF = os.environ.get("PLUGIN_REF", "desk-train-9b")
 FRAMEWORK = "0.9.1387"
 PLUGIN = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 KIT = "/root/plugin/results/train/desk-4b/scripts"
 URL = "http://127.0.0.1:8000"
-HOURS = 8
+HOURS = 10
+MODELS = {
+    "Qwen/Qwen3.5-9B": {"revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a", "served": "qwen3.5-9b",
+                        "context": "28672", "dtype": "bfloat16"},
+    "Qwen/Qwen3-4B": {"revision": "1cfa9a7208912126459214e8b04321603b3df60c", "served": "qwen3-4b",
+                      "context": "40960", "dtype": "float32"},
+}
+MODEL = os.environ.get("MODEL", "Qwen/Qwen3.5-9B")
+SPEC = MODELS[MODEL]
+MODEL_DIR = f"/root/models/{MODEL.split('/')[-1]}"
 SETTINGS = ("MAX_STEPS", "EVAL_STEPS", "EVAL_ON_START", "EVAL_LIMIT", "EVAL_BATCH", "SAVE_STEPS", "LR", "VLLM_MEM",
-            "VLLM_SLEEP", "FORMAT_PENALTY", "CONTEXT", "EVAL_SPLIT")
+            "VLLM_SLEEP", "FORMAT_PENALTY", "CONTEXT", "EVAL_SPLIT", "MODEL_DTYPE", "SERVED_MODEL")
 SERVER_CONFIG = """[stores]
 document = "local"
 object   = "local"
@@ -69,14 +82,14 @@ image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("git", "curl")
     .uv_pip_install(f"agentenv-framework[trl]=={FRAMEWORK}", "trl[vllm,peft]==1.16.*", "vllm==0.29.*",
-                    "transformers==5.22.*")
+                    "transformers==5.22.*", "flash-linear-attention")
+    .run_commands(f"hf download {MODEL} --revision {SPEC['revision']} --local-dir {MODEL_DIR}")
     .run_commands(
         f"git clone -q {PLUGIN} /root/plugin && git -C /root/plugin checkout -q --detach {COMMIT}",
         "python -m venv /root/envbox && /root/envbox/bin/pip install -q uv",
         f"/root/envbox/bin/uv pip install -q --python /root/envbox/bin/python -e /root/plugin "
         f"'agentenv-framework[openenv]=={FRAMEWORK}'",
         "cd /root/plugin && /root/envbox/bin/python scripts/desk_train.py bundle --out /root/bundles/desk-v4-train",
-        f"hf download Qwen/Qwen3-4B --revision {REV} --local-dir /root/models/Qwen3-4B",
     )
 )
 with image.imports():
@@ -107,13 +120,34 @@ def serve(log: str) -> subprocess.Popen:
             time.sleep(5)
 
 
+def endings(out: str) -> dict:
+    """How each logged rollout ended, with its mean C: the model's own end_turn through the day, a parsed tool call TRL
+    did not run (the length or iteration cap), an unparseable tool call, or a reply without one."""
+    rollouts = [json.loads(line) for line in open(f"{out}/rollouts.jsonl")]
+    summary = {}
+    for path in glob.glob(f"{out}/completions-*-*.jsonl"):
+        phase, step = re.findall(r"completions-(\w+)-(\d+)\.jsonl", path)[0]
+        logged = [r for r in rollouts if r["phase"] == phase and r["step"] == int(step)]
+        completions = [json.loads(line) for line in open(path)]
+        size = min(len(logged), len(completions))
+        kinds: dict[str, list[float]] = {}
+        for done, rollout in zip(completions[len(completions) - size:], logged[len(logged) - size:], strict=True):
+            last = done["completion"][-1]
+            text = str(last.get("content") or "")
+            kind = ("full_day" if rollout["finished_by_model"] else "cap" if last.get("tool_calls")
+                    else "malformed" if "<tool_call>" in text else "plain" if text.strip() else "empty")
+            kinds.setdefault(kind, []).append(rollout["reward"] if rollout["reward"] is not None else float("nan"))
+        summary[f"{phase}{step}"] = {kind: [len(c), round(statistics.fmean(c), 4)] for kind, c in sorted(kinds.items())}
+    return summary
+
+
 @app.function(cpu=4.0, memory=16 * 1024, timeout=3600, secrets=[keys])
 def check() -> dict:
     """No GPU: the server up, the factory built (one probe episode, the env image built on its first deploy), the tools
-    as TRL collects and Qwen3-4B's template renders them, and one more episode's deploy."""
+    as TRL collects them and the model's template renders them, and one more episode's deploy."""
     started = time.monotonic()
     server = serve("/root/server.log")
-    out = {"server_start_s": round(time.monotonic() - started)}
+    out = {"model": MODEL, "server_start_s": round(time.monotonic() - started)}
     try:
         env = AgentEnv(URL, split="train", tool_timeout=300, reset_timeout=1800)
         t = time.monotonic()
@@ -123,9 +157,12 @@ def check() -> dict:
                  if name not in ("reset", "get_reward") and not name.startswith("_")]
         out["tools"] = {getattr(tool, "__name__", "?"): type(tool).__name__ for tool in tools}
         row = env.dataset[0]
-        text = AutoTokenizer.from_pretrained("/root/models/Qwen3-4B").apply_chat_template(
-            row["prompt"], tools=tools, tokenize=False, add_generation_prompt=True, enable_thinking=True)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
+        text = tokenizer.apply_chat_template(row["prompt"], tools=tools, tokenize=False, add_generation_prompt=True,
+                                             enable_thinking=True)
+        out["prompt_tokens"] = len(tokenizer(text, add_special_tokens=False)["input_ids"])
         out["submit_dam_offers"] = next(line for line in text.splitlines() if '"submit_dam_offers"' in line)
+        out["generation_prompt"] = text[-40:]
         t = time.monotonic()
         environment.reset(**row)
         out["first_call"] = environment.get_asset_status()[:120]
@@ -138,19 +175,22 @@ def check() -> dict:
         server.terminate()
         server.wait(timeout=600)
     out["total_s"] = round(time.monotonic() - started)
-    out["server_log_tail"] = open("/root/server.log").read()[-1500:]
+    out["server_log_tail"] = open("/root/server.log").read()[-1000:]
     return out
 
 
 @app.function(gpu="H100", cpu=8.0, memory=96 * 1024, timeout=HOURS * 3600, volumes={"/out": volume}, secrets=[keys])
-def train(run: str, settings: dict[str, str]) -> None:
-    """train.py with pilot config 2 at CONTEXT 40,960, the server beside it; the volume committed every minute."""
-    os.makedirs(f"/out/{run}", exist_ok=True)
-    server = serve(f"/out/{run}/server.log")
-    env = {**os.environ, "ENV_URL": URL, "MODEL": "/root/models/Qwen3-4B", "OUT": f"/out/{run}", "MAX_STEPS": "10",
-           "CONTEXT": "40960", "FORMAT_PENALTY": "0.1", "VLLM_MODE": "colocate", "PYTHONUNBUFFERED": "1",
-           "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True", **settings}
-    with open(f"/out/{run}/train.log", "a") as log:
+def run(name: str, settings: dict[str, str]) -> None:
+    """train.py with pilot config 2 for MODEL, the server beside it; the volume committed every minute, and the
+    endings of every logged batch written at the end. MAX_STEPS=0 evaluates only."""
+    out = f"/out/{name}"
+    os.makedirs(out, exist_ok=True)
+    server = serve(f"{out}/server.log")
+    env = {**os.environ, "ENV_URL": URL, "MODEL": MODEL_DIR, "OUT": out, "MAX_STEPS": "10", "CONTEXT": SPEC["context"],
+           "MODEL_DTYPE": SPEC["dtype"], "SERVED_MODEL": SPEC["served"], "FORMAT_PENALTY": "0.1",
+           "VLLM_MODE": "colocate", "PYTHONUNBUFFERED": "1", "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+           **settings}
+    with open(f"{out}/train.log", "a") as log:
         trainer = subprocess.Popen([sys.executable, f"{KIT}/train.py"], env=env, stdout=log, stderr=subprocess.STDOUT)
         while True:
             try:
@@ -160,19 +200,24 @@ def train(run: str, settings: dict[str, str]) -> None:
                 volume.commit()
     server.terminate()
     server.wait(timeout=900)
+    if os.path.exists(f"{out}/rollouts.jsonl"):
+        with open(f"{out}/endings.json", "w") as f:
+            json.dump(endings(out), f, indent=1)
     volume.commit()
     if trainer.returncode:
         raise RuntimeError(f"train.py exited with {trainer.returncode}")
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] == ["check"]:
+    mode = sys.argv[1] if len(sys.argv) == 2 else ""
+    settings = {key: os.environ[key] for key in SETTINGS if key in os.environ}
+    if mode == "check":
         with modal.enable_output(), app.run():
             print(json.dumps(check.remote(), indent=1))
-    elif sys.argv[1:] == ["train"]:
+    elif mode in ("eval", "train"):
+        settings = ({"MAX_STEPS": "0"} if mode == "eval" else {}) | settings
         with modal.enable_output(), app.run(detach=True):
-            call = train.spawn(os.environ.get("RUN", "pilot2-h100"), {key: os.environ[key] for key in SETTINGS
-                                                                       if key in os.environ})
-            print(f"spawned {call.object_id} on plugin {COMMIT[:7]}; outputs in the {NAME} volume")
+            call = run.spawn(os.environ.get("RUN", f"{mode}-{SPEC['served']}"), settings)
+            print(f"spawned {call.object_id}: {mode} of {MODEL} on plugin {COMMIT[:7]}, outputs in the {NAME} volume")
     else:
         sys.exit(__doc__)

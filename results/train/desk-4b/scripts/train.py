@@ -38,6 +38,8 @@ SHORT_CURVES = "Keep every curve short: 2 to 4 [MW, price] points."
 TRAIN_SAMPLING = {"temperature": 0.8, "top_p": 0.95, "top_k": 20}
 EVAL_SAMPLING = {"temperature": 0.6, "top_p": 0.95, "top_k": 20}
 FORMAT_PENALTY = float(os.environ.get("FORMAT_PENALTY", "0.1"))
+SERVED_MODEL = os.environ.get("SERVED_MODEL", "qwen3-4b")
+HEAD = CONTEXT["head"].replace("qwen3-4b", SERVED_MODEL)
 CONTEXT_TOKENS = int(os.environ.get("CONTEXT", "40960"))
 MAX_PROMPT_TOKENS = 9216
 MAX_TOOL_ITERATIONS = 64
@@ -53,7 +55,7 @@ log = logging.getLogger("desk_grpo")
 
 def opencode(row: dict) -> dict:
     system, wake = row["prompt"]
-    return {"prompt": [{"role": "system", "content": CONTEXT["head"] + system["content"] + "\n" + END_TURN + "\n"
+    return {"prompt": [{"role": "system", "content": HEAD + system["content"] + "\n" + END_TURN + "\n"
                         + SHORT_CURVES + CONTEXT["tail"]},
                        {"role": "user", "content": json.dumps(wake["content"], ensure_ascii=False)}]}
 
@@ -205,6 +207,7 @@ trainer = DeskGRPOTrainer(
         vllm_max_model_length=CONTEXT_TOKENS,
         vllm_enable_sleep_mode=os.environ.get("VLLM_SLEEP", "1") == "1",
         bf16=True,
+        model_init_kwargs={"dtype": os.environ.get("MODEL_DTYPE", "float32")},
         gradient_checkpointing=True,
         eval_strategy="steps",
         eval_steps=int(os.environ.get("EVAL_STEPS", str(max(1, MAX_STEPS)))),
@@ -221,7 +224,8 @@ trainer = DeskGRPOTrainer(
     train_dataset=train_rows,
     eval_dataset=eval_rows,
     environment_factory=Desk,
-    peft_config=LoraConfig(r=32, lora_alpha=64, target_modules="all-linear", task_type="CAUSAL_LM"),
+    peft_config=LoraConfig(r=32, lora_alpha=64, target_modules="all-linear", exclude_modules=r".*visual.*",
+                           task_type="CAUSAL_LM"),
     callbacks=[metrics := Metrics()],
 )
 metrics.trainer = trainer
