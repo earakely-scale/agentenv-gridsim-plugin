@@ -160,10 +160,13 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     and does not count toward the retry limit, with the safety stop at 6 attempts a window, as for Gemini's 400s.
 21. Pace: the account allows 1,000,000 tokens a minute, cached tokens included, which one episode reaches at about a
     75k-token prompt, so the windows run near-serially (at most 2 at once), in pack order.
-22. Caps: $8 a window and $200 in total for Beam (its own budget, apart from the $700 above), metered by the proxy at
-    the prices in 15. An attempt stopped by the window cap is final and reported as capped, with its spend; it is not
-    retried or scored. No window starts once the spend so far plus the running windows' projected cost would pass
-    $200; windows not run are reported as not run.
+22. Caps, metered by the proxy at the prices in 15: $20 a window, a guard against a runaway episode (raised from $8
+    before the first scored call, since $8 could stop windows as long as Sol's), and $200 in total for Beam, its own
+    budget apart from the $700 above: the proxy stops at $198.07, which with the $1.93 smoke in 23 is $200. An attempt
+    stopped by the window cap is final and reported as capped, with its spend; it is not retried or scored. No window
+    starts once the spend so far, each running window at its likely cost (the larger of its spend and the mean graded
+    window's cost, $5 before three are graded) and the windows left at that mean would pass $198.07; windows not run
+    are reported as not run.
 23. Smoke, not scored: the pilot window (2026-02-03..05 S01) on 2026-10-30, on local Docker rather than route C (the
     internet was not blocked; Beam made no shell or builtin call). Completed, 19 of 19 wakes in one session, 82 model
     requests plus 21 HTTP 429s that OpenCode retried, 71 desk calls, largest prompt 88k tokens, no compaction, C 0.13,
