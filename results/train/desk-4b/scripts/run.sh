@@ -1,5 +1,5 @@
 # The pilot (or an eval) on a box setup-box.sh prepared, as its user. One GPU: vLLM colocated with the trainer. More:
-# a vLLM server (`trl vllm-serve`: data parallel over GPUs 1..N-1, tensor parallel 1, 40,960 tokens; the trainer pushes
+# a vLLM server (`trl vllm-serve`: data parallel over GPUs 1..N-1, tensor parallel 1, CONTEXT tokens; the trainer pushes
 # the LoRA-merged weights to it every step) and the trainer on GPU 0. VLLM_MODE overrides the choice; MAX_STEPS, OUT,
 # LR, EVAL_STEPS, EVAL_LIMIT and the rest pass through to train.py.
 set -euo pipefail
@@ -13,7 +13,7 @@ if [ "$MODE" = server ]; then
   [ "$GPUS" -gt 1 ] || { echo "VLLM_MODE=server needs a second GPU for vLLM"; exit 1; }
   if ! curl -sf -m 5 "http://127.0.0.1:$VLLM_PORT/health" > /dev/null; then
     CUDA_VISIBLE_DEVICES=$(seq -s, 1 $((GPUS - 1))) nohup trainer/bin/trl vllm-serve --model "$MODEL" \
-      --tensor_parallel_size 1 --data_parallel_size $((GPUS - 1)) --max_model_len 40960 --host 127.0.0.1 \
+      --tensor_parallel_size 1 --data_parallel_size $((GPUS - 1)) --max_model_len "${CONTEXT:-40960}" --host 127.0.0.1 \
       --port "$VLLM_PORT" --enable_prefix_caching True > vllm-serve.log 2>&1 &
     SERVER=$!
     until curl -sf -m 5 "http://127.0.0.1:$VLLM_PORT/health" > /dev/null; do
