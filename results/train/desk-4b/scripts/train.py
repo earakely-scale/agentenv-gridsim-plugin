@@ -10,13 +10,21 @@ desk brief, its skills block after it) and one line on ending a turn with end_tu
 without a tool call; each wake reaches the model as a JSON string, as OpenCode delivers it. A callback writes each log
 line to $OUT/metrics.jsonl with the rollouts' C (the reward), R and the share beating idle and the anchor since the line
 before, and the latest generation batch's completions to $OUT/completions-<phase>-<step>.jsonl; $OUT/rollouts.jsonl
-gets each rollout's tool calls as it is logged."""
+gets each rollout's tool calls as it is logged.
+
+Long days (pilot config 2 at 96k): THINK_BUDGET caps each turn's thinking (vLLM's thinking_token_budget, the qwen3
+reasoning parser), MAX_TOOL_ITERATIONS bounds the turns, OFFLOAD_ACTIVATIONS keeps the saved activations in CPU memory,
+and in colocate mode vLLM stays awake through a batch's whole tool loop (VLLM_HOLD_AWAKE), keeping its prefix cache,
+and sleeps once before the trainer's passes. SAVE_STEPS checkpoints (weights, optimizer, step) and KEEP_CHECKPOINTS
+names the steps kept besides the latest; a run whose OUT holds a checkpoint resumes from the last one. CPU_CHECK=1 runs
+the same loop without vLLM or a GPU, for checks with a tiny model."""
 
 import contextlib
 import functools
 import json
 import logging
 import os
+import shutil
 import statistics
 import sys
 import time
@@ -26,7 +34,9 @@ import torch
 from agent_env.training.trl import ENDED, FAILED, AgentEnv
 from peft import LoraConfig
 from transformers import TrainerCallback
+from transformers.trainer_utils import get_last_checkpoint
 from trl import GRPOConfig, GRPOTrainer
+from trl.generation import vllm_generation
 
 KIT = Path(__file__).resolve().parent.parent
 OUT = Path(os.environ.get("OUT", "out"))
@@ -43,7 +53,12 @@ SERVED_MODEL = os.environ.get("SERVED_MODEL", "qwen3-4b")
 HEAD = CONTEXT["head"].replace("qwen3-4b", SERVED_MODEL)
 CONTEXT_TOKENS = int(os.environ.get("CONTEXT", "40960"))
 MAX_PROMPT_TOKENS = 9216
-MAX_TOOL_ITERATIONS = 64
+MAX_TOOL_ITERATIONS = int(os.environ.get("MAX_TOOL_ITERATIONS", "64"))
+THINK_BUDGET = int(os.environ.get("THINK_BUDGET", "0"))
+CPU_CHECK = os.environ.get("CPU_CHECK") == "1"
+VLLM_MODE = os.environ.get("VLLM_MODE", "colocate")
+KEEP_CHECKPOINTS = {int(step) for step in os.environ.get("KEEP_CHECKPOINTS", "").split(",") if step}
+RESUME = get_last_checkpoint(str(OUT)) if OUT.is_dir() else None
 STARTED = time.monotonic()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -52,6 +67,8 @@ for noisy in ("httpx", "httpcore", "agent_env", "agentenv_protocol", "websockets
     logging.getLogger(noisy).setLevel(logging.WARNING)
 logging.getLogger("agent_env.training.trl").setLevel(logging.INFO)
 log = logging.getLogger("desk_grpo")
+if THINK_BUDGET and VLLM_MODE == "colocate" and not CPU_CHECK:
+    vllm_generation.LLM = functools.partial(vllm_generation.LLM, reasoning_parser="qwen3")
 
 
 def opencode(row: dict) -> dict:
@@ -139,6 +156,19 @@ def rates(rollouts: list[dict]) -> dict:
                                       / max(1, sum(len(r["calls"]) for r in scored)), 4)}
 
 
+
+def thinking(completions: list, processing_class) -> dict:
+    """Thinking tokens per assistant turn in the latest logged completions, and with THINK_BUDGET the share of turns
+    the budget cut (vLLM forces `</think>` at the budget, so a cut turn thinks for the budget less a token or two)."""
+    tokenizer = getattr(processing_class, "tokenizer", processing_class)
+    counts = [len(tokenizer(str(m.get("reasoning_content") or ""), add_special_tokens=False)["input_ids"])
+              for messages in completions for m in messages if m.get("role") == "assistant"]
+    if not counts:
+        return {}
+    return {"think_tokens_per_turn": round(statistics.fmean(counts), 1), "turns_logged": len(counts),
+            **({"think_cut_share": round(sum(c >= THINK_BUDGET - 4 for c in counts) / len(counts), 4)}
+               if THINK_BUDGET else {})}
+
 class Deadline(TrainerCallback):
     """Ends training after the last step whose successor could not finish before STOP_AT (epoch seconds; the longest
     step so far times the next), so a box with a fixed lifetime still runs the final eval, off its schedule if need
@@ -156,6 +186,16 @@ class Deadline(TrainerCallback):
             control.should_training_stop = True
 
 
+
+class Prune(TrainerCallback):
+    """Keeps the latest checkpoint and those of the steps in KEEP_CHECKPOINTS."""
+
+    def on_save(self, args, state, control, **kwargs):
+        for path in OUT.glob("checkpoint-*"):
+            step = int(path.name.rsplit("-", 1)[1])
+            if step != state.global_step and step not in KEEP_CHECKPOINTS:
+                shutil.rmtree(path)
+
 class Metrics(TrainerCallback):
     def __init__(self):
         self.seen, self.trainer = 0, None
@@ -166,15 +206,16 @@ class Metrics(TrainerCallback):
         logs = logs or {}
         phase = "eval" if any(key.startswith("eval_") for key in logs) else "train"
         new, self.seen = ROLLOUTS[self.seen:], len(ROLLOUTS)
+        recent = self.trainer._logs
         row = {"phase": phase, "step": state.global_step, "elapsed_s": round(time.monotonic() - STARTED), **rates(new),
-               "torch_peak_gib": round(torch.cuda.max_memory_allocated() / 2**30, 2),
+               **(thinking(recent["completion"], self.trainer.processing_class) if new else {}),
+               "torch_peak_gib": round(torch.cuda.max_memory_allocated() / 2**30, 2) if not CPU_CHECK else 0,
                **{key: value for key, value in logs.items() if isinstance(value, (int, float))}}
         self.file.write(json.dumps(row) + "\n")
         self.file.flush()
         with (OUT / "rollouts.jsonl").open("a") as f:
             f.writelines(json.dumps(r | {"phase": phase, "step": state.global_step}) + "\n" for r in new)
         if new:
-            recent = self.trainer._logs
             rewards = next(iter(recent["rewards"].values()), [])
             (OUT / f"completions-{phase}-{state.global_step}.jsonl").write_text("".join(
                 json.dumps({"completion": c, "reward": r, "advantage": a}, default=str) + "\n"
@@ -202,6 +243,38 @@ class DeskGRPOTrainer(GRPOTrainer):
             self.vllm_generation.__dict__.update(sampling)
         return torch.zeros((), device=self.accelerator.device), None, None
 
+    def _generate(self, prompts):
+        """With colocated vLLM asleep between generations, TRL wakes it, pushes the weights and drops the KV cache at
+        every turn of the tool loop, so each turn prefills every day from its start. VLLM_HOLD_AWAKE (the default)
+        keeps it awake, its weights pushed once and its prefix cache, through a batch's whole loop, then puts it to
+        sleep before the trainer's passes."""
+        generation = self.vllm_generation
+        if not (self.use_vllm and generation.mode == "colocate" and generation.enable_sleep_mode
+                and os.environ.get("VLLM_HOLD_AWAKE", "1") == "1"):
+            return super()._generate(prompts)
+        llm, awake, synced = generation.llm, set(), []
+        sleep, wake_up, sync_weights = llm.sleep, llm.wake_up, generation.sync_weights
+
+        def wake_once(tags=None):
+            fresh = [tag for tag in tags or ("weights", "kv_cache") if tag not in awake]
+            if fresh:
+                wake_up(tags=fresh)
+                awake.update(fresh)
+
+        def sync_once():
+            if not synced:
+                sync_weights()
+                synced.append(True)
+
+        llm.sleep, llm.wake_up, generation.sync_weights = (lambda level=1: None), wake_once, sync_once
+        try:
+            return super()._generate(prompts)
+        finally:
+            llm.sleep, llm.wake_up = sleep, wake_up
+            del generation.sync_weights
+            sleep(level=2)
+            generation._llm_weights_sleeping = True
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """OFFLOAD_ACTIVATIONS=1 keeps what the forward saves for backward (the checkpointed layer inputs, about 256 KiB
         a token) in pinned CPU memory."""
@@ -224,31 +297,33 @@ trainer = DeskGRPOTrainer(
         max_tool_calling_iterations=MAX_TOOL_ITERATIONS,
         chat_template_kwargs={"enable_thinking": True},
         **TRAIN_SAMPLING,
+        generation_kwargs={"thinking_token_budget": THINK_BUDGET} if THINK_BUDGET and not CPU_CHECK else None,
         learning_rate=float(os.environ.get("LR", "2e-5")),
         lr_scheduler_type="constant",
         loss_type="dr_grpo",
         beta=0.0,
         epsilon_high=0.28,
         vllm_importance_sampling_mode="token_truncate",
-        use_vllm=True,
-        vllm_mode=os.environ.get("VLLM_MODE", "colocate"),
+        use_vllm=not CPU_CHECK,
+        vllm_mode=VLLM_MODE,
         vllm_server_host="127.0.0.1",
         vllm_server_port=int(os.environ.get("VLLM_PORT", "8001")),
         vllm_gpu_memory_utilization=float(os.environ.get("VLLM_MEM", "0.6")),
-        vllm_max_model_length=CONTEXT_TOKENS,
+        vllm_max_model_length=2 * CONTEXT_TOKENS - MAX_PROMPT_TOKENS,
         vllm_enable_sleep_mode=os.environ.get("VLLM_SLEEP", "1") == "1",
-        bf16=True,
+        bf16=not CPU_CHECK,
+        use_cpu=CPU_CHECK,
         model_init_kwargs={"dtype": os.environ.get("MODEL_DTYPE", "float32")},
         gradient_checkpointing=True,
         eval_strategy="steps" if EVAL_LIMIT else "no",
         eval_steps=int(os.environ.get("EVAL_STEPS", str(max(1, MAX_STEPS)))),
-        eval_on_start=os.environ.get("EVAL_ON_START", "1") == "1" and EVAL_LIMIT > 0,
+        eval_on_start=os.environ.get("EVAL_ON_START", "1") == "1" and EVAL_LIMIT > 0 and RESUME is None,
         num_generations_eval=1,
         per_device_eval_batch_size=int(os.environ.get("EVAL_BATCH", "12")),
         logging_steps=1,
         save_strategy="steps",
         save_steps=int(os.environ.get("SAVE_STEPS", "5")),
-        save_only_model=True,
+        save_only_model=False,
         report_to="none",
         seed=0,
     ),
@@ -257,13 +332,15 @@ trainer = DeskGRPOTrainer(
     environment_factory=Desk,
     peft_config=LoraConfig(r=32, lora_alpha=64, target_modules="all-linear", exclude_modules=r".*visual.*",
                            task_type="CAUSAL_LM"),
-    callbacks=[metrics := Metrics(), Deadline()],
+    callbacks=[metrics := Metrics(), Deadline()] + ([Prune()] if KEEP_CHECKPOINTS else []),
 )
 metrics.trainer = trainer
 if MAX_STEPS == 0:
     trainer.evaluate()
 else:
-    trainer.train()
+    if RESUME:
+        log.info("resuming from %s", RESUME)
+    trainer.train(resume_from_checkpoint=RESUME)
     if EVAL_LIMIT and trainer.state.global_step % trainer.args.eval_steps:
         trainer.evaluate()
     trainer.save_model(str(OUT / "adapter"))

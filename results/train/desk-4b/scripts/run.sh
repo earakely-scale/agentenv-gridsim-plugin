@@ -9,7 +9,8 @@ cd "$HOME"
 GPUS=$(nvidia-smi -L | wc -l)
 MODE=${VLLM_MODE:-$([ "$GPUS" -gt 1 ] && echo server || echo colocate)}
 export MODEL=${MODEL:-models/Qwen3-4B} ENV_URL=${ENV_URL:-http://127.0.0.1:8000} VLLM_MODE=$MODE
-export VLLM_PORT=${VLLM_PORT:-8001} PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export VLLM_PORT=${VLLM_PORT:-8001} PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True VLLM_USE_FLASHINFER_SAMPLER=0
+export PATH=$HOME/trainer/bin:$PATH
 curl -sf -m 10 "$ENV_URL/list_environments" > /dev/null || { echo "no env server at $ENV_URL"; exit 1; }
 if [ "$MODE" = server ]; then
   [ "$GPUS" -gt 1 ] || { echo "VLLM_MODE=server needs a second GPU for vLLM"; exit 1; }
@@ -17,7 +18,8 @@ if [ "$MODE" = server ]; then
   if ! curl -sf -m 5 "http://127.0.0.1:$VLLM_PORT/health" > /dev/null; then
     CUDA_VISIBLE_DEVICES=$(seq -s, 1 $((GPUS - 1))) nohup trainer/bin/trl vllm-serve --model "$MODEL" \
       --tensor_parallel_size 1 --data_parallel_size $((GPUS - 1)) --max_model_len "$SERVER_LEN" --host 127.0.0.1 \
-      --port "$VLLM_PORT" --enable_prefix_caching "${VLLM_PREFIX_CACHING:-True}" > vllm-serve.log 2>&1 &
+      --port "$VLLM_PORT" --enable_prefix_caching "${VLLM_PREFIX_CACHING:-True}" \
+      $([ "${THINK_BUDGET:-0}" -gt 0 ] && echo --reasoning-parser qwen3) > vllm-serve.log 2>&1 &
     SERVER=$!
     until curl -sf -m 5 "http://127.0.0.1:$VLLM_PORT/health" > /dev/null; do
       kill -0 "$SERVER" 2>/dev/null || { tail -30 vllm-serve.log; exit 1; }

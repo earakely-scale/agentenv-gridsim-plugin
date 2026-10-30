@@ -10,6 +10,8 @@ REF=${PLUGIN_REF:-desk-train}
 MODEL_ID=${MODEL_ID:-Qwen/Qwen3-4B}
 MODEL_REV=${MODEL_REV:-1cfa9a7208912126459214e8b04321603b3df60c}
 nvidia-smi --query-gpu=index,name,memory.total,driver_version,compute_cap --format=csv
+DRIVER=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)
+[ "${DRIVER%%.*}" -ge 580 ] || { echo "NVIDIA driver $DRIVER: torch's CUDA 13 build needs 580 or newer"; exit 1; }
 command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh
 [ -d plugin ] || git clone -q https://github.com/earakely-scale/agentenv-gridsim-plugin plugin
 git -C plugin fetch -q origin
@@ -18,7 +20,7 @@ git -C plugin checkout -q --detach "origin/$REF" 2>/dev/null || git -C plugin ch
   --revision "$MODEL_REV" --local-dir "models/${MODEL_ID##*/}" > download.log 2>&1 &
 DOWNLOAD=$!
 [ -d trainer ] || uv venv -q -p 3.12 trainer
-STACK=("trl[vllm,peft]==1.16.*" "vllm==0.29.*" "flash-linear-attention")
+STACK=("trl[vllm,peft]==1.16.*" "vllm==0.29.*" "flash-linear-attention" ninja)
 install_framework() {  # the pinned release, or its wheel from PyPI's JSON API while the simple index lags behind it
   for _ in 1 2 3; do
     VIRTUAL_ENV=$HOME/trainer uv pip install --refresh-package agentenv-framework \
