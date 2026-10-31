@@ -171,3 +171,21 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     internet was not blocked; Beam made no shell or builtin call). Completed, 19 of 19 wakes in one session, 82 model
     requests plus 21 HTTP 429s that OpenCode retried, 71 desk calls, largest prompt 88k tokens, no compaction, C 0.13,
     $1.92 at the prices in 15 (97% of input tokens cached), 4 minutes.
+24. Ran from 23:17 UTC on 2026-10-30 (not 2026-10-31, as 15 has it) to 02:30 UTC on 2026-10-31, at most 2 windows at
+    once, after the netcheck in 19 passed: the agent's container on the Docker bridge the egress rule covers, ercot.com,
+    github.com, pypi.org and the router unreachable from it, the model reachable through the proxy.
+25. Out of credits, decided while the run was in progress: the Hugging Face account ran out of prepaid credits at
+    01:55:02 UTC, after 29 windows had been graded ($58.71 metered). From then the router answered HTTP 402 ("You have
+    no remaining credits"), which ended four attempts on the 2026-08-26 front: S02 after $2.82 and S03 after $0.69,
+    both mid-episode, and S04 twice at $0, before any call. The driver classed the two mid-episode attempts as
+    agent-side. All four were reclassified by hand as infrastructure, a billing stop on our side and not the agent's
+    doing, and none counts toward the retry limit; the driver was then changed to class an HTTP 402 that way.
+    Admission was paused from 01:57 to 02:09 UTC while credits were added; S02 and S03 were graded on attempt 2, S04
+    on attempt 3, and the other 29 windows on attempt 1. All four 08-26 windows scored below zero, S01 included, which
+    ran before the halt.
+26. Provider errors handled inside the harness: of 4,457 requests through the proxy, 1,376 (30.9%) were HTTP 429, the
+    account's rate limit, and 617 (13.8%) HTTP 503, the router pausing Baseten for Beam ("paused by the circuit
+    breaker", retry-after 5 s). OpenCode retried both, and neither ended an attempt.
+27. Spend: $66.52 metered for the 36 attempts ($63.01 for the 32 graded ones, $3.51 for the two the 402 ended
+    mid-episode), $0.01 for the netcheck and $1.93 for the smoke: $68.46 for Beam, under its $200. 96% of input
+    tokens were cached; at the full input price of 15 that is $1.97 a graded window.
