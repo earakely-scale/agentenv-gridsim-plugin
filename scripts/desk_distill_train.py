@@ -2,7 +2,7 @@
 one row a wake, the exact request OpenCode sent for the wake's last turn, loss on the wake's assistant turns only.
 
 Rows run to about 136k tokens, so the trainer keeps what the forward saves for backward in pinned CPU memory and
-applies the 248k-vocabulary LM head only where a token is trained (``logits_to_keep``), never over the whole row. Before
+applies the 248k-vocabulary LM head only where a token is trained, a chunk at a time, never over the whole row. Before
 training, one forward and backward on the longest row reports the peak memory; a row is never truncated.
 
     python scripts/desk_distill_train.py --rows rows.jsonl --model models/Qwen3.5-9B --out out
@@ -22,24 +22,35 @@ from pathlib import Path
 
 import torch
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 from datasets import Dataset
 from peft import LoraConfig, PeftModel
 from transformers import AutoModelForImageTextToText, AutoTokenizer, TrainerCallback
 from trl import SFTConfig, SFTTrainer
 
 
+def _ce(h: torch.Tensor, t: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
+    return F.cross_entropy((h @ w.T).float(), t, reduction="sum")
+
+
 class DeskSFT(SFTTrainer):
     offload = True
+    chunk = 1024
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        """The decoder's last hidden states, then the LM head and cross-entropy at the trained positions only, a chunk
+        at a time and recomputed in backward, so no row's logits are ever held whole."""
         ids, labels = inputs["input_ids"], inputs["labels"]
         pos = (labels[0, 1:] != -100).nonzero().squeeze(-1)
+        base = model.get_base_model() if hasattr(model, "get_base_model") else model
         ctx = torch.autograd.graph.save_on_cpu(pin_memory=True) if self.offload else contextlib.nullcontext()
         with ctx:
-            out = model(input_ids=ids, logits_to_keep=pos, use_cache=False)
-        loss = F.cross_entropy(out.logits[0].float(), ids[0, pos + 1], reduction="sum")
+            h = base.model(input_ids=ids, use_cache=False).last_hidden_state[0, pos]
+        tgt, w = ids[0, pos + 1], base.lm_head.weight
+        loss = sum(checkpoint(_ce, h[i:i + self.chunk], tgt[i:i + self.chunk], w, use_reentrant=False)
+                   for i in range(0, len(pos), self.chunk))
         loss = loss / (num_items_in_batch if num_items_in_batch is not None else max(len(pos), 1))
-        return (loss, out) if return_outputs else loss
+        return (loss, None) if return_outputs else loss
 
 
 class Log(TrainerCallback):
@@ -87,6 +98,7 @@ def train(a: argparse.Namespace) -> None:
         callbacks=[Log(a.out / "log.jsonl", rows)],
     )
     trainer.model_accepts_loss_kwargs = True
+    trainer.chunk = a.chunk
     base = trainer.model.get_base_model()
     print(json.dumps({"model_class": type(base).__name__, "trainable": trainer.model.get_nb_trainable_parameters()}),
           flush=True)
@@ -140,6 +152,7 @@ def main() -> None:
     ap.add_argument("--max-tokens", type=int, default=150000)
     ap.add_argument("--save-steps", type=int, default=10)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--chunk", type=int, default=1024, help="trained positions per LM-head chunk")
     ap.add_argument("--resume")
     ap.add_argument("--probe-only", action="store_true")
     train(ap.parse_args())
