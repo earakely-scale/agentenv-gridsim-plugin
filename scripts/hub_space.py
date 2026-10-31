@@ -60,7 +60,8 @@ FEATURED = (("desk-v4-2026-05-08-S04.sol", "Three days of spring thunderstorms i
 D9 = re.compile(r"CROSSETT|CLO_ESR|WIG_ESS|WFTANK|\bJupiter\b|\bMEA\b|\bHabitat\b|\bTenaska\b|\b[A-Z0-9]+_RN\b|"
                 r"\b[A-Z0-9]+_ESR\w*\b|\b[A-Z0-9]+_ESS\w*\b")
 BOXES = re.compile(r"\bi-0[0-9a-f]{8,17}\b|\bip-\d{1,3}(?:-\d{1,3}){3}\b|\.(?:compute|ec2)\.internal\b|"
-                   r"\b127\.0\.0\.1\b|\blocalhost:\d|agent-env-local-[\w-]+|\brouter\.huggingface\.co\b")
+                   r"\b127\.0\.0\.1\b|\blocalhost:\d|agent-env-local-[\w-]+|\brouter\.huggingface\.co\b|"
+                   r"\bapi\.fireworks\.ai\b")
 TEXT = (".json", ".html", ".js", ".css", ".md", ".txt")
 PRODUCTS = ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")
 NOTICE_LEVELS = {"Watch", "Emergency", "Advisory", "OCN", "EEA", "EEA1", "EEA2", "EEA3"}
@@ -151,7 +152,7 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
         raw = load_series(pack, task)
         ser = build_series(task, raw)
         put_task(data, cat, *task_view("bench", task, raw, ser))
-        for g in (x for x in grades if x["task_id"] == task_id):
+        for g in (x for x in grades if x["task_id"] == task_id and x["status"] == "scored"):
             ep = json.loads(gzip.decompress((BENCH / g["episode"]).read_bytes()))
             ev, row = episode_view("bench", task, ser, ep, g, ms[g["model"]]["name"])
             tok = g["tokens"]
@@ -161,6 +162,8 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
                          "tokens": {k: tok[k] for k in ("input", "cached", "cache_write", "output", "reasoning")}}
             if http := failed_http(s, g):
                 ev["run"]["http"] = http
+            if stops := limit_stops(s, g):
+                ev["run"]["limit"] = stops
             key = f"bench/{task_id}.{g['model']}"
             (data / "ep" / f"{key}.json").write_text(dumps(ev))
             cat["episodes"][key] = row | {"split": g["split"], "front": g["front"], "usd": g["usd"],
@@ -179,6 +182,9 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
             "tasks": tasks, "names": module("hub_desk", "scripts/hub_desk.py").NAMED["v4"],
             "fronts": [{k: f[k] for k in ("front", "split", "kind")} for f in s["fronts"]],
             "splits": sides(s, card),
+            "unscored": [{"model": g["model"], "task": g["task_id"], "split": g["split"], "front": g["front"],
+                          "why": g["missing_reason"], "usd": g["usd_all_attempts"]}
+                         for g in grades if g["status"] != "scored"],
             "lead": f"bench/{s['hero']['task_id']}.{s['hero']['model']}"}
 
 
@@ -187,6 +193,15 @@ def failed_http(s: dict, g: dict) -> list[int]:
     codes = [re.search(r"error_code=(\d+)", a.get("error") or "") for a in s["attempts"] if a["model"] == g["model"]
              and a["task_id"] == g["task_id"] and a["attempt"] < g["attempts"] and a["status"] == "failed"]
     return sorted({int(m[1]) for m in codes}) if codes and all(codes) else []
+
+
+def limit_stops(s: dict, g: dict) -> int:
+    """How many of a graded run's earlier attempts OpenCode ended at its output limit, an infrastructure failure under
+    the pre-registration's output-limit rule."""
+    return sum(a["model"] == g["model"] and a["task_id"] == g["task_id"] and a["attempt"] < g["attempts"]
+               and a["status"] == "failed" and ((e := a.get("error") or "").startswith("harness output limit")
+                                                 or "opencode exited with code 0 without completing" in e)
+               for a in s["attempts"])
 
 
 def own_calls(own: dict) -> dict:
@@ -235,7 +250,8 @@ def captions(s: dict, grades: list[dict], desk: dict, card) -> list[str]:
 
 def deviations(s: dict) -> list[dict]:
     """The pre-registration's Deviations section at the tag the results cite, as numbered there (its own items, then
-    each later section's under its title), so the page lists what its link opens."""
+    each later section's under its title), so the page lists what its link opens; an exception's module path is dropped
+    from the error messages it quotes, as from the results' own, which the leak scan refuses."""
     ref = f"{s['run']['deviations_ref']}:{s['run']['prereg']}"
     r = subprocess.run(["git", "-C", str(ROOT), "show", ref], capture_output=True, text=True)
     if r.returncode:
@@ -255,7 +271,8 @@ def deviations(s: dict) -> list[dict]:
     ns = [x["n"] for g in groups for x in g["items"]]
     if ns != list(range(1, len(ns) + 1)):
         raise SystemExit(f"{ref}: its deviations are numbered {ns}")
-    return [g for g in groups if g["items"]]
+    clean = module("desk_bench_results", "scripts/desk_bench_results.py").MODULE.sub
+    return [g | {"items": [x | {"text": clean("", x["text"])} for x in g["items"]]} for g in groups if g["items"]]
 
 
 def sides(s: dict, card) -> dict:
@@ -928,10 +945,11 @@ def readme(cat: dict, desk: dict, s: dict, grades: list[dict], card) -> str:
     front, m = next(f for f in s["fronts"] if f["front"] == g["front"]), s["models"][h["model"]]
     replay = lambda k: f"{APP}/index.html?v=bench&m={k}&task={h['task_id']}"  # noqa: E731
     ci = lambda b: f"{card.pc(b['mean'])}% [{card.pc(b['ci'][0])}, {card.pc(b['ci'][1])}]"  # noqa: E731
+    n = lambda x: "" if x["n"] == s["n_windows"] else f"<br><small>{x['n']} of {s['n_windows']} windows</small>"  # noqa: E731
     cost = lambda x: (f"{card.bench_usd(x['cost']['usd_per_window'])} a window"  # noqa: E731
                       + (", GPU time" if x["cost"]["basis"] == "gpu_time" else "")
                       + f" · {card.bench_usd(x['cost']['usd_all_attempts'])} in all")
-    rows = "\n".join(f"| **{x['name']}** | {x['harness']} · {x['setting']} | "
+    rows = "\n".join(f"| **{x['name']}**{n(x)} | {x['harness']} · {x['setting']} | "
                      + " | ".join(ci(x[k]["C"]) for k in ("all", "pre_cutoff", "post_cutoff"))
                      + f" | {cost(x)} | [replay]({replay(x['key'])}) |" for x in ms)
     refs = "\n".join(f"| *{label}* | | " + " | ".join(f"*{card.pc(s['references'][k][x]['C']['mean'])}%*"
@@ -939,6 +957,9 @@ def readme(cat: dict, desk: dict, s: dict, grades: list[dict], card) -> str:
                      for k, label in card.BENCH_REFS.items())
     harness = card.bench_how(s)[0].removeprefix("**Each model in a native agent harness,** through AgentEnv: ")
     halves = " | ".join(f"{x['label']}<br><small>{x['note']}</small>" for x in sp.values())
+    off = Counter(r["model"] for r in grades if r["status"] != "scored")
+    capped = (" " + card.and_join([f"{s['models'][k]['name']}'s {c}" for k, c in off.items()])
+              + " windows stopped at the window cap are listed as capped and unscored.") if off else ""
     when = card.long_({"days_per_task": len(g["dates"])}, g["dates"][0])
     lead = (f"**[Replay the lead run]({replay(h['model'])}).** {m['name']} in {m['harness']} trades Battery "
             f"{g['site']} ({g['region']}, {g['battery']}) over {when}, through a {front['kind']}, "
@@ -979,8 +1000,8 @@ reminders it sets. The day settles on ERCOT's rules.
 the weather observed at the region's airport. The containers' light strips fill with the state of charge, power runs
 along the line as the battery charges or discharges, and the co-located solar tracks the sun on the days that have it.
 Beside the scene, the desk shows prices only as they posted, and every tool call as the model made it. The clock
-stops at each of the agent's turns. The episode browser lists the benchmark's {len(grades)} runs first, by model,
-side of the cutoffs, front and battery, then the development runs.
+stops at each of the agent's turns. The episode browser lists the benchmark's {len(grades) - off.total()} runs first, by
+model, side of the cutoffs, front and battery, then the development runs.{capped}
 
 **[Results]({APP}/results.html?v=bench).** The benchmark's hindsight capture either side of the training cutoffs, the
 table with its CIs, paired gaps, how it runs, its limitations and deviations, and every run as a replay.
