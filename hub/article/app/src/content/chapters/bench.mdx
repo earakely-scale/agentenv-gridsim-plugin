@@ -130,9 +130,11 @@ tools off and has its internet egress blocked.
 - **{F.bench.how.tools.head}** {F.bench.how.tools.text}
 - **{F.bench.how.internet.head}** {F.bench.how.internet.text}
 - **{F.bench.route.head}, because the Modal route wasn't available to us:** {F.bench.route.text}
-- **{F.bench.late.head}:** {F.bench.late.text} The prompt-cache fix is
+- **{F.bench.late.argon.head}:** {F.bench.late.argon.text} The prompt-cache fix is
   [agentenv-framework#388](https://github.com/scaleapi/agentenv-framework/pull/388).
-- **{F.bench.errors.head}:** {F.bench.errors.text} Both are logged in the
+- **{F.bench.errors.head}:** {F.bench.errors.text}
+- **{F.bench.late.beam.head}:** {F.bench.late.beam.text} {F.bench.price.beam}
+- **{F.bench.credits.head}:** {F.bench.credits.text} Both late runs are logged in full in the
   <a href={F.bench.links.deviations}>deviations</a>.
 - **Pre-registered.** The
   [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
@@ -142,9 +144,9 @@ tools off and has its internet egress blocked.
   {F.bench.text.reliability}
 
 **Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
-(`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), and `agent-env run` plays one window of it,
-with a `.agentenv/config.toml` that names the model endpoint and its key and a sandbox provider that enforces the
-bundle's network allowlist:
+(`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam` or `opencode-qwen`), and `agent-env run` plays
+one window of it, with a `.agentenv/config.toml` that names the model endpoint and its key and a sandbox provider that
+enforces the bundle's network allowlist:
 
 ```bash
 uv run python scripts/desk_bench.py tasks --harness codex-luna \

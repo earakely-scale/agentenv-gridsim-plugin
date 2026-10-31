@@ -264,8 +264,12 @@ def test_article_states_the_bench_as_the_card_does(bench):
     assert f"<small>{f['cap']['splits']}</small>" in block
     assert f"<small>{t['before']}[{t['label']}]({t['url']}){t['after']}</small>" in block
     assert t["url"] == f["links"]["deviations"] and f["tag"] in t["url"]
-    assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["late"], f["errors"])] == [
-        x for x in s["deviations"] if x.startswith(("Route C", "Gemini 4 Argon:", "Provider HTTP 400s"))]
+    assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["late"]["argon"], f["errors"], f["late"]["beam"],
+                                                   f["credits"])] == [
+        x for x in s["deviations"] if x.startswith(("Route C", "Gemini 4 Argon:", "Provider HTTP 400s", "Beam-1.0:",
+                                                    "Out of credits"))]
+    assert set(f["late"]) == {k for k, m in s["models"].items() if m.get("framework")}
+    assert f["price"]["beam"] == s["models"]["beam"]["price_note"] and f["price"]["beam"] in t["before"]
     assert f["ahead"] == f"GPT-6.1 Sol {f['m']['sol']['op']} and Claude Opus 5.5 {f['m']['opus']['op']}"
     for k, m in s["models"].items():
         got = f["m"][k]

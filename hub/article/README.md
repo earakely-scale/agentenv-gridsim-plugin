@@ -34,8 +34,9 @@ bid/offer curves, the Current Operating Plan, from v3 reserve offers) on prices,
 was posted, while AgentEnv's virtual clock stands still in a turn and runs between turns. Every task settles on the
 battery's ERCOT statement and is graded against the hindsight optimum and the battery's real operator, whose bids ERCOT
 discloses 60 days later. The article leads with the v4 benchmark: models in native agent harnesses (Claude Code, Codex
-CLI, Gemini CLI, and OpenCode for the open Qwen3-4B) run the desk for three days at a time across real Texas weather
-fronts, and it reports their hindsight capture before and after the models' training cutoffs, with what a window cost.
+CLI, Gemini CLI, and OpenCode for the open Beam-1.0 and Qwen3-4B) run the desk for three days at a time across real
+Texas weather fronts, and it reports their hindsight capture before and after the models' training cutoffs, with what a
+window cost.
 Then come the desk itself, its clock and tools, the development ladder of versions v2 to v4 and the v5 price-impact check,
 the methods and the limitations.
 
