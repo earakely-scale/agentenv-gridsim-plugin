@@ -275,6 +275,31 @@ def stats(capture: Path, tok, kwargs: dict) -> list[dict]:
     return out
 
 
+SUBMITS = ("submit_dam_offers", "submit_rt_offers", "update_cop")
+
+
+def refusals(capture: Path) -> dict:
+    """Per submit tool over every session's last request: calls, calls the env refused in whole or part (an error, a
+    rejected hour or a rejected AS offer), and the calls with AS offers refused."""
+    out = {t: {"calls": 0, "refused": 0, "as_refused": 0} for t in SUBMITS}
+    for reqs in load(capture).values():
+        last = reqs[-1]
+        prefix = stub.prefix_of(last["tools"])
+        res = {m.get("tool_call_id"): stub._json(stub._text(m.get("content")))
+               for m in last["messages"] if m.get("role") == "tool"}
+        for m in last["messages"]:
+            for c in m.get("tool_calls") or []:
+                name = c["function"]["name"][len(prefix):]
+                r = res.get(c["id"])
+                if name in out and isinstance(r, dict):
+                    out[name]["calls"] += 1
+                    out[name]["refused"] += bool(r.get("error") or r.get("rejected") or r.get("as_rejected"))
+                    out[name]["as_refused"] += bool(r.get("as_rejected"))
+    for v in out.values():
+        v["share"] = round(v["refused"] / v["calls"], 4) if v["calls"] else None
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -289,7 +314,12 @@ def main() -> None:
     t.add_argument("--capture", type=Path, required=True)
     t.add_argument("--tokenizer", required=True)
     t.add_argument("--out", type=Path, required=True)
+    f = sub.add_parser("refusals")
+    f.add_argument("--capture", type=Path, required=True)
     a = ap.parse_args()
+    if a.cmd == "refusals":
+        print(json.dumps(refusals(a.capture), indent=1))
+        return
     if a.cmd == "stats":
         tok = AutoTokenizer.from_pretrained(a.tokenizer)
         st = stats(a.capture, tok, {"enable_thinking": True})
