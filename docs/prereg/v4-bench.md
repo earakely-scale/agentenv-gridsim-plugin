@@ -236,3 +236,33 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     window that uses its three attempts on it is reported as missing. It applies to all three models; Beam never came
     near the limit (largest output 2.3k tokens). The attempts it ends, their windows, and C on windows graded after a
     retry against C on windows graded at once are reported per model.
+36. Budget and pace, decided while the runs were in progress: from 08:05 UTC the three models shared $390 (Edgar's
+    approval; the $130 a model of 33 was a split of it), with a guard on the box that stopped admitting windows of
+    every model while the combined projection (spend so far, running windows at their likely cost, the windows left at
+    each model's mean) passed it and set the proxy to refuse every call at $389 of actual spend; the $20 a window
+    stayed. Admission paused from 08:56 to 14:07 UTC. Pool raised $390 → $480 by Edgar at 14:07Z after a pause from
+    08:56Z; no attempt was retried or rerun because of the pause. The proxy's own total stop went from $400 to $490 at
+    the same time, restarted with nothing running. Raising Qwen3.8 Max to 6 windows at a time once the other two had
+    finished was approved but not applied: by then Qwen3.8 Max had one window left to start. All three ran 07:17 to
+    16:24 UTC.
+37. Hand reclassifications, corrections under the rules above rather than deviations, each keeping the original class
+    and its time. GLM-5.3 2026-01-23 S01 attempt 1, ended 07:26:22 UTC, agent to infrastructure at 07:40 under 35:
+    "opencode exited with code 0 without completing" after its last call stopped at the 32,000-token limit. GLM-5.3
+    2026-05-08 S02 attempt 1, ended 08:24:47 UTC, agent to infrastructure at 08:27 as a provider failure:
+    "litellm.MidStreamFallbackError: litellm.APIConnectionError: APIConnectionError: Fireworks_aiException - Connection
+    closed." After each, the driver was changed to class such an attempt that way itself, and a rescan of every
+    attempt found no other.
+38. Windows not graded: Kimi K3 2026-03-16 S04 (60 turns, 404 model calls, 214k-token peak context, $18.95),
+    2026-05-08 S04 (34 turns, 447 calls, 221k, $18.96), 2026-07-23 S04 (46 turns, 396 calls, 209k, $18.94) and
+    2026-08-26 S01 (50 turns, 449 calls, 198k, $19.02), each stopped by the $20 window cap and final under 33: in each
+    Kimi K3 polled the desk tools hundreds of times over a long, fully cached context. Kimi K3's C is over its other
+    28 windows. GLM-5.3 and Qwen3.8 Max have all 32. No window used its three attempts on 35.
+    Under 35: GLM-5.3 11 attempts on 8 windows (2026-03-16 S03, 2026-04-17 S03 and 2026-05-08 S04 graded on attempt
+    3; 2026-01-23 S01, 2026-03-16 S02, 2026-07-23 S01, 2026-07-23 S02 and 2026-08-26 S01 on attempt 2), C 0.213 on the
+    23 windows graded at once against 0.109 on the 9 graded after a retry; Kimi K3 1 attempt (2026-01-23 S01, after
+    $13.03 at a 395k-token context; graded on attempt 2, C 0.821, against 0.148 on its 27 graded at once); Qwen3.8 Max
+    3 attempts on 2 windows (2026-03-16 S03 on attempt 3, 2026-05-08 S04 on attempt 2), 0.174 against 0.136 on 30.
+39. Provider errors and spend: no HTTP 429 for any model; HTTP 503 ("upstream connect error") 2 for GLM-5.3 and 4 for
+    Kimi K3, retried by OpenCode within the turn; one mid-stream provider failure (37). Metered at the prices in 29:
+    GLM-5.3 $108.23 over 44 attempts, Kimi K3 $192.83 over 33 ($75.87 of it in the four capped attempts), Qwen3.8 Max
+    $128.98 over 35, and $7.41 for the smokes and netchecks: $437.45 of the $480. 97–98% of input tokens were cached.
