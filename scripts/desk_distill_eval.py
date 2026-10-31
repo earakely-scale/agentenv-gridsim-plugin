@@ -26,7 +26,8 @@ def _jsonl(p: Path) -> list[dict]:
 
 def meter(b: Path) -> dict[str, dict]:
     """Per window (MM-DD-Sxx): calls, largest prompt, generated tokens, output-cap stops, compactions (a drop in the
-    conversation's length between two of its calls) and calls OpenCode sent without the MCP tools (fewer than 29)."""
+    conversation's length between two of its calls), calls OpenCode sent without the MCP tools (fewer than 29) and
+    calls it sent with no tools at all, the text-only reply it forces when a turn reaches the step cap."""
     out: dict[str, dict] = {}
     rows = sorted(_jsonl(b / "meter.jsonl"), key=lambda r: r["t"])
     last: dict[str, int] = {}
@@ -36,9 +37,10 @@ def meter(b: Path) -> dict[str, dict]:
             continue
         u = r.get("usage") or {}
         m = out.setdefault(w, {"calls": 0, "max_prompt": 0, "generated": 0, "length_stops": 0, "compactions": 0,
-                               "tools_dropped": 0})
+                               "tools_dropped": 0, "step_cap_hits": 0})
         m["calls"] += 1
-        m["tools_dropped"] += r.get("tools", 0) < FULL_TOOLS
+        m["tools_dropped"] += 0 < r.get("tools", 0) < FULL_TOOLS
+        m["step_cap_hits"] += r.get("tools", 0) == 0
         m["max_prompt"] = max(m["max_prompt"], u.get("prompt_tokens") or 0)
         m["generated"] += u.get("completion_tokens") or 0
         m["length_stops"] += r.get("finish") == "length"
@@ -71,6 +73,7 @@ def side(b: Path) -> dict[str, dict]:
             p = next(iter((b / "episodes").glob(f"{tid}.*.json")), None)
             ep = json.loads(p.read_text()) if p else {}
         out[tid] = {"graded": r is not None, "C": r["grade"]["capture"] if r else None,
+                    "wakes": len(ep.get("turns", [])),
                     "attempts": sum(a["task_id"] == tid for a in att),
                     "classes": [a["class"] for a in att if a["task_id"] == tid],
                     "wall_s": r.get("wall_s") if r else None, "box": r.get("instance") if r else None,
@@ -112,6 +115,10 @@ def report(a: argparse.Namespace) -> dict:
             "compactions": sum(v.get("compactions", 0) for v in s.values()),
             "length_stops": sum(v.get("length_stops", 0) for v in s.values()),
             "calls_without_mcp_tools": sum(v.get("tools_dropped", 0) for v in s.values()),
+            "step_cap_hits": sum(v.get("step_cap_hits", 0) for v in s.values()),
+            "wakes": sum(v.get("wakes", 0) for v in s.values()),
+            "step_cap_share_of_wakes": round(sum(v.get("step_cap_hits", 0) for v in s.values())
+                                             / max(sum(v.get("wakes", 0) for v in s.values()), 1), 4),
             "refusals": {t: {"calls": c, "refused": r, "share": round(r / c, 4) if c else None}
                          for t, (c, r) in ref.items()}}
     if len(sides) == 2:
@@ -130,7 +137,7 @@ def report(a: argparse.Namespace) -> dict:
     out["per_window"] = {k: {"anchor_C": round(anchor[k], 4),
                              **{n: {f: s.get(k, {}).get(f) for f in ("C", "attempts", "classes", "max_prompt",
                                                                        "compactions", "length_stops", "calls",
-                                                                       "tools_dropped")}
+                                                                       "tools_dropped", "step_cap_hits", "wakes")}
                                 for n, s in sides.items()}} for k in sorted(tasks)}
     return out
 
