@@ -229,7 +229,7 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     25 of 25 wakes, 69 model calls, C 0.095, $1.88; Kimi K3 25 of 25, 72 calls, C 0.111, $2.64; Qwen3.8 Max 22 of 22,
     62 calls, C 0.112, $2.66. Each kept one session with no compaction, cached 97–98% of input tokens and had no HTTP
     429 or other error.
-35. Decided while the runs were in progress, at 07:55 UTC, after the first GLM-5.3 attempt hit it and while Kimi K3 had
+35. Decided while the runs were in progress, at 07:39 UTC, after the first GLM-5.3 attempt hit it and while Kimi K3 had
     2 windows graded and Qwen3.8 Max none, none of which had hit it: a call that ends at OpenCode's 32,000-token output
     limit with no content or tool call makes the harness exit (`opencode exited … without completing`), a harness
     termination, not an agent decision. Such an attempt is infrastructure and counts toward the two-retry limit; a
