@@ -82,15 +82,18 @@
           const fam = (/--c-([a-z]+)/.exec(fill || "") || [])[1], b = el.getBBox();
           return { el, fam, x: b.x + b.width / 2, y: b.y + b.height / 2 };
         }).filter((m) => m.fam && fb.m[m.fam]);
+        for (const m of marks) m.sp = m.x <= Math.min(...marks.filter((o) => o.fam === m.fam).map((o) => o.x)) ? "pre_cutoff" : "post_cutoff";
+        const show = (ev) => {
+          const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
+          const m = marks.reduce((a, o) => (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? o : a));
+          tip.show((el) => card(el, who(m.fam), `var(--c-${m.fam})`, m.sp), ev);
+        };
         for (const m of marks) {
-          const twins = marks.filter((o) => o.fam === m.fam);
-          const sp = m.x <= Math.min(...twins.map((o) => o.x)) ? "pre_cutoff" : "post_cutoff";
           const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
           hit.setAttribute("class", "hit");
           hit.setAttribute("cx", m.x.toFixed(1));
           hit.setAttribute("cy", m.y.toFixed(1));
           hit.setAttribute("r", "15");
-          const color = `var(--c-${m.fam})`, show = (ev) => tip.show((el) => card(el, who(m.fam), color, sp), ev);
           hit.addEventListener("pointerenter", show);
           hit.addEventListener("pointermove", show);
           hit.addEventListener("pointerdown", show);
