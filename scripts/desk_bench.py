@@ -50,6 +50,8 @@ HARNESSES = {
                "hosts": ["generativelanguage.googleapis.com"]},
     "opencode-qwen": {"agent": "opencode", "model": "qwen3-4b", "effort": None,
                       "config": ("bench-opencode", "/data/config/opencode"), "hosts": []},
+    "opencode-beam": {"agent": "opencode", "model": "beam-1.0-501b-a23b", "effort": "high",
+                      "config": ("bench-opencode-beam", "/data/config/opencode"), "hosts": ["router.huggingface.co"]},
 }
 NETCHECK = ("Run this exact command in your shell and include its complete output in your reply:\n\n"
             "for u in https://www.ercot.com https://github.com https://pypi.org/simple/ https://1.1.1.1; do "

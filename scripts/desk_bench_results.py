@@ -43,7 +43,7 @@ B, SEED = 10_000, 0
 SPLITS = ("pre_cutoff", "post_cutoff")
 TOKENS = ("input", "cached", "cache_write", "output", "reasoning")
 SCOPES = ("all", *SPLITS)
-ORDER = ("opus", "sol", "luna", "argon", "qwen")
+ORDER = ("opus", "sol", "luna", "argon", "beam", "qwen")
 MODELS = {
     "claude-opus-5-5": {"key": "opus", "name": "Claude Opus 5.5", "tag": "Opus 5.5", "provider": "Anthropic",
                         "harness": "Claude Code", "setting": "effort high", "weights": "API", "cutoff": "2026-06"},
@@ -55,6 +55,12 @@ MODELS = {
                    "harness_note": "with OpenAI's catalog entries for the GPT-6 models"},
     "gemini-4-argon": {"key": "argon", "name": "Gemini 4 Argon", "tag": "Argon", "provider": "Google",
                        "harness": "Gemini CLI", "setting": "thinking high", "weights": "API", "cutoff": "2026-03"},
+    "beam-1.0-501b-a23b": {"key": "beam", "name": "Beam-1.0", "tag": "Beam-1.0", "provider": "Reflection",
+                           "harness": "OpenCode", "setting": "effort high", "weights": "open", "server": "Baseten",
+                           "endpoint": "the Hugging Face router", "cutoff": "2026-06-30",
+                           "price_note": "The Hugging Face router publishes no cached-input price for Baseten, so "
+                                         "Beam-1.0's list price counts every input token, cached ones included, at "
+                                         "the full input price: an upper bound."},
     "qwen3-4b": {"key": "qwen", "name": "Qwen3-4B", "tag": "Qwen3-4B", "variant": "untrained", "provider": "Qwen",
                  "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0",
                  "cutoff": "2024"},
@@ -231,6 +237,8 @@ def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
     if not usage.get("tokens"):
         usage = state_usage(run, task, model_id) or usage
     usd = usage.get("cost_usd_list_price")
+    if usd is None and usage.get("tokens"):
+        usd = DBR.list_price(usage["tokens"], model_id)
     if usd is None:
         usd = watched_usd(run)
     calls = rep.get("calls") if isinstance(rep.get("calls"), dict) else rep.get("harness")
@@ -483,7 +491,8 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
         xs = [(r[f], r["front"], r["split"]) for r in done if r[f] is not None]
         gaps[k] = split_gap(*zip(*xs, strict=True)) if xs else {"mean": None, "ci": [None, None]}
     return {"key": key, **{k: lab.get(k) for k in ("name", "tag", "provider", "harness", "setting", "weights",
-                                                   "variant", "family", "harness_note", "server", "cutoff")},
+                                                   "variant", "family", "harness_note", "server", "endpoint",
+                                                   "cutoff", "price_note")},
             "model_id": rows[0]["model_id"], "harness_key": rows[0]["harness_key"],
             "harness_version": versions.most_common(1)[0][0] if versions else HARNESS_VERSIONS.get(lab.get("harness")),
             "harness_versions_recorded": dict(versions) or None,
@@ -617,7 +626,8 @@ def texts(s: dict, retry_note: str | None) -> dict:
                       f"than on {pre}.")
     differ = [ms[k]["name"] for k in s["halves_differ"]]
     halves.append((f"{join(differ)}'s post − pre interval excludes zero, so the post-cutoff half leads" if differ else
-                   f"No API model's post − pre interval excludes zero, so all {s['n_windows']} windows lead")
+                   f"No model the rule covers has a post − pre interval that excludes zero, so all {s['n_windows']} "
+                   "windows lead")
                   + ", by a rule set before any API result.")
     valid = " ".join(f"{m['name']} made no valid submission on {round((1 - m['all']['valid_share']) * m['n'])} of its "
                      f"{m['n']} windows (R\u00a0=\u00a00 there)." for m in ms.values()
@@ -643,6 +653,8 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
     rank = {k: i for i, k in enumerate(ORDER)}
     keys = sorted({r["model"] for r in rows}, key=lambda k: (rank.get(k, 99), k))
     models = {k: model_block([r for r in rows if r["model"] == k], log, labs[k], gpus.get(k)) for k in keys}
+    for k, text in (x.split("=", 1) for x in a.model_note):
+        models[k]["note"] = text
     order = sorted((k for k in keys if models[k]["n"]), key=lambda k: -models[k]["all"]["C"]["mean"])
     ranked = [*order, *(k for k in keys if k not in order)]
     scored = {k: {r["task_id"]: r for r in rows if r["model"] == k and r["status"] == "scored"} for k in keys}
@@ -947,6 +959,8 @@ def main() -> None:
     ap.add_argument("--deviation", action="append", default=[], help="a deviation from the pre-registration; "
                     "{retries} becomes each model's count of infrastructure retries")
     ap.add_argument("--defect", action="append", default=[], help="a known env defect")
+    ap.add_argument("--model-note", action="append", default=[], metavar="KEY=TEXT",
+                    help="a clause the card's table notes add after a model's framework release, e.g. how its run went")
     ap.add_argument("--note", action="append", default=[], help="a line for the README's method")
     ap.add_argument("--scan", action="append", default=[], metavar="TERM",
                     help="another term the leak scan refuses, beside the desk's real site and operator names")
@@ -969,7 +983,7 @@ def main() -> None:
     labs = {x["label"]["key"]: x["label"] for x in atts}
     EC2_USD_PER_H.update({k: float(v) for k, v in (x.split("=", 1) for x in a.ec2_price)})
     gpus = {}
-    for k in (k for k, lab in labs.items() if lab["weights"] == "open"):
+    for k in (k for k, lab in labs.items() if lab["weights"] == "open" and not lab.get("endpoint")):
         xs = [x for x in atts if x["label"]["key"] == k]
         gpus[k] = ec2_share(xs) if all(x.get("box") for x in xs) else gpu_share(xs, a.qwen_gpu, a.qwen_gpu_hours)
     rows, log = windows(atts, tasks, front_of)
