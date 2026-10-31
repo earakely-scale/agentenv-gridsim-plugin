@@ -170,7 +170,7 @@ def play(task: dict, series: dict, name: str, seed: int = 0) -> dict:
 
 
 def feas(a: argparse.Namespace) -> None:
-    rows = [r for r in load_tasks(a.pack) if r["split"] == "train" and r["operator_ok"]
+    rows = [r for r in load_tasks(a.pack) if r["split"] == a.split and (r["operator_ok"] or a.any_operator)
             and not r["refs"]["c_undefined"]]
     rows = rows[a.shard::a.of][:a.limit]
     names = a.variant or VARIANTS
@@ -182,7 +182,7 @@ def feas(a: argparse.Namespace) -> None:
             for n in names:
                 for seed in range(a.seeds if n in ("noise_5%", "noise_15%", "drop_10%", "drop_30%", "student_mix")
                                   else 1):
-                    rec = play(r, ser, n, seed) | {"site": r["site"]["site_id"], "window": r["tags"]["window"],
+                    rec = play(r, ser, n, seed) | {"site": r["site"]["site_id"], "window": r["tags"].get("window", r["dates"][0]),
                                                     "day_kind": r["tags"]["day_kind"]}
                     f.write(json.dumps(rec) + "\n")
             f.flush()
@@ -328,6 +328,8 @@ def main() -> None:
     f.add_argument("--variant", action="append")
     f.add_argument("--seeds", type=int, default=2)
     f.add_argument("--limit", type=int)
+    f.add_argument("--split", default="train")
+    f.add_argument("--any-operator", action="store_true", help="also tasks whose operator disclosure is incomplete")
     f.add_argument("--shard", type=int, default=0)
     f.add_argument("--of", type=int, default=1)
     t = sub.add_parser("selftest", help="the stub's anchor against the anchor, call for call")

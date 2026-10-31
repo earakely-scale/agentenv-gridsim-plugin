@@ -153,10 +153,18 @@ def forecast_args(wakes: list[tuple[int, dict]]) -> dict:
 NETCHECK = re.compile(r"Run this exact command in your shell[^\n]*\n\n(.+?)\n\nThen call", re.S)
 
 
+def _plain(s: str) -> str:
+    try:
+        x = json.loads(s)
+    except ValueError:
+        return s
+    return x if isinstance(x, str) else s
+
+
 def netcheck(messages: list[dict], prefix: str) -> dict:
     """The bundle's netcheck: run its command with OpenCode's bash tool, read the SoC, report both."""
     i = max(i for i, m in enumerate(messages) if m.get("role") == "user")
-    cmd = NETCHECK.search(_text(messages[i]["content"])).group(1)
+    cmd = NETCHECK.search(_plain(_text(messages[i]["content"]))).group(1)
     outs = [_text(m.get("content")) for m in messages[i + 1:] if m.get("role") == "tool"]
     if not outs:
         return {"tool": "bash", "args": {"command": cmd, "description": "Network check"}}
