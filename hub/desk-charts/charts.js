@@ -308,9 +308,9 @@ function daily(v, D, W, narrow, scale) {
   return svg(W, fy + 8, s, `Hindsight capture by ${multi ? "front" : "day"}, ${v.version}`);
 }
 
-const BENCH = ["opus", "sol", "luna", "argon", "qwen"];
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", qwen: "var(--c-qwen)" };
-const SHAPE = { Anthropic: "diamond", OpenAI: "circle", Google: "square", Qwen: "triangle" };
+const BENCH = ["opus", "sol", "luna", "argon", "beam", "qwen"];
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", qwen: "var(--c-qwen)" };
+const SHAPE = { Anthropic: "diamond", OpenAI: "circle", Google: "square", Reflection: "triangle-down", Qwen: "triangle" };
 const SIZES = { width: 600, lead: 660, phone: 350 };
 const bcol = (p) => BCOL[p.family] || BCOL[p.key] || "var(--ink-3)";
 const brank = (p) => (BENCH.includes(p.family) ? BENCH.indexOf(p.family) : BENCH.length);
@@ -323,6 +323,7 @@ function mark(shape, x, y, r, fill, cls = "mk", hollow = false) {
   if (shape === "square") { const s = r * 0.86; return `<rect x="${f1(x - s)}" y="${f1(y - s)}" width="${f1(2 * s)}" height="${f1(2 * s)}" rx="1.5" ${a}/>`; }
   if (shape === "diamond") { const s = r * 1.24; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s)},${f1(y)}L${f1(x)},${f1(y + s)}L${f1(x - s)},${f1(y)}Z" ${a}/>`; }
   if (shape === "triangle") { const s = r * 1.3; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s * 0.93)},${f1(y + s * 0.62)}L${f1(x - s * 0.93)},${f1(y + s * 0.62)}Z" ${a}/>`; }
+  if (shape === "triangle-down") { const s = r * 1.3; return `<path d="M${f1(x)},${f1(y + s)}L${f1(x + s * 0.93)},${f1(y - s * 0.62)}L${f1(x - s * 0.93)},${f1(y - s * 0.62)}Z" ${a}/>`; }
   return `<circle cx="${f1(x)}" cy="${f1(y)}" r="${r}" ${a}/>`;
 }
 
