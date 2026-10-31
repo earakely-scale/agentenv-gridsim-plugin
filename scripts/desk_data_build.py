@@ -25,6 +25,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import desk_data_api as A  # noqa: E402
 import desk_data_v3 as V3  # noqa: E402
+import desk_distill_windows as W  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DESK = ROOT / "data" / "desk"
@@ -96,6 +97,11 @@ PACKS = {
                     "tasks": [("2025-05-16", "S02"), ("2025-08-20", "S03")]},
 }
 PACKS.update(V3.PACKS)
+PACKS[W.PACK] = W.pack_spec()
+
+
+def task_id(spec: dict, d0: str, sid: str) -> str:
+    return f"{spec.get('id', 'desk-' + spec['layer'])}-{d0}-{sid}"
 
 
 # ---------------------------------------------------------------- time
@@ -788,7 +794,7 @@ def reused(spec: dict) -> dict[str, dict]:
 
 def new_tasks(spec: dict) -> list[tuple[str, str]]:
     old = reused(spec)
-    return [(d0, sid) for d0, sid in spec["tasks"] if f"desk-{spec['layer']}-{d0}-{sid}" not in old]
+    return [(d0, sid) for d0, sid in spec["tasks"] if task_id(spec, d0, sid) not in old]
 
 
 def cutoff_tag(task: dict, spec: dict) -> dict:
@@ -804,7 +810,7 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
         raise ValueError(f"{d0}: DST transition inside the window")
     era = "rtcb" if days[0] >= RTCB else "pre"
     site = site_record(sid, days[0], reg, cal)
-    tid = f"desk-{spec['layer']}-{d0}-{sid}"
+    tid = task_id(spec, d0, sid)
     hist_days = [days[0] - dt.timedelta(days=i) for i in range(7, 0, -1)]
     node, hub = site["settlement_point"], site["hub"]
     info = Counter()
@@ -884,7 +890,8 @@ def build_task(pack: str, spec: dict, d0: str, sid: str, reg, cal) -> tuple[dict
     extra = V3.extend(ser, site, days, era, spec, d0, sid, info) if spec["layer"] != "v2" else {}
     s = json.dumps(ser, separators=(",", ":"), allow_nan=False)
     task = {"task_id": tid, "schema": "gridsim.desk.task/v1", "desk_version": "2.0", "pack": pack,
-            "split": spec["split"], "layer": spec["layer"], "era": era, "dates": [str(d) for d in days], "site": site,
+            "split": "eval" if (d0, sid) in spec.get("eval", ()) else spec["split"], "layer": spec["layer"],
+            "era": era, "dates": [str(d) for d in days], "site": site,
             "series": f"series/{tid}.json.gz", "series_sha": hashlib.sha256(s.encode()).hexdigest(),
             "operator_ok": bool(ok and extra.get("operator_ok", True)),
             "tags": {"season": season, "day_kind": kind, "notices": n_not, "max_rt_lmp": max(lmps),
@@ -928,7 +935,7 @@ def main():
         old = reused(spec)
         old_cov = json.loads((DESK / spec["reuse"] / "manifest.json").read_text())["coverage"] if old else {}
         for d0, sid in spec["tasks"]:
-            tid = f"desk-{spec['layer']}-{d0}-{sid}"
+            tid = task_id(spec, d0, sid)
             if a.only and a.only not in tid:
                 continue
             if tid in old:
@@ -961,6 +968,8 @@ def main():
             manifest["cutoff"] = {**spec["cutoff"], "splits": dict(Counter(t["tags"]["split"] for t in tasks))}
         if spec.get("fronts"):
             manifest["fronts"] = spec["fronts"]
+        if spec.get("selection"):
+            manifest["selection"] = spec["selection"] | {"splits": dict(Counter(t["split"] for t in tasks))}
         (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
 
 

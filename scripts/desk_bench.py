@@ -50,6 +50,8 @@ HARNESSES = {
                "hosts": ["generativelanguage.googleapis.com"]},
     "opencode-qwen": {"agent": "opencode", "model": "qwen3-4b", "effort": None,
                       "config": ("bench-opencode", "/data/config/opencode"), "hosts": []},
+    "opencode-qwen35-long": {"agent": "opencode", "model": "qwen3.5-9b", "effort": None,
+                             "config": ("bench-opencode-qwen35-long", "/data/config/opencode"), "hosts": []},
     "opencode-beam": {"agent": "opencode", "model": "beam-1.0-501b-a23b", "effort": "high",
                       "config": ("bench-opencode-beam", "/data/config/opencode"), "hosts": ["router.huggingface.co"]},
 }
