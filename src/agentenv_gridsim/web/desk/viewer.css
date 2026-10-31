@@ -28,6 +28,7 @@ i.side.post_cutoff { background: var(--ink); }
 i.dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
 i.dot.opus { background: var(--c-opus); }
 i.dot.argon { background: var(--c-argon); }
+i.dot.beam { background: var(--c-beam); border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
 i.dot.sol { background: var(--c-sol); }
 i.dot.luna { background: var(--c-luna); }
 i.dot.qwen { background: var(--c-qwen); }
@@ -327,6 +328,7 @@ i.dot.qwen { background: var(--c-qwen); }
 .brow .heat i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--ink-3); }
 .brow .heat.opus i { background: var(--c-opus); }
 .brow .heat.argon i { background: var(--c-argon); }
+.brow .heat.beam i { background: var(--c-beam); }
 .brow .heat.sol i { background: var(--c-sol); }
 .brow .heat.luna i { background: var(--c-luna); }
 .brow .heat.qwen i { background: var(--c-qwen); }
@@ -454,12 +456,11 @@ table.eps .mk.pick { color: var(--agent); border-color: color-mix(in srgb, var(-
   .picks { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 380px) {
-  .filters .seg.fm button { padding-left: 4px; padding-right: 4px; }
-  .filters .seg.fm b { gap: 4px; font-size: 12px; }
-}
+.filters .seg.fm button { padding-left: 7px; padding-right: 7px; }
 
-@media (max-width: 340px) {
-  .filters .seg.fm button { padding-left: 3px; padding-right: 3px; }
-  .filters .seg.fm b { font-size: 11.5px; }
+@media (max-width: 720px) {
+  .filters .seg.fm { width: 100%; flex-wrap: wrap; }
+  .filters .seg.fm button { flex: 1 1 22%; }
+  .filters .seg.fm .full, .filters .seg.fm small { display: none; }
+  .filters .seg.fm .nick { display: inline; }
 }

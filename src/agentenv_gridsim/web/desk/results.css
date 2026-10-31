@@ -102,6 +102,7 @@ table.grid td.na { color: var(--ink-3); }
 table.grid th.ck, table.grid td.ck { padding-left: 14px; border-left: 1px dashed var(--line-2); }
 .who { display: inline-flex; align-items: flex-start; gap: 9px; }
 .who > i { flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; }
+.who > i.m-beam, .legend .sw.m-beam, table.replays td.rp a i.m-beam { border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .who b { font-weight: 620; }
 .nw { white-space: nowrap; }
 table.replays th { text-align: left; }
