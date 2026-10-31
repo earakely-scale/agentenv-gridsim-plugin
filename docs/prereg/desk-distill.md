@@ -146,3 +146,11 @@ Logged before the student eval starts; the primary result is not in.
    `distill/gpu/discarded-pre-steps/`, not counted) and base restarts from scratch on the committed 18, in the same
    order, eight at a time; the student runs the same way. The 01:00 UTC time fallback stands, projected from the
    sim-hours covered since the restart. Turns that end at the cap are counted per side, with their share of wakes.
+9. **The secondary comparison's serving** (decided at 23:45 UTC on 2026-10-31, before any bench window of either
+   model). Base Qwen3.5-9B plays the 32 `desk-v4-bench` windows in another lane, through our LiteLLM gateway on a
+   Fireworks deployment, on the run box; the student plays them here, served by vLLM 0.29.0 with the primary's flags,
+   on extra g7e.8xlarge boxes eight windows at a time, with the `opencode-qwen35-long` harness as in the primary
+   (262,144 tokens, 20 steps a turn) and the v4 benchmark's retry rules with items 5, 7 and 8 above where they apply.
+   So the secondary compares a Fireworks-served base against a vLLM-served student; numerics, the tool-call parser and
+   sampling can differ between the two servers, and the result is reported with that caveat. The primary on the
+   held-out windows serves both models the same way.
