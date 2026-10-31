@@ -38,7 +38,7 @@ CONSTRAINTS = ROOT / "bench" / "env" / "constraints.txt"
 AGENT_NAME = "default-agent"
 FREEZE = "be6ff8c8ac2403da414b765009bcdc99e9cd9061"
 REPO = "earakely-scale/agentenv-gridsim-plugin"
-PACKS = {"desk-v4-bench": "629630ab7662aa1f6ff5db2a5d16be69a7e0f0bb"}
+PACKS = {"desk-v4-bench": "629630ab7662aa1f6ff5db2a5d16be69a7e0f0bb", "desk-v4-win": "dc741033ba92a4fb6bfba6242911a6b78c73d665"}
 HARNESSES = {
     "claude-code": {"agent": "claude-code", "model": "claude-opus-5-5", "effort": "high",
                     "config": ("bench-claude-code", "/etc/claude-code"), "hosts": ["api.anthropic.com"]},
