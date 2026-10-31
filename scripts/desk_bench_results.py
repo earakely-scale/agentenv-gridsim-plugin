@@ -43,7 +43,7 @@ B, SEED = 10_000, 0
 SPLITS = ("pre_cutoff", "post_cutoff")
 TOKENS = ("input", "cached", "cache_write", "output", "reasoning")
 SCOPES = ("all", *SPLITS)
-ORDER = ("opus", "sol", "luna", "argon", "beam", "qwen")
+ORDER = ("opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen")
 MODELS = {
     "claude-opus-5-5": {"key": "opus", "name": "Claude Opus 5.5", "tag": "Opus 5.5", "provider": "Anthropic",
                         "harness": "Claude Code", "setting": "effort high", "weights": "API", "cutoff": "2026-06"},
@@ -61,6 +61,15 @@ MODELS = {
                            "price_note": "The Hugging Face router publishes no cached-input price for Baseten, so "
                                          "Beam-1.0's list price counts every input token, cached ones included, at "
                                          "the full input price: an upper bound."},
+    "glm-5.3": {"key": "glm", "name": "GLM-5.3", "tag": "GLM-5.3", "provider": "Z.ai", "harness": "OpenCode",
+                "setting": "effort high", "weights": "open", "server": "Fireworks", "endpoint": "Fireworks",
+                "released": "2026-08-14"},
+    "kimi-k3": {"key": "kimi", "name": "Kimi K3", "tag": "Kimi K3", "provider": "Moonshot AI", "harness": "OpenCode",
+                "setting": "effort high", "weights": "open", "server": "Fireworks", "endpoint": "Fireworks",
+                "released": "2026-07-16"},
+    "qwen3.8-max": {"key": "qwenmax", "name": "Qwen3.8 Max", "tag": "Qwen3.8 Max", "provider": "Qwen",
+                    "harness": "OpenCode", "setting": "effort high", "weights": "open", "server": "Fireworks",
+                    "endpoint": "Fireworks", "released": "2026-08-03"},
     "qwen3-4b": {"key": "qwen", "name": "Qwen3-4B", "tag": "Qwen3-4B", "variant": "untrained", "provider": "Qwen",
                  "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0",
                  "cutoff": "2024"},
@@ -85,6 +94,7 @@ REFS = (("idle", "p_idle", "Idle"), ("anchor", "p_anchor", "Anchor (the desk's o
 CHECKED = ("reward", "capture", "capture_phys", "p")
 URL = re.compile(r"\b(?:https?|wss?)://\S+")
 HOST = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|ai|dev|run|app|cloud|internal)\b", re.I)
+MODULE = re.compile(r"\b[a-z_][a-z0-9_]*\.(?=[A-Z]\w*(?:Error|Exception)\b)")
 
 
 def boot(x, blocks) -> dict:
@@ -128,7 +138,7 @@ def split_gap(x, blocks, splits) -> dict:
 
 
 def clean(text: str | None, limit: int = 240) -> str | None:
-    return HOST.sub("<host>", URL.sub("<url>", str(text)))[:limit] if text else None
+    return MODULE.sub("", HOST.sub("<host>", URL.sub("<url>", str(text))))[:limit] if text else None
 
 
 def failure_kind(text: str | None) -> str:
@@ -492,7 +502,7 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
         gaps[k] = split_gap(*zip(*xs, strict=True)) if xs else {"mean": None, "ci": [None, None]}
     return {"key": key, **{k: lab.get(k) for k in ("name", "tag", "provider", "harness", "setting", "weights",
                                                    "variant", "family", "harness_note", "server", "endpoint",
-                                                   "cutoff", "price_note")},
+                                                   "cutoff", "released", "price_note")},
             "model_id": rows[0]["model_id"], "harness_key": rows[0]["harness_key"],
             "harness_version": versions.most_common(1)[0][0] if versions else HARNESS_VERSIONS.get(lab.get("harness")),
             "harness_versions_recorded": dict(versions) or None,
@@ -590,11 +600,15 @@ def join(xs: list[str]) -> str:
 
 
 def lead_text(models: dict, exposed: list[str]) -> str:
-    """The pre-registration's lead-split rule as read before any API-model result, in one sentence."""
+    """The pre-registration's lead-split rule as read before any API-model result, in one sentence; a model that
+    reports no training cutoff counts as one that can trigger it."""
+    none = [models[k]["name"] for k in exposed if not models[k].get("cutoff")]
     return ("The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data "
             "contamination, so, as read before any API-model result, only a model whose reported training cutoff comes "
-            "after the first pre-cutoff window (" + join([models[k]["name"] for k in exposed] or ["none here"])
-            + ") can trigger it, when its post − pre interval in C excludes zero.")
+            "after the first pre-cutoff window (" + join([models[k]["name"] for k in exposed if models[k].get("cutoff")]
+                                                         or ["none here"])
+            + ") can trigger it, when its post − pre interval in C excludes zero"
+            + (f"; {join(none)}, with no reported cutoff, can trigger it too" if none else "") + ".")
 
 
 def months(s: dict, split: str) -> str:
@@ -664,7 +678,7 @@ def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: l
     man = json.loads((pack_dir(a.pack) / "manifest.json").read_text())
     route = "ec2" if any(r.get("box") for r in log) else "modal"
     first = min(t["dates"][0] for t in tasks.values() if t["tags"]["split"] == "pre_cutoff")
-    exposed = [k for k in ranked if (models[k].get("cutoff") or "") >= first]
+    exposed = [k for k in ranked if (models[k].get("cutoff") or first) >= first]
     differ = [k for k in exposed if (g := models[k]["split_gap"]["C"])["mean"] is not None and (
         g["ci"][0] > 0 or g["ci"][1] < 0)]
     agent = {models[k]["name"]: n for k in ranked
@@ -824,6 +838,7 @@ def deviations_link(s: dict) -> str | None:
 
 def readme(s: dict) -> str:
     ms, refs, sp = ranked(s), s["references"], s["splits"]
+    none = [m["name"] for m in ms.values() if not m.get("cutoff")]
     who = {k: m["name"] for k, m in ms.items()} | {"operator_replay": "the operator's bids, replayed"}
     t1 = table(["model", "harness", "n", "C", "C, pre_cutoff", "C, post_cutoff", "R", "P", "$ / window"],
                [[f"**{m['name']}**", f"{m['harness']} · {m['setting']}", str(m["n"]), pci(m["all"]["C"]),
@@ -884,8 +899,9 @@ def readme(s: dict) -> str:
         "hindsight capture (P − P_idle)/(P_hind − P_idle), the share of the hindsight optimum's profit over idle; R "
         "the contract reward (anchor 1.0, idle 0.2); P the settled ERCOT statement in $ per window. "
         f"`pre_cutoff`: {sp['pre_cutoff']['windows']} windows, January to May 2026; `post_cutoff`: "
-        f"{sp['post_cutoff']['windows']} windows, July and August 2026, after every model's reported training "
-        f"cutoff. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} fronts (each split's "
+        f"{sp['post_cutoff']['windows']} windows, July and August 2026, after every reported training cutoff"
+        + (f" (none is reported for {join(none)})" if none else "")
+        + f". Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} fronts (each split's "
         f"{len(sp['pre_cutoff']['fronts'])} within it).", "",
         picture("splits", "Hindsight capture before and after the training cutoffs, one line per model"), "",
         t1 + deferred, "",

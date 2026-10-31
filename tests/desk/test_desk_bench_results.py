@@ -270,14 +270,15 @@ def test_article_states_the_bench_as_the_card_does(bench):
                                                     "Out of credits"))]
     assert set(f["late"]) == {k for k, m in s["models"].items() if m.get("framework")}
     assert f["price"]["beam"] == s["models"]["beam"]["price_note"] and f["price"]["beam"] in t["before"]
-    assert f["ahead"] == f"GPT-6.1 Sol {f['m']['sol']['op']} and Claude Opus 5.5 {f['m']['opus']['op']}"
+    assert f["ahead"] == (f"GPT-6.1 Sol {f['m']['sol']['op']}, Kimi K3 {f['m']['kimi']['op']} and Claude Opus 5.5 "
+                          f"{f['m']['opus']['op']}")
     for k, m in s["models"].items():
         got = f["m"][k]
         for name, scope in (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff")):
             b = m[scope]["C"]
             assert (got[name], got[f"{name}ci"]) == (f"{_pc(b['mean'])}%", f"[{_pc(b['ci'][0])}, {_pc(b['ci'][1])}]")
         assert got["usd"] == f"${m['cost']['usd_per_window']:,.2f}"
-        assert int(got["valid"]) + int(got["invalid"]) == m["n"] == 32
+        assert int(got["valid"]) + int(got["invalid"]) == m["n"] == 32 - len(m["missing"])
         assert (got["harness"], got["version"], got["setting"]) == (m["harness"], m["harness_version"], m["setting"])
     assert (f["m"]["qwen"]["valid"], f["m"]["qwen"]["temperature"], f["m"]["qwen"]["top_k"]) == ("25", "0.6", "20")
     hub_article.check_prose(hub_article.facts(d) | {"bench": f})
@@ -304,7 +305,9 @@ def _route_c(root: Path) -> None:
             "sol": ("codex-sol", "m7i.16xlarge", [("desk-v4-2026-07-04-S01", 0, 300, "infra"),
                                                   ("desk-v4-2026-07-04-S01", 400, 900, "ok"),
                                                   ("desk-v4-2026-07-04-S02", 0, 700, "agent")]),
-            "beam": ("opencode-beam", "m7i.2xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok")])}
+            "beam": ("opencode-beam", "m7i.2xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok")]),
+            "kimi": ("opencode-kimi", "m7i.8xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok"),
+                                                       ("desk-v4-2026-07-04-S02", 0, 900, "capped")])}
     for key, (harness, kind, runs) in plan.items():
         bench = root / key / "box1" / "bench"
         (bench / "episodes").mkdir(parents=True)
@@ -317,10 +320,12 @@ def _route_c(root: Path) -> None:
                    "t_end": (t0 + dt.timedelta(seconds=b)).isoformat(), "wall_s": float(b - a), "box": "box1",
                    "instance_type": kind, "harness": harness, "status": "completed" if cls == "ok" else "failed",
                    "usage": {"tokens": {"input": 10}, "cost_usd_list_price": 0.0 if key == "qwen" else 1.25}}
-            if key == "beam":
+            if key in ("beam", "kimi"):
                 row |= {"usage": {"tokens": {"input": 1000, "cached": 9000, "output": 500},
                                   "cost_usd_list_price": None},
                         "agent_version": "OpenCode 1.17.18 (src-f7b0; agentenv-framework 0.9.1396)"}
+            if cls == "capped":
+                row |= {"why": "lane spend cap: litellm.BudgetExceededError: over $20", "proxy_cost_usd": 19.0}
             if key == "sol" and cls != "agent":
                 row["proxy_cost_usd"] = 0.4 if cls == "infra" else 1.3
             if key == "sol":
@@ -350,9 +355,9 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     finally:
         sys.argv = argv
     s = json.loads((out / "summary.json").read_text())
-    qwen, sol, beam = s["models"]["qwen"], s["models"]["sol"], s["models"]["beam"]
+    qwen, sol, beam, kimi = (s["models"][k] for k in ("qwen", "sol", "beam", "kimi"))
     assert s["run"]["route"] == "ec2" and not s["skipped"] and s["deferred"] and set(s["models"]) == {"sol", "qwen",
-                                                                                                    "beam"}
+                                                                                                    "beam", "kimi"}
     assert beam["cost"] | {"usd_median": None} == {
         "basis": "list_price_tokens", "usd_per_window": 0.0046, "usd_median": None, "usd_scored_total": 0.0046,
         "usd_all_attempts": 0.0046} and (beam["framework"], beam["harness_version"]) == ("0.9.1396", "1.17.18")
@@ -360,24 +365,34 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
                                                                                                          abs=1e-3)
     assert qwen["cost"]["usd_per_window"] == pytest.approx(750 / 3600 * 1.006, abs=1e-4) and qwen["n"] == 2
     assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 2.9
-    assert s["run"]["metered_attempts"] == 1 and s["text"]["metered"] == dbr.METERED
+    assert s["run"]["metered_attempts"] == 2 and s["text"]["metered"] == dbr.METERED
     assert (sol["harness_version"], sol["framework"], qwen["framework"]) == ("0.147.0", "0.9.1383", None)
     assert sol["ran"] == {"from": "2026-10-29T07:00:00+00:00", "to": "2026-10-29T07:15:00+00:00"}
-    assert s["order_by_C"] == ["qwen", "sol", "beam"] and list(s["paired"]) == [
-        "qwen-sol", "qwen-beam", "sol-beam", "qwen-operator_replay", "sol-operator_replay", "beam-operator_replay"]
+    assert s["order_by_C"] == ["qwen", "sol", "kimi", "beam"] and list(s["paired"]) == [
+        "qwen-sol", "qwen-kimi", "qwen-beam", "sol-kimi", "sol-beam", "kimi-beam", "qwen-operator_replay",
+        "sol-operator_replay", "kimi-operator_replay", "beam-operator_replay"]
+    capped = "episode spend cap, final"
+    assert (kimi["n"], kimi["cutoff"], kimi["attempts"]["missing_reasons"]) == (1, None, {"no attempt": 30, capped: 1})
+    assert kimi["cost"]["usd_all_attempts"] == 19.0132 and [x["error"] for x in s["attempts"]
+                                                            if x["model"] == "kimi"] == [
+        None, "lane spend cap: BudgetExceededError: over $20"]
     agent = "agent-side failure, final, no grade possible"
     assert sol["attempts"]["missing_reasons"] == {agent: 1, "no attempt": 30}
     assert sol["attempts"]["failure_kinds"] == {"infrastructure": 1, agent: 1}
     assert s["deviations"] == ["Agent-side failures with no grade (GPT-6.1 Sol 1): the harness failed during play, so "
                                "the verifier never ran and these windows could not be scored as settled; they are "
                                "reported missing and not imputed."]
-    assert s["lead_rule"]["exposed"] == ["sol", "beam"] and s["lead_rule"]["unexposed"] == ["qwen"]
+    assert s["lead_rule"]["exposed"] == ["sol", "kimi", "beam"] and s["lead_rule"]["unexposed"] == ["qwen"]
+    assert s["lead_rule"]["text"].endswith("(GPT-6.1 Sol and Beam-1.0) can trigger it, when its post − pre interval in "
+                                           "C excludes zero; Kimi K3, with no reported cutoff, can trigger it too.")
     readme = (out / "README.md").read_text()
     assert readme.index("| **Qwen3-4B** |") < readme.index("| **GPT-6.1 Sol** |")
     assert "Gemini 4 Argon (Gemini CLI): deferred" in readme and s["text"]["halves"] in readme and dbr.METERED in readme
+    assert "after every reported training cutoff (none is reported for Kimi K3)." in readme
     assert f"({dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations)" in readme
     assert ("Qwen3-4B, no attempt ×30; GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1; "
-            "Beam-1.0, no attempt ×31." in s["text"]["reliability"])
+            "Kimi K3, no attempt ×30, episode spend cap, final ×1; Beam-1.0, no attempt ×31."
+            in s["text"]["reliability"])
 
 
 def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
@@ -433,7 +448,7 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert "attempts" not in page and page["card"]["bullets"] == hub_dataset.bench_bullets(s)
     dev = [x["n"] for g in page["deviations"] for x in g["items"]]
     assert dev == list(range(1, len(dev) + 1)) and [g["title"] for g in page["deviations"]] == [
-        None, "Gemini 4 Argon", "Reflection Beam-1.0"]
+        None, "Gemini 4 Argon", "Reflection Beam-1.0", "Open-weights comparison: GLM-5.3, Kimi K3, Qwen3.8 Max"]
     cap, block = page["card"]["captions"], hub_dataset.bench_block(s, grades, desk)
     assert [cap[k][:12] for k in ("splits", "table")] == ["C × 100: the", "C, hindsight"]
     assert block.index("/figures/splits.svg") < block.index(cap["splits"]) < block.index("| Model |") < block.index(
@@ -441,12 +456,14 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert not any("Quick start below" in x for x in page["card"]["how"])
     links = page["links"]
     assert links["prereg"] == f"{dbr.REPO}/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md"
-    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-3/docs/prereg/v4-bench.md#deviations"
-    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-3/results/desk-v4-bench"
+    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-4/docs/prereg/v4-bench.md#deviations"
+    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-4/results/desk-v4-bench"
     beam = s["models"]["beam"]
-    assert (f" Gemini 4 Argon ran on agentenv-framework 0.9.1383. Beam-1.0 ran after the others, through the Hugging "
-            f"Face router, on agentenv-framework 0.9.1396; {beam['note']}. {beam['price_note']} See the [deviations]"
-            f"({links['deviations']}).</small>") in block
+    assert (" Gemini 4 Argon ran on agentenv-framework 0.9.1383." + "".join(
+        f" {s['models'][k]['name']} ran through Fireworks, on agentenv-framework 0.9.1396; {s['models'][k]['note']}."
+        for k in ("glm", "kimi", "qwenmax")) + f" Beam-1.0 ran through the Hugging Face router, on agentenv-framework "
+            f"0.9.1396; {beam['note']}. {beam['price_note']} See the [deviations]({links['deviations']}).</small>"
+            ) in block
     text = hub_space.readme({"versions": [], "episodes": {}}, desk, s, grades, hub_dataset)
     lead = f"{hub_space.APP}/index.html?v=bench&m={s['hero']['model']}&task={s['hero']['task_id']}"
     assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")

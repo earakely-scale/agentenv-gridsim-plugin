@@ -52,6 +52,12 @@ HARNESSES = {
                       "config": ("bench-opencode", "/data/config/opencode"), "hosts": []},
     "opencode-beam": {"agent": "opencode", "model": "beam-1.0-501b-a23b", "effort": "high",
                       "config": ("bench-opencode-beam", "/data/config/opencode"), "hosts": ["router.huggingface.co"]},
+    "opencode-glm": {"agent": "opencode", "model": "glm-5.3", "effort": "high",
+                     "config": ("bench-opencode-glm", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
+    "opencode-kimi": {"agent": "opencode", "model": "kimi-k3", "effort": "high",
+                      "config": ("bench-opencode-kimi", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
+    "opencode-qwenmax": {"agent": "opencode", "model": "qwen3.8-max", "effort": "high",
+                         "config": ("bench-opencode-qwenmax", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
 }
 NETCHECK = ("Run this exact command in your shell and include its complete output in your reply:\n\n"
             "for u in https://www.ercot.com https://github.com https://pypi.org/simple/ https://1.1.1.1; do "

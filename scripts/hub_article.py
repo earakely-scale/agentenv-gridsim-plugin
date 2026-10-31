@@ -218,7 +218,7 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
            "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
            "route": deviation(s, "Route C"), "errors": deviation(s, "Provider HTTP 400s"),
            "credits": deviation(s, "Out of credits"),
-           "late": {m["key"]: deviation(s, f"{m['name']}:") for m in ms if m.get("framework")},
+           "late": {m["key"]: late(s, m["name"]) for m in ms if m.get("framework")},
            "price": {m["key"]: m["price_note"] for m in ms if m.get("price_note")},
            "tag": s["run"]["deviations_ref"], "links": {"deviations": card.bench_deviations(s)},
            "cap": {"splits": small(block, "C × 100"), "table": link(small(block, "C, hindsight capture"))}}
@@ -281,6 +281,11 @@ def colon(x: str) -> dict:
 
 def deviation(s: dict, head: str) -> dict:
     return colon(next(x for x in s["deviations"] if x.startswith(head)))
+
+
+def late(s: dict, name: str) -> dict:
+    """The deviation that adds a model run after the others, whose head names it alone or in a list."""
+    return colon(next(x for x in s["deviations"] if name in re.split(r", | and ", x.split(":", 1)[0])))
 
 
 MDLINK = re.compile(r"\[([^\]]+)\]\((https://[^)\s]+)\)")

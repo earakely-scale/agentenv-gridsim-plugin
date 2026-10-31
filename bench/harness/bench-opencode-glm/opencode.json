@@ -1,0 +1,20 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {"permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}},
+    "plan": {"permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}},
+    "general": {"permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}},
+    "explore": {"permission": {"webfetch": "deny", "websearch": "deny", "codesearch": "deny"}}
+  },
+  "provider": {
+    "litellm": {
+      "models": {
+        "glm-5.3": {
+          "reasoning": true,
+          "tool_call": true,
+          "limit": {"context": 1040000, "output": 32768}
+        }
+      }
+    }
+  }
+}
