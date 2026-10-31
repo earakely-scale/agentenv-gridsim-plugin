@@ -85,4 +85,34 @@ interval. It is reported as secondary and does not change the primary verdict; i
 benchmark's rules.
 
 ## Deviations
-None yet.
+Logged before the student eval starts; the primary result is not in.
+
+1. **Transcripts.** The every-other-wake variant missed its rule on the 144 training windows (C 0.130 against the full
+   anchor's 0.149, a difference of −0.020 [−0.028, −0.013]), so the transcripts are the full anchor's. Each planning
+   wake also makes two read-only calls before `optimize` (the asset status and the desk price forecast for the DAM day
+   still open, else real time), so the rationale can cite the state of charge and the forecast; they change no action
+   (in process the stub's play matches the anchor call for call, with the same C).
+2. **How the transcripts were made.** OpenCode played the training windows on route C against a local endpoint that
+   plays the anchor from the conversation and logs every request verbatim (`scripts/desk_distill_stub.py`); the SFT
+   rows are those requests rendered with Qwen3.5's chat template (`scripts/desk_distill_sft.py`). The env image is the
+   benchmark's env image with the `desk-v4-win` pack copied in (its code hashes the same). Two training windows failed
+   on the state store's sqlite lock (`local.db is locked`), were reclassified as infrastructure and rerun; their rows
+   come from the rerun. Through OpenCode the anchor's C on the 144 windows is 0.148 (0.149 in process).
+3. **Rows.** Three rows a window, one from each third of its wakes, drawn with seed 0 and the session id: 438 rows,
+   42.3M tokens, 1.42M trained. Rows longer than the trainer's cap are dropped, never truncated: the cap is 150,000
+   tokens, which drops 41 rows (397 kept, 34.4M tokens, 1.32M trained). The memory probe, one forward and backward on
+   the longest kept row (149,295 tokens), peaked at 88.5 GiB of the GPU's 95 GiB in 106 s, so the cap stays.
+4. **Context.** The full anchor's conversation outgrows 262,144 tokens, Qwen3.5-9B's native maximum, in 5 of the 146
+   captured sessions (p50 138k, p90 193k, max 371k); a longer context would need YaRN, which changes the model at every
+   length. So OpenCode may compact in the longest windows, for either model. Compaction events are reported per
+   window and per side.
+5. **Output cap.** A call that ends at OpenCode's 8,192-token output limit makes OpenCode exit without completing; as
+   in the v4 benchmark's item 35 that attempt is infrastructure, with at most three attempts a window, for base and
+   student alike. With no model proxy here, a pass-through meter between OpenCode and vLLM (`scripts/desk_distill_meter.py`)
+   logs every call's usage and finish reason, and the driver reads the stop from it. A window that uses its three
+   attempts on infrastructure is missing for that side: the primary result is paired over the windows graded for both
+   models, and each side's missing windows are reported.
+6. **Serving and boxes.** vLLM also takes `--gpu-memory-utilization 0.9` and listens on the Docker bridge, where the
+   agent containers reach it (through the meter). Base ran on one g7e.8xlarge (one RTX PRO 6000, us-east-1) and the
+   student on a second of the same type, with the same flags, harness, decoding and four windows at a time; the box of
+   each run is recorded with it.
