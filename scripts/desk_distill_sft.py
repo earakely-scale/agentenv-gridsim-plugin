@@ -29,7 +29,8 @@ GEN = "<|im_start|>assistant\n<think>\n"
 
 
 def load(capture: Path) -> dict[str, list[dict]]:
-    """Each session's desk requests in order: {tools, messages, params, action}."""
+    """Each session's desk requests in order, of its last attempt (a rerun of a window logs to the same session):
+    {tools, messages, params, action}."""
     out = {}
     for req in sorted(capture.glob("*.requests.jsonl")):
         key = req.name.split(".")[0]
@@ -37,9 +38,10 @@ def load(capture: Path) -> dict[str, list[dict]]:
         for line in (capture / f"{key}.blobs.jsonl").open():
             b = json.loads(line)
             blobs[b["h"]] = b["v"]
-        rows = [json.loads(x) for x in req.open()]
+        rows = [r for r in map(json.loads, req.open()) if r["kind"] == "desk"]
+        cut = max([0] + [i for i in range(1, len(rows)) if len(rows[i]["messages"]) < len(rows[i - 1]["messages"])])
         out[key] = [{"tools": blobs[r["tools"]], "messages": [blobs[h] for h in r["messages"]],
-                     "params": r["params"], "action": r["action"]} for r in rows if r["kind"] == "desk"]
+                     "params": r["params"], "action": r["action"]} for r in rows[cut:]]
     return {k: v for k, v in out.items() if v}
 
 
