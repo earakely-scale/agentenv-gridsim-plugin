@@ -135,3 +135,14 @@ Logged before the student eval starts; the primary result is not in.
    not launched, running ones finish but count only if they are in the 9, and the primary is over the 9. Which rule
    applied is reported. The primary is the paired interval over the subset that applies; each side's C over all its
    completed windows is reported as descriptive.
+8. **A step cap per turn** (decided at 23:20 UTC on 2026-10-31; no window graded on either side). From 22:17 to 23:09
+   UTC none of base's seven running subset windows advanced a sim-hour, while their env gateways logged a tool call
+   about every 3.5 seconds: base kept calling tools inside one turn and never ended it. The desk refuses every call
+   past its budget of 14 a turn, and the harness set no step limit, so only the play step's 14,400-second prompt
+   timeout ended such a turn. The `opencode-qwen35-long` harness now sets OpenCode's `agent.build.steps` to 20
+   ("Maximum number of agentic iterations before forcing text-only response"), the same for both sides. 20 is above
+   the env's 14-call budget, so a turn can still make every call the desk accepts plus its reply; the anchor's
+   transcripts use at most 13 iterations a wake. Base's attempts so far are discarded (archived in S3 under
+   `distill/gpu/discarded-pre-steps/`, not counted) and base restarts from scratch on the committed 18, in the same
+   order, eight at a time; the student runs the same way. The 01:00 UTC time fallback stands, projected from the
+   sim-hours covered since the restart. Turns that end at the cap are counted per side, with their share of wakes.
