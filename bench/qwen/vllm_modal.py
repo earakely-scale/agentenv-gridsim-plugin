@@ -1,7 +1,8 @@
 """Qwen3-4B for the desk bench on a Modal GPU: vLLM 0.29.0 serving Qwen/Qwen3-4B at the revision the g5 run host
-serves, on CUDA 13 with nvcc as there (vLLM JIT-compiles FlashInfer kernels), with that host's flags (bf16, 32k context, hermes tool calls, prefix caching, thinking off unless a request
-turns it on) plus the Qwen3 reasoning parser, which hands OpenCode the thinking as reasoning_content. The weights are
-baked into the image; the API key comes from the Modal secret QWEN_SECRET names, as VLLM_API_KEY.
+serves, on CUDA 13 with nvcc as there (vLLM JIT-compiles FlashInfer kernels), with that host's flags (bf16, 32k context,
+hermes tool calls, prefix caching, thinking off unless a request turns it on) plus the Qwen3 reasoning parser, which
+hands OpenCode the thinking as reasoning_content. The weights are baked into the image; the API key comes from the
+Modal secret QWEN_SECRET names, as VLLM_API_KEY.
 
     QWEN_SECRET=gridsim-qwen-key modal deploy bench/qwen/vllm_modal.py
     modal app stop gridsim-qwen3-4b

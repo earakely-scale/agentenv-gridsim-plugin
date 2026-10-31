@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import desk_bench  # noqa: E402
 import desk_e2e  # noqa: E402
+
 from gridsim_core.desk import load_series, load_task, policies  # noqa: E402
 
 

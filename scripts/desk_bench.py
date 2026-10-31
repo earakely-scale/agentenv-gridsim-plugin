@@ -46,8 +46,8 @@ HARNESSES = {
                   "config": ("bench-codex-catalog", "/etc/codex"), "hosts": ["api.openai.com"]},
     "codex-luna": {"agent": "codex", "model": "gpt-6-luna", "effort": "high",
                    "config": ("bench-codex-catalog", "/etc/codex"), "hosts": ["api.openai.com"]},
-    "gemini": {"agent": "gemini", "model": "gemini-4-argon", "effort": None, "config": ("bench-gemini", "/etc/gemini-cli"),
-               "hosts": ["generativelanguage.googleapis.com"]},
+    "gemini": {"agent": "gemini", "model": "gemini-4-argon", "effort": None,
+               "config": ("bench-gemini", "/etc/gemini-cli"), "hosts": ["generativelanguage.googleapis.com"]},
     "opencode-qwen": {"agent": "opencode", "model": "qwen3-4b", "effort": None,
                       "config": ("bench-opencode", "/data/config/opencode"), "hosts": []},
     "opencode-beam": {"agent": "opencode", "model": "beam-1.0-501b-a23b", "effort": "high",
@@ -76,8 +76,9 @@ RUN pip install -c /tmp/constraints.txt "agentenv-framework-protocol==0.1.370" "
 WORKDIR /app
 ADD https://codeload.github.com/{REPO}/tar.gz/{FREEZE} /tmp/src.tar.gz
 RUN mkdir /tmp/src && tar -xzf /tmp/src.tar.gz -C /tmp/src --strip-components=1 \\
-    && cp /tmp/src/LICENSE /tmp/src/NOTICE /app/ && mkdir /app/gridsim_core && cp -r /tmp/src/data /app/gridsim_core/data \\
-    && cp -r /tmp/src/src/gridsim_core/. /app/gridsim_core/ && cp -r /tmp/src/src/agentenv_gridsim /app/agentenv_gridsim \\
+    && cp /tmp/src/LICENSE /tmp/src/NOTICE /app/ && mkdir /app/gridsim_core \\
+    && cp -r /tmp/src/data /app/gridsim_core/data && cp -r /tmp/src/src/gridsim_core/. /app/gridsim_core/ \\
+    && cp -r /tmp/src/src/agentenv_gridsim /app/agentenv_gridsim \\
     && rm -rf /app/agentenv_gridsim/web /tmp/src /tmp/src.tar.gz
 {{pack}}RUN useradd --create-home --uid 1000 gridsim
 USER gridsim
@@ -104,8 +105,9 @@ def harness_steps(steps: list[dict], h: dict, hosts: list[str]) -> list[dict]:
             step.pop("model_params", None)
             step.pop("effort", None)
             step |= {"model": h["model"]} | ({"effort": h["effort"]} if h["effort"] else {})
-            step["post_turn_hooks"] = [hook | {"params": {k: v for k, v in hook.get("params", {}).items() if k != "env_id"}}
-                                       for hook in step.get("post_turn_hooks", [])]
+            step["post_turn_hooks"] = [
+                hook | {"params": {k: v for k, v in hook.get("params", {}).items() if k != "env_id"}}
+                for hook in step.get("post_turn_hooks", [])]
         out.append(step)
     return out
 
@@ -151,7 +153,8 @@ def _write(name: str, pack: str, out: Path, task_ids: list[str] | None, hosts: l
         envs |= {s["env_id"] for s in steps if s["type"] == "deploy_env"}
         path.write_text(json.dumps(steps, indent=2, ensure_ascii=False) + "\n")
     first = json.loads((out / "tasks" / f"{ids[0]}.json").read_text())
-    (out / "tasks" / "netcheck.json").write_text(json.dumps(netcheck_steps(first, h), indent=2, ensure_ascii=False) + "\n")
+    (out / "tasks" / "netcheck.json").write_text(json.dumps(netcheck_steps(first, h), indent=2, ensure_ascii=False)
+                                                 + "\n")
     for env in sorted(envs):
         folder = out / "envs" / env
         folder.mkdir(parents=True, exist_ok=True)

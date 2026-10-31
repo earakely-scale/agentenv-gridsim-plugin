@@ -7,7 +7,8 @@ tokens and, at public list prices (LiteLLM's price map), the cost; a model proxy
 
 Counts tool calls by kind (desk MCP tools versus the harness's own), checks the harness kept one session across wakes
 (one session id in every turn's trajectory, the conversation growing in the proxy log), and sets the env's wakes beside
-the hook's and the harness's turns and beside the wakes the desk's fixed milestones alone would give (the idle policy)."""
+the hook's and the harness's turns and beside the wakes the desk's fixed milestones alone would give (the idle
+policy)."""
 
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from desk_bench import pack_source
+
 from gridsim_core.desk import load_series, load_task, policies
 
 PRICES = {"claude-opus-5-5": {"in": 4.0, "cached": 0.2, "write": 5.0, "write_1h": 8.0, "out": 20.0},
@@ -214,8 +216,8 @@ def report(a) -> dict:
     first = rows[0] if rows else {}
     grade = (first.get("metadata") or {}).get("grade") or {}
     episode = first.get("episode") or {}
-    steps = {m.group(2): float(m.group(3)) for m in re.finditer(r"step (\d+)/\d+ (\S+) \(\S+\)\n.*?step \1/\d+ \2 done in ([\d.]+)s",
-                                                                  run_log, re.S)}
+    steps = {m.group(2): float(m.group(3)) for m in re.finditer(
+        r"step (\d+)/\d+ (\S+) \(\S+\)\n.*?step \1/\d+ \2 done in ([\d.]+)s", run_log, re.S)}
     ep_turns = episode.get("turns") or []
     ep_calls = [c for t in ep_turns for c in t.get("calls") or []]
     idle = None
@@ -226,8 +228,9 @@ def report(a) -> dict:
             idle = policies.run(task, load_series(pack, task), "idle").episode()
     ran = re.findall(r"\] (?:passed|failed|scored below 1|cancelled) in ([\d.]+)s", run_log)
     return {
-        "harness": a.harness, "instance_id": inst.get("instance_id"), "status": inst.get("status"),
-        "error": inst.get("error"), "completed_steps": inst.get("completed_steps"), "total_steps": inst.get("total_steps"),
+        "instance_id": inst.get("instance_id"), "status": inst.get("status"),
+        "error": inst.get("error"), "completed_steps": inst.get("completed_steps"),
+        "total_steps": inst.get("total_steps"),
         "wall_s": float(ran[-1]) if ran else None,
         "step_seconds": steps,
         "grade": grade,
