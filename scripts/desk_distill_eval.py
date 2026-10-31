@@ -17,6 +17,7 @@ import numpy as np
 from gridsim_core.desk import load_tasks
 
 SUBMITS = ("submit_dam_offers", "submit_rt_offers", "update_cop")
+FULL_TOOLS = 29
 
 
 def _jsonl(p: Path) -> list[dict]:
@@ -24,8 +25,8 @@ def _jsonl(p: Path) -> list[dict]:
 
 
 def meter(b: Path) -> dict[str, dict]:
-    """Per window (MM-DD-Sxx): calls, largest prompt, generated tokens, output-cap stops and compactions (a drop in the
-    conversation's length between two of its calls)."""
+    """Per window (MM-DD-Sxx): calls, largest prompt, generated tokens, output-cap stops, compactions (a drop in the
+    conversation's length between two of its calls) and calls OpenCode sent without the MCP tools (fewer than 29)."""
     out: dict[str, dict] = {}
     rows = sorted(_jsonl(b / "meter.jsonl"), key=lambda r: r["t"])
     last: dict[str, int] = {}
@@ -34,8 +35,10 @@ def meter(b: Path) -> dict[str, dict]:
         if not w:
             continue
         u = r.get("usage") or {}
-        m = out.setdefault(w, {"calls": 0, "max_prompt": 0, "generated": 0, "length_stops": 0, "compactions": 0})
+        m = out.setdefault(w, {"calls": 0, "max_prompt": 0, "generated": 0, "length_stops": 0, "compactions": 0,
+                               "tools_dropped": 0})
         m["calls"] += 1
+        m["tools_dropped"] += r.get("tools", 0) < FULL_TOOLS
         m["max_prompt"] = max(m["max_prompt"], u.get("prompt_tokens") or 0)
         m["generated"] += u.get("completion_tokens") or 0
         m["length_stops"] += r.get("finish") == "length"
@@ -108,6 +111,7 @@ def report(a: argparse.Namespace) -> dict:
             "windows_compacted": sum(v.get("compactions", 0) > 0 for v in s.values()),
             "compactions": sum(v.get("compactions", 0) for v in s.values()),
             "length_stops": sum(v.get("length_stops", 0) for v in s.values()),
+            "calls_without_mcp_tools": sum(v.get("tools_dropped", 0) for v in s.values()),
             "refusals": {t: {"calls": c, "refused": r, "share": round(r / c, 4) if c else None}
                          for t, (c, r) in ref.items()}}
     if len(sides) == 2:
@@ -125,7 +129,8 @@ def report(a: argparse.Namespace) -> dict:
                           "student_beats_base": bool(d) and lo > 0}
     out["per_window"] = {k: {"anchor_C": round(anchor[k], 4),
                              **{n: {f: s.get(k, {}).get(f) for f in ("C", "attempts", "classes", "max_prompt",
-                                                                       "compactions", "length_stops", "calls")}
+                                                                       "compactions", "length_stops", "calls",
+                                                                       "tools_dropped")}
                                 for n, s in sides.items()}} for k in sorted(tasks)}
     return out
 
