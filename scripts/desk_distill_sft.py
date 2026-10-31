@@ -225,20 +225,20 @@ def render(tok, tools: list[dict], messages: list[dict], kwargs: dict) -> dict:
     return {"input_ids": ids, "completion_mask": mask, "text": pos}
 
 
-def pick(n: int, per: int, key: str) -> list[int]:
+def pick(n: int, per: int, key: str, seed: int = 0) -> list[int]:
     """``per`` wakes of ``n``, one from each of ``per`` equal parts of the window, seeded by the session."""
     if not per or per >= n:
         return list(range(n))
-    rng = random.Random(key)
+    rng = random.Random(f"{seed}:{key}")
     cuts = [round(i * n / per) for i in range(per + 1)]
     return [rng.randrange(cuts[i], cuts[i + 1]) for i in range(per) if cuts[i + 1] > cuts[i]]
 
 
-def rows(capture: Path, tok, kwargs: dict, per: int = 0) -> list[dict]:
+def rows(capture: Path, tok, kwargs: dict, per: int = 0, seed: int = 0) -> list[dict]:
     out = []
     for key, reqs in load(capture).items():
         ends = [r for r in reqs if "text" in r["action"]]
-        keep = set(pick(len(ends), per, key))
+        keep = set(pick(len(ends), per, key, seed))
         for k, req in enumerate(ends):
             if k not in keep:
                 continue
@@ -282,6 +282,7 @@ def main() -> None:
     r.add_argument("--out", type=Path, required=True)
     r.add_argument("--show", type=int, default=0)
     r.add_argument("--per-window", type=int, default=0, help="wakes per window, one from each part (0: all)")
+    r.add_argument("--seed", type=int, default=0, help="with the session id, seeds each window's pick")
     t = sub.add_parser("stats")
     t.add_argument("--capture", type=Path, required=True)
     t.add_argument("--tokenizer", required=True)
@@ -296,7 +297,7 @@ def main() -> None:
             print(f"{k}: p50 {statistics.median(v):.0f} p90 {v[int(0.9 * (len(v) - 1))]} max {v[-1]} sum {sum(v)}")
         return
     tok = AutoTokenizer.from_pretrained(a.tokenizer)
-    rs = rows(a.capture, tok, {"enable_thinking": True}, a.per_window)
+    rs = rows(a.capture, tok, {"enable_thinking": True}, a.per_window, a.seed)
     with a.out.open("w") as f:
         for x in rs:
             f.write(json.dumps({k: v for k, v in x.items() if k != "text"}) + "\n")
