@@ -126,7 +126,7 @@ def train(a: argparse.Namespace) -> None:
 def merge(a: argparse.Namespace) -> None:
     base = AutoModelForImageTextToText.from_pretrained(a.model, dtype=torch.bfloat16)
     model = PeftModel.from_pretrained(base, str(a.adapter)).merge_and_unload()
-    model.save_pretrained(str(a.out))
+    model.save_pretrained(str(a.out), max_shard_size="4GB")
     for p in Path(a.model).iterdir():
         if p.is_file() and not p.name.startswith("model") and p.suffix in (".json", ".jinja", ".txt", ".model"):
             if p.name not in ("config.json", "generation_config.json") or not (a.out / p.name).exists():
