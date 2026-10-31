@@ -7,7 +7,7 @@ import { esc, num, pc, shortSpan, usd } from "./fmt.js";
 const ORDER = ["sol", "luna", "qwen"];
 const WX = { "freezing rain": "Freezing rain", "snow and sleet": "Snow and sleet", thunderstorms: "Thunderstorms", "hard freeze": "Hard freeze", "extreme heat": "Extreme heat", rain: "Rain" };
 const SORTS = { window: 1, C: -1, R: -1, P: -1, usd: -1 };
-const WORDS = ["none", "one", "two", "three", "four", "five", "six", "seven", "eight"];
+const WORDS = ["none", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 const $ = (id) => document.getElementById(id);
 
 export function buildSheet(C, { onPick }) {
@@ -64,17 +64,25 @@ export function buildSheet(C, { onPick }) {
       <select data-ff aria-label="Weather front">${opt("", f.front, `All ${B.fronts.length} fronts`)}${B.fronts.filter((x) => !f.split || x.split === f.split).map((x) => opt(x.front, f.front, `${span(x)}, ${x.kind}${B.names[x.front] ? `, ${B.names[x.front]}` : ""}`)).join("")}</select>
       <select data-fb aria-label="Battery">${opt("", f.site, `All ${sites.length} batteries`)}${sites.map((s) => opt(s.site, f.site, `${s.name}, ${s.region}`)).join("")}</select></div>`;
     const rank = Object.fromEntries(B.models.map((k, i) => [k, i]));
-    const rows = runs.filter(([, e]) => (!f.m || e.model === f.m) && (!f.split || e.split === f.split) && (!f.front || e.front === f.front) && (!f.site || C.tasks[e.task].site === f.site))
-      .sort(([, a], [, b]) => {
+    const keep = ([, e]) => (!f.m || e.model === f.m) && (!f.split || e.split === f.split) && (!f.front || e.front === f.front) && (!f.site || C.tasks[e.task].site === f.site);
+    const off = (B.unscored || []).map((x) => [null, x]).filter(keep);
+    const rows = [...runs.filter(keep), ...off]
+      .sort(([ka, a], [kb, b]) => {
         const w = a.front.localeCompare(b.front) || C.tasks[a.task].site.localeCompare(C.tasks[b.task].site) || rank[a.model] - rank[b.model];
-        return st.sort === "window" ? st.dir * w : st.dir * (a[st.sort] - b[st.sort]) || w;
+        return st.sort === "window" ? st.dir * w : !ka || !kb ? !ka - !kb || w : st.dir * (a[st.sort] - b[st.sort]) || w;
       });
-    const mean = f.m && rows.length ? rows.reduce((s, [, e]) => s + e.C, 0) / rows.length : null, invalid = rows.filter(([, e]) => !e.valid).length;
+    const scored = rows.filter(([k]) => k);
+    const mean = f.m && scored.length ? scored.reduce((s, [, e]) => s + e.C, 0) / scored.length : null, invalid = scored.filter(([, e]) => !e.valid).length;
     const head = (k, l, cls) => `<button type="button" class="sort ${cls}" data-sort="${k}" aria-pressed="${st.sort === k}"${st.sort === k ? ` data-dir="${st.dir > 0 ? "up" : "down"}"` : ""}>${l}</button>`;
     let prev = null;
     const row = ([k, e]) => {
       const t = C.tasks[e.task], m = R[e.model], w = `${e.front}|${t.site}`, first = st.sort !== "window" || w !== prev;
       prev = w;
+      if (!k) return `<div class="brow off${first ? " first" : ""}" role="note" aria-label="${esc(`${m.label} on ${t.name}, ${t.region}, ${shortSpan(t.dates)}: stopped by the ${e.why.replace(/, final$/, "")} after $${e.usd.toFixed(2)}, unscored`)}">
+        <span class="w"><b>${shortSpan(t.dates)}</b><small>${esc(fronts[e.front].kind)}${B.names[e.front] ? `, ${esc(B.names[e.front])}` : ""}</small></span>
+        <span class="s"><b>${esc(t.site)}</b><small>${esc(t.region)}</small></span>
+        <span class="m"><b><i class="dot ${e.model}"></i>${esc(m.name)}</b><small>${esc(m.harness)}</small></span>
+        <span class="x"><b>Capped</b><small>stopped by the ${esc(e.why.replace(/, final$/, ""))} after $${e.usd.toFixed(2)}; final and unscored, never imputed</small></span></div>`;
       return `<button type="button" class="brow${first ? " first" : ""}${e.valid ? "" : " void"}" data-k="${k}" aria-current="${k === st.key}" aria-label="${esc(`${m.label} on ${t.name}, ${t.region}, ${shortSpan(t.dates)}: C ${pc(e.C)}, R ${num(e.R, 2)}, P ${usd(e.P)}, cost $${e.usd.toFixed(2)}${e.valid ? "" : ", no valid submission"}`)}">
         <span class="w"><b>${shortSpan(t.dates)}</b><small>${esc(fronts[e.front].kind)}${B.names[e.front] ? `, ${esc(B.names[e.front])}` : ""}</small></span>
         <span class="s"><b>${esc(t.site)}</b><small>${esc(t.region)}</small></span>
@@ -85,7 +93,7 @@ export function buildSheet(C, { onPick }) {
         <span class="u"><small class="k">Cost </small>$${e.usd.toFixed(2)}${m.basis === "gpu_time" ? "<small> GPU</small>" : ""}</span>
         <span class="v">${e.valid ? '<i class="ok" aria-hidden="true">✓</i><small>Valid</small>' : '<i class="no" aria-hidden="true">✕</i><small>No valid submission</small>'}</span></button>`;
     };
-    $("grid").innerHTML = `<p class="bsum" aria-live="polite"><b>${rows.length} run${rows.length === 1 ? "" : "s"}</b>${mean == null ? "" : ` · mean C ${pc(mean)}`}${invalid ? ` · ${invalid} without a valid submission` : ""}${rows.length ? "" : " · no run matches these filters"}</p>
+    $("grid").innerHTML = `<p class="bsum" aria-live="polite"><b>${scored.length} run${scored.length === 1 ? "" : "s"}</b>${mean == null ? "" : ` · mean C ${pc(mean)}`}${invalid ? ` · ${invalid} without a valid submission` : ""}${off.length ? ` · ${off.length} capped window${off.length === 1 ? "" : "s"}, unscored` : ""}${rows.length ? "" : " · no run matches these filters"}</p>
       <div class="blist"><div class="bhead">${head("window", "Window", "w")}<span class="s">Battery</span><span class="m">Model, harness</span>${head("C", "C", "c")}${head("R", "R", "r")}${head("P", "P", "p")}${head("usd", "Cost", "u")}<span class="v">Valid</span></div>${rows.map(row).join("")}</div>`;
   }
 

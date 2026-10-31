@@ -406,19 +406,22 @@ def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
     s, grades = hub_dataset.bench_read(hub_space.BENCH)
     hero = s["hero"]
     rows = [g for g in grades if g["task_id"] in (hero["task_id"], "desk-v4-2026-03-16-S01", "desk-v4-2026-05-08-S01",
-                                                  "desk-v4-2026-08-26-S04")]
+                                                  "desk-v4-2026-08-26-S04", "desk-v4-2026-03-16-S03",
+                                                  "desk-v4-2026-03-16-S04")]
     monkeypatch.setattr(hub_space, "task_view", lambda key, task, raw, ser: (
         {"task": task["task_id"], "version": key}, {"site": task["site"]["site_id"]}))
     (tmp_path / "ep" / "bench").mkdir(parents=True)
     (tmp_path / "task").mkdir()
     cat = {"tasks": {}, "episodes": {}}
     v = hub_space.bench(s, rows, tmp_path, cat, hub_dataset)
-    assert set(cat["episodes"]) == {f"bench/{g['task_id']}.{g['model']}" for g in rows}
+    assert set(cat["episodes"]) == {f"bench/{g['task_id']}.{g['model']}" for g in rows if g["status"] == "scored"}
+    assert v["unscored"] == [{"model": "kimi", "task": "desk-v4-2026-03-16-S04", "split": "pre_cutoff",
+                              "front": "2026-03-16", "why": "episode spend cap, final", "usd": 18.955}]
     assert v["lead"] == f"bench/{hero['task_id']}.{hero['model']}" and v["models"] == s["order_by_C"]
     assert {k: r["label"] for k, r in v["roster"].items()} == {
         k: f"{m['name']} · {m['harness']} · {m['setting']}" for k, m in s["models"].items()}
     assert [x["label"] for x in v["splits"].values()] == ["Jan–May 2026", "Jul–Aug 2026"] and v["days_per_task"] == 3
-    for g in rows:
+    for g in (g for g in rows if g["status"] == "scored"):
         key = f"bench/{g['task_id']}.{g['model']}"
         view = json.loads((tmp_path / "ep" / f"{key}.json").read_text())
         e = cat["episodes"][key]
@@ -433,6 +436,9 @@ def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
     view = json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-08-26-S04.beam.json").read_text())
     assert view["run"]["attempts"] == 3 and view["run"]["http"] == [402]
     assert "http" not in json.loads((tmp_path / "ep" / "bench" / f"{hero['task_id']}.beam.json").read_text())["run"]
+    view = json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-03-16-S03.glm.json").read_text())
+    assert (view["run"]["attempts"], view["run"]["limit"]) == (3, 2) and "http" not in view["run"]
+    assert "limit" not in json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-03-16-S03.sol.json").read_text())["run"]
     assert {k: r.get("cost_note") for k, r in v["roster"].items() if r.get("cost_note")} == {
         "beam": "an upper bound: the Hugging Face router publishes no cached-input price"}
 
@@ -476,7 +482,11 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")
     assert "against cost" not in text
     for m in s["models"].values():
-        assert f"| **{m['name']}** | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
+        n = "" if m["n"] == s["n_windows"] else f"<br><small>{m['n']} of {s['n_windows']} windows</small>"
+        assert f"| **{m['name']}**{n} | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
+    assert ("lists the benchmark's 284 runs first, by\nmodel, side of the cutoffs, front and battery, then the "
+            "development runs. Kimi K3's 4 windows stopped at the window cap are listed as capped and unscored."
+            ) in text
     gif = hub_dataset.bench_gif(s, grades, True)
     assert gif.startswith(f'<a href="{lead}"><img src="{hub_dataset.BENCH_GIF}"')
     assert f"[Replay it in 3D]({lead})" in gif

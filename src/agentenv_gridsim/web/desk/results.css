@@ -103,6 +103,9 @@ table.grid th.ck, table.grid td.ck { padding-left: 14px; border-left: 1px dashed
 .who { display: inline-flex; align-items: flex-start; gap: 9px; }
 .who > i { flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; }
 .who > i.m-beam, .legend .sw.m-beam, table.replays td.rp a i.m-beam { border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.who > i.m-glm, .legend .sw.m-glm, table.replays td.rp :is(a, .off) i.m-glm { border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
+.who > i.m-kimi, .legend .sw.m-kimi, table.replays td.rp :is(a, .off) i.m-kimi { border-radius: 0; clip-path: polygon(50% 0, 62% 35%, 98% 35%, 69% 57%, 79% 91%, 50% 70%, 21% 91%, 31% 57%, 2% 35%, 38% 35%); }
+.who > i.m-qwenmax, .legend .sw.m-qwenmax, table.replays td.rp :is(a, .off) i.m-qwenmax { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .who b { font-weight: 620; }
 .nw { white-space: nowrap; }
 table.replays th { text-align: left; }
@@ -111,7 +114,8 @@ table.replays tbody th { padding-right: 16px; white-space: nowrap; font-size: 13
 table.replays td.rp { text-align: left; white-space: nowrap; }
 table.replays td.rp a { display: inline-flex; align-items: center; gap: 5px; margin: 0 10px 4px 0; padding: 2px 7px 2px 6px; border-radius: 6px; border: 1px solid var(--line); text-decoration: none; color: var(--ink); font-size: 12.5px; }
 table.replays td.rp a:hover { border-color: var(--line-2); background: var(--panel-2); }
-table.replays td.rp a i { width: 8px; height: 8px; border-radius: 50%; }
+table.replays td.rp :is(a, .off) i { width: 8px; height: 8px; border-radius: 50%; }
+table.replays td.rp .off { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px 2px 6px; border-radius: 6px; border: 1px dashed var(--line-2); color: var(--ink-3); font-size: 12.5px; cursor: help; }
 
 .cardfig { --halo: var(--panel); margin: 4px 0 0; }
 .cardfig svg.chart { max-width: 100%; height: auto; }

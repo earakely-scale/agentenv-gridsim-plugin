@@ -29,6 +29,10 @@ i.dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radiu
 i.dot.opus { background: var(--c-opus); }
 i.dot.argon { background: var(--c-argon); }
 i.dot.beam { background: var(--c-beam); border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+i.dot.glm { background: var(--c-glm); border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
+i.dot.kimi { background: var(--c-kimi); border-radius: 0; clip-path: polygon(50% 0, 62% 35%, 98% 35%, 69% 57%, 79% 91%, 50% 70%, 21% 91%, 31% 57%, 2% 35%, 38% 35%); }
+i.dot.qwenmax { background: var(--c-qwenmax); border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+i.dot:is(.glm, .kimi) { width: 10px; height: 10px; margin: -1px; }
 i.dot.sol { background: var(--c-sol); }
 i.dot.luna { background: var(--c-luna); }
 i.dot.qwen { background: var(--c-qwen); }
@@ -321,6 +325,11 @@ i.dot.qwen { background: var(--c-qwen); }
 .brow .w b, .brow .s b { white-space: nowrap; }
 .brow .m b { display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brow .m small { padding-left: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brow.off { cursor: default; }
+.brow.off:hover { background: none; }
+.brow.off .x { grid-column: 4 / -1; color: var(--ink-2); font-size: 12.5px; }
+.brow.off .x b { margin-right: 6px; color: var(--ink); }
+.brow.off .x small { display: inline; }
 .brow .lead { margin-left: 6px; padding: 0 5px; border: 1px solid color-mix(in srgb, var(--agent) 40%, transparent); border-radius: 4px; color: var(--agent); font-size: 10.5px; font-style: normal; font-weight: 600; }
 .brow .c { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .brow .c b { font-size: 14px; font-weight: 640; }
@@ -329,6 +338,9 @@ i.dot.qwen { background: var(--c-qwen); }
 .brow .heat.opus i { background: var(--c-opus); }
 .brow .heat.argon i { background: var(--c-argon); }
 .brow .heat.beam i { background: var(--c-beam); }
+.brow .heat.glm i { background: var(--c-glm); }
+.brow .heat.kimi i { background: var(--c-kimi); }
+.brow .heat.qwenmax i { background: var(--c-qwenmax); }
 .brow .heat.sol i { background: var(--c-sol); }
 .brow .heat.luna i { background: var(--c-luna); }
 .brow .heat.qwen i { background: var(--c-qwen); }
@@ -412,6 +424,7 @@ table.eps .mk.pick { color: var(--agent); border-color: color-mix(in srgb, var(-
   .brow .p { order: 8; }
   .brow .u { order: 9; }
   .brow .v { order: 10; margin-left: auto; }
+  .brow.off .x { order: 7; flex-basis: 100%; }
   .brow:not(.first) .w, .brow:not(.first) .s { visibility: visible; }
   .brow .w, .brow .s { color: var(--ink-2); font-size: 12px; }
   .brow .w b, .brow .s b { font-weight: 560; color: var(--ink); }
@@ -456,11 +469,12 @@ table.eps .mk.pick { color: var(--agent); border-color: color-mix(in srgb, var(-
   .picks { grid-template-columns: 1fr; }
 }
 
-.filters .seg.fm button { padding-left: 7px; padding-right: 7px; }
+.filters .seg.fm { width: 100%; flex-wrap: wrap; }
+.filters .seg.fm button { flex: 1 1 18%; padding-left: 7px; padding-right: 7px; }
 
 @media (max-width: 720px) {
   .filters .seg.fm { width: 100%; flex-wrap: wrap; }
-  .filters .seg.fm button { flex: 1 1 22%; }
+  .filters .seg.fm button { flex: 1 1 auto; }
   .filters .seg.fm .full, .filters .seg.fm small { display: none; }
   .filters .seg.fm .nick { display: inline; }
 }
