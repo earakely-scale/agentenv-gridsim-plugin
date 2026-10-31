@@ -923,6 +923,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("packs", nargs="*", default=list(PACKS))
     ap.add_argument("--only", help="task_id substring")
+    ap.add_argument("--assemble", action="store_true", help="reuse the task rows earlier runs left in <pack>/rows")
     a = ap.parse_args()
     reg = pd.read_parquet(DESK / "sites.parquet")
     cal_p = DESK / "calibration.json"
@@ -944,9 +945,17 @@ def main():
                 tasks.append(cutoff_tag(old[tid], spec))
                 infos[tid] = old_cov[tid]
                 continue
+            row = out / "rows" / f"{tid}.json"
+            if a.assemble and row.exists():
+                r = json.loads(row.read_text())
+                tasks.append(r["task"])
+                infos[tid] = r["info"]
+                continue
             task, s, info = build_task(pack, spec, d0, sid, reg, cal)
             task = cutoff_tag(task, spec)
             (out / "series" / f"{task['task_id']}.json.gz").write_bytes(gzip.compress(s.encode(), mtime=0))
+            row.parent.mkdir(exist_ok=True)
+            row.write_text(json.dumps({"task": task, "info": info}))
             tasks.append(task)
             infos[task["task_id"]] = info
             print(f"[build] {task['task_id']}: operator_ok={task['operator_ok']} {task['tags']} {info}", flush=True)

@@ -20,7 +20,10 @@ from pathlib import Path
 
 import numpy as np
 
-from gridsim_core.desk import Session, grade, load_series, load_tasks, policies
+from gridsim_core.desk import Session, grade, load_series, load_tasks, policies, system_prompt, text
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import desk_distill_stub as stub  # noqa: E402
 
 SUBMITS = ("submit_dam_offers", "submit_rt_offers", "update_cop")
 
@@ -186,6 +189,99 @@ def feas(a: argparse.Namespace) -> None:
             print(f"{k + 1}/{len(rows)} {r['task_id']} {time.monotonic() - t0:.0f}s", file=sys.stderr, flush=True)
 
 
+def play_stub(task: dict, series: dict, every: int, prefix: str = "env0000_", system: str = "",
+              log: Callable[[list[dict], dict], None] | None = None) -> tuple[Session, list[dict]]:
+    """The stub's anchor over an OpenCode-shaped conversation, played in process: each wake a JSON-string user message,
+    each call an assistant tool call and its tool result."""
+    s = Session(task, series)
+    msgs: list[dict] = [{"role": "system", "content": system}]
+
+    def act_for() -> dict:
+        act = stub.decide(msgs, prefix, every)
+        if log:
+            log(msgs, act)
+        return act
+
+    wake = s.start()
+    while wake is not None:
+        msgs.append({"role": "user", "content": json.dumps(text(wake))})
+        while "tool" in (act := act_for()):
+            cid = f"c{len(msgs)}"
+            fn = {"name": act["tool"], "arguments": json.dumps(act["args"])}
+            call = {"id": cid, "type": "function", "function": fn}
+            msgs.append({"role": "assistant", "content": "", "tool_calls": [call]})
+            out = s.call(act["tool"][len(prefix):], act["args"])
+            msgs.append({"role": "tool", "tool_call_id": cid, "content": text(out)})
+        msgs.append({"role": "assistant", "content": act["text"]})
+        wake = s.end_turn(act["text"])
+    return s, msgs
+
+
+def inproc(a: argparse.Namespace) -> None:
+    """Stub sessions played in process and logged in the stub's capture format, with a reference OpenCode request's
+    system prompt head and tail and its tools (renamed to env0000_): for sizing before the real capture."""
+    ref = json.loads(a.reference.read_text())
+    old = stub.prefix_of(ref["tools"])
+    tools = json.loads(json.dumps(ref["tools"]).replace(old, "env0000_"))
+    ctx = json.loads(a.context.read_text())
+    rows = [r for r in load_tasks(a.pack) if r["split"] == a.split][:a.limit]
+    log = stub.Log(a.out)
+    out = []
+    for r in rows:
+        ser = load_series(a.pack, r)
+        s0 = Session(r, ser)
+        system = ctx["head"] + system_prompt(s0) + ctx["tail"]
+
+        def rec(msgs, act, r=r):
+            log.write({"messages": json.loads(json.dumps(msgs)), "tools": tools,
+                       "chat_template_kwargs": {"enable_thinking": True}, "task": r["task_id"]}, act, "desk")
+
+        s, _ = play_stub(r, ser, a.every, system=system, log=rec)
+        g = grade(s)
+        out.append({"task_id": r["task_id"], "every": a.every, "C": g["capture"], "anchor_C": g["anchor_capture"],
+                    "refusals": refusals(s)})
+        print(json.dumps(out[-1]), flush=True)
+
+
+def refusals(s: Session) -> dict:
+    """Per submit tool: calls, and calls the env refused in part or whole."""
+    out: dict[str, list[int]] = {}
+    for t in s.turns:
+        for c in t["calls"]:
+            if c["tool"] in SUBMITS:
+                r = c["result"]
+                bad = bool(r.get("error") or r.get("rejected") or r.get("as_rejected"))
+                out.setdefault(c["tool"], [0, 0])
+                out[c["tool"]][0] += 1
+                out[c["tool"]][1] += bad
+    return out
+
+
+def selftest(a: argparse.Namespace) -> None:
+    for r in load_tasks(a.pack)[:a.limit]:
+        ser = load_series(a.pack, r)
+        ref = Session(r, ser)
+        calls: list[tuple[str, dict]] = []
+        real = ref.call
+
+        def rec(name, args=None, role="default", real=real, calls=calls):
+            if role == "default" and name in SUBMITS:
+                calls.append((name, copy.deepcopy(args)))
+            return real(name, args, role)
+
+        ref.call = rec
+        w = ref.start()
+        while w is not None:
+            policies.anchor(ref, w)
+            w = ref.end_turn("")
+        s, msgs = play_stub(r, ser, 1)
+        got = [(m["tool_calls"][0]["function"]["name"][8:], json.loads(m["tool_calls"][0]["function"]["arguments"]))
+               for m in msgs if m.get("tool_calls")]
+        got = [x for x in got if x[0] in SUBMITS]
+        print(f"{r['task_id']} anchor C {grade(ref)['capture']} stub C {grade(s)['capture']} submits {len(calls)} "
+              f"identical {got == calls}")
+
+
 def _boot(d: dict[str, list[float]], n: int = 10000) -> tuple[float, float]:
     rng = np.random.default_rng(0)
     blocks = list(d.values())
@@ -234,10 +330,21 @@ def main() -> None:
     f.add_argument("--limit", type=int)
     f.add_argument("--shard", type=int, default=0)
     f.add_argument("--of", type=int, default=1)
+    t = sub.add_parser("selftest", help="the stub's anchor against the anchor, call for call")
+    t.add_argument("--pack", required=True)
+    t.add_argument("--limit", type=int, default=3)
+    i = sub.add_parser("inproc", help="stub sessions in process, in the capture format")
+    i.add_argument("--pack", required=True)
+    i.add_argument("--split", default="train")
+    i.add_argument("--every", type=int, default=2)
+    i.add_argument("--limit", type=int)
+    i.add_argument("--reference", type=Path, required=True)
+    i.add_argument("--context", type=Path, required=True)
+    i.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("feas-report", help="summarise feas output")
     r.add_argument("inp", type=Path, nargs="+")
     a = ap.parse_args()
-    {"feas": feas, "feas-report": feas_report}[a.cmd](a)
+    {"feas": feas, "feas-report": feas_report, "selftest": selftest, "inproc": inproc}[a.cmd](a)
 
 
 if __name__ == "__main__":
