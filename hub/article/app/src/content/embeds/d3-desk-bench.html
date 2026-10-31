@@ -66,9 +66,10 @@
       };
       const card = (el, m, color, sp) => {
         head(el, m, color);
-        [[side[sp].name, sp === "pre_cutoff" ? `${m.pre} ${m.preci}` : `${m.post} ${m.postci}`], [`C, all ${fb.n} windows`, `${m.C} ${m.Cci}`],
+        [[side[sp].name, sp === "pre_cutoff" ? `${m.pre} ${m.preci}` : `${m.post} ${m.postci}`], [`C, ${m.n === fb.n ? "all" : `${m.n} of`} ${fb.n} windows`, `${m.C} ${m.Cci}`],
           ["R", `${m.R} ${m.Rci}`], ["cost a window", m.basis ? `${m.usd}, ${m.basis}` : m.usd]].forEach(([a, b]) => K.t.row(el, a, b));
         if (m.valid !== m.n) K.t.note(el, `A valid submission on ${m.valid} of ${m.n} windows.`);
+        for (const [why, k] of Object.entries(m.missing)) K.t.note(el, `${k} ${k > 1 ? "windows" : "window"} unscored, ended by the ${why.replace(/, final$/, "")}.`);
       };
 
       function render() {

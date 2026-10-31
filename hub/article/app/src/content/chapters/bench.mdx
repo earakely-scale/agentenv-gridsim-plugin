@@ -6,9 +6,12 @@ import F from "../assets/data/facts.json";
 The benchmark plays the desk's v4, Weather Front: three operating days in a row across a real Texas weather front,
 from 06:00 the day before the first, with three day-ahead markets to bid as ERCOT's forecasts move. Its {F.bench.n}
 windows cover {F.bench.fronts} fronts at {F.bench.sites} real batteries, half from {F.bench.side.pre.name}, which may
-be in the models' training data, and half from {F.bench.side.post.name}, after every model's reported training cutoff.
+be in the models' training data, and half from {F.bench.side.post.name}, after every reported training cutoff.
 Each model runs in a native agent harness, once per window, on the same desk, tools and grading as the development
-runs further down. The headline is C, hindsight capture: the share of the hindsight optimum's profit over idle that a
+runs further down. {F.bench.m.glm.name}, {F.bench.m.kimi.name} and {F.bench.m.qwenmax.name} joined last as
+{F.bench.m.beam.name}’s peers, the top three open-weights models on BenchLM's agentic leaderboard, a choice the
+<a href={F.bench.links.deviations}>pre-registration</a> fixed before any of their results (its item 28), and ran in
+{F.bench.m.beam.name}’s harness. The headline is C, hindsight capture: the share of the hindsight optimum's profit over idle that a
 desk captures.
 
 <HtmlEmbed
@@ -158,7 +161,10 @@ tools off and has its internet egress blocked.
   [agentenv-framework#388](https://github.com/scaleapi/agentenv-framework/pull/388).
 - **{F.bench.errors.head}:** {F.bench.errors.text}
 - **{F.bench.late.beam.head}:** {F.bench.late.beam.text} {F.bench.price.beam}
-- **{F.bench.credits.head}:** {F.bench.credits.text} Both late runs are logged in full in the
+- **{F.bench.credits.head}:** {F.bench.credits.text}
+- **{F.bench.late.glm.head}:** {F.bench.late.glm.text}
+- **{F.bench.limit.head}:** {F.bench.limit.text}
+- **{F.bench.capped.head}:** {F.bench.capped.text} Every late run is logged in full in the
   <a href={F.bench.links.deviations}>deviations</a>.
 - **Pre-registered.** The
   [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
@@ -168,9 +174,9 @@ tools off and has its internet egress blocked.
   {F.bench.text.reliability}
 
 **Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
-(`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam` or `opencode-qwen`), and `agent-env run` plays
-one window of it, with a `.agentenv/config.toml` that names the model endpoint and its key and a sandbox provider that
-enforces the bundle's network allowlist:
+(`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam`, `opencode-glm`, `opencode-kimi`,
+`opencode-qwenmax` or `opencode-qwen`), and `agent-env run` plays one window of it, with a `.agentenv/config.toml` that
+names the model endpoint and its key and a sandbox provider that enforces the bundle's network allowlist:
 
 ```bash
 uv run python scripts/desk_bench.py tasks --harness codex-luna \

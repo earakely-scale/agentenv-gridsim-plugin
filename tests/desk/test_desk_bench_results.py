@@ -265,9 +265,16 @@ def test_article_states_the_bench_as_the_card_does(bench):
     assert f"<small>{t['before']}[{t['label']}]({t['url']}){t['after']}</small>" in block
     assert t["url"] == f["links"]["deviations"] and f["tag"] in t["url"]
     assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["late"]["argon"], f["errors"], f["late"]["beam"],
-                                                   f["credits"])] == [
+                                                   f["credits"], f["late"]["glm"], f["limit"], f["capped"])] == [
         x for x in s["deviations"] if x.startswith(("Route C", "Gemini 4 Argon:", "Provider HTTP 400s", "Beam-1.0:",
-                                                    "Out of credits"))]
+                                                    "Out of credits", "GLM-5.3, Kimi K3 and Qwen3.8 Max:",
+                                                    "Output limit", "Window cap"))]
+    assert f["late"]["glm"] == f["late"]["kimi"] == f["late"]["qwenmax"]
+    cm = hub_article.chart_models(s)
+    assert set(cm) == set(s["models"]) and (cm["kimi"]["n"], cm["kimi"]["pre_cutoff"]["n"], cm["kimi"]["released"],
+                                            cm["kimi"]["attempts"]["missing_reasons"]) == (
+        28, 14, "2026-07-16", {"episode spend cap, final": 4}) and f["m"]["kimi"]["missing"] == {
+        "episode spend cap, final": 4}
     assert set(f["late"]) == {k for k, m in s["models"].items() if m.get("framework")}
     assert f["price"]["beam"] == s["models"]["beam"]["price_note"] and f["price"]["beam"] in t["before"]
     assert f["ahead"] == (f"GPT-6.1 Sol {f['m']['sol']['op']}, Kimi K3 {f['m']['kimi']['op']} and Claude Opus 5.5 "
