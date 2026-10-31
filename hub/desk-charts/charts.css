@@ -1,6 +1,6 @@
 :root { --halo: #ffffff; --fern: rgba(20, 32, 43, 0.055); --c-argon: #eda100; --c-opus: #e87ba4; --c-beam: #b03a8c; --wm: #d03b3b; }
-:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9c4aa8; --wm: #e66767; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9c4aa8; --wm: #e66767; } }
+:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9244ab; --wm: #e66767; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9244ab; --wm: #e66767; } }
 
 svg.chart { display: block; overflow: visible; font-family: var(--sans); }
 svg.chart text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }

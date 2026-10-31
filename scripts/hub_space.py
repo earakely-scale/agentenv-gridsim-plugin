@@ -60,7 +60,7 @@ FEATURED = (("desk-v4-2026-05-08-S04.sol", "Three days of spring thunderstorms i
 D9 = re.compile(r"CROSSETT|CLO_ESR|WIG_ESS|WFTANK|\bJupiter\b|\bMEA\b|\bHabitat\b|\bTenaska\b|\b[A-Z0-9]+_RN\b|"
                 r"\b[A-Z0-9]+_ESR\w*\b|\b[A-Z0-9]+_ESS\w*\b")
 BOXES = re.compile(r"\bi-0[0-9a-f]{8,17}\b|\bip-\d{1,3}(?:-\d{1,3}){3}\b|\.(?:compute|ec2)\.internal\b|"
-                   r"\b127\.0\.0\.1\b|\blocalhost:\d|agent-env-local-[\w-]+")
+                   r"\b127\.0\.0\.1\b|\blocalhost:\d|agent-env-local-[\w-]+|\brouter\.huggingface\.co\b")
 TEXT = (".json", ".html", ".js", ".css", ".md", ".txt")
 PRODUCTS = ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")
 NOTICE_LEVELS = {"Watch", "Emergency", "Advisory", "OCN", "EEA", "EEA1", "EEA2", "EEA3"}
@@ -159,6 +159,8 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
                            "input_tokens": tok["input"], "output_tokens": tok["output"], "cached_tokens": tok["cached"]}
             ev["run"] = {"attempts": g["attempts"], "own": own_calls(g["own_tools"]),
                          "tokens": {k: tok[k] for k in ("input", "cached", "cache_write", "output", "reasoning")}}
+            if http := failed_http(s, g):
+                ev["run"]["http"] = http
             key = f"bench/{task_id}.{g['model']}"
             (data / "ep" / f"{key}.json").write_text(dumps(ev))
             cat["episodes"][key] = row | {"split": g["split"], "front": g["front"], "usd": g["usd"],
@@ -171,11 +173,20 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
             "models": s["order_by_C"],
             "roster": {k: {"name": m["name"], "tag": m["tag"], "harness": m["harness"], "version": m["harness_version"],
                            "setting": m["setting"], "label": f"{m['name']} · {m['harness']} · {m['setting']}",
-                           "weights": m["weights"], "basis": m["cost"]["basis"]} for k, m in ms.items()},
+                           "weights": m["weights"], "basis": m["cost"]["basis"]}
+                       | ({"cost_note": f"an upper bound: {m['endpoint']} publishes no cached-input price"}
+                          if m.get("price_note") else {}) for k, m in ms.items()},
             "tasks": tasks, "names": module("hub_desk", "scripts/hub_desk.py").NAMED["v4"],
             "fronts": [{k: f[k] for k in ("front", "split", "kind")} for f in s["fronts"]],
             "splits": sides(s, card),
             "lead": f"bench/{s['hero']['task_id']}.{s['hero']['model']}"}
+
+
+def failed_http(s: dict, g: dict) -> list[int]:
+    """The HTTP status codes that ended a graded run's earlier attempts, when each of them names one."""
+    codes = [re.search(r"error_code=(\d+)", a.get("error") or "") for a in s["attempts"] if a["model"] == g["model"]
+             and a["task_id"] == g["task_id"] and a["attempt"] < g["attempts"] and a["status"] == "failed"]
+    return sorted({int(m[1]) for m in codes}) if codes and all(codes) else []
 
 
 def own_calls(own: dict) -> dict:

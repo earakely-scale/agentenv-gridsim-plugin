@@ -383,7 +383,8 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
 def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
     s, grades = hub_dataset.bench_read(hub_space.BENCH)
     hero = s["hero"]
-    rows = [g for g in grades if g["task_id"] in (hero["task_id"], "desk-v4-2026-03-16-S01", "desk-v4-2026-05-08-S01")]
+    rows = [g for g in grades if g["task_id"] in (hero["task_id"], "desk-v4-2026-03-16-S01", "desk-v4-2026-05-08-S01",
+                                                  "desk-v4-2026-08-26-S04")]
     monkeypatch.setattr(hub_space, "task_view", lambda key, task, raw, ser: (
         {"task": task["task_id"], "version": key}, {"site": task["site"]["site_id"]}))
     (tmp_path / "ep" / "bench").mkdir(parents=True)
@@ -407,6 +408,11 @@ def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
     assert cat["episodes"]["bench/desk-v4-2026-03-16-S01.qwen"]["own"] > 0
     view = json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-05-08-S01.argon.json").read_text())
     assert view["run"]["own"] == {"list_directory": 1, "peer_list": 1, "invalid": 1}
+    view = json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-08-26-S04.beam.json").read_text())
+    assert view["run"]["attempts"] == 3 and view["run"]["http"] == [402]
+    assert "http" not in json.loads((tmp_path / "ep" / "bench" / f"{hero['task_id']}.beam.json").read_text())["run"]
+    assert {k: r.get("cost_note") for k, r in v["roster"].items() if r.get("cost_note")} == {
+        "beam": "an upper bound: the Hugging Face router publishes no cached-input price"}
 
 
 def test_space_keeps_one_task_view_and_refuses_a_different_one(tmp_path):
@@ -460,7 +466,8 @@ def test_space_scan_reads_gzip_and_refuses_what_it_cannot_read(tmp_path):
     (tmp_path / "data" / "catalog.json").write_text('{"episodes": {}}')
     hub_space.scan(tmp_path)
     real = next(x for x in hub_desk.names(ROOT) if len(x) > 4)
-    for body, why in ((f'{{"name": "{real}"}}', "real site or operator"), ('{"host": "ip-10-0-1-2"}', "or host")):
+    for body, why in ((f'{{"name": "{real}"}}', "real site or operator"), ('{"host": "ip-10-0-1-2"}', "or host"),
+                      ('{"base": "https://router.huggingface.co/v1"}', "or host")):
         (tmp_path / "data" / "ep.json.gz").write_bytes(gzip.compress(body.encode()))
         with pytest.raises(SystemExit, match=why):
             hub_space.scan(tmp_path)

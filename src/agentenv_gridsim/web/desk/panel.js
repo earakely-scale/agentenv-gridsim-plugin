@@ -9,7 +9,8 @@ const ACT = new Set(["submit_dam_offers", "submit_rt_offers", "update_cop", "opt
 const MID = new Set(["check_submission", "set_reminder"]);
 const LINES = { dam_energy: "DAM energy", rt_energy_imbalance: "RT imbalance", deviation: "Set-point deviation", load_allocated: "Load-allocated", dam_as_capacity: "DAM ancillary capacity", rt_as_imbalance: "RT ancillary imbalance", capacity_short: "Capacity short", failure_to_provide: "Failure to provide", pv_energy: "Solar energy", degradation: "Degradation", warranty_overage: "Warranty overage", end_soc_shortfall: "End-of-window energy" };
 const REFS = [["p_anchor", "Anchor", "anchor"], ["p_operator_replay", "Operator's bids, replayed", "op"], ["p_operator_actual", "Operator, as settled", "op"], ["p_hind_phys", "Hindsight, DAM tied to dispatch", "hind"], ["p_hind", "Hindsight optimum", "hind"]];
-const OWN = { bash: ["shell command", "shell commands"], edit: ["file edit", "file edits"], read: ["file read", "file reads"], write: ["file write", "file writes"], list_directory: ["directory listing", "directory listings"], glob: ["file search", "file searches"], peer_list: ["peer-agent lookup", "peer-agent lookups"] };
+const OWN = { bash: ["shell command", "shell commands"], edit: ["file edit", "file edits"], read: ["file read", "file reads"], write: ["file write", "file writes"], list_directory: ["directory listing", "directory listings"], glob: ["file search", "file searches"], peer_list: ["peer-agent lookup", "peer-agent lookups"], grep: ["text search", "text searches"] };
+const HTTP = { 402: "payment required" };
 const $ = (id) => document.getElementById(id);
 const md = (s) => esc(s).replace(/^#{1,6}\s+(.+)$/gm, "<b>$1</b>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>").replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/^(\s*)[-*] /gm, "$1• ");
 const tokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n));
@@ -257,8 +258,9 @@ function harness(E, ms) {
 
 function runLine(E, ms) {
   const u = E.usage, t = E.run.tokens, a = E.run.attempts, input = t.input + t.cached + t.cache_write;
-  const cost = `$${u.cost_usd.toFixed(2)} ${ms.basis === "gpu_time" ? "of GPU time" : "at list price"}`;
-  const tries = a > 1 ? `graded on attempt ${a}, after ${a - 1} infrastructure failure${a > 2 ? "s" : ""}` : "graded on its first attempt";
+  const cost = `$${u.cost_usd.toFixed(2)} ${ms.basis === "gpu_time" ? "of GPU time" : "at list price"}${ms.cost_note ? ` (${ms.cost_note})` : ""}`;
+  const h = E.run.http, code = h ? `, ${a > 2 ? "each an" : "an"} HTTP ${h.join(" or ")}${h.length === 1 && HTTP[h[0]] ? ` (${HTTP[h[0]]})` : ""}` : "";
+  const tries = a > 1 ? `graded on attempt ${a}, after ${a - 1} infrastructure failure${a > 2 ? "s" : ""}${code}` : "graded on its first attempt";
   return `<b>The run</b> ${esc(ms.harness)} ${esc(ms.version)} · ${esc(ms.setting)}: ${cost}; ${tokens(input)} input tokens, ${Math.round((100 * t.cached) / input)}% of them cached, and ${tokens(t.output)} output; ${tries}.`;
 }
 
