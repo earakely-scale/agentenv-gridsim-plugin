@@ -201,7 +201,6 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
         raise SystemExit("results/desk-v4-bench holds fake data; the article states real runs only")
     block, refs, ms = card.bench_block(s, grades, d).splitlines(), s["references"], card.bench_models(s)
     how = {x["head"]: x for x in map(bold, card.bench_how(s))}
-    late = next(m for m in ms if m.get("framework"))
     gaps = {m["key"]: card.bench_pair(s, m["key"], "operator_replay") for m in ms}
     side = {k: {"name": card.bench_side(s, sp), "note": card.BENCH_SIDE[sp], "n": str(s["splits"][sp]["windows"]),
                 "fronts": str(len(s["splits"][sp]["fronts"]))} for k, sp in zip(SIDES, card.BENCH_SPLITS, strict=True)}
@@ -217,9 +216,10 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
            "how": {"harness": how["Each model in a native agent harness,"], "internet": how["No internet."],
                    "tools": how["The desk's 11 tools over MCP,"]},
            "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
-           "route": colon(next(x for x in s["deviations"] if x.startswith("Route C"))),
-           "late": colon(next(x for x in s["deviations"] if x.startswith(f"{late['name']}:"))),
-           "errors": colon(next(x for x in s["deviations"] if x.startswith("Provider HTTP 400s"))),
+           "route": deviation(s, "Route C"), "errors": deviation(s, "Provider HTTP 400s"),
+           "credits": deviation(s, "Out of credits"),
+           "late": {m["key"]: deviation(s, f"{m['name']}:") for m in ms if m.get("framework")},
+           "price": {m["key"]: m["price_note"] for m in ms if m.get("price_note")},
            "tag": s["run"]["deviations_ref"], "links": {"deviations": card.bench_deviations(s)},
            "cap": {"splits": small(block, "C × 100"), "table": link(small(block, "C, hindsight capture"))}}
     q = json.loads(OPENCODE.read_text())
@@ -277,6 +277,10 @@ def colon(x: str) -> dict:
     """A deviation as the card logs it, its subject apart from the rest."""
     head, text = x.split(": ", 1)
     return {"head": head, "text": text}
+
+
+def deviation(s: dict, head: str) -> dict:
+    return colon(next(x for x in s["deviations"] if x.startswith(head)))
 
 
 MDLINK = re.compile(r"\[([^\]]+)\]\((https://[^)\s]+)\)")
