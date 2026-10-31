@@ -75,5 +75,14 @@ choice and both numbers are reported before training.
 - **After.** An optional short GRPO from the SFT adapter is scored the same way on the same 36 windows. The 32-window
   benchmark run (base and best student as leaderboard rows) happens only after Edgar approves it.
 
+## Secondary comparison: the benchmark
+Only after the primary result is in, and only if Edgar approves the leaderboard run: base and student each play the 32
+`desk-v4-bench` windows once in OpenCode, with the serving, harness and decoding of the primary eval
+(`opencode-qwen35-long`, 262,144 tokens; base Qwen3-4B's leaderboard row ran at 32,768, which is noted beside the rows).
+Secondary result: the mean over the 32 windows of C(student) − C(base) with a 95% front-block bootstrap interval (the
+eight fronts are the blocks, 10,000 resamples, seed 0, percentile), and each model's C with the benchmark's own
+interval. It is reported as secondary and does not change the primary verdict; infrastructure reruns follow the v4
+benchmark's rules.
+
 ## Deviations
 None yet.
