@@ -189,3 +189,43 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
 27. Spend: $66.52 metered for the 36 attempts ($63.01 for the 32 graded ones, $3.51 for the two the 402 ended
     mid-episode), $0.01 for the netcheck and $1.93 for the smoke: $68.46 for Beam, under its $200. 96% of input
     tokens were cached; at the full input price of 15 that is $1.97 a graded window.
+
+### Open-weights comparison: GLM-5.3, Kimi K3, Qwen3.8 Max
+
+28. Selection, stated before any result: the top three open-weights models on BenchLM's agentic leaderboard (snapshot of
+    2026-10-29), chosen to compare against Beam-1.0 and run in the harness Beam used. Open weights means weights
+    published on Hugging Face: GLM-5.3 (`zai-org/GLM-5.3`, GLM-5.3 licence), Kimi K3 (`moonshotai/Kimi-K3`, Kimi K3
+    License) and Qwen3.8 Max, whose weights are `Qwen/Qwen3.8-2.4T-A95B` (licence "qwen3.8-max"; the hosted Qwen3.8-Max
+    adds vision input, a non-thinking mode, 1M context by default and built-in tools on those weights, and Fireworks
+    serves that base). Kimi K3.1 Pro ranks above Kimi K3 but has no released weights and is not on our gateway, so Kimi
+    K3 stands. Added after the others and run after them, from 2026-10-31, on the same 32 windows. Results are reported
+    in full whatever they show.
+29. Routes and prices: our LiteLLM gateway to Fireworks, `fireworks_ai/glm-5p3`, `fireworks_ai/kimi-k3` and
+    `fireworks_ai/qwen3p8-max`, at Fireworks' list prices per 1M input / cached input / output tokens: GLM-5.3 $1.40 /
+    $0.26 / $4.40, Kimi K3 $3.00 / $0.30 / $15.00, Qwen3.8 Max $2.00 / $0.25 / $6.00. The proxy meters each response's
+    usage at those prices.
+30. Harness: OpenCode 1.17.18 as Beam's in 16 except for each model's entry: `reasoning_effort: "high"` on every request
+    (effort high in the framework), reasoning on, context limit 1,040,000 tokens for GLM-5.3 and Kimi K3 (Fireworks'
+    served context) and 262,144 for Qwen3.8 Max (its open weights' context), output limit 32,768, the provider's default
+    sampling, and web fetch, web search and code search denied. High is GLM-5.3's middle level: its levels are low, high
+    and max, and it defaults to max, which reasoned several times longer than high in our probes. All three return
+    reasoning_content, OpenCode sends the earlier turns' reasoning back, and the gateway accepts it.
+    agentenv-framework 0.9.1396; each bundle is generated at `desk-v4-bench-run1` (2523700) with an opencode-<model>
+    preset beside opencode-qwen, exactly as for the other harnesses.
+31. The same route C on the box Beam used (resized to m7i.8xlarge), each model with its own state, port cursor, proxy
+    lanes and driver: egress closed by the host rule, the agent holding a placeholder key, the proxy injecting the
+    gateway key. Each model's netcheck runs first and checks from inside its agent's container that the internet is
+    unreachable and the model reachable.
+32. Retries: the rules the others ran under, as for Beam in 20. Infrastructure failures are retried at most twice, a
+    launch that fails before any model call at $0 does not count, and agent-side outcomes are final. HTTP 429 and HTTP
+    402 are infrastructure and do not count toward the retry limit, with the safety stop at 6 attempts a window. A
+    provider answer with no choices, seen twice in GLM-5.3 probes through the gateway, is infrastructure too.
+33. Pace and caps: the three models at once, at most 4 windows of each at a time, in pack order. $20 a window: an
+    attempt stopped by it is final and reported as capped, with its spend, not retried or scored, as in 22. $130 a
+    model, its smoke and netchecks included: no window starts once the model's spend so far, its running windows at
+    their likely cost (the larger of their spend and the mean graded window's cost, 1.3 times the smoke's cost before
+    three are graded) and its windows left at that mean would pass $130.
+34. Smokes, not scored: the pilot window (2026-02-03..05 S01) on 2026-10-31, on route C, one each. GLM-5.3 completed
+    25 of 25 wakes, 69 model calls, C 0.095, $1.88; Kimi K3 25 of 25, 72 calls, C 0.111, $2.64; Qwen3.8 Max 22 of 22,
+    62 calls, C 0.112, $2.66. Each kept one session with no compaction, cached 97–98% of input tokens and had no HTTP
+    429 or other error.
