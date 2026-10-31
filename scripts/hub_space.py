@@ -40,7 +40,7 @@ DESK = WEB / "desk"
 CARD = {"card-charts.js": ROOT / "hub" / "desk-charts" / "charts.js",
         "card-charts.css": ROOT / "hub" / "desk-charts" / "charts.css"}
 BENCH = ROOT / "results" / "desk-v4-bench"
-BENCH_TAG = "desk-v4-bench-results-3"
+BENCH_TAG = "desk-v4-bench-results-4"
 SPACE = "earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
