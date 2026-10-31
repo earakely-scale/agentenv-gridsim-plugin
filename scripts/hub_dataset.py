@@ -793,11 +793,11 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool
 BENCH_DIR = "results/desk-v4-bench"
 BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
-BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every cutoff"}
+BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every reported cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
-NOT_YET_IN_VIEWER = ()
+NOT_YET_IN_VIEWER = ("glm", "kimi", "qwenmax")
 BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
-              "post_cutoff": "after every model's training cutoff"}
+              "post_cutoff": "after every reported training cutoff"}
 FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
         "records to exercise the pipeline. No benchmark run is behind any of them.")
 
@@ -904,6 +904,7 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
     window and on each side of the cutoffs, cost a window); what the numbers say, how it runs and its limitations;
     every number from results/desk-v4-bench/summary.json."""
     ms, refs, charts = bench_models(s), s["references"], d["charts"]
+    none = [m["name"] for m in ms if not m.get("cutoff")]
     cols = ["all", *BENCH_SPLITS] if s["lead_split"] == "all" else ["post_cutoff", "all", "pre_cutoff"]
     head = {"all": f"C, all {s['n_windows']} windows",
             **{x: f"{bench_side(s, x)}<br><small>{BENCH_SIDE[x]}</small>" for x in BENCH_SPLITS}}
@@ -945,9 +946,10 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
     return "\n".join([
         *chart("splits", alt, charts["lead"], charts["phone"]["media"], f"{BENCH_DIR}/figures"), "",
         "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
-        f"the windows it finished on each side of the models' reported training cutoffs, {sides}; 95% CIs, a block "
-        f"bootstrap over the {s['n_fronts']} fronts, are in the table below. Grey dashed: the real operator's own "
-        "bids, replayed through the same clearing and settlement.</small>",
+        f"the windows it finished on each side of the models' reported training cutoffs, {sides}"
+        + (f"; none is reported for {and_join(none)}" if none else "")
+        + f"; 95% CIs, a block bootstrap over the {s['n_fronts']} fronts, are in the table below. Grey dashed: the "
+        "real operator's own bids, replayed through the same clearing and settlement.</small>",
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
         f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
         "(four within each side of the cutoffs). Cost a window: the graded attempt's tokens in its harness's own "
@@ -1009,14 +1011,17 @@ def bench_how(s: dict) -> list[str]:
         by.setdefault((m["harness"], m["harness_version"], m.get("harness_note")), []).append(m)
     harnesses = "; ".join(f"{and_join([m['name'] for m in xs])} in {h}" + (f" {v}" if v else "")
                           + (f" {note}" if note else "") for (h, v, note), xs in by.items())
-    opened = [(m["name"] if m["name"].startswith(m["provider"]) else f"{m['provider']}'s {m['name']}")
-              + f", served by {m['server']} "
-              + (f"through {m['endpoint']}" if m.get("endpoint") else f"on {m['cost']['gpu']['where']}")
-              for m in ms if m["weights"] == "open"]
+    opened = {}
+    for m in (m for m in ms if m["weights"] == "open"):
+        opened.setdefault(f"served by {m['server']}" + ("" if m.get("endpoint") == m["server"] else
+                                                       f" through {m['endpoint']}" if m.get("endpoint") else
+                                                       f" on {m['cost']['gpu']['where']}"), []).append(
+            m["name"] if m["name"].startswith(m["provider"]) else f"{m['provider']}'s {m['name']}")
     budget, ref = run.get("budget") or {}, run.get("bundle") or "main"
     return [
         f"**Each model in a native agent harness,** through AgentEnv: {harnesses}."
-        + (f" The open-weight models: {'; '.join(opened)}." if opened else ""),
+        + (f" The open-weight models: {'; '.join(f'{and_join(xs)}, {how}' for how, xs in opened.items())}."
+           if opened else ""),
         "**At high effort:** " + "; ".join(f"{m['name']} {m['setting']}" for m in ms) + ".",
         ("**No internet.** Each run's Docker network is closed to the internet by a host rule, and the model is "
          "reached only through a proxy on the host that allows one API and one model per run and refuses provider-side "
@@ -1041,6 +1046,10 @@ def bench_limits(s: dict) -> list[str]:
     """The benchmark's known limitations, as the pre-registration discloses them for the route the runs took."""
     harnesses = {m["harness"] for m in s["models"].values()}
     gpu = [m["name"] for m in s["models"].values() if m["cost"].get("gpu")]
+    none = [m for m in s["models"].values() if not m.get("cutoff")]
+    rel, day = sorted(m["released"] for m in none if m.get("released")), {"days_per_task": 1}
+    late = [short({"days_per_task": int(f["dates"][-2:]) - int(f["front"][-2:]) + 1}, f["front"]) for f in s["fronts"]
+            if rel and f["split"] == "post_cutoff" and f["front"] > rel[-1]]
     return [
         "**The env's control endpoints are not authenticated** in this framework release, and an agent's shell can "
         "reach the env through its tunnel; no pilot showed an attempt to use them, and the runs are not audited for "
@@ -1051,8 +1060,14 @@ def bench_limits(s: dict) -> list[str]:
         "the harness versions are the ones the framework release pins."
         + (" Gemini CLI drops a thought signature when it resumes a session, which costs it prompt-cache hits and "
            "raises its cost, a known harness issue." if "Gemini CLI" in harnesses else ""),
-        "**The training cutoffs are third-party reports, unconfirmed.** The pre-cutoff half reuses v4's 16 windows, "
-        "which GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the desk's own runner (below).",
+        "**The training cutoffs are third-party reports, unconfirmed.**"
+        + (f" None is reported for {and_join([m['name'] for m in none])}" + (
+            f", reportedly released {short(day, rel[0])}–{short(day, rel[-1])} {rel[-1][:4]}, so only the "
+            f"{and_join(late)} fronts certainly post-date "
+            + ("it" if len(none) == 1 else f"all {NUM.get(len(none), len(none)).lower()}") if rel else
+            ", so the Jul–Aug windows are not known to be after their cutoffs") + "." if none else "")
+        + " The pre-cutoff half reuses v4's 16 windows, which GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the "
+        "desk's own runner (below).",
         "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
         "carry a model's dollars.",
         "**Cost is list price:** tokens at each provider's public price per million, without batch or volume "
@@ -1122,11 +1137,11 @@ runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's
 tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
 ```"""
 BENCH_QUICKSTART = """The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py`
-writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam` or `opencode-qwen`), with a
-`.agentenv/config.toml` that names the model endpoint and its key. By default the bundle's network allowlist holds
-only the harness vendor's API host, for a sandbox provider that enforces it, such as Modal, which the bundle was built
-for. Our runs took route C instead: local Docker on EC2 boxes, with a host egress rule and a per-run model proxy
-([deviations]({deviations})):
+writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam`, `opencode-glm`,
+`opencode-kimi`, `opencode-qwenmax` or `opencode-qwen`), with a `.agentenv/config.toml` that names the model endpoint
+and its key. By default the bundle's network allowlist holds only the harness vendor's API host, for a sandbox
+provider that enforces it, such as Modal, which the bundle was built for. Our runs took route C instead: local Docker
+on EC2 boxes, with a host egress rule and a per-run model proxy ([deviations]({deviations})):
 
 ```bash
 uv run python scripts/desk_bench.py tasks --harness codex-luna --pack desk-v4-bench --out bundles/bench-codex-luna
@@ -1550,7 +1565,7 @@ def dam_days(v: dict) -> list[str]:
                 for m in ms) + ". A mean above one means a desk rebid some of those markets as forecasts moved."]
 
 
-NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight"}
+NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine"}
 
 
 def and_join(xs: list[str]) -> str:
