@@ -30,6 +30,7 @@ PRICES = {"claude-opus-5-5": {"in": 4.0, "cached": 0.2, "write": 5.0, "write_1h"
           "gpt-6-luna": {"in": 0.1, "cached": 0.01, "write": 0.125, "out": 0.5,
                          "above": 272000, "tier": {"in": 0.2, "cached": 0.02, "write": 0.25, "out": 0.75}},
           "gemini-4-argon": {"in": 2.0, "cached": 0.1, "write": 0.0, "out": 10.0},
+          "beam-1.0-501b-a23b": {"in": 0.4, "cached": 0.4, "write": 0.4, "out": 1.2},
           "qwen3-4b": {"in": 0.0, "cached": 0.0, "write": 0.0, "out": 0.0}}
 DESK_TOOLS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position",
               "submit_dam_offers", "submit_rt_offers", "update_cop", "check_submission", "optimize", "set_reminder")
@@ -155,14 +156,19 @@ def usage_of(turns: list[list[dict]], model: str) -> dict:
         cached, write = codex.get("cached_input_tokens", 0), codex.get("cache_write_input_tokens", 0)
         u = Counter({"input": codex.get("input_tokens", 0) - cached - write, "cached": cached, "cache_write": write,
                      "output": codex.get("output_tokens", 0), "reasoning": codex.get("reasoning_output_tokens", 0)})
-    p = next((v for k, v in PRICES.items() if k in (model or "")), None)
-    cost = None
-    if p is not None:
-        cost = (u["input"] * p["in"] + u["cached"] * p["cached"] + (u["cache_write"] - u["cache_write_1h"]) * p["write"]
-                + u["cache_write_1h"] * p.get("write_1h", p["write"]) + u["output"] * p["out"]) / 1e6
-    return {"tokens": dict(u), "cost_usd_list_price": None if cost is None else round(cost, 4),
+    return {"tokens": dict(u), "cost_usd_list_price": list_price(u, model),
             "claude_code_total_cost_usd": claude_cost,
             "note": "Codex counts are its cumulative thread totals; per-call long-context tiers are not applied"}
+
+
+def list_price(tokens: dict, model: str | None) -> float | None:
+    p = next((v for k, v in PRICES.items() if k in (model or "")), None)
+    if p is None:
+        return None
+    u = Counter(tokens)
+    hour = u["cache_write_1h"]
+    return round((u["input"] * p["in"] + u["cached"] * p["cached"] + (u["cache_write"] - hour) * p["write"]
+                  + hour * p.get("write_1h", p["write"]) + u["output"] * p["out"]) / 1e6, 4)
 
 
 def proxy_side(path: Path | None) -> dict:

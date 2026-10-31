@@ -4,7 +4,7 @@
  "pack": "desk-v4-bench",
  "layer": "v4",
  "unit": "3-day window",
- "generated": "2026-10-29T20:12:39Z",
+ "generated": "2026-10-31T02:51:52Z",
  "n_windows": 32,
  "n_fronts": 8,
  "sites": [
@@ -128,7 +128,9 @@
    "family": "opus",
    "harness_note": null,
    "server": null,
+   "endpoint": null,
    "cutoff": "2026-06",
+   "price_note": null,
    "model_id": "claude-opus-5-5",
    "harness_key": "claude-code",
    "harness_version": "2.1.280",
@@ -428,7 +430,9 @@
    "family": "sol",
    "harness_note": "with OpenAI's catalog entries for the GPT-6 models",
    "server": null,
+   "endpoint": null,
    "cutoff": "2026-04-30",
+   "price_note": null,
    "model_id": "gpt-6.1-sol",
    "harness_key": "codex-sol",
    "harness_version": "0.147.0",
@@ -727,7 +731,9 @@
    "family": "luna",
    "harness_note": "with OpenAI's catalog entries for the GPT-6 models",
    "server": null,
+   "endpoint": null,
    "cutoff": "2026-05-18",
+   "price_note": null,
    "model_id": "gpt-6-luna",
    "harness_key": "codex-luna",
    "harness_version": "0.147.0",
@@ -1026,7 +1032,9 @@
    "family": "argon",
    "harness_note": null,
    "server": null,
+   "endpoint": null,
    "cutoff": "2026-03",
+   "price_note": null,
    "model_id": "gemini-4-argon",
    "harness_key": "gemini",
    "harness_version": "0.38.2",
@@ -1318,6 +1326,313 @@
     }
    }
   },
+  "beam": {
+   "key": "beam",
+   "name": "Beam-1.0",
+   "tag": "Beam-1.0",
+   "provider": "Reflection",
+   "harness": "OpenCode",
+   "setting": "effort high",
+   "weights": "open",
+   "variant": null,
+   "family": "beam",
+   "harness_note": null,
+   "server": "Baseten",
+   "endpoint": "the Hugging Face router",
+   "cutoff": "2026-06-30",
+   "price_note": "The Hugging Face router publishes no cached-input price for Baseten, so Beam-1.0's list price counts every input token, cached ones included, at the full input price: an upper bound.",
+   "model_id": "beam-1.0-501b-a23b",
+   "harness_key": "opencode-beam",
+   "harness_version": "1.17.18",
+   "harness_versions_recorded": {
+    "1.17.18": 36
+   },
+   "framework": "0.9.1396",
+   "ran": {
+    "from": "2026-10-30T23:16:55+00:00",
+    "to": "2026-10-31T02:29:34+00:00"
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.0673,
+     "ci": [
+      0.0051,
+      0.1196
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.5323,
+     "ci": [
+      0.3415,
+      0.7062
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 21527.5959,
+     "ci": [
+      -7871.646,
+      63777.7681
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.1547,
+     "ci": [
+      0.0211,
+      0.2737
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -115256.4553,
+     "ci": [
+      -322609.5637,
+      -4034.9969
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": -2835.5447,
+     "ci": [
+      -24312.3571,
+      15962.9525
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.0065,
+     "ci": [
+      -0.069,
+      0.0566
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.2812,
+    "usd_per_window": 1.9684
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1045,
+     "ci": [
+      0.0557,
+      0.1548
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.672,
+     "ci": [
+      0.433,
+      0.8648
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 46905.935,
+     "ci": [
+      7349.8913,
+      118933.3275
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.2364,
+     "ci": [
+      0.1144,
+      0.3632
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -206856.84,
+     "ci": [
+      -621563.0569,
+      3914.7906
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 10567.9638,
+     "ci": [
+      -10246.98,
+      33499.7288
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0206,
+     "ci": [
+      -0.0912,
+      0.1295
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.375,
+    "usd_per_window": 2.0686
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.03,
+     "ci": [
+      -0.0591,
+      0.1089
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.3925,
+     "ci": [
+      0.1225,
+      0.5904
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": -3850.7431,
+     "ci": [
+      -28718.6925,
+      12546.9181
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.073,
+     "ci": [
+      -0.1125,
+      0.2384
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -23656.0706,
+     "ci": [
+      -41628.9388,
+      -5683.2025
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -16239.0531,
+     "ci": [
+      -50000.5125,
+      765.8537
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.0335,
+     "ci": [
+      -0.1149,
+      0.0099
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.1875,
+    "usd_per_window": 1.8681
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.0745,
+     "ci": [
+      -0.1837,
+      0.0195
+     ]
+    },
+    "R": {
+     "mean": -0.2795,
+     "ci": [
+      -0.595,
+      0.0254
+     ]
+    },
+    "P": {
+     "mean": -50756.6781,
+     "ci": [
+      -121879.2137,
+      -91.0737
+     ]
+    }
+   },
+   "cost": {
+    "basis": "list_price_tokens",
+    "usd_per_window": 1.9684,
+    "usd_median": 1.6416,
+    "usd_scored_total": 62.9876,
+    "usd_all_attempts": 66.4972
+   },
+   "tokens_per_window": {
+    "input": 183243.1,
+    "cached": 4616506.0,
+    "cache_write": 0.0,
+    "output": 40387.7,
+    "reasoning": 12765.9
+   },
+   "behaviour": {
+    "turns": 30.03,
+    "wakes": 30.03,
+    "desk_calls": 67.31,
+    "own_tool_calls": 0.31,
+    "shell_calls": 0.16,
+    "reminders": 7.38,
+    "submissions": 28.09,
+    "rejected": 0.09,
+    "compactions": 0.0,
+    "wall_s": 603.68
+   },
+   "own_tools": {
+    "bash": 5,
+    "invalid": 2,
+    "glob": 2,
+    "grep": 1
+   },
+   "attempts": {
+    "total": 36,
+    "scored": 32,
+    "failed": 4,
+    "extra": 0,
+    "windows_retried": 3,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 4
+    }
+   },
+   "note": "its account ran out of credits mid-run, and the four attempts the router's HTTP 402 ended were retried as infrastructure"
+  },
   "qwen": {
    "key": "qwen",
    "name": "Qwen3-4B",
@@ -1330,7 +1645,9 @@
    "family": "qwen",
    "harness_note": null,
    "server": "vLLM 0.29.0",
+   "endpoint": null,
    "cutoff": "2024",
+   "price_note": null,
    "model_id": "qwen3-4b",
    "harness_key": "opencode-qwen",
    "harness_version": "1.17.18",
@@ -1641,6 +1958,7 @@
   "argon",
   "opus",
   "luna",
+  "beam",
   "qwen"
  ],
  "lead_rule": {
@@ -1648,14 +1966,15 @@
    "sol",
    "argon",
    "opus",
-   "luna"
+   "luna",
+   "beam"
   ],
   "unexposed": [
    "qwen"
   ],
   "first_window": "2026-01-23",
   "set": "before any API-model result",
-  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5 and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero."
+  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero."
  },
  "halves_differ": [],
  "lead_split": "all",
@@ -2583,6 +2902,127 @@
     }
    }
   },
+  "sol-beam": {
+   "a": "sol",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.2027,
+     "ci": [
+      0.0711,
+      0.3394
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.2464,
+     "ci": [
+      0.1203,
+      0.3743
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.25,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 109262.8706,
+     "ci": [
+      350.3744,
+      300881.0837
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2718,
+     "ci": [
+      0.1192,
+      0.4467
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.2815,
+     "ci": [
+      0.1352,
+      0.4455
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.25,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 210594.6356,
+     "ci": [
+      16443.28,
+      577704.3969
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1336,
+     "ci": [
+      -0.0381,
+      0.3368
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2113,
+     "ci": [
+      0.0186,
+      0.4041
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 7931.1056,
+     "ci": [
+      -28752.8337,
+      45937.4181
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "sol-qwen": {
    "a": "sol",
    "b": "qwen",
@@ -2946,6 +3386,127 @@
     }
    }
   },
+  "argon-beam": {
+   "a": "argon",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1313,
+     "ci": [
+      0.0246,
+      0.2383
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.1587,
+     "ci": [
+      -0.0339,
+      0.331
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.2188,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": 72015.4969,
+     "ci": [
+      -4361.7843,
+      202754.1085
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 5
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1773,
+     "ci": [
+      0.0174,
+      0.3184
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1638,
+     "ci": [
+      -0.1728,
+      0.3825
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 142078.7506,
+     "ci": [
+      6897.4331,
+      388499.54
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0852,
+     "ci": [
+      -0.0423,
+      0.2196
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1536,
+     "ci": [
+      -0.0704,
+      0.3776
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.3125,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 1952.2431,
+     "ci": [
+      -27845.6262,
+      29688.5844
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
   "argon-qwen": {
    "a": "argon",
    "b": "qwen",
@@ -3188,6 +3749,127 @@
     }
    }
   },
+  "opus-beam": {
+   "a": "opus",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1006,
+     "ci": [
+      0.0271,
+      0.1843
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.1818,
+     "ci": [
+      0.0497,
+      0.3009
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.1562,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 72528.6709,
+     "ci": [
+      5245.1842,
+      193421.7591
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.124,
+     "ci": [
+      -0.0068,
+      0.2662
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1507,
+     "ci": [
+      -0.062,
+      0.3195
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 127049.8025,
+     "ci": [
+      999.3913,
+      364786.2656
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0773,
+     "ci": [
+      0.0316,
+      0.1105
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.2128,
+     "ci": [
+      0.1127,
+      0.3667
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.1875,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 18007.5394,
+     "ci": [
+      3306.1325,
+      39362.5569
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
   "opus-qwen": {
    "a": "opus",
    "b": "qwen",
@@ -3309,6 +3991,127 @@
     }
    }
   },
+  "luna-beam": {
+   "a": "luna",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0695,
+     "ci": [
+      -0.0059,
+      0.1417
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "R": {
+     "mean": 0.0674,
+     "ci": [
+      -0.1256,
+      0.2559
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5312,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 48349.3828,
+     "ci": [
+      3587.5459,
+      123087.3922
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0826,
+     "ci": [
+      -0.0322,
+      0.1918
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.0549,
+     "ci": [
+      -0.1578,
+      0.2545
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.125,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 79719.4006,
+     "ci": [
+      -807.015,
+      224999.3906
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0563,
+     "ci": [
+      -0.0215,
+      0.1341
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.0799,
+     "ci": [
+      -0.2275,
+      0.3873
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.125,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 16979.365,
+     "ci": [
+      -2136.37,
+      36095.1
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
   "luna-qwen": {
    "a": "luna",
    "b": "qwen",
@@ -3427,6 +4230,127 @@
      "ahead": 0.75,
      "level": 0.0,
      "fronts_ahead": 4
+    }
+   }
+  },
+  "beam-qwen": {
+   "a": "beam",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.088,
+     "ci": [
+      0.0253,
+      0.1426
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.391,
+     "ci": [
+      0.1959,
+      0.5799
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.1562,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 25052.7878,
+     "ci": [
+      -4693.6062,
+      70796.5887
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0943,
+     "ci": [
+      0.0075,
+      0.1613
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.4598,
+     "ci": [
+      0.207,
+      0.7125
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0625,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 49313.76,
+     "ci": [
+      616.8362,
+      132021.395
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0816,
+     "ci": [
+      -0.0217,
+      0.1448
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.3223,
+     "ci": [
+      0.0549,
+      0.5481
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 791.8156,
+     "ci": [
+      -22411.0406,
+      14677.0837
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
     }
    }
   },
@@ -3770,6 +4694,91 @@
     }
    }
   },
+  "beam-operator_replay": {
+   "a": "beam",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": -2835.5447,
+     "ci": [
+      -24312.3571,
+      15962.9525
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "C": {
+     "mean": -0.0065,
+     "ci": [
+      -0.069,
+      0.0566
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 10567.9638,
+     "ci": [
+      -10246.98,
+      33499.7288
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.0206,
+     "ci": [
+      -0.0912,
+      0.1295
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -16239.0531,
+     "ci": [
+      -50000.5125,
+      765.8537
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.375,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": -0.0335,
+     "ci": [
+      -0.1149,
+      0.0099
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.375,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "qwen-operator_replay": {
    "a": "qwen",
    "b": "operator_replay",
@@ -4023,6 +5032,47 @@
     }
    },
    {
+    "key": "beam",
+    "family": "beam",
+    "name": "Beam-1.0",
+    "tag": "Beam-1.0",
+    "variant": null,
+    "provider": "Reflection",
+    "harness": "OpenCode",
+    "setting": "effort high",
+    "weights": "open",
+    "n": 32,
+    "usd": 1.9684,
+    "basis": "list_price_tokens",
+    "C": {
+     "mean": 0.0673,
+     "ci": [
+      0.0051,
+      0.1196
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.1045,
+     "ci": [
+      0.0557,
+      0.1548
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.03,
+     "ci": [
+      -0.0591,
+      0.1089
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
     "key": "qwen",
     "family": "qwen",
     "name": "Qwen3-4B",
@@ -4087,6 +5137,12 @@
     "family": "argon",
     "points": [
      "argon"
+    ]
+   },
+   {
+    "family": "beam",
+    "points": [
+     "beam"
     ]
    },
    {
@@ -7989,6 +9045,618 @@
    "framework": "0.9.1383"
   },
   {
+   "model": "beam",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-beam-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5715,
+   "wall_s": 342.6,
+   "started": "2026-10-30T23:16:55+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-beam-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.798,
+   "wall_s": 842.8,
+   "started": "2026-10-30T23:17:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-beam-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4092,
+   "wall_s": 498.4,
+   "started": "2026-10-30T23:23:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-beam-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.6663,
+   "wall_s": 2160.8,
+   "started": "2026-10-30T23:31:43+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-beam-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9195,
+   "wall_s": 1120.1,
+   "started": "2026-10-30T23:32:19+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-beam-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.3258,
+   "wall_s": 1475.1,
+   "started": "2026-10-30T23:51:26+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-beam-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6743,
+   "wall_s": 258.0,
+   "started": "2026-10-31T00:08:17+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-beam-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1433,
+   "wall_s": 367.3,
+   "started": "2026-10-31T00:13:09+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-beam-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.7819,
+   "wall_s": 476.9,
+   "started": "2026-10-31T00:44:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-beam-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.01,
+   "wall_s": 269.7,
+   "started": "2026-10-31T00:16:31+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-beam-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1967,
+   "wall_s": 283.4,
+   "started": "2026-10-31T00:19:37+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-beam-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4782,
+   "wall_s": 422.7,
+   "started": "2026-10-31T00:21:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-beam-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6543,
+   "wall_s": 446.9,
+   "started": "2026-10-31T00:24:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-beam-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.5468,
+   "wall_s": 800.0,
+   "started": "2026-10-31T00:28:57+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-beam-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.1945,
+   "wall_s": 681.4,
+   "started": "2026-10-31T00:32:48+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-beam-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.7269,
+   "wall_s": 547.4,
+   "started": "2026-10-31T00:42:40+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-beam-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.9873,
+   "wall_s": 663.5,
+   "started": "2026-10-31T00:52:08+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-beam-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1835,
+   "wall_s": 364.9,
+   "started": "2026-10-31T00:52:59+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-beam-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6437,
+   "wall_s": 623.5,
+   "started": "2026-10-31T00:59:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-beam-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1155,
+   "wall_s": 308.9,
+   "started": "2026-10-31T01:03:42+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-beam-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.0858,
+   "wall_s": 301.1,
+   "started": "2026-10-31T01:09:19+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-beam-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8339,
+   "wall_s": 377.6,
+   "started": "2026-10-31T01:10:25+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-beam-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.7395,
+   "wall_s": 688.4,
+   "started": "2026-10-31T01:14:47+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-beam-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4073,
+   "wall_s": 593.0,
+   "started": "2026-10-31T01:17:09+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-beam-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.386,
+   "wall_s": 314.9,
+   "started": "2026-10-31T01:26:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-beam-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1594,
+   "wall_s": 350.8,
+   "started": "2026-10-31T01:27:37+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-beam-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6396,
+   "wall_s": 335.5,
+   "started": "2026-10-31T01:32:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-beam-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1886,
+   "wall_s": 477.8,
+   "started": "2026-10-31T01:33:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-beam-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.7066,
+   "wall_s": 664.0,
+   "started": "2026-10-31T01:38:27+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-beam-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=402, task_id=e9589765-d722-4125-93ce-7b1fe2f866e8, agent_sandbox=local-c73e9d61): APIError: Payment Required: You have no remaining credits. Purchase pre-paid credits to continue using In",
+   "usd": 2.8204,
+   "wall_s": 761.9,
+   "started": "2026-10-31T01:42:18+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-beam-desk-v4-2026-08-26-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3308,
+   "wall_s": 497.9,
+   "started": "2026-10-31T02:08:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-beam-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=402, task_id=834ff9a9-0322-45b0-8884-16c19e57149f, agent_sandbox=local-e7c2abad): APIError: Payment Required: You have no remaining credits. Purchase pre-paid credits to continue using In",
+   "usd": 0.6892,
+   "wall_s": 296.6,
+   "started": "2026-10-31T01:49:55+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-beam-desk-v4-2026-08-26-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.5987,
+   "wall_s": 1040.2,
+   "started": "2026-10-31T02:09:11+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-beam-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "play step before any call: \"A2A task failed (error_type=agent_error, error_code=402, task_id=94aa2798-7979-4d13-9d4d-00aae5f38602, agent_sandbox=local-22a5bc0a): APIError: Payment Required: You have no remaining credits. Purchase pre-paid c",
+   "usd": 0,
+   "wall_s": 35.8,
+   "started": "2026-10-31T01:55:17+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-beam-desk-v4-2026-08-26-S04-a2",
+   "attempt": 2,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "play step before any call: \"A2A task failed (error_type=agent_error, error_code=402, task_id=3c7f9afb-b83f-4c61-8238-2205ba469029, agent_sandbox=local-605a1a19): APIError: Payment Required: You have no remaining credits. Purchase pre-paid c",
+   "usd": 0,
+   "wall_s": 35.8,
+   "started": "2026-10-31T01:56:25+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "beam",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-beam-desk-v4-2026-08-26-S04-a3",
+   "attempt": 3,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8842,
+   "wall_s": 722.3,
+   "started": "2026-10-31T02:17:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.2xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
    "model": "qwen",
    "task_id": "desk-v4-2026-01-23-S01",
    "run": "bench-qwen-desk-v4-2026-01-23-S01-a1",
@@ -8506,7 +10174,7 @@
   "diffs": []
  },
  "run": {
-  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B) and 0.9.1383 (Gemini 4 Argon)",
+  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B), 0.9.1383 (Gemini 4 Argon) and 0.9.1396 (Beam-1.0)",
   "bundle": "desk-v4-bench-run1",
   "prereg": "docs/prereg/v4-bench.md",
   "route": "ec2",
@@ -8524,8 +10192,8 @@
   "core_versions": [
    "desk-2.1"
   ],
-  "metered_attempts": 108,
-  "deviations_ref": "desk-v4-bench-results-2",
+  "metered_attempts": 112,
+  "deviations_ref": "desk-v4-bench-results-3",
   "prices_per_mtok": {
    "claude-opus-5-5": {
     "in": 4.0,
@@ -8566,6 +10234,12 @@
     "write": 0.0,
     "out": 10.0
    },
+   "beam-1.0-501b-a23b": {
+    "in": 0.4,
+    "cached": 0.4,
+    "write": 0.4,
+    "out": 1.2
+   },
    "qwen3-4b": {
     "in": 0.0,
     "cached": 0.0,
@@ -8577,7 +10251,7 @@
  "deviations": [
   "Route C: the episodes ran on EC2 boxes with local Docker rather than in Modal sandboxes; the internet was closed by a host rule and a per-run model proxy instead of Modal's network policy (the pre-registration gives the reasons).",
   "agentenv-framework 0.9.1377 on the box that ran Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna, and 0.9.1378 on the Qwen3-4B boxes; the agent images are identical by digest.",
-  "Infrastructure retries (GPT-6.1 Sol 39, Gemini 4 Argon 20, Claude Opus 5.5 27, GPT-6 Luna 22, Qwen3-4B 0): every attempt is kept and its spend counted.",
+  "Infrastructure retries (GPT-6.1 Sol 39, Gemini 4 Argon 20, Claude Opus 5.5 27, GPT-6 Luna 22, Beam-1.0 4, Qwen3-4B 0): every attempt is kept and its spend counted.",
   "Retry rule, decided mid-run before the affected windows' results: an attempt that failed at env deploy for $0 because of our launcher's port race does not count toward the at-most-two-retries limit. All 81 such failures were port races (GPT-6.1 Sol 35, Claude Opus 5.5 27, GPT-6 Luna 19); only GPT-6.1 Sol's desk-v4-2026-03-16-S04 and desk-v4-2026-04-17-S02 were affected, both graded on attempt 4.",
   "Stalls: Codex's 300 s inactivity watchdog at effort high stopped 4 GPT-6.1 Sol and 3 GPT-6 Luna attempts; they count as infrastructure and were retried, and their spend is included in the cost.",
   "Cost basis: cost a window is the graded attempt's; the table also gives each model's total spend, retries and stalls included.",
@@ -8585,7 +10259,10 @@
   "Provider HTTP 400s: 19 of Gemini 4 Argon's 1,488 wake starts (1.28%) drew HTTP 400 INVALID_ARGUMENT, all on a wake's first request from turn 12 on and more often at larger prompts; the identical request succeeded on replay, so they are transient and infrastructure under the pre-registered rule, and were retried. From 18:06 UTC they did not count toward the two-retry limit, with a safety stop at 6 attempts a window; no window used more than 4.",
   "Caps: Gemini 4 Argon's per-episode cap rose from $15 to $30 after one attempt stopped at $15.02, which was retried as infrastructure, and its model cap from $300 to $330.",
   "Selection, descriptive: Gemini 4 Argon's attempts that failed on a 400 ended at turn 21.4 on average, at a 172k-token prompt, against 32.3 turns and a 207k-token largest prompt for its graded attempts; its windows graded on the first try average C 17.0%, those graded after a retry 22.7%.",
-  "Prompt cache: 61% of Gemini 4 Argon's wake starts hit the cache fully and 32% only its first ~15k tokens, because Gemini CLI drops a thought signature when it resumes a session, a known harness issue."
+  "Prompt cache: 61% of Gemini 4 Argon's wake starts hit the cache fully and 32% only its first ~15k tokens, because Gemini CLI drops a thought signature when it resumes a session, a known harness issue.",
+  "Beam-1.0: added after the others for Reflection's Build with Beam contest and run after them, from 23:17 UTC on 2026-10-30 to 02:30 UTC on 2026-10-31, through the Hugging Face router to Baseten at its list price of $0.40 / $1.20 per million input / output tokens, in OpenCode 1.17.18 at effort high on agentenv-framework 0.9.1396, by route C on the Gemini box; its reported training cutoff, 2026-06-30, puts the post-cutoff windows after it.",
+  "Out of credits: the Hugging Face account ran out of prepaid credits at 01:55 UTC on 2026-10-31, after 29 of Beam-1.0's windows had been graded. The router's HTTP 402 then ended four attempts on the 2026-08-26 front, two mid-episode and two before any call; they were reclassified by hand as infrastructure, none counting toward the retry limit, and all four windows were graded once credits were added (the four 2026-08-26 windows all score below zero, S01 included, which ran before the halt).",
+  "Rate limits: of Beam-1.0's 4,457 requests through the proxy, 1,376 (30.9%) drew HTTP 429 and 617 (13.8%) HTTP 503; OpenCode retried both, and neither ended an attempt."
  ],
  "defects": null,
  "notes": null,
@@ -8601,10 +10278,10 @@
   "why": "capture 1.42, beats anchor 1.00, beats operator 1.00, DAM bid 0.60, RT re-bids 1.00, spike 0.13, quote 0.30; day-ahead markets bid 3, real-time re-offers 19, reserves won, post_cutoff; chosen with --hero"
  },
  "text": {
-  "halves": "Every model scores lower on Jul–Aug than on Jan–May, and that includes Qwen3-4B, whose training predates every window. So the drop reflects harder windows (the Jan–May half includes winter storm Fern), not evidence of training-data contamination. No API model's post − pre interval excludes zero, so all 32 windows lead, by a rule set before any API result.",
-  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5 and GPT-6 Luna) can trigger it, when its post − pre interval in C excludes zero.",
+  "halves": "Every model scores lower on Jul–Aug than on Jan–May, and that includes Qwen3-4B, whose training predates every window. So the drop reflects harder windows (the Jan–May half includes winter storm Fern), not evidence of training-data contamination. No model the rule covers has a post − pre interval that excludes zero, so all 32 windows lead, by a rule set before any API result.",
+  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero.",
   "valid": "Qwen3-4B made no valid submission on 7 of its 32 windows (R = 0 there).",
-  "reliability": "268 attempts for 160 model-windows; 108 did not reach the grade (infrastructure ×108). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), and from 18:06 UTC Gemini 4 Argon's attempts ended by a transient provider 400, didn't count toward the two-retry limit (see Deviations). No window is missing.",
+  "reliability": "304 attempts for 192 model-windows; 112 did not reach the grade (infrastructure ×112). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), Gemini 4 Argon's ended by a transient provider 400 from 18:06 UTC and Beam-1.0's ended by the router's HTTP 402 when its account ran out of credits didn't count toward the two-retry limit (see Deviations). No window is missing.",
   "metered": "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory."
  }
 }

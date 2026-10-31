@@ -795,7 +795,7 @@ BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
 BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
-NOT_YET_IN_VIEWER = ()
+NOT_YET_IN_VIEWER = ("beam",)
 BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
               "post_cutoff": "after every model's training cutoff"}
 FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
@@ -844,9 +844,11 @@ def bench_usd(x: float) -> str:
 
 def bench_pitch(s: dict) -> str:
     ms = list(s["models"].values())
-    n, opened = len(ms), [m for m in ms if m["weights"] == "open"]
+    n, opened = len(ms), {}
+    for m in (m for m in ms if m["weights"] == "open"):
+        opened.setdefault(m["harness"], []).append(m["name"].replace("-", "-\u2060"))
     used = [*dict.fromkeys(m["harness"] for m in ms if m["weights"] != "open"),
-            *(f"{m['harness']} for the open {m['name']}" for m in opened)]
+            *(f"{h} for the open {and_join(names)}" for h, names in opened.items())]
     harnesses = used[0] if len(used) == 1 else f"{', '.join(used[:-1])}, and {used[-1]}"
     return "\n\n".join([f"**{NUM.get(n, n)} models in native agent harnesses ({harnesses}) run a real ERCOT battery's "
                         f"trading desk for three days at a time across {s['n_fronts']} real Texas weather fronts, "
@@ -933,6 +935,13 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
            + f"; the real operator's bids, replayed, {pc(op['pre_cutoff']['C']['mean'])}% then "
            f"{pc(op['post_cutoff']['C']['mean'])}%.")
     sides = " and ".join(f"{bench_side(s, x)} ({BENCH_SIDE[x]})" for x in BENCH_SPLITS)
+    notes = [f"{m['name']} ran" + (" after the others," if all(m["ran"]["from"] > x["ran"]["to"] for x in ms
+                                                              if x is not m) else "")
+             + (f" through {m['endpoint']}," if m.get("endpoint") else "") + f" on agentenv-framework {m['framework']}"
+             + (f"; {m['note']}" if m.get("note") else "") + "." for m in ms if m.get("framework")]
+    notes += [m["price_note"] for m in ms if m.get("price_note")]
+    if notes and bench_deviations(s):
+        notes.append(f"See the [deviations]({bench_deviations(s)}).")
     return "\n".join([
         *chart("splits", alt, charts["lead"], charts["phone"]["media"], f"{BENCH_DIR}/figures"), "",
         "<small>C × 100: the share of the hindsight optimum's profit over idle that each model captured, its mean over "
@@ -948,12 +957,7 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
             "text"].get("metered") else "") + " The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
-        "settlement." + "".join(
-            f" {m['name']} ran" + (" after the others," if all(m["ran"]["from"] > x["ran"]["to"] for x in ms
-                                                              if x is not m) else "")
-            + f" on agentenv-framework {m['framework']}"
-            + (f"; see the [deviations]({bench_deviations(s)})" if bench_deviations(s) else "") + "."
-            for m in ms if m.get("framework")) + "</small>", "",
+        "settlement." + "".join(f" {x}" for x in notes) + "</small>", "",
         *(x for d in s.get("deferred") or [] for x in (md(d), "")),
         *(f"- {x}" for x in bench_bullets(s)), "",
         "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
@@ -1003,14 +1007,16 @@ def bench_how(s: dict) -> list[str]:
     ec2, by = run.get("route") == "ec2", {}
     for m in ms:
         by.setdefault((m["harness"], m["harness_version"], m.get("harness_note")), []).append(m)
-    harnesses = and_join([f"{and_join([m['name'] for m in xs])} in {h}" + (f" {v}" if v else "")
-                          + (f" {note}" if note else "") for (h, v, note), xs in by.items()])
-    open_ = [m for m in ms if m["weights"] == "open" and m["cost"].get("gpu")]
+    harnesses = "; ".join(f"{and_join([m['name'] for m in xs])} in {h}" + (f" {v}" if v else "")
+                          + (f" {note}" if note else "") for (h, v, note), xs in by.items())
+    opened = [(m["name"] if m["name"].startswith(m["provider"]) else f"{m['provider']}'s {m['name']}")
+              + f", served by {m['server']} "
+              + (f"through {m['endpoint']}" if m.get("endpoint") else f"on {m['cost']['gpu']['where']}")
+              for m in ms if m["weights"] == "open"]
     budget, ref = run.get("budget") or {}, run.get("bundle") or "main"
     return [
-        f"**Each model in a native agent harness,** through AgentEnv: {harnesses}"
-        + (f"; {and_join([m['name'] for m in open_])} served by {open_[0].get('server') or 'vLLM'} on "
-           f"{open_[0]['cost']['gpu']['where']}" if open_ else "") + ".",
+        f"**Each model in a native agent harness,** through AgentEnv: {harnesses}."
+        + (f" The open-weight models: {'; '.join(opened)}." if opened else ""),
         "**At high effort:** " + "; ".join(f"{m['name']} {m['setting']}" for m in ms) + ".",
         ("**No internet.** Each run's Docker network is closed to the internet by a host rule, and the model is "
          "reached only through a proxy on the host that allows one API and one model per run and refuses provider-side "
@@ -1034,6 +1040,7 @@ def bench_how(s: dict) -> list[str]:
 def bench_limits(s: dict) -> list[str]:
     """The benchmark's known limitations, as the pre-registration discloses them for the route the runs took."""
     harnesses = {m["harness"] for m in s["models"].values()}
+    gpu = [m["name"] for m in s["models"].values() if m["cost"].get("gpu")]
     return [
         "**The env's control endpoints are not authenticated** in this framework release, and an agent's shell can "
         "reach the env through its tunnel; no pilot showed an attempt to use them, and the runs are not audited for "
@@ -1049,7 +1056,8 @@ def bench_limits(s: dict) -> list[str]:
         "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
         "carry a model's dollars.",
         "**Cost is list price:** tokens at each provider's public price per million, without batch or volume "
-        "discounts or long-context surcharges; the open model's cost is its share of the GPU time.",
+        "discounts or long-context surcharges" + (f"; {and_join(gpu)}'s cost is its share of the GPU time" if gpu
+                                                  else "") + ".",
         "**A known env defect, K1, in the benchmark too.** An empty reserve-offer list drew a spurious ASO-02 note "
         "while the energy curves in the same call were accepted and applied; there is no settlement effect. It is "
         "fixed on the head; the frozen runs keep it, and the benchmark plays v4's freeze."]
@@ -1114,7 +1122,7 @@ runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's
 tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
 ```"""
 BENCH_QUICKSTART = """The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py`
-writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini` or `opencode-qwen`), with a
+writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam` or `opencode-qwen`), with a
 `.agentenv/config.toml` that names the model endpoint and its key. By default the bundle's network allowlist holds
 only the harness vendor's API host, for a sandbox provider that enforces it, such as Modal, which the bundle was built
 for. Our runs took route C instead: local Docker on EC2 boxes, with a host egress rule and a per-run model proxy

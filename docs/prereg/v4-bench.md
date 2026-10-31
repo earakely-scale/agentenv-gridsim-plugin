@@ -127,3 +127,65 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     turns, 204k tokens, C 0.170; windows graded after a retry: 32.1 turns, 210k tokens, C 0.227.
 14. Prompt cache: 61% of wake starts hit the cache fully, and 32% hit only the ~15k-token prefix, because Gemini CLI
     drops a thoughtSignature when it resumes a session; that remains a known harness issue.
+
+### Reflection Beam-1.0
+
+15. Added after the others for the Reflection "Build with Beam" contest, and run after them, from 2026-10-31, on the
+    same 32 windows: Reflection Beam-1.0 (`reflection/Beam-1.0-501B-A23B`) through the Hugging Face router to Baseten
+    (`reflection/Beam-1.0-501B-A23B:baseten`, Chat Completions) at the router's list price of $0.40 / $1.20 per 1M
+    input / output tokens. The router lists no cached-input price, so input tokens Baseten reports as cached are costed
+    at the full input price; whether they are billed lower is not visible from the API, so Beam's cost is an upper
+    bound. Committed before Beam's first scored call.
+16. Harness: OpenCode 1.17.18, the harness and agent image Qwen3-4B used, with a model entry for Beam: effort high
+    (`reasoning_effort: "high"` on every request), reasoning on, context limit 1,048,576 tokens (Beam's served
+    context), output limit 32,768 (OpenCode caps a request at 32,000), the provider's default sampling, and web fetch,
+    web search and code search denied. OpenCode sends the earlier turns' `reasoning_content` back, which Beam's API
+    asks for, and the router accepts it. The bundle `bench-opencode-beam-desk-v4-bench` is generated at
+    `desk-v4-bench-run1` (2523700) with this preset beside `opencode-qwen`, exactly as for the other harnesses; its desk
+    tasks, hook and verifier are the others'.
+17. agentenv-framework 0.9.1396 (protocol 0.1.411). Its OpenCode agent, source and image, is unchanged since 0.9.1377;
+    the releases since 0.9.1383 add security fixes (sandbox shell code, artifact staging, the gateway's compose file)
+    and features this bundle does not use (the gateway's new notifications have nothing to deliver to it). The smoke
+    in 23 ran this release.
+18. Training cutoff: Beam's reported cutoff is 2026-06-30, so the 16 `post_cutoff` windows (from 2026-07-04) are after
+    it and the 16 `pre_cutoff` windows before it.
+19. The same route C on the Gemini box (resized to m7i.2xlarge), with separate state and its own port cursor: egress
+    closed by the host rule, the agent holding a placeholder key, and a host proxy lane that allows only Beam's Chat
+    Completions on the router and injects the key. As the gateway does for the other models, the lane drops LiteLLM's
+    `additional_drop_params` and the `tool_choice` it names (OpenCode only sends the default, "auto"). The netcheck runs
+    first: the internet unreachable from the agent container, the model and the desk tools reachable.
+20. Retries: the rules the others ran under. Infrastructure failures are retried at most twice, a launch that fails
+    before any model call at $0 does not count, and agent-side outcomes are final. HTTP 429, the account's rate limit,
+    is handled by OpenCode's own backoff and is not a failure; an attempt that still ends on a 429 is infrastructure
+    and does not count toward the retry limit, with the safety stop at 6 attempts a window, as for Gemini's 400s.
+21. Pace: the account allows 1,000,000 tokens a minute, cached tokens included, which one episode reaches at about a
+    75k-token prompt, so the windows run near-serially (at most 2 at once), in pack order.
+22. Caps, metered by the proxy at the prices in 15: $20 a window, a guard against a runaway episode (raised from $8
+    before the first scored call, since $8 could stop windows as long as Sol's), and $200 in total for Beam, its own
+    budget apart from the $700 above: the proxy stops at $198.07, which with the $1.93 smoke in 23 is $200. An attempt
+    stopped by the window cap is final and reported as capped, with its spend; it is not retried or scored. No window
+    starts once the spend so far, each running window at its likely cost (the larger of its spend and the mean graded
+    window's cost, $5 before three are graded) and the windows left at that mean would pass $198.07; windows not run
+    are reported as not run.
+23. Smoke, not scored: the pilot window (2026-02-03..05 S01) on 2026-10-30, on local Docker rather than route C (the
+    internet was not blocked; Beam made no shell or builtin call). Completed, 19 of 19 wakes in one session, 82 model
+    requests plus 21 HTTP 429s that OpenCode retried, 71 desk calls, largest prompt 88k tokens, no compaction, C 0.13,
+    $1.92 at the prices in 15 (97% of input tokens cached), 4 minutes.
+24. Ran from 23:17 UTC on 2026-10-30 (not 2026-10-31, as 15 has it) to 02:30 UTC on 2026-10-31, at most 2 windows at
+    once, after the netcheck in 19 passed: the agent's container on the Docker bridge the egress rule covers, ercot.com,
+    github.com, pypi.org and the router unreachable from it, the model reachable through the proxy.
+25. Out of credits, decided while the run was in progress: the Hugging Face account ran out of prepaid credits at
+    01:55:02 UTC, after 29 windows had been graded ($58.71 metered). From then the router answered HTTP 402 ("You have
+    no remaining credits"), which ended four attempts on the 2026-08-26 front: S02 after $2.82 and S03 after $0.69,
+    both mid-episode, and S04 twice at $0, before any call. The driver classed the two mid-episode attempts as
+    agent-side. All four were reclassified by hand as infrastructure, a billing stop on our side and not the agent's
+    doing, and none counts toward the retry limit; the driver was then changed to class an HTTP 402 that way.
+    Admission was paused from 01:57 to 02:09 UTC while credits were added; S02 and S03 were graded on attempt 2, S04
+    on attempt 3, and the other 29 windows on attempt 1. All four 08-26 windows scored below zero, S01 included, which
+    ran before the halt.
+26. Provider errors handled inside the harness: of 4,457 requests through the proxy, 1,376 (30.9%) were HTTP 429, the
+    account's rate limit, and 617 (13.8%) HTTP 503, the router pausing Baseten for Beam ("paused by the circuit
+    breaker", retry-after 5 s). OpenCode retried both, and neither ended an attempt.
+27. Spend: $66.52 metered for the 36 attempts ($63.01 for the 32 graded ones, $3.51 for the two the 402 ended
+    mid-episode), $0.01 for the netcheck and $1.93 for the smoke: $68.46 for Beam, under its $200. 96% of input
+    tokens were cached; at the full input price of 15 that is $1.97 a graded window.
