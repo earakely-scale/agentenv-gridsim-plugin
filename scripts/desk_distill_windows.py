@@ -17,6 +17,8 @@ import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import numpy as np
+
 from gridsim_core.desk import load_tasks
 
 PACK = "desk-v4-win"
@@ -74,6 +76,26 @@ def train_starts(res: set[dt.date] | None = None) -> list[str]:
                 out.append(s)
             d += dt.timedelta(days=1)
     return out
+
+
+RUNNING_AT_CUT = ("2026-01-09-S01", "2026-01-09-S02", "2026-01-09-S03", "2026-01-13-S01")
+
+
+def subsets(running: tuple[str, ...] = RUNNING_AT_CUT, seed: int = 0) -> tuple[list[str], list[str]]:
+    """The nested eval subsets, 9 within 18 within the 36 held-out windows: two sites a block (window start), the
+    windows running when the subset was cut first, the rest drawn with the seed; then one of each block's two, a running
+    one if there is one. Blocks are taken in date order with one generator, so the lists are fixed by the seed."""
+    rng = np.random.default_rng(seed)
+    eighteen, nine = [], []
+    for d0 in EVAL:
+        run = [s for s in SITES if f"{d0}-{s}" in running]
+        rest = [s for s in SITES if s not in run]
+        pick = sorted(rng.choice(run, 2, replace=False)) if len(run) >= 2 else run + sorted(
+            rng.choice(rest, 2 - len(run), replace=False))
+        eighteen += [f"{d0}-{s}" for s in pick]
+        live = [s for s in pick if s in run]
+        nine.append(f"{d0}-{rng.choice(live) if live else rng.choice(pick)}")
+    return eighteen, nine
 
 
 def tid(d0: str, sid: str) -> str:
@@ -136,7 +158,9 @@ def main() -> None:
     a = ap.parse_args()
     res = reserved()
     starts = train_starts(res)
-    print(json.dumps({"eval": list(EVAL), "train_starts": starts, "span_check": check_spans(starts, res)}, indent=1))
+    eighteen, nine = subsets()
+    print(json.dumps({"eval": list(EVAL), "train_starts": starts, "span_check": check_spans(starts, res),
+                      "subset_18": eighteen, "subset_9": nine}, indent=1))
     if a.pack:
         print(json.dumps(check_pack(a.pack), indent=1))
 

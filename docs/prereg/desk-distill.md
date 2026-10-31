@@ -116,3 +116,22 @@ Logged before the student eval starts; the primary result is not in.
    agent containers reach it (through the meter). Base ran on one g7e.8xlarge (one RTX PRO 6000, us-east-1) and the
    student on a second of the same type, with the same flags, harness, decoding and four windows at a time; the box of
    each run is recorded with it.
+7. **Eval subset and concurrency** (decided at 21:45 UTC on 2026-10-31, before any eval window was graded). Base
+   takes about 4 to 4.5 hours a window (about 2,000 calls at 100k to 250k-token prompts, compacting), so 36 windows at
+   four at a time cannot finish on the boxes or within the GPU budget. The eval runs on nested subsets, fixed now by
+   `subsets()` in `scripts/desk_distill_windows.py` (numpy `default_rng(0)`, the blocks in date order): two sites
+   in each of the nine blocks, the windows already running at the cut first (01-09 S01, S02 and S03 and 01-13 S01;
+   nothing graded), the rest drawn with the seed; and inside it one window a block, a running one where there is one,
+   else drawn.
+   - 18 windows: 01-09 S02, S03; 01-13 S01, S02; 01-17 S01, S04; 06-06 S03, S04; 06-09 S02, S04; 06-12 S02, S03;
+     06-15 S03, S04; 06-18 S03, S04; 06-22 S03, S04.
+   - 9 windows: 01-09 S02, 01-13 S01, 01-17 S01, 06-06 S04, 06-09 S04, 06-12 S02, 06-15 S03, 06-18 S04, 06-22 S03.
+   Both sides run the 18 eight at a time, in this order, with the same flags; the desk's clock is frozen between
+   turns, so concurrency changes the wall time, not the episode. Base's running windows are adopted; 01-09 S01, running
+   but not drawn, finishes and is reported as descriptive only, and 01-09 S04 (one infrastructure attempt) is not
+   retried.
+   **Fallback, on time only:** at 01:00 UTC, base's finish is projected from the sim-hours its completed and running
+   windows have covered. If it lands after 13:30 UTC, both sides cut to the 9: windows of the 18 not yet started are
+   not launched, running ones finish but count only if they are in the 9, and the primary is over the 9. Which rule
+   applied is reported. The primary is the paired interval over the subset that applies; each side's C over all its
+   completed windows is reported as descriptive.
