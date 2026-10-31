@@ -116,7 +116,7 @@ Logged before the student eval starts; the primary result is not in.
    agent containers reach it (through the meter). Base ran on one g7e.8xlarge (one RTX PRO 6000, us-east-1) and the
    student on a second of the same type, with the same flags, harness, decoding and four windows at a time; the box of
    each run is recorded with it.
-7. **Eval subset and concurrency** (decided at 21:45 UTC on 2026-10-31, before any eval window was graded). Base
+7. **Eval subset and concurrency** (decided at 21:35 UTC on 2026-10-31, before any eval window was graded). Base
    takes about 4 to 4.5 hours a window (about 2,000 calls at 100k to 250k-token prompts, compacting), so 36 windows at
    four at a time cannot finish on the boxes or within the GPU budget. The eval runs on nested subsets, fixed now by
    `subsets()` in `scripts/desk_distill_windows.py` (numpy `default_rng(0)`, the blocks in date order): two sites
