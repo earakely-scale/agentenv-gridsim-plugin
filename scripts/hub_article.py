@@ -62,7 +62,8 @@ def main():
     s, grades = card.bench_read(args.desk_repo / "results" / "desk-v4-bench")
     DATA.mkdir(parents=True, exist_ok=True)
     out = {"desk.json": desk, "facts.json": facts(desk) | {"bench": bench(s, grades, desk, card)},
-           "bench.json": {k: s[k] for k in ("fake", "n_windows", "n_fronts", "splits", "fronts", "plot")},
+           "bench.json": {k: s[k] for k in ("fake", "n_windows", "n_fronts", "splits", "fronts", "plot")}
+                         | {"models": chart_models(s)},
            "banner.json": hero(args.desk_repo / "results" / "desk-v4-bench", s, grades, card),
            "curve.json": curve(args.desk_repo, desk)}
     for name in STALE:
@@ -82,6 +83,14 @@ def main():
         check_rendered(out["facts.json"])
     if args.publish:
         print("space:", publish())
+
+
+def chart_models(s: dict) -> dict:
+    """What the bench chart reads of each model beside its plot point: its windows on each side, its reported cutoff and
+    release, and why a window went unscored."""
+    return {k: {x: m.get(x) for x in ("name", "n", "cutoff", "released")}
+            | {sp: {"n": m[sp]["n"]} for sp in ("pre_cutoff", "post_cutoff")}
+            | {"attempts": {"missing_reasons": m["attempts"]["missing_reasons"]}} for k, m in s["models"].items()}
 
 
 def module(name: str, rel: str):
@@ -217,7 +226,8 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
                    "tools": how["The desk's 11 tools over MCP,"]},
            "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
            "route": deviation(s, "Route C"), "errors": deviation(s, "Provider HTTP 400s"),
-           "credits": deviation(s, "Out of credits"),
+           "credits": deviation(s, "Out of credits"), "limit": deviation(s, "Output limit"),
+           "capped": deviation(s, "Window cap"),
            "late": {m["key"]: late(s, m["name"]) for m in ms if m.get("framework")},
            "price": {m["key"]: m["price_note"] for m in ms if m.get("price_note")},
            "tag": s["run"]["deviations_ref"], "links": {"deviations": card.bench_deviations(s)},
@@ -257,7 +267,7 @@ def bench_model(m: dict, s: dict, grades: list[dict], card) -> dict:
            "n": str(m["n"]), "valid": str(valid), "invalid": str(len(scored) - valid),
            "R": h(m["all"]["R"]["mean"], 2), "Rci": ci(m["all"]["R"]["ci"], 2),
            "usd": card.bench_usd(c["usd_per_window"]), "spent": card.bench_usd(c["usd_all_attempts"]),
-           "op": card.pts_ci(gap, True)}
+           "op": card.pts_ci(gap, True), "missing": m["attempts"]["missing_reasons"]}
     for k, sc in SCOPES:
         b = m[sc]["C"]
         out |= {k: f"{card.pc(b['mean'])}%", f"{k}ci": f"[{card.pc(b['ci'][0])}, {card.pc(b['ci'][1])}]"}
