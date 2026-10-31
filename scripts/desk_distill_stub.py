@@ -34,20 +34,31 @@ def _text(content) -> str:
     return content if isinstance(content, str) else ""
 
 
-def _json(s: str):
+def _unquote(s: str) -> str:
+    """A message OpenCode delivered quoted: decoded as JSON when it is, else with only its quotes unescaped."""
+    if len(s) < 2 or s[0] != '"' or s[-1] != '"':
+        return s
     try:
         x = json.loads(s)
-    except (TypeError, ValueError):
-        i = s.find("{") if isinstance(s, str) else -1
+    except ValueError:
+        return s[1:-1].replace('\\"', '"')
+    return x if isinstance(x, str) else s
+
+
+def _json(s: str):
+    if not isinstance(s, str):
+        return None
+    s = _unquote(s)
+    try:
+        return json.loads(s, strict=False)
+    except ValueError:
+        i = s.find("{")
         if i < 0:
             return None
         try:
-            x = json.loads(s[i:])
+            return json.loads(s[i:], strict=False)
         except ValueError:
             return None
-    if isinstance(x, str):
-        return _json(x)
-    return x
 
 
 def wake_of(msg: dict) -> dict | None:
@@ -153,18 +164,10 @@ def forecast_args(wakes: list[tuple[int, dict]]) -> dict:
 NETCHECK = re.compile(r"Run this exact command in your shell[^\n]*\n\n(.+?)\n\nThen call", re.S)
 
 
-def _plain(s: str) -> str:
-    try:
-        x = json.loads(s)
-    except ValueError:
-        return s
-    return x if isinstance(x, str) else s
-
-
 def netcheck(messages: list[dict], prefix: str) -> dict:
     """The bundle's netcheck: run its command with OpenCode's bash tool, read the SoC, report both."""
     i = max(i for i, m in enumerate(messages) if m.get("role") == "user")
-    cmd = NETCHECK.search(_plain(_text(messages[i]["content"]))).group(1)
+    cmd = NETCHECK.search(_unquote(_text(messages[i]["content"]))).group(1)
     outs = [_text(m.get("content")) for m in messages[i + 1:] if m.get("role") == "tool"]
     if not outs:
         return {"tool": "bash", "args": {"command": cmd, "description": "Network check"}}
