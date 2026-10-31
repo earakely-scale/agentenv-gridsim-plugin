@@ -99,6 +99,8 @@ def train(a: argparse.Namespace) -> None:
     )
     trainer.model_accepts_loss_kwargs = True
     trainer.chunk = a.chunk
+    trainer.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    trainer.model.enable_input_require_grads()
     base = trainer.model.get_base_model()
     print(json.dumps({"model_class": type(base).__name__, "trainable": trainer.model.get_nb_trainable_parameters()}),
           flush=True)
