@@ -22,9 +22,9 @@ from pathlib import Path
 
 import torch
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 from datasets import Dataset
 from peft import LoraConfig, PeftModel
+from torch.utils.checkpoint import checkpoint
 from transformers import AutoModelForImageTextToText, AutoTokenizer, TrainerCallback
 from trl import SFTConfig, SFTTrainer
 
