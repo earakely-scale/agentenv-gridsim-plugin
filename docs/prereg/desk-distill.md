@@ -135,7 +135,7 @@ Logged before the student eval starts; the primary result is not in.
    not launched, running ones finish but count only if they are in the 9, and the primary is over the 9. Which rule
    applied is reported. The primary is the paired interval over the subset that applies; each side's C over all its
    completed windows is reported as descriptive.
-8. **A step cap per turn** (decided at 23:20 UTC on 2026-10-31; no window graded on either side). From 22:17 to 23:09
+8. **A step cap per turn** (decided at 23:12 UTC on 2026-10-31; no window graded on either side). From 22:17 to 23:09
    UTC none of base's seven running subset windows advanced a sim-hour, while their env gateways logged a tool call
    about every 3.5 seconds: base kept calling tools inside one turn and never ended it. The desk refuses every call
    past its budget of 14 a turn, and the harness set no step limit, so only the play step's 14,400-second prompt
