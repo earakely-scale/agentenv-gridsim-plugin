@@ -1,6 +1,7 @@
 """A pass-through in front of the model server that logs each chat completion's usage per OpenCode session (prompt and
-completion tokens, cached prompt tokens, finish reason, message count), so the eval can report the largest prompt a
-window sent. Streams are relayed line by line; nothing is changed.
+completion tokens, cached prompt tokens, finish reason, message count, the last message's role, and whether the last
+messages carry OpenCode's maximum-steps notice), so the eval can report the largest prompt a window sent and the turns
+that reached the step cap. Streams are relayed line by line; nothing is changed.
 
     python scripts/desk_distill_meter.py --listen 172.17.0.1:8001 --upstream 172.17.0.1:8000 --log meter.jsonl
 """
@@ -83,8 +84,10 @@ def serve(listen: tuple[str, int], upstream: tuple[str, int], log_path: str) -> 
                     ch = json.loads(line)
                     usage = ch.get("usage") or usage
                     finish = ((ch.get("choices") or [{}])[0]).get("finish_reason") or finish
+            tail = " ".join(_text(m.get("content")) for m in msgs[-2:]).lower()
             rec = {"t": t0, "s": round(time.time() - t0, 2), "key": session_key(msgs), "window": window(msgs),
-                   "status": r.status,
+                   "last_role": msgs[-1].get("role") if msgs else None,
+                   "max_steps": "maximum steps" in tail or "max steps" in tail, "status": r.status,
                    "messages": len(msgs), "tools": len(req.get("tools") or []), "usage": usage, "finish": finish}
             with lock, open(log_path, "a") as f:
                 f.write(json.dumps(rec) + "\n")
