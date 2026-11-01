@@ -373,3 +373,45 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     above 272K input $2.00, $0.10, $2.50 and $7.50. Caps: $5 a window and $100 for Terra; the four models' pool rises
     from $60 to $160, with every call stopped at $159 combined. About 10 to 12 windows at once; the three above have
     priority.
+57. Run: Claude Haiku 5.5 from 16:02 to 16:40 UTC on 2026-11-01, GLM-5.3-Flash 16:03 to 16:40 and DeepSeek V4.1 Flash
+    16:04 to 17:16, each at up to 12 windows at once; GPT-6.1 Terra 16:16 to 19:02, at 10 windows at once and from
+    16:34 at 4 (58). All four graded all 32 windows; none was capped or missing. Tags: `claude-haiku-5-5`,
+    `glm-5.3-flash`, `deepseek-v4.1-flash`, `gpt-6.1-terra`.
+58. Concurrency, decided while the run was in progress: at 10 windows at once, Terra's Azure deployment answered with
+    its token rate limit inside the response stream, and Codex retried the call three times and exited, the same error
+    each time: "codex CLI exited with code 1 on attempt 3: stream disconnected before completion: Your requests to
+    gpt-6.1-terra for gpt-6.1-terra in westus have exceeded token rate limit." It ended six first attempts, each graded
+    on attempt 2: 2026-01-23 S03 (ended 16:35:44 UTC, $1.63), 2026-01-23 S04 (16:29:50, $0.60), 2026-03-16 S03
+    (16:29:52, $0.58), 2026-04-17 S02 (16:29:13, $0.41), 2026-04-17 S03 (16:32:26, $0.10) and 2026-05-08 S02 (16:34:13,
+    $0.14). Terra's admission went from 10 to 4 at 16:34 UTC with no running window stopped, and no rate limit followed.
+59. Hand reclassifications, corrections under 32 (an HTTP 429 is infrastructure and does not count toward the retry
+    limit) rather than deviations, each keeping its original class and time: Terra 2026-04-17 S02, 2026-01-23 S04 and
+    2026-03-16 S03 attempt 1, agent to infrastructure at 16:31 UTC, because the driver's 429 pattern did not match that
+    in-stream wording. The driver was then changed to class it as a 429 itself, and it classed the other three of 58.
+    No attempt of the four models is classed agent-side.
+60. Under 54: OpenCode's output limit ended 2 DeepSeek V4.1 Flash attempts ("opencode exited with code 0 without
+    completing" after a call that finished at the limit), 2026-04-17 S01 (ended 16:16:51 UTC) and 2026-08-26 S01
+    (16:54:25), $0.06 each, each graded on attempt 2; C 0.260 on the 30 windows graded at once against 0.033 on those 2.
+    No other model hit it.
+61. Provider errors: HTTP 503 ("upstream connect error or disconnect/reset before headers") 2 for DeepSeek V4.1 Flash
+    and 6 for Terra, each retried by the harness within its turn; none ended an attempt. No HTTP 429 for the three small
+    models. Claude Code's `HEAD /api/hello` connectivity check reached Haiku's proxy lane 931 times and was refused
+    (403), the lane serving only model calls; no attempt failed on it.
+62. Driver fixes while the run was in progress, none changing a result. At the first launch, 16:02 UTC, the small
+    models' drivers took the default cap ($130 less the model's spend) instead of $20, and Haiku's record named
+    OpenCode as its agent; they were relaunched at 16:06 with $20 ($19.99 for Haiku after its netcheck) and
+    claude-code 2.1.280, adopting their running windows, before any window had finished. That stop left two run folders
+    without their start marker (GLM-5.3-Flash 2026-01-23 S04, DeepSeek V4.1 Flash 2026-01-23 S02), on which those two
+    drivers stopped; the empty folders were removed and both relaunched at 16:08, starting those windows as attempt 1.
+    Around 16:30 Haiku's driver stopped on reading the proxy's totals file mid-rewrite; the read now retries. At 16:53
+    Terra's driver stopped writing its first episode, whose file name took the route's slash
+    (`azure_ai/gpt-6.1-terra`); the tag is now the route's last segment, the half-written row for 2026-03-16 S01
+    attempt 1 was removed (a backup kept), and the relaunched driver recorded that run and the five that had finished
+    meanwhile from their stored results. No window was rerun.
+63. Spend at the prices of 55 and 56, probes and netchecks included: Claude Haiku 5.5 $12.79 over 32 attempts ($0.40 a
+    graded window; 1,101 of its 2,022 model calls, $10.59, at the above-100K tier, and no 1-hour cache writes),
+    GLM-5.3-Flash $4.88 over 32 ($0.15), DeepSeek V4.1 Flash $12.17 over 34 ($0.38; at its peak price throughout, so an
+    upper bound) and GPT-6.1 Terra $66.49 over 38 ($1.97 a graded window; $3.46 of the total in the six attempts of 58;
+    its largest prompt, 231k tokens, stayed under the 272K tier): $96.33 of the $160. The most expensive windows were
+    $0.65, $0.26, $0.59 and $3.23, so no window reached $5, no model its cap, and the $159 stop never fired. Cached
+    share of input tokens: 96.7%, 98.0%, 98.1% and 97.5%.
