@@ -106,6 +106,8 @@ table.grid th.ck, table.grid td.ck { padding-left: 14px; border-left: 1px dashed
 .who > i.m-glm, .legend .sw.m-glm, table.replays td.rp :is(a, .off) i.m-glm { border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
 .who > i.m-kimi, .legend .sw.m-kimi, table.replays td.rp :is(a, .off) i.m-kimi { border-radius: 0; clip-path: polygon(50% 0, 62% 35%, 98% 35%, 69% 57%, 79% 91%, 50% 70%, 21% 91%, 31% 57%, 2% 35%, 38% 35%); }
 .who > i.m-qwenmax, .legend .sw.m-qwenmax, table.replays td.rp :is(a, .off) i.m-qwenmax { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.who > i.m-qwen9b, .legend .sw.m-qwen9b, table.replays td.rp :is(a, .off) i.m-qwen9b { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.who > i.m-qwen9bsft, .legend .sw.m-qwen9bsft, table.replays td.rp :is(a, .off) i.m-qwen9bsft { border-radius: 0; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.7L10.8 10.3H1.2Z' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.7L10.8 10.3H1.2Z' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
 .who b { font-weight: 620; }
 .nw { white-space: nowrap; }
 table.replays th { text-align: left; }

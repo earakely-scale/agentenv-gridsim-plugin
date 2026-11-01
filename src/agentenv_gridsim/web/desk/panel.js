@@ -258,9 +258,9 @@ function harness(E, ms) {
 
 function runLine(E, ms) {
   const u = E.usage, t = E.run.tokens, a = E.run.attempts, input = t.input + t.cached + t.cache_write;
-  const cost = `$${u.cost_usd.toFixed(2)} ${ms.basis === "gpu_time" ? "of GPU time" : "at list price"}${ms.cost_note ? ` (${ms.cost_note})` : ""}`;
+  const cost = `$${u.cost_usd.toFixed(2)} ${ms.basis === "gpu_time" ? "of GPU time" : ms.basis === "metered_rate" ? "at a metered rate" : "at list price"}${ms.cost_note ? ` (${ms.cost_note})` : ""}`;
   const h = E.run.http, code = h ? `, ${a > 2 ? "each an" : "an"} HTTP ${h.join(" or ")}${h.length === 1 && HTTP[h[0]] ? ` (${HTTP[h[0]]})` : ""}` : "";
-  const k = E.run.limit, limit = k ? `, ${k < a - 1 ? `${k} of them ` : a > 2 ? "each " : ""}at OpenCode's 32,000-token output limit` : "";
+  const k = E.run.limit, limit = k ? `, ${k < a - 1 ? `${k} of them ` : a > 2 ? "each " : ""}at OpenCode's ${(ms.out_limit || 32000).toLocaleString("en-US")}-token output limit` : "";
   const tries = a > 1 ? `graded on attempt ${a}, after ${a - 1} infrastructure failure${a > 2 ? "s" : ""}${code}${limit}` : "graded on its first attempt";
   return `<b>The run</b> ${esc(ms.harness)} ${esc(ms.version)} · ${esc(ms.setting)}: ${cost}; ${tokens(input)} input tokens, ${Math.round((100 * t.cached) / input)}% of them cached, and ${tokens(t.output)} output; ${tries}.`;
 }

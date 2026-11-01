@@ -163,7 +163,7 @@ function pagetabs(bench) {
   $("pagetabs").innerHTML = a("?v=bench", bench, "The v4 benchmark", "models in native agent harnesses") + a("?v=v4", !bench, "The development ladder", "v2 to v4 and the v5 price-impact check");
 }
 
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen: "var(--c-qwen)" };
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen9bsft: "var(--c-qwen9b)", qwen: "var(--c-qwen)" };
 const busd = (x) => (x < 100 ? `$${x.toFixed(2)}` : `$${whole(x).toLocaleString("en-US")}`);
 const isoPlus = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 const spanOf = (a, b) => {
@@ -203,7 +203,7 @@ function renderBench(B, C, D, pc, K) {
   $("lede").innerHTML = `${md(card.pitch.replace(/\*\*/g, ""))}${e ? ` <a href="./index.html?v=bench&m=${h.model}&task=${h.task_id}"><b>Replay the lead run</b></a>: ${esc(hm.name)} in ${esc(hm.harness)} trades ${esc(t.name)} (${esc(t.region)}, ${esc(t.size)}) over ${spanOf(t.dates[0], t.dates.at(-1))}, through a ${esc(front(e.front).kind)}, ${e.split === "post_cutoff" ? "after every reported training cutoff" : "a window that may be in the models' training data"}, and settles at ${usd(e.P)}, C ${pc(e.C)}.` : ""}`;
   $("findings").innerHTML = card.bullets.map((x, i) => `<li${i ? "" : ' class="lead"'}>${md(x)}</li>`).join("");
   const fig = (svg, label) => `<div class="cardfig" role="figure" aria-label="${esc(label)}">${svg}</div>`;
-  const who_ = (m) => who(BCOL[m.key] || "var(--c-hind)", `<b>${esc(m.name)}</b>`, `${esc(m.harness)} · ${esc(m.setting)}<br>${busd(m.cost.usd_per_window)} a window${m.cost.basis === "gpu_time" ? ", GPU time" : ""} · ${busd(m.cost.usd_all_attempts)} in all${m.n === B.n_windows ? "" : ` · ${m.n} of ${B.n_windows} windows`}`, `m-${m.key}`);
+  const who_ = (m) => who(BCOL[m.key] || "var(--c-hind)", `<b>${esc(m.name)}</b>`, `${esc(m.harness)} · ${esc(m.setting)}${m.distilled_short ? `<br>${esc(m.distilled_short)}` : ""}<br>${busd(m.cost.usd_per_window)} a window${{ gpu_time: ", GPU time", metered_rate: ", no maker price: metered rate" }[m.cost.basis] || ""} · ${busd(m.cost.usd_all_attempts)} in all${m.n === B.n_windows ? "" : ` · ${m.n} of ${B.n_windows} windows`}`, `m-${m.key}`);
   const cell = (l, b, bold = false) => `<td data-l="${esc(l)}">${b.mean == null ? "–" : `${bold ? `<b>${pc(b.mean)}</b>` : pc(b.mean)}<span class="sub">${cci(b)}</span>`}</td>`;
   const cols = [[`C, all ${B.n_windows} windows`, "all"], ...["pre_cutoff", "post_cutoff"].map((k) => [`${sides[k].label}`, k])];
   const board = `<div class="table-scroll"><table class="grid stack wrapcells bboard"><thead><tr><th class="l">Model</th>${cols.map(([l, k]) => `<th>${esc(l)}${k === "all" ? "" : `<span class="sub">${esc(sides[k].note)}</span>`}</th>`).join("")}<th>R</th><th>P a window</th></tr></thead><tbody>
@@ -233,6 +233,8 @@ function renderBench(B, C, D, pc, K) {
   $("main").innerHTML = [
     block("", "", `${fig(K.splitsChart(B, Math.min(W, narrow ? W : 760), narrow), "Hindsight capture before and after the training cutoffs")}<p class="note">${md(card.captions.splits)}</p><p class="note">${md(B.text.rule)}</p><h3 class="minor">Post-cutoff minus pre-cutoff, each model</h3><p class="note">The halves hold different windows, so each half's fronts are drawn apart (a stratified block bootstrap).</p>${gaps}`, "", "halves"),
     block("The board", `Each model ran each of the ${B.n_windows} windows once, in its native agent harness. C is the share of the hindsight optimum's profit over idle, the headline; R the contract's reward; P the settled ERCOT statement a window. Brackets: 95% CIs, a block bootstrap over the ${B.n_fronts} weather fronts (each half's 4 within it).`, board, "", "board"),
+    block("Cost against score", `Each model's mean C against its mean cost a three-day window, on a log scale. The step line is the cost frontier: no model off it is both cheaper and higher.`,
+      `${fig(K.paretoChart(B, Math.min(W, narrow ? W : 760), narrow), "Hindsight capture against cost per window, with the cost frontier")}<p class="note">${md(card.captions.pareto)}</p>`, "", "cost"),
     block("Paired by window", `Each gap a − b over the windows both played (${[`all ${B.n_windows}`, ...ms.filter((m) => m.n < B.n_windows).map((m) => `${m.n} with ${esc(m.name)}`)].join("; ")}), with front-block 95% CIs; <i>a ahead</i> is the share of windows where a's C is higher, and <i>fronts a leads</i> counts the fronts on which a's mean C is higher.`, paired, "", "paired"),
     replaysB,
     block("How it runs", "", `<ul class="models">${card.how.map((x) => `<li>${md(x)}</li>`).join("")}</ul>`),
