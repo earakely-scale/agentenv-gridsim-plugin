@@ -10,11 +10,15 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+import sys
 from pathlib import Path
 
 import numpy as np
 
 from gridsim_core.desk import load_tasks
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import desk_distill_windows as W  # noqa: E402
 
 SUBMITS = ("submit_dam_offers", "submit_rt_offers", "update_cop")
 FULL_TOOLS = 29
@@ -93,11 +97,13 @@ def boot(diffs: dict[str, list[float]], n: int = 10000, seed: int = 0) -> tuple[
 
 
 def report(a: argparse.Namespace) -> dict:
-    tasks = {t["task_id"]: t for t in load_tasks(a.pack) if t["split"] == "eval"}
+    keep = None if a.subset == 36 else {f"desk-v4w-{w}" for w in W.subsets()[a.subset == 9]}
+    tasks = {t["task_id"]: t for t in load_tasks(a.pack)
+             if t["split"] == "eval" and (keep is None or t["task_id"] in keep)}
     anchor = {k: (t["refs"]["p_anchor"] - t["refs"]["p_idle"]) / (t["refs"]["p_hind"] - t["refs"]["p_idle"])
               for k, t in tasks.items()}
     sides = {name: side(Path(path)) for name, path in (s.split("=", 1) for s in a.side)}
-    out: dict = {"windows": len(tasks), "sides": {}}
+    out: dict = {"subset": a.subset, "windows": len(tasks), "sides": {}}
     for name, s in sides.items():
         graded = {k: v["C"] for k, v in s.items() if v["graded"] and k in tasks}
         by = {}
@@ -146,6 +152,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pack", required=True)
     ap.add_argument("--side", action="append", required=True, help="name=bench dir (results, attempts, meter)")
+    ap.add_argument("--subset", type=int, choices=(9, 18, 36), default=18, help="the committed eval subset")
     ap.add_argument("--out", type=Path)
     a = ap.parse_args()
     r = report(a)
