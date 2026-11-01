@@ -97,7 +97,7 @@ function plate(T, E, ms, e) {
   const v = versionOf(E), front = v?.fronts?.find((f) => f.front === e.front), side = v?.splits?.[e.split];
   $("p-ver").textContent = v?.label || `${E.version} ${v?.name || ""}`;
   $("p-site").innerHTML = `${esc(T.site.name)}, ${esc(T.site.region)}<small>${esc(T.site.size)}</small>`;
-  $("p-who").innerHTML = `<b>${esc(ms.name)}</b><span class="set">${ms.harness ? ` in ${esc(ms.harness)}` : ""} · ${esc(ms.setting)}</span> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
+  $("p-who").innerHTML = `<b>${esc(ms.name)}</b>${ms.note ? `<span class="set"> (${esc(ms.note)})</span>` : ""}<span class="set">${ms.harness ? ` in ${esc(ms.harness)}` : ""} · ${esc(ms.setting)}</span> trades it ${T.dates.length > 1 ? "over" : "on"} ${esc(span(T.dates))}${T.site.pv ? `, beside ${Math.round(T.site.pv.mw_ac)} MW of solar <span class="mod">modelled</span>` : ""}`;
   const named = front && v.names[front.front];
   $("p-ctx").innerHTML = front ? `<i class="side ${e.split}"></i>${esc(cap(front.kind))}${named ? `, ${esc(named)}` : ""}<span> · ${esc(side.note)}</span>` : "";
   $("to-results").href = `./results.html?v=${E.version}`;
