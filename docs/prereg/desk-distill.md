@@ -154,7 +154,7 @@ Logged before the student eval starts; the primary result is not in.
    So the secondary compares a Fireworks-served base against a vLLM-served student; numerics, the tool-call parser and
    sampling can differ between the two servers, and the result is reported with that caveat. The primary on the
    held-out windows serves both models the same way.
-10. **Where the student's bench windows run** (decided at 01:45 UTC on 2026-11-01, before any of them started). No
+10. **Where the student's bench windows run** (decided at 01:33 UTC on 2026-11-01, before any of them started). No
     extra GPU box could be had (the account's us-east-1 spot quota is full, there was no on-demand capacity, and
     us-west-2 had none), so the 32 `desk-v4-bench` windows run on the two eval boxes once their held-out runs end, 16
     each, eight at a time, split by the pack's window order: box 2 the first 16 (2026-01-23 S01–S04, 03-16 S01–S04,
