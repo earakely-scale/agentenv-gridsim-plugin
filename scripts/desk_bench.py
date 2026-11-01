@@ -63,6 +63,15 @@ HARNESSES = {
                       "config": ("bench-opencode-kimi", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
     "opencode-qwenmax": {"agent": "opencode", "model": "qwen3.8-max", "effort": "high",
                          "config": ("bench-opencode-qwenmax", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
+    "codex-terra": {"agent": "codex", "model": "gpt-6.1-terra", "effort": "high",
+                    "config": ("bench-codex-catalog-terra", "/etc/codex"), "hosts": ["api.openai.com"]},
+    "claude-code-haiku": {"agent": "claude-code", "model": "claude-haiku-5-5", "effort": "high",
+                          "config": ("bench-claude-code", "/etc/claude-code"), "hosts": ["api.anthropic.com"]},
+    "opencode-glmflash": {"agent": "opencode", "model": "glm-5.3-flash", "effort": "high",
+                          "config": ("bench-opencode-glmflash", "/data/config/opencode"),
+                          "hosts": ["api.fireworks.ai"]},
+    "opencode-dsflash": {"agent": "opencode", "model": "deepseek-v4.1-flash", "effort": "high",
+                         "config": ("bench-opencode-dsflash", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
 }
 NETCHECK = ("Run this exact command in your shell and include its complete output in your reply:\n\n"
             "for u in https://www.ercot.com https://github.com https://pypi.org/simple/ https://1.1.1.1; do "
