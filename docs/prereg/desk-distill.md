@@ -161,3 +161,25 @@ Logged before the student eval starts; the primary result is not in.
     04-17 S01–S03, 05-08 S01–S04, 04-03 S04) and box 1 the last 16 (07-04, 07-23, 08-18 and 08-26, S01–S04 each). Both
     serve the same merged student weights with the same vLLM flags and harness; the desk's clock is frozen between
     turns, so the box changes the wall time, not the episode.
+
+## Primary result
+Over the committed 18 held-out windows (the time fallback did not apply: at 01:00 UTC base's finish projected to about
+01:40 UTC), every window graded for both models:
+
+| | base | student | anchor (same windows) |
+|---|---|---|---|
+| C, mean [95% window-block CI] | 0.039 [0.013, 0.066] | 0.077 [0.017, 0.128] | 0.078 |
+| attempts (infrastructure retries) | 25 (7 output-cap stops) | 22 (4 output-cap stops) | |
+| largest prompt, tokens | 253,938 | 253,870 | |
+| windows compacted (compactions) | 9 (18) | 9 (14) | |
+| wakes; turns at the env's 14-call budget | 889; 415 (47%) | 547; 12 (2.2%) | |
+| refused DAM / RT / COP submits | 48% / 33% / 48% | 5.7% / 2.1% / 30% | 0% / 0% / 18% |
+
+C(student) − C(base) = +0.038, 95% window-block interval [−0.034, +0.106] (nine blocks, 10,000 resamples, seed 0),
+student better on 10 windows and worse on 8. The interval's lower end is below 0, so by the pre-registered rule the
+student does not beat base. The student plays as the anchor does: its C is within 0.005 of the anchor's on 14 of the
+18 windows (mean absolute difference 0.005, mean signed difference −0.0004), through compaction and past the 150k
+tokens it trained on; on these windows the anchor itself is 0.039 above base on average, with a wide spread. No call
+went without the MCP tools on either side. Exact counts of turns ended by the 20-step cap are not available for these
+runs (the meter could not tell OpenCode's forced reply from a normal call until fe6cb6b); the 14-call budget is the
+proxy above. Descriptive, over the 9-window subset: C(student) − C(base) = −0.027 [−0.116, +0.061].
