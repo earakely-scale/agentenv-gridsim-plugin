@@ -10,7 +10,7 @@
   --c-glm: #8c5e1a;
   --c-kimi: #4a33bb;
   --c-qwenmax: #bd4bf6;
-  --c-qwen9b: #057558;
+  --c-qwen9b: #8fb0f5; --c-qwen9bsft: #1614f1;
   --c-haiku: #9b0d26;
   --c-terra: #763671;
   --c-glmflash: #ea5dd8;
@@ -40,7 +40,7 @@
   --c-glm: #7e5d07;
   --c-kimi: #5740f2;
   --c-qwenmax: #d64def;
-  --c-qwen9b: #00836f;
+  --c-qwen9b: #0d6594; --c-qwen9bsft: #1463cc;
   --c-haiku: #b1092b;
   --c-terra: #89426d;
   --c-glmflash: #fa28ae;

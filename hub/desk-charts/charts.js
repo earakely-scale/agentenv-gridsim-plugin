@@ -309,10 +309,10 @@ function daily(v, D, W, narrow, scale) {
 }
 
 const BENCH = ["opus", "haiku", "sol", "luna", "terra", "argon", "beam", "glm", "glmflash", "kimi", "qwenmax", "dsflash", "qwen9b", "qwen"];
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen: "var(--c-qwen)", haiku: "var(--c-haiku)", terra: "var(--c-terra)", glmflash: "var(--c-glmflash)", dsflash: "var(--c-dsflash)" };
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen9bsft: "var(--c-qwen9bsft)", qwen: "var(--c-qwen)", haiku: "var(--c-haiku)", terra: "var(--c-terra)", glmflash: "var(--c-glmflash)", dsflash: "var(--c-dsflash)" };
 const SHAPE = { Anthropic: "diamond", OpenAI: "circle", Google: "square", Reflection: "triangle-down", "Z.ai": "cross", "Moonshot AI": "star", Qwen: "triangle", DeepSeek: "bowtie" };
 const SIZES = { width: 600, lead: 660, phone: 350 };
-const bcol = (p) => BCOL[p.family] || BCOL[p.key] || "var(--ink-3)";
+const bcol = (p) => BCOL[p.key] || BCOL[p.family] || "var(--ink-3)";
 const brank = (p) => (BENCH.includes(p.family) ? BENCH.indexOf(p.family) : BENCH.length);
 const bpts = (Bn) => [...Bn.plot.points].sort((a, b) => brank(a) - brank(b) || (a.key === a.family ? 0 : 1) - (b.key === b.family ? 0 : 1));
 const pname = (p, narrow) => (narrow ? p.tag || p.short : p.name) + (p.variant && p.variant !== "untrained" ? ` · ${p.variant}` : p.variant && !narrow ? ` (${p.variant})` : "");

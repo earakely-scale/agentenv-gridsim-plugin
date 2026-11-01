@@ -55,7 +55,7 @@
       const fb = F.bench, on = new Set(B.plot.frontier || []);
       const card = (el, k) => {
         const m = fb.m[k], b = B.models[k];
-        K.t.title(el, m.name, `var(--c-${b.family || k})`);
+        K.t.title(el, m.name, `var(--c-${k})`);
         K.t.row(el, m.harness, `${m.version} · ${m.setting}`);
         [[`C, ${m.n === fb.n ? "all" : `${m.n} of`} ${fb.n} windows`, `${m.C} ${m.Cci}`], ["cost a window", m.basis ? `${m.usd}, ${m.basis}` : m.usd],
           ["in all", m.spent], ["cost frontier", on.has(k) ? "on it" : "dominated"]].forEach(([a, v]) => K.t.row(el, a, v));
