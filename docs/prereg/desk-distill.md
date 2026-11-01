@@ -183,3 +183,12 @@ tokens it trained on; on these windows the anchor itself is 0.039 above base on 
 went without the MCP tools on either side. Exact counts of turns ended by the 20-step cap are not available for these
 runs (the meter could not tell OpenCode's forced reply from a normal call until fe6cb6b); the 14-call budget is the
 proxy above. Descriptive, over the 9-window subset: C(student) − C(base) = −0.027 [−0.116, +0.061].
+
+## Secondary result
+The student played the 32 `desk-v4-bench` windows (16 on each eval box, item 10), all graded, one output-cap retry:
+C 0.203, the benchmark's front-block interval [0.069, 0.374]; 0.249 before the models' cutoffs and 0.158 after;
+$0.56 a window of GPU share at the g7e.8xlarge spot price ($4.50 an hour). Against base's 32 bench rows from the
+other lane (served through Fireworks, item 9; its harness is labelled `opencode-qwen9b`), C(student) − C(base) =
++0.130, 95% front-block interval [+0.063, +0.196] (eight fronts, 10,000 resamples, seed 0), student better on 23
+windows and worse on 9; base 0.073 [−0.024, 0.193]. As pre-registered, this is secondary and does not change the
+primary verdict.
