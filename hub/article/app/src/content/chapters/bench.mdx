@@ -16,8 +16,8 @@ runs further down. {F.bench.m.glm.name}, {F.bench.m.kimi.name} and {F.bench.m.qw
 context of {F.bench.m.qwen9bsft.context} tokens ({F.bench.m.qwen9b.context} for base, its deployment's maximum) and a cap
 of {F.bench.m.qwen9b.steps} steps a turn, where {F.bench.m.qwen.name}'s had {F.bench.m.qwen.context} tokens and no cap.
 {F.bench.m.haiku.name}, {F.bench.m.glmflash.name} and {F.bench.m.dsflash.name} came last, for more models between \$0.2
-and \$0.5 a window, in {F.bench.m.opus.name}’s harness and {F.bench.m.glm.name}’s, a choice the pre-registration fixed
-before any of their results (its items 52 to 55). The headline is C, hindsight capture: the share of the hindsight
+and \$0.5 a window, in {F.bench.m.opus.name}’s harness and {F.bench.m.glm.name}’s, with {F.bench.m.terra.name} beside them
+in {F.bench.m.sol.name}’s, choices the pre-registration fixed before any of their results (its items 52 to 56). The headline is C, hindsight capture: the share of the hindsight
 optimum's profit over idle that a desk captures.
 
 <HtmlEmbed
@@ -78,6 +78,14 @@ optimum's profit over idle that a desk captures.
 <td data-label={F.bench.side.post.name}>{F.bench.m.glm.post}<small>{F.bench.m.glm.postci}</small></td>
 <td data-label="R">{F.bench.m.glm.R}<small>{F.bench.m.glm.Rci}</small></td>
 <td data-label="Cost a window">{F.bench.m.glm.usd}<small>{F.bench.m.glm.spent} in all</small></td>
+</tr>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="var(--c-terra)" /></svg><b>{F.bench.m.terra.name}</b><small>{F.bench.m.terra.harness} {F.bench.m.terra.version} · {F.bench.m.terra.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.terra.C}</b><small>{F.bench.m.terra.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.terra.pre}<small>{F.bench.m.terra.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.terra.post}<small>{F.bench.m.terra.postci}</small></td>
+<td data-label="R">{F.bench.m.terra.R}<small>{F.bench.m.terra.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.terra.usd}<small>{F.bench.m.terra.spent} in all</small></td>
 </tr>
 <tr>
 <td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6.0 0.8L7.6 4.2L11.4 4.7L8.6 7.3L9.4 11.1L6.0 9.2L2.6 11.1L3.4 7.3L0.6 4.7L4.4 4.2Z" fill="var(--c-kimi)" /></svg><b>{F.bench.m.kimi.name}</b><small>{F.bench.m.kimi.harness} {F.bench.m.kimi.version} · {F.bench.m.kimi.setting}</small><small>scored on {F.bench.m.kimi.n} of {F.bench.n} windows</small></td>
@@ -227,7 +235,8 @@ tools off and has its internet egress blocked.
 - **{F.bench.late.qwen9b.head}:** {F.bench.late.qwen9b.text}
 - **{F.bench.harness9b.head}:** {F.bench.harness9b.text}
 - **{F.bench.late.qwen9bsft.head}:** {F.bench.late.qwen9bsft.text}
-- **{F.bench.late.haiku.head}:** {F.bench.late.haiku.text} Every late run is logged in full in the
+- **{F.bench.late.haiku.head}:** {F.bench.late.haiku.text}
+- **{F.bench.late.terra.head}:** {F.bench.late.terra.text} Every late run is logged in full in the
   <a href={F.bench.links.deviations}>deviations</a>.
 - **Pre-registered.** The
   [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
@@ -237,7 +246,7 @@ tools off and has its internet egress blocked.
   {F.bench.text.reliability}
 
 **Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
-(`claude-code`, `claude-code-haiku`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam`, `opencode-glm`,
+(`claude-code`, `claude-code-haiku`, `codex-sol`, `codex-luna`, `codex-terra`, `gemini`, `opencode-beam`, `opencode-glm`,
 `opencode-glmflash`, `opencode-kimi`, `opencode-qwenmax`, `opencode-dsflash`, `opencode-qwen9b`, `opencode-qwen35-long`
 or `opencode-qwen`), and `agent-env run` plays one window of it, with a `.agentenv/config.toml` that
 names the model endpoint and its key and a sandbox provider that enforces the bundle's network allowlist:
