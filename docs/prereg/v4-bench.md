@@ -266,3 +266,40 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     Kimi K3, retried by OpenCode within the turn; one mid-stream provider failure (37). Metered at the prices in 29:
     GLM-5.3 $108.23 over 44 attempts, Kimi K3 $192.83 over 33 ($75.87 of it in the four capped attempts), Qwen3.8 Max
     $128.98 over 35, and $7.41 for the smokes and netchecks: $437.45 of the $480. 97–98% of input tokens were cached.
+
+### Base Qwen3.5-9B
+
+40. Added after the others at Edgar's request: Qwen3.5-9B is the size we train (the desk-distill fine-tune), and the
+    untrained Qwen3-4B row stays as the reference. Base `Qwen/Qwen3.5-9B`, untrained, run from 2026-10-31 on the same
+    32 windows; results reported in full whatever they show. This row is served by a Fireworks dedicated deployment
+    through our LiteLLM gateway, `fireworks_ai/deployed/y4w64k4w` (the key reaches only that explicit route; the
+    catalog alias `qwen3p5-9b` is denied), while the fine-tuned 9B in desk-distill is served by our own vLLM. The
+    deployment scales from zero: a first call took 184 s, warm calls 0.3 s.
+41. Harness: desk-distill's `opencode-qwen35-long` (its prereg items 7 and 8): OpenCode 1.17.18, thinking on
+    (`chat_template_kwargs.enable_thinking`), temperature 0.6, top_p 0.95, top_k 20, min_p 0, no reasoning_effort,
+    output limit 8,192, `agent.build.steps` 20, and a context limit of 262,143 tokens, the deployment's maximum
+    measured by a probe (a 268,017-token prompt was refused at "maximum context length: 262143"), one token under
+    desk-distill's 262,144. top_k reaches Fireworks through LiteLLM: at top_k 1 and temperature 1.5 three calls gave the
+    same word, unset three different ones. agentenv-framework 0.9.1396; the bundle generated at `desk-v4-bench-run1`
+    exactly as for the other harnesses; route C as in 31, with its own state, proxy lanes and driver, and its netcheck
+    first.
+42. Rules: those of 32, with 35's for OpenCode's 8,192-token output cap here: an attempt that ends there is
+    infrastructure, at most three attempts a window. Up to 16 windows at once to start, raised while per-call latency
+    and HTTP 429s allow, lowered on 429s or errors; the concurrency where latency degrades is reported.
+43. Caps: $20 a window and $100 for the row, metered by the proxy from each response's usage at the price LiteLLM reports
+    for the route, $0.20 per 1M input and output tokens, cached input included at that price since no cached price is
+    reported. A dedicated deployment is billed by GPU time, not by token, so the token totals are reported beside it.
+44. Concurrency, decided while the run was in progress: 16 windows at once from 23:55 UTC on 2026-10-31. The
+    deployment's prompt cache gave way as contexts grew: 93% of input tokens cached at 11 windows of about 30k-token
+    prompts, 47–64% at 13 to 16 windows of 55k to 90k, with the median call from 1.6 s to 11 s and calls a minute
+    falling. Admission was lowered to 12 at 00:12 UTC and to 6 at 00:23 UTC, with no running window stopped; at 6 the
+    cache held (97%) and the median call took 2.2 s. Per-call latency degrades from about 12 windows at once, so the
+    run did not go to 32.
+45. Cap: the row's cap went from $100 to $130 at 00:48:59 UTC on 2026-11-01, raised by the coordinator; the metered
+    cost is notional because the dedicated deployment bills by GPU-hour. Applied live to the proxy and the driver; the
+    $20 a window and the metering of 43 are unchanged. The driver had stopped admitting at 00:47 UTC on a $101.02
+    projection and resumed at 00:49; no window was stopped or retried because of it. Metered $105.79 over 36 attempts
+    ($102.52 for the 32 graded) on 78.3M uncached input tokens, 449.3M cached (85.2%) and 1.34M output tokens.
+46. Under 42: the 8,192-token output cap ended 4 attempts, one each on 2026-01-23 S03, 2026-03-16 S03, 2026-05-08 S03
+    and 2026-07-23 S03, each graded on attempt 2; C 0.091 on the 28 windows graded at once against -0.052 on those 4.
+    4 HTTP 503s were retried within their turns; no HTTP 429. All 32 windows graded, 23:55 to 01:20 UTC.
