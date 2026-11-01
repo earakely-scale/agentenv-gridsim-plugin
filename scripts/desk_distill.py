@@ -182,7 +182,8 @@ def feas(a: argparse.Namespace) -> None:
             for n in names:
                 for seed in range(a.seeds if n in ("noise_5%", "noise_15%", "drop_10%", "drop_30%", "student_mix")
                                   else 1):
-                    rec = play(r, ser, n, seed) | {"site": r["site"]["site_id"], "window": r["tags"].get("window", r["dates"][0]),
+                    rec = play(r, ser, n, seed) | {"site": r["site"]["site_id"],
+                                                    "window": r["tags"].get("window", r["dates"][0]),
                                                     "day_kind": r["tags"]["day_kind"]}
                     f.write(json.dumps(rec) + "\n")
             f.flush()
