@@ -295,11 +295,11 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     falling. Admission was lowered to 12 at 00:12 UTC and to 6 at 00:23 UTC, with no running window stopped; at 6 the
     cache held (97%) and the median call took 2.2 s. Per-call latency degrades from about 12 windows at once, so the
     run did not go to 32.
-45. Cap: the row's cap went from $100 to $130 at 00:48:59 UTC on 2026-11-01 (Edgar), applied live to the proxy and the
-    driver; the $20 a window and the metering of 43 are unchanged. The driver had stopped admitting at 00:47 UTC on a
-    $101.02 projection and resumed at 00:49; no window was stopped or retried because of it. The metered cost is
-    notional: the dedicated deployment bills by GPU time. Metered $105.79 over 36 attempts ($102.52 for the 32 graded)
-    on 78.3M uncached input tokens, 449.3M cached (85.2%) and 1.34M output tokens.
+45. Cap: the row's cap went from $100 to $130 at 00:48:59 UTC on 2026-11-01, raised by the coordinator; the metered
+    cost is notional because the dedicated deployment bills by GPU-hour. Applied live to the proxy and the driver; the
+    $20 a window and the metering of 43 are unchanged. The driver had stopped admitting at 00:47 UTC on a $101.02
+    projection and resumed at 00:49; no window was stopped or retried because of it. Metered $105.79 over 36 attempts
+    ($102.52 for the 32 graded) on 78.3M uncached input tokens, 449.3M cached (85.2%) and 1.34M output tokens.
 46. Under 42: the 8,192-token output cap ended 4 attempts, one each on 2026-01-23 S03, 2026-03-16 S03, 2026-05-08 S03
     and 2026-07-23 S03, each graded on attempt 2; C 0.091 on the 28 windows graded at once against -0.052 on those 4.
     4 HTTP 503s were retried within their turns; no HTTP 429. All 32 windows graded, 23:55 to 01:20 UTC.
