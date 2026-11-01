@@ -36,6 +36,7 @@ DESK = ROOT / "results" / "overview" / "desk.json"
 MDX = APP / "src" / "content" / "article.mdx"
 CHARTS = ROOT / "hub" / "desk-charts" / "charts.js"
 OPENCODE = ROOT / "bench" / "harness" / "bench-opencode" / "opencode.json"
+HARNESS = ROOT / "bench" / "harness"
 ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json"
 STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json")
 CURVE = ("v2", "desk-v2-2026-08-23-S02", "sol", 18)
@@ -88,7 +89,8 @@ def main():
 def chart_models(s: dict) -> dict:
     """What the bench chart reads of each model beside its plot point: its windows on each side, its reported cutoff and
     release, and why a window went unscored."""
-    return {k: {x: m.get(x) for x in ("name", "n", "cutoff", "released")}
+    return {k: {x: m.get(x) for x in ("key", "family", "name", "n", "cutoff", "released", "price_note", "distilled",
+                                      "distilled_short")}
             | {sp: {"n": m[sp]["n"]} for sp in ("pre_cutoff", "post_cutoff")}
             | {"attempts": {"missing_reasons": m["attempts"]["missing_reasons"]}} for k, m in s["models"].items()}
 
@@ -220,24 +222,34 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
                                    if gaps[m["key"]]["ci"][0] > 0]),
            "r": {k: {x: f"{card.pc(refs[k][sc]['C']['mean'])}%" for x, sc in SCOPES} | {"label": label}
                  for k, label in card.BENCH_REFS.items()},
-           "say": dict(zip(("lead", "operator"), map(bold, card.bench_bullets(s)), strict=False)),
+           "say": dict(zip(("lead", "operator"), map(bold, card.bench_bullets(s)), strict=False))
+                  | {k: bold(x) for x in card.bench_bullets(s) for k, head in SAY.items() if x.startswith(f"**{head}")},
            "text": {k: s["text"][k] for k in ("halves", "reliability", "rule")},
            "how": {"harness": how["Each model in a native agent harness,"], "internet": how["No internet."],
                    "tools": how["The desk's 11 tools over MCP,"]},
            "limits": {f"l{i}": bold(x) for i, x in enumerate(card.bench_limits(s))},
            "route": deviation(s, "Route C"), "errors": deviation(s, "Provider HTTP 400s"),
            "credits": deviation(s, "Out of credits"), "limit": deviation(s, "Output limit"),
-           "capped": deviation(s, "Window cap"),
+           "capped": deviation(s, "Window cap"), "basis": deviation(s, "Cost basis, decided after every run"),
+           "harness9b": deviation(s, "Both Qwen3.5-9B harnesses differ"),
            "late": {m["key"]: late(s, m["name"]) for m in ms if m.get("framework")},
            "price": {m["key"]: m["price_note"] for m in ms if m.get("price_note")},
            "tag": s["run"]["deviations_ref"], "links": {"deviations": card.bench_deviations(s)},
-           "cap": {"splits": small(block, "C × 100"), "table": link(small(block, "C, hindsight capture"))}}
+           "cap": {"splits": small(block, "C × 100"), "table": link(small(block, "C, hindsight capture")),
+                   "pareto": small(block, "Each point is a model's mean C")}}
     q = json.loads(OPENCODE.read_text())
     agent, opts = q["agent"]["build"], next(iter(q["provider"].values()))["models"][s["models"]["qwen"]["model_id"]]
     if opts["options"]["chat_template_kwargs"]["enable_thinking"] != (s["models"]["qwen"]["setting"] == "thinking on"):
         raise SystemExit(f"{OPENCODE.name} and summary.json disagree on Qwen3-4B's thinking")
     out["m"]["qwen"] |= {"temperature": str(agent["temperature"]), "top_p": str(agent["top_p"]),
-                         "top_k": str(opts["options"]["top_k"])}
+                         "top_k": str(opts["options"]["top_k"]), "context": f"{opts['limit']['context']:,}"}
+    for k, m in s["models"].items():
+        if k != "qwen" and m["harness"] == "OpenCode" and m["setting"] == "thinking on":
+            q = json.loads((HARNESS / f"bench-{m['harness_key']}" / "opencode.json").read_text())
+            b, o = q["agent"]["build"], next(iter(q["provider"].values()))["models"][m["model_id"]]
+            out["m"][k] |= {"temperature": str(b["temperature"]), "top_p": str(b["top_p"]),
+                            "top_k": str(o["options"]["top_k"]), "context": f"{o['limit']['context']:,}",
+                            "steps": str(b["steps"]), "output": f"{o['limit']['output']:,}"}
     return out | {"lead": lead(s, grades, card)}
 
 
@@ -257,6 +269,8 @@ def lead(s: dict, grades: list[dict], card) -> dict:
 
 
 SIDES = ("pre", "post")
+SAY = {"frontier": "Cost against score", "sft": "Qwen3.5-9B + desk SFT reproduces"}
+BASIS = {"gpu_time": "GPU time", "metered_rate": "no maker price: metered rate"}
 SCOPES = (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff"))
 
 
@@ -271,7 +285,8 @@ def bench_model(m: dict, s: dict, grades: list[dict], card) -> dict:
     for k, sc in SCOPES:
         b = m[sc]["C"]
         out |= {k: f"{card.pc(b['mean'])}%", f"{k}ci": f"[{card.pc(b['ci'][0])}, {card.pc(b['ci'][1])}]"}
-    return out | ({"basis": "GPU time"} if c["basis"] == "gpu_time" else {})
+    return out | ({"basis": BASIS[c["basis"]]} if c["basis"] in BASIS else {}) | (
+        {"short": m["distilled_short"]} if m.get("distilled_short") else {})
 
 
 BOLD = re.compile(r"\*\*(.+?)\*\*\s*(.*)", re.S)
