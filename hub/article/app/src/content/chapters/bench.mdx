@@ -11,11 +11,14 @@ Each model runs in a native agent harness, once per window, on the same desk, to
 runs further down. {F.bench.m.glm.name}, {F.bench.m.kimi.name} and {F.bench.m.qwenmax.name} joined last as
 {F.bench.m.beam.name}’s peers, the top three open-weights models on BenchLM's agentic leaderboard, a choice the
 <a href={F.bench.links.deviations}>pre-registration</a> fixed before any of their results (its item 28), and ran in
-{F.bench.m.beam.name}’s harness. Two Qwen3.5-9B rows came last: the base model, served by a Fireworks deployment, and
+{F.bench.m.beam.name}’s harness. Two Qwen3.5-9B rows followed: the base model, served by a Fireworks deployment, and
 {F.bench.m.qwen9bsft.name}, {F.bench.m.qwen9bsft.short}, served by our own vLLM; both 9B harnesses give the model a
 context of {F.bench.m.qwen9bsft.context} tokens ({F.bench.m.qwen9b.context} for base, its deployment's maximum) and a cap
-of {F.bench.m.qwen9b.steps} steps a turn, where {F.bench.m.qwen.name}'s had {F.bench.m.qwen.context} tokens and no cap. The headline is C, hindsight capture: the share of the hindsight optimum's
-profit over idle that a desk captures.
+of {F.bench.m.qwen9b.steps} steps a turn, where {F.bench.m.qwen.name}'s had {F.bench.m.qwen.context} tokens and no cap.
+{F.bench.m.haiku.name}, {F.bench.m.glmflash.name} and {F.bench.m.dsflash.name} came last, for more models between \$0.2
+and \$0.5 a window, in {F.bench.m.opus.name}’s harness and {F.bench.m.glm.name}’s, a choice the pre-registration fixed
+before any of their results (its items 52 to 55). The headline is C, hindsight capture: the share of the hindsight
+optimum's profit over idle that a desk captures.
 
 <HtmlEmbed
   src="d3-desk-bench.html"
@@ -45,7 +48,15 @@ profit over idle that a desk captures.
 <td data-label="Cost a window">{F.bench.m.sol.usd}<small>{F.bench.m.sol.spent} in all</small></td>
 </tr>
 <tr>
-<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.6L10.9 10.2H1.1Z" fill="none" stroke="var(--c-qwen9b)" stroke-width="1.7" stroke-linejoin="round" /></svg><b>{F.bench.m.qwen9bsft.name}</b><small>{F.bench.m.qwen9bsft.harness} {F.bench.m.qwen9bsft.version} · {F.bench.m.qwen9bsft.setting}</small><small>{F.bench.m.qwen9bsft.short}</small><small>temperature {F.bench.m.qwen9bsft.temperature} · top_p {F.bench.m.qwen9bsft.top_p} · top_k {F.bench.m.qwen9bsft.top_k} · {F.bench.m.qwen9bsft.context}-token context · {F.bench.m.qwen9bsft.steps} steps a turn</small></td>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M0.8 1.2L6 4.4L11.2 1.2V10.8L6 7.6L0.8 10.8Z" fill="var(--c-dsflash)" /></svg><b>{F.bench.m.dsflash.name}</b><small>{F.bench.m.dsflash.harness} {F.bench.m.dsflash.version} · {F.bench.m.dsflash.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.dsflash.C}</b><small>{F.bench.m.dsflash.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.dsflash.pre}<small>{F.bench.m.dsflash.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.dsflash.post}<small>{F.bench.m.dsflash.postci}</small></td>
+<td data-label="R">{F.bench.m.dsflash.R}<small>{F.bench.m.dsflash.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.dsflash.usd}<small>{F.bench.m.dsflash.spent} in all</small></td>
+</tr>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.6L10.9 10.2H1.1Z" fill="none" stroke="var(--c-qwen9bsft)" stroke-width="1.7" stroke-linejoin="round" /></svg><b>{F.bench.m.qwen9bsft.name}</b><small>{F.bench.m.qwen9bsft.harness} {F.bench.m.qwen9bsft.version} · {F.bench.m.qwen9bsft.setting}</small><small>{F.bench.m.qwen9bsft.short}</small><small>temperature {F.bench.m.qwen9bsft.temperature} · top_p {F.bench.m.qwen9bsft.top_p} · top_k {F.bench.m.qwen9bsft.top_k} · {F.bench.m.qwen9bsft.context}-token context · {F.bench.m.qwen9bsft.steps} steps a turn</small></td>
 <td data-label="C, all windows"><b>{F.bench.m.qwen9bsft.C}</b><small>{F.bench.m.qwen9bsft.Cci}</small></td>
 <td data-label={F.bench.side.pre.name}>{F.bench.m.qwen9bsft.pre}<small>{F.bench.m.qwen9bsft.preci}</small></td>
 <td data-label={F.bench.side.post.name}>{F.bench.m.qwen9bsft.post}<small>{F.bench.m.qwen9bsft.postci}</small></td>
@@ -77,6 +88,14 @@ profit over idle that a desk captures.
 <td data-label="Cost a window">{F.bench.m.kimi.usd}<small>{F.bench.m.kimi.spent} in all</small></td>
 </tr>
 <tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.3 0.8H7.7V4.3H11.2V7.7H7.7V11.2H4.3V7.7H0.8V4.3H4.3Z" fill="var(--c-glmflash)" /></svg><b>{F.bench.m.glmflash.name}</b><small>{F.bench.m.glmflash.harness} {F.bench.m.glmflash.version} · {F.bench.m.glmflash.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.glmflash.C}</b><small>{F.bench.m.glmflash.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.glmflash.pre}<small>{F.bench.m.glmflash.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.glmflash.post}<small>{F.bench.m.glmflash.postci}</small></td>
+<td data-label="R">{F.bench.m.glmflash.R}<small>{F.bench.m.glmflash.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.glmflash.usd}<small>{F.bench.m.glmflash.spent} in all</small></td>
+</tr>
+<tr>
 <td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.4L11.6 6L6 11.6L0.4 6Z" fill="var(--c-opus)" /></svg><b>{F.bench.m.opus.name}</b><small>{F.bench.m.opus.harness} {F.bench.m.opus.version} · {F.bench.m.opus.setting}</small></td>
 <td data-label="C, all windows"><b>{F.bench.m.opus.C}</b><small>{F.bench.m.opus.Cci}</small></td>
 <td data-label={F.bench.side.pre.name}>{F.bench.m.opus.pre}<small>{F.bench.m.opus.preci}</small></td>
@@ -99,6 +118,14 @@ profit over idle that a desk captures.
 <td data-label={F.bench.side.post.name}>{F.bench.m.luna.post}<small>{F.bench.m.luna.postci}</small></td>
 <td data-label="R">{F.bench.m.luna.R}<small>{F.bench.m.luna.Rci}</small></td>
 <td data-label="Cost a window">{F.bench.m.luna.usd}<small>{F.bench.m.luna.spent} in all</small></td>
+</tr>
+<tr>
+<td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.4L11.6 6L6 11.6L0.4 6Z" fill="var(--c-haiku)" /></svg><b>{F.bench.m.haiku.name}</b><small>{F.bench.m.haiku.harness} {F.bench.m.haiku.version} · {F.bench.m.haiku.setting}</small></td>
+<td data-label="C, all windows"><b>{F.bench.m.haiku.C}</b><small>{F.bench.m.haiku.Cci}</small></td>
+<td data-label={F.bench.side.pre.name}>{F.bench.m.haiku.pre}<small>{F.bench.m.haiku.preci}</small></td>
+<td data-label={F.bench.side.post.name}>{F.bench.m.haiku.post}<small>{F.bench.m.haiku.postci}</small></td>
+<td data-label="R">{F.bench.m.haiku.R}<small>{F.bench.m.haiku.Rci}</small></td>
+<td data-label="Cost a window">{F.bench.m.haiku.usd}<small>{F.bench.m.haiku.spent} in all</small></td>
 </tr>
 <tr>
 <td><svg class="gs-mk" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0.6L11.6 10.8H0.4Z" fill="var(--c-qwen9b)" /></svg><b>{F.bench.m.qwen9b.name}</b><small>{F.bench.m.qwen9b.harness} {F.bench.m.qwen9b.version} · {F.bench.m.qwen9b.setting}</small><small>temperature {F.bench.m.qwen9b.temperature} · top_p {F.bench.m.qwen9b.top_p} · top_k {F.bench.m.qwen9b.top_k} · {F.bench.m.qwen9b.context}-token context · {F.bench.m.qwen9b.steps} steps a turn</small></td>
@@ -146,7 +173,7 @@ profit over idle that a desk captures.
 
 <p class="gs-table-note">{F.bench.cap.table.before}<a href={F.bench.cap.table.url}>{F.bench.cap.table.label}</a>{F.bench.cap.table.after} R is the environment's reward, on which idle scores 0.2 and the anchor 1.0. The viewer's <a href="https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench#board">board</a> adds each model's settled P.</p>
 
-Against what a window cost, five models make the frontier, the models no other model beats on both cost and C. Each
+Against what a window cost, the frontier is the models no other model beats on both cost and C. Each
 model's cost is its tokens at its maker's list price, or GPU time for the two we served ourselves.
 
 <HtmlEmbed
@@ -199,7 +226,8 @@ tools off and has its internet egress blocked.
 - **{F.bench.capped.head}:** {F.bench.capped.text}
 - **{F.bench.late.qwen9b.head}:** {F.bench.late.qwen9b.text}
 - **{F.bench.harness9b.head}:** {F.bench.harness9b.text}
-- **{F.bench.late.qwen9bsft.head}:** {F.bench.late.qwen9bsft.text} Every late run is logged in full in the
+- **{F.bench.late.qwen9bsft.head}:** {F.bench.late.qwen9bsft.text}
+- **{F.bench.late.haiku.head}:** {F.bench.late.haiku.text} Every late run is logged in full in the
   <a href={F.bench.links.deviations}>deviations</a>.
 - **Pre-registered.** The
   [pre-registration](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md)
@@ -209,8 +237,9 @@ tools off and has its internet egress blocked.
   {F.bench.text.reliability}
 
 **Reproduce it.** From a checkout of the plugin, `scripts/desk_bench.py` writes a bundle for one harness
-(`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam`, `opencode-glm`, `opencode-kimi`,
-`opencode-qwenmax`, `opencode-qwen9b`, `opencode-qwen35-long` or `opencode-qwen`), and `agent-env run` plays one window of it, with a `.agentenv/config.toml` that
+(`claude-code`, `claude-code-haiku`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam`, `opencode-glm`,
+`opencode-glmflash`, `opencode-kimi`, `opencode-qwenmax`, `opencode-dsflash`, `opencode-qwen9b`, `opencode-qwen35-long`
+or `opencode-qwen`), and `agent-env run` plays one window of it, with a `.agentenv/config.toml` that
 names the model endpoint and its key and a sandbox provider that enforces the bundle's network allowlist:
 
 ```bash
