@@ -363,3 +363,13 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     $0.15 input, $0.03 cached, $0.50 output. DeepSeek V4.1 Flash (DeepSeek's official rates): $0.30 on a cache miss,
     $0.006 on a hit, $1.20 output, its peak price throughout although part of the run falls in its half-price
     off-peak hours. The three models run at once, about 10 to 12 windows of each at a time.
+56. GPT-6.1 Terra, added beside them at Edgar's request (decided 2026-11-01 before its first scored call, while the three
+    above were running): `azure_ai/gpt-6.1-terra` through our gateway on Codex's path (`/openai/v1/responses`), in
+    Codex exactly as GPT-6.1 Sol and GPT-6 Luna: codex-cli 0.147.0, the image the Sol and Luna rows ran (agentenv-framework
+    0.9.1396 still pins it), `model_reasoning_effort` high, web search off, and OpenAI's Codex catalog entries, with an
+    entry for Terra copied from Sol's (GPT-6.1 family; only the slug and name differ) since the catalog has none. A probe
+    returned function calls and encrypted reasoning, effort honoured (130 reasoning tokens at low, 594 at high). Metered
+    at OpenAI's list price per 1M tokens: $1.00 input, $0.05 cached, $1.25 cache write (30 minutes), $5.00 output, and
+    above 272K input $2.00, $0.10, $2.50 and $7.50. Caps: $5 a window and $100 for Terra; the four models' pool rises
+    from $60 to $160, with every call stopped at $159 combined. About 10 to 12 windows at once; the three above have
+    priority.
