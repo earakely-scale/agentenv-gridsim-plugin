@@ -385,7 +385,7 @@ function splitsChart(Bn, W, narrow) {
   for (const p of [...pts].sort((a, b) => a.C.mean - b.C.mean)) {
     const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
     lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
-    marks += q.map(([x, y]) => mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)).join("");
+    marks += q.map(([x, y], i) => `<g class="pt" data-k="${p.key}" data-sp="${i ? "post_cutoff" : "pre_cutoff"}">${mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)}</g>`).join("");
   }
   const key = (e, x, y) => (e.op ? `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>` : mark(SHAPE[e.p.provider], x, y, 4.2, bcol(e.p), "mk-s", e.p.key !== e.p.family));
   const values = (k, x, dir, keyed) => {

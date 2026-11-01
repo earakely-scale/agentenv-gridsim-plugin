@@ -18,7 +18,8 @@
   .gs-bench .op { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dasharray: 5 4; }
   .gs-bench .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
   .gs-bench .fam { fill: none; stroke-width: 1.6; stroke-linecap: round; }
-  .gs-bench .hit { fill: transparent; stroke: none; cursor: pointer; }
+  .gs-bench .hit { fill: transparent; stroke: none; cursor: pointer; outline: none; }
+  .gs-bench .hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; }
   :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
   :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-head-s { font-size: 13px; fill: var(--ink-3); }
   :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-tick { font-size: 13px; fill: var(--ink-3); }
@@ -71,22 +72,23 @@
         if (m.valid !== m.n) K.t.note(el, `A valid submission on ${m.valid} of ${m.n} windows.`);
         for (const [why, k] of Object.entries(m.missing)) K.t.note(el, `${k} ${k > 1 ? "windows" : "window"} unscored, ended by the ${why.replace(/, final$/, "")}.`);
       };
+      const color = (k) => `var(--c-${B.models[k].family || k})`;
+      const label = (m, sp) => `${m.name}, ${side[sp].name}: C ${sp === "pre_cutoff" ? m.pre : m.post}`;
+      document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
 
       function render() {
         const W = Math.max(280, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 460;
         plot.innerHTML = C.splitsChart(B, W, narrow);
         const svg = plot.querySelector("svg");
         svg.removeAttribute("height");
-        const marks = [...svg.querySelectorAll(".mk, .mk-o")].map((el) => {
-          const fill = el.classList.contains("mk-o") ? el.getAttribute("stroke") : el.getAttribute("fill");
-          const fam = (/--c-([a-z]+)/.exec(fill || "") || [])[1], b = el.getBBox();
-          return { el, fam, x: b.x + b.width / 2, y: b.y + b.height / 2 };
-        }).filter((m) => m.fam && fb.m[m.fam]);
-        for (const m of marks) m.sp = m.x <= Math.min(...marks.filter((o) => o.fam === m.fam).map((o) => o.x)) ? "pre_cutoff" : "post_cutoff";
+        const marks = [...svg.querySelectorAll("g.pt")].map((g) => {
+          const b = g.getBBox();
+          return { k: g.dataset.k, sp: g.dataset.sp, x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        }).filter((m) => fb.m[m.k]);
         const show = (ev) => {
           const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
           const m = marks.reduce((a, o) => (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? o : a));
-          tip.show((el) => card(el, who(m.fam), `var(--c-${m.fam})`, m.sp), ev);
+          tip.show((el) => card(el, who(m.k), color(m.k), m.sp), ev);
         };
         for (const m of marks) {
           const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -94,10 +96,16 @@
           hit.setAttribute("cx", m.x.toFixed(1));
           hit.setAttribute("cy", m.y.toFixed(1));
           hit.setAttribute("r", "15");
+          hit.setAttribute("tabindex", "0");
+          hit.setAttribute("role", "img");
+          hit.setAttribute("aria-label", label(who(m.k), m.sp));
           hit.addEventListener("pointerenter", show);
           hit.addEventListener("pointermove", show);
           hit.addEventListener("pointerdown", show);
-          hit.addEventListener("pointerleave", () => tip.hide());
+          hit.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") tip.hide(); });
+          hit.addEventListener("pointercancel", () => tip.hide());
+          hit.addEventListener("focus", () => tip.show((el) => card(el, who(m.k), color(m.k), m.sp), { target: hit }));
+          hit.addEventListener("blur", () => tip.hide());
           svg.appendChild(hit);
         }
       }

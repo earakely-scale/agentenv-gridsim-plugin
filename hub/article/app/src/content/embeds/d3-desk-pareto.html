@@ -14,7 +14,8 @@
   .gs-pareto .mk { stroke: var(--halo); stroke-width: 2; stroke-linejoin: round; }
   .gs-pareto .mk-s { stroke: var(--halo); stroke-width: 1.5; }
   .gs-pareto .mk-o { stroke-width: 2.4; stroke-linejoin: round; }
-  .gs-pareto .hit { fill: transparent; stroke: none; cursor: pointer; }
+  .gs-pareto .hit { fill: transparent; stroke: none; cursor: pointer; outline: none; }
+  .gs-pareto .hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; }
   :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
   :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-head-s { font-size: 13px; fill: var(--ink-3); }
   :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-tick { font-size: 13px; fill: var(--ink-3); }
@@ -61,6 +62,11 @@
         if (b.price_note) K.t.note(el, b.price_note);
         if (b.distilled) K.t.note(el, `${b.name} is ${b.distilled}`);
       };
+      const label = (k) => {
+        const m = fb.m[k];
+        return `${m.name}: C ${m.C}, ${m.usd} a window${m.basis ? `, ${m.basis}` : ""}, ${on.has(k) ? "on the cost frontier" : "dominated"}`;
+      };
+      document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
 
       function render() {
         const W = Math.max(280, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 460;
@@ -71,7 +77,7 @@
         const pts = [...svg.querySelectorAll("g.pt")].map((g) => {
           const b = g.getBBox();
           return { k: g.dataset.k, x: b.x + b.width / 2, y: b.y + b.height / 2 };
-        }).filter((p) => fb.m[p.k]);
+        }).filter((p) => fb.m[p.k]).sort((a, b) => a.x - b.x);
         const show = (ev) => {
           const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
           const m = pts.reduce((a, o) => (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? o : a));
@@ -83,10 +89,16 @@
           hit.setAttribute("cx", p.x.toFixed(1));
           hit.setAttribute("cy", p.y.toFixed(1));
           hit.setAttribute("r", "15");
+          hit.setAttribute("tabindex", "0");
+          hit.setAttribute("role", "img");
+          hit.setAttribute("aria-label", label(p.k));
           hit.addEventListener("pointerenter", show);
           hit.addEventListener("pointermove", show);
           hit.addEventListener("pointerdown", show);
-          hit.addEventListener("pointerleave", () => tip.hide());
+          hit.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") tip.hide(); });
+          hit.addEventListener("pointercancel", () => tip.hide());
+          hit.addEventListener("focus", () => tip.show((el) => card(el, p.k), { target: hit }));
+          hit.addEventListener("blur", () => tip.hide());
           svg.appendChild(hit);
         }
       }
