@@ -474,11 +474,11 @@ table.eps .mk.pick { color: var(--agent); border-color: color-mix(in srgb, var(-
 }
 
 .filters .seg.fm { width: 100%; flex-wrap: wrap; }
-.filters .seg.fm button { flex: 1 1 18%; padding-left: 7px; padding-right: 7px; }
+.filters .seg.fm button { flex: 1 1 18%; min-width: max-content; padding-left: 7px; padding-right: 7px; }
 
 @media (max-width: 720px) {
   .filters .seg.fm { width: 100%; flex-wrap: wrap; }
-  .filters .seg.fm button { flex: 1 1 auto; }
+  .filters .seg.fm button { flex: 1 1 auto; min-width: 0; }
   .filters .seg.fm .full, .filters .seg.fm small { display: none; }
   .filters .seg.fm .nick { display: inline; }
 }
