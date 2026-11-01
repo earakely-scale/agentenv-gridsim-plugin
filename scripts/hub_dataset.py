@@ -795,6 +795,7 @@ BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
 BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every reported cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
+BENCH_BASIS = {"gpu_time": ", GPU time", "metered_rate": ", no maker price: metered rate"}
 NOT_YET_IN_VIEWER = ()
 BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
               "post_cutoff": "after every reported training cutoff"}
@@ -918,16 +919,17 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
     def who(m: dict) -> str:
         c, n = m["cost"], m["n"]
         cost = [] if c["usd_per_window"] is None else [
-            f"{bench_usd(c['usd_per_window'])} a window" + (", GPU time" if c["basis"] == "gpu_time" else ""),
+            f"{bench_usd(c['usd_per_window'])} a window" + BENCH_BASIS.get(c["basis"], ""),
             f"{bench_usd(c['usd_all_attempts'])} in all"]
         return (f"**{m['name']}**<br><small>{m['harness']} · {m['setting']}<br>"
+                + (f"{m['distilled_short']}<br>" if m.get("distilled_short") else "")
                 + " · ".join(cost + ([] if n == s["n_windows"] else [f"{n} of {s['n_windows']} windows"]))
                 + "</small>")
 
     rows = [f"| {who(m)} | " + " | ".join(cell(m[c]["C"], c == cols[0]) for c in cols) + " |" for m in ms]
     rows += [f"| *{BENCH_REFS[k]}* | " + " | ".join(f"*{pc(refs[k][c]['C']['mean'])}%*" for c in cols) + " |"
              for k in BENCH_REFS]
-    gpu = next((m["cost"]["gpu"] for m in ms if m["cost"].get("gpu")), None)
+    gpu = [m for m in ms if m["cost"].get("gpu")]
     op = refs["operator_replay"]
     alt = ("Line chart of hindsight capture C, as a percentage of the hindsight optimum's profit over idle, before and "
            "after the training cutoffs, one line per model: " + "; ".join(
@@ -953,13 +955,14 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         "", "| Model | " + " | ".join(head[c] for c in cols) + " |", "|---|" + "---:|" * len(cols), *rows, "",
         f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather fronts "
         "(four within each side of the cutoffs). Cost a window: the graded attempt's tokens in its harness's own "
-        "trajectory at the provider's public list price"
-        + (f"; {and_join([m['name'] for m in ms if m['cost'].get('gpu')])}'s is {gpu['note']}" if gpu else "")
+        "trajectory at the model maker's list price"
+        + "".join(f"; {m['name']}'s is {m['cost']['gpu']['note']}" for m in gpu)
         + "; in all: every attempt, retries and stalls included." + (f" {s['text']['metered']}" if s[
             "text"].get("metered") else "") + " The "
         "anchor is the desk's own optimiser re-planning at every wake on the same information; the operator row "
         "replays the real operator's bids, disclosed by ERCOT 60 days later, through the same clearing and "
         "settlement." + "".join(f" {x}" for x in notes) + "</small>", "",
+        *pareto_block(s, charts), "",
         *(x for d in s.get("deferred") or [] for x in (md(d), "")),
         *(f"- {x}" for x in bench_bullets(s)), "",
         "### How it runs", "", *(f"- {x}" for x in bench_how(s)), "",
@@ -971,6 +974,26 @@ def bench_block(s: dict, grades: list[dict], d: dict) -> str:
         f"Every number is in [`{BENCH_DIR}`]({DATASET}/tree/main/{BENCH_DIR}) (its README, `summary.json`, "
         "`grades.jsonl.gz` and every scored Episode JSON) and in the `desk_v4_bench` config, one row per model and "
         "window, split `pre_cutoff` and `post_cutoff`."])
+
+
+def pareto_block(s: dict, charts: dict) -> list[str]:
+    """Cost against C, the cost frontier as a step line, and its caption: which models make the frontier, the cost
+    bases that differ from the makers' list price, and what the distilled model is."""
+    if not s["plot"].get("frontier"):
+        return []
+    ms = bench_models(s)
+    on = [s["models"][k] for k in s["plot"]["frontier"]]
+    point = lambda m: f"{m['name']} ({pc(m['all']['C']['mean'])}%, {bench_usd(m['cost']['usd_per_window'])})"  # noqa: E731
+    off = [point(m) for m in ms if m["key"] not in s["plot"]["frontier"] and m["n"]]
+    alt = ("Scatter of hindsight capture C against cost per three-day window on a log scale, the cost frontier a step "
+           f"line through {and_join([point(m) for m in on])}" + (f"; dominated: {and_join(off)}" if off else "") + ".")
+    gpu = [m["name"] for m in ms if m["cost"]["basis"] == "gpu_time"]
+    sft = any(m.get("distilled") for m in ms)
+    return [*chart("pareto", alt, charts["lead"], charts["phone"]["media"], f"{BENCH_DIR}/figures"), "",
+            "<small>Each point is a model's mean C over its scored windows against its mean cost a window, on a log "
+            "scale: the model maker's list price for its tokens" + (f", or GPU time for {and_join(gpu)}" if gpu else "")
+            + ". The step line is the cost frontier, the models no other model beats on both; the chart's notes give "
+            "each cost's basis" + (" and what the distilled model is" if sft else "") + ".</small>"]
 
 
 def bench_bullets(s: dict) -> list[str]:
@@ -994,6 +1017,15 @@ def bench_bullets(s: dict) -> list[str]:
     out.append(f"**Before and after the cutoffs:** {s['text']['halves']}")
     paid = sorted((m for m in ranked if m["cost"]["usd_per_window"] is not None),
                   key=lambda m: m["cost"]["usd_per_window"])
+    if s["text"].get("frontier"):
+        out.append(f"**Cost against score:** {s['text']['frontier']}")
+    for m in (m for m in ranked if m.get("distilled") and m.get("family") in s["models"]):
+        base, ref = s["models"][m["family"]], s["references"]["anchor"]["all"]["C"]["mean"]
+        g = bench_pair(s, m["key"], base["key"])
+        out.append(f"**{m['name']} reproduces the desk's own planner.** It is {m['distilled']} The planner captures "
+                   f"{pc(ref)}% on these windows and {m['name']} {pc(m['all']['C']['mean'])}%"
+                   + (f"; over base {base['name']}, served differently, {pts_ci(g, True)}" if g else "")
+                   + (f", {m['primary']}" if m.get("primary") else "") + ".")
     out.append(f"**Cost a window** runs from {bench_usd(paid[0]['cost']['usd_per_window'])} ({paid[0]['name']}) to "
                f"{bench_usd(paid[-1]['cost']['usd_per_window'])} ({paid[-1]['name']}); every attempt, retries "
                "included, cost " + and_join([f"{bench_usd(m['cost']['usd_all_attempts'])} for {m['name']}"
@@ -1070,12 +1102,37 @@ def bench_limits(s: dict) -> list[str]:
         "desk's own runner (below).",
         "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
         "carry a model's dollars.",
-        "**Cost is list price:** tokens at each provider's public price per million, without batch or volume "
-        "discounts or long-context surcharges" + (f"; {and_join(gpu)}'s cost is its share of the GPU time" if gpu
-                                                  else "") + ".",
+        "**Cost is the model maker's list price:** tokens at each maker's public price per million, without batch "
+        "or volume discounts or long-context surcharges" + (f"; {and_join(gpu)}'s cost is its share of the GPU time"
+                                                            if gpu else "") + "."
+        + "".join(f" {m['price_note']}" for m in s["models"].values() if m.get("price_note")),
+        *bench_distilled_limits(s),
         "**A known env defect, K1, in the benchmark too.** An empty reserve-offer list drew a spurious ASO-02 note "
         "while the energy curves in the same call were accepted and applied; there is no settlement effect. It is "
         "fixed on the head; the frozen runs keep it, and the benchmark plays v4's freeze."]
+
+
+def bench_distilled_limits(s: dict) -> list[str]:
+    """A distilled row's limits: it is served apart from its base, and the training data's spans against these
+    windows (the desk-distill pre-registration's check)."""
+    out = []
+    for m in (m for m in s["models"].values() if m.get("distilled") and m.get("family") in s["models"]):
+        base = s["models"][m["family"]]
+        out += [f"**{base['name']} and {m['name']} are served differently:** {base['name']} by "
+                f"{base.get('endpoint') or base.get('server')}, {m['name']} by our own {m['server']} on "
+                f"{m['cost']['gpu']['where'] if m['cost'].get('gpu') else 'our GPU boxes'}, so numerics, the "
+                "tool-call parser and sampling can differ between them.",
+                f"**{m['name']}'s training data and these windows.** {DISTILL_SPANS} The training pack, "
+                "`data/desk/desk-v4-win`, is on the plugin's `desk-distill` branch at 13d53f9 and can be rebuilt with "
+                f"`scripts/desk_data_build.py` ([the check]({REPO}/blob/{s['run'].get('deviations_ref') or 'main'}/"
+                "docs/prereg/desk-distill.md#after-the-results))."]
+    return out
+
+
+DISTILL_SPANS = ("Its training windows read D-7 to D2 of their dates, and only the 2026-05-08 front's operating days "
+                 "(05-08 to 05-10, its four windows) fall inside any of those spans, as the DAM and MCPC price "
+                 "history of the 16 training windows that start 2026-05-14 to 05-17. The training transcripts never "
+                 "name those days, and on those four windows its C is within 1.7 points of the planner's.")
 
 
 def ladder(d: dict) -> list[dict]:
@@ -1565,7 +1622,8 @@ def dam_days(v: dict) -> list[str]:
                 for m in ms) + ". A mean above one means a desk rebid some of those markets as forecasts moved."]
 
 
-NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine"}
+NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten",
+       11: "Eleven", 12: "Twelve"}
 
 
 def and_join(xs: list[str]) -> str:

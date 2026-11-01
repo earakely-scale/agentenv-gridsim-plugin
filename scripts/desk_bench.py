@@ -53,6 +53,8 @@ HARNESSES = {
                       "config": ("bench-opencode", "/data/config/opencode"), "hosts": []},
     "opencode-qwen35-long": {"agent": "opencode", "model": "qwen3.5-9b", "effort": None,
                              "config": ("bench-opencode-qwen35-long", "/data/config/opencode"), "hosts": []},
+    "opencode-qwen9b": {"agent": "opencode", "model": "qwen3.5-9b", "effort": None,
+                        "config": ("bench-opencode-qwen9b", "/data/config/opencode"), "hosts": ["api.fireworks.ai"]},
     "opencode-beam": {"agent": "opencode", "model": "beam-1.0-501b-a23b", "effort": "high",
                       "config": ("bench-opencode-beam", "/data/config/opencode"), "hosts": ["router.huggingface.co"]},
     "opencode-glm": {"agent": "opencode", "model": "glm-5.3", "effort": "high",

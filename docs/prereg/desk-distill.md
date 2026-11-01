@@ -194,3 +194,19 @@ a context limit of 262,143 tokens, the Fireworks deployment's maximum, against 2
 +0.130, 95% front-block interval [+0.063, +0.196] (eight fronts, 10,000 resamples, seed 0), student better on 23
 windows and worse on 9; base 0.073 [−0.024, 0.193]. As pre-registered, this is secondary and does not change the
 primary verdict.
+
+## After the results
+
+**The benchmark's windows against the training spans**, checked after the secondary result with the span logic of
+`scripts/desk_distill_windows.py` (a window starting d0 reads D-7 to D2). Of the 32 `desk-v4-bench` windows' operating
+days, only the 2026-05-08 front's (05-08 to 05-10, its four windows S01 to S04) fall inside a training window's span:
+they are the DAM and MCPC price history, D-7 to D-4, of the 16 training site-windows that start 2026-05-14 (all three
+days), 05-15 (all three), 05-16 (05-09 and 05-10) and 05-17 (05-10), at all four sites; the built pack's series for
+exactly those 16 training windows hold those dates, and no other bench operating day is in any training span. The
+training transcripts never name them: the 147 captured training sessions hold ISO dates from 2025-12-20 to 2026-06-03
+and none of 05-08, 05-09 or 05-10. On those four bench windows the student's C is within 0.017 of the anchor's (S01
++0.001, S02 −0.017, S03 0.000, S04 0.000), as on the bench overall (mean absolute difference 0.007).
+
+**The pack.** `data/desk/desk-v4-win` (180 windows, 27 MB) is on the branch `desk-distill` at 13d53f9 and not on main,
+whose `data/` the wheel and the env image include. `scripts/desk_bench.py` reads it from its pinned commit, and
+`scripts/desk_data_build.py desk-v4-win` rebuilds it.

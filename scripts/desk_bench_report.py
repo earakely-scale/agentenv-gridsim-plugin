@@ -32,11 +32,13 @@ PRICES = {"claude-opus-5-5": {"in": 4.0, "cached": 0.2, "write": 5.0, "write_1h"
           "gpt-6-luna": {"in": 0.1, "cached": 0.01, "write": 0.125, "out": 0.5,
                          "above": 272000, "tier": {"in": 0.2, "cached": 0.02, "write": 0.25, "out": 0.75}},
           "gemini-4-argon": {"in": 2.0, "cached": 0.1, "write": 0.0, "out": 10.0},
-          "beam-1.0-501b-a23b": {"in": 0.4, "cached": 0.4, "write": 0.4, "out": 1.2},
+          "beam-1.0-501b-a23b": {"in": 0.4, "cached": 0.04, "write": 0.4, "out": 1.2},
           "glm-5.3": {"in": 1.4, "cached": 0.26, "write": 1.4, "out": 4.4},
           "kimi-k3": {"in": 3.0, "cached": 0.3, "write": 3.0, "out": 15.0},
           "qwen3.8-max": {"in": 2.0, "cached": 0.25, "write": 2.0, "out": 6.0},
+          "qwen3.5-9b": {"in": 0.2, "cached": 0.2, "write": 0.2, "out": 0.2},
           "qwen3-4b": {"in": 0.0, "cached": 0.0, "write": 0.0, "out": 0.0}}
+PROXY_PRICES = {"beam-1.0-501b-a23b": {"in": 0.4, "cached": 0.4, "write": 0.4, "out": 1.2}}
 DESK_TOOLS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position",
               "submit_dam_offers", "submit_rt_offers", "update_cop", "check_submission", "optimize", "set_reminder")
 BUDGET = "budget: end your turn"
@@ -166,8 +168,8 @@ def usage_of(turns: list[list[dict]], model: str) -> dict:
             "note": "Codex counts are its cumulative thread totals; per-call long-context tiers are not applied"}
 
 
-def list_price(tokens: dict, model: str | None) -> float | None:
-    p = next((v for k, v in PRICES.items() if k in (model or "")), None)
+def list_price(tokens: dict, model: str | None, prices: dict = PRICES) -> float | None:
+    p = next((v for k, v in prices.items() if k in (model or "")), None)
     if p is None:
         return None
     u = Counter(tokens)

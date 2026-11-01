@@ -1,6 +1,6 @@
-:root { --halo: #ffffff; --fern: rgba(20, 32, 43, 0.055); --c-argon: #eda100; --c-opus: #e87ba4; --c-beam: #b03a8c; --c-glm: #8c5e1a; --c-kimi: #4a33bb; --c-qwenmax: #bd4bf6; --wm: #d03b3b; }
-:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9244ab; --c-glm: #7e5d07; --c-kimi: #5740f2; --c-qwenmax: #d64def; --wm: #e66767; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9244ab; --c-glm: #7e5d07; --c-kimi: #5740f2; --c-qwenmax: #d64def; --wm: #e66767; } }
+:root { --halo: #ffffff; --fern: rgba(20, 32, 43, 0.055); --shade: rgba(20, 32, 43, 0.045); --c-argon: #eda100; --c-opus: #e87ba4; --c-beam: #b03a8c; --c-glm: #8c5e1a; --c-kimi: #4a33bb; --c-qwenmax: #bd4bf6; --c-qwen9b: #057558; --wm: #d03b3b; }
+:root[data-theme="dark"] { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --shade: rgba(214, 228, 240, 0.06); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9244ab; --c-glm: #7e5d07; --c-kimi: #5740f2; --c-qwenmax: #d64def; --c-qwen9b: #00836f; --wm: #e66767; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --halo: #0b0f19; --fern: rgba(214, 228, 240, 0.075); --shade: rgba(214, 228, 240, 0.06); --c-argon: #c98500; --c-opus: #d55181; --c-beam: #9244ab; --c-glm: #7e5d07; --c-kimi: #5740f2; --c-qwenmax: #d64def; --c-qwen9b: #00836f; --wm: #e66767; } }
 
 svg.chart { display: block; overflow: visible; font-family: var(--sans); }
 svg.chart text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
@@ -18,6 +18,8 @@ svg.chart .op { fill: none; stroke: var(--ink-3); stroke-width: 1.6; stroke-dash
 svg.chart .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
 svg.chart .gap { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 1.5 3; stroke-linecap: round; }
 svg.chart .fern { fill: var(--fern); }
+svg.chart .shade { fill: var(--shade); }
+svg.chart .stair { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: square; }
 svg.chart text.wm { fill: var(--wm); fill-opacity: 0.2; stroke: none; font-weight: 700; letter-spacing: 0.04em; }
 
 svg.chart .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
@@ -43,6 +45,11 @@ svg.chart .t-unit { font-size: 13px; fill: var(--ink-3); }
 svg.chart .t-kv { font-size: 13.5px; font-weight: 650; fill: var(--ink); }
 svg.chart .t-kd { font-size: 13.5px; fill: var(--ink-2); }
 svg.chart .t-foot { font-size: 12.5px; fill: var(--ink-3); }
+svg.chart .t-pv { font-size: 12.5px; font-weight: 500; fill: var(--ink-3); }
+svg.chart .t-pv.b { font-weight: 640; fill: var(--ink-2); }
+svg.chart .t-dom { font-size: 12.5px; font-style: italic; fill: var(--ink-3); }
+svg.chart .t-tag { font-size: 12.5px; font-weight: 520; fill: var(--ink-3); }
+svg.chart .t-tail { font-size: 12.5px; font-weight: 500; fill: var(--ink-3); }
 svg.chart .t-fern { font-size: 12.5px; font-weight: 650; fill: var(--ink-2); }
 svg.chart .t-date { font-size: 12.5px; fill: var(--ink-3); }
 svg.chart .t-date.b { font-weight: 650; fill: var(--ink-2); }

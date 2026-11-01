@@ -303,3 +303,37 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
 46. Under 42: the 8,192-token output cap ended 4 attempts, one each on 2026-01-23 S03, 2026-03-16 S03, 2026-05-08 S03
     and 2026-07-23 S03, each graded on attempt 2; C 0.091 on the 28 windows graded at once against -0.052 on those 4.
     4 HTTP 503s were retried within their turns; no HTTP 429. All 32 windows graded, 23:55 to 01:20 UTC.
+
+### Cost basis, and the anchor-distilled Qwen3.5-9B
+
+47. Cost basis, decided after every run above, on 2026-11-01: a model's cost is its tokens at its maker's list price.
+    Every price above already was, but Beam-1.0's: Reflection publishes no price (its API is a free beta), and 15
+    costed it at the Hugging Face router's $0.40 / $1.20 per 1M input / output tokens with cached input at the full
+    input price, an upper bound of $1.97 a graded window; the router's actual bill to Baseten for the run was about
+    $32. Beam-1.0 is now costed at Together AI's list price, $0.40 / $0.04 / $1.20 per 1M input / cached input /
+    output tokens: $0.3064 a graded window and $10.44 for its 36 attempts (the two the 402 ended, metered at the
+    router's price, scaled by the two prices' ratio on their trajectory tokens). That one figure is used everywhere.
+48. Base Qwen3.5-9B has no maker price: Alibaba Cloud Model Studio sells Qwen3.5 by the token only from 27B up (its
+    pricing page, updated 2026-10-29) and offers Qwen3.5-9B only for fine-tuning and for dedicated deployment billed
+    by the hour. Its cost is therefore the metered rate of 43, $0.20 per 1M tokens with cached input at that rate:
+    $3.20 a graded window and $105.76 for its 36 attempts. The dedicated deployment itself bills by GPU time.
+49. Qwen3.5-9B + desk SFT, added after the others: the secondary comparison of `docs/prereg/desk-distill.md`, a LoRA
+    SFT of Qwen3.5-9B with TRL, through AgentEnv, on OpenCode transcripts of the desk's own planner (the anchor
+    policy, which calls `optimize` and submits its proposal), so it reproduces the planner rather than trading on its
+    own; on that pre-registration's primary test, 18 held-out windows, it missed the pre-registered bar (+0.038
+    [−0.034, +0.106] over base). It played the 32 windows from 03:51 to 06:31 UTC on 2026-11-01, served by our own
+    vLLM 0.29.0 on two g7e.8xlarge boxes in us-east-1 with the harness `opencode-qwen35-long`, while base Qwen3.5-9B
+    (40 to 46) was served by a Fireworks dedicated deployment: the two 9B rows are served differently, and numerics,
+    the tool-call parser and sampling can differ between the servers. Both 9B harnesses are OpenCode 1.17.18 with
+    thinking on, temperature 0.6, top_p 0.95, top_k 20, an 8,192-token output limit, a 20-step cap a turn and a
+    262k-token context (262,144 for the student, 262,143 for base), where Qwen3-4B's harness has a 32,768-token context
+    and no step cap. Its cost is GPU time: each run's share of its box's time at the $4.5013 an hour spot price paid,
+    $0.56 a graded window. The output limit ended 1 attempt (2026-04-03 S04), retried as infrastructure under 42.
+50. The student's training spans against these windows, checked after its run with the span logic of
+    `scripts/desk_distill_windows.py` (a window starting d0 reads D-7 to D2): only the 2026-05-08 front's operating
+    days, 05-08 to 05-10 (its four windows, S01 to S04), fall inside any training window's span, as the DAM and MCPC
+    price history, D-7 to D-4, of the 16 training site-windows that start 2026-05-14 to 05-17. The training
+    transcripts never name those days (none of the 147 captured sessions does), and on those four windows the
+    student's C is within 0.017 of the planner's. The full check is in `docs/prereg/desk-distill.md`.
+51. The training pack, `data/desk/desk-v4-win`, is not on main: it is on the branch `desk-distill` at 13d53f9, where
+    `scripts/desk_bench.py` reads it from its pinned commit, and `scripts/desk_data_build.py desk-v4-win` rebuilds it.

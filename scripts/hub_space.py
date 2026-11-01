@@ -40,7 +40,7 @@ DESK = WEB / "desk"
 CARD = {"card-charts.js": ROOT / "hub" / "desk-charts" / "charts.js",
         "card-charts.css": ROOT / "hub" / "desk-charts" / "charts.css"}
 BENCH = ROOT / "results" / "desk-v4-bench"
-BENCH_TAG = "desk-v4-bench-results-4"
+BENCH_TAG = "desk-v4-bench-results-5"
 SPACE = "earakely-scale/GridSimEnv-AgentEnv"
 APP = "https://earakely-scale-gridsimenv-agentenv.static.hf.space"
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
@@ -63,6 +63,7 @@ BOXES = re.compile(r"\bi-0[0-9a-f]{8,17}\b|\bip-\d{1,3}(?:-\d{1,3}){3}\b|\.(?:co
                    r"\b127\.0\.0\.1\b|\blocalhost:\d|agent-env-local-[\w-]+|\brouter\.huggingface\.co\b|"
                    r"\bapi\.fireworks\.ai\b")
 TEXT = (".json", ".html", ".js", ".css", ".md", ".txt")
+OUT_LIMIT = {"opencode-qwen9b": 8192, "opencode-qwen35-long": 8192, "opencode-qwen": 8192}
 PRODUCTS = ("regup", "regdn", "rrspfr", "rrsffr", "ecrs", "nspin")
 NOTICE_LEVELS = {"Watch", "Emergency", "Advisory", "OCN", "EEA", "EEA1", "EEA2", "EEA3"}
 CACHE = ROOT / "cache" / "viewer-desk"
@@ -177,8 +178,10 @@ def bench(s: dict, grades: list[dict], data: Path, cat: dict, card) -> dict:
             "roster": {k: {"name": m["name"], "tag": m["tag"], "harness": m["harness"], "version": m["harness_version"],
                            "setting": m["setting"], "label": f"{m['name']} · {m['harness']} · {m['setting']}",
                            "weights": m["weights"], "basis": m["cost"]["basis"]}
-                       | ({"cost_note": f"an upper bound: {m['endpoint']} publishes no cached-input price"}
-                          if m.get("price_note") else {}) for k, m in ms.items()},
+                       | ({"cost_note": m["price_note"].split(": ", 1)[-1].rstrip(".")} if m.get("price_note") else {})
+                       | ({"out_limit": OUT_LIMIT[m["harness_key"]]} if m["harness_key"] in OUT_LIMIT else {})
+                       | ({"note": m["distilled_short"]} if m.get("distilled_short") else {})
+                       for k, m in ms.items()},
             "tasks": tasks, "names": module("hub_desk", "scripts/hub_desk.py").NAMED["v4"],
             "fronts": [{k: f[k] for k in ("front", "split", "kind")} for f in s["fronts"]],
             "splits": sides(s, card),
@@ -233,18 +236,18 @@ def bench_page(s: dict, grades: list[dict], desk: dict, card) -> dict:
         "card": {"pitch": card.bench_pitch(s), "bullets": card.bench_bullets(s), "limits": card.bench_limits(s),
                  "how": [x.replace(quick, f"The dataset card's [Quick start]({DATASET}#quick-start) shows how.")
                          for x in card.bench_how(s)],
-                 "captions": dict(zip(("splits", "table"), captions(s, grades, desk, card), strict=True)),
+                 "captions": dict(zip(("splits", "table", "pareto"), captions(s, grades, desk, card), strict=True)),
                  "refs": card.BENCH_REFS, "sides": sides(s, card)},
         "links": links(s)}
 
 
 def captions(s: dict, grades: list[dict], desk: dict, card) -> list[str]:
-    """The card's two captions for the benchmark, under its headline chart (capture either side of the training
-    cutoffs) and under its table."""
+    """The card's three captions for the benchmark: under its headline chart (capture either side of the training
+    cutoffs), under its table, and under capture against cost."""
     out = [x.removeprefix("<small>").removesuffix("</small>") for x in card.bench_block(s, grades, desk).splitlines()
            if x.startswith("<small>")]
-    if len(out) != 2:
-        raise SystemExit(f"the card's benchmark block has {len(out)} captions, not the chart's and the table's")
+    if len(out) != 3:
+        raise SystemExit(f"the card's benchmark block has {len(out)} captions, not the two charts' and the table's")
     return out
 
 
@@ -947,7 +950,7 @@ def readme(cat: dict, desk: dict, s: dict, grades: list[dict], card) -> str:
     ci = lambda b: f"{card.pc(b['mean'])}% [{card.pc(b['ci'][0])}, {card.pc(b['ci'][1])}]"  # noqa: E731
     n = lambda x: "" if x["n"] == s["n_windows"] else f"<br><small>{x['n']} of {s['n_windows']} windows</small>"  # noqa: E731
     cost = lambda x: (f"{card.bench_usd(x['cost']['usd_per_window'])} a window"  # noqa: E731
-                      + (", GPU time" if x["cost"]["basis"] == "gpu_time" else "")
+                      + card.BENCH_BASIS.get(x["cost"]["basis"], "")
                       + f" · {card.bench_usd(x['cost']['usd_all_attempts'])} in all")
     rows = "\n".join(f"| **{x['name']}**{n(x)} | {x['harness']} · {x['setting']} | "
                      + " | ".join(ci(x[k]["C"]) for k in ("all", "pre_cutoff", "post_cutoff"))
@@ -1004,7 +1007,8 @@ stops at each of the agent's turns. The episode browser lists the benchmark's {l
 model, side of the cutoffs, front and battery, then the development runs.{capped}
 
 **[Results]({APP}/results.html?v=bench).** The benchmark's hindsight capture either side of the training cutoffs, the
-table with its CIs, paired gaps, how it runs, its limitations and deviations, and every run as a replay.
+table with its CIs, capture against cost, the cost frontier, paired gaps, how it runs, its limitations and deviations,
+and every run as a replay.
 
 ## The development ladder
 

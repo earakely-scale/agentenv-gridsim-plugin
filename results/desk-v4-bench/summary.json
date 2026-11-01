@@ -4,7 +4,7 @@
  "pack": "desk-v4-bench",
  "layer": "v4",
  "unit": "3-day window",
- "generated": "2026-10-31T17:52:46Z",
+ "generated": "2026-11-01T07:35:57Z",
  "n_windows": 32,
  "n_fronts": 8,
  "sites": [
@@ -132,6 +132,9 @@
    "cutoff": "2026-06",
    "released": null,
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "claude-opus-5-5",
    "harness_key": "claude-code",
    "harness_version": "2.1.280",
@@ -435,6 +438,9 @@
    "cutoff": "2026-04-30",
    "released": null,
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "gpt-6.1-sol",
    "harness_key": "codex-sol",
    "harness_version": "0.147.0",
@@ -737,6 +743,9 @@
    "cutoff": "2026-05-18",
    "released": null,
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "gpt-6-luna",
    "harness_key": "codex-luna",
    "harness_version": "0.147.0",
@@ -1039,6 +1048,9 @@
    "cutoff": "2026-03",
    "released": null,
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "gemini-4-argon",
    "harness_key": "gemini",
    "harness_version": "0.38.2",
@@ -1345,7 +1357,10 @@
    "endpoint": "the Hugging Face router",
    "cutoff": "2026-06-30",
    "released": null,
-   "price_note": "The Hugging Face router publishes no cached-input price for Baseten, so Beam-1.0's list price counts every input token, cached ones included, at the full input price: an upper bound.",
+   "price_note": "Beam-1.0: Reflection publishes no price; at Together AI's list price including its $0.04 cached-read rate.",
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "beam-1.0-501b-a23b",
    "harness_key": "opencode-beam",
    "harness_version": "1.17.18",
@@ -1427,7 +1442,7 @@
     },
     "valid_share": 1.0,
     "beats_anchor_share": 0.2812,
-    "usd_per_window": 1.9684
+    "usd_per_window": 0.3064
    },
    "pre_cutoff": {
     "n": 16,
@@ -1497,7 +1512,7 @@
     },
     "valid_share": 1.0,
     "beats_anchor_share": 0.375,
-    "usd_per_window": 2.0686
+    "usd_per_window": 0.3255
    },
    "post_cutoff": {
     "n": 16,
@@ -1567,7 +1582,7 @@
     },
     "valid_share": 1.0,
     "beats_anchor_share": 0.1875,
-    "usd_per_window": 1.8681
+    "usd_per_window": 0.2873
    },
    "split_gap": {
     "C": {
@@ -1594,10 +1609,10 @@
    },
    "cost": {
     "basis": "list_price_tokens",
-    "usd_per_window": 1.9684,
-    "usd_median": 1.6416,
-    "usd_scored_total": 62.9876,
-    "usd_all_attempts": 66.4972
+    "usd_per_window": 0.3064,
+    "usd_median": 0.2556,
+    "usd_scored_total": 9.8055,
+    "usd_all_attempts": 10.4408
    },
    "tokens_per_window": {
     "input": 183243.1,
@@ -1654,6 +1669,9 @@
    "cutoff": null,
    "released": "2026-08-14",
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "glm-5.3",
    "harness_key": "opencode-glm",
    "harness_version": "1.17.18",
@@ -1961,6 +1979,9 @@
    "cutoff": null,
    "released": "2026-07-16",
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "kimi-k3",
    "harness_key": "opencode-kimi",
    "harness_version": "1.17.18",
@@ -2272,6 +2293,9 @@
    "cutoff": null,
    "released": "2026-08-03",
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "qwen3.8-max",
    "harness_key": "opencode-qwenmax",
    "harness_version": "1.17.18",
@@ -2564,6 +2588,633 @@
    },
    "note": "OpenCode's 32,000-token output limit ended 3 of its attempts, retried as infrastructure"
   },
+  "qwen9b": {
+   "key": "qwen9b",
+   "name": "Qwen3.5-9B",
+   "tag": "Qwen3.5-9B",
+   "provider": "Qwen",
+   "harness": "OpenCode",
+   "setting": "thinking on",
+   "weights": "open",
+   "variant": "untrained",
+   "family": "qwen9b",
+   "harness_note": null,
+   "server": "Fireworks",
+   "endpoint": "Fireworks",
+   "cutoff": null,
+   "released": "2026-03-02",
+   "price_note": "Qwen3.5-9B: no maker price; at the metered Fireworks rate, $0.20 per 1M tokens, cached reads included.",
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
+   "model_id": "qwen3.5-9b",
+   "harness_key": "opencode-qwen9b",
+   "harness_version": "1.17.18",
+   "harness_versions_recorded": {
+    "1.17.18": 36
+   },
+   "framework": "0.9.1396",
+   "ran": {
+    "from": "2026-10-31T23:55:50+00:00",
+    "to": "2026-11-01T01:20:12+00:00"
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.073,
+     "ci": [
+      -0.0235,
+      0.1928
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.4069,
+     "ci": [
+      0.2603,
+      0.545
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 75658.7259,
+     "ci": [
+      -2218.0875,
+      222219.4862
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.1542,
+     "ci": [
+      -0.0752,
+      0.4244
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -61125.3253,
+     "ci": [
+      -160354.1001,
+      -8128.9963
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 51295.5853,
+     "ci": [
+      -15677.3263,
+      173552.7315
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.0007,
+     "ci": [
+      -0.0891,
+      0.1139
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.2812,
+    "usd_per_window": 3.2029
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1318,
+     "ci": [
+      0.0268,
+      0.3214
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.5396,
+     "ci": [
+      0.4223,
+      0.6568
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 148365.3331,
+     "ci": [
+      3178.9925,
+      436512.5969
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.2884,
+     "ci": [
+      0.0544,
+      0.6911
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -105397.4419,
+     "ci": [
+      -304652.1881,
+      1355.1
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 112027.3619,
+     "ci": [
+      -14116.3762,
+      351720.3031
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0478,
+     "ci": [
+      -0.0978,
+      0.2449
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.375,
+    "usd_per_window": 3.6482
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.0143,
+     "ci": [
+      -0.0899,
+      0.1532
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.2743,
+     "ci": [
+      0.0936,
+      0.4717
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 2952.1187,
+     "ci": [
+      -8782.1225,
+      19784.2494
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.0201,
+     "ci": [
+      -0.2704,
+      0.3623
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -16853.2087,
+     "ci": [
+      -20737.7094,
+      -14365.4856
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -9436.1912,
+     "ci": [
+      -27659.8419,
+      7639.6406
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": -0.0492,
+     "ci": [
+      -0.1203,
+      0.0608
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.1875,
+    "usd_per_window": 2.7577
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.1175,
+     "ci": [
+      -0.3227,
+      0.0686
+     ]
+    },
+    "R": {
+     "mean": -0.2653,
+     "ci": [
+      -0.4762,
+      -0.0444
+     ]
+    },
+    "P": {
+     "mean": -145413.2144,
+     "ci": [
+      -434201.7831,
+      9218.4569
+     ]
+    }
+   },
+   "cost": {
+    "basis": "metered_rate",
+    "usd_per_window": 3.2029,
+    "usd_median": 2.4641,
+    "usd_scored_total": 102.4941,
+    "usd_all_attempts": 105.7587
+   },
+   "tokens_per_window": {
+    "input": 2302655.9,
+    "cached": 13676448.0,
+    "cache_write": 0.0,
+    "output": 35651.8,
+    "reasoning": 10801.7
+   },
+   "behaviour": {
+    "turns": 38.0,
+    "wakes": 38.0,
+    "desk_calls": 214.31,
+    "own_tool_calls": 0.34,
+    "shell_calls": 0.0,
+    "reminders": 46.69,
+    "submissions": 34.5,
+    "rejected": 9.59,
+    "compactions": 0.0,
+    "wall_s": 1266.31
+   },
+   "own_tools": {
+    "invalid": 11
+   },
+   "attempts": {
+    "total": 36,
+    "scored": 32,
+    "failed": 4,
+    "extra": 0,
+    "windows_retried": 4,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 4
+    }
+   },
+   "note": "a Fireworks dedicated deployment, its 262,143-token maximum context and a 20-step cap a turn (Qwen3-4B's harness had 32,768 tokens and no step cap); OpenCode's 8,192-token output limit ended 4 of its attempts, retried as infrastructure"
+  },
+  "qwen9bsft": {
+   "key": "qwen9bsft",
+   "name": "Qwen3.5-9B + desk SFT",
+   "tag": "Qwen3.5-9B + desk SFT",
+   "provider": "Qwen",
+   "harness": "OpenCode",
+   "setting": "thinking on",
+   "weights": "open",
+   "variant": null,
+   "family": "qwen9b",
+   "harness_note": null,
+   "server": "vLLM 0.29.0",
+   "endpoint": null,
+   "cutoff": null,
+   "released": null,
+   "price_note": null,
+   "distilled": "a LoRA SFT of Qwen3.5-9B with TRL, through AgentEnv, on OpenCode transcripts of the desk's own planner, the anchor policy, which calls optimize and submits its proposal; it reproduces the planner, not trading it learned on its own.",
+   "distilled_short": "distilled from the desk's planner",
+   "primary": "the desk-distill pre-registration's secondary comparison; on its primary test, 18 held-out windows, it missed the pre-registered bar, +3.8 pts [−3.4, +10.6] over base",
+   "model_id": "qwen3.5-9b",
+   "harness_key": "opencode-qwen35-long",
+   "harness_version": "1.17.18",
+   "harness_versions_recorded": {
+    "1.17.18": 33
+   },
+   "framework": "0.9.1396",
+   "ran": {
+    "from": "2026-11-01T03:51:35+00:00",
+    "to": "2026-11-01T06:31:40+00:00"
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.2033,
+     "ci": [
+      0.069,
+      0.3744
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.8213,
+     "ci": [
+      0.652,
+      0.9569
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 136355.5497,
+     "ci": [
+      7733.1116,
+      381359.1536
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.4364,
+     "ci": [
+      0.1567,
+      0.7856
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -428.5016,
+     "ci": [
+      -1166.2643,
+      61.8775
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 111992.4091,
+     "ci": [
+      -6204.0698,
+      332741.3622
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1296,
+     "ci": [
+      -0.0092,
+      0.2972
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.125,
+    "usd_per_window": 0.5608
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.2488,
+     "ci": [
+      0.0302,
+      0.5624
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.8255,
+     "ci": [
+      0.4906,
+      0.999
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 253693.6212,
+     "ci": [
+      2816.4344,
+      741045.8969
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.5409,
+     "ci": [
+      0.0648,
+      1.1759
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -69.1537,
+     "ci": [
+      -176.7919,
+      0.0
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 217355.65,
+     "ci": [
+      -15530.4069,
+      656362.2681
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1648,
+     "ci": [
+      -0.0977,
+      0.4801
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.0625,
+    "usd_per_window": 0.4496
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1578,
+     "ci": [
+      0.016,
+      0.2997
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.8171,
+     "ci": [
+      0.6483,
+      0.986
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 19017.4781,
+     "ci": [
+      4706.0512,
+      40618.4131
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.332,
+     "ci": [
+      0.0423,
+      0.6218
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -787.8494,
+     "ci": [
+      -2125.92,
+      192.9088
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 6629.1681,
+     "ci": [
+      -12102.1531,
+      27309.2088
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0943,
+     "ci": [
+      -0.012,
+      0.2096
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.1875,
+    "usd_per_window": 0.6719
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.0909,
+     "ci": [
+      -0.4109,
+      0.1836
+     ]
+    },
+    "R": {
+     "mean": -0.0084,
+     "ci": [
+      -0.2686,
+      0.3323
+     ]
+    },
+    "P": {
+     "mean": -234676.1431,
+     "ci": [
+      -721953.2523,
+      24047.7169
+     ]
+    }
+   },
+   "cost": {
+    "basis": "gpu_time",
+    "usd_per_window": 0.5608,
+    "usd_median": 0.4816,
+    "usd_scored_total": 17.9449,
+    "usd_all_attempts": 17.9976,
+    "gpu": {
+     "basis": "ec2",
+     "price_source": "the EC2 spot price paid, us-east-1",
+     "usd_per_hour": {
+      "g7e.8xlarge": 4.5013
+     },
+     "boxes": 2,
+     "gpu_hours": 3.998,
+     "usd_total": 17.9977,
+     "attempts": 33,
+     "where": "EC2 GPU boxes (g7e.8xlarge)",
+     "note": "GPU time: 4.00 box-hours on EC2 GPU boxes (g7e.8xlarge at $4.5013/h, the EC2 spot price paid, us-east-1), each run's share of its box's time while it ran"
+    }
+   },
+   "tokens_per_window": {
+    "input": 482091.2,
+    "cached": 22764076.5,
+    "cache_write": 0.0,
+    "output": 86011.3,
+    "reasoning": 18767.6
+   },
+   "behaviour": {
+    "turns": 25.94,
+    "wakes": 25.94,
+    "desk_calls": 182.0,
+    "own_tool_calls": 0.0,
+    "shell_calls": 0.0,
+    "reminders": 0.0,
+    "submissions": 145.16,
+    "rejected": 0.0,
+    "compactions": 0.0,
+    "wall_s": 2893.12
+   },
+   "own_tools": {},
+   "attempts": {
+    "total": 33,
+    "scored": 32,
+    "failed": 1,
+    "extra": 0,
+    "windows_retried": 1,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 1
+    }
+   },
+   "note": "served by our own vLLM 0.29.0 on g7e.8xlarge boxes, unlike base Qwen3.5-9B's Fireworks deployment, with a 262,144-token context and a 20-step cap a turn; the desk-distill pre-registration's secondary comparison, whose primary test, 18 held-out windows, it did not pass (+3.8 points [−3.4, +10.6] over base); OpenCode's output limit ended 1 of its attempts, retried as infrastructure"
+  },
   "qwen": {
    "key": "qwen",
    "name": "Qwen3-4B",
@@ -2580,6 +3231,9 @@
    "cutoff": "2024",
    "released": null,
    "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
    "model_id": "qwen3-4b",
    "harness_key": "opencode-qwen",
    "harness_version": "1.17.18",
@@ -2887,24 +3541,28 @@
  },
  "order_by_C": [
   "sol",
+  "qwen9bsft",
   "argon",
   "glm",
   "kimi",
   "opus",
   "qwenmax",
   "luna",
+  "qwen9b",
   "beam",
   "qwen"
  ],
  "lead_rule": {
   "exposed": [
    "sol",
+   "qwen9bsft",
    "argon",
    "glm",
    "kimi",
    "opus",
    "qwenmax",
    "luna",
+   "qwen9b",
    "beam"
   ],
   "unexposed": [
@@ -2912,7 +3570,7 @@
   ],
   "first_window": "2026-01-23",
   "set": "before any API-model result",
-  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; GLM-5.3, Kimi K3 and Qwen3.8 Max, with no reported cutoff, can trigger it too."
+  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; Qwen3.5-9B + desk SFT, GLM-5.3, Kimi K3, Qwen3.8 Max and Qwen3.5-9B, with no reported cutoff, can trigger it too."
  },
  "halves_differ": [],
  "lead_split": "all",
@@ -3477,6 +4135,127 @@
   }
  },
  "paired": {
+  "sol-qwen9bsft": {
+   "a": "sol",
+   "b": "qwen9bsft",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0666,
+     "ci": [
+      -0.0416,
+      0.1695
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": -0.0427,
+     "ci": [
+      -0.2715,
+      0.2086
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.3125,
+     "level": 0.3438,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -5565.0831,
+     "ci": [
+      -39195.2022,
+      23030.0494
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1275,
+     "ci": [
+      -0.0061,
+      0.2564
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1279,
+     "ci": [
+      -0.1081,
+      0.5003
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 3806.9494,
+     "ci": [
+      -43272.8025,
+      38419.315
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0058,
+     "ci": [
+      -0.154,
+      0.1347
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.2133,
+     "ci": [
+      -0.4988,
+      -0.0419
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.1875,
+     "level": 0.3125,
+     "fronts_ahead": 0
+    },
+    "P": {
+     "mean": -14937.1156,
+     "ci": [
+      -66651.1931,
+      19145.7087
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "sol-argon": {
    "a": "sol",
    "b": "argon",
@@ -4203,6 +4982,127 @@
     }
    }
   },
+  "sol-qwen9b": {
+   "a": "sol",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1969,
+     "ci": [
+      0.0793,
+      0.2761
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.3717,
+     "ci": [
+      0.164,
+      0.539
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.2188,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 55131.7406,
+     "ci": [
+      -6026.8091,
+      143210.0203
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2445,
+     "ci": [
+      0.2214,
+      0.2677
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.4139,
+     "ci": [
+      0.2683,
+      0.5612
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.1875,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 109135.2375,
+     "ci": [
+      27931.9025,
+      257966.3769
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1493,
+     "ci": [
+      -0.0669,
+      0.3046
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.3296,
+     "ci": [
+      -0.0648,
+      0.6022
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 1128.2437,
+     "ci": [
+      -51093.5044,
+      38815.2769
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "sol-beam": {
    "a": "sol",
    "b": "beam",
@@ -4442,6 +5342,1095 @@
      "ahead": 0.6875,
      "level": 0.0,
      "fronts_ahead": 3
+    }
+   }
+  },
+  "qwen9bsft-argon": {
+   "a": "qwen9bsft",
+   "b": "argon",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0048,
+     "ci": [
+      -0.0976,
+      0.1067
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1304,
+     "ci": [
+      -0.139,
+      0.3579
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4062,
+     "level": 0.3125,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 42812.4569,
+     "ci": [
+      -14037.0147,
+      127222.4241
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0331,
+     "ci": [
+      -0.1962,
+      0.1301
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": -0.0103,
+     "ci": [
+      -0.4474,
+      0.3197
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.3125,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 64708.9356,
+     "ci": [
+      -31622.3637,
+      231221.0706
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0426,
+     "ci": [
+      -0.0176,
+      0.1582
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": 0.271,
+     "ci": [
+      0.0684,
+      0.5119
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.3125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 20915.9781,
+     "ci": [
+      -2896.875,
+      65743.9856
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
+  "qwen9bsft-glm": {
+   "a": "qwen9bsft",
+   "b": "glm",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0197,
+     "ci": [
+      -0.079,
+      0.1043
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "R": {
+     "mean": 0.1237,
+     "ci": [
+      -0.1463,
+      0.351
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0938,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 33909.6297,
+     "ci": [
+      -8009.9844,
+      97399.4409
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0012,
+     "ci": [
+      -0.176,
+      0.1433
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.0367,
+     "ci": [
+      -0.4533,
+      0.3522
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0625,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 52905.8581,
+     "ci": [
+      -23200.055,
+      178430.3644
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0382,
+     "ci": [
+      -0.0468,
+      0.1149
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2106,
+     "ci": [
+      -0.0379,
+      0.5228
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 14913.4012,
+     "ci": [
+      -3481.6025,
+      44746.4556
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
+  "qwen9bsft-kimi": {
+   "a": "qwen9bsft",
+   "b": "kimi",
+   "all": {
+    "n": 28,
+    "C": {
+     "mean": 0.0491,
+     "ci": [
+      -0.0226,
+      0.1204
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.5714,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.2151,
+     "ci": [
+      0.0794,
+      0.3182
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.5714,
+     "level": 0.2143,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 47901.9107,
+     "ci": [
+      -5922.0908,
+      140529.2357
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.5714,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 14,
+    "C": {
+     "mean": 0.0489,
+     "ci": [
+      -0.097,
+      0.1843
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.165,
+     "ci": [
+      -0.0981,
+      0.31
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.2143,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 92941.2579,
+     "ci": [
+      -11758.54,
+      264304.6053
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 14,
+    "C": {
+     "mean": 0.0493,
+     "ci": [
+      -0.0099,
+      0.1035
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.6429,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2652,
+     "ci": [
+      0.1458,
+      0.3871
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.6429,
+     "level": 0.2143,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 2862.5636,
+     "ci": [
+      -9765.9985,
+      13459.6244
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.6429,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "qwen9bsft-opus": {
+   "a": "qwen9bsft",
+   "b": "opus",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0354,
+     "ci": [
+      -0.0531,
+      0.1232
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "R": {
+     "mean": 0.1073,
+     "ci": [
+      -0.1319,
+      0.2752
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0938,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 42299.2828,
+     "ci": [
+      -7907.0927,
+      131603.7123
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0202,
+     "ci": [
+      -0.1532,
+      0.1867
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.0028,
+     "ci": [
+      -0.4474,
+      0.2782
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 79737.8838,
+     "ci": [
+      -20647.1775,
+      258076.2737
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0505,
+     "ci": [
+      0.0,
+      0.1273
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2118,
+     "ci": [
+      0.0865,
+      0.3397
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0625,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 4860.6819,
+     "ci": [
+      -1538.0125,
+      15437.7806
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
+  "qwen9bsft-qwenmax": {
+   "a": "qwen9bsft",
+   "b": "qwenmax",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0652,
+     "ci": [
+      -0.0453,
+      0.1782
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.2021,
+     "ci": [
+      -0.0803,
+      0.4156
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.0938,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 70673.4081,
+     "ci": [
+      -4428.7603,
+      207209.8834
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0837,
+     "ci": [
+      -0.1542,
+      0.3069
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1954,
+     "ci": [
+      -0.3978,
+      0.5472
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 132427.7794,
+     "ci": [
+      -19176.585,
+      405136.3981
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0466,
+     "ci": [
+      0.0006,
+      0.1018
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2089,
+     "ci": [
+      0.0843,
+      0.308
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.1875,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 8919.0369,
+     "ci": [
+      -202.2363,
+      18040.31
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "qwen9bsft-luna": {
+   "a": "qwen9bsft",
+   "b": "luna",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0666,
+     "ci": [
+      -0.0342,
+      0.173
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.2217,
+     "ci": [
+      -0.0555,
+      0.4166
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.125,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 66478.5709,
+     "ci": [
+      -6433.915,
+      202338.0177
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0616,
+     "ci": [
+      -0.1382,
+      0.276
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.0986,
+     "ci": [
+      -0.4208,
+      0.4006
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0625,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 127068.2856,
+     "ci": [
+      -18601.8169,
+      397863.1487
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0715,
+     "ci": [
+      0.0225,
+      0.1205
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.3448,
+     "ci": [
+      0.2132,
+      0.5041
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.1875,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 5888.8562,
+     "ci": [
+      1905.3513,
+      9872.3612
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
+  "qwen9bsft-qwen9b": {
+   "a": "qwen9bsft",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1303,
+     "ci": [
+      0.0629,
+      0.1957
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.4144,
+     "ci": [
+      0.1678,
+      0.5898
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.2188,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 60696.8238,
+     "ci": [
+      7654.0804,
+      159967.1263
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.117,
+     "ci": [
+      0.0002,
+      0.2353
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2859,
+     "ci": [
+      -0.1491,
+      0.5679
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 105328.2881,
+     "ci": [
+      -1414.0306,
+      304641.965
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1435,
+     "ci": [
+      0.0724,
+      0.2027
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.5429,
+     "ci": [
+      0.4276,
+      0.6581
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.25,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 16065.3594,
+     "ci": [
+      12323.5781,
+      20574.4875
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
+  "qwen9bsft-beam": {
+   "a": "qwen9bsft",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.136,
+     "ci": [
+      0.025,
+      0.2868
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.2891,
+     "ci": [
+      0.0513,
+      0.5031
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0625,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 114827.9538,
+     "ci": [
+      3444.7485,
+      322535.4897
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1442,
+     "ci": [
+      -0.0303,
+      0.4377
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.1535,
+     "ci": [
+      -0.2254,
+      0.5146
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0625,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 206787.6862,
+     "ci": [
+      -3925.0138,
+      621504.1262
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1278,
+     "ci": [
+      0.0397,
+      0.2275
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.4246,
+     "ci": [
+      0.2433,
+      0.606
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0625,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 22868.2213,
+     "ci": [
+      3914.595,
+      41821.8475
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
+  "qwen9bsft-qwen": {
+   "a": "qwen9bsft",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.224,
+     "ci": [
+      0.0856,
+      0.3928
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.6801,
+     "ci": [
+      0.4142,
+      0.8695
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.0625,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 139880.7416,
+     "ci": [
+      8758.5022,
+      389548.8328
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2386,
+     "ci": [
+      -0.0199,
+      0.5744
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.6133,
+     "ci": [
+      0.0851,
+      0.8849
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 256101.4462,
+     "ci": [
+      -3765.9544,
+      753983.2981
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.2094,
+     "ci": [
+      0.0942,
+      0.3239
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.7469,
+     "ci": [
+      0.6019,
+      0.8919
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 23660.0369,
+     "ci": [
+      12246.1994,
+      42657.2575
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
     }
    }
   },
@@ -5041,6 +7030,127 @@
      "ci": [
       -61780.3063,
       12469.8825
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "argon-qwen9b": {
+   "a": "argon",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1255,
+     "ci": [
+      0.0285,
+      0.2022
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.284,
+     "ci": [
+      0.1001,
+      0.4517
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.625,
+     "level": 0.25,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 17884.3669,
+     "ci": [
+      -12205.9841,
+      45064.2671
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1501,
+     "ci": [
+      0.0858,
+      0.2292
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.2962,
+     "ci": [
+      0.1752,
+      0.4412
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.1875,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 40619.3525,
+     "ci": [
+      13946.445,
+      68761.52
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.101,
+     "ci": [
+      -0.0847,
+      0.2168
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2718,
+     "ci": [
+      -0.0976,
+      0.5768
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -4850.6187,
+     "ci": [
+      -50186.2969,
+      22566.4431
      ],
      "n": 16,
      "fronts": 4,
@@ -5776,6 +7886,127 @@
     }
    }
   },
+  "glm-qwen9b": {
+   "a": "glm",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1106,
+     "ci": [
+      0.0337,
+      0.1874
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.2907,
+     "ci": [
+      0.1007,
+      0.4708
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.1875,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 26787.1941,
+     "ci": [
+      -5078.46,
+      71138.6275
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1158,
+     "ci": [
+      0.074,
+      0.1819
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.2492,
+     "ci": [
+      0.1892,
+      0.3093
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 52422.43,
+     "ci": [
+      9269.665,
+      126211.6006
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1054,
+     "ci": [
+      -0.0425,
+      0.2495
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.3322,
+     "ci": [
+      -0.0497,
+      0.6315
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 1151.9581,
+     "ci": [
+      -27733.6506,
+      22124.1475
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "glm-beam": {
    "a": "glm",
    "b": "beam",
@@ -6381,6 +8612,127 @@
     }
    }
   },
+  "kimi-qwen9b": {
+   "a": "kimi",
+   "b": "qwen9b",
+   "all": {
+    "n": 28,
+    "C": {
+     "mean": 0.0915,
+     "ci": [
+      0.061,
+      0.1282
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.8571,
+     "level": 0.0,
+     "fronts_ahead": 8
+    },
+    "R": {
+     "mean": 0.2297,
+     "ci": [
+      0.1232,
+      0.3438
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.6429,
+     "level": 0.25,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 20713.3704,
+     "ci": [
+      8643.8144,
+      37365.9218
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.8571,
+     "level": 0.0,
+     "fronts_ahead": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 14,
+    "C": {
+     "mean": 0.0718,
+     "ci": [
+      0.0548,
+      0.0932
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.8571,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.155,
+     "ci": [
+      0.0489,
+      0.2611
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.5714,
+     "level": 0.2857,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 26209.9321,
+     "ci": [
+      7021.4885,
+      54835.8507
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.8571,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 14,
+    "C": {
+     "mean": 0.1112,
+     "ci": [
+      0.0571,
+      0.1632
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.8571,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.3045,
+     "ci": [
+      0.1425,
+      0.4664
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.7143,
+     "level": 0.2143,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 15216.8086,
+     "ci": [
+      7114.8631,
+      29339.0785
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.8571,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
   "kimi-beam": {
    "a": "kimi",
    "b": "beam",
@@ -6865,6 +9217,127 @@
     }
    }
   },
+  "opus-qwen9b": {
+   "a": "opus",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0949,
+     "ci": [
+      0.0503,
+      0.1403
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.3071,
+     "ci": [
+      0.1847,
+      0.425
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.125,
+     "fronts_ahead": 8
+    },
+    "P": {
+     "mean": 18397.5409,
+     "ci": [
+      9467.0507,
+      30831.1913
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 8
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0967,
+     "ci": [
+      0.0496,
+      0.1523
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.2831,
+     "ci": [
+      0.1427,
+      0.3784
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.1875,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 25590.4044,
+     "ci": [
+      10972.375,
+      46565.6913
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.093,
+     "ci": [
+      0.02,
+      0.1661
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.3311,
+     "ci": [
+      0.1346,
+      0.5275
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0625,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 11204.6775,
+     "ci": [
+      4563.1806,
+      16690.4931
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   }
+  },
   "opus-beam": {
    "a": "opus",
    "b": "beam",
@@ -7228,6 +9701,127 @@
     }
    }
   },
+  "qwenmax-qwen9b": {
+   "a": "qwenmax",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0651,
+     "ci": [
+      -0.006,
+      0.1375
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "R": {
+     "mean": 0.2123,
+     "ci": [
+      0.0579,
+      0.3708
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.125,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": -9976.5844,
+     "ci": [
+      -47243.3295,
+      12675.01
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 5
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0333,
+     "ci": [
+      -0.0562,
+      0.139
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.0905,
+     "ci": [
+      -0.0731,
+      0.2541
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.125,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -27099.4912,
+     "ci": [
+      -100301.5956,
+      17569.7169
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0969,
+     "ci": [
+      0.0095,
+      0.1843
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.334,
+     "ci": [
+      0.1197,
+      0.5483
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 7146.3225,
+     "ci": [
+      -1482.4737,
+      13171.0575
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "qwenmax-beam": {
    "a": "qwenmax",
    "b": "beam",
@@ -7467,6 +10061,127 @@
      "ahead": 0.875,
      "level": 0.0,
      "fronts_ahead": 3
+    }
+   }
+  },
+  "luna-qwen9b": {
+   "a": "luna",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0637,
+     "ci": [
+      0.0141,
+      0.107
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.1927,
+     "ci": [
+      0.1074,
+      0.2568
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.2188,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": -5781.7472,
+     "ci": [
+      -42322.919,
+      14711.8928
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0554,
+     "ci": [
+      -0.0408,
+      0.1384
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1873,
+     "ci": [
+      0.0203,
+      0.2929
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -21739.9975,
+     "ci": [
+      -93221.1838,
+      18801.4175
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.072,
+     "ci": [
+      0.0363,
+      0.1091
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.1981,
+     "ci": [
+      0.1535,
+      0.2427
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.25,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 10176.5031,
+     "ci": [
+      6683.3719,
+      13435.15
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
     }
    }
   },
@@ -7712,6 +10427,248 @@
     }
    }
   },
+  "qwen9b-beam": {
+   "a": "qwen9b",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0058,
+     "ci": [
+      -0.0862,
+      0.1117
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4688,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.1253,
+     "ci": [
+      -0.3421,
+      0.085
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.375,
+     "level": 0.1562,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 54131.13,
+     "ci": [
+      -6505.2844,
+      163787.9494
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4688,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0273,
+     "ci": [
+      -0.1176,
+      0.2176
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": -0.1324,
+     "ci": [
+      -0.426,
+      0.1573
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "P": {
+     "mean": 101459.3981,
+     "ci": [
+      -10006.7887,
+      318220.5744
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0157,
+     "ci": [
+      -0.1195,
+      0.088
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": -0.1182,
+     "ci": [
+      -0.4148,
+      0.1783
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.25,
+     "level": 0.3125,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 6802.8619,
+     "ci": [
+      -9054.2262,
+      22659.95
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
+  "qwen9b-qwen": {
+   "a": "qwen9b",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0937,
+     "ci": [
+      0.0102,
+      0.2059
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.2657,
+     "ci": [
+      0.1718,
+      0.3609
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.1562,
+     "fronts_ahead": 8
+    },
+    "P": {
+     "mean": 79183.9178,
+     "ci": [
+      51.1903,
+      228963.3244
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 5
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1216,
+     "ci": [
+      -0.0102,
+      0.3293
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.3274,
+     "ci": [
+      0.219,
+      0.4358
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0625,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 150773.1581,
+     "ci": [
+      -2159.0862,
+      449148.4956
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0659,
+     "ci": [
+      0.004,
+      0.1652
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2041,
+     "ci": [
+      0.083,
+      0.3316
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.25,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 7594.6775,
+     "ci": [
+      -967.1188,
+      21961.3619
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
   "beam-qwen": {
    "a": "beam",
    "b": "qwen",
@@ -7913,6 +10870,91 @@
      "n": 16,
      "fronts": 4,
      "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "qwen9bsft-operator_replay": {
+   "a": "qwen9bsft",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 111992.4091,
+     "ci": [
+      -6204.0698,
+      332741.3622
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "C": {
+     "mean": 0.1296,
+     "ci": [
+      -0.0092,
+      0.2972
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 217355.65,
+     "ci": [
+      -15530.4069,
+      656362.2681
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.1648,
+     "ci": [
+      -0.0977,
+      0.4801
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 6629.1681,
+     "ci": [
+      -12102.1531,
+      27309.2088
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.0943,
+     "ci": [
+      -0.012,
+      0.2096
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
      "level": 0.0,
      "fronts_ahead": 3
     }
@@ -8428,6 +11470,91 @@
     }
    }
   },
+  "qwen9b-operator_replay": {
+   "a": "qwen9b",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 51295.5853,
+     "ci": [
+      -15677.3263,
+      173552.7315
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.2812,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": -0.0007,
+     "ci": [
+      -0.0891,
+      0.1139
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.2812,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 112027.3619,
+     "ci": [
+      -14116.3762,
+      351720.3031
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "C": {
+     "mean": 0.0478,
+     "ci": [
+      -0.0978,
+      0.2449
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -9436.1912,
+     "ci": [
+      -27659.8419,
+      7639.6406
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.125,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "C": {
+     "mean": -0.0492,
+     "ci": [
+      -0.1203,
+      0.0608
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.125,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   }
+  },
   "beam-operator_replay": {
    "a": "beam",
    "b": "operator_replay",
@@ -8776,7 +11903,7 @@
     "setting": "effort high",
     "weights": "open",
     "n": 32,
-    "usd": 1.9684,
+    "usd": 0.3064,
     "basis": "list_price_tokens",
     "C": {
      "mean": 0.0673,
@@ -8930,6 +12057,88 @@
     }
    },
    {
+    "key": "qwen9b",
+    "family": "qwen9b",
+    "name": "Qwen3.5-9B",
+    "tag": "Qwen3.5-9B",
+    "variant": "untrained",
+    "provider": "Qwen",
+    "harness": "OpenCode",
+    "setting": "thinking on",
+    "weights": "open",
+    "n": 32,
+    "usd": 3.2029,
+    "basis": "metered_rate",
+    "C": {
+     "mean": 0.073,
+     "ci": [
+      -0.0235,
+      0.1928
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.1318,
+     "ci": [
+      0.0268,
+      0.3214
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.0143,
+     "ci": [
+      -0.0899,
+      0.1532
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
+    "key": "qwen9bsft",
+    "family": "qwen9b",
+    "name": "Qwen3.5-9B + desk SFT",
+    "tag": "Qwen3.5-9B + desk SFT",
+    "variant": null,
+    "provider": "Qwen",
+    "harness": "OpenCode",
+    "setting": "thinking on",
+    "weights": "open",
+    "n": 32,
+    "usd": 0.5608,
+    "basis": "gpu_time",
+    "C": {
+     "mean": 0.2033,
+     "ci": [
+      0.069,
+      0.3744
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.2488,
+     "ci": [
+      0.0302,
+      0.5624
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.1578,
+     "ci": [
+      0.016,
+      0.2997
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
     "key": "qwen",
     "family": "qwen",
     "name": "Qwen3-4B",
@@ -8970,6 +12179,13 @@
      "fronts": 4
     }
    }
+  ],
+  "frontier": [
+   "qwen",
+   "beam",
+   "luna",
+   "qwen9bsft",
+   "sol"
   ],
   "series": [
    {
@@ -9018,6 +12234,13 @@
     "family": "qwenmax",
     "points": [
      "qwenmax"
+    ]
+   },
+   {
+    "family": "qwen9b",
+    "points": [
+     "qwen9b",
+     "qwen9bsft"
     ]
    },
    {
@@ -12928,7 +16151,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.5715,
+   "usd": 0.2536,
    "wall_s": 342.6,
    "started": "2026-10-30T23:16:55+00:00",
    "box": "g5",
@@ -12945,7 +16168,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.798,
+   "usd": 0.3013,
    "wall_s": 842.8,
    "started": "2026-10-30T23:17:15+00:00",
    "box": "g5",
@@ -12962,7 +16185,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.4092,
+   "usd": 0.221,
    "wall_s": 498.4,
    "started": "2026-10-30T23:23:06+00:00",
    "box": "g5",
@@ -12979,7 +16202,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 8.6663,
+   "usd": 1.206,
    "wall_s": 2160.8,
    "started": "2026-10-30T23:31:43+00:00",
    "box": "g5",
@@ -12996,7 +16219,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.9195,
+   "usd": 0.316,
    "wall_s": 1120.1,
    "started": "2026-10-30T23:32:19+00:00",
    "box": "g5",
@@ -13013,7 +16236,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.3258,
+   "usd": 0.2577,
    "wall_s": 1475.1,
    "started": "2026-10-30T23:51:26+00:00",
    "box": "g5",
@@ -13030,7 +16253,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.6743,
+   "usd": 0.2747,
    "wall_s": 258.0,
    "started": "2026-10-31T00:08:17+00:00",
    "box": "g5",
@@ -13047,7 +16270,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.1433,
+   "usd": 0.2249,
    "wall_s": 367.3,
    "started": "2026-10-31T00:13:09+00:00",
    "box": "g5",
@@ -13064,7 +16287,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 0.7819,
+   "usd": 0.1753,
    "wall_s": 476.9,
    "started": "2026-10-31T00:44:31+00:00",
    "box": "g5",
@@ -13081,7 +16304,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.01,
+   "usd": 0.1706,
    "wall_s": 269.7,
    "started": "2026-10-31T00:16:31+00:00",
    "box": "g5",
@@ -13098,7 +16321,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.1967,
+   "usd": 0.1969,
    "wall_s": 283.4,
    "started": "2026-10-31T00:19:37+00:00",
    "box": "g5",
@@ -13115,7 +16338,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.4782,
+   "usd": 0.2403,
    "wall_s": 422.7,
    "started": "2026-10-31T00:21:29+00:00",
    "box": "g5",
@@ -13132,7 +16355,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.6543,
+   "usd": 0.2464,
    "wall_s": 446.9,
    "started": "2026-10-31T00:24:50+00:00",
    "box": "g5",
@@ -13149,7 +16372,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.5468,
+   "usd": 0.3739,
    "wall_s": 800.0,
    "started": "2026-10-31T00:28:57+00:00",
    "box": "g5",
@@ -13166,7 +16389,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.1945,
+   "usd": 0.3272,
    "wall_s": 681.4,
    "started": "2026-10-31T00:32:48+00:00",
    "box": "g5",
@@ -13183,7 +16406,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.7269,
+   "usd": 0.4226,
    "wall_s": 547.4,
    "started": "2026-10-31T00:42:40+00:00",
    "box": "g5",
@@ -13200,7 +16423,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.9873,
+   "usd": 0.4465,
    "wall_s": 663.5,
    "started": "2026-10-31T00:52:08+00:00",
    "box": "g5",
@@ -13217,7 +16440,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.1835,
+   "usd": 0.2165,
    "wall_s": 364.9,
    "started": "2026-10-31T00:52:59+00:00",
    "box": "g5",
@@ -13234,7 +16457,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.6437,
+   "usd": 0.2505,
    "wall_s": 623.5,
    "started": "2026-10-31T00:59:36+00:00",
    "box": "g5",
@@ -13251,7 +16474,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.1155,
+   "usd": 0.1819,
    "wall_s": 308.9,
    "started": "2026-10-31T01:03:42+00:00",
    "box": "g5",
@@ -13268,7 +16491,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.0858,
+   "usd": 0.1855,
    "wall_s": 301.1,
    "started": "2026-10-31T01:09:19+00:00",
    "box": "g5",
@@ -13285,7 +16508,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.8339,
+   "usd": 0.2735,
    "wall_s": 377.6,
    "started": "2026-10-31T01:10:25+00:00",
    "box": "g5",
@@ -13302,7 +16525,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.7395,
+   "usd": 0.4396,
    "wall_s": 688.4,
    "started": "2026-10-31T01:14:47+00:00",
    "box": "g5",
@@ -13319,7 +16542,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.4073,
+   "usd": 0.2165,
    "wall_s": 593.0,
    "started": "2026-10-31T01:17:09+00:00",
    "box": "g5",
@@ -13336,7 +16559,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.386,
+   "usd": 0.2262,
    "wall_s": 314.9,
    "started": "2026-10-31T01:26:45+00:00",
    "box": "g5",
@@ -13353,7 +16576,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.1594,
+   "usd": 0.191,
    "wall_s": 350.8,
    "started": "2026-10-31T01:27:37+00:00",
    "box": "g5",
@@ -13370,7 +16593,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.6396,
+   "usd": 0.2633,
    "wall_s": 335.5,
    "started": "2026-10-31T01:32:29+00:00",
    "box": "g5",
@@ -13387,7 +16610,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.1886,
+   "usd": 0.1902,
    "wall_s": 477.8,
    "started": "2026-10-31T01:33:50+00:00",
    "box": "g5",
@@ -13404,7 +16627,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.7066,
+   "usd": 0.4012,
    "wall_s": 664.0,
    "started": "2026-10-31T01:38:27+00:00",
    "box": "g5",
@@ -13421,7 +16644,7 @@
    "status": "failed",
    "kind": "infrastructure",
    "error": "\"A2A task failed (error_type=agent_error, error_code=402, task_id=e9589765-d722-4125-93ce-7b1fe2f866e8, agent_sandbox=local-c73e9d61): APIError: Payment Required: You have no remaining credits. Purchase pre-paid credits to continue using In",
-   "usd": 2.8204,
+   "usd": 0.4959,
    "wall_s": 761.9,
    "started": "2026-10-31T01:42:18+00:00",
    "box": "g5",
@@ -13438,7 +16661,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 2.3308,
+   "usd": 0.336,
    "wall_s": 497.9,
    "started": "2026-10-31T02:08:51+00:00",
    "box": "g5",
@@ -13455,7 +16678,7 @@
    "status": "failed",
    "kind": "infrastructure",
    "error": "\"A2A task failed (error_type=agent_error, error_code=402, task_id=834ff9a9-0322-45b0-8884-16c19e57149f, agent_sandbox=local-e7c2abad): APIError: Payment Required: You have no remaining credits. Purchase pre-paid credits to continue using In",
-   "usd": 0.6892,
+   "usd": 0.1394,
    "wall_s": 296.6,
    "started": "2026-10-31T01:49:55+00:00",
    "box": "g5",
@@ -13472,7 +16695,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 3.5987,
+   "usd": 0.5111,
    "wall_s": 1040.2,
    "started": "2026-10-31T02:09:11+00:00",
    "box": "g5",
@@ -13523,7 +16746,7 @@
    "status": "completed",
    "kind": null,
    "error": null,
-   "usd": 1.8842,
+   "usd": 0.2676,
    "wall_s": 722.3,
    "started": "2026-10-31T02:17:32+00:00",
    "box": "g5",
@@ -15436,6 +18659,1179 @@
    "framework": "0.9.1396"
   },
   {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-qwen9b-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6529,
+   "wall_s": 803.3,
+   "started": "2026-10-31T23:55:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-qwen9b-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 5.1983,
+   "wall_s": 2577.1,
+   "started": "2026-10-31T23:56:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-qwen9b-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "harness output limit: the last call ended at OpenCode's output cap (finish length): \"A2A task failed (error_type=agent_error, error_code=opencode_cli_error, task_id=b7157cbe-b967-406c-9b05-5d5661012ae2, agent_sandbox=local-59e6010b): openco",
+   "usd": 1.3398,
+   "wall_s": 1022.2,
+   "started": "2026-10-31T23:56:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-qwen9b-desk-v4-2026-01-23-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.7846,
+   "wall_s": 279.6,
+   "started": "2026-11-01T00:39:34+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-qwen9b-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.3731,
+   "wall_s": 1756.4,
+   "started": "2026-10-31T23:56:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-qwen9b-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5533,
+   "wall_s": 1041.6,
+   "started": "2026-10-31T23:57:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-qwen9b-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 10.4495,
+   "wall_s": 3096.7,
+   "started": "2026-10-31T23:57:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-qwen9b-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "harness output limit: the last call ended at OpenCode's output cap (finish length): \"A2A task failed (error_type=agent_error, error_code=opencode_cli_error, task_id=f21e4c96-4e9e-4ae0-ae74-04468fea3579, agent_sandbox=local-68688753): openco",
+   "usd": 0.198,
+   "wall_s": 377.2,
+   "started": "2026-10-31T23:57:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-qwen9b-desk-v4-2026-03-16-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2595,
+   "wall_s": 654.2,
+   "started": "2026-11-01T00:40:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-qwen9b-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6793,
+   "wall_s": 738.5,
+   "started": "2026-10-31T23:58:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-qwen9b-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.0997,
+   "wall_s": 2187.7,
+   "started": "2026-11-01T00:00:51+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-qwen9b-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6017,
+   "wall_s": 1441.4,
+   "started": "2026-10-31T23:58:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-qwen9b-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.588,
+   "wall_s": 1686.2,
+   "started": "2026-10-31T23:58:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-qwen9b-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 7.9561,
+   "wall_s": 3340.6,
+   "started": "2026-10-31T23:59:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-qwen9b-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.92,
+   "wall_s": 2557.4,
+   "started": "2026-10-31T23:59:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-qwen9b-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.3029,
+   "wall_s": 2801.9,
+   "started": "2026-10-31T23:59:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-qwen9b-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "harness output limit: the last call ended at OpenCode's output cap (finish length): \"A2A task failed (error_type=agent_error, error_code=opencode_cli_error, task_id=d5828378-4c2f-4439-a607-d8b85392ba35, agent_sandbox=local-dfe62f83): openco",
+   "usd": 1.5769,
+   "wall_s": 1997.6,
+   "started": "2026-11-01T00:00:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-qwen9b-desk-v4-2026-05-08-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6124,
+   "wall_s": 593.1,
+   "started": "2026-11-01T00:49:08+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-qwen9b-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3401,
+   "wall_s": 1815.2,
+   "started": "2026-11-01T00:00:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-qwen9b-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.7472,
+   "wall_s": 2092.9,
+   "started": "2026-11-01T00:04:43+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-qwen9b-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9404,
+   "wall_s": 1505.9,
+   "started": "2026-11-01T00:09:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-qwen9b-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6935,
+   "wall_s": 1393.3,
+   "started": "2026-11-01T00:10:56+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-qwen9b-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5008,
+   "wall_s": 552.9,
+   "started": "2026-11-01T00:42:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-qwen9b-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.3745,
+   "wall_s": 519.2,
+   "started": "2026-11-01T00:44:39+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-qwen9b-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9973,
+   "wall_s": 559.9,
+   "started": "2026-11-01T00:49:45+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-qwen9b-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "harness output limit: the last call ended at OpenCode's output cap (finish length): \"A2A task failed (error_type=agent_error, error_code=opencode_cli_error, task_id=11d8ec40-6785-4188-a038-0a87e28628a2, agent_sandbox=local-b3fcf73d): openco",
+   "usd": 0.1499,
+   "wall_s": 186.6,
+   "started": "2026-11-01T00:51:36+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-qwen9b-desk-v4-2026-07-23-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.0274,
+   "wall_s": 610.4,
+   "started": "2026-11-01T01:07:43+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-qwen9b-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.5848,
+   "wall_s": 670.8,
+   "started": "2026-11-01T00:52:13+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-qwen9b-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.0125,
+   "wall_s": 308.4,
+   "started": "2026-11-01T00:53:49+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-qwen9b-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.0332,
+   "wall_s": 813.2,
+   "started": "2026-11-01T00:55:11+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-qwen9b-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.2083,
+   "wall_s": 439.8,
+   "started": "2026-11-01T00:55:48+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-qwen9b-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.8219,
+   "wall_s": 666.4,
+   "started": "2026-11-01T00:59:28+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-qwen9b-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5556,
+   "wall_s": 444.8,
+   "started": "2026-11-01T00:59:48+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-qwen9b-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 8.0844,
+   "wall_s": 1204.4,
+   "started": "2026-11-01T01:00:08+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-qwen9b-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 4.0222,
+   "wall_s": 712.5,
+   "started": "2026-11-01T01:03:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9b",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-qwen9b-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.5187,
+   "wall_s": 656.1,
+   "started": "2026-11-01T01:04:06+00:00",
+   "box": "g5",
+   "instance_type": "m7i.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4421,
+   "wall_s": 2532.8,
+   "started": "2026-11-01T04:55:18+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3994,
+   "wall_s": 2402.7,
+   "started": "2026-11-01T04:55:38+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3808,
+   "wall_s": 2343.9,
+   "started": "2026-11-01T04:55:58+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.5431,
+   "wall_s": 3401.1,
+   "started": "2026-11-01T04:56:18+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2943,
+   "wall_s": 1849.8,
+   "started": "2026-11-01T04:56:38+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3388,
+   "wall_s": 2143.5,
+   "started": "2026-11-01T04:56:58+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3053,
+   "wall_s": 1939.6,
+   "started": "2026-11-01T04:57:18+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2755,
+   "wall_s": 1754.6,
+   "started": "2026-11-01T04:57:38+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "harness output limit: the last call ended at OpenCode's output cap (finish length): \"A2A task failed (error_type=agent_error, error_code=opencode_cli_error, task_id=672ed987-0320-4074-bbed-006a88f32aa6, agent_sandbox=local-30647888): openco",
+   "usd": 0.0527,
+   "wall_s": 317.8,
+   "started": "2026-11-01T05:53:31+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-04-03-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6051,
+   "wall_s": 1937.6,
+   "started": "2026-11-01T05:59:23+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4707,
+   "wall_s": 2729.8,
+   "started": "2026-11-01T05:27:16+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3012,
+   "wall_s": 1887.4,
+   "started": "2026-11-01T05:27:52+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.2973,
+   "wall_s": 1869.1,
+   "started": "2026-11-01T05:29:59+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6223,
+   "wall_s": 3181.4,
+   "started": "2026-11-01T05:33:05+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.5621,
+   "wall_s": 2919.7,
+   "started": "2026-11-01T05:35:26+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6067,
+   "wall_s": 3032.0,
+   "started": "2026-11-01T05:36:03+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.7497,
+   "wall_s": 3175.7,
+   "started": "2026-11-01T05:37:54+00:00",
+   "box": "gpu2",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.5793,
+   "wall_s": 3383.0,
+   "started": "2026-11-01T03:51:35+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3435,
+   "wall_s": 2047.4,
+   "started": "2026-11-01T03:51:55+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3572,
+   "wall_s": 2199.0,
+   "started": "2026-11-01T03:52:15+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.3405,
+   "wall_s": 2128.3,
+   "started": "2026-11-01T03:52:35+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.5213,
+   "wall_s": 3289.5,
+   "started": "2026-11-01T03:52:55+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.6728,
+   "wall_s": 4269.2,
+   "started": "2026-11-01T03:53:15+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4825,
+   "wall_s": 3066.6,
+   "started": "2026-11-01T03:53:35+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.537,
+   "wall_s": 3410.7,
+   "started": "2026-11-01T03:53:55+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4539,
+   "wall_s": 2871.1,
+   "started": "2026-11-01T04:26:33+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4603,
+   "wall_s": 2903.3,
+   "started": "2026-11-01T04:28:25+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.4806,
+   "wall_s": 2993.4,
+   "started": "2026-11-01T04:29:16+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 0.5045,
+   "wall_s": 2727.8,
+   "started": "2026-11-01T04:45:08+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.0851,
+   "wall_s": 4484.4,
+   "started": "2026-11-01T04:48:15+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.2775,
+   "wall_s": 4881.9,
+   "started": "2026-11-01T04:48:51+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.1887,
+   "wall_s": 4627.5,
+   "started": "2026-11-01T04:51:13+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "qwen9bsft",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-distill-sft-bench-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4658,
+   "wall_s": 4196.0,
+   "started": "2026-11-01T05:04:50+00:00",
+   "box": "gpu1",
+   "instance_type": "g7e.8xlarge",
+   "harness_version": "1.17.18",
+   "framework": "0.9.1396"
+  },
+  {
    "model": "qwen",
    "task_id": "desk-v4-2026-01-23-S01",
    "run": "bench-qwen-desk-v4-2026-01-23-S01-a1",
@@ -15953,7 +20349,7 @@
   "diffs": []
  },
  "run": {
-  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B), 0.9.1383 (Gemini 4 Argon) and 0.9.1396 (Beam-1.0, GLM-5.3, Kimi K3 and Qwen3.8 Max)",
+  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B), 0.9.1383 (Gemini 4 Argon) and 0.9.1396 (Beam-1.0, GLM-5.3, Kimi K3, Qwen3.8 Max, Qwen3.5-9B and Qwen3.5-9B + desk SFT)",
   "bundle": "desk-v4-bench-run1",
   "prereg": "docs/prereg/v4-bench.md",
   "route": "ec2",
@@ -15971,8 +20367,8 @@
   "core_versions": [
    "desk-2.1"
   ],
-  "metered_attempts": 132,
-  "deviations_ref": "desk-v4-bench-results-4",
+  "metered_attempts": 136,
+  "deviations_ref": "desk-v4-bench-results-5",
   "prices_per_mtok": {
    "claude-opus-5-5": {
     "in": 4.0,
@@ -16015,7 +20411,7 @@
    },
    "beam-1.0-501b-a23b": {
     "in": 0.4,
-    "cached": 0.4,
+    "cached": 0.04,
     "write": 0.4,
     "out": 1.2
    },
@@ -16037,6 +20433,12 @@
     "write": 2.0,
     "out": 6.0
    },
+   "qwen3.5-9b": {
+    "in": 0.2,
+    "cached": 0.2,
+    "write": 0.2,
+    "out": 0.2
+   },
    "qwen3-4b": {
     "in": 0.0,
     "cached": 0.0,
@@ -16048,7 +20450,7 @@
  "deviations": [
   "Route C: the episodes ran on EC2 boxes with local Docker rather than in Modal sandboxes; the internet was closed by a host rule and a per-run model proxy instead of Modal's network policy (the pre-registration gives the reasons).",
   "agentenv-framework 0.9.1377 on the box that ran Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna, and 0.9.1378 on the Qwen3-4B boxes; the agent images are identical by digest.",
-  "Infrastructure retries (GPT-6.1 Sol 39, Gemini 4 Argon 20, GLM-5.3 12, Kimi K3 1, Claude Opus 5.5 27, Qwen3.8 Max 3, GPT-6 Luna 22, Beam-1.0 4, Qwen3-4B 0): every attempt is kept and its spend counted.",
+  "Infrastructure retries (GPT-6.1 Sol 39, Qwen3.5-9B + desk SFT 1, Gemini 4 Argon 20, GLM-5.3 12, Kimi K3 1, Claude Opus 5.5 27, Qwen3.8 Max 3, GPT-6 Luna 22, Qwen3.5-9B 4, Beam-1.0 4, Qwen3-4B 0): every attempt is kept and its spend counted.",
   "Retry rule, decided mid-run before the affected windows' results: an attempt that failed at env deploy for $0 because of our launcher's port race does not count toward the at-most-two-retries limit. All 81 such failures were port races (GPT-6.1 Sol 35, Claude Opus 5.5 27, GPT-6 Luna 19); only GPT-6.1 Sol's desk-v4-2026-03-16-S04 and desk-v4-2026-04-17-S02 were affected, both graded on attempt 4.",
   "Stalls: Codex's 300 s inactivity watchdog at effort high stopped 4 GPT-6.1 Sol and 3 GPT-6 Luna attempts; they count as infrastructure and were retried, and their spend is included in the cost.",
   "Cost basis: cost a window is the graded attempt's; the table also gives each model's total spend, retries and stalls included.",
@@ -16057,13 +20459,18 @@
   "Caps: Gemini 4 Argon's per-episode cap rose from $15 to $30 after one attempt stopped at $15.02, which was retried as infrastructure, and its model cap from $300 to $330.",
   "Selection, descriptive: Gemini 4 Argon's attempts that failed on a 400 ended at turn 21.4 on average, at a 172k-token prompt, against 32.3 turns and a 207k-token largest prompt for its graded attempts; its windows graded on the first try average C 17.0%, those graded after a retry 22.7%.",
   "Prompt cache: 61% of Gemini 4 Argon's wake starts hit the cache fully and 32% only its first ~15k tokens, because Gemini CLI drops a thought signature when it resumes a session, a known harness issue.",
-  "Beam-1.0: added after the others for Reflection's Build with Beam contest and run after them, from 23:17 UTC on 2026-10-30 to 02:30 UTC on 2026-10-31, through the Hugging Face router to Baseten at its list price of $0.40 / $1.20 per million input / output tokens, in OpenCode 1.17.18 at effort high on agentenv-framework 0.9.1396, by route C on the Gemini box; its reported training cutoff, 2026-06-30, puts the post-cutoff windows after it.",
+  "Beam-1.0: added after the others for Reflection's Build with Beam contest and run after them, from 23:17 UTC on 2026-10-30 to 02:30 UTC on 2026-10-31, through the Hugging Face router to Baseten, in OpenCode 1.17.18 at effort high on agentenv-framework 0.9.1396, by route C on the Gemini box; its reported training cutoff, 2026-06-30, puts the post-cutoff windows after it.",
   "Out of credits: the Hugging Face account ran out of prepaid credits at 01:55 UTC on 2026-10-31, after 29 of Beam-1.0's windows had been graded. The router's HTTP 402 then ended four attempts on the 2026-08-26 front, two mid-episode and two before any call; they were reclassified by hand as infrastructure, none counting toward the retry limit, and all four windows were graded once credits were added (the four 2026-08-26 windows all score below zero, S01 included, which ran before the halt).",
   "Rate limits: of Beam-1.0's 4,457 requests through the proxy, 1,376 (30.9%) drew HTTP 429 and 617 (13.8%) HTTP 503; OpenCode retried both, and neither ended an attempt.",
   "GLM-5.3, Kimi K3 and Qwen3.8 Max: added after the others to compare with Beam-1.0, by a selection rule stated before any result (the pre-registration's item 28), and run after them, from 07:17 to 16:24 UTC on 2026-10-31, served by Fireworks at its list prices per million input / cached input / output tokens (GLM-5.3 $1.40 / $0.26 / $4.40, Kimi K3 $3.00 / $0.30 / $15.00, Qwen3.8 Max $2.00 / $0.25 / $6.00), in OpenCode 1.17.18 at effort high like Beam-1.0, on agentenv-framework 0.9.1396, by route C on Beam-1.0's box; none of the three reports a training cutoff.",
   "Output limit, decided during the runs: from 07:39 UTC on 2026-10-31 an OpenCode call that ends at its 32,000-token output limit with no content or tool call, which makes the harness exit, counts as infrastructure toward the two-retry limit. It ended 11 GLM-5.3 attempts on 8 windows, 1 Kimi K3 attempt and 3 Qwen3.8 Max attempts on 2 windows; no window used its three attempts on it. C on the windows graded after a retry against those graded at once: GLM-5.3 10.9% (9) against 21.3% (23), Kimi K3 82.1% (1) against 14.8% (27), Qwen3.8 Max 17.4% (2) against 13.6% (30).",
   "Window cap: Kimi K3's 2026-03-16 S04, 2026-05-08 S04, 2026-07-23 S04 and 2026-08-26 S01 stopped at the pre-registered $20 window cap after 34 to 60 turns and 396 to 449 model calls, as it polled the desk tools over a long cached context; they are final and unscored, never imputed, so Kimi K3's C is over its other 28 windows.",
-  "Budget and errors: GLM-5.3, Kimi K3 and Qwen3.8 Max shared one budget, raised from $390 to $480 during a pause in admissions from 08:56 to 14:07 UTC in which nothing was retried or rerun; the proxy metered $437.45, smokes and network checks included. None drew an HTTP 429; OpenCode retried the HTTP 503s (2 for GLM-5.3, 4 for Kimi K3) within the turn. Two GLM-5.3 attempts were reclassified by hand as infrastructure: the first output-limit stop, before that rule, and one ended by a provider connection that closed mid-stream."
+  "Budget and errors: GLM-5.3, Kimi K3 and Qwen3.8 Max shared one budget, raised from $390 to $480 during a pause in admissions from 08:56 to 14:07 UTC in which nothing was retried or rerun; the proxy metered $437.45, smokes and network checks included. None drew an HTTP 429; OpenCode retried the HTTP 503s (2 for GLM-5.3, 4 for Kimi K3) within the turn. Two GLM-5.3 attempts were reclassified by hand as infrastructure: the first output-limit stop, before that rule, and one ended by a provider connection that closed mid-stream.",
+  "Cost basis, decided after every run (2026-11-01): a model's cost is its tokens at its maker's list price, which every price here already was but Beam-1.0's. Reflection publishes no price for Beam-1.0 (its API is a free beta); it was costed at the Hugging Face router's $0.40 / $1.20 per million input / output tokens with cached input at the full input price, an upper bound of $1.97 a window, and the router's actual bill to Baseten for the run was about $32. It is now at Together AI's list price, $0.40 / $0.04 / $1.20 per million input / cached input / output tokens: $0.31 a window, one figure everywhere.",
+  "Qwen3.5-9B: added after the others (the pre-registration's items 40 to 46) and run from 23:55 UTC on 2026-10-31 to 01:20 UTC on 2026-11-01 through a Fireworks dedicated deployment, in OpenCode 1.17.18 with thinking on, by route C. It has no maker price: Alibaba sells Qwen3.5 by the token only from 27B up and Qwen3.5-9B only as fine-tuning and dedicated deployment by the hour. So its cost is the metered Fireworks rate, $0.20 per million tokens with cached reads included: $3.20 a window.",
+  "Qwen3.5-9B + desk SFT: added after the others as the secondary comparison of the desk-distill pre-registration (docs/prereg/desk-distill.md); on that pre-registration's primary test, 18 held-out windows, it missed the bar (+3.8 points [−3.4, +10.6] over base). Served by our own vLLM 0.29.0 on two g7e.8xlarge boxes, not by Fireworks as base Qwen3.5-9B was, so the two 9B rows are served differently; it ran from 03:51 to 06:31 UTC on 2026-11-01, and its cost is GPU time at the $4.50 an hour spot price paid, $0.56 a window.",
+  "Both Qwen3.5-9B harnesses differ from Qwen3-4B's: a 262k-token context (262,144 for the SFT, 262,143 for base, the Fireworks deployment's maximum) where Qwen3-4B's had 32,768, and a cap of 20 OpenCode steps a turn where it had none; the output limit is 8,192 tokens for all three. That output limit ended 4 attempts of base Qwen3.5-9B and 1 of the SFT, each retried as infrastructure.",
+  "Training data and these windows: the SFT's training windows read D-7 to D2 of their dates, and only the 2026-05-08 front's operating days (05-08 to 05-10, its four windows) fall inside any of those spans, as the DAM and MCPC price history of the 16 training windows that start 2026-05-14 to 05-17. The training transcripts never name those days, and on those four windows the SFT's C is within 1.7 points of the planner's. The training pack, data/desk/desk-v4-win, is on the plugin's desk-distill branch at 13d53f9 and can be rebuilt with scripts/desk_data_build.py."
  ],
  "defects": null,
  "notes": null,
@@ -16080,9 +20487,10 @@
  },
  "text": {
   "halves": "Every model scores lower on Jul–Aug than on Jan–May, and that includes Qwen3-4B, whose training predates every window. So the drop reflects harder windows (the Jan–May half includes winter storm Fern), not evidence of training-data contamination. No model the rule covers has a post − pre interval that excludes zero, so all 32 windows lead, by a rule set before any API result.",
-  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; GLM-5.3, Kimi K3 and Qwen3.8 Max, with no reported cutoff, can trigger it too.",
+  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; Qwen3.5-9B + desk SFT, GLM-5.3, Kimi K3, Qwen3.8 Max and Qwen3.5-9B, with no reported cutoff, can trigger it too.",
   "valid": "Qwen3-4B made no valid submission on 7 of its 32 windows (R = 0 there).",
-  "reliability": "416 attempts for 288 model-windows; 132 did not reach the grade (infrastructure ×128, episode spend cap, final ×4). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), Gemini 4 Argon's ended by a transient provider 400 from 18:06 UTC and Beam-1.0's ended by the router's HTTP 402 when its account ran out of credits didn't count toward the two-retry limit (see Deviations). Windows not scored and not imputed: Kimi K3, episode spend cap, final ×4.",
-  "metered": "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory."
+  "reliability": "485 attempts for 352 model-windows; 137 did not reach the grade (infrastructure ×133, episode spend cap, final ×4). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), Gemini 4 Argon's ended by a transient provider 400 from 18:06 UTC and Beam-1.0's ended by the router's HTTP 402 when its account ran out of credits didn't count toward the two-retry limit (see Deviations). Windows not scored and not imputed: Kimi K3, episode spend cap, final ×4.",
+  "metered": "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory; a meter that ran at another price than the one used here is scaled by the two prices' ratio on the attempt's trajectory tokens.",
+  "frontier": "The cost frontier, cheapest first: Qwen3-4B ($0.16, GPU time, C −2.1%), Beam-1.0 ($0.31, C 6.7%), GPT-6 Luna ($0.32, C 13.7%), Qwen3.5-9B + desk SFT ($0.56, GPU time, C 20.3%) and GPT-6.1 Sol ($4.12, C 27.0%). No other model is both cheaper and higher in C; the other 6 are dominated."
  }
 }

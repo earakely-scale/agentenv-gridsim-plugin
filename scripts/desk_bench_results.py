@@ -43,7 +43,7 @@ B, SEED = 10_000, 0
 SPLITS = ("pre_cutoff", "post_cutoff")
 TOKENS = ("input", "cached", "cache_write", "output", "reasoning")
 SCOPES = ("all", *SPLITS)
-ORDER = ("opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen")
+ORDER = ("opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen9b", "qwen9bsft", "qwen")
 MODELS = {
     "claude-opus-5-5": {"key": "opus", "name": "Claude Opus 5.5", "tag": "Opus 5.5", "provider": "Anthropic",
                         "harness": "Claude Code", "setting": "effort high", "weights": "API", "cutoff": "2026-06"},
@@ -58,9 +58,8 @@ MODELS = {
     "beam-1.0-501b-a23b": {"key": "beam", "name": "Beam-1.0", "tag": "Beam-1.0", "provider": "Reflection",
                            "harness": "OpenCode", "setting": "effort high", "weights": "open", "server": "Baseten",
                            "endpoint": "the Hugging Face router", "cutoff": "2026-06-30",
-                           "price_note": "The Hugging Face router publishes no cached-input price for Baseten, so "
-                                         "Beam-1.0's list price counts every input token, cached ones included, at "
-                                         "the full input price: an upper bound."},
+                           "price_note": "Beam-1.0: Reflection publishes no price; at Together AI's list price "
+                                         "including its $0.04 cached-read rate."},
     "glm-5.3": {"key": "glm", "name": "GLM-5.3", "tag": "GLM-5.3", "provider": "Z.ai", "harness": "OpenCode",
                 "setting": "effort high", "weights": "open", "server": "Fireworks", "endpoint": "Fireworks",
                 "released": "2026-08-14"},
@@ -70,6 +69,22 @@ MODELS = {
     "qwen3.8-max": {"key": "qwenmax", "name": "Qwen3.8 Max", "tag": "Qwen3.8 Max", "provider": "Qwen",
                     "harness": "OpenCode", "setting": "effort high", "weights": "open", "server": "Fireworks",
                     "endpoint": "Fireworks", "released": "2026-08-03"},
+    "qwen3.5-9b": {"key": "qwen9b", "name": "Qwen3.5-9B", "tag": "Qwen3.5-9B", "variant": "untrained",
+                   "provider": "Qwen", "harness": "OpenCode", "setting": "thinking on", "weights": "open",
+                   "server": "Fireworks", "endpoint": "Fireworks", "released": "2026-03-02", "basis": "metered_rate",
+                   "price_note": "Qwen3.5-9B: no maker price; at the metered Fireworks rate, $0.20 per 1M tokens, "
+                                 "cached reads included."},
+    "qwen3.5-9b@opencode-qwen35-long": {"key": "qwen9bsft", "name": "Qwen3.5-9B + desk SFT",
+                                        "tag": "Qwen3.5-9B + desk SFT", "family": "qwen9b", "provider": "Qwen",
+                                        "harness": "OpenCode", "setting": "thinking on", "weights": "open",
+                                        "server": "vLLM 0.29.0", "distilled_short": "distilled from the desk's planner",
+                                        "distilled": "a LoRA SFT of Qwen3.5-9B with TRL, through AgentEnv, on "
+                                                     "OpenCode transcripts of the desk's own planner, the anchor "
+                                                     "policy, which calls optimize and submits its proposal; it "
+                                                     "reproduces the planner, not trading it learned on its own.",
+                                        "primary": "the desk-distill pre-registration's secondary comparison; on its "
+                                                   "primary test, 18 held-out windows, it missed the pre-registered "
+                                                   "bar, +3.8 pts [−3.4, +10.6] over base"},
     "qwen3-4b": {"key": "qwen", "name": "Qwen3-4B", "tag": "Qwen3-4B", "variant": "untrained", "provider": "Qwen",
                  "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0",
                  "cutoff": "2024"},
@@ -79,11 +94,15 @@ GPU_USD_PER_S = {"T4": 0.000164, "L4": 0.000222, "A10": 0.000306, "L40S": 0.0005
                  "A100-80GB": 0.000694, "H100": 0.001097, "H200": 0.001261, "B200": 0.001736}
 GPU_PRICE_SOURCE = "Modal's list price, modal.com/pricing, read 2026-10-29"
 SCALEDOWN_S = 300
-EC2_USD_PER_H = {"g5.xlarge": 1.006, "g5.2xlarge": 1.212}
-EC2_PRICE_SOURCE = "EC2 on-demand, us-west-2"
+EC2_USD_PER_H = {"g5.xlarge": 1.006, "g5.2xlarge": 1.212, "g7e.8xlarge": 4.5013}
+EC2_PRICE_SOURCE = {"g5.xlarge": "EC2 on-demand, us-west-2", "g5.2xlarge": "EC2 on-demand, us-west-2",
+                    "g7e.8xlarge": "the EC2 spot price paid, us-east-1"}
 NAMED_FRONTS = {"2026-01-23": "winter storm Fern"}
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
-METERED = "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory."
+METERED = ("Interrupted attempts are costed from the proxy meter, because their last turn never reaches the "
+           "trajectory; a meter that ran at another price than the one used here is scaled by the two prices' ratio "
+           "on the attempt's trajectory tokens.")
+BASIS = {"gpu_time": "GPU time", "metered_rate": "metered rate, no maker price", "list_price_tokens": "list price"}
 CLASS_KIND = {"infra": "infrastructure", "agent": "agent-side failure, final, no grade possible",
               "capped": "episode spend cap, final", "stopped": "model spend cap, final"}
 SHELL = {"Bash", "command_execution", "run_shell_command", "bash", "shell", "local_shell"}
@@ -186,8 +205,10 @@ def labels_of(specs: list[str]) -> dict:
     return out
 
 
-def label_of(model_id: str, labels: dict) -> dict:
-    lab = labels.get(model_id) or MODELS.get(model_id)
+def label_of(model_id: str, labels: dict, harness: str = "") -> dict:
+    """A model's label; MODEL_ID@HARNESS labels only that harness's runs of the model, such as a fine-tune served
+    under its base's name."""
+    lab = next((t[k] for k in (f"{model_id}@{harness}", model_id) for t in (labels, MODELS) if k in t), None)
     if lab is None:
         raise SystemExit(f"model {model_id!r} has no label: pass --model {model_id}=KEY:NAME[:FAMILY]")
     return {"family": lab["key"], **lab}
@@ -257,7 +278,8 @@ def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
     error = rep.get("error") or pr.get("error_message") or (meta.get("report_err") if not rep else None)
     wakes = rep.get("wakes") or {}
     return {"run": run.name, "harness_key": meta["harness"], "model_id": model_id,
-            "label": label_of(model_id, labels), "task_id": task, "started": dt.datetime.fromisoformat(meta["started"]),
+            "label": label_of(model_id, labels, meta["harness"]), "task_id": task,
+            "started": dt.datetime.fromisoformat(meta["started"]),
             "wall_s": float(rep.get("wall_s") or meta.get("wall_s") or 0.0), "status": rep.get("status") or "no report",
             "graded": bool(rep.get("grade")) and ep is not None, "grade": rep.get("grade") or {}, "episode": ep,
             "error": clean(error), "kind": None if rep.get("grade") else failure_kind(error or rep.get("status")),
@@ -290,12 +312,15 @@ def route_c(bench: Path, row: dict, result: dict | None, labels: dict) -> dict:
     metered = not ok and row.get("proxy_cost_usd") is not None
     usd = row["proxy_cost_usd"] if metered else a["usd"] if a["usd"] is not None else u.get(
         "cost_usd_list_price", row.get("proxy_cost_usd"))
+    tokens = a["tokens"] or u.get("tokens") or {}
+    if metered and tokens and (was := DBR.list_price(tokens, a["model_id"], DBR.PROXY_PRICES)):
+        usd = round(usd * DBR.list_price(tokens, a["model_id"]) / was, 4)
     return a | {"graded": ok and a["episode"] is not None and bool(a["grade"]),
                 "harness_version": version[0] if version else None, "framework": framework[1] if framework else None,
                 "kind": None if ok else CLASS_KIND.get(row["class"], row["class"]),
                 "error": clean(row.get("why")) or a["error"], "box": row.get("box"),
                 "instance_type": row.get("instance_type"), "ended": dt.datetime.fromisoformat(row["t_end"]),
-                "tokens": a["tokens"] or u.get("tokens") or {}, "usd": usd, "metered": metered}
+                "tokens": tokens, "usd": usd, "metered": metered}
 
 
 def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[dict], Counter]:
@@ -364,7 +389,7 @@ def gpu_share(atts: list[dict], gpu: str, hours: float | None) -> dict:
 
 def ec2_share(atts: list[dict]) -> dict:
     """Route C: each open-weight attempt's share of its GPU box's time, its interval divided among the attempts running
-    on that box at the same time (the boxes run nothing else), at the box's on-demand price."""
+    on that box at the same time (the boxes run nothing else), at the box's hourly price (EC2_PRICE_SOURCE)."""
     for box in sorted({a["box"] for a in atts}):
         xs = [a for a in atts if a["box"] == box]
         edges = sorted({a["started"].timestamp() for a in xs} | {a["ended"].timestamp() for a in xs})
@@ -375,18 +400,23 @@ def ec2_share(atts: list[dict]) -> dict:
                 share[a["run"]] += (hi - lo) / len(live)
         for a in xs:
             if a["instance_type"] not in EC2_USD_PER_H:
-                raise SystemExit(f"{box}: no on-demand price for {a['instance_type']}: pass --ec2-price TYPE=USD")
+                raise SystemExit(f"{box}: no hourly price for {a['instance_type']}: pass --ec2-price TYPE=USD")
             a["gpu_s"] = share[a["run"]]
             a["usd"] = share[a["run"]] / 3600 * EC2_USD_PER_H[a["instance_type"]]
     types = sorted({a["instance_type"] for a in atts})
     hours = sum(a["gpu_s"] for a in atts) / 3600
-    return {"basis": "ec2", "price_source": EC2_PRICE_SOURCE, "usd_per_hour": {k: EC2_USD_PER_H[k] for k in types},
+    by = defaultdict(list)
+    for k in (k for k in EC2_USD_PER_H if k in types):
+        by[EC2_PRICE_SOURCE.get(k, "EC2 on-demand")].append(k)
+    return {"basis": "ec2", "price_source": "; ".join(by),
+            "usd_per_hour": {k: EC2_USD_PER_H[k] for k in types},
             "boxes": len({a["box"] for a in atts}), "gpu_hours": round(hours, 3),
             "usd_total": round(sum(a["usd"] for a in atts), 4), "attempts": len(atts),
             "where": f"EC2 GPU boxes ({', '.join(types)})",
             "note": f"GPU time: {hours:.2f} box-hours on EC2 GPU boxes ("
-                    + ", ".join(f"{k} at ${v}/h" for k, v in EC2_USD_PER_H.items() if k in types)
-                    + f", {EC2_PRICE_SOURCE}), each run's share of its box's time while it ran"}
+                    + "; ".join(", ".join(f"{k} at ${EC2_USD_PER_H[k]}/h" for k in ks) + f", {s}"
+                                for s, ks in by.items())
+                    + "), each run's share of its box's time while it ran"}
 
 
 def cap(p: float | None, r: dict) -> float | None:
@@ -502,7 +532,8 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
         gaps[k] = split_gap(*zip(*xs, strict=True)) if xs else {"mean": None, "ci": [None, None]}
     return {"key": key, **{k: lab.get(k) for k in ("name", "tag", "provider", "harness", "setting", "weights",
                                                    "variant", "family", "harness_note", "server", "endpoint",
-                                                   "cutoff", "released", "price_note")},
+                                                   "cutoff", "released", "price_note", "distilled",
+                                                   "distilled_short", "primary")},
             "model_id": rows[0]["model_id"], "harness_key": rows[0]["harness_key"],
             "harness_version": versions.most_common(1)[0][0] if versions else HARNESS_VERSIONS.get(lab.get("harness")),
             "harness_versions_recorded": dict(versions) or None,
@@ -511,7 +542,7 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
             "n": len(done),
             "missing": sorted(r["task_id"] for r in rows if r["status"] == "missing"),
             **{s: model_scope(scope_rows(done, s)) for s in SCOPES}, "split_gap": gaps,
-            "cost": {"basis": "gpu_time" if gpu else "list_price_tokens",
+            "cost": {"basis": "gpu_time" if gpu else lab.get("basis", "list_price_tokens"),
                      "usd_per_window": round(float(np.mean([r["usd"] for r in done])), 4) if done else None,
                      "usd_median": round(float(np.median([r["usd"] for r in done])), 4) if done else None,
                      "usd_scored_total": round(sum(r["usd"] for r in done), 4),
@@ -578,10 +609,21 @@ def plot_block(models: dict, refs: dict) -> dict:
             "provider": m["provider"], "harness": m["harness"], "setting": m["setting"], "weights": m["weights"],
             "n": m["n"], "usd": m["cost"]["usd_per_window"], "basis": m["cost"]["basis"], "C": m["all"]["C"],
             **{s: m[s]["C"] for s in SPLITS}} for k, m in models.items() if m["n"]]
-    return {"points": pts, "series": [{"family": f, "points": [p["key"] for p in pts if p["family"] == f]}
-                                      for f in dict.fromkeys(p["family"] for p in pts)],
+    return {"points": pts, "frontier": frontier(pts),
+            "series": [{"family": f, "points": [p["key"] for p in pts if p["family"] == f]}
+                       for f in dict.fromkeys(p["family"] for p in pts)],
             "references": {k: {"label": refs[k]["label"], **{s: refs[k][s]["C"] for s in SCOPES}}
                            for k in ("operator_replay", "anchor")}}
+
+
+def frontier(pts: list[dict]) -> list[str]:
+    """The cost-versus-C Pareto frontier, cheapest first: each model whose mean C beats every cheaper model's."""
+    out, best = [], None
+    for p in sorted(pts, key=lambda p: (p["usd"], -p["C"]["mean"])):
+        if best is None or p["C"]["mean"] > best:
+            out.append(p["key"])
+            best = p["C"]["mean"]
+    return out
 
 
 def regrade_check(rows: list[dict]) -> dict:
@@ -658,8 +700,19 @@ def texts(s: dict, retry_note: str | None) -> dict:
                       if failed else "every one reached the grade.")
                    + (f" Windows not scored and not imputed: {'; '.join(missing)}." if missing else
                       " No window is missing."))
+    on = [s["models"][k] for k in s["plot"]["frontier"]]
+    off = len(ms) - len(on)
+    frontier = (f"The cost frontier, cheapest first: {join([cost_of(m) for m in on])}. No other model is both cheaper "
+                "and higher in C; " + ("the other one is dominated." if off == 1 else f"the other {off} are dominated.")
+                ) if on else None
     return {"halves": " ".join(halves), "rule": rule["text"], "valid": valid, "reliability": reliability,
-            "metered": METERED if s["run"].get("metered_attempts") else ""}
+            "metered": METERED if s["run"].get("metered_attempts") else "", "frontier": frontier}
+
+
+def cost_of(m: dict) -> str:
+    c = m["cost"]
+    gpu = ", GPU time" if c["basis"] == "gpu_time" else ""
+    return f"{m['name']} ({usd(c['usd_per_window'])}{gpu}, C {pc(m['all']['C']['mean'])}%)"
 
 
 def summarize(a, tasks: dict, fr: dict, front_of: dict, rows: list[dict], log: list[dict], labs: dict, gpus: dict,
@@ -863,7 +916,7 @@ def readme(s: dict) -> str:
     t6 = table(["model", "$ / window", "basis", *[f"{k.replace('_', ' ')} tok" for k in TOKENS], "turns", "wakes",
                 "desk calls", "own-tool calls", "shell", "reminders", "rejected"],
                [[m["name"], usd(m["cost"]["usd_per_window"]),
-                 "GPU time" if m["cost"]["basis"] == "gpu_time" else "list price",
+                 BASIS.get(m["cost"]["basis"], m["cost"]["basis"]),
                  *[f"{m['tokens_per_window'].get(k, 0):,.0f}" for k in TOKENS],
                  *[("—" if m["behaviour"][k] is None else f"{m['behaviour'][k]:g}") for k in (
                      "turns", "wakes", "desk_calls", "own_tool_calls", "shell_calls", "reminders", "rejected")]]
@@ -881,7 +934,7 @@ def readme(s: dict) -> str:
                  (x["error"] or "—").replace("|", "/")[:120]] for x in off]) if off else "None."
     fr = table(["front", "split", "kind", "what happened"],
                [[f["dates"], f["split"], f["kind"], f["why"]] for f in s["fronts"]])
-    gpu = next((m["cost"]["gpu"] for m in ms.values() if m["cost"].get("gpu")), None)
+    gpus = [m for m in ms.values() if m["cost"].get("gpu")]
     run = s["run"]
     prices = "; ".join(f"`{k}` {v['in']}/{v['cached']}/{v['write']}/{v['out']}" for k, v in run[
         "prices_per_mtok"].items() if v["in"])
@@ -889,6 +942,8 @@ def readme(s: dict) -> str:
             "behind any number here.\n\n" if s["fake"] else "")
     deferred = "".join(f"\n\n{x}" for x in s.get("deferred") or [])
     said = [f"- **Before and after the cutoffs.** {s['text']['halves']}",
+            *([f"- **Cost against score.** {s['text']['frontier']}"] if s["text"].get("frontier") else []),
+            *(f"- **{m['name']}** is {m['distilled']}" for m in ms.values() if m.get("distilled")),
             *([f"- **Valid submissions.** {s['text']['valid']}"] if s["text"]["valid"] else []),
             f"- **Reliability.** {s['text']['reliability']}"]
     diffs = s["regraded"]["diffs"]
@@ -905,7 +960,8 @@ def readme(s: dict) -> str:
         f"{len(sp['pre_cutoff']['fronts'])} within it).", "",
         picture("splits", "Hindsight capture before and after the training cutoffs, one line per model"), "",
         t1 + deferred, "",
-        "## What the numbers say", "", *said, "",
+        picture("pareto", "Hindsight capture against cost per window on a log scale, the cost frontier as a step line"),
+        "", "## What the numbers say", "", *said, "",
         "## Paired gaps (the windows both played)", "", t2, "",
         "## Against the real operator's bids, replayed through the same clearing and settlement", "", t3, "",
         "## Post-cutoff minus pre-cutoff, each model", "",
@@ -930,9 +986,11 @@ def readme(s: dict) -> str:
         f"{'s' if len(diffs) == 1 else ''} from the run's own verifier grade"
         + (": " + "; ".join(f"{who[d['model']]} {d['task_id']}" for d in diffs[:8]) if diffs else "") + ".",
         f"- CIs: {s['ci']['method']}; {s['ci']['resamples']:,} resamples, seed {s['ci']['seed']}.",
-        "- Cost: tokens from the harness trajectories at public list prices, $ per million tokens "
-        f"input/cached/cache write/output: {prices}." + (f" {s['text']['metered']}" if s["text"]["metered"] else "")
-        + (f" Open weights: {gpu['note']}." if gpu else ""),
+        "- Cost: tokens from the harness trajectories at the model makers' list prices, $ per million tokens "
+        f"input/cached/cache write/output: {prices}."
+        + "".join(f" {m['price_note']}" for m in ms.values() if m.get("price_note"))
+        + (f" {s['text']['metered']}" if s["text"]["metered"] else "")
+        + "".join(f" {m['name']}: {m['cost']['gpu']['note']}." for m in gpus),
         *(["- Passed over under the run folders: " + ", ".join(f"{k} ×{v}" for k, v in s["skipped"].items()) + "."]
           if s.get("skipped") else []),
         *([f"- Redacted from the Episode JSON: {sum(s['redactions'].values())} occurrences of "
@@ -963,6 +1021,8 @@ def main() -> None:
                                                           "its runs' intervals, each plus the scale-down window")
     ap.add_argument("--ec2-price", action="append", default=[], metavar="TYPE=USD_PER_HOUR",
                     help="route C: another GPU box type's on-demand price (g5.xlarge and g5.2xlarge are known)")
+    ap.add_argument("--box-alias", action="append", default=[], metavar="BOX=NAME",
+                    help="route C: the name a GPU box's runs carry in the results in place of its host name")
     ap.add_argument("--deferred", action="append", default=[], metavar="TEXT",
                     help="a pre-registered model that did not run, as the card and README state it")
     ap.add_argument("--block-alias", action="append", default=[], metavar="DATE=FRONT")
@@ -993,6 +1053,10 @@ def main() -> None:
     atts, skipped = load(a.runs, a.pack, tasks, labels_of(a.model))
     if not atts:
         raise SystemExit(f"no attempts on {a.pack} under {', '.join(map(str, a.runs))}")
+    alias = dict(x.split("=", 1) for x in a.box_alias)
+    for x in atts:
+        if x.get("box") in alias:
+            x["box"] = alias[x["box"]]
     fake = {x["fake"] for x in atts}
     if len(fake) > 1:
         raise SystemExit("FAKE and real attempts are mixed under --runs")

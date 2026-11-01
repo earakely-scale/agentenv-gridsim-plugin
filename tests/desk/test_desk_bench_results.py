@@ -304,17 +304,24 @@ def test_article_states_the_bench_as_the_card_does(bench):
         assert all(0 <= t < 3 * 1440 for t in site["wakes"]) and site["wakes"]
 
 
-def _route_c(root: Path) -> None:
+ROUTE_C = {"qwen": ("opencode-qwen", "g5.xlarge", [("desk-v4-2026-07-04-S01", 0, 1000, "ok"),
+                                                  ("desk-v4-2026-07-04-S02", 500, 1500, "ok")]),
+           "sol": ("codex-sol", "m7i.16xlarge", [("desk-v4-2026-07-04-S01", 0, 300, "infra"),
+                                                 ("desk-v4-2026-07-04-S01", 400, 900, "ok"),
+                                                 ("desk-v4-2026-07-04-S02", 0, 700, "agent")]),
+           "beam": ("opencode-beam", "m7i.2xlarge", [("desk-v4-2026-07-04-S01", 0, 300, "infra"),
+                                                     ("desk-v4-2026-07-04-S01", 300, 900, "ok")]),
+           "kimi": ("opencode-kimi", "m7i.8xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok"),
+                                                      ("desk-v4-2026-07-04-S02", 0, 900, "capped")])}
+NINE_B = {"qwen9b": ("opencode-qwen9b", "m7i.8xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok")]),
+          "qwen9bsft": ("opencode-qwen35-long", "g7e.8xlarge", [("desk-v4-2026-07-04-S01", 0, 1800, "ok")]),
+          "qwen": ROUTE_C["qwen"]}
+
+
+def _route_c(root: Path, plan: dict = ROUTE_C) -> None:
     tasks = {t["task_id"]: t for t in load_tasks(PACK)}
     t0 = dt.datetime(2026, 10, 29, 7, tzinfo=dt.UTC)
-    plan = {"qwen": ("opencode-qwen", "g5.xlarge", [("desk-v4-2026-07-04-S01", 0, 1000, "ok"),
-                                                   ("desk-v4-2026-07-04-S02", 500, 1500, "ok")]),
-            "sol": ("codex-sol", "m7i.16xlarge", [("desk-v4-2026-07-04-S01", 0, 300, "infra"),
-                                                  ("desk-v4-2026-07-04-S01", 400, 900, "ok"),
-                                                  ("desk-v4-2026-07-04-S02", 0, 700, "agent")]),
-            "beam": ("opencode-beam", "m7i.2xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok")]),
-            "kimi": ("opencode-kimi", "m7i.8xlarge", [("desk-v4-2026-07-04-S01", 0, 600, "ok"),
-                                                       ("desk-v4-2026-07-04-S02", 0, 900, "capped")])}
+    gain = {"beam": 500, "qwen9b": 200, "qwen9bsft": 800}
     for key, (harness, kind, runs) in plan.items():
         bench = root / key / "box1" / "bench"
         (bench / "episodes").mkdir(parents=True)
@@ -324,22 +331,25 @@ def _route_c(root: Path) -> None:
             unit = f"bench-{key}-{tid}-a{k}"
             row = {"task_id": tid, "attempt": k + 1, "unit": unit, "class": cls, "why": "" if cls == "ok" else
                    "setup step deploy did not complete", "t_start": (t0 + dt.timedelta(seconds=a)).isoformat(),
-                   "t_end": (t0 + dt.timedelta(seconds=b)).isoformat(), "wall_s": float(b - a), "box": "box1",
+                   "t_end": (t0 + dt.timedelta(seconds=b)).isoformat(), "wall_s": float(b - a),
+                   "box": "ip-10-0-0-1" if key == "qwen9bsft" else "box1",
                    "instance_type": kind, "harness": harness, "status": "completed" if cls == "ok" else "failed",
                    "usage": {"tokens": {"input": 10}, "cost_usd_list_price": 0.0 if key == "qwen" else 1.25}}
-            if key in ("beam", "kimi"):
+            if key in ("beam", "kimi", "qwen9b", "qwen9bsft"):
                 row |= {"usage": {"tokens": {"input": 1000, "cached": 9000, "output": 500},
                                   "cost_usd_list_price": None},
                         "agent_version": "OpenCode 1.17.18 (src-f7b0; agentenv-framework 0.9.1396)"}
             if cls == "capped":
                 row |= {"why": "lane spend cap: litellm.BudgetExceededError: over $20", "proxy_cost_usd": 19.0}
+            if key == "beam" and cls == "infra":
+                row["proxy_cost_usd"] = 0.0046
             if key == "sol" and cls != "agent":
                 row["proxy_cost_usd"] = 0.4 if cls == "infra" else 1.3
             if key == "sol":
                 row["agent_version"] = "codex 0.147.0 (src-0d9e; agentenv-framework 0.9.1383)"
             rows.append(row)
             if cls == "ok":
-                ep = _episode(tasks[tid], round(tasks[tid]["refs"]["p_idle"] + (500 if key == "beam" else 1000), 2))
+                ep = _episode(tasks[tid], round(tasks[tid]["refs"]["p_idle"] + gain.get(key, 1000), 2))
                 g = desk_report.regrade({"valid": True}, ep, tasks[tid]["refs"])
                 run = bench / "runs" / unit
                 run.mkdir(parents=True)
@@ -366,13 +376,13 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     assert s["run"]["route"] == "ec2" and not s["skipped"] and s["deferred"] and set(s["models"]) == {"sol", "qwen",
                                                                                                     "beam", "kimi"}
     assert beam["cost"] | {"usd_median": None} == {
-        "basis": "list_price_tokens", "usd_per_window": 0.0046, "usd_median": None, "usd_scored_total": 0.0046,
-        "usd_all_attempts": 0.0046} and (beam["framework"], beam["harness_version"]) == ("0.9.1396", "1.17.18")
+        "basis": "list_price_tokens", "usd_per_window": 0.0014, "usd_median": None, "usd_scored_total": 0.0014,
+        "usd_all_attempts": 0.0028} and (beam["framework"], beam["harness_version"]) == ("0.9.1396", "1.17.18")
     assert qwen["cost"]["gpu"]["basis"] == "ec2" and qwen["cost"]["gpu"]["gpu_hours"] == pytest.approx(1500 / 3600,
                                                                                                          abs=1e-3)
     assert qwen["cost"]["usd_per_window"] == pytest.approx(750 / 3600 * 1.006, abs=1e-4) and qwen["n"] == 2
     assert sol["n"] == 1 and sol["cost"]["usd_per_window"] == 1.25 and sol["cost"]["usd_all_attempts"] == 2.9
-    assert s["run"]["metered_attempts"] == 2 and s["text"]["metered"] == dbr.METERED
+    assert s["run"]["metered_attempts"] == 3 and s["text"]["metered"] == dbr.METERED
     assert (sol["harness_version"], sol["framework"], qwen["framework"]) == ("0.147.0", "0.9.1383", None)
     assert sol["ran"] == {"from": "2026-10-29T07:00:00+00:00", "to": "2026-10-29T07:15:00+00:00"}
     assert s["order_by_C"] == ["qwen", "sol", "kimi", "beam"] and list(s["paired"]) == [
@@ -400,6 +410,29 @@ def test_route_c_runs_box_shares_and_final_failures(tmp_path):
     assert ("Qwen3-4B, no attempt ×30; GPT-6.1 Sol, no attempt ×30, agent-side failure, final, no grade possible ×1; "
             "Kimi K3, no attempt ×30, episode spend cap, final ×1; Beam-1.0, no attempt ×31."
             in s["text"]["reliability"])
+    assert s["plot"]["frontier"] == ["beam", "kimi", "qwen"]
+    _route_c(tmp_path / "nine", NINE_B)
+    sys.argv = ["desk_bench_results.py", "--runs", str(tmp_path / "nine"), "--out", str(tmp_path / "out9"),
+                "--no-figures", "--box-alias", "ip-10-0-0-1=gpu1"]
+    try:
+        dbr.main()
+    finally:
+        sys.argv = argv
+    s = json.loads((tmp_path / "out9" / "summary.json").read_text())
+    base, sft = s["models"]["qwen9b"], s["models"]["qwen9bsft"]
+    assert (base["model_id"], sft["model_id"], sft["family"], base["family"]) == ("qwen3.5-9b", "qwen3.5-9b", "qwen9b",
+                                                                                 "qwen9b")
+    assert base["cost"]["basis"] == "metered_rate" and base["cost"]["usd_per_window"] == 0.0021
+    assert sft["cost"]["basis"] == "gpu_time" and sft["cost"]["usd_per_window"] == pytest.approx(1800 / 3600 * 4.5013,
+                                                                                                abs=1e-4)
+    assert sft["cost"]["gpu"]["note"] == ("GPU time: 0.50 box-hours on EC2 GPU boxes (g7e.8xlarge at $4.5013/h, the "
+                                          "EC2 spot price paid, us-east-1), each run's share of its box's time while "
+                                          "it ran")
+    assert {x["box"] for x in s["attempts"] if x["model"] == "qwen9bsft"} == {"gpu1"}
+    assert s["plot"]["frontier"] == ["qwen9b", "qwen"]
+    assert s["text"]["frontier"] == ("The cost frontier, cheapest first: Qwen3.5-9B ($0.00, C 0.3%) and Qwen3-4B "
+                                     "($0.21, GPU time, C 1.5%). No other model is both cheaper and higher in C; the "
+                                     "other one is dominated.")
 
 
 def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
@@ -440,7 +473,10 @@ def test_space_keys_each_bench_run_with_its_harness_run(tmp_path, monkeypatch):
     assert (view["run"]["attempts"], view["run"]["limit"]) == (3, 2) and "http" not in view["run"]
     assert "limit" not in json.loads((tmp_path / "ep" / "bench" / "desk-v4-2026-03-16-S03.sol.json").read_text())["run"]
     assert {k: r.get("cost_note") for k, r in v["roster"].items() if r.get("cost_note")} == {
-        "beam": "an upper bound: the Hugging Face router publishes no cached-input price"}
+        "beam": "Reflection publishes no price; at Together AI's list price including its $0.04 cached-read rate",
+        "qwen9b": "no maker price; at the metered Fireworks rate, $0.20 per 1M tokens, cached reads included"}
+    assert {k: r["out_limit"] for k, r in v["roster"].items() if r.get("out_limit")} == {
+        "qwen9b": 8192, "qwen9bsft": 8192, "qwen": 8192}
 
 
 def test_space_keeps_one_task_view_and_refuses_a_different_one(tmp_path):
@@ -461,30 +497,34 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert "attempts" not in page and page["card"]["bullets"] == hub_dataset.bench_bullets(s)
     dev = [x["n"] for g in page["deviations"] for x in g["items"]]
     assert dev == list(range(1, len(dev) + 1)) and [g["title"] for g in page["deviations"]] == [
-        None, "Gemini 4 Argon", "Reflection Beam-1.0", "Open-weights comparison: GLM-5.3, Kimi K3, Qwen3.8 Max"]
+        None, "Gemini 4 Argon", "Reflection Beam-1.0", "Open-weights comparison: GLM-5.3, Kimi K3, Qwen3.8 Max",
+        "Base Qwen3.5-9B", "Cost basis, and the anchor-distilled Qwen3.5-9B"]
     cap, block = page["card"]["captions"], hub_dataset.bench_block(s, grades, desk)
-    assert [cap[k][:12] for k in ("splits", "table")] == ["C × 100: the", "C, hindsight"]
+    assert [cap[k][:12] for k in ("splits", "table", "pareto")] == ["C × 100: the", "C, hindsight", "Each point i"]
     assert block.index("/figures/splits.svg") < block.index(cap["splits"]) < block.index("| Model |") < block.index(
-        cap["table"]) and "cost-vs-score" not in block
+        cap["table"]) < block.index("/figures/pareto.svg") < block.index(cap["pareto"]) and "cost-vs-score" not in block
+    assert s["plot"]["frontier"] == ["qwen", "beam", "luna", "qwen9bsft", "sol"] and all(
+        s["models"][k]["price_note"] in cap["table"] for k in ("beam", "qwen9b"))
     assert not any("Quick start below" in x for x in page["card"]["how"])
     links = page["links"]
     assert links["prereg"] == f"{dbr.REPO}/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md"
-    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-4/docs/prereg/v4-bench.md#deviations"
-    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-4/results/desk-v4-bench"
-    beam = s["models"]["beam"]
-    assert (" Gemini 4 Argon ran on agentenv-framework 0.9.1383." + "".join(
-        f" {s['models'][k]['name']} ran through Fireworks, on agentenv-framework 0.9.1396; {s['models'][k]['note']}."
-        for k in ("glm", "kimi", "qwenmax")) + f" Beam-1.0 ran through the Hugging Face router, on agentenv-framework "
-            f"0.9.1396; {beam['note']}. {beam['price_note']} See the [deviations]({links['deviations']}).</small>"
-            ) in block
+    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-5/docs/prereg/v4-bench.md#deviations"
+    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-5/results/desk-v4-bench"
+    beam, base, sft = (s["models"][k] for k in ("beam", "qwen9b", "qwen9bsft"))
+    assert (f" Qwen3.5-9B + desk SFT ran after the others, on agentenv-framework 0.9.1396; {sft['note']}."
+            " Gemini 4 Argon ran on agentenv-framework 0.9.1383." + "".join(
+                f" {s['models'][k]['name']} ran through Fireworks, on agentenv-framework 0.9.1396; "
+                f"{s['models'][k]['note']}." for k in ("glm", "kimi", "qwenmax", "qwen9b"))
+            + f" Beam-1.0 ran through the Hugging Face router, on agentenv-framework 0.9.1396; {beam['note']}. "
+            f"{base['price_note']} {beam['price_note']} See the [deviations]({links['deviations']}).</small>") in block
     text = hub_space.readme({"versions": [], "episodes": {}}, desk, s, grades, hub_dataset)
     lead = f"{hub_space.APP}/index.html?v=bench&m={s['hero']['model']}&task={s['hero']['task_id']}"
     assert text.index(f"[Replay the lead run]({lead})") < text.index("## The development ladder")
-    assert "against cost" not in text
+    assert "capture against cost, the cost frontier" in text
     for m in s["models"].values():
         n = "" if m["n"] == s["n_windows"] else f"<br><small>{m['n']} of {s['n_windows']} windows</small>"
         assert f"| **{m['name']}**{n} | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
-    assert ("lists the benchmark's 284 runs first, by\nmodel, side of the cutoffs, front and battery, then the "
+    assert ("lists the benchmark's 348 runs first, by\nmodel, side of the cutoffs, front and battery, then the "
             "development runs. Kimi K3's 4 windows stopped at the window cap are listed as capped and unscored."
             ) in text
     gif = hub_dataset.bench_gif(s, grades, True)
