@@ -1,11 +1,11 @@
 <div class="gs-bench"></div>
 <style>
-  :is(.gs-bench, .gs-bench-ruler) { --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) { --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); }
   .html-embed__card.is-frameless .gs-bench { --halo: var(--page-bg); }
   .gs-bench { position: relative; }
   .gs-bench-ruler { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; visibility: hidden; }
-  :is(.gs-bench, .gs-bench-ruler) svg.chart { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
-  :is(.gs-bench, .gs-bench-ruler) svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) svg.chart { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
   .gs-bench .grid { stroke: var(--line); stroke-width: 1; }
   .gs-bench .zero { stroke: var(--ink-3); stroke-width: 1.25; }
   .gs-bench .lead { stroke: var(--ink-3); stroke-width: 1; fill: none; }
@@ -19,24 +19,24 @@
   .gs-bench .op-dot { fill: var(--halo); stroke: var(--ink-3); stroke-width: 1.4; }
   .gs-bench .fam { fill: none; stroke-width: 1.6; stroke-linecap: round; }
   .gs-bench .hit { fill: transparent; stroke: none; cursor: pointer; }
-  :is(.gs-bench, .gs-bench-ruler) .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
-  :is(.gs-bench, .gs-bench-ruler) .t-head-s { font-size: 13px; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) .t-tick { font-size: 13px; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) .t-val { font-size: 13px; font-weight: 600; fill: var(--ink-2); }
-  :is(.gs-bench, .gs-bench-ruler) .t-val.b { font-size: 14px; font-weight: 700; fill: var(--ink); }
-  :is(.gs-bench, .gs-bench-ruler) .t-end { font-size: 14px; font-weight: 560; fill: var(--ink-2); }
-  :is(.gs-bench, .gs-bench-ruler) .t-end.b { font-weight: 700; fill: var(--ink); }
-  :is(.gs-bench, .gs-bench-ruler) .t-end.op-t { font-weight: 500; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) .t-end-v { font-size: 14px; font-weight: 700; fill: var(--ink); }
-  :is(.gs-bench, .gs-bench-ruler) .t-end-v.op-t { font-weight: 600; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) :is(.t-end-q, .t-key-q) { font-size: 12.5px; font-weight: 400; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) .t-key { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
-  :is(.gs-bench, .gs-bench-ruler) .t-key.b { font-weight: 700; fill: var(--ink); }
-  :is(.gs-bench, .gs-bench-ruler) .t-key.op-t { font-weight: 500; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) .t-ver { font-size: 16.5px; font-weight: 650; fill: var(--ink); }
-  :is(.gs-bench, .gs-bench-ruler) .t-name { font-size: 13.5px; fill: var(--ink-2); }
-  :is(.gs-bench, .gs-bench-ruler) .t-unit { font-size: 13px; fill: var(--ink-3); }
-  :is(.gs-bench, .gs-bench-ruler) .t-foot { font-size: 12.5px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-head-s { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-tick { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-val { font-size: 13px; font-weight: 600; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-val.b { font-size: 14px; font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-end { font-size: 14px; font-weight: 560; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-end.b { font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-end.op-t { font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-end-v { font-size: 14px; font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-end-v.op-t { font-weight: 600; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) :is(.t-end-q, .t-key-q) { font-size: 12.5px; font-weight: 400; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-key { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-key.b { font-weight: 700; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-key.op-t { font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-ver { font-size: 16.5px; font-weight: 650; fill: var(--ink); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-name { font-size: 13.5px; fill: var(--ink-2); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-unit { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-bench, .gs-bench-ruler, .gs-pareto-ruler) .t-foot { font-size: 12.5px; fill: var(--ink-3); }
 </style>
 <script>
   (() => {
