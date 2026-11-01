@@ -270,7 +270,7 @@ def state_verdict(run: Path) -> tuple[dict, dict | None]:
 def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
     task = meta["task"]
     pr = rep.get("prompt_response") or {}
-    model_id = pr.get("model") or play_model(run, task) or HARNESSES[meta["harness"]]["model"]
+    model_id = (pr.get("model") or play_model(run, task) or HARNESSES[meta["harness"]]["model"]).rsplit("/", 1)[-1]
     ep = rep.get("episode") if isinstance(rep.get("episode"), dict) and "statement" in rep["episode"] else None
     if ep is None and rep.get("grade") is not None:
         grade, ep = state_verdict(run)

@@ -4,7 +4,7 @@
  "pack": "desk-v4-bench",
  "layer": "v4",
  "unit": "3-day window",
- "generated": "2026-11-01T17:19:05Z",
+ "generated": "2026-11-01T19:11:33Z",
  "n_windows": 32,
  "n_fronts": 8,
  "sites": [
@@ -1344,6 +1344,312 @@
      "infrastructure": 22
     }
    }
+  },
+  "terra": {
+   "key": "terra",
+   "name": "GPT-6.1 Terra",
+   "tag": "Terra",
+   "provider": "OpenAI",
+   "harness": "Codex CLI",
+   "setting": "effort high",
+   "weights": "API",
+   "variant": null,
+   "family": "terra",
+   "harness_note": "with OpenAI's catalog entries for the GPT-6 models and one for Terra copied from Sol's",
+   "server": null,
+   "endpoint": null,
+   "cutoff": "2026-06-01",
+   "released": null,
+   "price_note": null,
+   "distilled": null,
+   "distilled_short": null,
+   "primary": null,
+   "model_id": "gpt-6.1-terra",
+   "harness_key": "codex-terra",
+   "harness_version": "0.147.0",
+   "harness_versions_recorded": {
+    "0.147.0": 38
+   },
+   "framework": "0.9.1396",
+   "ran": {
+    "from": "2026-11-01T16:16:26+00:00",
+    "to": "2026-11-01T19:01:22+00:00"
+   },
+   "n": 32,
+   "missing": [],
+   "all": {
+    "n": 32,
+    "fronts": 8,
+    "C": {
+     "mean": 0.1797,
+     "ci": [
+      0.0656,
+      0.2864
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "R": {
+     "mean": 0.7189,
+     "ci": [
+      0.4918,
+      0.8856
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P": {
+     "mean": 70735.4181,
+     "ci": [
+      -1905.2842,
+      190490.3316
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_phys": {
+     "mean": 0.3978,
+     "ci": [
+      0.1608,
+      0.6198
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_anchor": {
+     "mean": -66048.6331,
+     "ci": [
+      -199212.9572,
+      10196.6785
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "P_minus_operator_replay": {
+     "mean": 46372.2775,
+     "ci": [
+      -16608.8759,
+      142869.5078
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.106,
+     "ci": [
+      0.0075,
+      0.1968
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.4688,
+    "usd_per_window": 1.9689
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.2242,
+     "ci": [
+      0.1541,
+      0.2942
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.8136,
+     "ci": [
+      0.6643,
+      0.9629
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 134289.9912,
+     "ci": [
+      16495.2925,
+      357003.635
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.4796,
+     "ci": [
+      0.3452,
+      0.6165
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -119472.7837,
+     "ci": [
+      -384802.455,
+      25096.4625
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": 97952.02,
+     "ci": [
+      9406.1575,
+      269942.5963
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.1402,
+     "ci": [
+      0.0966,
+      0.2089
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.5,
+    "usd_per_window": 2.0613
+   },
+   "post_cutoff": {
+    "n": 16,
+    "fronts": 4,
+    "C": {
+     "mean": 0.1353,
+     "ci": [
+      -0.0486,
+      0.3231
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "R": {
+     "mean": 0.6243,
+     "ci": [
+      0.2131,
+      0.8628
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P": {
+     "mean": 7180.845,
+     "ci": [
+      -33010.4781,
+      44902.0006
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_phys": {
+     "mean": 0.316,
+     "ci": [
+      -0.0802,
+      0.7293
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_anchor": {
+     "mean": -12624.4825,
+     "ci": [
+      -42076.4456,
+      4854.7331
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "P_minus_operator_replay": {
+     "mean": -5207.465,
+     "ci": [
+      -54292.2981,
+      32872.5819
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "C_minus_operator_replay": {
+     "mean": 0.0718,
+     "ci": [
+      -0.1041,
+      0.2408
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "valid_share": 1.0,
+    "beats_anchor_share": 0.4375,
+    "usd_per_window": 1.8764
+   },
+   "split_gap": {
+    "C": {
+     "mean": -0.0888,
+     "ci": [
+      -0.2994,
+      0.1225
+     ]
+    },
+    "R": {
+     "mean": -0.1892,
+     "ci": [
+      -0.619,
+      0.1337
+     ]
+    },
+    "P": {
+     "mean": -127109.1462,
+     "ci": [
+      -349822.79,
+      11207.2356
+     ]
+    }
+   },
+   "cost": {
+    "basis": "list_price_tokens",
+    "usd_per_window": 1.9689,
+    "usd_median": 1.94,
+    "usd_scored_total": 63.0044,
+    "usd_all_attempts": 66.4679
+   },
+   "tokens_per_window": {
+    "input": 588.8,
+    "cached": 21212917.3,
+    "cache_write": 527688.0,
+    "output": 49607.2,
+    "reasoning": 25102.0
+   },
+   "behaviour": {
+    "turns": 66.22,
+    "wakes": 66.22,
+    "desk_calls": 395.72,
+    "own_tool_calls": 0.0,
+    "shell_calls": 0.0,
+    "reminders": 40.59,
+    "submissions": 45.78,
+    "rejected": 0.0,
+    "compactions": 0.0,
+    "wall_s": 1218.78
+   },
+   "own_tools": {},
+   "attempts": {
+    "total": 38,
+    "scored": 32,
+    "failed": 6,
+    "extra": 0,
+    "windows_retried": 6,
+    "windows_missing": 0,
+    "missing_reasons": {},
+    "failure_kinds": {
+     "infrastructure": 6
+    }
+   },
+   "note": "the provider's token rate limit ended 6 of its attempts, retried as infrastructure"
   },
   "argon": {
    "key": "argon",
@@ -4470,6 +4776,7 @@
   "qwen9bsft",
   "argon",
   "glm",
+  "terra",
   "kimi",
   "glmflash",
   "opus",
@@ -4487,6 +4794,7 @@
    "qwen9bsft",
    "argon",
    "glm",
+   "terra",
    "kimi",
    "glmflash",
    "opus",
@@ -4501,7 +4809,7 @@
   ],
   "first_window": "2026-01-23",
   "set": "before any API-model result",
-  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna, Claude Haiku 5.5 and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; DeepSeek V4.1 Flash, Qwen3.5-9B + desk SFT, GLM-5.3, Kimi K3, GLM-5.3-Flash, Qwen3.8 Max and Qwen3.5-9B, with no reported cutoff, can trigger it too."
+  "text": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, GPT-6.1 Terra, Claude Opus 5.5, GPT-6 Luna, Claude Haiku 5.5 and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; DeepSeek V4.1 Flash, Qwen3.5-9B + desk SFT, GLM-5.3, Kimi K3, GLM-5.3-Flash, Qwen3.8 Max and Qwen3.5-9B, with no reported cutoff, can trigger it too."
  },
  "halves_differ": [],
  "lead_split": "all",
@@ -5545,6 +5853,127 @@
      "n": 16,
      "fronts": 4,
      "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
+  "sol-terra": {
+   "a": "sol",
+   "b": "terra",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0902,
+     "ci": [
+      0.0179,
+      0.1681
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.0597,
+     "ci": [
+      -0.0461,
+      0.1605
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4062,
+     "level": 0.4688,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": 60055.0484,
+     "ci": [
+      -4773.9359,
+      174207.4881
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1522,
+     "ci": [
+      0.0676,
+      0.2568
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.1399,
+     "ci": [
+      0.019,
+      0.2608
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.4375,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 123210.5794,
+     "ci": [
+      9252.32,
+      337562.8981
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0282,
+     "ci": [
+      -0.0485,
+      0.1035
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": -0.0205,
+     "ci": [
+      -0.1637,
+      0.0812
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.375,
+     "level": 0.5,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -3100.4825,
+     "ci": [
+      -24461.0481,
+      13582.3356
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
      "level": 0.0,
      "fronts_ahead": 2
     }
@@ -7002,6 +7431,127 @@
     }
    }
   },
+  "dsflash-terra": {
+   "a": "dsflash",
+   "b": "terra",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0657,
+     "ci": [
+      -0.0263,
+      0.1826
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "R": {
+     "mean": 0.0094,
+     "ci": [
+      -0.2094,
+      0.2425
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.375,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 77533.9122,
+     "ci": [
+      -3432.9956,
+      219102.1143
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0815,
+     "ci": [
+      -0.0904,
+      0.3082
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.0453,
+     "ci": [
+      -0.3749,
+      0.2872
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.375,
+     "fronts_ahead": 1
+    },
+    "P": {
+     "mean": 136814.0669,
+     "ci": [
+      -11022.2681,
+      418238.8975
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0499,
+     "ci": [
+      -0.0218,
+      0.1293
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.064,
+     "ci": [
+      -0.228,
+      0.4265
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.25,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 18253.7575,
+     "ci": [
+      -2414.45,
+      54649.3969
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   }
+  },
   "dsflash-kimi": {
    "a": "dsflash",
    "b": "kimi",
@@ -8333,6 +8883,127 @@
     }
    }
   },
+  "qwen9bsft-terra": {
+   "a": "qwen9bsft",
+   "b": "terra",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0236,
+     "ci": [
+      -0.089,
+      0.146
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5312,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.1024,
+     "ci": [
+      -0.1655,
+      0.3362
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5312,
+     "level": 0.125,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 65620.1316,
+     "ci": [
+      -10879.0066,
+      198919.0339
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5312,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0246,
+     "ci": [
+      -0.197,
+      0.2712
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.012,
+     "ci": [
+      -0.4491,
+      0.3293
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0625,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 119403.63,
+     "ci": [
+      -25155.3931,
+      384792.2319
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0225,
+     "ci": [
+      -0.0274,
+      0.099
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.1928,
+     "ci": [
+      -0.0627,
+      0.5181
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 11836.6331,
+     "ci": [
+      -5122.3244,
+      41749.0963
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   }
+  },
   "qwen9bsft-kimi": {
    "a": "qwen9bsft",
    "b": "kimi",
@@ -9543,6 +10214,127 @@
     }
    }
   },
+  "argon-terra": {
+   "a": "argon",
+   "b": "terra",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0188,
+     "ci": [
+      -0.0356,
+      0.0797
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.375,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.028,
+     "ci": [
+      -0.1595,
+      0.0745
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.2812,
+     "level": 0.4375,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 22807.6747,
+     "ci": [
+      -10466.1844,
+      76442.6572
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.375,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0577,
+     "ci": [
+      -0.0404,
+      0.1558
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.0223,
+     "ci": [
+      -0.0971,
+      0.1268
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.4375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": 54694.6944,
+     "ci": [
+      -4733.1375,
+      148780.72
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0201,
+     "ci": [
+      -0.0604,
+      0.0123
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": -0.0782,
+     "ci": [
+      -0.3086,
+      0.0581
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.25,
+     "level": 0.4375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -9079.345,
+     "ci": [
+      -24408.7606,
+      -101.7381
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   }
+  },
   "argon-kimi": {
    "a": "argon",
    "b": "kimi",
@@ -10632,6 +11424,127 @@
     }
    }
   },
+  "glm-terra": {
+   "a": "glm",
+   "b": "terra",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0039,
+     "ci": [
+      -0.0476,
+      0.0665
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": -0.0213,
+     "ci": [
+      -0.0852,
+      0.0518
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.2812,
+     "level": 0.4062,
+     "fronts_ahead": 1
+    },
+    "P": {
+     "mean": 31710.5019,
+     "ci": [
+      -5511.8959,
+      102600.5081
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0234,
+     "ci": [
+      -0.0366,
+      0.1278
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": -0.0247,
+     "ci": [
+      -0.1458,
+      0.1125
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.375,
+     "fronts_ahead": 1
+    },
+    "P": {
+     "mean": 66497.7719,
+     "ci": [
+      -4913.2137,
+      206361.8675
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0157,
+     "ci": [
+      -0.0738,
+      0.0542
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 1
+    },
+    "R": {
+     "mean": -0.0178,
+     "ci": [
+      -0.03,
+      -0.0058
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.25,
+     "level": 0.4375,
+     "fronts_ahead": 0
+    },
+    "P": {
+     "mean": -3076.7681,
+     "ci": [
+      -7471.76,
+      3072.7606
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 1
+    }
+   }
+  },
   "glm-kimi": {
    "a": "glm",
    "b": "kimi",
@@ -11716,6 +12629,1095 @@
      "n": 16,
      "fronts": 4,
      "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-kimi": {
+   "a": "terra",
+   "b": "kimi",
+   "all": {
+    "n": 28,
+    "C": {
+     "mean": 0.024,
+     "ci": [
+      -0.0564,
+      0.0972
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.108,
+     "ci": [
+      -0.0746,
+      0.2818
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.5714,
+     "level": 0.25,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": -25814.0086,
+     "ci": [
+      -80251.5761,
+      11962.703
+     ],
+     "n": 28,
+     "fronts": 8,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 14,
+    "C": {
+     "mean": 0.0164,
+     "ci": [
+      -0.0868,
+      0.1258
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.7857,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1099,
+     "ci": [
+      -0.0572,
+      0.2753
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.2857,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -45003.1129,
+     "ci": [
+      -140952.5653,
+      14600.8133
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.7857,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 14,
+    "C": {
+     "mean": 0.0315,
+     "ci": [
+      -0.1065,
+      0.1282
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.7143,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.106,
+     "ci": [
+      -0.2633,
+      0.4333
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.6429,
+     "level": 0.2143,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -6624.9043,
+     "ci": [
+      -47845.9231,
+      18581.9488
+     ],
+     "n": 14,
+     "fronts": 4,
+     "ahead": 0.7143,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-glmflash": {
+   "a": "terra",
+   "b": "glmflash",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0111,
+     "ci": [
+      -0.0853,
+      0.0953
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.0,
+     "fronts_ahead": 5
+    },
+    "R": {
+     "mean": 0.0321,
+     "ci": [
+      -0.0912,
+      0.1501
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.4062,
+     "level": 0.3125,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": -41763.5781,
+     "ci": [
+      -131372.1965,
+      11271.3363
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0205,
+     "ci": [
+      -0.1837,
+      0.0887
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.0064,
+     "ci": [
+      -0.1765,
+      0.136
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.4375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -80355.0744,
+     "ci": [
+      -255683.6425,
+      10703.8981
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0426,
+     "ci": [
+      -0.0603,
+      0.1448
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.0705,
+     "ci": [
+      -0.101,
+      0.2369
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -3172.0819,
+     "ci": [
+      -33118.3794,
+      20166.5013
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-opus": {
+   "a": "terra",
+   "b": "opus",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0118,
+     "ci": [
+      -0.0542,
+      0.0783
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.0049,
+     "ci": [
+      -0.1481,
+      0.1278
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.375,
+     "level": 0.375,
+     "fronts_ahead": 5
+    },
+    "P": {
+     "mean": -23320.8488,
+     "ci": [
+      -70036.5116,
+      9183.653
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6562,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": -0.0044,
+     "ci": [
+      -0.0845,
+      0.0438
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": -0.0092,
+     "ci": [
+      -0.0766,
+      0.0459
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.3125,
+     "level": 0.4375,
+     "fronts_ahead": 2
+    },
+    "P": {
+     "mean": -39665.7463,
+     "ci": [
+      -126715.9581,
+      5723.3475
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.028,
+     "ci": [
+      -0.1001,
+      0.1585
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.019,
+     "ci": [
+      -0.2963,
+      0.2196
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.4375,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -6975.9512,
+     "ci": [
+      -43654.3425,
+      21001.1538
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-qwenmax": {
+   "a": "terra",
+   "b": "qwenmax",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0416,
+     "ci": [
+      -0.0092,
+      0.0944
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.0997,
+     "ci": [
+      -0.0619,
+      0.2571
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.25,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 5053.2766,
+     "ci": [
+      -7926.6763,
+      15222.7662
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0591,
+     "ci": [
+      0.018,
+      0.1128
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.1834,
+     "ci": [
+      0.0145,
+      0.3929
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 13024.1494,
+     "ci": [
+      4851.6713,
+      21196.6275
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0241,
+     "ci": [
+      -0.0615,
+      0.1266
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 2
+    },
+    "R": {
+     "mean": 0.016,
+     "ci": [
+      -0.2384,
+      0.1736
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -2917.5963,
+     "ci": [
+      -25613.8531,
+      15946.4281
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-luna": {
+   "a": "terra",
+   "b": "luna",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.043,
+     "ci": [
+      -0.0129,
+      0.0925
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.1193,
+     "ci": [
+      -0.0893,
+      0.3042
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5625,
+     "level": 0.2188,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 858.4394,
+     "ci": [
+      -16024.9747,
+      11663.9887
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.037,
+     "ci": [
+      0.0074,
+      0.0566
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.0866,
+     "ci": [
+      0.0129,
+      0.1622
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 7664.6556,
+     "ci": [
+      3369.4737,
+      13070.9169
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.049,
+     "ci": [
+      -0.0579,
+      0.135
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1519,
+     "ci": [
+      -0.2498,
+      0.474
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -5947.7769,
+     "ci": [
+      -38226.4656,
+      13365.5025
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-haiku": {
+   "a": "terra",
+   "b": "haiku",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.0689,
+     "ci": [
+      -0.0126,
+      0.1414
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.0816,
+     "ci": [
+      -0.136,
+      0.2277
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.625,
+     "level": 0.1875,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 30269.1891,
+     "ci": [
+      -17148.9259,
+      97913.7278
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0927,
+     "ci": [
+      0.0543,
+      0.1402
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.1358,
+     "ci": [
+      0.0486,
+      0.2112
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 67883.8844,
+     "ci": [
+      6053.2444,
+      184889.0312
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0451,
+     "ci": [
+      -0.1083,
+      0.1872
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.0274,
+     "ci": [
+      -0.4078,
+      0.2862
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0625,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -7345.5062,
+     "ci": [
+      -51677.97,
+      25566.5725
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-qwen9b": {
+   "a": "terra",
+   "b": "qwen9b",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1067,
+     "ci": [
+      0.0178,
+      0.1836
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.312,
+     "ci": [
+      0.0945,
+      0.5105
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.6875,
+     "level": 0.1875,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": -4923.3078,
+     "ci": [
+      -39741.3331,
+      20775.2366
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7812,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.0924,
+     "ci": [
+      -0.0359,
+      0.1971
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.274,
+     "ci": [
+      0.0679,
+      0.4122
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": -14075.3419,
+     "ci": [
+      -80150.2669,
+      24306.4388
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1211,
+     "ci": [
+      -0.0228,
+      0.2056
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.35,
+     "ci": [
+      -0.0407,
+      0.6612
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.25,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 4228.7262,
+     "ci": [
+      -26632.4562,
+      25232.9412
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-beam": {
+   "a": "terra",
+   "b": "beam",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.1125,
+     "ci": [
+      0.033,
+      0.1946
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    },
+    "R": {
+     "mean": 0.1867,
+     "ci": [
+      0.0539,
+      0.2982
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.5938,
+     "level": 0.25,
+     "fronts_ahead": 6
+    },
+    "P": {
+     "mean": 49207.8222,
+     "ci": [
+      2899.5186,
+      127976.7906
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.7188,
+     "level": 0.0,
+     "fronts_ahead": 6
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1196,
+     "ci": [
+      0.0198,
+      0.2185
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.1415,
+     "ci": [
+      -0.0665,
+      0.2674
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.625,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 87384.0562,
+     "ci": [
+      3611.0137,
+      238070.3075
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1053,
+     "ci": [
+      0.0054,
+      0.2333
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.2318,
+     "ci": [
+      0.0704,
+      0.3786
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.5625,
+     "level": 0.3125,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 11031.5881,
+     "ci": [
+      -4291.7856,
+      32355.0825
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.6875,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
+  "terra-qwen": {
+   "a": "terra",
+   "b": "qwen",
+   "all": {
+    "n": 32,
+    "C": {
+     "mean": 0.2004,
+     "ci": [
+      0.0983,
+      0.2942
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "R": {
+     "mean": 0.5777,
+     "ci": [
+      0.3633,
+      0.7444
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.1562,
+     "fronts_ahead": 7
+    },
+    "P": {
+     "mean": 74260.61,
+     "ci": [
+      1520.6456,
+      197153.5105
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8438,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.214,
+     "ci": [
+      0.1505,
+      0.3033
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "R": {
+     "mean": 0.6013,
+     "ci": [
+      0.4744,
+      0.7398
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.125,
+     "fronts_ahead": 4
+    },
+    "P": {
+     "mean": 136697.8163,
+     "ci": [
+      15606.0419,
+      369114.6881
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.9375,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "C": {
+     "mean": 0.1869,
+     "ci": [
+      -0.0113,
+      0.3551
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "R": {
+     "mean": 0.5541,
+     "ci": [
+      0.1253,
+      0.7951
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.1875,
+     "fronts_ahead": 3
+    },
+    "P": {
+     "mean": 11823.4038,
+     "ci": [
+      -26864.9631,
+      47194.3031
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
      "level": 0.0,
      "fronts_ahead": 3
     }
@@ -16502,6 +18504,91 @@
     }
    }
   },
+  "terra-operator_replay": {
+   "a": "terra",
+   "b": "operator_replay",
+   "all": {
+    "n": 32,
+    "P": {
+     "mean": 46372.2775,
+     "ci": [
+      -16608.8759,
+      142869.5078
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    },
+    "C": {
+     "mean": 0.106,
+     "ci": [
+      0.0075,
+      0.1968
+     ],
+     "n": 32,
+     "fronts": 8,
+     "ahead": 0.8125,
+     "level": 0.0,
+     "fronts_ahead": 7
+    }
+   },
+   "pre_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": 97952.02,
+     "ci": [
+      9406.1575,
+      269942.5963
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    },
+    "C": {
+     "mean": 0.1402,
+     "ci": [
+      0.0966,
+      0.2089
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.875,
+     "level": 0.0,
+     "fronts_ahead": 4
+    }
+   },
+   "post_cutoff": {
+    "n": 16,
+    "P": {
+     "mean": -5207.465,
+     "ci": [
+      -54292.2981,
+      32872.5819
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    },
+    "C": {
+     "mean": 0.0718,
+     "ci": [
+      -0.1041,
+      0.2408
+     ],
+     "n": 16,
+     "fronts": 4,
+     "ahead": 0.75,
+     "level": 0.0,
+     "fronts_ahead": 3
+    }
+   }
+  },
   "kimi-operator_replay": {
    "a": "kimi",
    "b": "operator_replay",
@@ -17435,6 +19522,47 @@
     }
    },
    {
+    "key": "terra",
+    "family": "terra",
+    "name": "GPT-6.1 Terra",
+    "tag": "Terra",
+    "variant": null,
+    "provider": "OpenAI",
+    "harness": "Codex CLI",
+    "setting": "effort high",
+    "weights": "API",
+    "n": 32,
+    "usd": 1.9689,
+    "basis": "list_price_tokens",
+    "C": {
+     "mean": 0.1797,
+     "ci": [
+      0.0656,
+      0.2864
+     ],
+     "n": 32,
+     "fronts": 8
+    },
+    "pre_cutoff": {
+     "mean": 0.2242,
+     "ci": [
+      0.1541,
+      0.2942
+     ],
+     "n": 16,
+     "fronts": 4
+    },
+    "post_cutoff": {
+     "mean": 0.1353,
+     "ci": [
+      -0.0486,
+      0.3231
+     ],
+     "n": 16,
+     "fronts": 4
+    }
+   },
+   {
     "key": "argon",
     "family": "argon",
     "name": "Gemini 4 Argon",
@@ -17873,6 +20001,12 @@
     "family": "luna",
     "points": [
      "luna"
+    ]
+   },
+   {
+    "family": "terra",
+    "points": [
+     "terra"
     ]
    },
    {
@@ -21610,6 +23744,652 @@
    "box": "g5",
    "instance_type": "m7i.16xlarge",
    "harness_version": "0.147.0"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-01-23-S01",
+   "run": "bench-terra-desk-v4-2026-01-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 3.2338,
+   "wall_s": 1977.2,
+   "started": "2026-11-01T16:16:26+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-01-23-S02",
+   "run": "bench-terra-desk-v4-2026-01-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9584,
+   "wall_s": 1405.4,
+   "started": "2026-11-01T16:17:11+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-terra-desk-v4-2026-01-23-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 429 rate limit (not a failure): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=2fad54c6-e65d-43a2-987e-59a52be8cc85, agent_sandbox=local-e4c76a4e): codex CLI exited with code 1 on attempt 3: stream dis",
+   "usd": 1.6324,
+   "wall_s": 1054.3,
+   "started": "2026-11-01T16:17:56+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-01-23-S03",
+   "run": "bench-terra-desk-v4-2026-01-23-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.5168,
+   "wall_s": 1608.4,
+   "started": "2026-11-01T16:53:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-terra-desk-v4-2026-01-23-S04-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=f5498f24-ea6e-46b3-9d0e-5435fdd5563a, agent_sandbox=local-6f11959e): codex CLI exited with code 1 on attempt 3: stream disconnected before completion: Your requests to ",
+   "usd": 0.5999,
+   "wall_s": 634.8,
+   "started": "2026-11-01T16:18:41+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-01-23-S04",
+   "run": "bench-terra-desk-v4-2026-01-23-S04-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.7897,
+   "wall_s": 1609.9,
+   "started": "2026-11-01T16:54:10+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-03-16-S01",
+   "run": "bench-terra-desk-v4-2026-03-16-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6411,
+   "wall_s": 1050.4,
+   "started": "2026-11-01T16:19:11+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-03-16-S02",
+   "run": "bench-terra-desk-v4-2026-03-16-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.0994,
+   "wall_s": 1513.0,
+   "started": "2026-11-01T16:19:41+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-terra-desk-v4-2026-03-16-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=5c4b4e95-84ad-49b9-b3b8-0ca0f64489e7, agent_sandbox=local-b2b073ad): codex CLI exited with code 1 on attempt 3: stream disconnected before completion: Your requests to ",
+   "usd": 0.5789,
+   "wall_s": 543.6,
+   "started": "2026-11-01T16:20:12+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-03-16-S03",
+   "run": "bench-terra-desk-v4-2026-03-16-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8192,
+   "wall_s": 1101.7,
+   "started": "2026-11-01T16:54:30+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-03-16-S04",
+   "run": "bench-terra-desk-v4-2026-03-16-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.0207,
+   "wall_s": 1283.8,
+   "started": "2026-11-01T16:20:42+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-04-03-S04",
+   "run": "bench-terra-desk-v4-2026-04-03-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.5129,
+   "wall_s": 923.3,
+   "started": "2026-11-01T17:29:11+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-04-17-S01",
+   "run": "bench-terra-desk-v4-2026-04-17-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.1018,
+   "wall_s": 1428.1,
+   "started": "2026-11-01T16:21:02+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-terra-desk-v4-2026-04-17-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "\"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=1ee1d0c1-83c0-48df-afff-98f524d24afe, agent_sandbox=local-5c969e56): codex CLI exited with code 1 on attempt 3: stream disconnected before completion: Your requests to ",
+   "usd": 0.4079,
+   "wall_s": 452.9,
+   "started": "2026-11-01T16:21:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-04-17-S02",
+   "run": "bench-terra-desk-v4-2026-04-17-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.0728,
+   "wall_s": 664.2,
+   "started": "2026-11-01T16:57:52+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-terra-desk-v4-2026-04-17-S03-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 429 rate limit (not a failure): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=fb40a58a-7d33-4c55-8660-3fa84ab9e832, agent_sandbox=local-a18d0321): codex CLI exited with code 1 on attempt 3: stream dis",
+   "usd": 0.1011,
+   "wall_s": 165.2,
+   "started": "2026-11-01T16:29:28+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-04-17-S03",
+   "run": "bench-terra-desk-v4-2026-04-17-S03-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9703,
+   "wall_s": 1157.6,
+   "started": "2026-11-01T17:09:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-05-08-S01",
+   "run": "bench-terra-desk-v4-2026-05-08-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3724,
+   "wall_s": 1623.0,
+   "started": "2026-11-01T16:30:16+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-terra-desk-v4-2026-05-08-S02-a1",
+   "attempt": 1,
+   "role": "failed",
+   "status": "failed",
+   "kind": "infrastructure",
+   "error": "provider HTTP 429 rate limit (not a failure): \"A2A task failed (error_type=agent_error, error_code=cli_error, task_id=62131a69-dba6-4246-891f-c84e63568863, agent_sandbox=local-767ebcb3): codex CLI exited with code 1 on attempt 3: stream dis",
+   "usd": 0.1433,
+   "wall_s": 189.2,
+   "started": "2026-11-01T16:30:46+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-05-08-S02",
+   "run": "bench-terra-desk-v4-2026-05-08-S02-a2",
+   "attempt": 2,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.4185,
+   "wall_s": 1012.2,
+   "started": "2026-11-01T17:13:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-05-08-S03",
+   "run": "bench-terra-desk-v4-2026-05-08-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9867,
+   "wall_s": 1125.0,
+   "started": "2026-11-01T17:21:13+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-05-08-S04",
+   "run": "bench-terra-desk-v4-2026-05-08-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.4668,
+   "wall_s": 1608.9,
+   "started": "2026-11-01T17:21:49+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-04-S01",
+   "run": "bench-terra-desk-v4-2026-07-04-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.841,
+   "wall_s": 1119.7,
+   "started": "2026-11-01T17:30:47+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-04-S02",
+   "run": "bench-terra-desk-v4-2026-07-04-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6388,
+   "wall_s": 868.0,
+   "started": "2026-11-01T17:40:24+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-04-S03",
+   "run": "bench-terra-desk-v4-2026-07-04-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7721,
+   "wall_s": 1010.0,
+   "started": "2026-11-01T17:45:01+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-04-S04",
+   "run": "bench-terra-desk-v4-2026-07-04-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6474,
+   "wall_s": 917.7,
+   "started": "2026-11-01T17:49:08+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-23-S01",
+   "run": "bench-terra-desk-v4-2026-07-23-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.9215,
+   "wall_s": 1088.9,
+   "started": "2026-11-01T17:50:00+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-23-S02",
+   "run": "bench-terra-desk-v4-2026-07-23-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7385,
+   "wall_s": 979.7,
+   "started": "2026-11-01T17:55:21+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-23-S03",
+   "run": "bench-terra-desk-v4-2026-07-23-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6472,
+   "wall_s": 960.1,
+   "started": "2026-11-01T18:02:13+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-07-23-S04",
+   "run": "bench-terra-desk-v4-2026-07-23-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.6712,
+   "wall_s": 969.9,
+   "started": "2026-11-01T18:04:50+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-18-S01",
+   "run": "bench-terra-desk-v4-2026-08-18-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3132,
+   "wall_s": 1388.0,
+   "started": "2026-11-01T18:08:42+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-18-S02",
+   "run": "bench-terra-desk-v4-2026-08-18-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.8261,
+   "wall_s": 1078.2,
+   "started": "2026-11-01T18:12:03+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-18-S03",
+   "run": "bench-terra-desk-v4-2026-08-18-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.3589,
+   "wall_s": 1018.0,
+   "started": "2026-11-01T18:18:40+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-18-S04",
+   "run": "bench-terra-desk-v4-2026-08-18-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 1.7114,
+   "wall_s": 928.3,
+   "started": "2026-11-01T18:21:32+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-26-S01",
+   "run": "bench-terra-desk-v4-2026-08-26-S01-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.4056,
+   "wall_s": 1535.4,
+   "started": "2026-11-01T18:30:24+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-26-S02",
+   "run": "bench-terra-desk-v4-2026-08-26-S02-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.0903,
+   "wall_s": 1270.1,
+   "started": "2026-11-01T18:32:15+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-26-S03",
+   "run": "bench-terra-desk-v4-2026-08-26-S03-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.0441,
+   "wall_s": 1343.0,
+   "started": "2026-11-01T18:36:07+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
+  },
+  {
+   "model": "terra",
+   "task_id": "desk-v4-2026-08-26-S04",
+   "run": "bench-terra-desk-v4-2026-08-26-S04-a1",
+   "attempt": 1,
+   "role": "scored",
+   "status": "completed",
+   "kind": null,
+   "error": null,
+   "usd": 2.3958,
+   "wall_s": 1433.8,
+   "started": "2026-11-01T18:37:29+00:00",
+   "box": "g5",
+   "instance_type": "m7i.16xlarge",
+   "harness_version": "0.147.0",
+   "framework": "0.9.1396"
   },
   {
    "model": "argon",
@@ -27824,7 +30604,7 @@
   "diffs": []
  },
  "run": {
-  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B), 0.9.1383 (Gemini 4 Argon) and 0.9.1396 (Beam-1.0, GLM-5.3, Kimi K3, Qwen3.8 Max, Qwen3.5-9B, Qwen3.5-9B + desk SFT, Claude Haiku 5.5, GLM-5.3-Flash and DeepSeek V4.1 Flash)",
+  "framework": "0.9.1377 (Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna), 0.9.1378 (Qwen3-4B), 0.9.1383 (Gemini 4 Argon) and 0.9.1396 (Beam-1.0, GLM-5.3, Kimi K3, Qwen3.8 Max, Qwen3.5-9B, Qwen3.5-9B + desk SFT, Claude Haiku 5.5, GLM-5.3-Flash, DeepSeek V4.1 Flash and GPT-6.1 Terra)",
   "bundle": "desk-v4-bench-run1",
   "prereg": "docs/prereg/v4-bench.md",
   "route": "ec2",
@@ -27842,8 +30622,8 @@
   "core_versions": [
    "desk-2.1"
   ],
-  "metered_attempts": 138,
-  "deviations_ref": "desk-v4-bench-results-6",
+  "metered_attempts": 144,
+  "deviations_ref": "desk-v4-bench-results-7",
   "prices_per_mtok": {
    "claude-opus-5-5": {
     "in": 4.0,
@@ -27946,13 +30726,26 @@
     "cached": 0.006,
     "write": 0.3,
     "out": 1.2
+   },
+   "gpt-6.1-terra": {
+    "in": 1.0,
+    "cached": 0.05,
+    "write": 1.25,
+    "out": 5.0,
+    "above": 272000,
+    "tier": {
+     "in": 2.0,
+     "cached": 0.1,
+     "write": 2.5,
+     "out": 7.5
+    }
    }
   }
  },
  "deviations": [
   "Route C: the episodes ran on EC2 boxes with local Docker rather than in Modal sandboxes; the internet was closed by a host rule and a per-run model proxy instead of Modal's network policy (the pre-registration gives the reasons).",
   "agentenv-framework 0.9.1377 on the box that ran Claude Opus 5.5, GPT-6.1 Sol and GPT-6 Luna, and 0.9.1378 on the Qwen3-4B boxes; the agent images are identical by digest.",
-  "Infrastructure retries (GPT-6.1 Sol 39, DeepSeek V4.1 Flash 2, Qwen3.5-9B + desk SFT 1, Gemini 4 Argon 20, GLM-5.3 12, Kimi K3 1, GLM-5.3-Flash 0, Claude Opus 5.5 27, Qwen3.8 Max 3, GPT-6 Luna 22, Claude Haiku 5.5 0, Qwen3.5-9B 4, Beam-1.0 4, Qwen3-4B 0): every attempt is kept and its spend counted.",
+  "Infrastructure retries (GPT-6.1 Sol 39, DeepSeek V4.1 Flash 2, Qwen3.5-9B + desk SFT 1, Gemini 4 Argon 20, GLM-5.3 12, GPT-6.1 Terra 6, Kimi K3 1, GLM-5.3-Flash 0, Claude Opus 5.5 27, Qwen3.8 Max 3, GPT-6 Luna 22, Claude Haiku 5.5 0, Qwen3.5-9B 4, Beam-1.0 4, Qwen3-4B 0): every attempt is kept and its spend counted.",
   "Retry rule, decided mid-run before the affected windows' results: an attempt that failed at env deploy for $0 because of our launcher's port race does not count toward the at-most-two-retries limit. All 81 such failures were port races (GPT-6.1 Sol 35, Claude Opus 5.5 27, GPT-6 Luna 19); only GPT-6.1 Sol's desk-v4-2026-03-16-S04 and desk-v4-2026-04-17-S02 were affected, both graded on attempt 4.",
   "Stalls: Codex's 300 s inactivity watchdog at effort high stopped 4 GPT-6.1 Sol and 3 GPT-6 Luna attempts; they count as infrastructure and were retried, and their spend is included in the cost.",
   "Cost basis: cost a window is the graded attempt's; the table also gives each model's total spend, retries and stalls included.",
@@ -27973,7 +30766,8 @@
   "Qwen3.5-9B + desk SFT: added after the others as the secondary comparison of the desk-distill pre-registration (docs/prereg/desk-distill.md); on that pre-registration's primary test, 18 held-out windows, it missed the bar (+3.8 points [−3.4, +10.6] over base). Served by our own vLLM 0.29.0 on two g7e.8xlarge boxes, not by Fireworks as base Qwen3.5-9B was, so the two 9B rows are served differently; it ran from 03:51 to 06:31 UTC on 2026-11-01, and its cost is GPU time at the $4.50 an hour spot price paid, $0.56 a window.",
   "Both Qwen3.5-9B harnesses differ from Qwen3-4B's: a 262k-token context (262,144 for the SFT, 262,143 for base, the Fireworks deployment's maximum) where Qwen3-4B's had 32,768, and a cap of 20 OpenCode steps a turn where it had none; the output limit is 8,192 tokens for all three. That output limit ended 4 attempts of base Qwen3.5-9B and 1 of the SFT, each retried as infrastructure.",
   "Training data and these windows: the SFT's training windows read D-7 to D2 of their dates, and only the 2026-05-08 front's operating days (05-08 to 05-10, its four windows) fall inside any of those spans, as the DAM and MCPC price history of the 16 training windows that start 2026-05-14 to 05-17. The training transcripts never name those days, and on those four windows the SFT's C is within 1.7 points of the planner's. The training pack, data/desk/desk-v4-win, is on the plugin's desk-distill branch at 13d53f9 and can be rebuilt with scripts/desk_data_build.py.",
-  "Claude Haiku 5.5, GLM-5.3-Flash and DeepSeek V4.1 Flash: added after the others at Edgar's request, for more models between $0.2 and $0.5 a window, by the pre-registration's items 52 to 55, committed before their first scored call, and run at once on 2026-11-01 from 16:02 to 17:16 UTC by route C on agentenv-framework 0.9.1396: Claude Haiku 5.5 in Claude Code 2.1.280 as Claude Opus 5.5's row, GLM-5.3-Flash and DeepSeek V4.1 Flash served by Fireworks in OpenCode 1.17.18 as GLM-5.3's row. Each is costed at its maker's list price per million input / cached / output tokens: Claude Haiku 5.5 $0.10 / $0.01 / $0.50 with cache writes at $0.125, and $0.50 / $0.05 / $2.50 with writes at $0.625 on each call whose whole prompt passed 100K tokens, 1,101 of its calls; GLM-5.3-Flash $0.15 / $0.03 / $0.50; DeepSeek V4.1 Flash $0.30 / $0.006 / $1.20, its peak rate throughout. Claude Haiku 5.5 and GLM-5.3-Flash graded every window on the first attempt; OpenCode's 32,768-token output limit ended two DeepSeek V4.1 Flash attempts, which were retried as infrastructure and graded on the second. The proxy metered $29.83 for the three."
+  "Claude Haiku 5.5, GLM-5.3-Flash and DeepSeek V4.1 Flash: added after the others at Edgar's request, for more models between $0.2 and $0.5 a window, by the pre-registration's items 52 to 55, committed before their first scored call, and run at once on 2026-11-01 from 16:02 to 17:16 UTC by route C on agentenv-framework 0.9.1396: Claude Haiku 5.5 in Claude Code 2.1.280 as Claude Opus 5.5's row, GLM-5.3-Flash and DeepSeek V4.1 Flash served by Fireworks in OpenCode 1.17.18 as GLM-5.3's row. Each is costed at its maker's list price per million input / cached / output tokens: Claude Haiku 5.5 $0.10 / $0.01 / $0.50 with cache writes at $0.125, and $0.50 / $0.05 / $2.50 with writes at $0.625 on each call whose whole prompt passed 100K tokens, 1,101 of its calls; GLM-5.3-Flash $0.15 / $0.03 / $0.50; DeepSeek V4.1 Flash $0.30 / $0.006 / $1.20, its peak rate throughout. Claude Haiku 5.5 and GLM-5.3-Flash graded every window on the first attempt; OpenCode's 32,768-token output limit ended two DeepSeek V4.1 Flash attempts, which were retried as infrastructure and graded on the second.",
+  "GPT-6.1 Terra: added beside the three small models at Edgar's request, by the pre-registration's item 56, committed before its first scored call, and run on 2026-11-01 from 16:16 to 19:01 UTC by route C on agentenv-framework 0.9.1396, served through Azure in Codex CLI 0.147.0 as GPT-6.1 Sol and GPT-6 Luna, with an entry for Terra copied from Sol's in OpenAI's Codex catalog. It is costed at OpenAI's list price per million input / cached / output tokens, $1.00 / $0.05 / $5.00 with cache writes at $1.25, and $2.00 / $0.10 / $7.50 with writes at $2.50 above a 272K-token prompt, which no call reached. The provider's token rate limit ended six attempts after Codex's own retries; they count as infrastructure and were retried, and each of those windows was graded on its second attempt."
  ],
  "defects": null,
  "notes": null,
@@ -27990,10 +30784,10 @@
  },
  "text": {
   "halves": "Every model scores lower on Jul–Aug than on Jan–May, and that includes Qwen3-4B, whose training predates every window. So the drop reflects harder windows (the Jan–May half includes winter storm Fern), not evidence of training-data contamination. No model the rule covers has a post − pre interval that excludes zero, so all 32 windows lead, by a rule set before any API result.",
-  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, Claude Opus 5.5, GPT-6 Luna, Claude Haiku 5.5 and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; DeepSeek V4.1 Flash, Qwen3.5-9B + desk SFT, GLM-5.3, Kimi K3, GLM-5.3-Flash, Qwen3.8 Max and Qwen3.5-9B, with no reported cutoff, can trigger it too.",
+  "rule": "The pre-registered rule that the post-cutoff half leads if the halves differ guards against training-data contamination, so, as read before any API-model result, only a model whose reported training cutoff comes after the first pre-cutoff window (GPT-6.1 Sol, Gemini 4 Argon, GPT-6.1 Terra, Claude Opus 5.5, GPT-6 Luna, Claude Haiku 5.5 and Beam-1.0) can trigger it, when its post − pre interval in C excludes zero; DeepSeek V4.1 Flash, Qwen3.5-9B + desk SFT, GLM-5.3, Kimi K3, GLM-5.3-Flash, Qwen3.8 Max and Qwen3.5-9B, with no reported cutoff, can trigger it too.",
   "valid": "Qwen3-4B made no valid submission on 7 of its 32 windows (R = 0 there).",
-  "reliability": "583 attempts for 448 model-windows; 139 did not reach the grade (infrastructure ×135, episode spend cap, final ×4). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), Gemini 4 Argon's ended by a transient provider 400 from 18:06 UTC and Beam-1.0's ended by the router's HTTP 402 when its account ran out of credits didn't count toward the two-retry limit (see Deviations). Windows not scored and not imputed: Kimi K3, episode spend cap, final ×4.",
+  "reliability": "621 attempts for 480 model-windows; 145 did not reach the grade (infrastructure ×141, episode spend cap, final ×4). Infrastructure failures were retried; attempts that failed before any model call (a port race in our launcher, $0), Gemini 4 Argon's ended by a transient provider 400 from 18:06 UTC and Beam-1.0's ended by the router's HTTP 402 when its account ran out of credits didn't count toward the two-retry limit (see Deviations). Windows not scored and not imputed: Kimi K3, episode spend cap, final ×4.",
   "metered": "Interrupted attempts are costed from the proxy meter, because their last turn never reaches the trajectory; a meter that ran at another price than the one used here is scaled by the two prices' ratio on the attempt's trajectory tokens.",
-  "frontier": "The cost frontier, cheapest first: GLM-5.3-Flash ($0.15, C 16.9%), DeepSeek V4.1 Flash ($0.38, C 24.6%) and GPT-6.1 Sol ($4.12, C 27.0%). No other model is both cheaper and higher in C; the other 11 are dominated."
+  "frontier": "The cost frontier, cheapest first: GLM-5.3-Flash ($0.15, C 16.9%), DeepSeek V4.1 Flash ($0.38, C 24.6%) and GPT-6.1 Sol ($4.12, C 27.0%). No other model is both cheaper and higher in C; the other 12 are dominated."
  }
 }
