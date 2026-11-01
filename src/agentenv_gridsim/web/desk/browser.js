@@ -7,7 +7,7 @@ import { esc, num, pc, shortSpan, usd } from "./fmt.js";
 const ORDER = ["sol", "luna", "qwen"];
 const WX = { "freezing rain": "Freezing rain", "snow and sleet": "Snow and sleet", thunderstorms: "Thunderstorms", "hard freeze": "Hard freeze", "extreme heat": "Extreme heat", rain: "Rain" };
 const SORTS = { window: 1, C: -1, R: -1, P: -1, usd: -1 };
-const WORDS = ["none", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const WORDS = ["none", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"];
 const $ = (id) => document.getElementById(id);
 
 export function buildSheet(C, { onPick }) {

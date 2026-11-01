@@ -103,6 +103,10 @@ table.grid th.ck, table.grid td.ck { padding-left: 14px; border-left: 1px dashed
 .who { display: inline-flex; align-items: flex-start; gap: 9px; }
 .who > i { flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; }
 .who > i.m-beam, .legend .sw.m-beam, table.replays td.rp a i.m-beam { border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.who > i.m-opus, .legend .sw.m-opus, table.replays td.rp :is(a, .off) i.m-opus, .who > i.m-haiku, .legend .sw.m-haiku, table.replays td.rp :is(a, .off) i.m-haiku { border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.who > i.m-argon, .legend .sw.m-argon, table.replays td.rp :is(a, .off) i.m-argon { border-radius: 1.5px; }
+.who > i.m-glmflash, .legend .sw.m-glmflash, table.replays td.rp :is(a, .off) i.m-glmflash { border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
+.who > i.m-dsflash, .legend .sw.m-dsflash, table.replays td.rp :is(a, .off) i.m-dsflash { border-radius: 0; clip-path: polygon(0 0, 50% 32%, 100% 0, 100% 100%, 50% 68%, 0 100%); }
 .who > i.m-glm, .legend .sw.m-glm, table.replays td.rp :is(a, .off) i.m-glm { border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
 .who > i.m-kimi, .legend .sw.m-kimi, table.replays td.rp :is(a, .off) i.m-kimi { border-radius: 0; clip-path: polygon(50% 0, 62% 35%, 98% 35%, 69% 57%, 79% 91%, 50% 70%, 21% 91%, 31% 57%, 2% 35%, 38% 35%); }
 .who > i.m-qwenmax, .legend .sw.m-qwenmax, table.replays td.rp :is(a, .off) i.m-qwenmax { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
