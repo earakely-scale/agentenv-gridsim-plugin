@@ -188,7 +188,9 @@ proxy above. Descriptive, over the 9-window subset: C(student) − C(base) = −
 The student played the 32 `desk-v4-bench` windows (16 on each eval box, item 10), all graded, one output-cap retry:
 C 0.203, the benchmark's front-block interval [0.069, 0.374]; 0.249 before the models' cutoffs and 0.158 after;
 $0.56 a window of GPU share at the g7e.8xlarge spot price ($4.50 an hour). Against base's 32 bench rows from the
-other lane (served through Fireworks, item 9; its harness is labelled `opencode-qwen9b`), C(student) − C(base) =
+other lane (served through Fireworks, item 9; its harness `opencode-qwen9b` is `opencode-qwen35-long` exactly, OpenCode
+1.17.18, temperature 0.6, top_p 0.95, top_k 20, min_p 0, thinking on, 8,192 output tokens and 20 steps a turn, but for
+a context limit of 262,143 tokens, the Fireworks deployment's maximum, against 262,144), C(student) − C(base) =
 +0.130, 95% front-block interval [+0.063, +0.196] (eight fronts, 10,000 resamples, seed 0), student better on 23
 windows and worse on 9; base 0.073 [−0.024, 0.193]. As pre-registered, this is secondary and does not change the
 primary verdict.
