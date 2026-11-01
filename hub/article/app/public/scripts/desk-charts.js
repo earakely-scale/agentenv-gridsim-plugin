@@ -308,15 +308,15 @@ function daily(v, D, W, narrow, scale) {
   return svg(W, fy + 8, s, `Hindsight capture by ${multi ? "front" : "day"}, ${v.version}`);
 }
 
-const BENCH = ["opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen"];
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen: "var(--c-qwen)" };
+const BENCH = ["opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen9b", "qwen"];
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen: "var(--c-qwen)" };
 const SHAPE = { Anthropic: "diamond", OpenAI: "circle", Google: "square", Reflection: "triangle-down", "Z.ai": "cross", "Moonshot AI": "star", Qwen: "triangle" };
 const SIZES = { width: 600, lead: 660, phone: 350 };
 const bcol = (p) => BCOL[p.family] || BCOL[p.key] || "var(--ink-3)";
 const brank = (p) => (BENCH.includes(p.family) ? BENCH.indexOf(p.family) : BENCH.length);
 const bpts = (Bn) => [...Bn.plot.points].sort((a, b) => brank(a) - brank(b) || (a.key === a.family ? 0 : 1) - (b.key === b.family ? 0 : 1));
 const pname = (p, narrow) => (narrow ? p.tag || p.short : p.name) + (p.variant && p.variant !== "untrained" ? ` · ${p.variant}` : p.variant && !narrow ? ` (${p.variant})` : "");
-const lw = (l) => measure(l.t, l.cls) + (l.tail ? measure(l.tail, "t-end-q") : 0);
+const lw = (l) => measure(l.t, l.cls) + (l.tail ? measure(l.tail, "t-tail") : 0);
 
 function mark(shape, x, y, r, fill, cls = "mk", hollow = false) {
   const a = hollow ? `fill="var(--halo)" stroke="${fill}" class="mk-o"` : `fill="${fill}" class="${cls}"`;
@@ -426,8 +426,157 @@ function splitsChart(Bn, W, narrow) {
   return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture before and after the models' training cutoffs");
 }
 
+const usdTick = (v) => (v >= 1 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);
+const usdVal = (v) => (v >= 10 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);
+const BASIS = { gpu_time: "GPU time", metered_rate: "metered" };
+
+function logTicks(lo, hi) {
+  const steps = Math.log10(hi / lo) > 2.2 ? [1, 3] : [1, 2, 5], out = [];
+  for (let k = Math.floor(Math.log10(lo)) - 1; k <= Math.ceil(Math.log10(hi)) + 1; k++) {
+    for (const m of steps) {
+      const v = +(m * 10 ** k).toPrecision(3);
+      if (v >= lo * 0.999 && v <= hi * 1.001) out.push(v);
+    }
+  }
+  return out;
+}
+
+function placeBoxes(items, obstacles, bounds) {
+  const boxes = [...obstacles.boxes], dots = obstacles.dots, done = [];
+  const hit = (b) => 2.5 * dots.filter(([x, y]) => x > b[0] - 2 && x < b[2] + 2 && y > b[1] - 2 && y < b[3] + 2).length
+    + 6 * boxes.reduce((s, o) => s + Math.max(0, Math.min(b[2], o[2]) - Math.max(b[0], o[0])) * Math.max(0, Math.min(b[3], o[3]) - Math.max(b[1], o[1])) / 40, 0)
+    + (b[0] < bounds[0] || b[2] > bounds[2] || b[1] < bounds[1] || b[3] > bounds[3] ? 400 : 0);
+  for (const it of items) {
+    let best = null;
+    it.alts.forEach((lines, ai) => {
+      const w = Math.max(...lines.map(lw)), lh = lines.map((l) => l.size * 1.22), h = lh.reduce((a, b) => a + b, 0);
+      [1, 2.1, 3.2].forEach((ring, ri) => {
+        const g = (it.r + 6) * ring, d = 4 * ring;
+        [["start", it.x + g, it.y - h / 2], ["end", it.x - g, it.y - h / 2], ["middle", it.x, it.y - g - h + 2], ["middle", it.x, it.y + g - 1],
+          ["start", it.x + g - d, it.y - g - h + d + 1], ["end", it.x - g + d, it.y - g - h + d + 1], ["start", it.x + g - d, it.y + g - d - 1], ["end", it.x - g + d, it.y + g - d - 1]]
+          .forEach(([a, x, top], i) => {
+            const x0 = a === "middle" ? x - w / 2 : a === "start" ? x : x - w, b = [x0, top, x0 + w, top + h];
+            const score = hit(b) + (i === (it.prefer ?? 0) ? 0 : 0.5 + i * 0.3) + ai * 2 + ri * 4;
+            if (!best || score < best.score) best = { a, x, top, b, score, lines, lh, far: ri > 0 };
+          });
+      });
+    });
+    boxes.push(best.b);
+    done.push({ ...it, mx: it.x, my: it.y, ...best });
+  }
+  return done;
+}
+
+function boxText(p) {
+  let y = p.top, s = "";
+  if (p.far) {
+    const qx = Math.min(Math.max(p.mx, p.b[0]), p.b[2]), qy = Math.min(Math.max(p.my, p.b[1]), p.b[3]);
+    const d = Math.hypot(qx - p.mx, qy - p.my) || 1, ux = (qx - p.mx) / d, uy = (qy - p.my) / d;
+    s += `<path class="lead" d="M${f1(p.mx + ux * (p.r + 3))},${f1(p.my + uy * (p.r + 3))}L${f1(qx - ux * 3)},${f1(qy - uy * 3)}"/>`;
+  }
+  p.lines.forEach((l, i) => {
+    const yy = y + l.size * 0.98, anchor = p.a === "start" ? "" : ` text-anchor="${p.a}"`;
+    s += l.tail ? `<text x="${f1(p.x)}" y="${f1(yy)}" class="${l.cls}"${anchor}>${esc(l.t)}<tspan class="t-tail">${esc(l.tail)}</tspan></text>` : T(p.x, yy, l.t, l.cls, p.a);
+    y += p.lh[i];
+  });
+  return s;
+}
+
+function paretoNotes(Bn) {
+  const ms = Bn.models, pts = Bn.plot.points, gpu = pts.filter((p) => p.basis === "gpu_time").map((p) => p.name);
+  const and = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0]);
+  const short = Object.values(ms).filter((m) => m.n && m.n < Bn.n_windows).map((m) => `${m.name}'s ${m.n} of ${Bn.n_windows}`);
+  const sft = Object.values(ms).find((m) => m.family && m.family !== m.key && m.distilled);
+  return [
+    `Each point: a model's mean C over its scored windows${short.length ? ` (${short.join("; ")})` : ""} against its mean cost a window, on a log scale. The step line joins the models no other model beats on both; the shading is what they dominate. The frontier uses means, and most 95% CIs, in the table, overlap.`,
+    `Cost: each window's tokens at the model maker's list price${gpu.length ? `; GPU time for ${and(gpu)}, its share of a GPU box's hourly price` : ""}.`,
+    ...pts.map((p) => ms[p.key]?.price_note).filter(Boolean),
+    ...(sft ? [`${sft.name}: ${sft.distilled}`] : []),
+  ];
+}
+
+function paretoChart(Bn, W, phone) {
+  const narrow = phone || W < 640;
+  const pp = bpts(Bn).filter((p) => p.usd > 0 && p.C.mean != null), on = new Set(Bn.plot.frontier || []);
+  const anchor = Bn.plot.references.anchor?.all?.mean, ms = Bn.models;
+  let [s, y] = header("Hindsight capture against cost", narrow ? "C, % · USD a window, log scale" : "C, % · USD per three-day window, log scale", W);
+  const keyItems = [{ k: "step", label: narrow ? "On the frontier" : "On the frontier: no model is cheaper and higher", cls: "t-key b" },
+    { k: "dom", label: "Dominated", cls: "t-key" }];
+  let kx = 0, ky = y + 26, keyS = "";
+  for (const it of keyItems) {
+    const w = 26 + measure(it.label, it.cls);
+    if (kx > 0 && kx + w > W) (kx = 0), (ky += 21);
+    const gy = ky - 4.5;
+    keyS += it.k === "step" ? `<path class="stair" d="M${f1(kx)},${f1(gy + 4)}H${f1(kx + 8)}V${f1(gy - 4)}H${f1(kx + 18)}"/>${mark("circle", kx + 8, gy + 4, 3.6, "var(--ink-2)", "mk-s")}`
+      : mark("circle", kx + 9, gy, 4.6, "var(--c-hind)", "mk-s");
+    keyS += T(kx + 26, ky, it.label, it.cls);
+    kx += w + 16;
+  }
+  s += keyS;
+  y = ky;
+  const cs = pp.map((p) => p.usd), steps = [1, 2, 5].flatMap((m) => [-3, -2, -1, 0, 1, 2].map((k) => m * 10 ** k)).sort((a, b) => a - b);
+  const x0 = [...steps].reverse().find((v) => v <= Math.min(...cs) / 1.4) ?? 0.001, x1 = steps.find((v) => v >= Math.max(...cs) * 1.3) ?? 100;
+  const vals = pp.map((p) => p.C.mean);
+  const lo = Math.min(0, Math.floor((Math.min(...vals) - 0.02) * 20) / 20), hi = Math.ceil((Math.max(...vals) + 0.025) * 20 - 1e-9) / 20;
+  const tk = ticks(lo, hi, hi - lo > 0.62 ? 0.2 : 0.1, "t-tick"), L = Math.max(...tk.map((k) => k.w)) + 12, R = W - 4;
+  const ptop = y + (narrow ? 26 : 30), PH = narrow ? 360 : 352, bottom = ptop + PH;
+  const yv = lin(lo, hi, bottom, ptop), xl = lin(Math.log10(x0), Math.log10(x1), L + 14, R - 8), xv = (v) => xl(Math.log10(v));
+  let back = "", lines = "", marks = "", labels = "";
+  for (const k of tk) back += L_(L, yv(k.t), R, yv(k.t), k.t ? "grid" : "zero") + T(L - 8, yv(k.t) + 4.5, k.label, "t-tick", "end");
+  const tickBoxes = tk.map((k) => [L - 8 - k.w, yv(k.t) - 7, L - 4, yv(k.t) + 7]);
+  const xt = logTicks(x0, x1), shown = narrow && xt.length > 5 ? xt.filter((_, i) => i % 2 === 0) : xt;
+  for (const v of xt) back += L_(xv(v), ptop - 4, xv(v), bottom, "grid");
+  for (const v of shown) back += T(xv(v), bottom + 19, usdTick(v), "t-tick", "middle");
+  back += T((L + R) / 2, bottom + 41, narrow ? "USD a window, log scale" : "Cost per three-day window, USD, log scale", "t-unit", "middle");
+  const fr = pp.filter((p) => on.has(p.key)).sort((a, b) => a.usd - b.usd), fp = fr.map((p) => [xv(p.usd), yv(p.C.mean)]);
+  const obst = { boxes: [...tickBoxes], dots: lo < 0 ? sample([[[L, yv(0)], [R, yv(0)]]]) : [] };
+  if (fp.length) {
+    let st = `M${f1(fp[0][0])},${f1(fp[0][1])}`;
+    const stair = [[fp[0][0], fp[0][1]]];
+    for (let i = 1; i < fp.length; i++) {
+      st += `H${f1(fp[i][0])}V${f1(fp[i][1])}`;
+      stair.push([fp[i][0], fp[i - 1][1]], [fp[i][0], fp[i][1]]);
+    }
+    st += `H${f1(R)}`;
+    stair.push([R, fp.at(-1)[1]]);
+    back += `<path class="shade" d="${st}V${f1(bottom)}H${f1(fp[0][0])}Z"/>`;
+    if (!narrow) {
+      const dw = measure("dominated region", "t-dom");
+      back += T(R - 8, bottom - 10, "dominated region", "t-dom", "end");
+      obst.boxes.push([R - 8 - dw, bottom - 24, R, bottom]);
+    }
+    lines += `<path class="stair" d="${st}"/>`;
+    obst.dots.push(...sample([stair]));
+  }
+  const r = narrow ? 5.6 : 6.6, rd = narrow ? 4.8 : 5.4, rad = (p) => (on.has(p.key) ? r : rd);
+  for (const p of [...pp].sort((a, b) => on.has(a.key) - on.has(b.key))) {
+    const x = xv(p.usd), yy = yv(p.C.mean), m = ms[p.key] || {};
+    const tip = `${p.name}: C ${pct(p.C.mean)} [${pts(p.C.ci[0])}, ${pts(p.C.ci[1])}], ${usdVal(p.usd)} a window${BASIS[p.basis] ? `, ${BASIS[p.basis]}` : ""}${on.has(p.key) ? ", on the frontier" : ", dominated"}${m.n && m.n < Bn.n_windows ? `, ${m.n} of ${Bn.n_windows} windows` : ""}`;
+    marks += `<g class="pt" data-k="${p.key}"><title>${esc(tip)}</title>${mark(SHAPE[p.provider], x, yy, rad(p), on.has(p.key) ? bcol(p) : "var(--c-hind)", "mk", p.key !== p.family)}</g>`;
+    obst.boxes.push([x - rad(p) - 3, yy - rad(p) - 3, x + rad(p) + 3, yy + rad(p) + 3]);
+  }
+  const want = [...pp].sort((a, b) => on.has(b.key) - on.has(a.key) || b.C.mean - a.C.mean).map((p) => {
+    const f = on.has(p.key), m = ms[p.key] || {}, n = m.n && m.n < Bn.n_windows ? ` (${m.n} of ${Bn.n_windows})` : "";
+    const nm = (narrow ? p.tag || p.name : p.name) + n, cls = f ? "t-end b" : "t-end op-t";
+    const v = `${pct(p.C.mean)} · ${usdVal(p.usd)}${BASIS[p.basis] ? ` ${BASIS[p.basis]}` : ""}`;
+    const itself = anchor != null ? `(itself ${pct(anchor)})` : "";
+    const note = !m.distilled_short || narrow ? [] : [{ t: `${m.distilled_short} ${itself}`.trim(), cls: "t-end-q", size: 12.5 }];
+    const at = { key: p.key, x: xv(p.usd), y: yv(p.C.mean), r: rad(p), prefer: xv(p.usd) > (L + R) * 0.62 ? 1 : 0 };
+    if (narrow && !f) return { ...at, alts: [[{ t: p.tag || p.name, cls: "t-tag", size: 12.5 }]] };
+    return { ...at, alts: [[{ t: nm, cls, size: 14 }, { t: v, cls: f ? "t-pv b" : "t-pv", size: 12.5 }, ...note], [{ t: nm, cls, size: 14, tail: `  ${v}` }, ...note]] };
+  });
+  for (const p of placeBoxes(want, obst, [2, ptop - 20, W - 2, bottom - 2])) labels += boxText(p);
+  let fy = bottom + 48;
+  for (const note of paretoNotes(Bn)) {
+    for (const line of wrap(note, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
+    fy += 3;
+  }
+  const H = fy + 6;
+  return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture against cost per window, with the cost frontier");
+}
+
 const PAINT = { fill: "", "fill-opacity": "1", stroke: "none", "stroke-width": "", "stroke-opacity": "1", "stroke-dasharray": "none", "stroke-linecap": "butt", "stroke-linejoin": "miter", "paint-order": "normal", opacity: "1" };
-const FONT = { "font-size": "", "font-weight": "400" };
+const FONT = { "font-size": "", "font-weight": "400", "font-style": "normal" };
 
 async function woff2() {
   const u = new Uint8Array(await (await fetch("./fonts/plex-sans.woff2")).arrayBuffer());
@@ -466,7 +615,7 @@ async function main() {
   }
   if (Bn) {
     const c = D ? { lead: D.charts.lead, width: D.charts.width, phone: D.charts.phone.width } : SIZES;
-    figs.push(...[["", false], ["-phone", true]].map(([sfx, narrow]) => [`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)]));
+    figs.push(...[["", false], ["-phone", true]].flatMap(([sfx, narrow]) => [[`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)], [`bench-pareto${sfx}`, paretoChart(Bn, narrow ? c.phone : c.lead, narrow)]]));
   }
   document.getElementById("figs").innerHTML = figs.map(([id, body]) => `<section class="fig" data-figure="${id}">${body}</section>`).join("");
   const font = await woff2();
@@ -476,4 +625,4 @@ async function main() {
 
 if (document.getElementById("figs")) main();
 
-export { splitsChart };
+export { paretoChart, splitsChart };
