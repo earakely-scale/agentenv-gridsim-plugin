@@ -1,0 +1,196 @@
+# Distilling the desk anchor into Qwen3.5-9B: pre-registration
+
+Committed before any training data is generated and before any model plays a held-out window. Nothing below changes
+after training data exists; anything done differently is logged under "Deviations", appended later.
+
+## Question
+Does Qwen3.5-9B (thinking on), fine-tuned with TRL `SFTTrainer` (LoRA) on transcripts of the desk's anchor, capture more
+of hindsight than base Qwen3.5-9B on three-day desk-v4 windows it never trained on, both played in OpenCode?
+
+## Teacher
+The desk's information-matched anchor, `gridsim_core.desk.policies.anchor` (v4 setting: risk 1.5, DAM position spread):
+at every wake but reminders it calls the agent-visible `optimize` tool and submits what it proposes
+(`submit_dam_offers`, `submit_rt_offers`, `update_cop`, AS offers included). No third-party model's output is used.
+
+## Windows
+Pack `desk-v4-win` (task ids `desk-v4w-<d0>-<site>`), built by `scripts/desk_data_build.py desk-v4-win` with the
+sources and rules of `desk-v4-train` (docs/desk-data.md §14): three operating days D0..D2 under the v4 layer at the
+four desk sites; operating days only in 2025-12-20..2026-01-22 and 2026-05-11..2026-07-03; no DST change in D-8..D2;
+no window holding 2026-01-08 or 2026-06-04 (gaps in the price history); every operating day more than 3 days from every
+day of `desk-v4-bench`, `desk-v4-eval` and `desk-v4-pilot`. The lists are computed by
+`scripts/desk_distill_windows.py`.
+
+**Held-out (eval), 36 site-windows:** the windows starting 2026-01-09, 01-13, 01-17, 06-06, 06-09, 06-12, 06-15, 06-18
+and 06-22, at S01–S04. They are nine of the 24 `desk-v4-train` windows and include its three val windows (01-13,
+06-06, 06-09), so none of the 36 val days the GRPO kit evaluates on is trained on. Two contiguous blocks, one per
+period, so that the lookback rule below costs the fewest training windows.
+
+**Training, 144 site-windows:** every start d0 that meets the window rules and whose span holds no held-out operating
+day, at S01–S04: 2025-12-20 through 2026-01-05 (17 starts) and 2026-05-14 through 2026-06-01 (19 starts). Starts one
+day apart overlap; they are different episodes (start time, state of charge, the forecasts issued, the DAM gates).
+They cover 40 distinct operating days.
+
+**Leakage rule.** A window starting d0 reads the dates D-7..D2: the DAM and MCPC history D-7..D-1, RT and system series
+D-1..D2, the operating days. No training window's span holds an operating day of a held-out window (the closest is two
+days away), so no price, outcome or event a held-out window is scored on appears in training data. The desk forecast's
+vintages for a window come from a model fitted on data before the window's month; ERCOT's forecasts are as issued.
+Checked in code by `scripts/desk_distill_windows.py`: the span check asserts the rule on the lists; with `--pack` it
+scans every date string in every training task's built series and reports any that falls on a held-out operating day.
+
+## Training data
+Transcripts of the anchor playing the training windows, rendered exactly as OpenCode sends Qwen3.5-9B's requests
+through vLLM (its system prompt, the 29 tools under their `env####_` names, each wake as a JSON-string user message,
+earlier wakes' reasoning dropped by the chat template). Each wake the anchor plans at: the `optimize` call, the
+submits with their real outputs, then a reply without a tool call, which ends the turn in OpenCode. The thinking in
+each assistant turn is a short rationale written by code from that wake's inputs only (the wake message and the
+outputs of the calls made so far in that wake): never hindsight, references, the grade or later data.
+
+Planned variant: the anchor planning at every other wake but reminders (on 215 single train days it kept 107% of the
+full anchor's C with about two thirds of its tokens). Kept if, on the 144 training windows, its mean C is at least the
+full anchor's minus 0.01 and its longest transcript fits the serving context below; otherwise the full anchor. The
+choice and both numbers are reported before training.
+
+## Eval protocol
+- **Models.** Base: `Qwen/Qwen3.5-9B` at revision c202236235762e1c871ad0ccb60c8ee5ba337b9a, bf16. Student: the SFT LoRA
+  merged into that base, saved with the base's tokenizer and processor files.
+- **Serving.** vLLM 0.29.0, the same flags for both: `--served-model-name qwen3.5-9b --dtype bfloat16
+  --enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3 --enable-prefix-caching
+  --enable-prompt-tokens-details --language-model-only --max-model-len 262144`.
+- **Harness.** OpenCode 1.17.18 on route C (local Docker, the host egress rule, the strict per-lane proxy), as the v4
+  benchmark ran base Qwen3-4B, with the `opencode-qwen35-long` harness (`bench/harness/bench-opencode-qwen35-long`):
+  temperature 0.6, top_p 0.95, top_k 20, min_p 0, thinking on, `limit` context 262,144 and output 8,192, so OpenCode
+  never compacts a window. Bundle: `desk_bench.py tasks --harness opencode-qwen35-long --pack desk-v4-win` over the 36
+  held-out windows.
+- **Runs.** One scored attempt per model and window. A window that fails for infrastructure (the classes of the v4
+  benchmark's pre-registration) is rerun, up to three attempts; anything the model does is scored as the grader scores
+  it. Base and student run on the same instance type, four windows at a time per model, in the same order.
+- **Score.** Hindsight capture C per window from the desk grader (`grade`), with R and P beside it.
+- **Primary result.** The mean over the 36 windows of C(student) − C(base), with a 95% window-block bootstrap
+  interval: the nine windows are the blocks, each resample draws nine windows with replacement and keeps their four
+  sites, 10,000 resamples, seed 0, percentile interval. The student beats base when the interval's lower end is above
+  0. Each model's mean C is reported with the same interval, and the anchor's C on the same windows beside them.
+- **Also reported.** Per window the largest prompt OpenCode sent (tokens, from vLLM's usage); compaction events
+  (expected 0); the env's refusal rate per submit tool (`submit_dam_offers`, `submit_rt_offers`, `update_cop`, and AS
+  offers within them) for base, student and the anchor on the same windows; GPU time per window.
+- **After.** An optional short GRPO from the SFT adapter is scored the same way on the same 36 windows. The 32-window
+  benchmark run (base and best student as leaderboard rows) happens only after Edgar approves it.
+
+## Secondary comparison: the benchmark
+Only after the primary result is in, and only if Edgar approves the leaderboard run: base and student each play the 32
+`desk-v4-bench` windows once in OpenCode, with the serving, harness and decoding of the primary eval
+(`opencode-qwen35-long`, 262,144 tokens; base Qwen3-4B's leaderboard row ran at 32,768, which is noted beside the rows).
+Secondary result: the mean over the 32 windows of C(student) − C(base) with a 95% front-block bootstrap interval (the
+eight fronts are the blocks, 10,000 resamples, seed 0, percentile), and each model's C with the benchmark's own
+interval. It is reported as secondary and does not change the primary verdict; infrastructure reruns follow the v4
+benchmark's rules.
+
+## Deviations
+Logged before the student eval starts; the primary result is not in.
+
+1. **Transcripts.** The every-other-wake variant missed its rule on the 144 training windows (C 0.130 against the full
+   anchor's 0.149, a difference of −0.020 [−0.028, −0.013]), so the transcripts are the full anchor's. Each planning
+   wake also makes two read-only calls before `optimize` (the asset status and the desk price forecast for the DAM day
+   still open, else real time), so the rationale can cite the state of charge and the forecast; they change no action
+   (in process the stub's play matches the anchor call for call, with the same C).
+2. **How the transcripts were made.** OpenCode played the training windows on route C against a local endpoint that
+   plays the anchor from the conversation and logs every request verbatim (`scripts/desk_distill_stub.py`); the SFT
+   rows are those requests rendered with Qwen3.5's chat template (`scripts/desk_distill_sft.py`). The env image is the
+   benchmark's env image with the `desk-v4-win` pack copied in (its code hashes the same). Two training windows failed
+   on the state store's sqlite lock (`local.db is locked`), were reclassified as infrastructure and rerun; their rows
+   come from the rerun. Through OpenCode the anchor's C on the 144 windows is 0.148 (0.149 in process).
+3. **Rows.** Three rows a window, one from each third of its wakes, drawn with seed 0 and the session id: 438 rows,
+   42.3M tokens, 1.42M trained. Rows longer than the trainer's cap are dropped, never truncated: the cap is 150,000
+   tokens, which drops 41 rows (397 kept, 34.4M tokens, 1.32M trained). The memory probe, one forward and backward on
+   the longest kept row (149,295 tokens), peaked at 88.5 GiB of the GPU's 95 GiB in 106 s, so the cap stays.
+4. **Context.** The full anchor's conversation outgrows 262,144 tokens, Qwen3.5-9B's native maximum, in 5 of the 146
+   captured sessions (p50 138k, p90 193k, max 371k); a longer context would need YaRN, which changes the model at every
+   length. So OpenCode may compact in the longest windows, for either model. Compaction events are reported per
+   window and per side.
+5. **Output cap.** A call that ends at OpenCode's 8,192-token output limit makes OpenCode exit without completing; as
+   in the v4 benchmark's item 35 that attempt is infrastructure, with at most three attempts a window, for base and
+   student alike. With no model proxy here, a pass-through meter between OpenCode and vLLM (`scripts/desk_distill_meter.py`)
+   logs every call's usage and finish reason, and the driver reads the stop from it. A window that uses its three
+   attempts on infrastructure is missing for that side: the primary result is paired over the windows graded for both
+   models, and each side's missing windows are reported.
+6. **Serving and boxes.** vLLM also takes `--gpu-memory-utilization 0.9` and listens on the Docker bridge, where the
+   agent containers reach it (through the meter). Base ran on one g7e.8xlarge (one RTX PRO 6000, us-east-1) and the
+   student on a second of the same type, with the same flags, harness, decoding and four windows at a time; the box of
+   each run is recorded with it.
+7. **Eval subset and concurrency** (decided at 21:35 UTC on 2026-10-31, before any eval window was graded). Base
+   takes about 4 to 4.5 hours a window (about 2,000 calls at 100k to 250k-token prompts, compacting), so 36 windows at
+   four at a time cannot finish on the boxes or within the GPU budget. The eval runs on nested subsets, fixed now by
+   `subsets()` in `scripts/desk_distill_windows.py` (numpy `default_rng(0)`, the blocks in date order): two sites
+   in each of the nine blocks, the windows already running at the cut first (01-09 S01, S02 and S03 and 01-13 S01;
+   nothing graded), the rest drawn with the seed; and inside it one window a block, a running one where there is one,
+   else drawn.
+   - 18 windows: 01-09 S02, S03; 01-13 S01, S02; 01-17 S01, S04; 06-06 S03, S04; 06-09 S02, S04; 06-12 S02, S03;
+     06-15 S03, S04; 06-18 S03, S04; 06-22 S03, S04.
+   - 9 windows: 01-09 S02, 01-13 S01, 01-17 S01, 06-06 S04, 06-09 S04, 06-12 S02, 06-15 S03, 06-18 S04, 06-22 S03.
+   Both sides run the 18 eight at a time, in this order, with the same flags; the desk's clock is frozen between
+   turns, so concurrency changes the wall time, not the episode. Base's running windows are adopted; 01-09 S01, running
+   but not drawn, finishes and is reported as descriptive only, and 01-09 S04 (one infrastructure attempt) is not
+   retried.
+   **Fallback, on time only:** at 01:00 UTC, base's finish is projected from the sim-hours its completed and running
+   windows have covered. If it lands after 13:30 UTC, both sides cut to the 9: windows of the 18 not yet started are
+   not launched, running ones finish but count only if they are in the 9, and the primary is over the 9. Which rule
+   applied is reported. The primary is the paired interval over the subset that applies; each side's C over all its
+   completed windows is reported as descriptive.
+8. **A step cap per turn** (decided at 23:12 UTC on 2026-10-31; no window graded on either side). From 22:17 to 23:09
+   UTC none of base's seven running subset windows advanced a sim-hour, while their env gateways logged a tool call
+   about every 3.5 seconds: base kept calling tools inside one turn and never ended it. The desk refuses every call
+   past its budget of 14 a turn, and the harness set no step limit, so only the play step's 14,400-second prompt
+   timeout ended such a turn. The `opencode-qwen35-long` harness now sets OpenCode's `agent.build.steps` to 20
+   ("Maximum number of agentic iterations before forcing text-only response"), the same for both sides. 20 is above
+   the env's 14-call budget, so a turn can still make every call the desk accepts plus its reply; the anchor's
+   transcripts use at most 13 iterations a wake. Base's attempts so far are discarded (archived in S3 under
+   `distill/gpu/discarded-pre-steps/`, not counted) and base restarts from scratch on the committed 18, in the same
+   order, eight at a time; the student runs the same way. The 01:00 UTC time fallback stands, projected from the
+   sim-hours covered since the restart. Turns that end at the cap are counted per side, with their share of wakes.
+9. **The secondary comparison's serving** (decided at 23:45 UTC on 2026-10-31, before any bench window of either
+   model). Base Qwen3.5-9B plays the 32 `desk-v4-bench` windows in another lane, through our LiteLLM gateway on a
+   Fireworks deployment, on the run box; the student plays them here, served by vLLM 0.29.0 with the primary's flags,
+   on extra g7e.8xlarge boxes eight windows at a time, with the `opencode-qwen35-long` harness as in the primary
+   (262,144 tokens, 20 steps a turn) and the v4 benchmark's retry rules with items 5, 7 and 8 above where they apply.
+   So the secondary compares a Fireworks-served base against a vLLM-served student; numerics, the tool-call parser and
+   sampling can differ between the two servers, and the result is reported with that caveat. The primary on the
+   held-out windows serves both models the same way.
+10. **Where the student's bench windows run** (decided at 01:33 UTC on 2026-11-01, before any of them started). No
+    extra GPU box could be had (the account's us-east-1 spot quota is full, there was no on-demand capacity, and
+    us-west-2 had none), so the 32 `desk-v4-bench` windows run on the two eval boxes once their held-out runs end, 16
+    each, eight at a time, split by the pack's window order: box 2 the first 16 (2026-01-23 S01–S04, 03-16 S01–S04,
+    04-17 S01–S03, 05-08 S01–S04, 04-03 S04) and box 1 the last 16 (07-04, 07-23, 08-18 and 08-26, S01–S04 each). Both
+    serve the same merged student weights with the same vLLM flags and harness; the desk's clock is frozen between
+    turns, so the box changes the wall time, not the episode.
+
+## Primary result
+Over the committed 18 held-out windows (the time fallback did not apply: at 01:00 UTC base's finish projected to about
+01:40 UTC), every window graded for both models:
+
+| | base | student | anchor (same windows) |
+|---|---|---|---|
+| C, mean [95% window-block CI] | 0.039 [0.013, 0.066] | 0.077 [0.017, 0.128] | 0.078 |
+| attempts (infrastructure retries) | 25 (7 output-cap stops) | 22 (4 output-cap stops) | |
+| largest prompt, tokens | 253,938 | 253,870 | |
+| windows compacted (compactions) | 9 (18) | 9 (14) | |
+| wakes; turns at the env's 14-call budget | 889; 415 (47%) | 547; 12 (2.2%) | |
+| refused DAM / RT / COP submits | 48% / 33% / 48% | 5.7% / 2.1% / 30% | 0% / 0% / 18% |
+
+C(student) − C(base) = +0.038, 95% window-block interval [−0.034, +0.106] (nine blocks, 10,000 resamples, seed 0),
+student better on 10 windows and worse on 8. The interval's lower end is below 0, so by the pre-registered rule the
+student does not beat base. The student plays as the anchor does: its C is within 0.005 of the anchor's on 14 of the
+18 windows (mean absolute difference 0.005, mean signed difference −0.0004), through compaction and past the 150k
+tokens it trained on; on these windows the anchor itself is 0.039 above base on average, with a wide spread. No call
+went without the MCP tools on either side. Exact counts of turns ended by the 20-step cap are not available for these
+runs (the meter could not tell OpenCode's forced reply from a normal call until fe6cb6b); the 14-call budget is the
+proxy above. Descriptive, over the 9-window subset: C(student) − C(base) = −0.027 [−0.116, +0.061].
+
+## Secondary result
+The student played the 32 `desk-v4-bench` windows (16 on each eval box, item 10), all graded, one output-cap retry:
+C 0.203, the benchmark's front-block interval [0.069, 0.374]; 0.249 before the models' cutoffs and 0.158 after;
+$0.56 a window of GPU share at the g7e.8xlarge spot price ($4.50 an hour). Against base's 32 bench rows from the
+other lane (served through Fireworks, item 9; its harness `opencode-qwen9b` is `opencode-qwen35-long` exactly, OpenCode
+1.17.18, temperature 0.6, top_p 0.95, top_k 20, min_p 0, thinking on, 8,192 output tokens and 20 steps a turn, but for
+a context limit of 262,143 tokens, the Fireworks deployment's maximum, against 262,144), C(student) − C(base) =
++0.130, 95% front-block interval [+0.063, +0.196] (eight fronts, 10,000 resamples, seed 0), student better on 23
+windows and worse on 9; base 0.073 [−0.024, 0.193]. As pre-registered, this is secondary and does not change the
+primary verdict.
