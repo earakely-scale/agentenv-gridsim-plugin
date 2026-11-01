@@ -26,18 +26,23 @@ i.side { flex: none; display: inline-block; width: 8px; height: 8px; border-radi
 i.side.pre_cutoff { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
 i.side.post_cutoff { background: var(--ink); }
 i.dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
-i.dot.opus { background: var(--c-opus); }
-i.dot.argon { background: var(--c-argon); }
+i.dot.opus { background: var(--c-opus); border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+i.dot.haiku { background: var(--c-haiku); border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+i.dot:is(.opus, .haiku) { width: 10px; height: 10px; margin: -1px; }
+i.dot.argon { background: var(--c-argon); border-radius: 1.5px; }
 i.dot.beam { background: var(--c-beam); border-radius: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); }
 i.dot.glm { background: var(--c-glm); border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
 i.dot.kimi { background: var(--c-kimi); border-radius: 0; clip-path: polygon(50% 0, 62% 35%, 98% 35%, 69% 57%, 79% 91%, 50% 70%, 21% 91%, 31% 57%, 2% 35%, 38% 35%); }
 i.dot.qwenmax { background: var(--c-qwenmax); border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 i.dot.qwen9b { background: var(--c-qwen9b); border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-i.dot.qwen9bsft { background: var(--c-qwen9b); border-radius: 0; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.7L10.8 10.3H1.2Z' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.7L10.8 10.3H1.2Z' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+i.dot.qwen9bsft { background: var(--c-qwen9bsft); border-radius: 0; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.7L10.8 10.3H1.2Z' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 1.7L10.8 10.3H1.2Z' fill='none' stroke='%23000' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
 i.dot:is(.qwen9b, .qwen9bsft) { width: 9px; height: 9px; margin: -0.5px; }
-i.dot:is(.glm, .kimi) { width: 10px; height: 10px; margin: -1px; }
+i.dot.glmflash { background: var(--c-glmflash); border-radius: 0; clip-path: polygon(34% 0, 66% 0, 66% 34%, 100% 34%, 100% 66%, 66% 66%, 66% 100%, 34% 100%, 34% 66%, 0 66%, 0 34%, 34% 34%); }
+i.dot.dsflash { background: var(--c-dsflash); border-radius: 0; clip-path: polygon(0 0, 50% 32%, 100% 0, 100% 100%, 50% 68%, 0 100%); }
+i.dot:is(.glm, .kimi, .glmflash, .dsflash) { width: 10px; height: 10px; margin: -1px; }
 i.dot.sol { background: var(--c-sol); }
 i.dot.luna { background: var(--c-luna); }
+i.dot.terra { background: var(--c-terra); }
 i.dot.qwen { background: var(--c-qwen); }
 .plate .row { display: flex; gap: 8px; margin-top: 10px; }
 
@@ -344,9 +349,14 @@ i.dot.qwen { background: var(--c-qwen); }
 .brow .heat.glm i { background: var(--c-glm); }
 .brow .heat.kimi i { background: var(--c-kimi); }
 .brow .heat.qwenmax i { background: var(--c-qwenmax); }
-.brow .heat:is(.qwen9b, .qwen9bsft) i { background: var(--c-qwen9b); }
+.brow .heat.qwen9b i { background: var(--c-qwen9b); }
+.brow .heat.qwen9bsft i { background: var(--c-qwen9bsft); }
 .brow .heat.sol i { background: var(--c-sol); }
 .brow .heat.luna i { background: var(--c-luna); }
+.brow .heat.terra i { background: var(--c-terra); }
+.brow .heat.haiku i { background: var(--c-haiku); }
+.brow .heat.glmflash i { background: var(--c-glmflash); }
+.brow .heat.dsflash i { background: var(--c-dsflash); }
 .brow .heat.qwen i { background: var(--c-qwen); }
 .brow .r, .brow .p, .brow .u, .brow .v { text-align: right; white-space: nowrap; }
 .brow .k, .brow .v small { display: none; }

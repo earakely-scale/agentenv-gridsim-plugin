@@ -275,10 +275,12 @@ def test_article_states_the_bench_as_the_card_does(bench):
                                             cm["kimi"]["attempts"]["missing_reasons"]) == (
         28, 14, "2026-07-16", {"episode spend cap, final": 4}) and f["m"]["kimi"]["missing"] == {
         "episode spend cap, final": 4}
-    assert set(f["late"]) == {k for k, m in s["models"].items() if m.get("framework")}
+    assert set(f["late"]) == {k for k, m in s["models"].items()
+                              if m.get("framework") or hub_article.named(s, m["name"])}
+    assert f["late"]["haiku"] == f["late"]["glmflash"] == f["late"]["dsflash"]
     assert f["price"]["beam"] == s["models"]["beam"]["price_note"] and f["price"]["beam"] in t["before"]
-    assert f["ahead"] == (f"GPT-6.1 Sol {f['m']['sol']['op']}, Kimi K3 {f['m']['kimi']['op']} and Claude Opus 5.5 "
-                          f"{f['m']['opus']['op']}")
+    assert f["ahead"] == ", ".join(f"{s['models'][k]['name']} {f['m'][k]['op']}" for k in (
+        "sol", "dsflash", "kimi", "glmflash", "opus")) + f" and Claude Haiku 5.5 {f['m']['haiku']['op']}"
     for k, m in s["models"].items():
         got = f["m"][k]
         for name, scope in (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff")):
@@ -498,23 +500,28 @@ def test_space_page_and_card_lead_with_the_benchmark():
     dev = [x["n"] for g in page["deviations"] for x in g["items"]]
     assert dev == list(range(1, len(dev) + 1)) and [g["title"] for g in page["deviations"]] == [
         None, "Gemini 4 Argon", "Reflection Beam-1.0", "Open-weights comparison: GLM-5.3, Kimi K3, Qwen3.8 Max",
-        "Base Qwen3.5-9B", "Cost basis, and the anchor-distilled Qwen3.5-9B"]
+        "Base Qwen3.5-9B", "Cost basis, and the anchor-distilled Qwen3.5-9B",
+        "Three small models: Claude Haiku 5.5, GLM-5.3-Flash, DeepSeek V4.1 Flash"]
     cap, block = page["card"]["captions"], hub_dataset.bench_block(s, grades, desk)
     assert [cap[k][:12] for k in ("splits", "table", "pareto")] == ["C × 100: the", "C, hindsight", "Each point i"]
     assert block.index("/figures/splits.svg") < block.index(cap["splits"]) < block.index("| Model |") < block.index(
         cap["table"]) < block.index("/figures/pareto.svg") < block.index(cap["pareto"]) and "cost-vs-score" not in block
-    assert s["plot"]["frontier"] == ["qwen", "beam", "luna", "qwen9bsft", "sol"] and all(
+    assert s["plot"]["frontier"] == ["glmflash", "dsflash", "sol"] and all(
         s["models"][k]["price_note"] in cap["table"] for k in ("beam", "qwen9b"))
     assert not any("Quick start below" in x for x in page["card"]["how"])
     links = page["links"]
     assert links["prereg"] == f"{dbr.REPO}/blob/desk-v4-bench-run1/docs/prereg/v4-bench.md"
-    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-5/docs/prereg/v4-bench.md#deviations"
-    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-5/results/desk-v4-bench"
+    assert links["deviations"] == f"{dbr.REPO}/blob/desk-v4-bench-results-6/docs/prereg/v4-bench.md#deviations"
+    assert links["folder"] == f"{dbr.REPO}/tree/desk-v4-bench-results-6/results/desk-v4-bench"
     beam, base, sft = (s["models"][k] for k in ("beam", "qwen9b", "qwen9bsft"))
-    assert (f" Qwen3.5-9B + desk SFT ran after the others, on agentenv-framework 0.9.1396; {sft['note']}."
-            " Gemini 4 Argon ran on agentenv-framework 0.9.1383." + "".join(
-                f" {s['models'][k]['name']} ran through Fireworks, on agentenv-framework 0.9.1396; "
-                f"{s['models'][k]['note']}." for k in ("glm", "kimi", "qwenmax", "qwen9b"))
+    def fw(k):
+        m = s["models"][k]
+        return f" {m['name']} ran through Fireworks, on agentenv-framework 0.9.1396" + (
+            f"; {m['note']}." if m.get("note") else ".")
+    assert (fw("dsflash") + f" Qwen3.5-9B + desk SFT ran on agentenv-framework 0.9.1396; {sft['note']}."
+            " Gemini 4 Argon ran on agentenv-framework 0.9.1383."
+            + "".join(fw(k) for k in ("glm", "kimi", "glmflash", "qwenmax"))
+            + " Claude Haiku 5.5 ran on agentenv-framework 0.9.1396." + fw("qwen9b")
             + f" Beam-1.0 ran through the Hugging Face router, on agentenv-framework 0.9.1396; {beam['note']}. "
             f"{base['price_note']} {beam['price_note']} See the [deviations]({links['deviations']}).</small>") in block
     text = hub_space.readme({"versions": [], "episodes": {}}, desk, s, grades, hub_dataset)
@@ -524,7 +531,7 @@ def test_space_page_and_card_lead_with_the_benchmark():
     for m in s["models"].values():
         n = "" if m["n"] == s["n_windows"] else f"<br><small>{m['n']} of {s['n_windows']} windows</small>"
         assert f"| **{m['name']}**{n} | {m['harness']} · {m['setting']} | {_pc(m['all']['C']['mean'])}% [" in text
-    assert ("lists the benchmark's 348 runs first, by\nmodel, side of the cutoffs, front and battery, then the "
+    assert ("lists the benchmark's 444 runs first, by\nmodel, side of the cutoffs, front and battery, then the "
             "development runs. Kimi K3's 4 windows stopped at the window cap are listed as capped and unscored."
             ) in text
     gif = hub_dataset.bench_gif(s, grades, True)

@@ -43,7 +43,8 @@ B, SEED = 10_000, 0
 SPLITS = ("pre_cutoff", "post_cutoff")
 TOKENS = ("input", "cached", "cache_write", "output", "reasoning")
 SCOPES = ("all", *SPLITS)
-ORDER = ("opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen9b", "qwen9bsft", "qwen")
+ORDER = ("opus", "haiku", "sol", "luna", "terra", "argon", "beam", "glm", "glmflash", "kimi", "qwenmax", "dsflash",
+         "qwen9b", "qwen9bsft", "qwen")
 MODELS = {
     "claude-opus-5-5": {"key": "opus", "name": "Claude Opus 5.5", "tag": "Opus 5.5", "provider": "Anthropic",
                         "harness": "Claude Code", "setting": "effort high", "weights": "API", "cutoff": "2026-06"},
@@ -88,6 +89,18 @@ MODELS = {
     "qwen3-4b": {"key": "qwen", "name": "Qwen3-4B", "tag": "Qwen3-4B", "variant": "untrained", "provider": "Qwen",
                  "harness": "OpenCode", "setting": "thinking on", "weights": "open", "server": "vLLM 0.29.0",
                  "cutoff": "2024"},
+    "gpt-6.1-terra": {"key": "terra", "name": "GPT-6.1 Terra", "tag": "Terra", "provider": "OpenAI",
+                      "harness": "Codex CLI", "setting": "effort high", "weights": "API", "cutoff": "2026-06-01",
+                      "harness_note": "with OpenAI's catalog entries for the GPT-6 models and one for Terra copied "
+                                      "from Sol's"},
+    "claude-haiku-5-5": {"key": "haiku", "name": "Claude Haiku 5.5", "tag": "Haiku 5.5", "provider": "Anthropic",
+                         "harness": "Claude Code", "setting": "effort high", "weights": "API", "cutoff": "2026-06"},
+    "glm-5.3-flash": {"key": "glmflash", "name": "GLM-5.3-Flash", "tag": "GLM-5.3-Flash", "provider": "Z.ai",
+                      "harness": "OpenCode", "setting": "effort high", "weights": "open", "server": "Fireworks",
+                      "endpoint": "Fireworks", "released": "2026-08-26"},
+    "deepseek-v4.1-flash": {"key": "dsflash", "name": "DeepSeek V4.1 Flash", "tag": "V4.1 Flash",
+                            "provider": "DeepSeek", "harness": "OpenCode", "setting": "effort high", "weights": "open",
+                            "server": "Fireworks", "endpoint": "Fireworks", "released": "2026-09-10"},
 }
 HARNESS_VERSIONS = {"Claude Code": "2.1.280", "Codex CLI": "0.147.0", "Gemini CLI": "0.38.2", "OpenCode": "1.17.18"}
 GPU_USD_PER_S = {"T4": 0.000164, "L4": 0.000222, "A10": 0.000306, "L40S": 0.000542, "A100-40GB": 0.000583,
@@ -270,6 +283,9 @@ def attempt(run: Path, meta: dict, rep: dict, labels: dict) -> dict:
     usd = usage.get("cost_usd_list_price")
     if usd is None and usage.get("tokens"):
         usd = DBR.list_price(usage["tokens"], model_id)
+    elif usage.get("tokens") and (now := DBR.list_price(usage["tokens"], model_id)) is not None \
+            and abs(now - usd) > 1e-4:
+        print(f"warning: {run.name}: stored cost {usd} is not {model_id}'s list price on its tokens, {now}")
     if usd is None:
         usd = watched_usd(run)
     calls = rep.get("calls") if isinstance(rep.get("calls"), dict) else rep.get("harness")
@@ -315,12 +331,22 @@ def route_c(bench: Path, row: dict, result: dict | None, labels: dict) -> dict:
     tokens = a["tokens"] or u.get("tokens") or {}
     if metered and tokens and (was := DBR.list_price(tokens, a["model_id"], DBR.PROXY_PRICES)):
         usd = round(usd * DBR.list_price(tokens, a["model_id"]) / was, 4)
+    tier = None
+    if not metered and usd and "above" in (DBR.price_of(a["model_id"]) or {}):
+        log = bench.parent / "proxylogs" / f"{row['unit']}.jsonl"
+        if not log.is_file():
+            tier = {"calls": 0, "usd": 0.0, "unchecked": True}
+        else:
+            rows = map(json.loads, filter(str.strip, log.read_text().splitlines()))
+            extra, n = DBR.tier_surcharge([r["usage"] for r in rows if r.get("usage")], a["model_id"])
+            if n:
+                usd, tier = round(usd + extra, 4), {"calls": n, "usd": extra}
     return a | {"graded": ok and a["episode"] is not None and bool(a["grade"]),
                 "harness_version": version[0] if version else None, "framework": framework[1] if framework else None,
                 "kind": None if ok else CLASS_KIND.get(row["class"], row["class"]),
                 "error": clean(row.get("why")) or a["error"], "box": row.get("box"),
                 "instance_type": row.get("instance_type"), "ended": dt.datetime.fromisoformat(row["t_end"]),
-                "tokens": tokens, "usd": usd, "metered": metered}
+                "tokens": tokens, "usd": usd, "metered": metered, "tier": tier}
 
 
 def load(roots: list[Path], pack: str, tasks: dict, labels: dict) -> tuple[list[dict], Counter]:
@@ -454,7 +480,8 @@ def windows(atts: list[dict], tasks: dict, front_of: dict) -> tuple[list[dict], 
                         "wall_s": round(a["wall_s"], 1), "started": a["started"].isoformat(timespec="seconds"),
                         **({"box": a["box"], "instance_type": a["instance_type"],
                             "harness_version": a["harness_version"]} if a.get("box") else {}),
-                        **({"framework": a["framework"]} if a.get("framework") else {})})
+                        **({"framework": a["framework"]} if a.get("framework") else {}),
+                        **({"tier": a["tier"]} if a.get("tier") else {})})
         t, a = tasks[tid], xs[i if i is not None else -1]
         lab, card = a["label"], t["site"].get("card") or {}
         row = {"model": key, "name": lab["name"], "family": lab["family"], "harness": lab["harness"],
@@ -546,7 +573,8 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
                      "usd_per_window": round(float(np.mean([r["usd"] for r in done])), 4) if done else None,
                      "usd_median": round(float(np.median([r["usd"] for r in done])), 4) if done else None,
                      "usd_scored_total": round(sum(r["usd"] for r in done), 4),
-                     "usd_all_attempts": round(sum(x["usd"] for x in tries), 4), **({"gpu": gpu} if gpu else {})},
+                     "usd_all_attempts": round(sum(x["usd"] for x in tries), 4), **({"gpu": gpu} if gpu else {}),
+                     **({"tier": tier_block(tries, rows[0]["model_id"])} if any(x.get("tier") for x in tries) else {})},
             "tokens_per_window": {k: round(v / len(done), 1) for k, v in tok.items()} if done else {},
             "behaviour": {k: mean(done, k) for k in ("turns", "wakes", "desk_calls", "own_tool_calls", "shell_calls",
                                                      "reminders", "submissions", "rejected", "compactions", "wall_s")},
@@ -559,6 +587,14 @@ def model_block(rows: list[dict], log: list[dict], lab: dict, gpu: dict | None) 
                          "missing_reasons": dict(Counter(r["missing_reason"] for r in rows
                                                          if r["status"] == "missing")),
                          "failure_kinds": dict(Counter(x["kind"] for x in tries if x["role"] == "failed"))}}
+
+
+def tier_block(tries: list[dict], model_id: str) -> dict:
+    """The long-prompt tier as applied: the calls whose whole prompt passed the threshold, what they cost above the
+    base rates, and the attempts without a proxy log to check."""
+    p, ts = DBR.price_of(model_id) or {}, [x["tier"] for x in tries if x.get("tier")]
+    return {"above": p.get("above"), "calls": sum(t["calls"] for t in ts), "usd": round(sum(t["usd"] for t in ts), 4),
+            "unchecked": sum(bool(t.get("unchecked")) for t in ts)}
 
 
 def ref_block(tasks: dict, front_of: dict) -> dict:
@@ -989,6 +1025,9 @@ def readme(s: dict) -> str:
         "- Cost: tokens from the harness trajectories at the model makers' list prices, $ per million tokens "
         f"input/cached/cache write/output: {prices}."
         + "".join(f" {m['price_note']}" for m in ms.values() if m.get("price_note"))
+        + "".join(f" {m['name']}: {t['calls']:,} calls whose whole prompt passed {t['above'] // 1000}K tokens are "
+                  f"at its long-prompt rates, ${t['usd']:.2f} more in all." for m in ms.values()
+                  if (t := m["cost"].get("tier")) and t["calls"])
         + (f" {s['text']['metered']}" if s["text"]["metered"] else "")
         + "".join(f" {m['name']}: {m['cost']['gpu']['note']}." for m in gpus),
         *(["- Passed over under the run folders: " + ", ".join(f"{k} ×{v}" for k, v in s["skipped"].items()) + "."]

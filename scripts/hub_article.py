@@ -232,7 +232,7 @@ def bench(s: dict, grades: list[dict], d: dict, card) -> dict:
            "credits": deviation(s, "Out of credits"), "limit": deviation(s, "Output limit"),
            "capped": deviation(s, "Window cap"), "basis": deviation(s, "Cost basis, decided after every run"),
            "harness9b": deviation(s, "Both Qwen3.5-9B harnesses differ"),
-           "late": {m["key"]: late(s, m["name"]) for m in ms if m.get("framework")},
+           "late": {m["key"]: late(s, m["name"]) for m in ms if m.get("framework") or named(s, m["name"])},
            "price": {m["key"]: m["price_note"] for m in ms if m.get("price_note")},
            "tag": s["run"]["deviations_ref"], "links": {"deviations": card.bench_deviations(s)},
            "cap": {"splits": small(block, "C × 100"), "table": link(small(block, "C, hindsight capture")),
@@ -311,6 +311,10 @@ def deviation(s: dict, head: str) -> dict:
 def late(s: dict, name: str) -> dict:
     """The deviation that adds a model run after the others, whose head names it alone or in a list."""
     return colon(next(x for x in s["deviations"] if name in re.split(r", | and ", x.split(":", 1)[0])))
+
+
+def named(s: dict, name: str) -> bool:
+    return any(name in re.split(r", | and ", x.split(": ", 1)[0]) for x in s["deviations"] if ": " in x)
 
 
 MDLINK = re.compile(r"\[([^\]]+)\]\((https://[^)\s]+)\)")

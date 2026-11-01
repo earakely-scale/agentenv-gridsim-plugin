@@ -1074,6 +1074,15 @@ def bench_how(s: dict) -> list[str]:
         + (f" Pre-registered in [{run['prereg']}]({REPO}/blob/{ref}/{run['prereg']})." if run.get("prereg") else "")]
 
 
+def tier_note(s: dict) -> str:
+    """The long-prompt rates as applied: call by call, where a maker prices a longer prompt higher."""
+    ts = [(m["name"], m["cost"]["tier"]) for m in s["models"].values() if m["cost"].get("tier")]
+    if not any(t["calls"] for _, t in ts):
+        return " or long-context surcharges"
+    return "; a maker's higher rate for a long prompt applies call by call, " + and_join(
+        [f"{name}'s above {t['above'] // 1000}K tokens to {t['calls']:,} of its calls" for name, t in ts if t["calls"]])
+
+
 def bench_limits(s: dict) -> list[str]:
     """The benchmark's known limitations, as the pre-registration discloses them for the route the runs took."""
     harnesses = {m["harness"] for m in s["models"].values()}
@@ -1094,8 +1103,8 @@ def bench_limits(s: dict) -> list[str]:
            "raises its cost, a known harness issue." if "Gemini CLI" in harnesses else ""),
         "**The training cutoffs are third-party reports, unconfirmed.**"
         + (f" None is reported for {and_join([m['name'] for m in none])}" + (
-            f", reportedly released {short(day, rel[0])}–{short(day, rel[-1])} {rel[-1][:4]}, so only the "
-            f"{and_join(late)} fronts certainly post-date "
+            f", reportedly released {short(day, rel[0])}–{short(day, rel[-1])} {rel[-1][:4]}, so "
+            + (f"only the {and_join(late)} fronts certainly post-date " if late else "no front certainly post-dates ")
             + ("it" if len(none) == 1 else f"all {NUM.get(len(none), len(none)).lower()}") if rel else
             ", so the Jul–Aug windows are not known to be after their cutoffs") + "." if none else "")
         + " The pre-cutoff half reuses v4's 16 windows, which GPT-6.1 Sol, GPT-6 Luna and Qwen3-4B also played on the "
@@ -1103,8 +1112,8 @@ def bench_limits(s: dict) -> list[str]:
         "**One run per model per window over eight fronts,** so the CIs are wide, and a single scarcity front can "
         "carry a model's dollars.",
         "**Cost is the model maker's list price:** tokens at each maker's public price per million, without batch "
-        "or volume discounts or long-context surcharges" + (f"; {and_join(gpu)}'s cost is its share of the GPU time"
-                                                            if gpu else "") + "."
+        "or volume discounts" + tier_note(s) + (f"; {and_join(gpu)}'s cost is its share of the GPU time" if gpu else "")
+        + "."
         + "".join(f" {m['price_note']}" for m in s["models"].values() if m.get("price_note")),
         *bench_distilled_limits(s),
         "**A known env defect, K1, in the benchmark too.** An empty reserve-offer list drew a spurious ASO-02 note "
@@ -1623,7 +1632,7 @@ def dam_days(v: dict) -> list[str]:
 
 
 NUM = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten",
-       11: "Eleven", 12: "Twelve"}
+       11: "Eleven", 12: "Twelve", 13: "Thirteen", 14: "Fourteen", 15: "Fifteen", 16: "Sixteen"}
 
 
 def and_join(xs: list[str]) -> str:

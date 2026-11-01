@@ -37,7 +37,13 @@ PRICES = {"claude-opus-5-5": {"in": 4.0, "cached": 0.2, "write": 5.0, "write_1h"
           "kimi-k3": {"in": 3.0, "cached": 0.3, "write": 3.0, "out": 15.0},
           "qwen3.8-max": {"in": 2.0, "cached": 0.25, "write": 2.0, "out": 6.0},
           "qwen3.5-9b": {"in": 0.2, "cached": 0.2, "write": 0.2, "out": 0.2},
-          "qwen3-4b": {"in": 0.0, "cached": 0.0, "write": 0.0, "out": 0.0}}
+          "qwen3-4b": {"in": 0.0, "cached": 0.0, "write": 0.0, "out": 0.0},
+          "claude-haiku-5-5": {"in": 0.1, "cached": 0.01, "write": 0.125, "write_1h": 0.2, "out": 0.5, "above": 100000,
+                               "tier": {"in": 0.5, "cached": 0.05, "write": 0.625, "write_1h": 1.0, "out": 2.5}},
+          "glm-5.3-flash": {"in": 0.15, "cached": 0.03, "write": 0.15, "out": 0.5},
+          "deepseek-v4.1-flash": {"in": 0.3, "cached": 0.006, "write": 0.3, "out": 1.2},
+          "gpt-6.1-terra": {"in": 1.0, "cached": 0.05, "write": 1.25, "out": 5.0,
+                            "above": 272000, "tier": {"in": 2.0, "cached": 0.1, "write": 2.5, "out": 7.5}}}
 PROXY_PRICES = {"beam-1.0-501b-a23b": {"in": 0.4, "cached": 0.4, "write": 0.4, "out": 1.2}}
 DESK_TOOLS = ("get_prices", "get_forecasts", "get_grid_conditions", "get_asset_status", "get_position",
               "submit_dam_offers", "submit_rt_offers", "update_cop", "check_submission", "optimize", "set_reminder")
@@ -169,13 +175,29 @@ def usage_of(turns: list[list[dict]], model: str) -> dict:
 
 
 def list_price(tokens: dict, model: str | None, prices: dict = PRICES) -> float | None:
-    p = next((v for k, v in prices.items() if k in (model or "")), None)
-    if p is None:
-        return None
-    u = Counter(tokens)
+    p = price_of(model, prices)
+    return None if p is None else round(cost(Counter(tokens), p) / 1e6, 4)
+
+
+def tier_surcharge(calls: list[dict], model: str | None, prices: dict = PRICES) -> tuple[float, int]:
+    """What the calls whose whole prompt (input, cache reads and writes) passes the model's long-prompt threshold
+    cost above its base rates, in USD, and how many such calls there were."""
+    p = price_of(model, prices)
+    if not p or "above" not in p:
+        return 0.0, 0
+    hi = [Counter(u) for u in calls if u.get("input", 0) + u.get("cached", 0) + u.get("cache_write", 0) > p["above"]]
+    return round(sum(cost(u, p["tier"]) - cost(u, p) for u in hi) / 1e6, 4), len(hi)
+
+
+def price_of(model: str | None, prices: dict = PRICES) -> dict | None:
+    """The longest price key the model id contains, so glm-5.3-flash is not priced as glm-5.3."""
+    return prices.get(max((k for k in prices if k in (model or "")), key=len, default=""))
+
+
+def cost(u: Counter, p: dict) -> float:
     hour = u["cache_write_1h"]
-    return round((u["input"] * p["in"] + u["cached"] * p["cached"] + (u["cache_write"] - hour) * p["write"]
-                  + hour * p.get("write_1h", p["write"]) + u["output"] * p["out"]) / 1e6, 4)
+    return (u["input"] * p["in"] + u["cached"] * p["cached"] + (u["cache_write"] - hour) * p["write"]
+            + hour * p.get("write_1h", p["write"]) + u["output"] * p["out"])
 
 
 def proxy_side(path: Path | None) -> dict:

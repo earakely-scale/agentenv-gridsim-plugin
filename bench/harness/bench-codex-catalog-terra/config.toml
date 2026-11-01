@@ -1,0 +1,2 @@
+web_search = "disabled"
+model_catalog_json = "/etc/codex/model-catalog.json"

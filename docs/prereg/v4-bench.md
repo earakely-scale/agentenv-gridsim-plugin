@@ -337,3 +337,39 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     student's C is within 0.017 of the planner's. The full check is in `docs/prereg/desk-distill.md`.
 51. The training pack, `data/desk/desk-v4-win`, is not on main: it is on the branch `desk-distill` at 13d53f9, where
     `scripts/desk_bench.py` reads it from its pinned commit, and `scripts/desk_data_build.py desk-v4-win` rebuilds it.
+
+### Three small models: Claude Haiku 5.5, GLM-5.3-Flash, DeepSeek V4.1 Flash
+
+52. Added after the others at Edgar's request, for more models in the $0.2–0.5-a-window range, and run from 2026-11-01
+    on the same 32 windows; results reported in full whatever they show.
+53. Routes and harnesses, each route probed first with a tiny call through our LiteLLM gateway. Claude Haiku 5.5 at
+    `claude-haiku-5-5` on the gateway's Anthropic Messages route, in Claude Code exactly as Claude Opus 5.5's row: the
+    claude-code preset of `scripts/desk_bench.py` with the model swapped, effort high, `bench-claude-code` (web search
+    and fetch denied), and the Claude Code the Opus row ran, 2.1.280, which agentenv-framework 0.9.1396 still pins.
+    GLM-5.3-Flash (`zai-org/GLM-5.3-Flash`) at `fireworks_ai/glm-5p3-flash` and DeepSeek V4.1 Flash
+    (`deepseek-ai/DeepSeek-V4.1-Flash`, MIT) at `fireworks_ai/deepseek-v4p1-flash`, in OpenCode 1.17.18 as GLM-5.3 in 30:
+    `reasoning_effort: "high"`, output limit 32,768, context limit 1,040,000 (both took a 300,016-token prompt; the
+    weights' maximum is 1,048,576), the provider's default sampling, web tools denied. Thinking works through the
+    gateway for both; for GLM-5.3-Flash, high is again below its default level. agentenv-framework 0.9.1396; bundles
+    generated at `desk-v4-bench-run1` exactly as for the others; route C as in 31, each model with its own state,
+    proxy lanes and driver, its netcheck first.
+54. Rules: those of 32 to 35 and 37. Provider failures are infrastructure; an OpenCode exit at its output limit is
+    infrastructure, counted, at most three attempts a window; an attempt stopped by its window cap is final and
+    unscored.
+55. Caps and prices: $5 a window, $20 a model, $60 for the three, with the proxy stopping every call at $59 combined.
+    Metered at the makers' list prices per 1M tokens (47). Claude Haiku 5.5: $0.10 input, $0.01 cache read, $0.125
+    cache write (5 minutes; 1-hour writes at twice the input price, $0.20) and $0.50 output for prompts up to 100K
+    tokens, and $0.50 / $0.05 / $0.625 ($1.00) / $2.50 above, the tier set by the whole prompt. GLM-5.3-Flash (Z.ai):
+    $0.15 input, $0.03 cached, $0.50 output. DeepSeek V4.1 Flash (DeepSeek's official rates): $0.30 on a cache miss,
+    $0.006 on a hit, $1.20 output, its peak price throughout although part of the run falls in its half-price
+    off-peak hours. The three models run at once, about 10 to 12 windows of each at a time.
+56. GPT-6.1 Terra, added beside them at Edgar's request (decided 2026-11-01 before its first scored call, while the three
+    above were running): `azure_ai/gpt-6.1-terra` through our gateway on Codex's path (`/openai/v1/responses`), in
+    Codex exactly as GPT-6.1 Sol and GPT-6 Luna: codex-cli 0.147.0, the image the Sol and Luna rows ran (agentenv-framework
+    0.9.1396 still pins it), `model_reasoning_effort` high, web search off, and OpenAI's Codex catalog entries, with an
+    entry for Terra copied from Sol's (GPT-6.1 family; only the slug and name differ) since the catalog has none. A probe
+    returned function calls and encrypted reasoning, effort honoured (130 reasoning tokens at low, 594 at high). Metered
+    at OpenAI's list price per 1M tokens: $1.00 input, $0.05 cached, $1.25 cache write (30 minutes), $5.00 output, and
+    above 272K input $2.00, $0.10, $2.50 and $7.50. Caps: $5 a window and $100 for Terra; the four models' pool rises
+    from $60 to $160, with every call stopped at $159 combined. About 10 to 12 windows at once; the three above have
+    priority.

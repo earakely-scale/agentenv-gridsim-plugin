@@ -8,7 +8,7 @@ const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
 const OP = { key: "operator_replay", label: "Real operator (bids replayed)", short: "Real operator" };
-const WORD = { 2: "two", 3: "three", 4: "four", 5: "five" };
+const WORD = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen", 14: "fourteen", 15: "fifteen" };
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const minus = (s) => s.replace(/-/g, "−");
@@ -308,11 +308,11 @@ function daily(v, D, W, narrow, scale) {
   return svg(W, fy + 8, s, `Hindsight capture by ${multi ? "front" : "day"}, ${v.version}`);
 }
 
-const BENCH = ["opus", "sol", "luna", "argon", "beam", "glm", "kimi", "qwenmax", "qwen9b", "qwen"];
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen: "var(--c-qwen)" };
-const SHAPE = { Anthropic: "diamond", OpenAI: "circle", Google: "square", Reflection: "triangle-down", "Z.ai": "cross", "Moonshot AI": "star", Qwen: "triangle" };
+const BENCH = ["opus", "haiku", "sol", "luna", "terra", "argon", "beam", "glm", "glmflash", "kimi", "qwenmax", "dsflash", "qwen9b", "qwen"];
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen9bsft: "var(--c-qwen9bsft)", qwen: "var(--c-qwen)", haiku: "var(--c-haiku)", terra: "var(--c-terra)", glmflash: "var(--c-glmflash)", dsflash: "var(--c-dsflash)" };
+const SHAPE = { Anthropic: "diamond", OpenAI: "circle", Google: "square", Reflection: "triangle-down", "Z.ai": "cross", "Moonshot AI": "star", Qwen: "triangle", DeepSeek: "bowtie" };
 const SIZES = { width: 600, lead: 660, phone: 350 };
-const bcol = (p) => BCOL[p.family] || BCOL[p.key] || "var(--ink-3)";
+const bcol = (p) => BCOL[p.key] || BCOL[p.family] || "var(--ink-3)";
 const brank = (p) => (BENCH.includes(p.family) ? BENCH.indexOf(p.family) : BENCH.length);
 const bpts = (Bn) => [...Bn.plot.points].sort((a, b) => brank(a) - brank(b) || (a.key === a.family ? 0 : 1) - (b.key === b.family ? 0 : 1));
 const pname = (p, narrow) => (narrow ? p.tag || p.short : p.name) + (p.variant && p.variant !== "untrained" ? ` · ${p.variant}` : p.variant && !narrow ? ` (${p.variant})` : "");
@@ -325,6 +325,7 @@ function mark(shape, x, y, r, fill, cls = "mk", hollow = false) {
   if (shape === "triangle") { const s = r * 1.3; return `<path d="M${f1(x)},${f1(y - s)}L${f1(x + s * 0.93)},${f1(y + s * 0.62)}L${f1(x - s * 0.93)},${f1(y + s * 0.62)}Z" ${a}/>`; }
   if (shape === "triangle-down") { const s = r * 1.3; return `<path d="M${f1(x)},${f1(y + s)}L${f1(x + s * 0.93)},${f1(y - s * 0.62)}L${f1(x - s * 0.93)},${f1(y - s * 0.62)}Z" ${a}/>`; }
   if (shape === "cross") { const s = r * 1.12, t = r * 0.42; return `<path d="M${f1(x - t)},${f1(y - s)}H${f1(x + t)}V${f1(y - t)}H${f1(x + s)}V${f1(y + t)}H${f1(x + t)}V${f1(y + s)}H${f1(x - t)}V${f1(y + t)}H${f1(x - s)}V${f1(y - t)}H${f1(x - t)}Z" ${a}/>`; }
+  if (shape === "bowtie") { const s = r * 1.05, t = r * 0.38; return `<path d="M${f1(x - s)},${f1(y - s)}L${f1(x)},${f1(y - t)}L${f1(x + s)},${f1(y - s)}V${f1(y + s)}L${f1(x)},${f1(y + t)}L${f1(x - s)},${f1(y + s)}Z" ${a}/>`; }
   if (shape === "star") { const s = r * 1.42; return `<path d="${path(Array.from({ length: 10 }, (_, i) => { const q = (Math.PI * i) / 5 - Math.PI / 2, d = i % 2 ? s * 0.48 : s; return [x + d * Math.cos(q), y + d * Math.sin(q) + s * 0.08]; }))}Z" ${a}/>`; }
   return `<circle cx="${f1(x)}" cy="${f1(y)}" r="${r}" ${a}/>`;
 }
@@ -349,81 +350,90 @@ function watermark(Bn, W, H) {
 function splitsChart(Bn, W, narrow) {
   const pts = bpts(Bn).filter((p) => p.pre_cutoff?.mean != null && p.post_cutoff?.mean != null), op = Bn.plot.references.operator_replay;
   const top = [...pts].sort((a, b) => b.C.mean - a.C.mean)[0]?.key, hasOp = op?.pre_cutoff?.mean != null && op?.post_cutoff?.mean != null;
+  const panels = [["Under $1 a window", pts.filter((p) => p.usd < 1)], ["$1 a window and up", pts.filter((p) => !(p.usd < 1))]].filter(([, g]) => g.length);
   let [s, y] = header("Hindsight capture before and after the training cutoffs", "C, %, the mean of each side's windows", W);
-  if (narrow) {
-    const [k, ky] = shapeKey([...pts].sort((a, b) => b.pre_cutoff.mean - a.pre_cutoff.mean).map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family }))
-      .concat(hasOp ? [{ op: true, label: "Real operator", cls: "t-key op-t" }] : []), W, y + 26);
-    s += k;
-    y = ky;
-  }
   const side = (sp) => {
     const fr = Bn.fronts.filter((f) => f.split === sp).map((f) => f.front).sort(), a = fr[0], b = plusDays(fr.at(-1), 2);
     const m = (iso) => fmtDay(iso, { month: "short" });
     return { range: `${m(a)}–${m(b)} ${b.slice(0, 4)}`, n: Bn.splits[sp].windows, f: Bn.splits[sp].fronts.length };
   };
   const sides = [side("pre_cutoff"), side("post_cutoff")];
-  const rows = [...pts.map((p) => ({ key: p.key, p, pre: p.pre_cutoff.mean, post: p.post_cutoff.mean, b: p.key === top, name: [p.name, `${p.harness} · ${p.setting}`] })),
-    ...(hasOp ? [{ key: "op", pre: op.pre_cutoff.mean, post: op.post_cutoff.mean, op: true, name: ["Real operator", "bids replayed"] }] : [])];
+  const row = (p) => ({ key: p.key, p, pre: p.pre_cutoff.mean, post: p.post_cutoff.mean, b: p.key === top, name: [p.name, `${p.harness} · ${p.setting}`] });
+  const opRow = hasOp ? [{ key: "op", pre: op.pre_cutoff.mean, post: op.post_cutoff.mean, op: true, name: ["Real operator", "bids replayed"] }] : [];
+  const rows = [...pts.map(row), ...opRow];
   const vcls = (r) => (r.op ? "t-end-v op-t" : "t-end-v");
   const vals = rows.flatMap((r) => [r.pre, r.post]), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
   const r = narrow ? 5.2 : 6, gap = r + 9;
   const lw = Math.max(...rows.map((e) => measure(pct(e.pre), vcls(e)))), rw = Math.max(...rows.map((e) => measure(pct(e.post), vcls(e))));
   const ms = Object.values(Bn.models), none = ms.filter((m) => !m.cutoff).map((m) => m.name);
-  const notes = ["may be in the training data", none.length ? "after every reported cutoff" : "after every model's cutoff"], fits = notes.every((t) => measure(t, "t-name") <= W / 2 - 8);
+  const notes = ["may be in the training data", none.length ? "after every reported cutoff" : "after every model's cutoff"], fits = notes.every((t) => measure(t, "t-name") <= W / 2 - 16);
   const subs = notes.map((t) => (fits ? [t] : balance(t, "t-name", measure(t, "t-name") * 0.6)));
   const xw = sides.map((sd, i) => Math.max(measure(sd.range, "t-ver"), ...subs[i].map((t) => measure(t, "t-name"))) / 2);
-  const ends = narrow ? [] : rows.map((e) => ({ ...e, c: e.post }));
-  const nw = ends.length ? Math.max(...ends.map((e) => Math.max(measure(e.name[0], e.b ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q")))) : 0;
+  const nw = narrow ? 0 : Math.max(...rows.map((e) => Math.max(measure(e.name[0], e.b ? "t-end b" : "t-end"), measure(e.name[1], "t-end-q"))));
   const x0 = Math.max(lw + gap + 4, xw[0]), x1 = narrow ? W - Math.max(rw + gap + 16, xw[1]) : W - (rw + 8 + nw) - gap - 32;
-  const xs = [x0, Math.max(x0 + 90, x1)];
-  const ptop = y + (narrow ? 30 : 36), PH = narrow ? 236 : Math.max(262, 35 * rows.length - 23), bottom = ptop + PH, yv = lin(lo, hi, bottom - 9, ptop + 9);
-  let back = "", lines = "", marks = "", labels = "";
-  if (hasOp) {
-    const o = [[xs[0], yv(op.pre_cutoff.mean)], [xs[1], yv(op.post_cutoff.mean)]];
-    lines += `<path class="op" d="${path(o)}"/>` + o.map(([x, y]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>`).join("");
-  }
-  for (const p of [...pts].sort((a, b) => a.C.mean - b.C.mean)) {
-    const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
-    lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
-    marks += q.map(([x, y], i) => `<g class="pt" data-k="${p.key}" data-sp="${i ? "post_cutoff" : "pre_cutoff"}">${mark(SHAPE[p.provider], x, y, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)}</g>`).join("");
-  }
-  const key = (e, x, y) => (e.op ? `<circle class="op-dot" cx="${f1(x)}" cy="${f1(y)}" r="3"/>` : mark(SHAPE[e.p.provider], x, y, 4.2, bcol(e.p), "mk-s", e.p.key !== e.p.family));
-  const values = (k, x, dir, keyed) => {
-    const kw = keyed ? 12 : 0;
-    for (const e of dodge(rows.map((e) => ({ ...e, y: yv(e[k]), h: 16 })), ptop - 4, bottom + 4, 2)) {
-      if (Math.abs(e.ly - e.y) > 1.5) labels += `<path class="lead" d="M${f1(x + dir * (e.op ? 5 : r + 3))},${f1(e.y)}L${f1(x + dir * (gap - 3))},${f1(e.ly)}"/>`;
-      if (keyed) labels += key(e, x + dir * (gap + 3), e.ly);
-      labels += T(x + dir * (gap + kw), e.ly + 5, pct(e[k]), vcls(e), dir < 0 ? "end" : "start");
-    }
-  };
-  values("pre", xs[0], -1);
-  if (narrow) values("post", xs[1], 1, true);
-  const ex = xs[1] + gap + 26;
-  for (const e of dodge(ends.map((e) => ({ ...e, y: yv(e.c) + 7.5, h: 32 })), ptop - 8, bottom + 12, 3)) {
-    const y0 = e.ly - 7.5, at = yv(e.c), tx = ex + rw - measure(pct(e.c), vcls(e));
-    labels += `<path class="lead" d="M${f1(xs[1] + (e.op ? 5 : r + 3))},${f1(at)}L${f1(tx - 16)},${f1(y0 - 5)}"/>` + key(e, tx - 9, y0 - 5);
-    labels += T(ex + rw, y0, pct(e.c), vcls(e), "end") + T(ex + rw + 8, y0, e.name[0], e.op ? "t-end op-t" : e.b ? "t-end b" : "t-end");
-    labels += T(ex + rw + 8, y0 + 15, e.name[1], "t-end-q");
-  }
-  let maxY = bottom;
+  const xs = [x0, Math.max(x0 + 90, x1)], ex = xs[1] + gap + 26;
+  const PH = narrow ? 236 : Math.max(262, ...panels.map(([, g]) => 35 * (g.length + opRow.length) - 23));
+  let labels = "", lines = "", marks = "";
+  let ly = y + 30;
   sides.forEach((sd, i) => {
-    let ly = bottom + 30;
+    let yy = ly;
     const cx = (t, cls) => Math.min(Math.max(xs[i], measure(t, cls) / 2), W - measure(t, cls) / 2);
-    labels += T(cx(sd.range, "t-ver"), ly, sd.range, "t-ver", "middle");
-    for (const t of subs[i]) labels += T(cx(t, "t-name"), (ly += 18), t, "t-name", "middle");
-    if (!narrow) labels += T(cx(`${sd.n} windows over ${sd.f} fronts`, "t-unit"), (ly += 17), `${sd.n} windows over ${sd.f} fronts`, "t-unit", "middle");
-    maxY = Math.max(maxY, ly);
+    labels += T(cx(sd.range, "t-ver"), yy, sd.range, "t-ver", "middle");
+    for (const t of subs[i]) labels += T(cx(t, "t-name"), (yy += 18), t, "t-name", "middle");
+    if (!narrow) labels += T(cx(`${sd.n} windows over ${sd.f} fronts`, "t-unit"), (yy += 17), `${sd.n} windows over ${sd.f} fronts`, "t-unit", "middle");
+    y = Math.max(y, yy);
   });
-  maxY += 10;
+  const key = (e, x, yy) => (e.op ? `<circle class="op-dot" cx="${f1(x)}" cy="${f1(yy)}" r="3"/>` : mark(SHAPE[e.p.provider], x, yy, 4.2, bcol(e.p), "mk-s", e.p.key !== e.p.family));
+  for (const [title, group] of panels) {
+    const prow = [...group.map(row), ...opRow];
+    y += panels.length > 1 ? 34 : 6;
+    if (panels.length > 1) labels += T(0, y, title, "t-panel");
+    if (narrow) {
+      const [k, ky] = shapeKey([...group].sort((a, b) => b.pre_cutoff.mean - a.pre_cutoff.mean).map((p) => ({ shape: SHAPE[p.provider], color: bcol(p), label: pname(p, true), cls: p.key === top ? "t-key b" : "t-key", hollow: p.key !== p.family }))
+        .concat(hasOp ? [{ op: true, label: "Real operator", cls: "t-key op-t" }] : []), W, y + 24);
+      labels += k;
+      y = ky;
+    }
+    const ptop = y + (narrow ? 30 : 30), bottom = ptop + PH, yv = lin(lo, hi, bottom - 9, ptop + 9);
+    if (hasOp) {
+      const o = [[xs[0], yv(op.pre_cutoff.mean)], [xs[1], yv(op.post_cutoff.mean)]];
+      lines += `<path class="op" d="${path(o)}"/>` + o.map(([x, yy]) => `<circle class="op-dot" cx="${f1(x)}" cy="${f1(yy)}" r="3"/>`).join("");
+    }
+    for (const p of [...group].sort((a, b) => a.C.mean - b.C.mean)) {
+      const q = [[xs[0], yv(p.pre_cutoff.mean)], [xs[1], yv(p.post_cutoff.mean)]];
+      lines += `<path class="ln${p.key === top ? " ln-b" : ""}" d="${path(q)}" stroke="${bcol(p)}"/>`;
+      marks += q.map(([x, yy], i) => `<g class="pt" data-k="${p.key}" data-sp="${i ? "post_cutoff" : "pre_cutoff"}">${mark(SHAPE[p.provider], x, yy, p.key === top ? r + 0.6 : r, bcol(p), "mk", p.key !== p.family)}</g>`).join("");
+    }
+    const values = (k, x, dir, keyed) => {
+      const kw = keyed ? 12 : 0;
+      for (const e of dodge(prow.map((e) => ({ ...e, y: yv(e[k]), h: 16 })), ptop - 4, bottom + 4, 2)) {
+        if (Math.abs(e.ly - e.y) > 1.5) labels += `<path class="lead" d="M${f1(x + dir * (e.op ? 5 : r + 3))},${f1(e.y)}L${f1(x + dir * (gap - 3))},${f1(e.ly)}"/>`;
+        if (keyed) labels += key(e, x + dir * (gap + 3), e.ly);
+        labels += T(x + dir * (gap + kw), e.ly + 5, pct(e[k]), vcls(e), dir < 0 ? "end" : "start");
+      }
+    };
+    values("pre", xs[0], -1);
+    if (narrow) values("post", xs[1], 1, true);
+    else for (const e of dodge(prow.map((e) => ({ ...e, y: yv(e.post) + 7.5, h: 32 })), ptop - 8, bottom + 12, 3)) {
+      const y0 = e.ly - 7.5, at = yv(e.post), tx = ex + rw - measure(pct(e.post), vcls(e));
+      labels += `<path class="lead" d="M${f1(xs[1] + (e.op ? 5 : r + 3))},${f1(at)}L${f1(tx - 16)},${f1(y0 - 5)}"/>` + key(e, tx - 9, y0 - 5);
+      labels += T(ex + rw, y0, pct(e.post), vcls(e), "end") + T(ex + rw + 8, y0, e.name[0], e.op ? "t-end op-t" : e.b ? "t-end b" : "t-end");
+      labels += T(ex + rw + 8, y0 + 15, e.name[1], "t-end-q");
+    }
+    y = bottom + 14;
+  }
+  let maxY = y + 4;
   const and = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0]);
   const short = ms.filter((m) => m.n && m.n < Bn.n_windows).map((m) => `${m.name}'s over ${m.pre_cutoff.n === m.post_cutoff.n ? m.pre_cutoff.n : `${m.pre_cutoff.n} and ${m.post_cutoff.n}`}, its ${Bn.n_windows - m.n} ${Object.keys(m.attempts.missing_reasons).every((k) => k.startsWith("episode spend cap")) ? "capped" : "missing"} windows unscored`);
   const rel = ms.filter((m) => !m.cutoff && m.released).map((m) => m.released).sort(), md = { day: "numeric", month: "short" };
   const late = Bn.fronts.filter((f) => rel.length && f.split === "post_cutoff" && f.front > rel.at(-1)).map((f) => fmtDay(f.front, md));
-  const since = rel.length ? `, reportedly released ${fmtDay(rel[0], md)}–${fmtDay(rel.at(-1), { ...md, year: "numeric" })}, so only the ${and(late)} fronts certainly post-date ${none.length > 1 ? `all ${WORD[none.length] || none.length}` : "it"}` : "";
-  const foot = `Each point: a model's mean C over the ${sides[0].n} windows on that side${short.length ? ` (${short.join("; ")})` : ""}; 95% CIs are in the table. The cutoffs are third-party reports, unconfirmed${none.length ? `; none is reported for ${and(none)}${since}` : ""}.`;
+  const them = none.length > 1 ? `all ${WORD[none.length] || none.length}` : "it";
+  const since = rel.length ? `, reportedly released ${fmtDay(rel[0], md)}–${fmtDay(rel.at(-1), { ...md, year: "numeric" })}, so ${late.length ? `only the ${and(late)} fronts certainly post-date ${them}` : `no front certainly post-dates ${them}`}` : "";
+  const facet = panels.length > 1 ? " The panels split the models by cost per window (the costs in the cost chart), on one scale." : "";
+  const foot = `Each point: a model's mean C over the ${sides[0].n} windows on that side${short.length ? ` (${short.join("; ")})` : ""}; 95% CIs are in the table. The cutoffs are third-party reports, unconfirmed${none.length ? `; none is reported for ${and(none)}${since}` : ""}.${facet}`;
   for (const line of wrap(foot, "t-foot", W)) labels += T(0, (maxY += 17), line, "t-foot");
   const H = maxY + 8;
-  return svg(W, H, s + back + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture before and after the models' training cutoffs");
+  return svg(W, H, s + lines + marks + labels + watermark(Bn, W, H), "Hindsight capture before and after the models' training cutoffs");
 }
 
 const usdTick = (v) => (v >= 1 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);

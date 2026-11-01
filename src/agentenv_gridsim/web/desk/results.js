@@ -163,7 +163,7 @@ function pagetabs(bench) {
   $("pagetabs").innerHTML = a("?v=bench", bench, "The v4 benchmark", "models in native agent harnesses") + a("?v=v4", !bench, "The development ladder", "v2 to v4 and the v5 price-impact check");
 }
 
-const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen9bsft: "var(--c-qwen9b)", qwen: "var(--c-qwen)" };
+const BCOL = { opus: "var(--c-opus)", sol: "var(--c-sol)", luna: "var(--c-luna)", argon: "var(--c-argon)", beam: "var(--c-beam)", glm: "var(--c-glm)", kimi: "var(--c-kimi)", qwenmax: "var(--c-qwenmax)", qwen9b: "var(--c-qwen9b)", qwen9bsft: "var(--c-qwen9bsft)", qwen: "var(--c-qwen)", haiku: "var(--c-haiku)", terra: "var(--c-terra)", glmflash: "var(--c-glmflash)", dsflash: "var(--c-dsflash)" };
 const busd = (x) => (x < 100 ? `$${x.toFixed(2)}` : `$${whole(x).toLocaleString("en-US")}`);
 const isoPlus = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 const spanOf = (a, b) => {

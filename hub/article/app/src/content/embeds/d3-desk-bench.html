@@ -72,7 +72,6 @@
         if (m.valid !== m.n) K.t.note(el, `A valid submission on ${m.valid} of ${m.n} windows.`);
         for (const [why, k] of Object.entries(m.missing)) K.t.note(el, `${k} ${k > 1 ? "windows" : "window"} unscored, ended by the ${why.replace(/, final$/, "")}.`);
       };
-      const color = (k) => `var(--c-${B.models[k].family || k})`;
       const label = (m, sp) => `${m.name}, ${side[sp].name}: C ${sp === "pre_cutoff" ? m.pre : m.post}`;
       document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
 
@@ -88,7 +87,7 @@
         const show = (ev) => {
           const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
           const m = marks.reduce((a, o) => (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? o : a));
-          tip.show((el) => card(el, who(m.k), color(m.k), m.sp), ev);
+          tip.show((el) => card(el, who(m.k), `var(--c-${m.k})`, m.sp), ev);
         };
         for (const m of marks) {
           const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
@@ -104,7 +103,7 @@
           hit.addEventListener("pointerdown", show);
           hit.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") tip.hide(); });
           hit.addEventListener("pointercancel", () => tip.hide());
-          hit.addEventListener("focus", () => tip.show((el) => card(el, who(m.k), color(m.k), m.sp), { target: hit }));
+          hit.addEventListener("focus", () => tip.show((el) => card(el, who(m.k), `var(--c-${m.k})`, m.sp), { target: hit }));
           hit.addEventListener("blur", () => tip.hide());
           svg.appendChild(hit);
         }
