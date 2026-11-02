@@ -3,14 +3,12 @@ import F from "../assets/data/facts.json";
 
 ## What is in GridSimEnv
 
-GridSimEnv puts an agent on the trading desk of a real battery on the Texas grid. It is built from the records of
-ERCOT, which runs that grid: its real prices, forecasts, notices and grid conditions, each shown to the agent only from
-the minute it was posted. The agent runs the battery for three days at a time while a real weather front crosses Texas.
-It works through the desk's own tools: it reads prices, forecasts and the battery's status, asks the `optimize` planner
-for a plan, offers the battery's energy and reserves into ERCOT's day-ahead and real-time markets, and keeps the current
-operating plan it owes ERCOT up to date. Each window settles in dollars on the battery's ERCOT statement and is scored
-by hindsight capture C: the share of the hindsight-optimal profit that the agent captured. The benchmark plays
-{F.env.windows} windows, {F.env.fronts} fronts at each of {F.env.sites} real batteries, shown here as S01 to S04.
+GridSimEnv hands an AI agent the trading desk of a real battery on the Texas grid. For three days at a time, while a real
+heat wave or winter storm sweeps across Texas, it reads ERCOT's prices and forecasts as they were posted, bids the
+battery into the power markets and decides when to charge and when to sell. Every window is settled in dollars and
+scored against the best plan hindsight allows. We put {F.env.models} AI models through {F.env.windows} of these windows,
+and in the {F.duel.front} most of them out-earned the real operator at {F.duel.most} of the {F.env.sites_word}
+batteries.
 
 <figure class="html-embed html-embed--wide gs-run" id="run">
   <div class="html-embed__card is-frameless">
@@ -21,7 +19,7 @@ by hindsight capture C: the share of the hindsight-optimal profit that the agent
       </video>
     </a>
   </div>
-  <figcaption class="html-embed__desc">A recorded benchmark run, replayed on the 3D site: {F.lead.name} in {F.lead.harness} trades {F.lead.site} ({F.lead.region}, {F.lead.battery}) through the {F.lead.span} {F.lead.kind}, after every model's training cutoff. It settles at {F.lead.P}, hindsight capture C {F.lead.C}; the real operator, as it ran, made {F.lead.op}. The desk at right lists the agent's tool calls in order, the current one lit, with the results the run recorded; the agent itself sends ERCOT's market objects, offer curves and the operating plan. <a href={F.lead.replay}>Watch it in 3D</a>.</figcaption>
+  <figcaption class="html-embed__desc">A recorded benchmark run, replayed on the 3D site: {F.lead.name} in {F.lead.harness} trades {F.lead.site} ({F.lead.region}, {F.lead.battery}) through the {F.lead.span} {F.lead.kind}, after every model's training cutoff. It settles at {F.lead.P}, hindsight capture C {F.lead.C}, the share of the hindsight-best plan's profit it captured; the real operator, as it ran, made {F.lead.op}. The desk at right lists the agent's tool calls in order, the current one lit, with the results the run recorded; the agent itself sends ERCOT's market objects, offer curves and the operating plan. <a href={F.lead.replay}>Watch it in 3D</a>.</figcaption>
 </figure>
 
 Every run plays out on a 3D battery site in its part of Texas, in the real light and weather of those days. The awards

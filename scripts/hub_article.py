@@ -64,7 +64,7 @@ def main():
     if s["fake"]:
         raise SystemExit("results/desk-v4-bench holds fake data; the article states real runs only")
     pairs = duel(args.desk_repo, s, grades, card)
-    out = {"facts.json": {"env": env(s), "lead": lead(s, grades, card),
+    out = {"facts.json": {"env": env(s, card), "lead": lead(s, grades, card),
                           "duel": duel_facts(args.desk_repo, s, grades, pairs, card)},
            "duel.json": duel_data(pairs, s)}
     DATA.mkdir(parents=True, exist_ok=True)
@@ -116,10 +116,10 @@ def span(a: str, b: str, sep: str = " to ") -> str:
         f"{x:%-d %B}{sep}{y:%-d %B %Y}")
 
 
-def env(s: dict) -> dict:
-    """The environment's shape, from summary.json: windows, fronts, batteries, days a window, models."""
+def env(s: dict, card) -> dict:
+    """The environment's shape, from summary.json: windows, fronts, batteries, models."""
     return {"windows": str(s["n_windows"]), "fronts": str(s["n_fronts"]), "sites": str(len(s["sites"])),
-            "models": str(len(s["models"]))}
+            "sites_word": card.NUM[len(s["sites"])].lower(), "models": str(len(s["models"]))}
 
 
 def lead(s: dict, grades: list[dict], card) -> dict:
@@ -268,6 +268,11 @@ def duel_facts(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card)
            "best": s["models"][best.pop()]["name"] if len(best) == 1 else None}
     if len({w["g"]["front"] for w in pairs}) != 1 or out["best"] is None:
         raise SystemExit("the before and after's prose describes one front and one model: rewrite it for these windows")
+    most = majority(grades, front["front"])
+    if most != len(pairs):
+        raise SystemExit(f"the opening says most models beat the operator at {len(pairs)} batteries on the "
+                         f"{front['kind']}; {most} have a majority above it: rewrite it")
+    out |= {"front": f"{date.fromisoformat(front['front']):%B} {front['kind']}", "most": card.NUM[most].lower()}
     nxt = sorted({g["front"] for g in grades if g["split"] == "post_cutoff" and g["front"] > front["front"]})
     if nxt:
         gs = [g for g in grades if g["front"] == nxt[0] and g["status"] == "scored"]
@@ -279,6 +284,16 @@ def duel_facts(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card)
         out["next"] = {"span": span(gs[0]["dates"][0], gs[0]["dates"][-1]), "behind": str(behind),
                        "rt": usd(round(top, -1)), "sites": str(len(by))}
     return out
+
+
+def majority(grades: list[dict], front: str) -> int:
+    """The front's batteries at which more than half of the models scored there settled above the real operator, both
+    as it ran and with its own bids replayed: the opening's claim, on the before and after's measure."""
+    by = defaultdict(list)
+    for g in grades:
+        if g["front"] == front and g["status"] == "scored":
+            by[g["site"]].append(g["p"] > g["p_operator_actual"] and g["p"] > g["p_operator_replay"])
+    return sum(2 * sum(x) > len(x) for x in by.values())
 
 
 def rt_of(repo: Path, g: dict) -> list[float]:

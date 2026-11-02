@@ -273,9 +273,11 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     for w in data["windows"]:
         assert (len(w["da"]), len(w["rt"]), len(w["op"]["soc"]), len(w["agent"]["sold"])) == (72, 288, 288, 72)
         assert w["agent"]["sold_mwh"] in w["why"] and w["op"]["p"] < w["agent"]["p"]
-    f = {"env": hub_article.env(s), "lead": lead, "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset)}
+    f = {"env": hub_article.env(s, hub_dataset), "lead": lead,
+         "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset)}
     hub_article.check_prose(f)
     assert f["duel"]["n"] == str(len(pairs)) and f["duel"]["of"] == str(len(s["models"]))
+    assert hub_article.majority(grades, pairs[0]["g"]["front"]) == len(pairs) and f["env"]["sites_word"] == "four"
 
 
 ROUTE_C = {"qwen": ("opencode-qwen", "g5.xlarge", [("desk-v4-2026-07-04-S01", 0, 1000, "ok"),
