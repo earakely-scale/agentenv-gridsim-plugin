@@ -179,7 +179,7 @@ rationale at each wake-up.
     <dt>Model</dt><dd>{F.train.base_name}, LoRA r {F.train.rank} / α {F.train.alpha} on all linear layers</dd>
     <dt>Training</dt><dd>TRL SFTTrainer, lr {F.train.lr}, {F.train.epochs} epoch, {F.train.steps} steps, gradient accumulation {F.train.accum}; activations offloaded to CPU, so rows up to {F.train.cap} tokens fit on one {F.train.mem} GiB GPU ({F.train.gpu_name}, {F.train.box} spot), in {F.train.hours} h</dd>
     <dt>Eval</dt><dd>OpenCode with vLLM at a {F.train.ctx}-token context, the same harness for base and student</dd>
-    <dt>Cost</dt><dd>about {F.train.gpu} of GPU for training and every eval; no LLM API spend</dd>
+    <dt>Cost</dt><dd>about {F.train.gpu} of GPU for training and the evals on our own servers; the teacher is our own planner, so no LLM API spend</dd>
     <dt>Code</dt><dd><a href={F.train.rows_code}>desk_distill_sft.py</a> and <a href={F.train.code}>desk_distill_train.py</a>, and the <a href={F.train.prereg}>pre-registration</a></dd>
   </dl>
 </div>
@@ -198,8 +198,8 @@ rationale at each wake-up.
   points [{F.train.hlo}, {F.train.hhi}], not significant; the planner itself is only {F.train.hplan} points above base
   there[^serving].
 - **The earlier attempt:** GRPO alone on {F.train.base_name}, {F.train.grpo} steps, did not move the score; imitating a
-  strong policy did. What the model learned is the planner's habits: refused day-ahead offers fell from
-  {F.train.refused} to {F.train.refusedSft}.
+  strong policy moved it on the benchmark. What the model learned is the planner's habits: refused day-ahead offers
+  fell from {F.train.refused} to {F.train.refusedSft}.
 
 ### Data sources
 
