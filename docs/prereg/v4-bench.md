@@ -415,3 +415,27 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     its largest prompt, 231k tokens, stayed under the 272K tier): $96.33 of the $160. The most expensive windows were
     $0.65, $0.26, $0.59 and $3.23, so no window reached $5, no model its cap, and the $159 stop never fired. Cached
     share of input tokens: 96.7%, 98.0%, 98.1% and 97.5%.
+
+### Beam-1.0 with the desk playbook (exploratory, added after the bench)
+
+64. Added on 2026-11-02, after every bench result and after the exact-replay diagnosis of Beam-1.0's 32 runs
+    (`results/desk-v4-bench/beam-diagnosis/`), and before any playbook episode. It asks one question: when Beam-1.0 is
+    given the two habits the diagnosis found it lacks, does its own play recover what the replay predicts? It is not
+    part of the leaderboard; it is reported only as Beam-1.0 against its own bench runs.
+65. The harness is Beam-1.0's, `opencode-beam`, unchanged: OpenCode 1.17.18 at effort high, the same route (Hugging Face
+    Inference Providers, Baseten), agentenv-framework 0.9.1396, the bundle `desk-v4-bench-run1`, the same tools,
+    budgets, egress rule and proxy. One file is added: `bench/harness/bench-opencode-beam-playbook/PLAYBOOK.md`
+    (46 lines, sha256 0dc7cb47eb500057…), which `opencode.json` loads as instructions (`opencode-beam-playbook`). It is
+    general desk practice: ask `optimize` with `price_view` desk, `risk` 1.5 (1 to 2 by judgment) and `dam_position`
+    spread, send the whole proposal before each gate, and re-plan at every checkpoint through the last operating day.
+    Its `spread` setting was checked on 48 desk-v4-win training windows with no bench day (+0.022 [+0.005, +0.043] over
+    `physical`); it names no window, date, price or result. Frozen at this commit.
+66. Runs: all 32 bench windows, once each, in pack order, at most 3 at once; the first attempt that reaches the grade
+    is scored. Retries, 429s, 503s and HTTP 402 are handled as in 20, 25 and 26. Caps: $20 a window and $150 in all, on
+    Edgar's Hugging Face account; a window not run is reported as not run.
+67. Reported whatever the result, with no rerun to improve a score: C and R of Beam-1.0 with the playbook; the paired
+    difference from Beam-1.0's own bench run on each window, front-block bootstrap (10,000 resamples, seed 0), over
+    all 32 and separately over the 16 July–August windows and over the 28 outside the 2026-01-23 front; the share of
+    `optimize` calls asking `spread`; and the hours left after the last accepted offer. The playbook was written after
+    seeing Beam's failures on these same windows, so this measures whether the diagnosed fixes carry over to Beam's own
+    play, not performance on unseen windows.
