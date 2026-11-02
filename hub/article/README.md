@@ -23,27 +23,24 @@ tags:
 datasets:
   - earakely-scale/GridSimEnv-AgentEnv
 thumbnail: >-
-  https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/og-image.jpg
+  https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/gridsim-run.jpg
 ---
 
 # GridSimEnv Desk: a real ERCOT battery's trading desk
 
-A long-form research article on **GridSimEnv Desk**, an RL environment in which an agent runs a real Texas grid
-battery's trading desk through ERCOT's day-ahead market and real time. It submits ERCOT's own market objects (energy
-bid/offer curves, the Current Operating Plan, from v3 reserve offers) on prices, forecasts, notices and alerts as each
-was posted, while AgentEnv's virtual clock stands still in a turn and runs between turns. Every task settles on the
-battery's ERCOT statement and is graded against the hindsight optimum and the battery's real operator, whose bids ERCOT
-discloses 60 days later. The article leads with the v4 benchmark: models in native agent harnesses (Claude Code, Codex
-CLI, Gemini CLI, and OpenCode for the open Beam-1.0, GLM-5.3, Kimi K3, Qwen3.8 Max, Qwen3.5-9B, a Qwen3.5-9B distilled
-from the desk's own planner, and Qwen3-4B) run the desk for three days at a time across real Texas weather fronts, and
-it reports their hindsight capture before and after the models' training cutoffs, and against what a window cost.
-Then come the desk itself, its clock and tools, the development ladder of versions v2 to v4 and the v5 price-impact check,
-the methods and the limitations.
+A research article on **GridSimEnv Desk**, an RL environment in which an agent runs a real Texas grid battery's trading
+desk on ERCOT's records: real prices, forecasts and grid conditions, each visible from the minute it was posted. The
+agent runs the battery three days at a time across real weather fronts through the desk's tools (prices, forecasts,
+the battery's status, the `optimize` planner, day-ahead and real-time offers with reserves, and the current operating
+plan), and each window is scored by hindsight capture C, the share of the hindsight-optimal profit it captures.
+
+The article opens on what is in the environment: a recorded benchmark run filmed on the 3D viewer, then the battery's
+real operator against the agents on the windows where the agents did better, from ERCOT's 60-day disclosures.
 
 - **Dataset:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv),
-  the benchmark's grades and Episode JSON under `results/desk-v4-bench`, and every development task, reference, grade,
-  Episode JSON and run log under `results/desk-v2` to `results/desk-v5`.
-- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv), the benchmark's [results and 3D replays](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench) first, then the desk's development runs version by version.
+  the benchmark's grades and Episode JSON under `results/desk-v4-bench`.
+- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv),
+  every benchmark run replayed in 3D, and its [results](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench).
 - **Code:** [agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin), a plugin for the
   [AgentEnv Framework](https://www.agentenvframework.com).
 
@@ -55,17 +52,19 @@ Frere, licensed CC BY 4.0, with GridSimEnv's own chapters, charts and colours.
 
 ## Where the content lives
 
-The source is `hub/article/` in [agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin),
-and `scripts/hub_article.py` there rebuilds the article's data and publishes this Space.
+The source is `hub/article/` in [agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin):
+`scripts/hub_desk_film.py` films the run and `scripts/hub_article.py` rebuilds the article's data, checks it and
+publishes this Space.
 
 | Path | What |
 | --- | --- |
 | `app/src/content/article.mdx` | Front matter and the chapter registry, in running order |
 | `app/src/content/chapters/` | One `.mdx` per section; every number in the prose is read from `facts.json` |
-| `app/src/content/embeds/` | The D3 figures, one file each; the benchmark's two draw with the dataset card's own chart code |
-| `app/src/content/assets/data/` | The figures' data: `bench.json` (from `results/desk-v4-bench/summary.json`), `desk.json` (from `results/overview/desk.json`), `facts.json` (the prose's numbers, formatted from both), and the banner's front and the bid curve, read from the committed episodes and grades |
+| `app/src/content/embeds/` | The D3 figures, one file each |
+| `app/src/content/assets/data/` | The figures' data: `facts.json` (the prose's numbers) and `duel.json` (the real operator against the agents), from `results/desk-v4-bench`, its episodes and the benchmark's pack |
+| `app/public/media/gridsim-run.gif` | The run film, filmed on the viewer by `scripts/hub_desk_film.py`; uploaded with the Space, not committed |
 | `app/src/content/bibliography.bib` | References, cited as `[@key]` |
-| `app/public/` | The social card, and `scripts/desk-charts.js`, the dataset card's chart code (`hub/desk-charts/charts.js`) |
+| `app/public/` | The social card and `scripts/gridsim-kit.js`, the figures' shared helpers |
 
 ```bash
 cd app && npm ci && npm run dev     # http://localhost:4321
@@ -75,5 +74,4 @@ cd app && npm ci && npm run dev     # http://localhost:4321
 
 Text and charts: CC BY 4.0. Prices, forecasts, notices and the 60-day disclosures are ERCOT's public data, used under
 ERCOT's Website User Agreement and not relicensed; weather alerts are the U.S. National Weather Service's. GridSimEnv
-is not affiliated with or endorsed by ERCOT. The batteries are shown only as anonymised cards. Texas outline: U.S.
-Census Bureau via us-atlas. The code is Apache-2.0.
+is not affiliated with or endorsed by ERCOT. The batteries are shown only as anonymised cards. The code is Apache-2.0.

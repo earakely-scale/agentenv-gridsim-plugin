@@ -1,0 +1,214 @@
+<div class="gs-ba"></div>
+<style>
+  .gs-ba { font-size: 12px; }
+  .gs-ba .ba-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; color: var(--muted-color); font-size: 12px; }
+  .gs-ba .ba-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .gs-ba .ba-legend i { display: inline-block; flex: none; }
+  .gs-ba .ba-legend i.ln { width: 16px; height: 2px; border-radius: 1px; }
+  .gs-ba .ba-legend i.ln.rt { height: 1.5px; background: var(--muted-color); }
+  .gs-ba .ba-legend i.ln.da { background: var(--text-color); }
+  .gs-ba .ba-legend i.dot { width: 10px; height: 10px; border-radius: 50%; }
+  .gs-ba .ba-legend i.bar { width: 4px; height: 11px; border-radius: 1px; background: var(--muted-color); box-shadow: 5px 0 0 var(--muted-color); margin-right: 5px; }
+  .gs-ba .ba-legend i.area { width: 14px; height: 9px; border-top: 2px solid var(--muted-color); background: color-mix(in srgb, var(--muted-color) 22%, transparent); }
+  .gs-ba .ba-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .gs-ba.ba-3 .ba-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
+  .gs-ba .ba-card { position: relative; min-width: 0; }
+  .gs-ba .ba-head { margin: 0; font-size: 14.5px; line-height: 1.3; font-weight: 650; color: var(--text-color); }
+  .gs-ba .ba-head span { font-weight: 400; color: var(--muted-color); }
+  .gs-ba .ba-money { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; margin: 8px 0 6px; }
+  .gs-ba .ba-m .k { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.3; color: var(--muted-color); }
+  .gs-ba .ba-m .k i { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+  .gs-ba .ba-m b { display: block; margin-top: 2px; font-size: 19px; line-height: 1.1; font-weight: 650; color: var(--text-color); letter-spacing: -0.01em; }
+  .gs-ba .ba-m.op b { font-weight: 560; color: var(--muted-color); }
+  .gs-ba .ba-arrow { padding-bottom: 3px; color: var(--muted-color); font-size: 16px; }
+  .gs-ba svg { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+  .gs-ba svg:focus { outline: none; }
+  .gs-ba svg:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; border-radius: 4px; }
+  .gs-ba .ba-why { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text-color); }
+  .gs-ba .ba-foot { margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: var(--muted-color); }
+  .gs-ba .ba-foot a { color: inherit; }
+  .gs-ba details { margin-top: 6px; font-size: 12px; color: var(--muted-color); }
+  .gs-ba details summary { cursor: pointer; width: fit-content; }
+  .gs-ba details table { width: 100%; margin: 6px 0 0; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .gs-ba details :is(th, td) { padding: 3px 0; border-bottom: 1px solid var(--border-color); text-align: right; white-space: nowrap; }
+  .gs-ba details :is(th, td):first-child { text-align: left; white-space: normal; padding-right: 8px; color: var(--muted-color); }
+  .gs-ba details th { font-weight: 600; color: var(--text-color); }
+  .gs-ba details td { color: var(--text-color); }
+  .gs-ba .tk { fill: var(--muted-color); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+  .gs-ba .dl { fill: var(--muted-color); font-size: 11px; }
+  .gs-ba .ln { fill: var(--text-color); font-size: 11.5px; font-weight: 600; }
+  .gs-ba .ln .lq { fill: var(--muted-color); font-weight: 400; }
+  .gs-ba .grid line { stroke: var(--grid-color); stroke-width: 1; }
+  .gs-ba .sep { stroke: var(--grid-color); stroke-width: 1; }
+  .gs-ba .base { stroke: var(--border-color); stroke-width: 1; }
+  .gs-ba .p-da { fill: none; stroke: var(--text-color); stroke-width: 1.5; }
+  .gs-ba .p-rt { fill: none; stroke: var(--muted-color); stroke-width: 1; stroke-opacity: 0.85; }
+  .gs-ba .soc { stroke-width: 1.6; fill-opacity: 0.14; }
+  .gs-ba .soc-line { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
+  .gs-ba .x { stroke: var(--text-color); stroke-width: 1; stroke-opacity: 0.55; pointer-events: none; }
+  .gs-ba .halo { paint-order: stroke; stroke: var(--page-bg); stroke-width: 3px; stroke-linejoin: round; }
+  .html-embed__card:not(.is-frameless) .gs-ba .halo { stroke: var(--surface-bg); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-ba");
+    if (!root) return;
+    const OP = "var(--c-op)";
+    const color = (key) => `var(--c-${key}, var(--c-sol))`;
+    const day = (iso, f) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", ...f });
+    const pct = (v) => (v == null ? "–" : `${Math.round(v)}%`);
+    const mw = (v) => `${Math.round(Math.abs(v))} MW`;
+    const usd = (v) => K.fmt.usd0(v);
+    const nice = (v) => [50, 100, 150, 200, 250, 300, 400, 500, 750, 1000].find((s) => s >= v) || v;
+
+    K.whenD3(() => K.data("duel.json").then((D) => {
+      const d3 = window.d3;
+      const W = D.windows;
+      const pmax = nice(d3.max(W, (w) => Math.max(d3.max(w.da), d3.max(w.rt))));
+      const runs = [...new Map(W.map((w) => [w.agent.key, w.agent.name])).entries()];
+      const legend = document.createElement("div");
+      legend.className = "ba-legend";
+      const item = (cls, style, text) => {
+        const s = document.createElement("span"), i = document.createElement("i");
+        i.className = cls;
+        if (style) i.style.background = style;
+        s.append(i, document.createTextNode(text));
+        legend.append(s);
+      };
+      item("dot", OP, "Real operator, as it ran");
+      runs.forEach(([k, name]) => item("dot", color(k), `${name}, the best run`));
+      item("ln da", null, "Day-ahead price");
+      item("ln rt", null, "Real-time price");
+      item("bar", null, "Sold (up) or bought (down) a day ahead");
+      item("area", null, "Charge, % of capacity");
+      const grid = document.createElement("div");
+      grid.className = "ba-grid";
+      root.append(legend, grid);
+      const cards = W.map((w) => card(w));
+      cards.forEach((c) => grid.append(c.el));
+
+      function card(w) {
+        const el = document.createElement("article");
+        el.className = "ba-card";
+        const title = document.createElement("div"), sub = document.createElement("span");
+        title.className = "ba-head";
+        title.append(document.createTextNode(`${w.site} `));
+        sub.textContent = `· ${w.region} · ${w.size}`;
+        title.append(sub);
+        const money = document.createElement("div");
+        money.className = "ba-money";
+        const m = (cls, dot, label, v) => {
+          const box = document.createElement("div"), k = document.createElement("span"), i = document.createElement("i"), b = document.createElement("b");
+          box.className = `ba-m ${cls}`;
+          k.className = "k";
+          i.style.background = dot;
+          k.append(i, document.createTextNode(label));
+          b.textContent = usd(v);
+          box.append(k, b);
+          return box;
+        };
+        const arrow = document.createElement("span");
+        arrow.className = "ba-arrow";
+        arrow.textContent = "→";
+        arrow.setAttribute("aria-hidden", "true");
+        money.append(m("op", OP, "Real operator, as it ran", w.op.p), arrow, m("ag", color(w.agent.key), w.agent.name, w.agent.p));
+        const svg = d3.select(el).append("svg").attr("tabindex", 0).attr("role", "img")
+          .attr("aria-label", `${w.site}, ${w.region}: the real operator settled ${usd(w.op.p)} and ${w.agent.name} ${usd(w.agent.p)} over ${day(w.dates[0], { day: "numeric" })} to ${day(w.dates[2], { day: "numeric", month: "long" })}. Use the arrow keys to read each hour.`);
+        const why = document.createElement("p");
+        why.className = "ba-why";
+        why.textContent = w.why;
+        const foot = document.createElement("p");
+        foot.className = "ba-foot";
+        const a = document.createElement("a");
+        a.href = w.replay;
+        a.textContent = `Replay ${w.agent.name}'s run in 3D`;
+        foot.append(document.createTextNode(`${w.ahead} of ${w.n} models settled above the operator here. `), a);
+        const det = document.createElement("details"), sum = document.createElement("summary"), tb = document.createElement("table");
+        sum.textContent = "The numbers";
+        const head = tb.createTHead().insertRow();
+        ["", "Operator", w.agent.name].forEach((t) => { const th = document.createElement("th"); th.textContent = t; head.append(th); });
+        const body = tb.createTBody();
+        w.table.forEach((r) => { const tr = body.insertRow(); r.forEach((t) => { tr.insertCell().textContent = t; }); });
+        det.append(sum, tb);
+        el.prepend(title, money);
+        el.append(why, foot, det);
+        return { el, svg, w };
+      }
+
+      function draw(c) {
+        const { svg, w, el } = c;
+        svg.selectAll("*").remove();
+        const width = el.clientWidth || 340;
+        const ML = 2, MR = 2, P0 = 6, P1 = 60;
+        const lane = (top) => ({ label: top + 11, s0: top + 17, mid: top + 28, s1: top + 39, c0: top + 43, c1: top + 73 });
+        const L = { op: lane(P1 + 12), agent: lane(P1 + 12 + 84) };
+        const H = L.agent.c1 + 20;
+        svg.attr("viewBox", `0 0 ${width} ${H}`).attr("height", H);
+        const x = d3.scaleLinear().domain([0, 72]).range([ML, width - MR]);
+        const yp = d3.scaleLinear().domain([0, pmax]).range([P1, P0]);
+        const g = svg.append("g").attr("class", "grid");
+        for (const v of [0, pmax / 2, pmax]) g.append("line").attr("x1", ML).attr("x2", width - MR).attr("y1", yp(v)).attr("y2", yp(v));
+        for (const hh of [24, 48]) svg.append("line").attr("class", "sep").attr("x1", x(hh)).attr("x2", x(hh)).attr("y1", P0 - 4).attr("y2", L.agent.c1);
+        svg.append("path").attr("class", "p-rt").attr("d", d3.line().curve(d3.curveStepAfter).x((v, i) => x(i / 4)).y((v) => yp(v))(w.rt.concat([w.rt[w.rt.length - 1]])));
+        svg.append("path").attr("class", "p-da").attr("d", d3.line().curve(d3.curveStepAfter).x((v, i) => x(i)).y((v) => yp(v))(w.da.concat([w.da[w.da.length - 1]])));
+        for (const v of [pmax / 2, pmax]) svg.append("text").attr("class", "tk halo").attr("x", ML + 2).attr("y", yp(v) + 11).text(usd(v));
+        const bw = Math.max(1, x(1) - x(0));
+        for (const [k, s] of [["op", w.op], ["agent", w.agent]]) {
+          const l = L[k], col = k === "op" ? OP : color(w.agent.key);
+          svg.append("circle").attr("cx", ML + 4.5).attr("cy", l.label - 4).attr("r", 4.5).style("fill", col);
+          const tx = svg.append("text").attr("class", "ln halo").attr("x", ML + 14).attr("y", l.label).text(k === "op" ? "Real operator" : s.name);
+          tx.append("tspan").attr("class", "lq").text(` · sold ${s.sold_mwh} a day ahead`);
+          svg.append("line").attr("class", "base").attr("x1", ML).attr("x2", width - MR).attr("y1", l.mid).attr("y2", l.mid);
+          const sc = (v) => (Math.min(Math.abs(v), w.p_max) / w.p_max) * (l.mid - l.s0);
+          svg.append("g").selectAll("rect").data(s.sold.map((v, i) => [v, i]).filter(([v]) => Math.abs(v) >= 0.5)).join("rect")
+            .attr("x", ([, i]) => x(i) + 0.5).attr("width", Math.max(0.8, bw - 1))
+            .attr("y", ([v]) => (v > 0 ? l.mid - sc(v) : l.mid)).attr("height", ([v]) => Math.max(1, sc(v)))
+            .style("fill", col).style("fill-opacity", ([v]) => (v > 0 ? 0.9 : 0.45));
+          const yc = d3.scaleLinear().domain([0, 100]).range([l.c1, l.c0]);
+          const pts = s.soc.map((v, i) => [i / 4, v]);
+          svg.append("path").attr("class", "soc").style("fill", col).style("stroke", "none")
+            .attr("d", d3.area().defined(([, v]) => v != null).curve(d3.curveStepAfter).x(([t]) => x(t)).y0(l.c1).y1(([, v]) => yc(v))(pts));
+          svg.append("path").attr("class", "soc-line").style("stroke", col)
+            .attr("d", d3.line().defined(([, v]) => v != null).curve(d3.curveStepAfter).x(([t]) => x(t)).y(([, v]) => yc(v))(pts));
+          svg.append("line").attr("class", "base").attr("x1", ML).attr("x2", width - MR).attr("y1", l.c1).attr("y2", l.c1);
+        }
+        w.dates.forEach((iso, j) => svg.append("text").attr("class", "dl").attr("x", x(24 * j + 12)).attr("y", H - 4).attr("text-anchor", "middle")
+          .text(day(iso, { weekday: "short", day: "numeric", month: "short" })));
+        const cross = svg.append("line").attr("class", "x").attr("y1", P0 - 4).attr("y2", L.agent.c1).style("opacity", 0);
+        const tip = c.tip || (c.tip = K.tip(el));
+        const show = (hr, ev) => {
+          const hh = Math.max(0, Math.min(71, hr));
+          c.at = hh;
+          cross.attr("x1", x(hh + 0.5)).attr("x2", x(hh + 0.5)).style("opacity", 1);
+          const rt = d3.mean(w.rt.slice(4 * hh, 4 * hh + 4)), at = (s) => s.soc[Math.min(s.soc.length - 1, 4 * hh + 4)];
+          tip.show((t) => {
+            const d = w.dates[Math.floor(hh / 24)], hs = hh % 24;
+            K.t.title(t, `${day(d, { weekday: "short", day: "numeric", month: "short" })}, ${String(hs).padStart(2, "0")}:00–${String(hs + 1).padStart(2, "0")}:00`);
+            K.t.row(t, "Day-ahead price", usd(w.da[hh]));
+            K.t.row(t, "Real time, hour average", usd(rt));
+            for (const [label, s] of [["Real operator", w.op], [w.agent.name, w.agent]]) {
+              const v = s.sold[hh];
+              K.t.row(t, label, `${v >= 0.5 ? `sold ${mw(v)}` : v <= -0.5 ? `bought ${mw(v)}` : "nothing"} a day ahead, ${pct(at(s))} charged`);
+            }
+          }, ev || { target: cross.node() });
+        };
+        const hide = () => { cross.style("opacity", 0); tip.hide(); };
+        svg.on("pointermove", (ev) => show(Math.floor(x.invert(d3.pointer(ev)[0])), ev)).on("pointerleave", hide)
+          .on("focus", () => show(c.at ?? 19)).on("blur", hide)
+          .on("keydown", (ev) => {
+            if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+            ev.preventDefault();
+            show((c.at ?? 19) + (ev.key === "ArrowRight" ? 1 : -1));
+          });
+      }
+
+      const layout = () => {
+        root.classList.toggle("ba-3", root.clientWidth >= 900);
+        cards.forEach(draw);
+      };
+      layout();
+      K.watch(root, layout);
+    }));
+  })();
+</script>
