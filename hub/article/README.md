@@ -62,7 +62,7 @@ publishes this Space.
 | `app/src/content/chapters/` | One `.mdx` per section; every number in the prose is read from `facts.json` |
 | `app/src/content/embeds/` | The D3 figures, one file each |
 | `app/src/content/assets/data/` | The figures' data: `facts.json` (the prose's numbers) and `duel.json` (the real operator against the agents), from `results/desk-v4-bench`, its episodes and the benchmark's pack |
-| `app/public/media/gridsim-run.mp4`, `gridsim-run.gif` | The run film, filmed on the viewer by `scripts/hub_desk_film.py`: the MP4 plays in the article, the GIF is its fallback; uploaded with the Space, not committed |
+| `app/public/media/gridsim-run.mp4`, `gridsim-run.gif`, `moment-S0N.webp` | The run film and each before and after card's moment in 3D, rendered on the viewer by `scripts/hub_desk_film.py`: the MP4 plays in the article, the GIF is its fallback; uploaded with the Space, not committed |
 | `app/src/content/bibliography.bib` | References, cited as `[@key]` |
 | `app/public/` | The social card and `scripts/gridsim-kit.js`, the figures' shared helpers |
 

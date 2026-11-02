@@ -15,6 +15,18 @@
   .gs-ba .ba-card { position: relative; min-width: 0; }
   .gs-ba .ba-head { margin: 0; font-size: 14.5px; line-height: 1.3; font-weight: 650; color: var(--text-color); }
   .gs-ba .ba-head span { font-weight: 400; color: var(--muted-color); }
+  .gs-ba .ba-shot { margin: 9px 0 12px; padding: 0; }
+  .content-grid main .gs-ba .ba-shot a, .gs-ba .ba-shot a { position: relative; display: block; border: 0; border-radius: 8px; overflow: hidden; background: #0b1117; }
+  .gs-ba .ba-shot .ba-3d { position: absolute; z-index: 11; right: 8px; bottom: 8px; padding: 4px 9px 4px 8px; border-radius: 999px;
+    font-size: 11.5px; line-height: 1.2; font-weight: 600; color: #fff; background: rgba(8, 12, 16, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.18); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    transition: background 0.15s; }
+  .content-grid main .gs-ba .ba-shot a:hover { border: 0; }
+  .gs-ba .ba-shot a:hover .ba-3d, .gs-ba .ba-shot a:focus-visible .ba-3d { background: rgba(8, 12, 16, 0.85); }
+  .gs-ba .ba-shot a:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .gs-ba .ba-shot img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+  .gs-ba .ba-shot figcaption { margin: 7px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--text-color); text-align: left; }
+  .gs-ba .ba-shot figcaption b { font-weight: 650; }
   .gs-ba .ba-money { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; margin: 8px 0 6px; }
   .gs-ba .ba-m .k { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.3; color: var(--muted-color); }
   .gs-ba .ba-m .k i { flex: none; width: 9px; height: 9px; border-radius: 50%; }
@@ -131,9 +143,26 @@
         const body = tb.createTBody();
         w.table.forEach((r) => { const tr = body.insertRow(); r.forEach((t) => { tr.insertCell().textContent = t; }); });
         det.append(sum, tb);
-        el.prepend(title, money);
+        el.prepend(title, shot(w), money);
         el.append(why, foot, det);
         return { el, svg, w };
+      }
+
+      function shot(w) {
+        const m = w.moment, fig = document.createElement("figure"), a = document.createElement("a"), img = document.createElement("img");
+        fig.className = "ba-shot";
+        a.href = m.href;
+        Object.assign(img, { src: m.img, alt: m.alt, width: 1280, height: 720, loading: "lazy", decoding: "async" });
+        const badge = document.createElement("span");
+        badge.className = "ba-3d";
+        badge.setAttribute("aria-hidden", "true");
+        badge.textContent = "▶ Watch in 3D";
+        a.append(img, badge);
+        const cap = document.createElement("figcaption"), b = document.createElement("b");
+        b.textContent = `${m.when}.`;
+        cap.append(b, document.createTextNode(` ${m.text}`));
+        fig.append(a, cap);
+        return fig;
       }
 
       function draw(c) {

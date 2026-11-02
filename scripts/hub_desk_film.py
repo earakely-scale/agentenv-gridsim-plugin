@@ -3,12 +3,15 @@ desk beside it: the agent's tool calls in order (the current one lit) with the r
 price and the battery's charge below as they post, then the settled grade beside the real operator's. The clock stands
 still while the agent works and runs between its turns; the replay is driven frame by frame, so every film is the same.
 The MP4 is 1920x1080 at 60 frames a second with the site moving on every frame; the GIF, 1200x675, moves the site a few
-times a second, a time-lapse that keeps it small.
+times a second, a time-lapse that keeps it small. With --moments, it renders instead the article's before and after
+cards' pictures: each card's run on the site at its moment (duel.json, from hub_article.MOMENTS), with no desk.
 
     .venv/bin/python scripts/hub_space.py --only bench       # the viewer Space, built once into build/hub/space
     .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.mp4
     .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.gif
     .venv/bin/python scripts/hub_desk_film.py --out build/article/stills --stills 4,12.5   # PNG stills instead
+    .venv/bin/python scripts/hub_desk_film.py --moments hub/article/app/src/content/assets/data/duel.json \
+        --out hub/article/app/public/media
 """
 
 import argparse
@@ -49,6 +52,10 @@ HEADS = {"start": "The day-ahead market is open", "dam_results": "Day-ahead resu
          "notice": "An ERCOT notice", "nws": "A weather alert", "outage": "An outage", "deployment": "A deployment",
          "dam_morning": "Day-ahead morning"}
 WARMUP = 320
+MOMENT = {"css": (640, 427), "scale": 2.0, "aspect": 16 / 9, "quality": 88, "settle": 120}
+BARE = (".app{position:fixed!important;inset:0!important;display:block!important}"
+        ".stage{position:absolute!important;inset:0!important;height:auto!important;min-height:0!important}"
+        ".desk,.transport,.plate,.corner,.hold,.wx,.sheet,.tip,.boot,.tags{display:none!important}")
 
 
 def main():
@@ -61,13 +68,21 @@ def main():
     ap.add_argument("--hold", help="Comma-separated turn numbers to hold, overriding the automatic choice.")
     ap.add_argument("--shots", help="Comma-separated shot per beat (establish, high, push, ramp, line, city, sub), "
                                     "overriding the automatic choice.")
-    ap.add_argument("--out", type=Path, required=True, help="An .mp4 or a .gif; with --stills, a folder.")
+    ap.add_argument("--out", type=Path, required=True, help="An .mp4 or a .gif; with --stills or --moments, a folder.")
     ap.add_argument("--css-size", default="960x540", help="The page's CSS size; the film is this times --scale.")
     ap.add_argument("--scale", type=float, help="The film's size over --css-size: 2 for an MP4, 1.25 for a GIF.")
     ap.add_argument("--crf", type=int, default=CRF, help="The MP4's H.264 quality: lower is better and larger.")
     ap.add_argument("--frames", type=Path, help="Keep the PNG frames in this folder.")
     ap.add_argument("--stills", help="Comma-separated film seconds: write those frames as PNGs into --out, no film.")
+    ap.add_argument("--moments", type=Path, help="The article's duel.json: render each card's moment into --out.")
     args = ap.parse_args()
+    if args.moments:
+        args.out.mkdir(parents=True, exist_ok=True)
+        for w in json.loads(args.moments.read_text())["windows"]:
+            path = args.out / Path(w["moment"]["img"]).name
+            moment(args.space, w, path)
+            print(f"{path}: {w['moment']['when']}, {w['moment']['shot']}, {path.stat().st_size / 1e3:.0f} kB")
+        return
     fmt = FORMATS[".gif" if args.stills else args.out.suffix]
     scale = args.scale or fmt["scale"]
     s, grades = bench(args.results)
@@ -104,6 +119,54 @@ def main():
         gif(args, url, data, frames, (cw, ch), scale, fmt)
     print(f"{args.out}: {w}x{h}, {len(frames)} frames, {length:.1f} s, {args.out.stat().st_size / 1e6:.2f} MB, "
           f"rendered in {time.monotonic() - t0:.0f} s")
+
+
+def moment(space: Path, w: dict, out: Path) -> None:
+    """A card's moment: the run on the site at that minute in the viewer's own camera shot, no desk or labels, after the
+    fans and the line's pulses run on for a moment; 3:2, cut to 16:9 at the card's crop, a WebP at twice the size."""
+    rec = module("record", "scripts/record.py")
+    m, (cw, ch), scale = w["moment"], MOMENT["css"], MOMENT["scale"]
+    url = f"index.html?v=bench&m={w['agent']['key']}&task={w['task']}&play=0"
+    with rec.serve(space) as port, tempfile.TemporaryDirectory() as profile:
+        proc = subprocess.Popen(rec.chrome_args(rec.find_chrome(None), Path(profile), cw, ch),
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            with rec.connect(rec.devtools(Path(profile), proc), max_size=None) as ws:
+                page = rec.Page(ws)
+                page.call("Emulation.setDeviceMetricsOverride", width=cw, height=ch, deviceScaleFactor=scale,
+                          mobile=False)
+                page.call("Runtime.enable")
+                page.call("Page.navigate", url=f"http://127.0.0.1:{port}/{url}")
+                page.js("new Promise((r, j) => { const s = Date.now(); const f = () => window.gridsim ? r() : "
+                        "Date.now() - s > 60000 ? j('timeout') : setTimeout(f, 50); f(); })")
+                page.js("gridsim.ready.then(() => document.fonts.ready).then(() => true)")
+                page.js(f"(() => {{ const s = document.createElement('style'); s.textContent = {json.dumps(BARE)}; "
+                        "document.head.append(s); return true; })()")
+                page.js(f"new Promise((r) => setTimeout(() => {{ const s = gridsim.stage; "
+                        f"s.renderer.setPixelRatio({scale}); s.composer.setPixelRatio({scale}); s.resize(); r(true); "
+                        "}, 300))")
+                page.js(NO_HAZE)
+                page.js(NO_NAN)
+                page.js(RAF)
+                page.js(f"(() => {{ for (let i = 0; i < {WARMUP}; i++) __raf(16); return true; }})()")
+                page.js(f"gridsim.stage.force = {json.dumps(m['shot'])}; gridsim.stage.drift = {m['drift']}; "
+                        f"gridsim.seek({m['t']}); true")
+                page.js(f"(() => {{ for (let i = 0; i < {MOMENT['settle']}; i++) __raf(16); return true; }})()")
+                box = (0, 0, round(cw * scale), round(ch * scale))
+                png, again = shot_png(page), 0
+                while blank(png, box):
+                    again += 1
+                    if again > 20:
+                        raise SystemExit(f"{w['task']}: the site keeps rendering blank")
+                    page.js(f"gridsim.seek({m['t']}); __raf(0); true")
+                    png = shot_png(page)
+        finally:
+            proc.terminate()
+            proc.wait()
+    im = Image.open(io.BytesIO(png)).convert("RGB")
+    hh = round(im.width / MOMENT["aspect"])
+    top = round((im.height - hh) * m["crop"])
+    im.crop((0, top, im.width, top + hh)).save(out, "WEBP", quality=MOMENT["quality"], method=6)
 
 
 def gif(args, url: str, data: dict, frames: list[dict], size: tuple[int, int], scale: float, fmt: dict) -> None:

@@ -122,6 +122,7 @@
 .gs-run .html-embed__card { padding: 0; overflow: hidden; border-radius: 10px; background: #0b1117; }
 .gs-run :is(video, img) { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0b1117; }
 .gs-run a:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
+.content-grid main .gs-run .html-embed__card > a, .content-grid main .gs-run .html-embed__card > a:hover { display: block; border: 0; background: none; }
 
 section.content-grid pre.astro-code { white-space: pre-wrap; overflow-wrap: anywhere; }
 section.content-grid pre.astro-code code { white-space: pre-wrap; display: block; min-width: 0; }
