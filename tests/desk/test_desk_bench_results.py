@@ -254,7 +254,8 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     lead = hub_article.lead(s, grades, hub_dataset)
     h = next(g for g in grades if g["task_id"] == s["hero"]["task_id"] and g["model"] == s["hero"]["model"])
     gif = hub_dataset.bench_gif(s, grades, True)
-    assert f"{lead['site']} ({lead['region']}, {lead['battery']})" in gif and f"capture C {lead['C']}" in gif
+    assert f"({lead['region']}, {lead['mw']} / " in gif and lead["month"] == "August 2026"
+    assert lead["pct"] == f"{Decimal(str(100 * h['capture'])).quantize(Decimal(1), ROUND_HALF_UP)}%"
     assert lead["replay"] == hub_dataset.bench_replay(h["model"], h["task_id"]) and lead["replay"] in gif
     assert (lead["P"], lead["op"]) == (hub_article.usd(h["p"]), hub_article.usd(h["p_operator_actual"]))
     pairs = hub_article.duel(ROOT, s, grades, hub_dataset)
@@ -278,6 +279,10 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     hub_article.check_prose(f)
     assert f["duel"]["n"] == str(len(pairs)) and f["duel"]["of"] == str(len(s["models"]))
     assert hub_article.majority(grades, pairs[0]["g"]["front"]) == len(pairs) and f["env"]["sites_word"] == "four"
+    head = hub_article.header(s, hub_dataset)
+    assert head["pitch"].startswith(f"{hub_dataset.NUM[len(s['models'])]} AI models ")
+    assert f" {s['n_fronts']} real weather fronts" in head["pitch"]
+    assert head["short"] == f"{len(s['models'])} AI models trade a real Texas battery" and len(head["short"]) <= 60
 
 
 ROUTE_C = {"qwen": ("opencode-qwen", "g5.xlarge", [("desk-v4-2026-07-04-S01", 0, 1000, "ok"),

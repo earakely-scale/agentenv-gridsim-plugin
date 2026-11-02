@@ -19,7 +19,7 @@ batteries.
       </video>
     </a>
   </div>
-  <figcaption class="html-embed__desc">A recorded benchmark run, replayed on the 3D site: {F.lead.name} in {F.lead.harness} trades {F.lead.site} ({F.lead.region}, {F.lead.battery}) through the {F.lead.span} {F.lead.kind}, after every model's training cutoff. It settles at {F.lead.P}, hindsight capture C {F.lead.C}, the share of the hindsight-best plan's profit it captured; the real operator, as it ran, made {F.lead.op}. The desk at right lists the agent's tool calls in order, the current one lit, with the results the run recorded; the agent itself sends ERCOT's market objects, offer curves and the operating plan. <a href={F.lead.replay}>Watch it in 3D</a>.</figcaption>
+  <figcaption class="html-embed__desc">{F.lead.name} trades a {F.lead.mw} battery near {F.lead.region} through the {F.lead.month} {F.lead.kind}. It made {F.lead.P}, {F.lead.pct} of the best possible profit; the battery's real operator made {F.lead.op}. The panel on the right shows each tool call as it happens. <a href={F.lead.replay}>Watch it in 3D</a>.</figcaption>
 </figure>
 
 ### Before and after: the real operator and the agents
@@ -27,7 +27,7 @@ batteries.
 Every window also happened for real. The battery's own operator traded those same three days, and ERCOT publishes what
 each battery did 60 days later: its day-ahead awards, its output and its charge every five minutes
 [@ercot_np3966; @ercot_np3965]. That gives each window a before and an after. Here are the {F.duel.n} windows where the
-agents most clearly beat the operator, all on the {F.duel.span} {F.duel.kind}, after every model's training
+agents most clearly beat the operator, all on the {F.duel.span} {F.duel.kind}, after every reported training
 cutoff[^pick]. Each shows the operator beside the run that made the most there, {F.duel.best}'s.
 
 <HtmlEmbed
@@ -44,7 +44,7 @@ ignores a battery's charge; its credit screening, not modelled here, would limit
 next front, {F.duel.next.span}, real-time prices spiked to about {F.duel.next.rt} a MWh, and the operator came out ahead
 of at least {F.duel.next.behind} of the models at each of its {F.duel.next.sites} batteries.
 
-[^pick]: The windows: every window after all {F.env.models} models' reported training cutoffs on which at least
+[^pick]: The windows: every window in {F.duel.half}, after every reported training cutoff, on which at least
     {F.duel.need} of the {F.duel.of} models settled above the real operator, both as it ran and with its own bids
     replayed through the same market. That picks Batteries {F.duel.sites} on the {F.duel.span} {F.duel.kind}. The
     operator as it ran is its real day-ahead awards and metered output, settled on the same statement as the agents'
