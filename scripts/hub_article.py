@@ -295,10 +295,17 @@ def spearman(a: list[float], b: list[float]) -> float:
 
 def watch(repo: Path, s: dict, scored: list[dict], card) -> dict:
     """The rollout the viewer opens on: the bench's costliest run, at the minute of its window's highest real-time
-    price, with what it lost and what the real operator made there."""
+    price, with what it lost and what the real operator made there. Why it matters says it lost nearly twice what the
+    same model made at the same battery a week earlier."""
     g = min(scored, key=lambda x: x["p"])
     if (g["model"], g["task_id"]) != COSTLIEST:
         raise SystemExit(f"the costliest run is now {g['model']} on {g['task_id']}: rewrite the rollout's note")
+    same = [x for x in scored if x["model"] == g["model"] and x["site"] == g["site"] and x["dates"][0] < g["dates"][0]]
+    prev = max(same, key=lambda x: x["dates"][0])
+    days = (date.fromisoformat(g["dates"][0]) - date.fromisoformat(prev["dates"][0])).days
+    if not (prev["p"] > 0 and 1.7 <= -g["p"] / prev["p"] <= 2.0 and days <= 8):
+        raise SystemExit(f"the costliest run lost {-g['p'] / prev['p']:.2f} times what {g['model']} made at "
+                         f"{g['site']} {days} days earlier, not nearly twice a week earlier: rewrite Why it matters")
     ep = json.loads(gzip.decompress((repo / "results" / "desk-v4-bench" / g["episode"]).read_bytes()))
     d, i, top = max(((d, i, x) for d in ep["dates"] for i, x in enumerate(ep["rt"][d]["spp"])), key=lambda r: r[2])
     t = (date.fromisoformat(d) - date.fromisoformat(ep["dates"][0])).days * 1440 + i * 1440 // len(ep["rt"][d]["spp"])
