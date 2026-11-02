@@ -255,6 +255,9 @@ def test_card_states_the_articles_numbers(monkeypatch):
     monkeypatch.setattr(hub_dataset, "article", lambda n: stale if n == "facts.json" else read(n))
     with pytest.raises(SystemExit, match=r"F\.eval\.m\.sol\.C is '28\.0%'"):
         hub_dataset.facts(s, grades)
+    stale["eval"]["m"]["sol"]["C"], stale["eval"]["replan"]["bh"] = f["eval"]["m"]["sol"]["C"], "24.5"
+    with pytest.raises(SystemExit, match=r"F\.eval\.replan\.bh is '24\.5'"):
+        hub_dataset.facts(s, grades)
 
 
 def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
@@ -308,6 +311,12 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     f |= {"why": hub_article.why_tiles(f["eval"]["watch"]), "reward": hub_article.reward(s, grades, hub_dataset),
           "train": hub_article.train(s, grades, hub_dataset), "links": hub_article.links(s, hub_dataset)}
     hub_article.check_prose(f)
+    fails = json.loads((hub_article.DATA / "failures.json").read_text())
+    assert not hub_article.check_replan(f, fails)
+    assert not hub_article.check_replan(json.loads((hub_article.DATA / "facts.json").read_text()), fails)
+    late = {m["name"]: m["last_offer_h"] for m in fails["models"]}
+    assert f["eval"]["replan"]["bh"] == f"{late['Beam-1.0']:.1f}" and float(f["eval"]["replan"]["rho"]) > 0
+    assert hub_article.check_replan(f | {"eval": f["eval"] | {"replan": f["eval"]["replan"] | {"bh": "24.5"}}}, fails)
     assert f["tryit"]["site"] == h["site"] and f["tryit"]["app"].endswith("/web/")
     e, scored = f["eval"], [g for g in grades if g["status"] == "scored"]
     assert e["runs"] == str(len(scored)) and e["lead"]["a"]["name"] == s["models"][s["order_by_C"][0]]["name"]

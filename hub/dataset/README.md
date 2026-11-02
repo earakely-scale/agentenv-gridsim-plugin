@@ -66,8 +66,8 @@ of at least {F.duel.next.behind} of the models at each of its {F.duel.next.sites
 
 ## Try it
 
-GridSimEnv's [OpenEnv Space]({F.tryit.space}) runs the environment live. Load a window and run the desk with the
-agents' own {F.tryit.tools} tools, call budget and grade: ask the optimizer, send its offers, end your turn and watch the
+The [GridSimEnv Playground]({F.tryit.space}), the environment's OpenEnv Space, runs it live. Load a window and run the
+desk with the agents' own {F.tryit.tools} tools, call budget and grade: ask the optimizer, send its offers, end your turn and watch the
 market play out beside the battery in 3D, then see how you rank against the real operator and the {F.env.models}
 models.
 
@@ -92,9 +92,9 @@ rules, and every window settled in dollars against hindsight and the battery's r
 
 ## The eval
 
-{F.header.models} models ran all {F.env.windows} windows once, each in its maker's own harness ({F.eval.closed}) or in
-{F.eval.open}, with the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most {F.eval.turns} wake-ups a
-window.
+{F.header.models} models ran all {F.env.windows} windows once, each in its maker's own harness ({F.eval.closed}) or, for
+the open-weight models, {F.eval.open}, with the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most
+{F.eval.turns} wake-ups a window.
 
 <!-- pareto -->
 
@@ -104,17 +104,17 @@ window.
 - **Every model scores lower in {F.eval.halves.post} than in {F.eval.halves.pre}**, even {F.eval.halves.old}, trained
   before any window: the later fronts are harder, not just unseen. On {F.duel.next.span}, a real-time spike to about
   {F.duel.next.rt} left {F.eval.halves.lost} of the {F.env.models} models in the red.
-- **What to train next: re-planning to the end.** Models that keep sending offers into a window's last hours capture
-  more, a rank correlation of {F.eval.replan.rho} across the {F.env.models}: {F.eval.replan.a}'s last offers come
-  {F.eval.replan.ah} hours before the end, {F.eval.replan.b}'s {F.eval.replan.bh}. Distilling the desk's own planner
-  already lifted {F.eval.replan.base} from {F.eval.replan.baseC} to {F.eval.replan.sftC}, near the planner's
-  {F.eval.replan.planner}.
+- **What to train next: re-planning to the end.** The later a model's last accepted offer, the higher it scores, a
+  rank correlation of {F.eval.replan.rho} across the {F.env.models}: {F.eval.replan.a}'s last accepted offer comes
+  {F.eval.replan.ah} hours before a window ends on average, {F.eval.replan.b}'s {F.eval.replan.bh}. Distilling the
+  desk's own planner already lifted {F.eval.replan.base} from {F.eval.replan.baseC} to {F.eval.replan.sftC}, near the
+  planner's {F.eval.replan.planner}.
 
 <!-- board -->
 
 ### Watch a rollout
 
-All {F.eval.runs} runs replay in the [viewer Space]({F.eval.viewer}): the battery site in 3D in its real light and
+All {F.eval.runs} runs replay in the [Replays Space]({F.eval.viewer}): the battery site in 3D in its real light and
 weather, each wake-up's tool calls and what the agent wrote, the market and the battery as they moved, and the grade.
 
 <!-- rollout -->
@@ -224,9 +224,9 @@ the Iowa Environmental Mesonet.
 ## Links
 
 - **Article:** [huggingface.co/spaces/earakely-scale/GridSimEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv)
-- **Environment:** [huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv]({F.links.env})
+- **Playground:** [huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv]({F.links.env})
 - **Replays:** [huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv]({F.links.replays})
-- **Results:** [every model on every window, in the viewer Space]({F.links.results})
+- **Results:** [every model on every window, in the Replays Space]({F.links.results})
 - **Code:** [github.com/earakely-scale/agentenv-gridsim-plugin]({F.links.code})
 - **Pre-registration:** [docs/prereg/v4-bench.md]({F.links.prereg})
 - **Training guide:** [agentenvframework.com/docs/training]({F.links.training})

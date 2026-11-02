@@ -62,9 +62,10 @@ TRY_SCRIPT = ROOT / "scripts" / "hub_openenv.py"
 VIEWER = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
 CHARTS = ROOT / "hub" / "desk-charts" / "charts.js"
 BASIS = {"gpu_time": "GPU time", "metered_rate": "metered rate"}
-OFFERS = ("submit_dam_offers", "submit_rt_offers")
 REPLAN = ("sol", "beam")
 """The models the re-planning finding names: the leader, and the one whose losses were diagnosed run by run."""
+FAIL_KEYS = {"qwen9b-sft": "qwen9bsft", "gemini": "argon"}
+"""failures.json's model keys where they differ from summary.json's."""
 COSTLIEST = ("sol", "desk-v4-2026-08-26-S01")
 """The run the rollout opens on, the bench's costliest; its note tells this run's story, so the build stops if the
 costliest run is another."""
@@ -243,7 +244,7 @@ def evals(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card) -> d
             "turns": str(budget["max_turns"]), "runs": str(len(scored)), "viewer": VIEWER,
             "basis": basis_line(ms, card), "m": {m["key"]: point(m, s, card) for m in ms},
             "lead": lead_gap(s, ms, card), "halves": halves(s, ms, grades, pairs[0]["front"]["front"], card),
-            "replan": replan(repo, s, ms, scored, card), "watch": watch(repo, s, scored, card)}
+            "replan": replan(s, ms, card), "watch": watch(repo, s, scored, card)}
 
 
 def bench_chart(s: dict) -> dict:
@@ -322,18 +323,12 @@ def month_words(fronts: list[str]) -> str:
     return f"{a:%B}" if n == 0 else f"{a:%B} and {b:%B}" if n == 1 else f"{a:%B} to {b:%B}"
 
 
-def replan(repo: Path, s: dict, ms: list[dict], scored: list[dict], card) -> dict:
-    """The third finding: how late each model sends its last offers, a window's mean hours before its end, against its
-    C, a rank correlation over the models; and what distilling the desk's planner did for the model distilled."""
-    hours = defaultdict(list)
-    for g in scored:
-        ep = json.loads(gzip.decompress((repo / "results" / "desk-v4-bench" / g["episode"]).read_bytes()))
-        offers = [x["t"] for x in ep["submissions"] if x["accepted"] and x["tool"] in OFFERS]
-        t = max(offers, default=ep["wakes"][0]["t"])
-        hours[g["model"]].append((len(ep["dates"]) * 1440 - t) / 60)
-    keys = [m["key"] for m in ms]
-    late = {k: float(np.mean(hours[k])) for k in keys}
-    rho = spearman([s["models"][k]["all"]["C"]["mean"] for k in keys], [-late[k] for k in keys])
+def replan(s: dict, ms: list[dict], card) -> dict:
+    """The third finding, on the measure the "Where models fail" charts draw (failures.json, from the exact replay of
+    every graded episode): the hours left in a window after a model's last accepted offer, the mean over its windows,
+    and their rank correlation with C over the models, stated as the later the last offer, the higher the score; and
+    what distilling the desk's planner did for the model distilled."""
+    late, rho = lateness(s)
     if rho < 0.5:
         raise SystemExit(f"the rank correlation of late offers with C is {rho:.2f}: rewrite the third finding")
     a, b = REPLAN
@@ -343,6 +338,29 @@ def replan(repo: Path, s: dict, ms: list[dict], scored: list[dict], card) -> dic
     return {"rho": f"{rho:.2f}", "a": s["models"][a]["name"], "ah": f"{late[a]:.1f}", "b": s["models"][b]["name"],
             "bh": f"{late[b]:.1f}", "base": base["name"], "baseC": pct(base["all"]["C"]["mean"]),
             "sftC": pct(sft["all"]["C"]["mean"]), "planner": pct(s["references"]["anchor"]["all"]["C"]["mean"])}
+
+
+def lateness(s: dict) -> tuple[dict[str, float], float]:
+    """failures.json's hours left after each model's last accepted offer, by summary.json's keys, and their rank
+    correlation with C signed as the later, the higher: failures.json's own, which must be its rows' rank correlation
+    against summary.json's C over the same models."""
+    fm = json.loads((DATA / "failures.json").read_text())
+    late = {FAIL_KEYS.get(m["key"], m["key"]): m["last_offer_h"] for m in fm["models"]}
+    if late.keys() != s["models"].keys():
+        raise SystemExit(f"failures.json covers {sorted(late)}, summary.json {sorted(s['models'])}: replay them again")
+    keys, rho = list(late), -fm["corr"]["last_offer_vs_C_models"]
+    if abs(rho - spearman([s["models"][k]["all"]["C"]["mean"] for k in keys], [-late[k] for k in keys])) > 1e-9:
+        raise SystemExit("failures.json's rank correlation is not its rows' against summary.json's C: replay again")
+    return late, rho
+
+
+def check_replan(f: dict, fm: dict) -> list[str]:
+    """The eval's re-planning finding states the measure the "Where models fail" charts draw: its rank correlation and
+    its hours are failures.json's, as those charts print them."""
+    late, r = {m["name"]: m["last_offer_h"] for m in fm["models"]}, f["eval"]["replan"]
+    want = {"rho": f"{-fm['corr']['last_offer_vs_C_models']:.2f}", "ah": f"{late[r['a']]:.1f}",
+            "bh": f"{late[r['b']]:.1f}"}
+    return [f"F.eval.replan.{k} = {r[k]!r}, where the failure charts give {v!r}" for k, v in want.items() if r[k] != v]
 
 
 def spearman(a: list[float], b: list[float]) -> float:
@@ -902,6 +920,8 @@ def check_rendered(f: dict) -> None:
                 if t["value"] not in text or any(b["text"] not in text for b in t["bars"])]
     missing += [f"a tile's source {x['url']}" for t in f["why"]["tiles"] for x in t["src"]
                 if f'href="{x["url"]}"' not in links]
+    missing += check_replan(json.loads((APP / "dist" / "data" / "facts.json").read_text()),
+                            json.loads((APP / "dist" / "data" / "failures.json").read_text()))
     duel = json.loads((DATA / "duel.json").read_text())
     missing += [w["moment"]["img"] for w in duel["windows"]
                 if not (APP / "dist" / w["moment"]["img"].lstrip("/")).is_file()]
@@ -913,7 +933,8 @@ def check_rendered(f: dict) -> None:
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
     print(f"rendered check: all {len(used)} facts on the page as formatted, the header's line in the subtitle and the "
-          "page's descriptions, the films and the cards' pictures")
+          "page's descriptions, the films and the cards' pictures, and the eval's re-planning finding on the failure "
+          "charts' numbers")
 
 
 def files_to_publish() -> dict[str, Path]:

@@ -86,10 +86,10 @@ BADGES = (
     '%F0%9F%93%96%20Article-A%20live%20ERCOT%20battery%20desk-0e7d56?style=for-the-badge&labelColor=1a1a1a" '
     'alt="The article: a live ERCOT battery desk" height="32"></a>',
     '<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv"><img src="https://img.shields.io/badge/'
-    '%E2%96%B6%20Try%20it-The%20environment%2C%20live-2a78d6?style=for-the-badge&labelColor=1a1a1a" '
-    'alt="Try it: the environment live, an OpenEnv Space" height="32"></a>',
+    '%E2%96%B6%20Playground-Play%20the%20desk%20live-2a78d6?style=for-the-badge&labelColor=1a1a1a" '
+    'alt="Playground: play the desk yourself, or connect your agent" height="32"></a>',
     f'<a href="{VIEWER}"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Replays-Every%20run%20in%203D-FFD21E?'
-    'style=for-the-badge&labelColor=1a1a1a" alt="Replays: every run in 3D, the viewer Space" height="32"></a>',
+    'style=for-the-badge&labelColor=1a1a1a" alt="Replays: every benchmark run in 3D" height="32"></a>',
     '<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-'
     'agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" '
     'height="32"></a>',
@@ -858,7 +858,7 @@ def duel_block(f: dict, duel: dict) -> str:
                       f"its own bids earn {x['replays']}. Replay {x['best']}'s runs in 3D: {links}.</small>"])
 
 
-CONNECT = """Or play it from Python with the Space's OpenEnv client, after `git clone {space}` and
+CONNECT = """Or play it from Python with the Playground's OpenEnv client, after `git clone {space}` and
 `pip install ./{name}`:
 
 ```python
@@ -872,15 +872,15 @@ with GridSimDesk(base_url="{base}").sync() as env:
 
 
 def tryit_block(f: dict) -> str:
-    """The OpenEnv Space as it is live on the article's window, linking to it, and its client opening that window."""
+    """The Playground as it is live on the article's window, linking to it, and its client opening that window."""
     t = f["tryit"]
-    alt = (f"The OpenEnv Space's Try it page on window #{t['index']}, Battery {t['site']} in the {t['span']} "
-           f"{t['kind']}: the desk's tools across the top, the battery site in 3D, Quick play and the market chart")
+    alt = (f"The Playground's Try Environment tab on window #{t['index']}, Battery {t['site']} in the {t['span']} "
+           f"{t['kind']}: the window picker, the desk's tools, the battery site in 3D, Quick play and the market chart")
     return "\n".join([*picture(f"{FIGS}/try-it.webp", alt, t["space"]), "",
                       f"<small>It opens on window #{t['index']}, Battery {t['site']} in the {t['span']} {t['kind']}, "
                       "the run in the film above. Quick play is three clicks a wake-up (ask the optimizer, submit its "
                       "proposal, end your turn), Autopilot repeats them to the end as the desk's reference does, and "
-                      f"every tool also takes raw JSON. [Open the Space ↗]({t['space']})</small>", "",
+                      f"every tool also takes raw JSON. [Open the Playground ↗]({t['space']})</small>", "",
                       CONNECT.format(space=t["space"], name=t["space"].rsplit("/", 1)[-1], base=origin(t["app"]),
                                      index=t["index"])])
 
@@ -957,16 +957,16 @@ def board_card(s: dict) -> str:
 
 
 def rollout_block(f: dict) -> str:
-    """The viewer as it is live at the minute the article's rollout opens on, linking there."""
+    """The Replays Space as it is live at the minute the article's rollout opens on, linking there."""
     w = f["eval"]["watch"]
-    alt = (f"The viewer Space at {w['at']} on {w['day']}: {w['name']}'s run at Battery {w['site']} ({w['region']}) "
+    alt = (f"The Replays Space at {w['at']} on {w['day']}: {w['name']}'s run at Battery {w['site']} ({w['region']}) "
            f"over {w['span']}, the battery site in 3D at night beside the node's prices, the battery's charge and the "
            "statement settled so far")
     return "\n".join([*picture(f"{FIGS}/rollout.webp", alt, w["app"]), "",
                       f"<small>At {w['at']} on {w['day']} in the bench's costliest run, {w['name']} at Battery "
                       f"{w['site']} ({w['region']}) over {w['span']}, the front after the film's: its evening "
                       "day-ahead sales met an all but empty battery and were bought back as real-time prices hit "
-                      f"{w['spike']}. It lost {w['lost']}; the real operator made {w['op']}. [Open it in the viewer "
+                      f"{w['spike']}. It lost {w['lost']}; the real operator made {w['op']}. [Open it in Replays "
                       f"↗]({w['app']}), or pick any model and window under Episodes.</small>"])
 
 
@@ -1599,7 +1599,7 @@ def desk_results(v: dict, d: dict) -> str:
         f"**How much of the hindsight optimum each desk captured, {by(v)}, {v['version']}**", "",
         *chart(f"desk-{v['version']}-days", days_alt(v, d), charts["width"], charts["phone"]["media"]), "",
         f"<small>{days_caption(v, d)}</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
-        f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the viewer lists every "
+        f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the Replays Space lists every "
         f"{unit(v)} with a replay of each model's run.", "",
         f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
         "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
@@ -1674,7 +1674,7 @@ def last(v: dict) -> str:
 
 def desk_row(m: dict, s: dict) -> str:
     cost = m["usd_per_episode"]
-    sub = [s["setting"]] + (["on one GPU"] if m["weights"] == "open" else [f"${cost:.2f} a run"] if cost else [])
+    sub = [s["setting"]] + (["open weights"] if m["weights"] == "open" else [f"${cost:.2f} a run"] if cost else [])
     return (f"| **{s['name']}**<br><small>{' · '.join(sub)}</small> | **{h(m['C']['mean'])}**<br><small>"
             f"{ci(m['C']['ci'])}</small> | {stacked_usd(m['P'])} |")
 
@@ -2036,15 +2036,14 @@ CONSTANT = {"0.2", "0.8", "95%", "0%", "100%"}
 BANNED = ((re.compile(r"every model[’']s (?:\w+ )?training cut-?off", re.I),
            "the cutoffs are reported ones: say after every reported training cutoff"),
           (re.compile(r"\$5,000"), "the card states no offer cap"),
-          (re.compile(r"\bTexas has\b"), "write ERCOT's grid"),
-          (re.compile(r"\bopen[- ]weights?\b", re.I), "the card groups no models by their weights"))
+          (re.compile(r"\bTexas has\b"), "write ERCOT's grid"))
 """What the card must not say, and why."""
 
 
 def facts(s: dict, grades: list[dict]) -> dict:
-    """The article's facts.json (scripts/hub_article.py formats it from summary.json, the grades and the episodes),
-    which the card's prose reads as the article's chapters do. Where it states what summary.json states, the two must
-    agree, so a facts.json older than the results stops the build."""
+    """The article's facts.json (scripts/hub_article.py formats it from summary.json, the grades, the episodes and the
+    failure replay's failures.json), which the card's prose reads as the article's chapters do. Where it states what
+    those files state, they must agree, so a facts.json older than the results stops the build."""
     f = article("facts.json")
     ms, plan = s["models"], s["references"]["anchor"]["all"]["C"]["mean"]
     hero = next(g for g in grades if g["model"] == s["hero"]["model"] and g["task_id"] == s["hero"]["task_id"])
@@ -2064,10 +2063,14 @@ def facts(s: dict, grades: list[dict]) -> dict:
                  f"F.eval.m.{k}.ci": f"[{pc(c['ci'][0])}, {pc(c['ci'][1])}]",
                  f"F.eval.m.{k}.usd": bench_usd(m["cost"]["usd_per_window"]),
                  f"F.eval.m.{k}.spent": bench_usd(m["cost"]["usd_all_attempts"])}
+    fm, r = article("failures.json"), f["eval"]["replan"]
+    late = {m["name"]: m["last_offer_h"] for m in fm["models"]}
+    want |= {"F.eval.replan.rho": f"{-fm['corr']['last_offer_vs_C_models']:.2f}",
+             "F.eval.replan.ah": f"{late[r['a']]:.1f}", "F.eval.replan.bh": f"{late[r['b']]:.1f}"}
     have = leaves(f)
-    if bad := [f"{k} is {have.get(k)!r}, summary.json gives {v!r}" for k, v in want.items() if have.get(k) != v]:
-        raise SystemExit("facts.json does not match the benchmark's results; run scripts/hub_article.py:\n  "
-                         + "\n  ".join(bad))
+    if bad := [f"{k} is {have.get(k)!r}, the results give {v!r}" for k, v in want.items() if have.get(k) != v]:
+        raise SystemExit("facts.json does not match the benchmark's results or the failure charts' failures.json; run "
+                         "scripts/hub_article.py:\n  " + "\n  ".join(bad))
     return f
 
 
@@ -2324,29 +2327,37 @@ def pareto_svgs(s: dict, hr) -> dict[str, bytes]:
     return out
 
 
-POSTER = {"desk": (1280, 800, 2, 800, (CARD_W * 2, CARD_W * 5 // 4)), "phone": (390, 844, 3, 600, None)}
-"""Each poster's viewport and scale, the height kept and the size it is stored at: a desktop view at twice the card's
-width, and the top of a phone's screen at 3x."""
+POSTER = {"desk": (1280, 800, 2, (CARD_W * 2, CARD_W * 5 // 4)), "phone": (390, 844, 3, None)}
+"""Each poster's viewport and scale and the size it is stored at: a desktop view at twice the card's width, and a
+phone's screen at 3x, of which each view keeps the top (KEEP)."""
+KEEP = {"try-it": 844, "rollout": 600}
+
+
+DRAWN = ("new Promise((r, j) => { const s = Date.now(); const docs = () => [document, ...[...document.querySelectorAll("
+         "'iframe')].map((i) => { try { return i.contentDocument; } catch (e) { return null; } })].filter(Boolean); "
+         "const f = () => document.readyState === 'complete' && docs().some((d) => d.querySelector('canvas')) ? "
+         "setTimeout(r, 12000) : Date.now() - s > 180000 ? j('timeout') : setTimeout(f, 250); f(); })")
+"""A live view is drawn when its page has loaded and a 3D canvas is up, in the page or a frame of it from the same
+site, and has run a while."""
 
 
 def posters(f: dict, hr) -> dict[str, bytes]:
-    """The two live views the article frames, as they are now: the Try it Space on the article's window and the viewer
-    at the minute its rollout opens on, each in its light and dark theme, on a desktop and on a phone."""
+    """The two live views the article frames, as they are now: the Try it Space's page as the article embeds it, on the
+    article's window, and the viewer at the minute its rollout opens on, each in its light and dark theme, on a desktop
+    and on a phone."""
     t = f["tryit"]
-    views = {"try-it": f"{origin(t['app'])}/play/?index={t['index']}", "rollout": f["eval"]["watch"]["app"]}
+    views = {"try-it": t["app"] + "?__theme={theme}", "rollout": f["eval"]["watch"]["app"]}
     out = {}
     with tempfile.TemporaryDirectory() as tmp, hr.browser(Path(tmp), None) as (page, _):
         for name, url in views.items():
-            for kind, (w, h, scale, keep, size) in POSTER.items():
+            for kind, (w, h, scale, size) in POSTER.items():
                 for sfx, theme, _ in hr.THEMES:
                     page.call("Emulation.setEmulatedMedia", features=[{"name": "prefers-color-scheme", "value": theme}])
                     page.call("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=scale,
                               mobile=kind == "phone")
-                    dark = "&theme=dark" if theme == "dark" and name == "try-it" else ""
-                    page.call("Page.navigate", url=url + dark)
-                    page.js("new Promise((r, j) => { const s = Date.now(); const f = () => document.readyState === "
-                            "'complete' && document.querySelector('canvas') ? setTimeout(r, 12000) : Date.now() - s > "
-                            "180000 ? j('timeout') : setTimeout(f, 250); f(); })")
+                    page.call("Page.navigate", url=url.replace("{theme}", theme))
+                    page.js(DRAWN)
+                    keep = KEEP[name] if kind == "phone" else h
                     im = Image.open(io.BytesIO(base64.b64decode(page.call("Page.captureScreenshot", format="png", clip={
                         "x": 0, "y": 0, "width": w, "height": keep, "scale": 1})["data"])))
                     out[f"{FIGS}/{name}{'-phone' if kind == 'phone' else ''}{sfx}.webp"] = encode(
