@@ -1,0 +1,52 @@
+import HtmlEmbed from "../../components/HtmlEmbed.astro";
+import F from "../assets/data/facts.json";
+
+## What is in GridSimEnv
+
+GridSimEnv puts an agent on the trading desk of a real battery on the Texas grid. It is built from the records of
+ERCOT, which runs that grid: its real prices, forecasts, notices and grid conditions, each shown to the agent only from
+the minute it was posted. The agent runs the battery for three days at a time while a real weather front crosses Texas.
+It works through the desk's own tools: it reads prices, forecasts and the battery's status, asks the `optimize` planner
+for a plan, offers the battery's energy and reserves into ERCOT's day-ahead and real-time markets, and keeps the current
+operating plan it owes ERCOT up to date. Each window settles in dollars on the battery's ERCOT statement and is scored
+by hindsight capture C: the share of the hindsight-optimal profit that the agent captured. The benchmark plays
+{F.env.windows} windows, {F.env.fronts} fronts at each of {F.env.sites} real batteries, shown here as S01 to S04.
+
+<figure class="html-embed html-embed--wide gs-run" id="run">
+  <div class="html-embed__card is-frameless">
+    <a href={F.lead.replay}><img src="/media/gridsim-run.gif" alt={F.lead.film_alt} width="1200" height="675" decoding="async" /></a>
+  </div>
+  <figcaption class="html-embed__desc">A recorded benchmark run, replayed on the 3D site: {F.lead.name} in {F.lead.harness} trades {F.lead.site} ({F.lead.region}, {F.lead.battery}) through the {F.lead.span} {F.lead.kind}, after every model's training cutoff. It settles at {F.lead.P}, hindsight capture C {F.lead.C}; the real operator, as it ran, made {F.lead.op}. The desk at right lists the agent's tool calls in order, the current one lit, with the results the run recorded; the agent itself sends ERCOT's market objects, offer curves and the operating plan. <a href={F.lead.replay}>Watch it in 3D</a>.</figcaption>
+</figure>
+
+Every run plays out on a 3D battery site in its part of Texas, in the real light and weather of those days. The awards
+and dispatch the market gives the agent's offers turn into the battery charging and discharging, and the clock stops
+while the agent works and runs on between its turns.
+
+### Before and after: the real operator and the agents
+
+Every window also happened for real. The battery's own operator traded those same three days, and ERCOT publishes what
+each battery did 60 days later: its day-ahead awards, its output and its charge every five minutes
+[@ercot_np3966; @ercot_np3965]. That gives each window a before and an after. Here are the {F.duel.n} windows where the
+agents most clearly beat the operator, all on the {F.duel.span} {F.duel.kind}, after every model's training
+cutoff[^pick]. Each shows the operator beside the run that made the most there, {F.duel.best}'s.
+
+<HtmlEmbed
+  src="d3-before-after.html"
+  id="before-after"
+  wide
+  desc="Each panel is one window. Top: the node's day-ahead price, hourly, and its real-time price, every 15 minutes. Below, for the real operator as it ran and for the run: what it sold (up) or bought (down) a day ahead in each hour, and the battery's charge. Hover or tab into a panel to read any hour; its table holds the totals."
+/>
+
+Most of each gap is day-ahead trading. Through most of this heat wave the day-ahead price ran above real time, and
+{F.duel.best} sold far more energy a day ahead than the battery could deliver, then bought it back in real time,
+cheaper; other models traded the same way on a smaller scale. ERCOT's day-ahead market allows such positions because it
+ignores a battery's charge; its credit screening, not modelled here, would limit them. They do not always pay: on the
+next front, {F.duel.next.span}, real-time prices spiked to about {F.duel.next.rt} a MWh, and the operator came out ahead
+of at least {F.duel.next.behind} of the models at each of its {F.duel.next.sites} batteries.
+
+[^pick]: The windows: every window after all {F.env.models} models' reported training cutoffs on which at least
+    {F.duel.need} of the {F.duel.of} models settled above the real operator, both as it ran and with its own bids
+    replayed through the same market. That picks Batteries {F.duel.sites} on the {F.duel.span} {F.duel.kind}. The
+    operator as it ran is its real day-ahead awards and metered output, settled on the same statement as the agents'
+    runs at ERCOT's real prices; its own bids, replayed from the same starting charge, earn {F.duel.replays}.

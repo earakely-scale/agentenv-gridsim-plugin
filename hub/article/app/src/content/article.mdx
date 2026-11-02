@@ -1,7 +1,7 @@
 ---
 title: "GridSimEnv Desk: a real ERCOT battery's trading desk as an RL environment"
 description: "Fifteen models in native agent harnesses (Claude Code, Codex CLI, Gemini CLI, and OpenCode for the open Beam-⁠1.0, GLM-⁠5.3, GLM-⁠5.3-⁠Flash, Kimi K3, Qwen3.8 Max, DeepSeek V4.1 Flash, Qwen3.5-⁠9B, Qwen3.5-⁠9B + desk SFT and Qwen3-⁠4B) run a real ERCOT battery's trading desk for three days at a time across 8 real Texas weather fronts, graded in dollars against the hindsight optimum and the battery's real operator."
-seoImageAlt: "GridSimEnv Desk: a dot map of Texas with four anonymised batteries, in the Far West, Houston, the North and the South, charging and discharging as GPT-6.1 Sol in Codex CLI traded them in the benchmark over a real weather front, a heat wave, 18 to 20 August 2026."
+seoImageAlt: "GPT-6.1 Sol trades Battery S02 (Houston, 100 MW / 206 MWh) through the 18 to 20 August 2026 heat wave: the battery site in 3D at dusk, discharging, beside the desk's clock and the agent's wake-ups, the node's price and the battery's charge below"
 authors:
   - name: "Edgar Arakelyan"
     url: "https://huggingface.co/earakely-scale"
@@ -21,7 +21,7 @@ links:
     icon: "hf"
 licence: >
   Text and charts are licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>, unless noted otherwise. Prices, forecasts, notices and disclosures are ERCOT's public data, and weather alerts NWS's, used under their terms and not relicensed (<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE" target="_blank" rel="noopener noreferrer">data/LICENSE</a>); GridSimEnv is not affiliated with or endorsed by ERCOT. The code is Apache-2.0.
-seoThumbImage: "https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/og-image.jpg"
+seoThumbImage: "https://huggingface.co/spaces/earakely-scale/GridSimEnv/resolve/main/app/public/og/gridsim-run.jpg"
 tags:
   - reinforcement learning
   - RL environments
@@ -48,24 +48,6 @@ showPdf: false
   The import list is the chapter registry: the order of the elements below is the running order.
 */}
 
-import Bench from "./chapters/bench.mdx";
-import Introduction from "./chapters/introduction.mdx";
-import Time from "./chapters/time.mdx";
-import Tools from "./chapters/tools.mdx";
-import Operator from "./chapters/operator.mdx";
-import Ladder from "./chapters/ladder.mdx";
-import Across from "./chapters/across.mdx";
-import Check from "./chapters/check.mdx";
-import Methods from "./chapters/methods.mdx";
-import Limits from "./chapters/limits.mdx";
+import Environment from "./chapters/environment.mdx";
 
-<Bench />
-<Introduction />
-<Time />
-<Tools />
-<Operator />
-<Ladder />
-<Across />
-<Check />
-<Methods />
-<Limits />
+<Environment />

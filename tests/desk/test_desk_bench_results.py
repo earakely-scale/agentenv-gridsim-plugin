@@ -248,62 +248,34 @@ def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
             "results/desk-v4-bench/summary.json"} <= set(files)
 
 
-def test_article_states_the_bench_as_the_card_does(bench):
-    _, _, fake, fake_grades = bench
-    d = json.loads((ROOT / "results/overview/desk.json").read_text())
-    with pytest.raises(SystemExit, match="fake"):
-        hub_article.bench(fake, fake_grades, d, hub_dataset)
+def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     folder = ROOT / "results/desk-v4-bench"
     s, grades = hub_dataset.bench_read(folder)
-    f = hub_article.bench(s, grades, d, hub_dataset)
-    block = hub_dataset.bench_block(s, grades, d)
-    assert f["pitch"] == hub_dataset.bench_pitch(s).strip("*") and "**" not in f["pitch"]
-    for b in (*f["say"].values(), *f["how"].values(), *f["limits"].values()):
-        assert f"- **{b['head']}** {b['text']}" in block
-    t = f["cap"]["table"]
-    assert f"<small>{f['cap']['splits']}</small>" in block
-    assert f"<small>{t['before']}[{t['label']}]({t['url']}){t['after']}</small>" in block
-    assert t["url"] == f["links"]["deviations"] and f["tag"] in t["url"]
-    assert [f"{x['head']}: {x['text']}" for x in (f["route"], f["late"]["argon"], f["errors"], f["late"]["beam"],
-                                                   f["credits"], f["late"]["glm"], f["limit"], f["capped"])] == [
-        x for x in s["deviations"] if x.startswith(("Route C", "Gemini 4 Argon:", "Provider HTTP 400s", "Beam-1.0:",
-                                                    "Out of credits", "GLM-5.3, Kimi K3 and Qwen3.8 Max:",
-                                                    "Output limit", "Window cap"))]
-    assert f["late"]["glm"] == f["late"]["kimi"] == f["late"]["qwenmax"]
-    cm = hub_article.chart_models(s)
-    assert set(cm) == set(s["models"]) and (cm["kimi"]["n"], cm["kimi"]["pre_cutoff"]["n"], cm["kimi"]["released"],
-                                            cm["kimi"]["attempts"]["missing_reasons"]) == (
-        28, 14, "2026-07-16", {"episode spend cap, final": 4}) and f["m"]["kimi"]["missing"] == {
-        "episode spend cap, final": 4}
-    assert set(f["late"]) == {k for k, m in s["models"].items()
-                              if m.get("framework") or hub_article.named(s, m["name"])}
-    assert f["late"]["haiku"] == f["late"]["glmflash"] == f["late"]["dsflash"]
-    assert f["price"]["beam"] == s["models"]["beam"]["price_note"] and f["price"]["beam"] in t["before"]
-    assert f["ahead"] == ", ".join(f"{s['models'][k]['name']} {f['m'][k]['op']}" for k in (
-        "sol", "dsflash", "terra", "kimi", "glmflash", "opus")) + f" and Claude Haiku 5.5 {f['m']['haiku']['op']}"
-    for k, m in s["models"].items():
-        got = f["m"][k]
-        for name, scope in (("C", "all"), ("pre", "pre_cutoff"), ("post", "post_cutoff")):
-            b = m[scope]["C"]
-            assert (got[name], got[f"{name}ci"]) == (f"{_pc(b['mean'])}%", f"[{_pc(b['ci'][0])}, {_pc(b['ci'][1])}]")
-        assert got["usd"] == f"${m['cost']['usd_per_window']:,.2f}"
-        assert int(got["valid"]) + int(got["invalid"]) == m["n"] == 32 - len(m["missing"])
-        assert (got["harness"], got["version"], got["setting"]) == (m["harness"], m["harness_version"], m["setting"])
-    assert (f["m"]["qwen"]["valid"], f["m"]["qwen"]["temperature"], f["m"]["qwen"]["top_k"]) == ("25", "0.6", "20")
-    hub_article.check_prose(hub_article.facts(d) | {"bench": f})
-    hub_article.check_order(s)
-    b = hub_article.hero(folder, s, grades, hub_dataset)
-    lead = next(g for g in grades if g["task_id"] == s["hero"]["task_id"] and g["model"] == s["hero"]["model"])
-    assert b["days"] == lead["dates"] and b["model"] == "GPT-6.1 Sol in Codex CLI" and len(b["sites"]) == 4
-    assert b["replay"]["url"] == f["lead"]["replay"]["sol"] == hub_dataset.bench_replay("sol", lead["task_id"])
-    assert set(f["lead"]["replay"]) == set(s["models"]) and f["lead"]["C"] == f"{_pc(lead['capture'])}%"
+    lead = hub_article.lead(s, grades, hub_dataset)
+    h = next(g for g in grades if g["task_id"] == s["hero"]["task_id"] and g["model"] == s["hero"]["model"])
     gif = hub_dataset.bench_gif(s, grades, True)
-    where = f"{f['lead']['site']} ({f['lead']['region']}, {f['lead']['battery']})"
-    assert where in gif and all(f"[{o['name']}]({o['url']})" in gif for o in f["lead"]["others"])
-    assert {o["key"] for o in f["lead"]["others"]} == set(s["models"]) - {"sol", *hub_dataset.NOT_YET_IN_VIEWER}
-    for site in b["sites"]:
-        assert (len(site["rt"]), len(site["soc"]), len(site["mw"])) == (288, 289, 288)
-        assert all(0 <= t < 3 * 1440 for t in site["wakes"]) and site["wakes"]
+    assert f"{lead['site']} ({lead['region']}, {lead['battery']})" in gif and f"capture C {lead['C']}" in gif
+    assert lead["replay"] == hub_dataset.bench_replay(h["model"], h["task_id"]) and lead["replay"] in gif
+    assert (lead["P"], lead["op"]) == (hub_article.usd(h["p"]), hub_article.usd(h["p_operator_actual"]))
+    pairs = hub_article.duel(ROOT, s, grades, hub_dataset)
+    picked = {w["task"] for w in pairs}
+    for task in {g["task_id"] for g in grades if g["split"] == "post_cutoff"}:
+        gs = [g for g in grades if g["task_id"] == task and g["status"] == "scored"]
+        ahead = sum(g["p"] > g["p_operator_actual"] and g["p"] > g["p_operator_replay"] for g in gs)
+        assert (ahead >= hub_article.BEAT_SHARE * len(gs)) == (task in picked)
+    for w in pairs:
+        assert w["best"]["p"] == max(g["p"] for g in grades if g["task_id"] == w["task"] and g["status"] == "scored")
+        ep = json.loads(gzip.decompress((folder / w["best"]["episode"]).read_bytes()))
+        lines = [d["lines"] for d in ep["statement"]["days"].values()]
+        settled = sum(x["dam_energy"] + x["rt_energy_imbalance"] for x in lines)
+        assert abs(w["agent"]["energy"] + w["agent"]["position"] - settled) < 1
+    data = hub_article.duel_data(pairs, s)
+    for w in data["windows"]:
+        assert (len(w["da"]), len(w["rt"]), len(w["op"]["soc"]), len(w["agent"]["sold"])) == (72, 288, 288, 72)
+        assert w["agent"]["sold_mwh"] in w["why"] and w["op"]["p"] < w["agent"]["p"]
+    f = {"env": hub_article.env(s), "lead": lead, "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset)}
+    hub_article.check_prose(f)
+    assert f["duel"]["n"] == str(len(pairs)) and f["duel"]["of"] == str(len(s["models"]))
 
 
 ROUTE_C = {"qwen": ("opencode-qwen", "g5.xlarge", [("desk-v4-2026-07-04-S01", 0, 1000, "ok"),
