@@ -62,6 +62,18 @@ Playground tab is OpenEnv's MCP playground; the code is in <a href={F.tryit.code
   <figcaption class="html-embed__desc">It opens on window #{F.tryit.index}, Battery {F.tryit.site} in the {F.tryit.span} {F.tryit.kind}, the run in the film above. Quick play is three clicks a wake-up (ask the optimizer, submit its proposal, end your turn), Autopilot repeats them to the end as the desk's reference does, and every tool also takes raw JSON. <a href={F.tryit.space}>Open the Space ↗</a></figcaption>
 </figure>
 
+### Why it matters
+
+A grid battery makes money by buying power cheap and selling it dear, and by being paid to stand ready in reserve. Its
+desk must offer tomorrow's power into the day-ahead market before the weather is known, then replan all day as midday
+solar sinks prices, evening peaks lift them and a heat wave or storm sends them soaring.
+
+ERCOT counted [21.5 GW of batteries in October 2026](https://www.ercot.com/files/docs/2022/02/08/ERCOT_Fact_Sheet.pdf),
+and vendors sell [AI that forecasts prices and writes the bids](https://fluenceenergy.com/mosaic-for-ercot/). Skill
+pays: in January 2026, [the best quarter of the firms bidding ERCOT's batteries earned at least 76% of what perfect
+timing could, the worst quarter 27%](https://modoenergy.com/research/en/ercot-march-2026-bess-benchmark-batteries-fern-revenues).
+GridSimEnv puts AI agents in that seat, scored against the best plan hindsight allows.
+
 [^pick]: The windows: every window in {F.duel.half}, after every reported training cutoff, on which at least
     {F.duel.need} of the {F.duel.of} models settled above the real operator, both as it ran and with its own bids
     replayed through the same market. That picks Batteries {F.duel.sites} on the {F.duel.span} {F.duel.kind}. The

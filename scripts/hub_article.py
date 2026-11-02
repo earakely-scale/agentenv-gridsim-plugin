@@ -404,13 +404,15 @@ def leaves(f: dict, path: str = "F") -> dict[str, str]:
 
 
 FACT = re.compile(r"\{(F(?:\.[A-Za-z0-9_]+)+)\}")
+QUOTED = re.compile(r"\[[^\]]*\]\(https://(?![a-z0-9-]+\.hf\.space/|huggingface\.co/|github\.com/earakely-scale/)[^)\s]+\)")
 
 
 def check_prose(f: dict) -> None:
     """The chapters state no number of their own: every amount, capture, cent or share in the prose outside code is a
-    {F.…} expression read from facts.json, or one of the contract's constants; every expression names a fact."""
+    {F.…} expression read from facts.json, one of the contract's constants, or quoted in the text of a link to its
+    outside source; every expression names a fact."""
     known = leaves(f)
-    bad, used = [], set()
+    bad, used, quoted = [], set(), 0
     for p in sorted(CHAPTERS.glob("*.mdx")):
         text = re.sub(r"```.*?```", "", p.read_text(), flags=re.S)
         text = re.sub(r"<HtmlEmbed.*?/>", "", text, flags=re.S)
@@ -418,14 +420,16 @@ def check_prose(f: dict) -> None:
             used.add(e)
             if e not in known:
                 bad.append(f"{p.name}: {{{e}}} names no fact")
-        prose = re.sub(r"\{[^{}]*\}|`[^`]*`|^import .*$", "", text, flags=re.M | re.S)
+        prose = re.sub(r"\{[^{}]*\}|`[^`]*`|^import .*$", "", text, flags=re.M)
+        quoted += sum(len(NUMBER.findall(q)) for q in QUOTED.findall(prose))
+        prose = QUOTED.sub("", prose)
         for n in NUMBER.findall(prose):
             if n.replace("\\", "").replace("⁠", "") not in CONSTANT:
                 bad.append(f"{p.name}: {n!r} is written into the prose; read it from facts.json")
     if bad:
         raise SystemExit("numbers check failed:\n  " + "\n  ".join(bad))
     print(f"numbers check: {len(used)} stated numbers read from facts.json, formatted from summary.json, the grades "
-          "and the episodes; none written in")
+          f"and the episodes; none written in, {quoted} quoted in links to their outside sources")
 
 
 def describe(head: dict, lead_: dict) -> None:
