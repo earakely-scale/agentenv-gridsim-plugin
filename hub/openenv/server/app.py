@@ -21,7 +21,7 @@ from .ui import build_try
 from .viewer import mount_viewer
 from .windows import windows
 
-TITLE = "GridSimEnv Desk Environment"
+TITLE = "GridSimEnv Playground"
 ICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect x="4" y="9" width="22" height="14" rx="3" '
         'fill="none" stroke="#14202b" stroke-width="2.5"/><rect x="27" y="13" width="3" height="6" rx="1" '
         'fill="#14202b"/><rect x="7" y="12" width="11" height="8" rx="1" fill="#10855a"/></svg>')
@@ -45,7 +45,7 @@ def create_server():
 
     @app.get("/manifest.json", include_in_schema=False)
     def manifest():
-        return {"name": TITLE, "short_name": "GridSimEnv Desk", "start_url": "/web/", "display": "standalone",
+        return {"name": TITLE, "short_name": "GridSimEnv Playground", "start_url": "/web/", "display": "standalone",
                 "icons": [{"src": "/favicon.ico", "sizes": "any", "type": "image/svg+xml"}]}
 
     @app.get("/favicon.ico", include_in_schema=False)

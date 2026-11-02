@@ -129,7 +129,7 @@ function render(D, C) {
   const W = Math.max(280, Math.min(1080, $("main").clientWidth) - (innerWidth < 720 ? 24 : 44));
   pagetabs(false);
   $("title").textContent = "How three models traded a real ERCOT battery, v2 to v4";
-  document.title = `${V.version} results, the development ladder · GridSimEnv Desk`;
+  document.title = `${V.version} results, the development ladder · GridSimEnv Replays`;
   const n = D.versions.reduce((a, v) => a + v.n_tasks * v.models.length, 0);
   $("lede").innerHTML = `A desk agent trades one real ERCOT battery the way a QSE's battery desk does: <b>day-ahead bids before the 10:00 close, real-time offers and its operating plan through the operating day</b>, on ERCOT's real prices, forecasts and notices as each was posted, settled by ERCOT's rules. The ladder adds one kind of realism a version: v2 trades energy at the battery's own node, v3 adds reserves and co-located solar, v4 three-day weather fronts.${X ? ` Apart from the ladder, the ${esc(X.label)} plays ${X.check_of}'s days again with the day-ahead market re-cleared against the desk's own offers.` : ""} ${n} recorded runs: GPT-6.1 Sol and GPT-6 Luna at high reasoning effort and an untrained Qwen3-4B with thinking off, each against the anchor, the hindsight optimum and the battery's real operator.`;
   $("findings").innerHTML = findings(D).map((x, i) => `<li${i ? "" : ' class="lead"'}>${x}</li>`).join("");
@@ -199,7 +199,7 @@ function renderBench(B, C, D, pc, K) {
   const h = B.hero, e = C?.episodes[`bench/${h.task_id}.${h.model}`], t = C?.tasks[h.task_id], hm = B.models[h.model];
   const front = (f) => B.fronts.find((x) => x.front === f);
   $("title").textContent = "The v4 benchmark: models in native agent harnesses";
-  document.title = "The v4 benchmark · GridSimEnv Desk";
+  document.title = "The v4 benchmark · GridSimEnv Replays";
   $("lede").innerHTML = `${md(card.pitch.replace(/\*\*/g, ""))}${e ? ` <a href="./index.html?v=bench&m=${h.model}&task=${h.task_id}"><b>Replay the lead run</b></a>: ${esc(hm.name)} in ${esc(hm.harness)} trades ${esc(t.name)} (${esc(t.region)}, ${esc(t.size)}) over ${spanOf(t.dates[0], t.dates.at(-1))}, through a ${esc(front(e.front).kind)}, ${e.split === "post_cutoff" ? "after every reported training cutoff" : "a window that may be in the models' training data"}, and settles at ${usd(e.P)}, C ${pc(e.C)}.` : ""}`;
   $("findings").innerHTML = card.bullets.map((x, i) => `<li${i ? "" : ' class="lead"'}>${md(x)}</li>`).join("");
   const fig = (svg, label) => `<div class="cardfig" role="figure" aria-label="${esc(label)}">${svg}</div>`;

@@ -39,8 +39,10 @@ real operator against the agents on the windows where the agents did better, fro
 
 - **Dataset:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv),
   the benchmark's grades and Episode JSON under `results/desk-v4-bench`.
-- **Viewer:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv),
+- **Replays:** [earakely-scale/GridSimEnv-AgentEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv),
   every benchmark run replayed in 3D, and its [results](https://earakely-scale-gridsimenv-agentenv.static.hf.space/results.html?v=bench).
+- **Playground:** [earakely-scale/GridSimEnv-OpenEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv),
+  the environment live, its OpenEnv Space: play a window by hand, or connect an agent.
 - **Code:** [agentenv-gridsim-plugin](https://github.com/earakely-scale/agentenv-gridsim-plugin), a plugin for the
   [AgentEnv Framework](https://www.agentenvframework.com).
 

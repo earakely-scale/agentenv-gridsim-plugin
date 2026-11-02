@@ -1,5 +1,5 @@
 ---
-title: GridSimEnv Desk Environment
+title: GridSimEnv Playground
 emoji: 🔋
 colorFrom: green
 colorTo: blue
@@ -8,12 +8,12 @@ app_port: 8000
 base_path: /web
 pinned: false
 license: apache-2.0
-short_description: Trade a real Texas battery's desk, as the agents do
+short_description: Play a real battery's desk yourself, or connect your agent
 tags: [openenv, simulation, rl-environment, energy, electricity-markets, battery-storage, agentenv]
 datasets: [earakely-scale/GridSimEnv-AgentEnv]
 ---
 
-# GridSimEnv Desk · OpenEnv
+# GridSimEnv Playground · OpenEnv
 
 Run a real Texas battery's trading desk for three days across a weather front, on ERCOT's records as they were posted: the v4 benchmark's 32 windows, with the eleven desk tools, the call budget and the grade the benchmark's agents had.
 
@@ -123,6 +123,6 @@ are modelled.
 ## Links
 
 - Article: https://huggingface.co/spaces/earakely-scale/GridSimEnv
-- Benchmark replays in 3D: https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv
+- Replays, every benchmark run in 3D: https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv
 - Dataset (tasks, episodes, results): https://huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv
 - Code: https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/main/hub/openenv

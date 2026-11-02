@@ -76,7 +76,7 @@ async function open(key, { t = null, play = true, push = false } = {}) {
   for (const [k, v] of [["v", E.version], ["m", E.model], ["task", T.task]]) u.searchParams.set(k, v);
   u.searchParams.delete("t");
   history[push ? "pushState" : "replaceState"](null, "", u);
-  document.title = `${T.site.name}, ${span(T.dates)}, ${ms.label} · GridSimEnv Desk`;
+  document.title = `${T.site.name}, ${span(T.dates)}, ${ms.label} · GridSimEnv Replays`;
   try {
     stage = new GridStage($("stage"), D, { reduced, pixelRatio: Math.min(devicePixelRatio || 1, innerWidth < 700 ? 2 : 1.5) });
     stage.renderer.domElement.setAttribute("aria-hidden", "true");
