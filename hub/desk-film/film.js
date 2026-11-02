@@ -80,8 +80,8 @@
   function band(t) {
     const tt = Math.max(D.t0, Math.min(D.t1, t));
     let rt = "";
-    for (let i = 0; i < D.rt.length && 15 * (i + 1) + 2 <= tt; i++)
-      rt += `${rt ? "L" : "M"}${x(15 * i).toFixed(1)},${yp(D.rt[i]).toFixed(1)}H${x(15 * (i + 1)).toFixed(1)}`;
+    for (let i = 0, a = D.rtFrom; i < D.rt.length && a + 15 * (i + 1) + 2 <= tt; i++)
+      rt += `${rt ? "L" : "M"}${x(a + 15 * i).toFixed(1)},${yp(D.rt[i]).toFixed(1)}H${x(a + 15 * (i + 1)).toFixed(1)}`;
     els.rt.setAttribute("d", rt);
     const n = Math.max(0, Math.min(D.soc.length - 1, Math.floor(tt / 5)));
     let soc;

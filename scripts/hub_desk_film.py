@@ -1,11 +1,14 @@
-"""The run film: one benchmark episode replayed on the desk viewer's 3D site and filmed as a GIF, with the desk beside
-it: the agent's tool calls in order (the current one lit) with the results the run recorded, the node's price and the
-battery's charge below as they post, then the settled grade beside the real operator's. The clock stands still while the
-agent works and runs between its turns; the replay is driven frame by frame, so every film is the same.
+"""The run film: one benchmark episode replayed on the desk viewer's 3D site and filmed as an MP4 or a GIF, with the
+desk beside it: the agent's tool calls in order (the current one lit) with the results the run recorded, the node's
+price and the battery's charge below as they post, then the settled grade beside the real operator's. The clock stands
+still while the agent works and runs between its turns; the replay is driven frame by frame, so every film is the same.
+The MP4 is 1920x1080 at 60 frames a second with the site moving on every frame; the GIF, 1200x675, moves the site a few
+times a second, a time-lapse that keeps it small.
 
     .venv/bin/python scripts/hub_space.py --only bench       # the viewer Space, built once into build/hub/space
-    .venv/bin/python scripts/hub_desk_film.py --out build/article/media/gridsim-run.gif
-    .venv/bin/python scripts/hub_desk_film.py --out build/article/stills --stills 4,20.5,31   # PNG stills instead
+    .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.mp4
+    .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.gif
+    .venv/bin/python scripts/hub_desk_film.py --out build/article/stills --stills 4,12.5   # PNG stills instead
 """
 
 import argparse
@@ -29,11 +32,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / "hub" / "desk-film"
 BENCH = ROOT / "results" / "desk-v4-bench"
 ACTS = ("submit_dam_offers", "submit_rt_offers", "update_cop")
-PACE = {"lead": 0.4, "event": 0.45, "read": 0.19, "act": 0.48, "quote": 2.5, "tail": 0.25}
-LAG = {"read": 0.1, "act": 0.3}
-READS_MAX = 1.8
-PLAY_S, PLAY_MIN, END_S, SPLIT_H = 8.5, 1.0, 4.6, 18
+PACE = {"lead": 0.15, "event": 0.35, "read": 0.1, "act": 0.35, "quote": 1.8, "tail": 0.3}
+LAG = {"read": 0.06, "act": 0.2}
+READS_MAX = 1.0
+PLAY_S, PLAY_MIN, END_S, SPLIT_H = 9.0, 0.5, 3.5, 18
+WEIGHT = {"moving": 1.6, "day": 1.0, "night": 0.6, "before": 0.6}
 DAY_BEFORE = 0.45
+FORMATS = {".gif": {"scale": 1.25, "fps": 15, "play_fps": 12, "step": 4, "motion": False},
+           ".mp4": {"scale": 2.0, "fps": 60, "play_fps": 60, "step": 1, "motion": True}}
+CRF = 23
 DUSK = ("ramp", "establish")
 WOKE = {"notice": "ERCOT notice", "nws": "weather alert", "checkpoint": "shift checkpoint", "reminder": "its reminder",
         "dam_results": "DAM results", "outage": "outage", "deployment": "deployment", "adjustment_open": "RT opens"}
@@ -54,15 +61,15 @@ def main():
     ap.add_argument("--hold", help="Comma-separated turn numbers to hold, overriding the automatic choice.")
     ap.add_argument("--shots", help="Comma-separated shot per beat (establish, high, push, ramp, line, city, sub), "
                                     "overriding the automatic choice.")
-    ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--css-size", default="960x540", help="The page's CSS size; the GIF is this times --scale.")
-    ap.add_argument("--scale", type=float, default=1.25)
-    ap.add_argument("--fps", type=int, default=15, help="Frames a second while the agent works and at the end.")
-    ap.add_argument("--play-fps", type=int, default=12, help="Frames a second while the clock runs.")
-    ap.add_argument("--step", type=int, default=4, help="While the clock runs, the site moves every this many frames.")
+    ap.add_argument("--out", type=Path, required=True, help="An .mp4 or a .gif; with --stills, a folder.")
+    ap.add_argument("--css-size", default="960x540", help="The page's CSS size; the film is this times --scale.")
+    ap.add_argument("--scale", type=float, help="The film's size over --css-size: 2 for an MP4, 1.25 for a GIF.")
+    ap.add_argument("--crf", type=int, default=CRF, help="The MP4's H.264 quality: lower is better and larger.")
     ap.add_argument("--frames", type=Path, help="Keep the PNG frames in this folder.")
-    ap.add_argument("--stills", help="Comma-separated film seconds: write those frames as PNGs into --out, no GIF.")
+    ap.add_argument("--stills", help="Comma-separated film seconds: write those frames as PNGs into --out, no film.")
     args = ap.parse_args()
+    fmt = FORMATS[".gif" if args.stills else args.out.suffix]
+    scale = args.scale or fmt["scale"]
     s, grades = bench(args.results)
     model, task = args.model or s["hero"]["model"], args.task or s["hero"]["task_id"]
     g = next(x for x in grades if x["model"] == model and x["task_id"] == task and x["status"] == "scored")
@@ -72,34 +79,66 @@ def main():
     holds = [int(x) for x in args.hold.split(",")] if args.hold else hdh.pick(ep)[:3]
     data = card(ep, s, g, holds, hdh)
     beats = plan(ep, data, holds, args.shots.split(",") if args.shots else None)
-    frames = timeline(beats, args.fps, args.play_fps, args.step)
+    frames = timeline(beats, fmt)
     hk = module("hub_desk", "scripts/hub_desk.py")
     hk.anonymous({"film.json": json.dumps(data, ensure_ascii=False).encode()}, hk.names(ROOT))
     cw, ch = (int(v) for v in args.css_size.split("x"))
-    w, h = round(cw * args.scale), round(ch * args.scale)
-    print(f"{task} {model}: holds turns {holds}, {len(beats)} beats, {len(frames)} frames, "
-          f"{frames[-1]['s'] + 1 / args.fps:.1f} s")
+    w, h = round(cw * scale), round(ch * scale)
+    length = frames[-1]["s"] + 1 / fmt["fps"]
+    print(f"{task} {model}: holds turns {holds}, {len(beats)} beats, {len(frames)} frames, {length:.1f} s")
     url = f"index.html?v=bench&m={model}&task={task}&play=0"
     if args.stills:
         want = [float(x) for x in args.stills.split(",")]
         keep = {min(range(len(frames)), key=lambda i, x=x: abs(frames[i]["s"] - x)) for x in want}
         args.out.mkdir(parents=True, exist_ok=True)
-        film(args.space, url, data, frames, args.out, (cw, ch), args.scale, keep)
+        film(args.space, url, data, frames, (cw, ch), scale,
+             lambda i, f, png: (args.out / f"s{f['s']:06.2f}.png").write_bytes(png), keep)
         return
-    hh = module("hub_hero", "scripts/hub_hero.py")
     t0 = time.monotonic()
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    if args.frames:
+        args.frames.mkdir(parents=True, exist_ok=True)
+    if args.out.suffix == ".mp4":
+        mp4(args, url, data, frames, (cw, ch), scale, fmt)
+    else:
+        gif(args, url, data, frames, (cw, ch), scale, fmt)
+    print(f"{args.out}: {w}x{h}, {len(frames)} frames, {length:.1f} s, {args.out.stat().st_size / 1e6:.2f} MB, "
+          f"rendered in {time.monotonic() - t0:.0f} s")
+
+
+def gif(args, url: str, data: dict, frames: list[dict], size: tuple[int, int], scale: float, fmt: dict) -> None:
+    hh = module("hub_hero", "scripts/hub_hero.py")
+    w, h = round(size[0] * scale), round(size[1] * scale)
     with tempfile.TemporaryDirectory() as tmp:
         shots = args.frames or Path(tmp)
-        shots.mkdir(parents=True, exist_ok=True)
-        film(args.space, url, data, frames, shots, (cw, ch), args.scale)
+        film(args.space, url, data, frames, size, scale, lambda i, f, png: (shots / f"f{i:05d}.png").write_bytes(png))
         parts = []
         for k, sg in enumerate(segments(frames)):
             parts.append(Path(tmp) / f"s{k:04d}.gif")
-            segment(shots, sg, parts[-1], args.play_fps if sg["mode"] == "play" else args.fps, w, h)
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        n = hh.join(parts, args.out, w, h)
-    print(f"{args.out}: {w}x{h}, {n} frames, {frames[-1]['s']:.1f} s, {args.out.stat().st_size / 1e6:.2f} MB, "
-          f"rendered in {time.monotonic() - t0:.0f} s")
+            segment(shots, sg, parts[-1], fmt["play_fps"] if sg["mode"] == "play" else fmt["fps"], w, h)
+        hh.join(parts, args.out, w, h)
+
+
+def mp4(args, url: str, data: dict, frames: list[dict], size: tuple[int, int], scale: float, fmt: dict) -> None:
+    """H.264 High at level 4.2 in yuv420p with the index up front, so it starts playing as it loads, in every browser
+    and on older phones."""
+    enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "image2pipe", "-framerate", str(fmt["fps"]), "-c:v",
+                            "png", "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", str(args.crf),
+                            "-profile:v", "high", "-level:v", "4.2", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                            str(args.out)],
+                           stdin=subprocess.PIPE)
+
+    def emit(i: int, f: dict, png: bytes) -> None:
+        enc.stdin.write(png)
+        if args.frames:
+            (args.frames / f"f{i:05d}.png").write_bytes(png)
+
+    try:
+        film(args.space, url, data, frames, size, scale, emit)
+    finally:
+        enc.stdin.close()
+        if enc.wait():
+            raise SystemExit("ffmpeg could not encode the MP4")
 
 
 def segments(frames: list[dict]) -> list[dict]:
@@ -152,7 +191,9 @@ def card(ep: dict, s: dict, g: dict, holds: list[int], hdh) -> dict:
     front = next(f for f in s["fronts"] if f["front"] == g["front"])
     cat = lambda key, sub: [x for d in dates for x in ep[key][d][sub]]  # noqa: E731
     soc = [x for d in dates for x in ep["rt"][d]["soc_mwh"][:-1]] + [ep["rt"][dates[-1]]["soc_mwh"][-1]]
-    rt = cat("rt", "spp")
+    t0 = min(w["t"] for w in ep["wakes"])
+    k0 = -(-(t0 + 1440) // 15)
+    rt = day_before(s, g)[k0:] + cat("rt", "spp")
     days = [d0 - timedelta(1) + timedelta(j) for j in range(nd + 1)]
     turns = {str(n): turn(ep, n, d0, hdh) for n in holds}
     gd, c = ep["grade"], ep["site"]["card"]
@@ -168,11 +209,10 @@ def card(ep: dict, s: dict, g: dict, holds: list[int], hdh) -> dict:
         "sub": f"{c['size']} · {front['kind']}, {span(d0, days[-1])} · {m['harness']}",
         "foot": f"{sum(len(t['calls']) for t in ep['turns'])} tool calls over {len(ep['turns'])} wake-ups. The agent "
                 "sends ERCOT's own objects: offer curves and the operating plan.",
-        "site": {"emax": ep["site"]["e_max_mwh"]}, "nd": nd, "t0": min(w["t"] for w in ep["wakes"]),
-        "t1": 1440 * nd, "k": DAY_BEFORE,
+        "site": {"emax": ep["site"]["e_max_mwh"]}, "nd": nd, "t0": t0, "t1": 1440 * nd, "k": DAY_BEFORE,
         "dayNames": [f"{d:%a} {d.day} {d:%b}" for d in days],
         "dayLabels": [f"{days[0]:%a} {days[0].day}"] + [f"{d:%a} {d.day} {d:%b}" for d in days[1:]],
-        "rt": rt, "pmax": nice(max(rt)), "soc": soc,
+        "rt": rt, "rtFrom": 15 * k0 - 1440, "pmax": nice(max(rt)), "soc": soc,
         "pnl": hdh.pnl(ep, d0), "nturns": len(ep["turns"]), "turns": turns,
         "wakes": [{"t": t["t"], "held": i in holds, "time": hdh.label_time(t, d0), "chips": chips(t, ep, hdh)}
                   for i, t in enumerate(ep["turns"])],
@@ -180,6 +220,16 @@ def card(ep: dict, s: dict, g: dict, holds: list[int], hdh) -> dict:
                   "note": "Profit over the three operating days, on ERCOT's real prices; the operator's is settled "
                           "the same way. Degradation and the end-of-window charge are modelled."},
     }
+
+
+def day_before(s: dict, g: dict) -> list[float]:
+    """The node's real-time prices on the day before the window, from its series in the pack: the desk posts them as
+    they settle, so the band has a price from the agent's first turn."""
+    pack = ROOT / "data" / "desk" / s["pack"]
+    with gzip.open(pack / "tasks.jsonl.gz", "rt") as f:
+        row = next(t for t in map(json.loads, filter(str.strip, f)) if t["task_id"] == g["task_id"])
+    ser = json.loads(gzip.decompress((pack / row["series"]).read_bytes()))
+    return ser["rt_spp"][(date.fromisoformat(g["dates"][0]) - timedelta(1)).isoformat()]
 
 
 def pc(x: float) -> str:
@@ -202,7 +252,7 @@ def nice(x: float) -> float:
 
 def turn(ep: dict, n: int, d0: date, hdh) -> dict:
     """A held turn: the events that woke the agent, then each call with what it asked and what came back, paced: reads
-    quickly, submissions slower, the agent's own words at the end."""
+    quickly, submissions slower; on an operating day, the agent's own words at the end."""
     t = ep["turns"][n]
     w = t.get("wake") or {}
     rs = hdh.reasons(ep, t)
@@ -239,15 +289,15 @@ def turn(ep: dict, n: int, d0: date, hdh) -> dict:
             row |= {"d": plain(small), "r": plain(res) or None}
         row["res"] = round(p + LAG["act" if act else "read"], 3)
         calls.append(row)
-        p += PACE["act"] if act or tool in ("optimize", "set_reminder") else per
+        p += PACE["act"] if act else per
     text = hdh.clean(t.get("text") or "")
-    quote = hdh.excerpt(text, 175) if text else None
+    quote = hdh.excerpt(text, 175) if text and t["t"] >= 0 else None
     out = {"index": n, "time": hdh.label_time(t, d0), "reason": reason, "events": events,
            "calls": calls, "quote": quote}
     if quote:
-        out["quoteAt"] = round(p + 0.15, 3)
-        p += 0.15 + PACE["quote"]
-    out["dur"] = round(p + PACE["tail"], 3)
+        out["quoteAt"] = round(p + 0.1, 3)
+        p += 0.1 + PACE["quote"]
+    out["dur"] = round(p + (0.2 if quote else PACE["tail"]), 3)
     return out
 
 
@@ -268,8 +318,8 @@ def chips(t: dict, ep: dict, hdh) -> list[dict]:
 
 
 def plan(ep: dict, data: dict, holds: list[int], shots: list[str] | None) -> list[dict]:
-    """The beats: each held turn with the clock stopped, the clock running between them (faster where the battery
-    rests and on the day before, slower where it moves), then the grade; each with a camera shot and its drift."""
+    """The beats: each held turn with the clock stopped, the clock running between them (a little slower where the
+    battery moves, a little faster at night and on the day before), then the grade; each with a camera shot."""
     turns, t0, t1 = ep["turns"], data["t0"], data["t1"]
     mw = [x for d in ep["dates"] for x in ep["rt"][d]["metered_mw"]]
     beats, at = [], t0
@@ -285,9 +335,11 @@ def plan(ep: dict, data: dict, holds: list[int], shots: list[str] | None) -> lis
 
     def weight(t: float) -> float:
         if t < 0:
-            return DAY_BEFORE
+            return WEIGHT["before"]
         k = int(t // 5)
-        return 3.0 if k < len(mw) and abs(mw[k]) > 2 else 1.0 if 360 <= t % 1440 < 1260 else 0.55
+        if k < len(mw) and abs(mw[k]) > 2:
+            return WEIGHT["moving"]
+        return WEIGHT["day"] if 360 <= t % 1440 < 1260 else WEIGHT["night"]
 
     plays = [b for b in beats if b["mode"] == "play"]
     for b in plays:
@@ -299,7 +351,6 @@ def plan(ep: dict, data: dict, holds: list[int], shots: list[str] | None) -> lis
     for i, b in enumerate(beats):
         b["shot"] = shots[i] if shots and i < len(shots) and shots[i] else shot(b, mw)
         b["shot"] = next(dusk) if b["shot"] == "ramp" and b["mode"] == "play" else b["shot"]
-        b["u"] = 0.5 if b["mode"] == "play" else 0.4
     return beats
 
 
@@ -326,23 +377,26 @@ def shot(b: dict, mw: list[float]) -> str:
     return "high" if 420 <= mid < 1140 else "establish"
 
 
-def timeline(beats: list[dict], fps: int, play_fps: int, step: int) -> list[dict]:
-    """Every frame: film second s, replay minute t, the beat, the camera's drift, and what the desk shows. While the
-    clock runs the site moves on every step-th frame, a time-lapse, and the desk and the days below on every frame; in a
-    turn and at the end the site holds still."""
-    frames, s0 = [], 0.0
+def timeline(beats: list[dict], fmt: dict) -> list[dict]:
+    """Every frame: film second s, replay minute t, the beat, the camera's drift, and what the desk shows. The desk and
+    the days below change on every frame. In a GIF the site moves on every step-th frame while the clock runs, a
+    time-lapse, and holds still in a turn and at the end; in an MP4 it moves on every frame, its camera drifting, the
+    fans and the line's pulses running on while the clock waits."""
+    frames, s0, step, motion = [], 0.0, fmt["step"], fmt["motion"]
     for k, b in enumerate(beats):
-        rate = play_fps if b["mode"] == "play" else fps
+        rate = fmt["play_fps"] if b["mode"] == "play" else fmt["fps"]
         n = max(2, round(b["dur"] * rate))
+        u0, u1 = DRIFT[b["mode"]] if motion else (STILL[b["mode"]],) * 2
         if b["mode"] == "play":
             cum = [0.0]
             for x in b["w"]:
                 cum.append(cum[-1] + x)
         for j in range(n):
             q = j / (n - 1)
-            f = {"s": round(s0 + j / rate, 4), "beat": k, "mode": b["mode"], "shot": b["shot"], "u": b["u"],
-                 "dt": step / rate if b["mode"] == "play" else 0.0,
-                 "site": j % step == 0 if b["mode"] == "play" else j == 0}
+            site = j % step == 0 if b["mode"] == "play" else motion or j == 0
+            f = {"s": round(s0 + j / rate, 4), "beat": k, "mode": b["mode"], "shot": b["shot"],
+                 "u": round(u0 + (u1 - u0) * q, 4), "site": site,
+                 "dt": step / rate if b["mode"] == "play" else 1 / rate if motion else 0.0}
             if b["mode"] == "play":
                 goal, i = q * cum[-1], 0
                 while i < len(b["w"]) - 1 and cum[i + 1] < goal:
@@ -358,11 +412,13 @@ def timeline(beats: list[dict], fps: int, play_fps: int, step: int) -> list[dict
     return frames
 
 
+STILL = {"play": 0.5, "hold": 0.4, "end": 0.4}
+DRIFT = {"play": (0.25, 0.75), "hold": (0.35, 0.5), "end": (0.4, 0.55)}
 DESK, BAND = 304, 84
 
 
 def shot_png(page) -> bytes:
-    return base64.b64decode(page.call("Page.captureScreenshot", format="png")["data"])
+    return base64.b64decode(page.call("Page.captureScreenshot", format="png", optimizeForSpeed=True)["data"])
 
 
 def blank(png: bytes, box: tuple[int, int, int, int]) -> bool:
@@ -400,12 +456,12 @@ RAF = """(() => {
 })()"""
 
 
-def film(space: Path, url: str, data: dict, frames: list[dict], out: Path, size: tuple[int, int], scale: float,
+def film(space: Path, url: str, data: dict, frames: list[dict], size: tuple[int, int], scale: float, emit,
          keep: set[int] | None = None) -> None:
     """Drive the viewer frame by frame: the replay's own animation loop runs only when a frame steps it, so the wall
     clock that moves fans and the line's pulses advances by the film's frame time and stands still in a turn. The odd
     pixel at the horizon that renders as not-a-number takes its neighbour's colour instead of black, and the heat haze,
-    which would smear such pixels into streaks, is off."""
+    which would smear such pixels into streaks, is off. The site renders at the film's full pixel ratio."""
     rec = module("record", "scripts/record.py")
     w, h = size
     with rec.serve(space) as port, tempfile.TemporaryDirectory() as profile:
@@ -427,7 +483,9 @@ def film(space: Path, url: str, data: dict, frames: list[dict], out: Path, size:
                         "document.head.append(s); return true; })()")
                 page.js((PAGE / "film.js").read_text() + "; true")
                 page.js(f"film.init({json.dumps(data, ensure_ascii=False)}); true")
-                page.js("new Promise((r) => setTimeout(() => { gridsim.stage.resize(); r(true); }, 300))")
+                page.js(f"new Promise((r) => setTimeout(() => {{ const s = gridsim.stage; "
+                        f"s.renderer.setPixelRatio({scale}); s.composer.setPixelRatio({scale}); s.resize(); r(true); "
+                        "}, 300))")
                 page.js(NO_HAZE)
                 page.js(NO_NAN)
                 page.js(RAF)
@@ -446,7 +504,7 @@ def film(space: Path, url: str, data: dict, frames: list[dict], out: Path, size:
                             raise SystemExit(f"frame {i}: the site keeps rendering blank")
                         page.js(f"gridsim.seek({f['t3']}); __raf(0); true")
                         png = shot_png(page)
-                    (out / (f"f{i:05d}.png" if keep is None else f"s{f['s']:06.2f}.png")).write_bytes(png)
+                    emit(i, f, png)
                 if again:
                     print(f"re-rendered {again} blank frames of the site")
         finally:

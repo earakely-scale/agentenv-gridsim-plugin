@@ -117,9 +117,10 @@
   }
 }
 
-/* The run film: a wide figure, the GIF at its full width with the 3D link on it. */
+/* The run film: a wide figure, the video at its full width with the 3D link on it; the GIF inside it is the fallback
+   where video cannot play. */
 .gs-run .html-embed__card { padding: 0; overflow: hidden; border-radius: 10px; background: #0b1117; }
-.gs-run img { display: block; width: 100%; height: auto; }
+.gs-run :is(video, img) { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0b1117; }
 .gs-run a:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 3px; }
 
 section.content-grid pre.astro-code { white-space: pre-wrap; overflow-wrap: anywhere; }
