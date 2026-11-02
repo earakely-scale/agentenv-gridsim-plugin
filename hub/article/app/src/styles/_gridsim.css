@@ -125,8 +125,56 @@
 .gs-try-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0;
   font-size: 13px; color: var(--muted-color); }
 @media (max-width: 760px) { .gs-try-frame { height: 820px; } }
-/* The cost chart lays its labels out for a phone at about 350 px: on a phone its card gives it that width. */
-@media (max-width: 560px) { #eval-pareto .html-embed__card { padding: 14px 6px 10px; } }
+/* The cost chart lays its labels out for a phone at about 350 px: on a phone its card gives it that width, and the
+   reward and training charts get the same room. */
+@media (max-width: 560px) {
+  :is(#eval-pareto, #reward-window, #train-paired) .html-embed__card { padding: 14px 6px 10px; }
+}
+
+/* Why it matters: a figure a tile, its value large, a line on what it is, then and now or a share as bars, and its
+   source underneath; three across, two on a narrow column, one on a phone. */
+.gs-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0 24px; }
+@media (max-width: 640px) { .gs-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .gs-tiles { grid-template-columns: minmax(0, 1fr); } }
+.gs-tile { display: flex; flex-direction: column; gap: 7px; padding: 14px 15px 12px; border: 1px solid var(--border-color);
+  border-radius: 10px; background: var(--surface-bg); }
+.content-grid main .gs-tile p { margin: 0; }
+.gs-tile-v { font-size: 29px; line-height: 1.05; font-weight: 700; letter-spacing: -0.015em; color: var(--text-color);
+  font-variant-numeric: tabular-nums; }
+.gs-tile-v span { margin-left: 4px; font-size: 15px; font-weight: 600; letter-spacing: 0; color: var(--muted-color); }
+.content-grid main .gs-tile-d { font-size: 13.5px; line-height: 1.38; color: color-mix(in srgb, var(--text-color) 84%, var(--surface-bg)); }
+.gs-tile-bars { display: grid; gap: 5px; margin-top: 1px; }
+.gs-tile-bar { display: grid; grid-template-columns: minmax(64px, auto) 1fr auto; align-items: center; gap: 8px;
+  font-size: 11.5px; line-height: 1.2; color: var(--muted-color); font-variant-numeric: tabular-nums; }
+.gs-tile-bar i { display: block; height: 7px; border-radius: 4px; overflow: hidden;
+  background: color-mix(in srgb, var(--text-color) 9%, transparent); }
+.gs-tile-bar em { display: block; height: 100%; border-radius: 4px; background: color-mix(in srgb, var(--text-color) 32%, transparent); }
+.gs-tile-bar.hot em { background: var(--primary-color); }
+.gs-tile-bar b { font-size: 12px; font-weight: 650; color: var(--text-color); }
+.content-grid main .gs-tile-s { margin-top: auto; padding-top: 3px; font-size: 11.5px; line-height: 1.3; color: var(--muted-color); }
+.content-grid main .gs-tile-s a { color: inherit; border: 0; background: none; text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 2px; }
+.content-grid main .gs-tile-s a:hover { color: var(--text-color); }
+
+/* Training on GridSimEnv: the recipe as steps, a label and its line. */
+.gs-recipe { margin: 18px 0 22px; padding: 14px 18px 12px; border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--surface-bg); }
+.content-grid main .gs-recipe-h { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted-color); }
+.gs-recipe dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 18px; margin: 0; font-size: 14.5px;
+  line-height: 1.45; }
+.gs-recipe dt { font-weight: 650; color: var(--text-color); }
+.gs-recipe dd { margin: 0; color: color-mix(in srgb, var(--text-color) 88%, var(--surface-bg)); }
+@media (max-width: 480px) {
+  .gs-recipe dl { grid-template-columns: minmax(0, 1fr); gap: 1px; }
+  .gs-recipe dd { margin-bottom: 9px; }
+}
+
+/* Links: a label and its link a line, no bullets. */
+.content-grid main .gs-links p { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 12px; margin: 0 0 7px; }
+.gs-links b { font-weight: 650; }
+.content-grid main .gs-links a { overflow-wrap: anywhere; }
+@media (max-width: 480px) { .content-grid main .gs-links p { grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: 11px; } }
 /* Watch a rollout: the viewer Space's replay, the same frame a little shorter. */
 .gs-watch .gs-try-frame { height: 760px; }
 /* On a desktop the live pages need about 1,100 px for the desk beside the site: the figure spans the page, over the

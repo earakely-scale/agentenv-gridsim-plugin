@@ -282,12 +282,18 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
          "tryit": hub_article.tryit(ROOT, s, grades, hub_dataset),
          "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset),
          "eval": hub_article.evals(ROOT, s, grades, pairs, hub_dataset)}
+    f |= {"why": hub_article.why_tiles(f["eval"]["watch"]), "reward": hub_article.reward(s, grades, hub_dataset),
+          "train": hub_article.train(s, grades, hub_dataset), "links": hub_article.links(s, hub_dataset)}
     hub_article.check_prose(f)
     assert f["tryit"]["site"] == h["site"] and f["tryit"]["app"].endswith("/web/")
     e, scored = f["eval"], [g for g in grades if g["status"] == "scored"]
     assert e["runs"] == str(len(scored)) and e["lead"]["a"]["name"] == s["models"][s["order_by_C"][0]]["name"]
     assert e["watch"]["lost"] == hub_article.usd(-min(g["p"] for g in scored)) and "&t=" in e["watch"]["app"]
     assert set(hub_article.bench_chart(s)["models"]) == {p["key"] for p in s["plot"]["points"]}
+    assert len(f["why"]["tiles"]) == len(hub_article.TILES) + 1
+    assert f["reward"]["C"] == f"{hub_dataset.pc(h['capture'])}%"
+    t, rows = f["train"], hub_article.train_chart(s, grades)["rows"]
+    assert len(rows) == s["n_windows"] and str(sum(r["sft"] > r["base"] for r in rows)) == t["better"]
     assert f["duel"]["n"] == str(len(pairs)) and f["duel"]["of"] == str(len(s["models"]))
     assert hub_article.majority(grades, pairs[0]["g"]["front"]) == len(pairs) and f["env"]["sites_word"] == "four"
     head = hub_article.header(s, hub_dataset)

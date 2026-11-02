@@ -1,0 +1,150 @@
+<div class="gs-reward"></div>
+<style>
+  .gs-reward { position: relative; --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); }
+  .html-embed__card.is-frameless .gs-reward { --halo: var(--page-bg); }
+  .gs-reward svg { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
+  .gs-reward svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+  .gs-reward .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
+  .gs-reward .t-sub, .gs-reward .t-tick, .gs-reward .t-unit { font-size: 13px; fill: var(--ink-3); }
+  .gs-reward .t-name { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
+  .gs-reward .t-val { font-size: 12.5px; fill: var(--ink-3); }
+  .gs-reward .t-ref { font-size: 12.5px; font-weight: 600; fill: var(--ink-2); }
+  .gs-reward .t-ref.op { fill: var(--c-op); }
+  .gs-reward .t-ref.plan { fill: var(--ink); }
+  .gs-reward .t-r { font-size: 12px; fill: var(--ink-3); }
+  .gs-reward .grid { stroke: var(--line); stroke-width: 1; }
+  .gs-reward .band { fill: color-mix(in srgb, var(--text-color) 3.5%, transparent); }
+  .gs-reward .ref { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 3 3; }
+  .gs-reward .ref.op { stroke: var(--c-op); }
+  .gs-reward .ref.plan { stroke: var(--ink); stroke-dasharray: none; stroke-width: 1.4; }
+  .gs-reward .lead { stroke: var(--ink-3); stroke-width: 1; }
+  .gs-reward .stem { stroke: color-mix(in srgb, var(--text-color) 22%, transparent); stroke-width: 1.5; }
+  .gs-reward .dot { stroke: var(--halo); stroke-width: 1.6; }
+  .gs-reward .rline { fill: none; stroke: var(--ink-2); stroke-width: 1.8; }
+  .gs-reward .rfill { fill: color-mix(in srgb, var(--text-color) 7%, transparent); }
+  .gs-reward .hit { fill: transparent; cursor: pointer; outline: none; }
+  .gs-reward .hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; }
+  .gs-reward .row.on .t-name { fill: var(--ink); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-reward");
+    if (!root) return;
+    const NS = "http://www.w3.org/2000/svg";
+    const fonts = Promise.all(["400 13px", "600 13px", "650 16px"].map((f) => document.fonts.load(`${f} "Source Sans 3"`))).catch(() => null);
+    const ctx = document.createElement("canvas").getContext("2d");
+    const font = getComputedStyle(document.body).fontFamily;
+    const measure = (s, size, weight = 400) => { ctx.font = `${weight} ${size}px ${font}`; return ctx.measureText(s).width; };
+    const usd = (x) => `${x < 0 ? "−" : ""}$${Math.round(Math.abs(x)).toLocaleString("en-US")}`;
+    const pct = (x) => `${(x * 100).toFixed(1).replace("-", "−")}%`;
+    const el = (tag, attrs, text) => {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+      if (text != null) e.textContent = text;
+      return e;
+    };
+
+    Promise.all([K.data("reward.json"), fonts]).then(([D]) => {
+      const tip = K.tip(root);
+      const plot = document.createElement("div");
+      root.appendChild(plot);
+      const R = D.refs, runs = D.runs, span = R.p_hind - R.p_idle;
+      const C = (p) => (p - R.p_idle) / span;
+      const rOf = (p) => Math.min(1, Math.max(0, 0.2 + (0.8 * (p - R.p_idle)) / D.den));
+      document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
+
+      const card = (box, r) => {
+        K.t.title(box, r.name, `var(--c-${r.key})`);
+        K.t.row(box, r.harness, r.valid ? "valid" : "no accepted offer");
+        [["settled P", usd(r.p)], ["C", pct(r.c)], ["R", r.r.toFixed(2)], ["against the planner", `${r.p >= R.p_anchor ? "+" : "−"}${usd(Math.abs(r.p - R.p_anchor)).replace("−", "")}`]]
+          .forEach(([a, v]) => K.t.row(box, a, v));
+      };
+
+      function render() {
+        const W = Math.max(300, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 560;
+        const names = runs.map((r) => (narrow ? r.tag : r.name));
+        const L = Math.ceil(Math.max(...names.map((n) => measure(n, 13.5, 560)))) + 14, Rx = W - (narrow ? 8 : 12);
+        const lo = Math.min(R.p_idle, ...runs.map((r) => r.p)), x0 = lo - 0.04 * (R.p_hind - lo), x1 = R.p_hind + 0.025 * (R.p_hind - lo);
+        const x = (p) => L + ((p - x0) / (x1 - x0)) * (Rx - L);
+        const svg = el("svg", { class: "chart", role: "img", "aria-label": `Every model's settled profit on the film's window between idle, ${usd(R.p_idle)}, and hindsight, ${usd(R.p_hind)}; the planner settles ${usd(R.p_anchor)}` });
+        svg.appendChild(el("text", { x: 0, y: 17, class: "t-head" }, narrow ? "Every run on the film's window" : "Every run on the film's window, from idle to hindsight"));
+        svg.appendChild(el("text", { x: 0, y: 37, class: "t-sub" }, narrow ? "Settled P, USD · C, % · R" : "Settled P, USD; C, the share of hindsight's profit over idle; R, the reward"));
+
+        const refs = [
+          { k: "idle", p: R.p_idle, label: narrow ? "Idle" : `Idle ${usd(R.p_idle)}`, cls: "" },
+          { k: "opr", p: R.p_operator_replay, label: narrow ? "Operator, replayed" : `Operator's bids, replayed ${usd(R.p_operator_replay)}`, cls: "op" },
+          { k: "op", p: R.p_operator_actual, label: narrow ? "Operator, as it ran" : `Operator, as it ran ${usd(R.p_operator_actual)}`, cls: "op" },
+          { k: "plan", p: R.p_anchor, label: narrow ? "Planner" : `The desk's planner ${usd(R.p_anchor)}`, cls: "plan" },
+          { k: "hind", p: R.p_hind, label: narrow ? "Hindsight" : `Hindsight ${usd(R.p_hind)}`, cls: "" },
+        ].sort((a, b) => a.p - b.p);
+        const lanes = [], lane = 15, top0 = 58;
+        for (const f of refs) {
+          const w = measure(f.label, 12.5, 600), anchor = f.k === "hind" ? "end" : f.k === "idle" ? "start" : "middle";
+          const left = anchor === "end" ? x(f.p) - w : anchor === "start" ? x(f.p) : x(f.p) - w / 2;
+          f.anchor = anchor; f.box = [Math.max(0, left), Math.min(W, left + w)];
+          let i = 0;
+          while (lanes[i] && lanes[i].some((b) => !(f.box[1] + 8 < b[0] || f.box[0] - 8 > b[1]))) i++;
+          (lanes[i] ||= []).push(f.box);
+          f.lane = i;
+        }
+        const nl = lanes.length, top = top0 + nl * lane + 6, rowH = narrow ? 24 : 22, bottom = top + runs.length * rowH;
+        for (const f of refs) {
+          const ly = top0 + f.lane * lane + 10, xx = x(f.p);
+          svg.appendChild(el("text", { x: f.anchor === "start" ? xx : f.anchor === "end" ? xx : xx, y: ly, class: `t-ref ${f.cls}`, "text-anchor": f.anchor }, f.label));
+          svg.appendChild(el("line", { x1: xx, x2: xx, y1: ly + 4, y2: bottom, class: `ref ${f.cls}` }));
+        }
+        runs.forEach((r, i) => {
+          const y = top + i * rowH + rowH / 2, xx = x(r.p);
+          const g = el("g", { class: "row" });
+          if (i % 2 === 0) g.appendChild(el("rect", { x: L - 4, y: y - rowH / 2, width: Rx - L + 8, height: rowH, class: "band" }));
+          g.appendChild(el("text", { x: L - 10, y: y + 4.5, class: "t-name", "text-anchor": "end" }, names[i]));
+          g.appendChild(el("line", { x1: x(R.p_idle), x2: xx, y1: y, y2: y, class: "stem" }));
+          g.appendChild(el("circle", { cx: xx, cy: y, r: narrow ? 5 : 5.5, fill: `var(--c-${r.key})`, class: "dot" }));
+          const v = narrow ? pct(r.c) : `${pct(r.c)} · ${usd(r.p)} · R ${r.r.toFixed(2)}`;
+          const vw = measure(v, 12.5), right = xx + 10 + vw < Rx;
+          g.appendChild(el("text", { x: right ? xx + 10 : xx - 10, y: y + 4, class: "t-val", "text-anchor": right ? "start" : "end" }, v));
+          const hit = el("rect", { x: 0, y: y - rowH / 2, width: W, height: rowH, class: "hit", tabindex: 0, role: "img",
+            "aria-label": `${r.name}: settled ${usd(r.p)}, C ${pct(r.c)}, R ${r.r.toFixed(2)}` });
+          const show = (ev) => { svg.querySelectorAll(".row.on").forEach((n) => n.classList.remove("on")); g.classList.add("on"); tip.show((box) => card(box, r), ev); };
+          hit.addEventListener("pointerenter", show);
+          hit.addEventListener("pointermove", show);
+          hit.addEventListener("pointerdown", show);
+          hit.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") { g.classList.remove("on"); tip.hide(); } });
+          hit.addEventListener("focus", () => { svg.querySelectorAll(".row.on").forEach((n) => n.classList.remove("on")); g.classList.add("on"); tip.show((box) => card(box, r), { target: hit }); });
+          hit.addEventListener("blur", () => { g.classList.remove("on"); tip.hide(); });
+          g.appendChild(hit);
+          svg.appendChild(g);
+        });
+        const ticks = [0, 0.25, 0.5, 0.75, 1];
+        for (const c of ticks) {
+          const xx = x(R.p_idle + c * span);
+          svg.insertBefore(el("line", { x1: xx, x2: xx, y1: top, y2: bottom, class: "grid" }), svg.firstChild);
+          svg.appendChild(el("text", { x: xx, y: bottom + 18, class: "t-tick", "text-anchor": "middle" }, `${c * 100}%`));
+        }
+        svg.appendChild(el("text", { x: (L + Rx) / 2, y: bottom + 37, class: "t-unit", "text-anchor": "middle" }, narrow ? "C, share of hindsight over idle" : "C: the share of hindsight's profit over idle that a run captured"));
+
+        const rt = bottom + 74, rh = narrow ? 44 : 48, yR = (v) => rt + rh - v * rh;
+        const p0 = R.p_idle - D.den / 4, p1 = R.p_idle + D.den;
+        const pts = [[x0, rOf(x0)], ...[p0, p1].filter((p) => p > x0 && p < x1).map((p) => [p, rOf(p)]), [x1, rOf(x1)]].sort((a, b) => a[0] - b[0]);
+        const path = pts.map(([p, v], i) => `${i ? "L" : "M"}${x(p).toFixed(1)},${yR(v).toFixed(1)}`).join("");
+        svg.appendChild(el("path", { d: `${path}L${x(x1).toFixed(1)},${yR(0)}L${x(x0).toFixed(1)},${yR(0)}Z`, class: "rfill" }));
+        svg.appendChild(el("path", { d: path, class: "rline" }));
+        svg.appendChild(el("line", { x1: L, x2: Rx, y1: yR(0), y2: yR(0), class: "grid" }));
+        svg.appendChild(el("text", { x: L - 10, y: yR(1) + 4, class: "t-r", "text-anchor": "end" }, "R 1"));
+        svg.appendChild(el("text", { x: L - 10, y: yR(0) + 4, class: "t-r", "text-anchor": "end" }, "R 0"));
+        for (const r of runs) svg.appendChild(el("circle", { cx: x(r.p), cy: yR(r.r), r: 2.6, fill: `var(--c-${r.key})` }));
+        svg.appendChild(el("text", { x: x(R.p_idle) + 8, y: yR(0.2) + 15, class: "t-r" }, "0.2 at idle"));
+        svg.appendChild(el("text", { x: x(R.p_anchor) + 6, y: yR(1) - 6, class: "t-r" }, narrow ? "1 at the planner" : "1 at the planner, and above it"));
+        const H = rt + rh + 14;
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        svg.setAttribute("width", W);
+        plot.replaceChildren(svg);
+      }
+
+      render();
+      document.fonts.addEventListener("loadingdone", render);
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = "The reward chart did not load: " + e.message; });
+  })();
+</script>

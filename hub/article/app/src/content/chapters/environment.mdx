@@ -65,12 +65,28 @@ Playground tab is OpenEnv's MCP playground; the code is in <a href={F.tryit.code
 ### Why it matters
 
 A grid battery makes its money on decisions: when to charge, when to sell and how much to hold in reserve, around the
-clock in ERCOT's day-ahead and real-time markets. ERCOT's grid has
-[21.5 GW of batteries](https://www.ercot.com/files/docs/2022/02/08/ERCOT_Fact_Sheet.pdf), and the same hardware earns very
-different amounts depending on who bids it: in January 2026 [the best quarter of ERCOT battery bidders captured at least
-76% of what perfect timing allowed, the worst quarter 27%](https://modoenergy.com/research/en/ercot-march-2026-bess-benchmark-batteries-fern-revenues).
-Closing that gap is revenue without a single new battery, and well-timed batteries put power on the grid exactly when it
-is scarcest, on heat-wave evenings and storm mornings.
+clock in ERCOT's day-ahead and real-time markets. The same hardware earns very different amounts depending on who bids
+it, so closing that gap is revenue without a single new battery, and well-timed batteries put power on the grid exactly
+when it is scarcest, on heat-wave evenings and storm mornings.
+
+<div class="gs-tiles" id="why-tiles">
+  {F.why.tiles.map((t) => (
+    <div class="gs-tile">
+      <p class="gs-tile-v"><b>{t.value}</b>{t.unit && <span>{t.unit}</span>}</p>
+      <p class="gs-tile-d">{t.desc}</p>
+      <div class="gs-tile-bars" aria-hidden="true">
+        {t.bars.map((b) => (
+          <div class={b.hot ? "gs-tile-bar hot" : "gs-tile-bar"}>
+            <span>{b.label}</span>
+            <i><em style={`width:${b.w}`}></em></i>
+            <b>{b.text}</b>
+          </div>
+        ))}
+      </div>
+      <p class="gs-tile-s">{t.src.map((s, i) => <>{i ? " · " : ""}<a href={s.url}>{s.label}</a></>)}</p>
+    </div>
+  ))}
+</div>
 
 That work is done today by round-the-clock trading desks and
 [bidding software](https://fluenceenergy.com/mosaic-for-ercot/); an AI agent with the same forecasts, notices and rules
@@ -82,8 +98,9 @@ rules, and every window settled in dollars against hindsight and the battery's r
 
 ### The eval
 
-{F.header.models} models, each in its native harness ({F.eval.harnesses}), ran all {F.env.windows} windows once, with
-the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most {F.eval.turns} wake-ups a window.
+{F.header.models} models ran all {F.env.windows} windows once, each in its maker's own harness ({F.eval.closed}) or, for
+the open-weight models, {F.eval.open}, with the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most
+{F.eval.turns} wake-ups a window.
 
 <HtmlEmbed
   src="d3-desk-pareto.html"
@@ -120,6 +137,106 @@ grade.
   </div>
   <figcaption class="html-embed__desc">It opens at {F.eval.watch.at} on {F.eval.watch.day} in the bench's costliest run, {F.eval.watch.name} at Battery {F.eval.watch.site} ({F.eval.watch.region}) over {F.eval.watch.span}, the front after the film's: its evening day-ahead sales met an all but empty battery and were bought back as real-time prices hit {F.eval.watch.spike}. It lost {F.eval.watch.lost}; the real operator made {F.eval.watch.op}. Press play, or pick any model and window under Episodes. <a href={F.eval.watch.app}>Open in the viewer ↗</a></figcaption>
 </figure>
+
+### How the reward works
+
+Every window ends in an ERCOT settlement statement: day-ahead and real-time energy, reserves, imbalance and battery
+wear, priced by the market's own rules. The score is that statement's total P, so it is deterministic, with no judge
+model and no sampling. Capture C places P between doing nothing and perfect hindsight,
+C = (P − P<sub>idle</sub>) / (P<sub>hind</sub> − P<sub>idle</sub>): 0% at idle, 100% at hindsight, below zero for a run
+that does worse than idling. The contract's reward R runs from 0.2 at idle to 1 at the desk's own planner,
+R = 0.2 + 0.8 (P − P<sub>idle</sub>) / (P<sub>plan</sub> − P<sub>idle</sub>) clipped to 0 and 1, with the planner's
+margin over idle counted as at least a tenth of the physical hindsight's; it is 0 for a run with no accepted offer.
+
+<HtmlEmbed
+  src="d3-reward-window.html"
+  id="reward-window"
+  wide
+  desc={`Every model's settled P on the film's window, Battery ${F.reward.site}, on the scale from idle (C 0%) to hindsight (C 100%), with the desk's planner and the real operator marked; the strip below draws R along the same scale. Hover, tap or tab to a row for its P, C and R.`}
+/>
+
+The references are settled the same way. Hindsight is the best plan the market's rules allow with every price, award
+and deployment of the window known in advance, one linear program solved by the same optimiser the agents can call.
+Idle sends no offers. The planner is that optimiser re-planning at every wake-up on exactly what the agent can see. The
+real operator appears twice: its own disclosed bids replayed through the same clearing and settlement, and what it
+actually did, settled on the same statement. Offers the desk's checks refuse change nothing.
+
+On the film's window {F.reward.name} settles {F.reward.P}, idle settles {F.reward.idle} and hindsight {F.reward.hind},
+so C = ({F.reward.P} − {F.reward.idle}) / ({F.reward.hind} − {F.reward.idle}) = {F.reward.C}. It beat the planner's
+{F.reward.plan}, so its R is capped at 1.
+
+### Training on GridSimEnv
+
+We fine-tuned {F.train.base_name} with TRL on transcripts of the desk's own planner, which calls `optimize` and submits
+its proposal. AgentEnv captured them by playing the planner through OpenCode on {F.train.windows} training windows whose
+operating days stay clear of the benchmark's[^overlap], and the model learned to make the same calls, with a short
+rationale at each wake-up.
+
+<div class="gs-recipe" id="train-recipe">
+  <p class="gs-recipe-h">The recipe</p>
+  <dl>
+    <dt>Data</dt><dd>{F.train.windows} three-day training windows; {F.train.rows} rows, three a window; {F.train.kept} after the {F.train.cap}-token cap, about {F.train.tokens} tokens, {F.train.trained} of them trained</dd>
+    <dt>Model</dt><dd>{F.train.base_name}, LoRA r {F.train.rank} / α {F.train.alpha} on all linear layers</dd>
+    <dt>Training</dt><dd>TRL SFTTrainer, lr {F.train.lr}, {F.train.epochs} epoch, {F.train.steps} steps, gradient accumulation {F.train.accum}; activations offloaded to CPU, so rows up to {F.train.cap} tokens fit on one {F.train.mem} GiB GPU ({F.train.gpu_name}, {F.train.box} spot), in {F.train.hours} h</dd>
+    <dt>Eval</dt><dd>OpenCode with vLLM at a {F.train.ctx}-token context, the same harness for base and student</dd>
+    <dt>Cost</dt><dd>about {F.train.gpu} of GPU for training and every eval; no LLM API spend</dd>
+    <dt>Code</dt><dd><a href={F.train.rows_code}>desk_distill_sft.py</a> and <a href={F.train.code}>desk_distill_train.py</a>, and the <a href={F.train.prereg}>pre-registration</a></dd>
+  </dl>
+</div>
+
+<HtmlEmbed
+  src="d3-train-paired.html"
+  id="train-paired"
+  wide
+  desc={`Each row is a benchmark window: ${F.train.base_name}'s C (grey) and the fine-tuned model's (blue), with the planner's C on that window as a tick. Rows run from the largest gain to the largest loss. Hover, tap or tab to a row for its numbers.`}
+/>
+
+- **Benchmark:** {F.train.gain} points over the base model [{F.train.lo}, {F.train.hi}], better on {F.train.better} of
+  {F.train.n} windows. The fine-tuned 9B lands near the planner it copied ({F.train.sft} against {F.train.planner}), at
+  {F.train.usd} a window.
+- **Pre-registered primary test:** on {F.train.held} held-out training-period windows the gain was {F.train.hgain}
+  points [{F.train.hlo}, {F.train.hhi}], not significant; the planner itself is only {F.train.hplan} points above base
+  there[^serving].
+- **The earlier attempt:** GRPO alone on {F.train.base_name}, {F.train.grpo} steps, did not move the score; imitating a
+  strong policy did. What the model learned is the planner's habits: refused day-ahead offers fell from
+  {F.train.refused} to {F.train.refusedSft}.
+
+### Data sources
+
+| Data | Source | Licence |
+|---|---|---|
+| Day-ahead and real-time prices, reserve prices, system lambda and demand curves | ERCOT public reports NP4-190-CD, NP6-905-CD, NP6-788-CD, NP4-188-CD, NP6-332-CD, NP6-331-CD, NP4-212-CD and NP6-323-CD | ERCOT Website User Agreement, section 5; not relicensed |
+| Load, wind and solar, ERCOT's forecasts as issued, outages | ERCOT public reports NP6-345-CD, NP4-733-CD, NP4-738-CD, NP3-565-CD, NP4-742-CD, NP4-745-CD, NP3-233-CD and NP1-346-ER | ERCOT Website User Agreement, section 5 |
+| Market and operations notices | ERCOT notices | ERCOT Website User Agreement, section 5 |
+| The real operator's bids, awards and output; each battery's limits | ERCOT 60-day disclosures NP3-966-ER, NP3-965-ER and NP3-991-EX, and ERCOT's December 2025 CDR report | ERCOT Website User Agreement, section 5; only derived values are published |
+| Weather alerts | NWS watches, warnings and advisories, through the Iowa Environmental Mesonet's VTEC archive | public domain (NWS) |
+| Weather in the replays | ASOS observations, from the Iowa Environmental Mesonet, Iowa State University | public domain (NWS, FAA), credited as the IEM asks |
+| Temperatures that located the fronts | NOAA HRRR model runs | public domain (NOAA) |
+| Solar capacity behind the modelled PV | U.S. Energy Information Administration, Form EIA-860M | public domain |
+| The desk's price forecast | desk-qr-v1, fitted in the plugin on ERCOT's posted prices and forecasts | Apache-2.0 code; ERCOT's terms for the data |
+| The battery sites in 3D | procedural, built in code; three.js | CC0; MIT |
+
+Source: ERCOT. GridSimEnv is not affiliated with or endorsed by ERCOT, NOAA, the EIA or the Iowa Environmental Mesonet;
+the plugin's [data licence](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE) holds
+ERCOT's terms in full, and its [NOTICE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/NOTICE) sets
+out each source.
+
+### Links
+
+<div class="gs-links">
+  <p><b>Environment</b><a href={F.links.env}>huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv</a></p>
+  <p><b>Replays</b><a href={F.links.replays}>huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv</a></p>
+  <p><b>Results</b><a href={F.links.results}>every model on every window, in the viewer Space</a></p>
+  <p><b>Dataset</b><a href={F.links.dataset}>huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv</a></p>
+  <p><b>Code</b><a href={F.links.code}>github.com/earakely-scale/agentenv-gridsim-plugin</a></p>
+  <p><b>Pre-registration</b><a href={F.links.prereg}>docs/prereg/v4-bench.md</a></p>
+</div>
+
+[^overlap]: One benchmark front, 8 to 10 May 2026, falls inside some training windows' spans, but only as their
+    day-ahead price history, the week before their operating days; no training transcript names those dates.
+
+[^serving]: Base {F.train.base_name} was served by Fireworks on the benchmark and by our own vLLM on the held-out
+    windows; the fine-tuned model by our own vLLM on both.
 
 [^pick]: The windows: every window in {F.duel.half}, after every reported training cutoff, on which at least
     {F.duel.need} of the {F.duel.of} models settled above the real operator, both as it ran and with its own bids
