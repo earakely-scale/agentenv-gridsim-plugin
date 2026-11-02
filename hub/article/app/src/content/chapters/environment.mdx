@@ -14,7 +14,12 @@ by hindsight capture C: the share of the hindsight-optimal profit that the agent
 
 <figure class="html-embed html-embed--wide gs-run" id="run">
   <div class="html-embed__card is-frameless">
-    <a href={F.lead.replay}><img src="/media/gridsim-run.gif" alt={F.lead.film_alt} width="1200" height="675" decoding="async" /></a>
+    <a href={F.lead.replay}>
+      <video autoplay muted="" loop playsinline preload="auto" poster="/og/gridsim-run.jpg" width="1920" height="1080" aria-label={F.lead.film_alt}>
+        <source src="/media/gridsim-run.mp4" type="video/mp4" />
+        <img src="/media/gridsim-run.gif" alt={F.lead.film_alt} width="1200" height="675" loading="lazy" decoding="async" />
+      </video>
+    </a>
   </div>
   <figcaption class="html-embed__desc">A recorded benchmark run, replayed on the 3D site: {F.lead.name} in {F.lead.harness} trades {F.lead.site} ({F.lead.region}, {F.lead.battery}) through the {F.lead.span} {F.lead.kind}, after every model's training cutoff. It settles at {F.lead.P}, hindsight capture C {F.lead.C}; the real operator, as it ran, made {F.lead.op}. The desk at right lists the agent's tool calls in order, the current one lit, with the results the run recorded; the agent itself sends ERCOT's market objects, offer curves and the operating plan. <a href={F.lead.replay}>Watch it in 3D</a>.</figcaption>
 </figure>

@@ -1,16 +1,18 @@
 """The GridSimEnv article: a research-article Space built with tfrere's research-article-template (Astro, MDX chapters,
 D3 embeds) under hub/article. It opens on what is in the environment: a recorded benchmark run filmed on the 3D viewer
-(scripts/hub_desk_film.py), then the real operator against the agents on the windows where they most clearly beat it,
+(scripts/hub_desk_film.py, an MP4 with a GIF inside it as the fallback), then the real operator against the agents on
+the windows where they most clearly beat it,
 read from results/desk-v4-bench, its episodes and the desk-v4-bench pack. The prose states no number of its own: it
 reads them from facts.json, which this script formats from summary.json, the grades and the episodes, and the front
 matter's description is the dataset card's pitch.
 
-    .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.gif   # the film, once
+    .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.mp4   # the film, once
+    .venv/bin/python scripts/hub_desk_film.py --out hub/article/app/public/media/gridsim-run.gif   # and its fallback
     .venv/bin/python scripts/hub_article.py             # the data, the numbers check, the scans
     .venv/bin/python scripts/hub_article.py --build     # then npm ci (once) and npm run build
     .venv/bin/python scripts/hub_article.py --publish   # then upload hub/article to the Space
 
-The film is uploaded with the Space, not committed (hub/article/app/public/media is ignored).
+The films are uploaded with the Space, not committed (hub/article/app/public/media is ignored).
 """
 
 import argparse
@@ -32,8 +34,7 @@ APP = ARTICLE / "app"
 DATA = APP / "src" / "content" / "assets" / "data"
 CHAPTERS = APP / "src" / "content" / "chapters"
 MEDIA = APP / "public" / "media"
-FILM = MEDIA / "gridsim-run.gif"
-FILM_MB = 12
+FILMS = {MEDIA / "gridsim-run.mp4": 10, MEDIA / "gridsim-run.gif": 10}
 SPACE = "earakely-scale/GridSimEnv"
 MDX = APP / "src" / "content" / "article.mdx"
 STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "bench.json", "banner.json",
@@ -133,9 +134,9 @@ def lead(s: dict, grades: list[dict], card) -> dict:
             "battery": g["battery"], "span": span(g["dates"][0], g["dates"][-1]), "kind": front["kind"],
             "P": usd(g["p"]), "C": f"{card.pc(g['capture'])}%", "op": usd(g["p_operator_actual"]),
             "op_replay": usd(g["p_operator_replay"]), "replay": card.bench_replay(h["model"], h["task_id"]),
-            "film_alt": (f"{who}: the battery site in 3D, the agent's tool calls one by one in the desk beside it, the "
-                         "node's price and the battery's charge below as they post, then the settled grade beside the "
-                         "real operator's"),
+            "film_alt": (f"A recorded benchmark run: {who}. The battery site in 3D, the agent's tool calls one by "
+                         "one in the desk beside it, the node's price and the battery's charge below as they post, "
+                         "then the settled grade beside the real operator's"),
             "og_alt": (f"{who}: the battery site in 3D at dusk, discharging, beside the desk's clock and the agent's "
                        "wake-ups, the node's price and the battery's charge below")}
 
@@ -333,12 +334,17 @@ def describe(pitch: str, lead_: dict) -> None:
 
 
 def check_film() -> None:
-    """The film ships with the Space, not the repository: it must be in place before a build or a publish."""
-    if not FILM.is_file():
-        raise SystemExit(f"{FILM.relative_to(ROOT)} is missing: film it with scripts/hub_desk_film.py --out {FILM}")
-    if FILM.stat().st_size > FILM_MB * 1e6 or FILM.read_bytes()[:6] != b"GIF89a":
-        raise SystemExit(f"{FILM.name} is not a GIF of at most {FILM_MB} MB")
-    print(f"film: {FILM.name}, {FILM.stat().st_size / 1e6:.1f} MB")
+    """The films ship with the Space, not the repository: they must be in place before a build or a publish, the MP4
+    with its index ahead of its media so it plays as it loads."""
+    for path, mb in FILMS.items():
+        if not path.is_file():
+            raise SystemExit(f"{path.relative_to(ROOT)} is missing: film it with scripts/hub_desk_film.py --out {path}")
+        head = path.read_bytes()[:1 << 20]
+        kind = head[:6] == b"GIF89a" if path.suffix == ".gif" else (
+            head[4:8] == b"ftyp" and -1 < head.find(b"moov") < (head.find(b"mdat") % len(head)))
+        if not kind or path.stat().st_size > mb * 1e6:
+            raise SystemExit(f"{path.name} is not a {path.suffix[1:]} of at most {mb} MB that plays as it loads")
+        print(f"film: {path.name}, {path.stat().st_size / 1e6:.1f} MB")
 
 
 def check_rendered(f: dict) -> None:
@@ -350,11 +356,10 @@ def check_rendered(f: dict) -> None:
     missing = [f"{e} = {known[e]!r}" for e in sorted(used)
                if not (f'href="{known[e]}"' in links if known[e].startswith("https://")
                        else known[e] in text or f'"{known[e]}"' in links)]
-    if not (APP / "dist" / "media" / FILM.name).is_file():
-        missing.append(f"media/{FILM.name}")
+    missing += [f"media/{p.name}" for p in FILMS if not (APP / "dist" / "media" / p.name).is_file()]
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
-    print(f"rendered check: all {len(used)} facts on the page as formatted, and the film")
+    print(f"rendered check: all {len(used)} facts on the page as formatted, and the films")
 
 
 def files_to_publish() -> dict[str, Path]:
@@ -367,11 +372,11 @@ def files_to_publish() -> dict[str, Path]:
     return out
 
 
-IMAGES = (".jpg", ".png", ".webp", ".gif")
+IMAGES = (".jpg", ".png", ".webp", ".gif", ".mp4")
 
 
 def texts(files: dict[str, Path]) -> dict[str, bytes]:
-    """Every published file the scans read: all of them but the images, which must be images."""
+    """Every published file the scans read: all of them but the images and films, which must be images or films."""
     out = {}
     for k, p in files.items():
         b = p.read_bytes()
@@ -379,7 +384,7 @@ def texts(files: dict[str, Path]) -> dict[str, bytes]:
             b.decode()
         except UnicodeDecodeError:
             if p.suffix not in IMAGES:
-                raise SystemExit(f"{k} is neither text nor an image; nothing was published") from None
+                raise SystemExit(f"{k} is neither text nor an image or film; nothing was published") from None
             continue
         out[k] = b
     return out
