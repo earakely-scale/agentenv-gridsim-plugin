@@ -278,9 +278,10 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
         m = w["moment"]
         assert m["href"] == f"{w['replay']}&t={m['t']}" and m["img"] == f"/media/moment-{w['site'][-3:]}.webp"
         assert m["text"].startswith(f"Sol discharges {w['p_max']:.0f} MW") and m["when"] in m["alt"]
-    f = {"env": hub_article.env(s, hub_dataset), "lead": lead,
+    f = {"env": hub_article.env(s, hub_dataset), "lead": lead, "tryit": hub_article.tryit(ROOT, s, grades, hub_dataset),
          "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset)}
     hub_article.check_prose(f)
+    assert f["tryit"]["site"] == h["site"] and f["tryit"]["app"].endswith("/web/")
     assert f["duel"]["n"] == str(len(pairs)) and f["duel"]["of"] == str(len(s["models"]))
     assert hub_article.majority(grades, pairs[0]["g"]["front"]) == len(pairs) and f["env"]["sites_word"] == "four"
     head = hub_article.header(s, hub_dataset)

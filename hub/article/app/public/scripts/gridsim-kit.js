@@ -163,5 +163,17 @@
       .style("fill-opacity", fill).style("stroke", color).style("stroke-width", 1.6);
   };
 
+  /* A Gradio Space framed in the article opens in the article's theme (Gradio's __theme), set before the lazy frame
+     loads. A theme switch later does not reload it, so a visitor's episode survives. */
+  const gradioTheme = () => {
+    for (const f of document.querySelectorAll("iframe[data-gradio-theme]")) {
+      const u = new URL(f.getAttribute("src"), location.href);
+      u.searchParams.set("__theme", dark() ? "dark" : "light");
+      f.setAttribute("src", u.toString());
+    }
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", gradioTheme, { once: true });
+  else gradioTheme();
+
   window.GridsimKit = { data, mount, config, whenD3, watch, css, dark, tip, t, fmt, colorOf, shapeOf, labelOf, family, symbol, FAMILY };
 })();

@@ -29,6 +29,8 @@ from pathlib import Path
 import numpy as np
 from agentenv_hf.scan import known_values, scan
 
+from gridsim_core.desk import TOOLS
+
 ROOT = Path(__file__).resolve().parents[1]
 ARTICLE = ROOT / "hub" / "article"
 APP = ARTICLE / "app"
@@ -51,6 +53,10 @@ hour while the operator holds back; "peak", the run discharging at full power in
 SPACE = "earakely-scale/GridSimEnv"
 MDX = APP / "src" / "content" / "article.mdx"
 README = ARTICLE / "README.md"
+TRY_SPACE = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv"
+TRY_APP = "https://earakely-scale-gridsimenv-openenv.hf.space/web/"
+TRY_CODE = "https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/main/hub/openenv"
+TRY_SCRIPT = ROOT / "scripts" / "hub_openenv.py"
 PITCH = ("{models} AI models run a real Texas battery's trading desk through {fronts} real weather fronts, scored in "
          "dollars against the best possible plan and the battery's real operator.")
 SHORT = "{n} AI models trade a real Texas battery"
@@ -83,6 +89,7 @@ def main():
         raise SystemExit("results/desk-v4-bench holds fake data; the article states real runs only")
     pairs = duel(args.desk_repo, s, grades, card)
     out = {"facts.json": {"header": header(s, card), "env": env(s, card), "lead": lead(s, grades, card),
+                          "tryit": tryit(args.desk_repo, s, grades, card),
                           "duel": duel_facts(args.desk_repo, s, grades, pairs, card)},
            "duel.json": duel_data(pairs, s)}
     DATA.mkdir(parents=True, exist_ok=True)
@@ -142,6 +149,23 @@ def header(s: dict, card) -> dict:
     if len(short) > SHORT_MAX:
         raise SystemExit(f"the Space card's short description is over {SHORT_MAX} characters: {short!r}")
     return {"models": models, "fronts": fronts, "pitch": PITCH.format(models=models, fronts=fronts), "short": short}
+
+
+def tryit(repo: Path, s: dict, grades: list[dict], card) -> dict:
+    """The Try it section: the OpenEnv Space (scripts/hub_openenv.py, hub/openenv), the desk's tools it serves, and the
+    window it opens on, which is the film's, at its index in the pack's order as the Space lists them."""
+    m = re.search(r'^DEFAULT = "([^"]+)"$', TRY_SCRIPT.read_text(), re.M)
+    task = m and m[1]
+    if task != s["hero"]["task_id"]:
+        raise SystemExit(f"the Try it Space opens on {task}, not the film's run {s['hero']['task_id']}: rewrite the "
+                         "section's caption")
+    with gzip.open(repo / "data" / "desk" / s["pack"] / "tasks.jsonl.gz", "rt") as f:
+        order = [json.loads(x)["task_id"] for x in f if x.strip()]
+    g = next(x for x in grades if x["task_id"] == task)
+    front = next(f for f in s["fronts"] if f["front"] == g["front"])
+    return {"tools": card.NUM[len(TOOLS)].lower(), "index": str(order.index(task)), "site": g["site"],
+            "span": span(g["dates"][0], g["dates"][-1]), "kind": front["kind"], "space": TRY_SPACE, "app": TRY_APP,
+            "code": TRY_CODE}
 
 
 def env(s: dict, card) -> dict:
@@ -455,7 +479,7 @@ def check_rendered(f: dict) -> None:
     known, links = leaves(f), html.replace("&amp;", "&")
     used = {e for p in CHAPTERS.glob("*.mdx") for e in FACT.findall(p.read_text())}
     missing = [f"{e} = {known[e]!r}" for e in sorted(used)
-               if not (f'href="{known[e]}"' in links if known[e].startswith("https://")
+               if not ((f'href="{known[e]}"' in links or f'src="{known[e]}"' in links) if known[e].startswith("https://")
                        else known[e] in text or f'"{known[e]}"' in links)]
     missing += [f"media/{p.name}" for p in FILMS if not (APP / "dist" / "media" / p.name).is_file()]
     duel = json.loads((DATA / "duel.json").read_text())

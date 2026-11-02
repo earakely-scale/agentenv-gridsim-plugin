@@ -312,7 +312,7 @@ const links: Array<{ label: string; url: string; icon?: string }> =
         try {
           let reloadTimer: number | null = null;
           const isTargetIframe = (el) => {
-            if (!el || el.tagName !== "IFRAME") return false;
+            if (!el || el.tagName !== "IFRAME" || el.dataset.themeReload === "off") return false;
             const src = el.getAttribute("src") || "";
             return src.includes(".hf.space");
           };
