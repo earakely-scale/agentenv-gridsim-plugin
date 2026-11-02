@@ -22,6 +22,7 @@ import importlib.util
 import json
 import re
 import subprocess
+import urllib.request
 from collections import defaultdict
 from datetime import date, timedelta
 from html import unescape
@@ -116,7 +117,9 @@ PITCH = ("{models} AI models run a real Texas battery's trading desk through {fr
          "dollars against the best possible plan and the battery's real operator.")
 SHORT = "{n} AI models trade a real Texas battery"
 SHORT_MAX = 60
-STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "banner.json", "curve.json")
+STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "curve.json")
+ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3.0.1/states-10m.json"
+REGIONS = {"Far West": (-102.4, 31.3), "North": (-97.0, 32.9), "Houston": (-95.4, 29.8), "South": (-98.3, 28.2)}
 BEAT_SHARE = 0.8
 CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%", "0%", "100%"}
 NUMBER = re.compile(r"[−+-]?⁠?\\?\$[\d,]+(?:\.\d+)?k?|[−+-]?\d+\.\d+¢|[−+-]?\b\d+\.\d{2,}\b|\b\d+(?:\.\d+)?%")
@@ -146,6 +149,7 @@ def main():
                           "duel": duel_facts(args.desk_repo, s, grades, pairs, card),
                           "eval": evals(args.desk_repo, s, grades, pairs, card)},
            "duel.json": duel_data(pairs, s), "bench.json": bench_chart(s), "reward.json": reward_chart(s, grades),
+           "banner.json": banner(folder, s, grades, card),
            "train.json": train_chart(s, grades)}
     f = out["facts.json"]
     f |= {"why": why_tiles(f["eval"]["watch"]), "reward": reward(s, grades, card), "train": train(s, grades, card),
@@ -505,6 +509,74 @@ def links(s: dict, card) -> dict:
             "code": REPO_URL, "prereg": f"{REPO_URL}/blob/main/{s['run']['prereg']}", "training": TRAINING_DOCS}
 
 
+def banner(folder: Path, s: dict, grades: list[dict], card) -> dict:
+    """The hero banner: the film's model on the film's front at all four batteries, each node's real-time price, the
+    battery's state of charge and metered output every 15 minutes over the three days, its wake-ups, its settled P and
+    the real operator's as it ran, and the film's replay."""
+    h = s["hero"]
+    lead = next(g for g in grades if g["model"] == h["model"] and g["task_id"] == h["task_id"])
+    rows = sorted((g for g in grades if g["model"] == h["model"] and g["front"] == lead["front"]
+                   and g["status"] == "scored"), key=lambda g: g["site"])
+    if len(rows) != 4:
+        raise SystemExit(f"banner: {len(rows)} {h['model']} windows on the {lead['front']} front, expected 4")
+    sites = []
+    for g in rows:
+        ep = json.loads(gzip.decompress((folder / g["episode"]).read_bytes()))
+        rt, c = [ep["rt"][iso] for iso in ep["dates"]], ep["site"]["card"]
+        soc, end = [x for r in rt[:-1] for x in r["soc_mwh"][:-1:3]] + rt[-1]["soc_mwh"][::3], 1440 * len(rt)
+        sites.append({"task": g["task_id"], "name": c["name"], "region": c["region"], "size": c["size"],
+                      "e_max": ep["site"]["e_max_mwh"], "p_max": ep["site"]["hsl_mw"],
+                      "rt": [round(x, 2) for r in rt for x in r["spp"]], "soc": [round(x, 2) for x in soc],
+                      "mw": [round(float(np.mean(r["metered_mw"][i:i + 3])), 1) for r in rt for i in range(0, 288, 3)],
+                      "wakes": [w["t"] for w in ep["wakes"] if w.get("turn") is not None and 0 <= w["t"] < end],
+                      "p": round(g["p"], 2), "p_operator_actual": g["p_operator_actual"]})
+    front = next(f for f in s["fronts"] if f["front"] == lead["front"])
+    return {"days": lead["dates"], "span": span(lead["dates"][0], lead["dates"][-1]), "kind": front["kind"],
+            "model": s["models"][h["model"]]["name"], "lead": h["task_id"],
+            "regions": {k: {"lon": x, "lat": y} for k, (x, y) in REGIONS.items()}, "texas": texas(), "sites": sites,
+            "replay": {"task": h["task_id"], "url": card.bench_replay(h["model"], h["task_id"])},
+            "source": "ERCOT's node prices as the episodes recorded them; Texas: U.S. Census Bureau via us-atlas"}
+
+
+def texas() -> list:
+    """Texas from the U.S. Census Bureau's cartographic boundaries (us-atlas 3.0.1, TopoJSON), simplified."""
+    cache = ROOT / "cache" / "article" / "states-10m.json"
+    if not cache.is_file():
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        with urllib.request.urlopen(ATLAS, timeout=60) as r:
+            cache.write_bytes(r.read())
+    topo = json.loads(cache.read_text())
+    (sx, sy), (tx, ty) = topo["transform"]["scale"], topo["transform"]["translate"]
+    arcs = []
+    for arc in topo["arcs"]:
+        q = np.cumsum(np.array(arc, float), axis=0)
+        arcs.append(np.column_stack([q[:, 0] * sx + tx, q[:, 1] * sy + ty]))
+    geom = next(g for g in topo["objects"]["states"]["geometries"] if g["id"] == "48")
+    polys = geom["arcs"] if geom["type"] == "MultiPolygon" else [geom["arcs"]]
+    ring = max((np.vstack([arcs[i] if i >= 0 else arcs[~i][::-1] for i in poly[0]]) for poly in polys), key=len)
+    return [[round(x, 3), round(y, 3)] for x, y in simplify(ring, 0.02)]
+
+
+def simplify(pts: np.ndarray, tol: float) -> np.ndarray:
+    """Douglas-Peucker, iterative."""
+    keep = np.zeros(len(pts), bool)
+    keep[[0, -1]] = True
+    stack = [(0, len(pts) - 1)]
+    while stack:
+        i, j = stack.pop()
+        if j <= i + 1:
+            continue
+        a, b = pts[i], pts[j]
+        ab, rest = b - a, pts[i + 1:j] - a
+        n = np.hypot(*ab)
+        dist = np.hypot(rest[:, 0], rest[:, 1]) if n < 1e-9 else np.abs(ab[0] * rest[:, 1] - ab[1] * rest[:, 0]) / n
+        k = int(np.argmax(dist))
+        if dist[k] > tol:
+            keep[i + 1 + k] = True
+            stack += [(i, i + 1 + k), (i + 1 + k, j)]
+    return pts[keep]
+
+
 def env(s: dict, card) -> dict:
     """The environment's shape, from summary.json: windows, fronts, batteries, models."""
     return {"windows": str(s["n_windows"]), "fronts": str(s["n_fronts"]), "sites": str(len(s["sites"])),
@@ -823,6 +895,9 @@ def check_rendered(f: dict) -> None:
                if not ((f'href="{known[e]}"' in links or f'src="{known[e]}"' in links) if known[e].startswith("https://")
                        else known[e] in text or f'"{known[e]}"' in links)]
     missing += [f"media/{p.name}" for p in FILMS if not (APP / "dist" / "media" / p.name).is_file()]
+    hero = json.loads((DATA / "banner.json").read_text())
+    missing += [] if 'class="gs-banner"' in html and hero["model"] == f["lead"]["name"] and \
+        hero["replay"]["url"] == f["lead"]["replay"] else ["the hero banner, on the film's run"]
     missing += [f"the tile {t['value']} {t['unit'] or ''}" for t in f["why"]["tiles"]
                 if t["value"] not in text or any(b["text"] not in text for b in t["bars"])]
     missing += [f"a tile's source {x['url']}" for t in f["why"]["tiles"] for x in t["src"]

@@ -1,4 +1,5 @@
 ---
+import HtmlEmbed from "./HtmlEmbed.astro";
 import {
   type HeroProps,
   type Author,
@@ -42,6 +43,9 @@ const pdfFilename = `${slugify(pdfBase)}.pdf`;
 
 <section class="hero">
   <h1 class="hero-title" set:html={title} />
+  <div class="hero-banner">
+    <HtmlEmbed src="banner.html" frameless />
+  </div>
   {description && <p class="hero-desc">{description}</p>}
 </section>
 
@@ -317,6 +321,21 @@ const pdfFilename = `${slugify(pdfBase)}.pdf`;
   .hero-title[data-title-size="sm"] {
     font-size: clamp(24px, 3.2vw, 38px);
   }
+  .hero-banner {
+    max-width: 1040px;
+    margin: 0 auto;
+    aspect-ratio: 2.2 / 1;
+    overflow: hidden;
+  }
+  .hero-banner :global(.html-embed) {
+    height: 100%;
+  }
+  .hero-banner :global(.html-embed__card) {
+    height: 100%;
+  }
+  .hero-banner :global(.html-embed__card > div) {
+    height: 100%;
+  }
   .hero-desc {
     color: var(--muted-color);
     font-style: italic;
@@ -325,6 +344,7 @@ const pdfFilename = `${slugify(pdfBase)}.pdf`;
   }
 
   @media (max-width: 768px) {
+    .hero-banner { aspect-ratio: auto; margin-top: 18px; }
     .hero-desc { max-width: 90%; }
   }
 
