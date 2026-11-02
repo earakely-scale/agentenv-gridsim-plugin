@@ -96,9 +96,11 @@ with GridSimDesk(base_url="https://earakely-scale-gridsimenv-openenv.hf.space").
     print(env.call_tool("end_turn", response="waiting for the DAM results"))
 ```
 
-`pip install git+https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv` installs the client. The Task API
-describes each window as AgentEnv's OpenEnv adapter (`agent_env.openenv`) does, with its `prompt`, `system_prompt`,
-`toolset` and `turns`, so AgentEnv's TRL helper (`agent_env.training.trl.AgentEnv`) reads the windows and their tools.
+`git clone https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv` and `pip install ./GridSimEnv-OpenEnv`
+install the client. (`pip install git+https://huggingface.co/spaces/...` does not work: pip makes a partial clone, and
+Hugging Face's git server cannot complete one.) The Task API describes each window as AgentEnv's OpenEnv adapter
+(`agent_env.openenv`) does, with its `prompt`, `system_prompt`, `toolset` and `turns`, so AgentEnv's TRL helper
+(`agent_env.training.trl.AgentEnv`) reads the windows and their tools.
 
 ## Run it
 

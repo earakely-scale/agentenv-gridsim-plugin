@@ -13,10 +13,11 @@ from .windows import windows
 STYLE = ("<style>.gradio-container{width:100%!important;max-width:1440px!important}"
          ".gradio-container h1{font-size:22px!important;margin:4px 0 6px!important;letter-spacing:-.01em}"
          ".gradio-container .main.fillable{max-width:none!important;padding-left:12px!important;"
-         "padding-right:12px!important}.gradio-container .html-container:has(iframe.gs-play){padding:0!important}"
+         "padding-right:12px!important;padding-bottom:16px!important}"
+         ".gradio-container .html-container:has(iframe.gs-play){padding:0!important}"
          ".gs-reset{align-items:end!important;gap:10px!important}"
          ".gs-reset button{min-height:42px!important;max-height:46px}"
-         "iframe.gs-play{width:100%;height:calc(100vh - 228px);min-height:700px;display:block;border-radius:10px;"
+         "iframe.gs-play{width:100%;height:calc(100vh - 232px);min-height:540px;display:block;border-radius:10px;"
          "border:1px solid var(--border-color-primary)}"
          "@media (max-width:700px){iframe.gs-play{height:1240px;min-height:0}}</style>")
 

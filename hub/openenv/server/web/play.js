@@ -14,12 +14,15 @@ const ANCHOR = { risk: 1.5, dam_position: "spread" };
 const TOOLBAR = [["get_prices", "Prices"], ["get_forecasts", "Forecasts"], ["get_grid_conditions", "Grid"], ["get_asset_status", "Asset status"], ["get_position", "Position"], "|", ["optimize", "Optimize"], "|", ["submit_dam_offers", "DA offers"], ["submit_rt_offers", "RT offers"], ["update_cop", "COP"], ["check_submission", "Check"], ["set_reminder", "Reminder"], "|", ["*", "All tools"], "grow", ["end_turn", "End turn"]];
 const VIEWER = "https://earakely-scale-gridsimenv-agentenv.static.hf.space/index.html";
 const CODE = "https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/main/hub/openenv";
+const FIT_MIN = 540;
+const FIT_GAP = 16;
+const IDLE_MS = 20 * 60 * 1000;
 
 const S = {
   cards: [], models: {}, card: null, session: null, token: null, tools: {}, brief: "", desk: {}, wake: null, wakes: [],
   log: [], unseen: 0, market: { dam: {}, series: {}, fc: {} }, proposal: null, plan: {}, view: null, grade: null,
   phase: "boot", busy: false, auto: false, quick: {}, moves: [], t: -1080, anim: null, playing: false, site: null,
-  chart: null, tab: "market", wall: 0, lastInput: 0, ended: false,
+  chart: null, tab: "market", wall: 0, lastInput: 0, seen: 0, ended: false,
 };
 const site = () => S.card.site;
 const d0 = () => S.card.dates[0];
@@ -41,6 +44,17 @@ async function main() {
   S.session = session();
   await open(pick);
   requestAnimationFrame(loop);
+  for (const ev of ["pointerdown", "keydown", "wheel", "touchstart"]) addEventListener(ev, () => (S.seen = performance.now()), { capture: true, passive: true });
+  S.seen = performance.now();
+  setInterval(idleCheck, 30000);
+}
+
+/** The server holds a WebSocket's session for as long as the socket is open, so a window left without a move for
+ * IDLE_MS gives its seat back; its moves are kept, and replaying them restores the same moment. */
+function idleCheck() {
+  if (S.ended || S.desk.done || S.phase !== "turn" || S.busy || S.auto || performance.now() - S.seen < IDLE_MS) return;
+  S.session.close();
+  dropped(`This session was closed after ${IDLE_MS / 60000} minutes without a move, so the Space can seat other visitors.`);
 }
 
 function session() {
@@ -363,7 +377,7 @@ function eventLine(e) {
 function renderWake() {
   const w = S.wake;
   if (!w || S.desk.done) {
-    $("wake").innerHTML = S.desk.done ? `<div class="hd"><b>The window is over</b><span>${esc(at(d0(), T1()))}</span></div><ul><li>Every interval is settled and the window is graded.</li></ul>` : "";
+    $("wake").innerHTML = S.desk.done ? `<div class="hd"><b>The window is over</b><span>${esc(at(d0(), T1()))}</span></div><ul><li>Every interval is settled and the window is graded.</li></ul>${S.grade ? '<div class="chips" style="margin-top:8px"><button type="button" class="btn sm go" data-act="results">Your results</button></div>' : ""}` : "";
     return;
   }
   const evs = (w.events || []).filter((e) => !["dam_close", "druc"].includes(e.kind) || (w.events || []).length < 3);
@@ -448,7 +462,7 @@ function renderPlan() {
   const p = S.proposal, days = Object.keys(S.plan).sort();
   const fresh = p && p.minute === S.desk.minute;
   const prop = p ? `<div class="plan-sec"><h3>The optimizer's latest proposal</h3>
-      <p class="muted">Asked ${esc(at(d0(), p.minute))}${fresh ? "" : ", before your last wake-up: ask again for a fresh one"}.</p>
+      <p class="muted">Asked ${esc(at(d0(), p.minute))}${fresh || S.desk.done ? "" : ", before your last wake-up: ask again for a fresh one"}.</p>
       <div class="entry"><div class="out">${render("optimize", {}, p)}</div></div>
       ${fresh && !S.desk.done ? `<div class="chips" style="margin-top:8px"><button type="button" class="btn sm go" data-q="send">Submit this proposal</button><button type="button" class="btn sm" data-fill="submit_dam_offers">Edit its DA offers</button><button type="button" class="btn sm" data-fill="submit_rt_offers">Edit its RT offers</button></div>` : ""}</div>` : `<div class="plan-sec"><h3>The optimizer</h3><p class="muted"><b>Optimize</b> co-optimises the DAM and real time on a price view (by default the desk's forecast) and proposes curves, reserve offers and a COP. It submits nothing.</p></div>`;
   const rows = days.map((dk) => {
@@ -491,6 +505,7 @@ function renderPlate() {
 
 function finish() {
   if (!S.grade || !S.view?.bench) return;
+  S.session.close();
   const g = S.grade, b = S.view.bench, refs = b.refs, c = S.card;
   const cOf = (p) => (refs.p_hind - refs.p_idle > 1 ? (p - refs.p_idle) / (refs.p_hind - refs.p_idle) : null);
   const rows = [["hind", "Hindsight", "The best possible: every price known in advance", refs.p_hind], ["you", "You", "Your desk", g.p], ["anchor", "Anchor", "The desk's optimizer at every wake-up", refs.p_anchor], ["op", "Real operator", "The battery's operator, as it ran (ERCOT's 60-day disclosures)", refs.p_operator_actual], ["opr", "Operator, replayed", "The operator's own offers, replayed in this market", refs.p_operator_replay], ["idle", "Idle", "No offers at all", refs.p_idle]].filter((r) => r[3] != null);
@@ -502,18 +517,27 @@ function finish() {
   const best = ms[0];
   const viewer = `${VIEWER}?v=bench&m=${best ? best[0] : "sol"}&task=${encodeURIComponent(c.task_id)}`;
   $("end").innerHTML = `<div class="sheet" role="dialog" aria-labelledby="end-h">
+    <button type="button" class="x" data-act="close" aria-label="Close, to watch your run on the site" title="Close, to watch your run on the site">×</button>
+    <div class="l">
     <div class="eyebrow">Window over · ${esc(at(d0(), T1()))}</div>
     <h2 id="end-h">Your desk settled ${usd(g.p)}</h2>
     <p class="lede">${g.valid ? "" : "No submission was accepted, so the reward is 0. "}${g.capture != null ? `That is ${pct(g.capture)} of what perfect hindsight could have earned on this window` : "Hindsight could not earn more than idle on this window"}${refs.p_operator_actual != null ? `, against ${pct(cOf(refs.p_operator_actual))} for the battery's real operator` : ""}.</p>
     <div class="big"><div><span>Profit P</span><b>${usd(g.p)}</b><small>settled by ERCOT's rules</small></div><div><span>Capture C</span><b>${pct(g.capture)}</b><small>of hindsight, above idle</small></div><div><span>Reward R</span><b>${num(g.reward, 2)}</b><small>0.2 at idle, 1 at the anchor</small></div></div>
-    <div class="bars">${bars}</div>
+    <div class="acts"><button type="button" class="btn go" data-act="again">Play this window again</button><button type="button" class="btn" data-act="pick">Another window</button><a class="btn" href="${viewer}" target="_blank" rel="noopener">See how ${esc(best ? S.models[best[0]]?.tag || best[0] : "the models")} played it ↗</a></div>
+    </div>
+    <div class="r">
+    <div class="bars"><h3>Settled on this window</h3>${bars}</div>
     <div class="strip"><h3>Against the 15 models on this window</h3><p>${ms.length ? `You would rank ${rank} of ${ms.length + 1}. Best: ${esc(S.models[best[0]]?.name || best[0])} at ${pct(best[1])}.` : ""}</p>
       <svg id="end-strip" aria-label="Hindsight capture of each model on this window, with yours"></svg></div>
-    <div class="acts"><button type="button" class="btn go" data-act="again">Play this window again</button><button type="button" class="btn" data-act="pick">Another window</button><a class="btn" href="${viewer}" target="_blank" rel="noopener">See how ${esc(best ? S.models[best[0]]?.tag || best[0] : "the models")} played it ↗</a></div>
     <p class="src">C = (P − P_idle) / (P_hindsight − P_idle). The operator's numbers come from ERCOT's 60-day disclosures; the models' from the v4 benchmark, each in its native harness.</p>
+    </div>
   </div>`;
-  $("end").hidden = false;
+  showEnd();
   strip(ms, g.capture ?? 0, cOf(refs.p_anchor));
+}
+
+function showEnd() {
+  $("end").hidden = false;
   if (matchMedia("(max-width: 760px)").matches) requestAnimationFrame(() => $("end").scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" }));
 }
 
@@ -736,6 +760,8 @@ function toolbar() {
     const fill = e.target.closest("[data-fill]");
     if (fill && S.phase === "turn") return dialog(fill.dataset.fill, { fill: true });
     const act = e.target.closest("[data-act]");
+    if (act?.dataset.act === "close") return void ($("end").hidden = true);
+    if (act?.dataset.act === "results") return showEnd();
     if (act?.dataset.act === "again") return S.card && restart(S.card);
     if (act?.dataset.act === "pick") return picker();
     if (act?.dataset.act === "resume") return resume();
@@ -860,6 +886,7 @@ function dialog(tool, { fill = false } = {}) {
   form.innerHTML = `<h2 id="d-title">${esc(all ? "Any tool" : spec.title)} <code>${esc(all ? "" : tool)}</code></h2>${all ? "" : `<p class="desc">${esc(spec.text)}</p>`}${body}
     <div class="err" id="f-err"></div>
     <div class="foot">${submitTool && S.proposal ? '<button type="button" class="btn sm ghost" id="f-fill">Fill from the optimizer</button>' : ""}<span class="grow"></span><span class="cost">uses 1 of ${left} calls left</span>${submitTool ? '<button type="button" class="btn" id="f-check">Check</button>' : ""}<button type="submit" class="btn go">${submitTool ? "Submit" : "Call"}</button></div>`;
+  place($("dialog"));
   $("dialog").hidden = false;
   if (all) {
     const pickTool = () => {
@@ -944,7 +971,19 @@ function picker() {
     $("picker").hidden = true;
     restart(S.cards[+b.dataset.i]);
   };
+  place($("picker"));
   $("picker").hidden = false;
+}
+
+/** A dialog covers the part of the frame the Space's window shows: on a phone the frame is as tall as the page. */
+function place(el) {
+  let f = null;
+  try {
+    f = window.frameElement;
+  } catch {}
+  if (!f) return;
+  const r = f.getBoundingClientRect(), top = Math.max(0, -r.top), bottom = Math.min(r.height, parent.innerHeight - r.top);
+  Object.assign(el.style, { top: `${top}px`, height: `${Math.max(240, bottom - top)}px` });
 }
 
 /* ---------------- dropped sessions ---------------- */
@@ -994,17 +1033,23 @@ const when = (label) => {
   return m == null ? label : short(d0(), m);
 };
 
-/** On a phone the page is one tall column: its frame in the Try Environment tab takes the page's full height, so only the
- * Space's page scrolls. */
+/** The frame in the Try Environment tab fills the Space's window below the tab's controls, down to FIT_MIN, so a page or
+ * an embed 820 px tall shows the whole desk without scrolling. On a phone the page is one tall column: the frame takes
+ * the page's full height, so only the Space's page scrolls. */
 function fitFrame() {
   let f = null;
   try {
     f = window.frameElement;
   } catch {}
-  if (!f) return;
-  f.style.height = matchMedia("(max-width: 760px)").matches ? `${document.documentElement.scrollHeight}px` : "";
+  if (!f || !f.getClientRects().length) return;
+  if (matchMedia("(max-width: 760px)").matches) return void (f.style.height = `${document.documentElement.scrollHeight}px`);
+  const top = f.getBoundingClientRect().top + parent.scrollY;
+  f.style.height = `${Math.max(FIT_MIN, Math.floor(parent.innerHeight - top - FIT_GAP))}px`;
 }
 new ResizeObserver(fitFrame).observe(document.body);
+try {
+  parent.addEventListener("resize", fitFrame);
+} catch {}
 
 main().catch((e) => {
   console.error(e);
