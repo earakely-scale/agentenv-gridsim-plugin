@@ -1,7 +1,8 @@
 """The GridSimEnv article: a research-article Space built with tfrere's research-article-template (Astro, MDX chapters,
 D3 embeds) under hub/article. It opens on what is in the environment: a recorded benchmark run filmed on the 3D viewer
 (scripts/hub_desk_film.py, an MP4 with a GIF inside it as the fallback), then the real operator against the agents on
-the windows where they most clearly beat it,
+the windows where they most clearly beat it, the environment live, and the eval: the dataset card's cost chart
+(hub/desk-charts/charts.js) and a rollout in the viewer Space,
 read from results/desk-v4-bench, its episodes and the desk-v4-bench pack. The prose states no number of its own: it
 reads them from facts.json, which this script formats from summary.json, the grades and the episodes, and the front
 matter's description is the dataset card's pitch.
@@ -57,13 +58,20 @@ TRY_SPACE = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv"
 TRY_APP = "https://earakely-scale-gridsimenv-openenv.hf.space/web/"
 TRY_CODE = "https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/main/hub/openenv"
 TRY_SCRIPT = ROOT / "scripts" / "hub_openenv.py"
+VIEWER = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
+CHARTS = ROOT / "hub" / "desk-charts" / "charts.js"
+BASIS = {"gpu_time": "GPU time", "metered_rate": "metered rate"}
+OFFERS = ("submit_dam_offers", "submit_rt_offers")
+REPLAN = ("sol", "beam")
+"""The models the re-planning finding names: the leader, and the one whose losses were diagnosed run by run."""
+COSTLIEST = ("sol", "desk-v4-2026-08-26-S01")
+"""The run the rollout opens on, the bench's costliest; its note tells this run's story, so the build stops if the
+costliest run is another."""
 PITCH = ("{models} AI models run a real Texas battery's trading desk through {fronts} real weather fronts, scored in "
          "dollars against the best possible plan and the battery's real operator.")
 SHORT = "{n} AI models trade a real Texas battery"
 SHORT_MAX = 60
-STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "bench.json", "banner.json",
-         "curve.json")
-STALE_SCRIPTS = ("desk-charts.js",)
+STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "banner.json", "curve.json")
 BEAT_SHARE = 0.8
 CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%"}
 NUMBER = re.compile(r"[−+-]?⁠?\\?\$[\d,]+(?:\.\d+)?k?|[−+-]?\d+\.\d+¢|[−+-]?\b\d+\.\d{2,}\b|\b\d+(?:\.\d+)?%")
@@ -90,16 +98,16 @@ def main():
     pairs = duel(args.desk_repo, s, grades, card)
     out = {"facts.json": {"header": header(s, card), "env": env(s, card), "lead": lead(s, grades, card),
                           "tryit": tryit(args.desk_repo, s, grades, card),
-                          "duel": duel_facts(args.desk_repo, s, grades, pairs, card)},
-           "duel.json": duel_data(pairs, s)}
+                          "duel": duel_facts(args.desk_repo, s, grades, pairs, card),
+                          "eval": evals(args.desk_repo, s, grades, pairs, card)},
+           "duel.json": duel_data(pairs, s), "bench.json": bench_chart(s)}
     DATA.mkdir(parents=True, exist_ok=True)
     for name in STALE:
         (DATA / name).unlink(missing_ok=True)
-    for name in STALE_SCRIPTS:
-        (APP / "public" / "scripts" / name).unlink(missing_ok=True)
     for name, obj in out.items():
         (DATA / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
         print(f"{name:16} {(DATA / name).stat().st_size / 1e3:7.1f} kB")
+    (APP / "public" / "scripts" / "desk-charts.js").write_bytes(CHARTS.read_bytes())
     describe(out["facts.json"]["header"], out["facts.json"]["lead"])
     check_prose(out["facts.json"])
     check_film()
@@ -166,6 +174,138 @@ def tryit(repo: Path, s: dict, grades: list[dict], card) -> dict:
     return {"tools": card.NUM[len(TOOLS)].lower(), "index": str(order.index(task)), "site": g["site"],
             "span": span(g["dates"][0], g["dates"][-1]), "kind": front["kind"], "space": TRY_SPACE, "app": TRY_APP,
             "code": TRY_CODE}
+
+
+def evals(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card) -> dict:
+    """The eval: who ran what under which budget, each model's point in the cost chart, the three findings and the
+    rollout the viewer opens on, from the summary, the grades and the episodes."""
+    ms, budget = card.bench_models(s), s["run"]["budget"]
+    scored = [g for g in grades if g["status"] == "scored"]
+    hs = sorted({m["harness"] for m in ms})
+    return {"harnesses": f"{', '.join(hs[:-1])} or {hs[-1]}", "calls": str(budget["calls_per_turn"]),
+            "turns": str(budget["max_turns"]), "runs": str(len(scored)), "viewer": VIEWER,
+            "basis": basis_line(ms, card), "m": {m["key"]: point(m, s, card) for m in ms},
+            "lead": lead_gap(s, ms, card), "halves": halves(s, ms, grades, pairs[0]["front"]["front"], card),
+            "replan": replan(repo, s, ms, scored, card), "watch": watch(repo, s, scored, card)}
+
+
+def bench_chart(s: dict) -> dict:
+    """What the card's cost chart (hub/desk-charts) reads: the summary's plot, and each model's windows, its cost basis
+    note and, for the distilled model, what it is."""
+    return {k: s[k] for k in ("fake", "n_windows", "n_fronts", "splits", "fronts", "plot")} | {"models": {
+        k: {x: m.get(x) for x in ("key", "family", "name", "n", "price_note", "distilled", "distilled_short")}
+        for k, m in s["models"].items()}}
+
+
+def point(m: dict, s: dict, card) -> dict:
+    """A model's point as the chart's tooltip states it: C over its windows with its CI, and its cost."""
+    c, C = m["cost"], m["all"]["C"]
+    return {"name": m["name"], "harness": m["harness"], "setting": m["setting"], "n": str(m["n"]),
+            "of": str(s["n_windows"]), "C": f"{card.pc(C['mean'])}%",
+            "ci": f"[{card.pc(C['ci'][0])}, {card.pc(C['ci'][1])}]",
+            "usd": card.bench_usd(c["usd_per_window"]), "spent": card.bench_usd(c["usd_all_attempts"]),
+            "basis": BASIS.get(c["basis"])}
+
+
+def basis_line(ms: list[dict], card) -> str:
+    """The cost chart's price basis in one line: the makers' list price, and each model priced another way."""
+    listed, metered = [], []
+    for m in ms:
+        b, note = m["cost"]["basis"], m.get("price_note") or ""
+        if b == "list_price_tokens" and note:
+            seller = re.search(r"at (.+?)'s list price", note)
+            listed.append(seller and f"{m['name']} at {seller[1]}'s")
+        elif b == "metered_rate":
+            seller = re.search(r"metered (\S+) rate", note)
+            metered.append(seller and f"{m['name']} at {seller[1]}' metered rate")
+    other = listed + metered
+    if not all(other):
+        raise SystemExit("a price note names no seller: rewrite basis_line for it")
+    gpu = [m["name"] for m in ms if m["cost"]["basis"] == "gpu_time"]
+    return "; ".join(["Cost: each window's tokens at the model maker's list price", *other,
+                      *([f"{card.and_join(gpu)} in GPU time"] if gpu else [])]) + "."
+
+
+def lead_gap(s: dict, ms: list[dict], card) -> dict:
+    """The first finding: the leader, the runner-up close behind at a fraction of the cost, and their paired gap."""
+    a, b = ms[:2]
+    gap = card.bench_pair(s, a["key"], b["key"])
+    if not gap["ci"][0] <= 0 <= gap["ci"][1]:
+        raise SystemExit(f"{a['name']}'s lead over {b['name']} has a CI that excludes zero: rewrite the first finding")
+    side = lambda m: {"name": m["name"], "C": f"{card.pc(m['all']['C']['mean'])}%",  # noqa: E731
+                      "usd": card.bench_usd(m["cost"]["usd_per_window"])}
+    return {"a": side(a), "b": side(b), "lo": card.pc(gap["ci"][0], 1, True), "hi": card.pc(gap["ci"][1], 1, True)}
+
+
+def halves(s: dict, ms: list[dict], grades: list[dict], front: str, card) -> dict:
+    """The second finding: every model lower in the second half, one of them trained before every window, so the
+    second half is harder; and the next front after the before and after's, where most models lost money."""
+    first = min(f["front"] for f in s["fronts"])
+    old = [m["name"] for m in ms if m.get("cutoff") and str(m["cutoff"]) < first]
+    if any(m["post_cutoff"]["C"]["mean"] >= m["pre_cutoff"]["C"]["mean"] for m in ms) or len(old) != 1:
+        raise SystemExit("the second finding has every model lower in the second half and one model trained before "
+                         "every window: rewrite it")
+    nxt = min(f["front"] for f in s["fronts"] if f["split"] == "post_cutoff" and f["front"] > front)
+    money = defaultdict(float)
+    for g in grades:
+        if g["front"] == nxt and g["status"] == "scored":
+            money[g["model"]] += g["p"]
+    lost = sum(x < 0 for x in money.values())
+    if lost * 2 <= len(money):
+        raise SystemExit("most models no longer lose money on the next front: rewrite the second finding")
+    pre, post = ([f["front"] for f in s["fronts"] if f["split"] == x] for x in card.BENCH_SPLITS)
+    return {"pre": month_words(pre), "post": month_words(post), "old": old[0], "lost": str(lost)}
+
+
+def month_words(fronts: list[str]) -> str:
+    """The months a split's three-day windows cover: 'January to May', 'July and August'."""
+    a = date.fromisoformat(min(fronts))
+    b = date.fromordinal(date.fromisoformat(max(fronts)).toordinal() + 2)
+    n = (b.year - a.year) * 12 + b.month - a.month
+    return f"{a:%B}" if n == 0 else f"{a:%B} and {b:%B}" if n == 1 else f"{a:%B} to {b:%B}"
+
+
+def replan(repo: Path, s: dict, ms: list[dict], scored: list[dict], card) -> dict:
+    """The third finding: how late each model sends its last offers, a window's mean hours before its end, against its
+    C, a rank correlation over the models; and what distilling the desk's planner did for the model distilled."""
+    hours = defaultdict(list)
+    for g in scored:
+        ep = json.loads(gzip.decompress((repo / "results" / "desk-v4-bench" / g["episode"]).read_bytes()))
+        offers = [x["t"] for x in ep["submissions"] if x["accepted"] and x["tool"] in OFFERS]
+        t = max(offers, default=ep["wakes"][0]["t"])
+        hours[g["model"]].append((len(ep["dates"]) * 1440 - t) / 60)
+    keys = [m["key"] for m in ms]
+    late = {k: float(np.mean(hours[k])) for k in keys}
+    rho = spearman([s["models"][k]["all"]["C"]["mean"] for k in keys], [-late[k] for k in keys])
+    if rho < 0.5:
+        raise SystemExit(f"the rank correlation of late offers with C is {rho:.2f}: rewrite the third finding")
+    a, b = REPLAN
+    sft = next(m for m in ms if m.get("distilled"))
+    base = s["models"][sft["family"]]
+    pct = lambda x: f"{card.pc(x)}%"  # noqa: E731
+    return {"rho": f"{rho:.2f}", "a": s["models"][a]["name"], "ah": f"{late[a]:.1f}", "b": s["models"][b]["name"],
+            "bh": f"{late[b]:.1f}", "base": base["name"], "baseC": pct(base["all"]["C"]["mean"]),
+            "sftC": pct(sft["all"]["C"]["mean"]), "planner": pct(s["references"]["anchor"]["all"]["C"]["mean"])}
+
+
+def spearman(a: list[float], b: list[float]) -> float:
+    ra, rb = (np.argsort(np.argsort(x)).astype(float) for x in (a, b))
+    return float(np.corrcoef(ra, rb)[0, 1])
+
+
+def watch(repo: Path, s: dict, scored: list[dict], card) -> dict:
+    """The rollout the viewer opens on: the bench's costliest run, at the minute of its window's highest real-time
+    price, with what it lost and what the real operator made there."""
+    g = min(scored, key=lambda x: x["p"])
+    if (g["model"], g["task_id"]) != COSTLIEST:
+        raise SystemExit(f"the costliest run is now {g['model']} on {g['task_id']}: rewrite the rollout's note")
+    ep = json.loads(gzip.decompress((repo / "results" / "desk-v4-bench" / g["episode"]).read_bytes()))
+    d, i, top = max(((d, i, x) for d in ep["dates"] for i, x in enumerate(ep["rt"][d]["spp"])), key=lambda r: r[2])
+    t = (date.fromisoformat(d) - date.fromisoformat(ep["dates"][0])).days * 1440 + i * 1440 // len(ep["rt"][d]["spp"])
+    return {"name": s["models"][g["model"]]["name"], "site": g["site"], "region": g["region"],
+            "span": span(g["dates"][0], g["dates"][-1]), "day": f"{date.fromisoformat(d):%-d %B}",
+            "at": f"{t % 1440 // 60:02d}:{t % 60:02d}", "spike": usd(top), "lost": usd(-g["p"]),
+            "op": usd(g["p_operator_actual"]), "app": f"{card.bench_replay(g['model'], g['task_id'])}&t={t}"}
 
 
 def env(s: dict, card) -> dict:

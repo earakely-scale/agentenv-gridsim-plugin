@@ -1,0 +1,111 @@
+<div class="gs-pareto"></div>
+<style>
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) { --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); --c-hind: var(--c-rule); --shade: color-mix(in srgb, var(--text-color) 5%, transparent); }
+  .html-embed__card.is-frameless .gs-pareto { --halo: var(--page-bg); }
+  .gs-pareto { position: relative; }
+  .gs-pareto-ruler { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; visibility: hidden; }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) svg.chart { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+  .gs-pareto .grid { stroke: var(--line); stroke-width: 1; }
+  .gs-pareto .zero { stroke: var(--ink-3); stroke-width: 1.25; }
+  .gs-pareto .lead { stroke: var(--ink-3); stroke-width: 1; fill: none; }
+  .gs-pareto .shade { fill: var(--shade); }
+  .gs-pareto .stair { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linejoin: miter; stroke-linecap: square; }
+  .gs-pareto .mk { stroke: var(--halo); stroke-width: 2; stroke-linejoin: round; }
+  .gs-pareto .mk-s { stroke: var(--halo); stroke-width: 1.5; }
+  .gs-pareto .mk-o { stroke-width: 2.4; stroke-linejoin: round; }
+  .gs-pareto .hit { fill: transparent; stroke: none; cursor: pointer; outline: none; }
+  .gs-pareto .hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-head-s { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-tick { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-unit { font-size: 13px; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-end { font-size: 14px; font-weight: 560; fill: var(--ink-2); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-end.b { font-weight: 700; fill: var(--ink); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-end.op-t { font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-end-q { font-size: 12.5px; font-weight: 400; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-pv { font-size: 12.5px; font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-pv.b { font-weight: 640; fill: var(--ink-2); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-tag { font-size: 12.5px; font-weight: 520; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-tail { font-size: 12.5px; font-weight: 500; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-dom { font-size: 12.5px; font-style: italic; fill: var(--ink-3); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-key { font-size: 13.5px; font-weight: 560; fill: var(--ink-2); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-key.b { font-weight: 700; fill: var(--ink); }
+  :is(.gs-pareto, .gs-pareto-ruler, .gs-bench-ruler) .t-foot { font-size: 12.5px; fill: var(--ink-3); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-pareto");
+    if (!root) return;
+    if (!document.getElementById("ruler")) {
+      const box = document.createElement("div");
+      box.className = "gs-pareto-ruler";
+      box.setAttribute("aria-hidden", "true");
+      box.innerHTML = '<svg id="ruler" class="chart"></svg>';
+      document.body.appendChild(box);
+    }
+    const fonts = Promise.all(["400 13px", "600 13px", "650 16px", "700 14px"].map((f) => document.fonts.load(`${f} "Source Sans 3"`)))
+      .catch(() => null);
+
+    Promise.all([K.data("bench.json"), K.data("facts.json"), import("/scripts/desk-charts.js"), fonts]).then(([B, F, C]) => {
+      const tip = K.tip(root);
+      const plot = document.createElement("div");
+      root.appendChild(plot);
+      const fb = F.eval, on = new Set(B.plot.frontier || []);
+      const card = (el, k) => {
+        const m = fb.m[k], b = B.models[k];
+        K.t.title(el, m.name, `var(--c-${k})`);
+        K.t.row(el, m.harness, m.setting);
+        [[`C, ${m.n === m.of ? "all" : `${m.n} of`} ${m.of} windows`, `${m.C} ${m.ci}`], ["cost a window", m.basis ? `${m.usd}, ${m.basis}` : m.usd],
+          ["every attempt", m.spent], ["cost frontier", on.has(k) ? "on it" : "dominated"]].forEach(([a, v]) => K.t.row(el, a, v));
+        if (b.price_note) K.t.note(el, b.price_note);
+        if (b.distilled) K.t.note(el, `${b.name} is ${b.distilled}`);
+      };
+      const label = (k) => {
+        const m = fb.m[k];
+        return `${m.name}: C ${m.C}, 95% CI ${m.ci}, ${m.usd} a window${m.basis ? `, ${m.basis}` : ""}, ${on.has(k) ? "on the cost frontier" : "dominated"}`;
+      };
+      document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
+
+      function render() {
+        const W = Math.max(280, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 460;
+        plot.innerHTML = C.paretoChart(B, W, narrow, { notes: false });
+        const svg = plot.querySelector("svg");
+        svg.removeAttribute("height");
+        svg.querySelectorAll("title").forEach((x) => x.remove());
+        const pts = [...svg.querySelectorAll("g.pt")].map((g) => {
+          const b = g.getBBox();
+          return { k: g.dataset.k, x: b.x + b.width / 2, y: b.y + b.height / 2 };
+        }).filter((p) => fb.m[p.k]).sort((a, b) => a.x - b.x);
+        const show = (ev) => {
+          const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
+          const m = pts.reduce((a, o) => (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? o : a));
+          tip.show((el) => card(el, m.k), ev);
+        };
+        for (const p of pts) {
+          const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          hit.setAttribute("class", "hit");
+          hit.setAttribute("cx", p.x.toFixed(1));
+          hit.setAttribute("cy", p.y.toFixed(1));
+          hit.setAttribute("r", "15");
+          hit.setAttribute("tabindex", "0");
+          hit.setAttribute("role", "img");
+          hit.setAttribute("aria-label", label(p.k));
+          hit.addEventListener("pointerenter", show);
+          hit.addEventListener("pointermove", show);
+          hit.addEventListener("pointerdown", show);
+          hit.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") tip.hide(); });
+          hit.addEventListener("pointercancel", () => tip.hide());
+          hit.addEventListener("focus", () => tip.show((el) => card(el, p.k), { target: hit }));
+          hit.addEventListener("blur", () => tip.hide());
+          svg.appendChild(hit);
+        }
+      }
+
+      render();
+      document.fonts.addEventListener("loadingdone", render);
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = "The cost chart did not load: " + e.message; });
+  })();
+</script>

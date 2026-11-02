@@ -28,7 +28,7 @@ Every window also happened for real. The battery's own operator traded those sam
 each battery did 60 days later: its day-ahead awards, its output and its charge every five minutes
 [@ercot_np3966; @ercot_np3965]. That gives each window a before and an after. Here are the {F.duel.n} windows where the
 agents most clearly beat the operator, all on the {F.duel.span} {F.duel.kind}, after every reported training
-cutoff[^pick]. Each shows the operator beside the run that made the most there, {F.duel.best}'s.
+cutoff[^pick]. Each shows the operator beside the run that made the most there, {F.duel.best}’s.
 
 <HtmlEmbed
   src="d3-before-after.html"
@@ -73,6 +73,47 @@ and vendors sell [AI that forecasts prices and writes the bids](https://fluencee
 pays: in January 2026, [the best quarter of the firms bidding ERCOT's batteries earned at least 76% of what perfect
 timing could, the worst quarter 27%](https://modoenergy.com/research/en/ercot-march-2026-bess-benchmark-batteries-fern-revenues).
 GridSimEnv puts AI agents in that seat, scored against the best plan hindsight allows.
+
+### The eval
+
+{F.header.models} models, each in its native harness ({F.eval.harnesses}), ran all {F.env.windows} windows once, with
+the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most {F.eval.turns} wake-ups a window.
+
+<HtmlEmbed
+  src="d3-desk-pareto.html"
+  id="eval-pareto"
+  wide
+  desc={`Each point is a model: its mean capture C over the windows it finished against its mean cost a window, on a log scale. The step line is the cost frontier, the models no other model beats on both. Hover, tap or tab to a point for its 95% CI.<br/><small>${F.eval.basis}</small>`}
+/>
+
+- **{F.eval.lead.a.name} leads at {F.eval.lead.a.C}** of the best possible profit, for {F.eval.lead.a.usd} a window.
+  {F.eval.lead.b.name} is close behind at {F.eval.lead.b.C} for {F.eval.lead.b.usd}; the 95% CI on the gap,
+  {F.eval.lead.lo} to {F.eval.lead.hi} points, includes zero.
+- **Every model scores lower in {F.eval.halves.post} than in {F.eval.halves.pre}**, even {F.eval.halves.old}, trained
+  before any window: the later fronts are harder, not just unseen. On {F.duel.next.span}, a real-time spike to about
+  {F.duel.next.rt} left {F.eval.halves.lost} of the {F.env.models} models in the red.
+- **What to train next: re-planning to the end.** Models that keep sending offers into a window's last hours capture
+  more, a rank correlation of {F.eval.replan.rho} across the {F.env.models}: {F.eval.replan.a}’s last offers come
+  {F.eval.replan.ah} hours before the end, {F.eval.replan.b}’s {F.eval.replan.bh}. Distilling the desk's own planner
+  already lifted {F.eval.replan.base} from {F.eval.replan.baseC} to {F.eval.replan.sftC}, near the planner's
+  {F.eval.replan.planner}.
+
+### Watch a rollout
+
+All {F.eval.runs} runs replay in the <a href={F.eval.viewer}>viewer Space</a>: the battery site in 3D in its real light
+and weather, each wake-up's tool calls and what the agent wrote, the market and the battery as they moved, and the
+grade.
+
+<figure class="html-embed gs-try gs-watch" id="watch-rollout">
+  <figcaption class="html-embed__title">Rollouts in 3D: {F.env.windows} windows, {F.env.models} models</figcaption>
+  <div class="html-embed__card is-frameless">
+    <div class="gs-try-frame">
+      <p class="gs-try-wait">Loading the replay from the viewer Space…</p>
+      <iframe src={F.eval.watch.app} title="Rollouts in 3D: a benchmark run replayed on the battery site beside the desk" loading="lazy" allow="fullscreen" allowfullscreen data-theme-reload="off"></iframe>
+    </div>
+  </div>
+  <figcaption class="html-embed__desc">It opens at {F.eval.watch.at} on {F.eval.watch.day} in the bench's costliest run, {F.eval.watch.name} at Battery {F.eval.watch.site} ({F.eval.watch.region}) over {F.eval.watch.span}, the front after the film's: its evening day-ahead sales met an all but empty battery and were bought back as real-time prices hit {F.eval.watch.spike}. It lost {F.eval.watch.lost}; the real operator made {F.eval.watch.op}. Press play, or pick any model and window under Episodes. <a href={F.eval.watch.app}>Open in the viewer ↗</a></figcaption>
+</figure>
 
 [^pick]: The windows: every window in {F.duel.half}, after every reported training cutoff, on which at least
     {F.duel.need} of the {F.duel.of} models settled above the real operator, both as it ran and with its own bids
