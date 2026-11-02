@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gridsim-desk"
+version = "0.1.0"
+description = "Client for GridSimEnv Desk, an OpenEnv environment: trade a real ERCOT battery's desk for three days"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = ["openenv>=0.11"]
+
+[project.urls]
+Source = "https://github.com/earakely-scale/agentenv-gridsim-plugin/tree/main/hub/openenv"
+
+[tool.setuptools]
+packages = ["gridsim_desk"]

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GridSimEnv Desk · Try it</title>
+  <meta name="description" content="Trade a real Texas battery's desk for three days across a weather front, with the tools, budgets and grading the benchmark's agents had.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='9' width='22' height='14' rx='3' fill='none' stroke='%2314202b' stroke-width='2.5'/%3E%3Crect x='27' y='13' width='3' height='6' rx='1' fill='%2314202b'/%3E%3Crect x='7' y='12' width='11' height='8' rx='1' fill='%2310855a'/%3E%3C/svg%3E">
+  <link rel="preload" href="./kit/desk/fonts/plex-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./kit/desk/base.css">
+  <link rel="stylesheet" href="./play.css">
+  <script>
+    (() => {
+      const q = new URLSearchParams(location.search), t = q.get("theme"), root = document.documentElement;
+      if (q.get("embed") === "1") root.classList.add("embed");
+      const apply = (dark) => (root.dataset.theme = dark ? "dark" : "light");
+      if (t === "dark" || t === "light") return apply(t === "dark");
+      try {
+        const body = window.parent !== window && window.parent.document.body;
+        if (body) {
+          const sync = () => apply(body.classList.contains("dark"));
+          sync();
+          new MutationObserver(sync).observe(body, { attributes: true, attributeFilter: ["class"] });
+        }
+      } catch {}
+    })();
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./kit/vendor/three-0.180.0/build/three.module.min.js",
+      "three/addons/": "./kit/vendor/three-0.180.0/examples/jsm/",
+      "gridsim/": "./kit/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="bar" id="bar">
+      <div class="who">
+        <button class="win" id="w-pick" type="button" aria-haspopup="dialog" aria-controls="picker" title="Change window">
+          <b id="w-name">GridSimEnv Desk</b><span id="w-meta"></span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="front" id="w-front"></div>
+      </div>
+      <div class="clock" aria-live="polite">
+        <div class="now"><b id="c-now">–</b><small>Central</small></div>
+        <div class="sub" id="c-turn"></div>
+      </div>
+      <div class="calls" title="Tool calls left this turn. Ending your turn gives you a fresh budget at the next wake-up.">
+        <div class="lab"><span>Calls left</span><b id="k-calls">–</b></div>
+        <div class="pips" id="k-pips"></div>
+      </div>
+      <div class="pnl" title="The shadow settlement of the 15-minute intervals that have ended">
+        <div class="lab">Settled so far</div><b id="k-pnl">$0</b>
+      </div>
+      <div class="state" id="state"><i></i><span>Connecting</span></div>
+      <nav class="tools" id="toolbar" aria-label="Desk tools"></nav>
+    </header>
+    <div class="drop" id="drop" hidden></div>
+    <main class="body">
+      <section class="stage" id="stage" aria-label="The battery site in 3D">
+        <div class="boot" id="boot"><span>Loading the battery site</span></div>
+        <div class="plate glass" id="plate"></div>
+        <div class="cams" id="cams" role="group" aria-label="Camera"></div>
+        <div class="tagbox" id="tags" aria-hidden="true"></div>
+        <div class="wx" id="wx"></div>
+        <div class="run" id="run" aria-live="polite"><i></i><span></span></div>
+      </section>
+      <div class="transport" id="transport">
+        <button class="play" id="play" type="button" aria-label="Replay to now"><svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-icon" d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg></button>
+        <div class="scrub" id="scrub" role="slider" tabindex="0" aria-label="Replay time" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"></div>
+        <div class="readout" id="readout"></div>
+      </div>
+      <div class="end" id="end" hidden></div>
+      <aside class="side" id="side" aria-label="The desk">
+        <div class="wake" id="wake"></div>
+        <div class="quick" id="quick"></div>
+        <div class="tabs" role="tablist" aria-label="Desk panels">
+          <button type="button" role="tab" data-tab="market" aria-selected="true">Market</button>
+          <button type="button" role="tab" data-tab="plan" aria-selected="false">Plan <span class="badge" id="b-plan"></span></button>
+          <button type="button" role="tab" data-tab="calls" aria-selected="false">Calls <span class="badge" id="b-calls"></span></button>
+          <button type="button" role="tab" data-tab="brief" aria-selected="false">Brief</button>
+        </div>
+        <div class="panel" data-panel="market" id="p-market"></div>
+        <div class="panel" data-panel="plan" id="p-plan" hidden></div>
+        <div class="panel" data-panel="calls" id="p-calls" hidden></div>
+        <div class="panel" data-panel="brief" id="p-brief" hidden></div>
+      </aside>
+    </main>
+  </div>
+  <div class="dialog" id="dialog" hidden>
+    <div class="scrim" data-close></div>
+    <form class="box" id="form" role="dialog" aria-modal="true" aria-labelledby="d-title" novalidate></form>
+  </div>
+  <div class="picker" id="picker" hidden>
+    <div class="scrim" data-close></div>
+    <div class="box" id="pk" role="dialog" aria-modal="true" aria-labelledby="pk-title"></div>
+  </div>
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <script type="module" src="./play.js"></script>
+</body>
+</html>

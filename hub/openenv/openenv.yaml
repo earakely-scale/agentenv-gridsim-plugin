@@ -1,0 +1,34 @@
+spec_version: 1
+name: gridsim_desk
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+description: Run a real Texas battery's trading desk for three days across a weather front on ERCOT's records as they were posted - the GridSimEnv v4 benchmark's 32 windows (four real batteries, eight weather fronts), with the desk's eleven tools (prices, forecasts, grid conditions, asset status, position, DAM and RT offers with reserves, COP, check, optimize, reminders) and end_turn, which runs the market to the next wake-up. Graded by settlement against the desk's optimizer and hindsight.
+version: "0.1.0"
+variables:
+  MAX_CONCURRENT_ENVS: "32"        # WebSocket sessions at once
+  SESSION_IDLE_S: "1200"           # an idle session (and a playground visitor's episode) is closed after this
+  PLAYGROUND_SESSIONS: "48"        # playground visitors kept at once
+  GRIDSIM_DATA: ""                 # the pack and windows.json; defaults to data/ beside server/
+validation:
+  reward:
+    range: [0.0, 1.0]
+  resources:
+    cpu: 2.0
+    memory_mb: 4096
+    disk_mb: 1024
+    episode_timeout_s: 14400.0
+  network:
+    mode: no-network
+  capabilities:
+    verifier:
+      kind: reward_channel
+    rubric_tree: true
+    task_api: true
+    declared_tools: [get_prices, get_forecasts, get_grid_conditions, get_asset_status, get_position, submit_dam_offers,
+                     submit_rt_offers, update_cop, check_submission, optimize, set_reminder, end_turn]
+    declared_task_count:
+      bench: 32
+  types:
+    tags: [simulation, energy, electricity-markets, battery-storage, mcp, real-world-data, multi-turn]
