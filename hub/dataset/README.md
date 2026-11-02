@@ -184,6 +184,39 @@ Three habits separate the top of the board from the bottom.
 
 <!-- fail -->
 
+## {F.beam.heading}
+
+**How Beam was used.** {F.beam.provider}'s {F.beam.id} traded all {F.beam.n} benchmark windows as an autonomous agent
+in {F.beam.harness} at {F.beam.setting}, served by {F.beam.server} through Hugging Face Inference Providers, on
+agentenv-framework {F.beam.framework}, with {F.eval.calls} calls a wake-up and at most {F.eval.turns} wake-ups a window.
+Each run covers {F.beam.days} operating days of the desk on ERCOT's records, with about {F.beam.wakes} wake-ups,
+through the same {F.tryit.tools} desk tools over MCP as every other model, and no hand-holding.
+
+**Result.** C {F.eval.m.beam.C} {F.eval.m.beam.ci}, at {F.eval.m.beam.usd} a window at {F.beam.seller}'s list price.
+The real operator's bids, replayed, reach {F.beam.operator}, and the desk's planner {F.beam.planner}.
+
+**Diagnosis.** We replayed all {F.beam.n} of Beam's runs exactly, every P to the cent, on the frozen desk, then changed
+one thing at a time and graded each window again. Differences are in points of C, with 95% intervals.
+
+- **Beam is faithful.** {F.beam.copied} of the day-ahead curve hours it submits against a planner proposal are exact
+  copies of the proposal it had just received.
+- **It asks the wrong question.** {F.beam.physical} of its `optimize` calls leave `dam_position` at the default,
+  `{F.beam.default}`, which caps day-ahead curves at the planned dispatch. Asking the planner's question instead,
+  `{F.beam.position}` at risk {F.beam.risk}, adds {F.beam.question} {F.beam.question_ci}. This leans on {F.beam.storm}:
+  without that front's {F.beam.storm_n} windows it is {F.beam.calm} {F.beam.calm_ci}.
+- **It stops re-planning.** Its last accepted offer comes {F.beam.late} hours before the window ends, on average.
+  Letting the planner fill the wake-ups it ended without a submit adds {F.beam.replan} {F.beam.replan_ci}.
+- **Both fixed:** {F.beam.both} {F.beam.both_ci}, {F.beam.share} of its {F.beam.gap}-point gap to the planner.
+- AS offers left out, refused submits and its hand edits each move C by less than {F.beam.minor} points.
+
+**What it means.** Beam reads the desk and follows the planner well. It lacks the desk's habits: a `{F.beam.position}`
+position, and re-planning to the end of the window. A short playbook or fine-tuning could teach them; we have not run a
+pilot, so nothing here measures that.
+
+Watch Beam's runs in the [Replays Space]({F.beam.replay}), opening on the film's window; pick {F.beam.name} in the
+article's [Where models fail]({F.beam.picker}) charts; or read [the diagnosis]({F.beam.report}) and its
+[per-window files]({F.beam.files}).
+
 ## What's in this dataset
 
 <!-- inside -->

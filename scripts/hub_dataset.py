@@ -37,6 +37,7 @@ import gzip
 import importlib.util
 import io
 import json
+import math
 import re
 import shutil
 import tempfile
@@ -2067,11 +2068,58 @@ def facts(s: dict, grades: list[dict]) -> dict:
     late = {m["name"]: m["last_offer_h"] for m in fm["models"]}
     want |= {"F.eval.replan.rho": f"{-fm['corr']['last_offer_vs_C_models']:.2f}",
              "F.eval.replan.ah": f"{late[r['a']]:.1f}", "F.eval.replan.bh": f"{late[r['b']]:.1f}"}
+    want |= leaves(beam_facts(article("beam.json"), s, fm), "F.beam")
     have = leaves(f)
     if bad := [f"{k} is {have.get(k)!r}, the results give {v!r}" for k, v in want.items() if have.get(k) != v]:
-        raise SystemExit("facts.json does not match the benchmark's results or the failure charts' failures.json; run "
-                         "scripts/hub_article.py:\n  " + "\n  ".join(bad))
+        raise SystemExit("facts.json does not match the benchmark's results, the failure charts' failures.json or the "
+                         "Beam diagnosis's beam.json; run scripts/hub_article.py:\n  " + "\n  ".join(bad))
     return f
+
+
+BEAM = "beam"
+BEAM_DIR = "desk-v4-bench/beam-diagnosis"
+BEAM_MINOR = ("as", "repair", "verbatim", "merge")
+"""The changes worth less than the bound the section states: AS left out, refused submits repaired, and Beam's own
+edits to what it copied, dropped or kept."""
+ARTICLE_APP = "https://earakely-scale-gridsimenv.hf.space"
+
+
+def beam_facts(b: dict, s: dict, fm: dict) -> dict:
+    """The Beam-1.0 section's facts, which the card's section and the article's short one both state: beam.json's
+    diagnosis (scripts/hub_article.py's beam_data), summary.json's run of the model and its references, and
+    failures.json's last accepted offer, the measure the eval's re-planning finding states."""
+    m, e, refs = s["models"][b["model"]], b["effects"], s["references"]
+    late = next(x["last_offer_h"] for x in fm["models"] if x["key"] == b["model"])
+    pts = lambda x: pc(x / 100, 1, True)  # noqa: E731
+    ci = lambda x: f"[{pts(x['ci'][0])}, {pts(x['ci'][1])}]"  # noqa: E731
+    share = lambda a, n: f"{pc(a / n, 0)}%"  # noqa: E731
+    minor = math.ceil(max(abs(e[k]["mean"]) for k in BEAM_MINOR) * 2) / 2
+    ident = "-".join(p.upper() if re.search(r"\d", p) and re.search(r"[a-z]", p) else p.capitalize()
+                     for p in m["model_id"].split("-"))
+    heading, seller = f"{m['name']} on GridSimEnv", re.search(r"at (.+?)'s list price", m["price_note"])[1]
+    return {"name": m["name"], "id": ident, "provider": m["provider"], "setting": m["setting"], "seller": seller,
+            "harness": f"{m['harness']} {m['harness_version']}", "server": m["server"], "framework": m["framework"],
+            "n": str(b["windows"]), "days": NUM[int(s["unit"].split("-")[0])].lower(), "wakes": f"{b['wakes']:.0f}",
+            "copied": share(b["dam_curve_hours"]["exact"], b["dam_curve_hours"]["compared"]),
+            "physical": share(b["optimize"]["physical"], b["optimize"]["calls"]), "default": b["planner"]["default"],
+            "position": b["planner"]["dam_position"], "risk": str(b["planner"]["risk"]),
+            "question": pts(e["question"]["mean"]), "question_ci": ci(e["question"]),
+            "storm": b["storm"]["name"], "storm_n": NUM[b["storm"]["windows"]].lower(),
+            "calm": pts(e["calm"]["mean"]), "calm_ci": ci(e["calm"]), "late": f"{late:.1f}",
+            "replan": pts(e["replan"]["mean"]), "replan_ci": ci(e["replan"]),
+            "both": pts(e["both"]["mean"]), "both_ci": ci(e["both"]), "gap": pc(b["gap"] / 100),
+            "share": share(e["both"]["mean"], b["gap"]), "minor": pc(minor / 100),
+            "operator": f"{pc(refs['operator_replay']['all']['C']['mean'])}%",
+            "planner": f"{pc(refs['anchor']['all']['C']['mean'])}%",
+            "replay": bench_replay(b["model"], s["hero"]["task_id"]), "picker": f"{ARTICLE_APP}/#where-models-fail",
+            "files": f"{DATASET}/tree/main/results/{BEAM_DIR}",
+            "report": f"{DATASET}/blob/main/results/{BEAM_DIR}/report.md",
+            "heading": heading, "card": f"{DATASET}#{slug(heading)}"}
+
+
+def slug(heading: str) -> str:
+    """A heading's anchor as the Hub's Markdown renders it: lower case, punctuation dropped, spaces to hyphens."""
+    return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
 
 
 def leaves(f: dict, path: str = "F") -> dict[str, str]:

@@ -214,6 +214,16 @@ desk. Three habits separate the top of the board from the bottom.
   desc="Means over each model's graded windows, from an exact replay of every episode. Pick a model to highlight it in all three charts and read its profile; hover, tap or tab to a row for its numbers."
 />
 
+### Beam-1.0 on GridSimEnv
+
+We replayed all {F.beam.n} of {F.beam.name}’s runs exactly, every P to the cent, and changed one thing at a time. Beam
+follows the desk's planner faithfully: {F.beam.copied} of the day-ahead curve hours it submits against a proposal copy
+it exactly. Two habits cost it: {F.beam.physical} of its `optimize` calls keep the default <code>{F.beam.default}</code>
+position where the planner asks for <code>{F.beam.position}</code>, a fix that leans on {F.beam.storm}’s windows, and
+its last accepted offer comes {F.beam.late} hours before a window ends. Fixing both in the replay adds {F.beam.both}
+points of C {F.beam.both_ci}, {F.beam.share} of its {F.beam.gap}-point gap to the planner. The
+<a href={F.beam.card}>dataset card</a> gives each effect with its interval, and the published files.
+
 ## Data sources
 
 | Data | Source | Licence |

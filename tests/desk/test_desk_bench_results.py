@@ -258,6 +258,13 @@ def test_card_states_the_articles_numbers(monkeypatch):
     stale["eval"]["m"]["sol"]["C"], stale["eval"]["replan"]["bh"] = f["eval"]["m"]["sol"]["C"], "24.5"
     with pytest.raises(SystemExit, match=r"F\.eval\.replan\.bh is '24\.5'"):
         hub_dataset.facts(s, grades)
+    stale["eval"]["replan"]["bh"], stale["beam"] = f["eval"]["replan"]["bh"], f["beam"] | {"question": "+11.6"}
+    with pytest.raises(SystemExit, match=r"F\.beam\.question is '\+11\.6'"):
+        hub_dataset.facts(s, grades)
+    b = f["beam"]
+    at = card.index(f"\n## {b['heading']}\n")
+    assert card.index("## Where models fail") < at < card.index("## What's in this dataset")
+    assert all(f"({b[k]})" in card for k in ("replay", "picker", "report", "files"))
 
 
 def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
@@ -308,10 +315,18 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
          "tryit": hub_article.tryit(ROOT, s, grades, hub_dataset),
          "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset),
          "eval": hub_article.evals(ROOT, s, grades, pairs, hub_dataset)}
+    fails, beam = json.loads((hub_article.DATA / "failures.json").read_text()), hub_article.beam_data(folder, s, grades,
+                                                                                                    hub_dataset)
+    assert beam == json.loads((hub_article.DATA / "beam.json").read_text())
     f |= {"why": hub_article.why_tiles(f["eval"]["watch"]), "reward": hub_article.reward(s, grades, hub_dataset),
-          "train": hub_article.train(s, grades, hub_dataset), "links": hub_article.links(s, hub_dataset)}
+          "train": hub_article.train(s, grades, hub_dataset), "links": hub_article.links(s, hub_dataset),
+          "beam": hub_dataset.beam_facts(beam, s, fails)}
     hub_article.check_prose(f)
-    fails = json.loads((hub_article.DATA / "failures.json").read_text())
+    assert not hub_article.check_beam(f, beam, s, fails, hub_dataset)
+    assert hub_article.check_beam(f | {"beam": f["beam"] | {"both": "+14.1"}}, beam, s, fails, hub_dataset)
+    assert f["beam"]["late"] == f["eval"]["replan"]["bh"] and f["beam"]["planner"] == f["eval"]["replan"]["planner"]
+    assert f["beam"]["card"] == f"{hub_dataset.DATASET}#beam-10-on-gridsimenv"
+    assert f["beam"]["replay"].endswith(f"m=beam&task={s['hero']['task_id']}")
     assert not hub_article.check_replan(f, fails)
     assert not hub_article.check_replan(json.loads((hub_article.DATA / "facts.json").read_text()), fails)
     late = {m["name"]: m["last_offer_h"] for m in fails["models"]}
