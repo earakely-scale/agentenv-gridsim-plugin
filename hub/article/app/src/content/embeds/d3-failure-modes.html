@@ -1,0 +1,145 @@
+<div class="gs-fail"></div>
+<style>
+  .gs-fail { position: relative; --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); }
+  .html-embed__card.is-frameless .gs-fail { --halo: var(--page-bg); }
+  .gs-fail .pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .gs-fail .pick button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-color); background: var(--surface-bg); color: var(--ink-2); cursor: pointer; }
+  .gs-fail .pick button[aria-pressed="true"] { background: var(--text-color); color: var(--surface-bg); border-color: var(--text-color); }
+  .gs-fail .card { margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 10px; font-size: 14px; line-height: 1.45; }
+  .gs-fail .card[hidden] { display: none; }
+  .gs-fail .card b { font-weight: 650; }
+  .gs-fail .card ul { margin: 6px 0 0; padding-left: 18px; }
+  .gs-fail .q { margin: 14px 0 2px; font-size: 15px; font-weight: 650; color: var(--ink); }
+  .gs-fail .how { margin: 0 0 6px; font-size: 13px; line-height: 1.4; color: var(--ink-3); }
+  .gs-fail svg { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
+  .gs-fail svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+  .gs-fail .t-name { font-size: 13px; font-weight: 560; fill: var(--ink-2); }
+  .gs-fail .t-val, .gs-fail .t-tick { font-size: 12px; fill: var(--ink-3); }
+  .gs-fail .grid { stroke: var(--line); stroke-width: 1; }
+  .gs-fail .stem { stroke: color-mix(in srgb, var(--text-color) 25%, transparent); stroke-width: 1.5; }
+  .gs-fail .live { fill: var(--primary-color); }
+  .gs-fail .dam { fill: color-mix(in srgb, var(--text-color) 38%, transparent); }
+  .gs-fail .proxy { fill: var(--c-bad); }
+  .gs-fail .bar { fill: color-mix(in srgb, var(--c-bad) 70%, transparent); }
+  .gs-fail .row.dim { opacity: 0.28; }
+  .gs-fail .row.on .t-name { fill: var(--ink); font-weight: 700; }
+  .gs-fail .hit { fill: transparent; cursor: pointer; outline: none; }
+  .gs-fail .hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; }
+  .gs-fail .key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 6px; font-size: 12.5px; color: var(--ink-3); }
+  .gs-fail .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-fail");
+    if (!root) return;
+    const NS = "http://www.w3.org/2000/svg";
+    const COLOR = { "qwen9b-sft": "qwen9bsft", gemini: "argon" };
+    const PICK = ["beam", "opus", "sol", "dsflash", "glm", "haiku", "qwen9b"];
+    const ctx = document.createElement("canvas").getContext("2d");
+    const font = getComputedStyle(document.body).fontFamily;
+    const measure = (s, size, w = 560) => { ctx.font = `${w} ${size}px ${font}`; return ctx.measureText(s).width; };
+    const pct = (x) => `${Math.round(x * 100)}%`;
+    const pc1 = (x) => `${(x * 100).toFixed(1).replace("-", "−")}%`;
+    const h1 = (x) => `${x.toFixed(1)} h`;
+    const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); if (text != null) e.textContent = text; return e; };
+    const html = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+    Promise.all([K.data("failures.json"), K.data("facts.json")]).then(([D, F]) => {
+      const tip = K.tip(root), M = Object.fromEntries(D.models.map((m) => [m.key, m])), cap = F.eval.calls;
+      const cf = D.beam_cf, sign = (x) => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(3)}`;
+      const PROFILE = {
+        beam: (m) => [`Stops offering ${h1(m.last_offer_h)} before the window ends, about a day.`, `${pct(m.rt_dam)} of its real-time intervals fell back to its day-ahead curve.`,
+          `Asks the planner with the default physical position in ${pct(m.opt_physical)} of calls; replaying its runs with the anchor's question adds ${sign(cf.dC)} C [${sign(cf.ci[0])}, ${sign(cf.ci[1])}].`],
+        opus: (m) => [`Calls the planner at only ${pct(m.opt_wakes)} of decision wakes.`, `Stops offering ${h1(m.last_offer_h)} before the end, but its real-time stays live: ${pct(m.rt_live)} of intervals on a live curve.`],
+        sol: (m) => [`Trades to the end: its last offer stands ${h1(m.last_offer_h)} before the window closes.`, `${pct(m.rt_live)} of real-time intervals on a live curve, ${pct(m.refused)} of submits refused.`, "No process failure stands out."],
+        dsflash: (m) => [`${pct(m.refused)} of its submits refused, and ${m.dam_days_no_curve.toFixed(1)} day-ahead days per window with no curve at the gate.`, `Yet second on the board, at C ${pc1(m.C)}.`],
+        glm: (m) => [`Stops offering ${h1(m.last_offer_h)} before the end.`, `Asks the planner with the physical position in ${pct(m.opt_physical)} of calls.`],
+        haiku: (m) => [`Stops offering ${h1(m.last_offer_h)} before the end.`, `${pct(m.rt_dam)} of its real-time intervals ran on the day-ahead curve.`],
+        qwen9b: (m) => { const s = M["qwen9b-sft"]; return [`${pct(m.refused)} of its submits refused, ${m.cap_turns.toFixed(1)} turns per window at the ${cap}-call cap.`, `Stops offering ${h1(m.last_offer_h)} before the end.`,
+          `After desk SFT it copies the planner (${pct(s.copied)} of submits), and C goes from ${pc1(m.C)} to ${pc1(s.C)}.`]; },
+      };
+      let sel = null;
+      const bar = html("div", "pick");
+      bar.setAttribute("role", "group");
+      bar.setAttribute("aria-label", "Highlight a model");
+      const card = html("div", "card");
+      card.hidden = true;
+      root.append(bar, card);
+      const panels = [1, 2, 3].map(() => { const d = html("div"); root.appendChild(d); return d; });
+      for (const k of [null, ...PICK]) {
+        const b = html("button", "", k ? M[k].name : "All models");
+        b.type = "button";
+        b.setAttribute("aria-pressed", String(k === sel));
+        b.addEventListener("click", () => { sel = k; bar.querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", String([null, ...PICK][i] === sel))); render(); });
+        bar.appendChild(b);
+      }
+      document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
+
+      function rows(svg, list, W, L, rowH, top, draw, tipOf) {
+        list.forEach((m, i) => {
+          const y = top + i * rowH + rowH / 2, g = el("g", { class: `row${sel && m.key !== "anchor" ? (m.key === sel ? " on" : " dim") : ""}` });
+          g.appendChild(el("text", { x: L - 8, y: y + 4.5, class: "t-name", "text-anchor": "end" }, m.name));
+          draw(g, m, y);
+          const hit = el("rect", { x: 0, y: y - rowH / 2, width: W, height: rowH, class: "hit", tabindex: 0, role: "img", "aria-label": tipOf(m).map((r) => r.join(" ")).join(", ") });
+          const build = (box) => { K.t.title(box, m.name, m.key === "anchor" ? "var(--ink)" : `var(--c-${COLOR[m.key] || m.key})`); tipOf(m).forEach(([a, v]) => K.t.row(box, a, v)); };
+          for (const ev of ["pointerenter", "pointermove", "pointerdown"]) hit.addEventListener(ev, (e) => tip.show(build, e));
+          hit.addEventListener("pointerleave", (e) => { if (e.pointerType !== "touch") tip.hide(); });
+          hit.addEventListener("focus", () => tip.show(build, { target: hit }));
+          hit.addEventListener("blur", () => tip.hide());
+          g.appendChild(hit);
+          svg.appendChild(g);
+        });
+      }
+
+      function panel(div, q, how, keyItems) {
+        div.replaceChildren(html("p", "q", q), html("p", "how", how));
+        if (keyItems) { const k = html("div", "key"); for (const [cls, t] of keyItems) { const s = html("span"); const i = html("i", cls); i.style.background = `var(--${cls === "live" ? "primary-color" : cls === "dam" ? "ink-3" : "c-bad"})`; s.append(i, t); k.appendChild(s); } div.appendChild(k); }
+        const svg = el("svg", { class: "chart" });
+        div.appendChild(svg);
+        return svg;
+      }
+
+      function render() {
+        const W = Math.max(300, Math.floor(root.clientWidth || 640)), rowH = W < 560 ? 21 : 20;
+        const L = Math.ceil(Math.max(...D.models.map((m) => measure(m.name, 13)), measure("The planner (anchor)", 13))) + 14, R = W - 8;
+        card.hidden = !sel;
+        if (sel) { card.replaceChildren(); const t = html("b", "", M[sel].name); const ul = html("ul"); PROFILE[sel](M[sel]).forEach((x) => ul.appendChild(html("li", "", x))); card.append(t, ul); }
+
+        const s1 = panel(panels[0], "Do they keep trading to the end?", `Hours between each model's last accepted offer and the window's end, the mean over its windows. The more hours a model leaves its last offer standing, the lower it scores: a rank correlation of ${D.corr.last_offer_vs_C_models.toFixed(2).replace("-", "−")} across the models.`);
+        const a = [...D.models].sort((x, y) => x.last_offer_h - y.last_offer_h), cut = 25, x1 = (v) => L + (Math.min(v, cut) / cut) * (R - L - 46);
+        rows(s1, a, W, L, rowH, 6, (g, m, y) => {
+          g.appendChild(el("line", { x1: L, x2: x1(m.last_offer_h), y1: y, y2: y, class: "stem" }));
+          g.appendChild(el("circle", { cx: x1(m.last_offer_h), cy: y, r: 5, fill: `var(--c-${COLOR[m.key] || m.key})` }));
+          g.appendChild(el("text", { x: x1(m.last_offer_h) + 9, y: y + 4, class: "t-val" }, m.last_offer_h > cut ? `${h1(m.last_offer_h)} →` : h1(m.last_offer_h)));
+        }, (m) => [["last offer", `${h1(m.last_offer_h)} before the end`], ["C", pc1(m.C)], ["windows", String(m.n)]]);
+        let b1 = 6 + a.length * rowH;
+        for (const v of [0, 6, 12, 18, 24]) { s1.insertBefore(el("line", { x1: x1(v), x2: x1(v), y1: 4, y2: b1, class: "grid" }), s1.firstChild); s1.appendChild(el("text", { x: x1(v), y: b1 + 16, class: "t-tick", "text-anchor": "middle" }, `${v} h`)); }
+        s1.setAttribute("viewBox", `0 0 ${W} ${b1 + 22}`); s1.setAttribute("width", W);
+
+        const s2 = panel(panels[1], "Do their real-time offers stay live?", "Each bar splits a model's 5-minute real-time intervals by what they settled on: its own live real-time curve, its day-ahead curve carried over, or a proxy. The desk's planner is the reference row.", [["live", "live real-time curve"], ["dam", "day-ahead curve"], ["proxy", "proxy"]]);
+        const anchor = { key: "anchor", name: "The planner (anchor)", ...D.anchor };
+        const b = [anchor, ...[...D.models].sort((x, y) => y.rt_live - x.rt_live)], x2 = (v) => L + v * (R - L);
+        rows(s2, b, W, L, rowH, 6, (g, m, y) => {
+          let x = L;
+          for (const [k, cls] of [["rt_live", "live"], ["rt_dam", "dam"], ["rt_proxy", "proxy"]]) { const w = x2(m[k]) - L; if (w > 0) g.appendChild(el("rect", { x, y: y - 6, width: w, height: 12, class: cls })); x += w; }
+        }, (m) => [["live real-time curve", pct(m.rt_live)], ["day-ahead curve", pct(m.rt_dam)], ["proxy", pct(m.rt_proxy)]]);
+        const b2 = 6 + b.length * rowH;
+        for (const v of [0, 0.5, 1]) s2.appendChild(el("text", { x: x2(v), y: b2 + 16, class: "t-tick", "text-anchor": v ? (v === 1 ? "end" : "middle") : "start" }, pct(v)));
+        s2.setAttribute("viewBox", `0 0 ${W} ${b2 + 22}`); s2.setAttribute("width", W);
+
+        const s3 = panel(panels[2], "Does the desk accept their offers?", `The share of each model's submits the desk refused, for breaking its rules or arriving after a gate; hover for the turns a window that hit the ${cap}-call cap.`);
+        const c = [...D.models].sort((x, y) => x.refused - y.refused), top3 = Math.max(...c.map((m) => m.refused)), x3 = (v) => L + (v / top3) * (R - L - 40);
+        rows(s3, c, W, L, rowH, 6, (g, m, y) => {
+          g.appendChild(el("rect", { x: L, y: y - 6, width: Math.max(1, x3(m.refused) - L), height: 12, class: "bar" }));
+          g.appendChild(el("text", { x: x3(m.refused) + 6, y: y + 4, class: "t-val" }, pct(m.refused)));
+        }, (m) => [["submits refused", pct(m.refused)], [`turns at the ${cap}-call cap`, `${m.cap_turns.toFixed(1)} a window`]]);
+        const b3 = 6 + c.length * rowH;
+        s3.setAttribute("viewBox", `0 0 ${W} ${b3 + 8}`); s3.setAttribute("width", W);
+      }
+
+      render();
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = "The failure charts did not load: " + e.message; });
+  })();
+</script>
