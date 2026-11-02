@@ -36,22 +36,205 @@ tags:
 
 # GridSimEnv Desk
 
-<!-- pitch -->
+GridSimEnv hands an AI agent the trading desk of a real battery on the Texas grid. For three days at a time, while a real
+heat wave or winter storm sweeps across Texas, it reads ERCOT's prices and forecasts as they were posted, bids the
+battery into the power markets and decides when to charge and when to sell. Every window is settled in dollars and
+scored against the best plan hindsight allows. We put {F.env.models} AI models through {F.env.windows} of these windows,
+and in the {F.duel.front} most of them out-earned the real operator at {F.duel.most} of the {F.env.sites_word}
+batteries.
 
-<!-- gif -->
+<!-- film -->
 
-<!-- bench -->
+## Before and after: the real operator and the agents
 
-<!-- earlier -->
+Every window also happened for real. The battery's own operator traded those same three days, and ERCOT publishes what
+each battery did 60 days later: its day-ahead awards, its output and its charge every five minutes
+([NP3-966-ER](https://www.ercot.com/mp/data-products/data-product-details?id=NP3-966-ER),
+[NP3-965-ER](https://www.ercot.com/mp/data-products/data-product-details?id=NP3-965-ER)). That gives each window a before
+and an after. Here are the {F.duel.n} windows where the agents most clearly beat the operator, all on the
+{F.duel.span} {F.duel.kind}, after every reported training cutoff. Each shows the operator beside the run that made the
+most there, {F.duel.best}'s.
 
-## Quick start
+<!-- duel -->
 
-<!-- quickstart -->
+Most of each gap is day-ahead trading. Through most of this heat wave the day-ahead price ran above real time, and
+{F.duel.best} sold far more energy a day ahead than the battery could deliver, then bought it back in real time,
+cheaper; other models traded the same way on a smaller scale. ERCOT's day-ahead market allows such positions because it
+ignores a battery's charge; its credit screening, not modelled here, would limit them. They do not always pay: on the
+next front, {F.duel.next.span}, real-time prices spiked to about {F.duel.next.rt} a MWh, and the operator came out ahead
+of at least {F.duel.next.behind} of the models at each of its {F.duel.next.sites} batteries.
 
-## The desk
+## Try it
 
-**An agent trades one real ERCOT battery from the day-ahead market through real time, on ERCOT's own market objects
-and on data as ERCOT posted it, graded in dollars against the hindsight optimum and the battery's real operator.**
+GridSimEnv's [OpenEnv Space]({F.tryit.space}) runs the environment live. Load a window and run the desk with the
+agents' own {F.tryit.tools} tools, call budget and grade: ask the optimizer, send its offers, end your turn and watch the
+market play out beside the battery in 3D, then see how you rank against the real operator and the {F.env.models}
+models.
+
+<!-- tryit -->
+
+## Why it matters
+
+A grid battery makes its money on decisions: when to charge, when to sell and how much to hold in reserve, around the
+clock in ERCOT's day-ahead and real-time markets. The same hardware earns very different amounts depending on who bids
+it, so closing that gap is revenue without a single new battery, and well-timed batteries put power on the grid exactly
+when it is scarcest, on heat-wave evenings and storm mornings.
+
+<!-- tiles -->
+
+That work is done today by round-the-clock trading desks and
+[bidding software](https://fluenceenergy.com/mosaic-for-ercot/); an AI agent with the same forecasts, notices and rules
+could watch every interval, act on news in seconds and let one desk run far more batteries. No one should hand a real
+battery to an untested agent, though: here, one bad position in a price spike
+[lost {F.eval.watch.lost} in a single window](#watch-a-rollout), nearly twice what the same model made at the same
+battery a week earlier. GridSimEnv is where to test and train them first: real ERCOT days, the desk's own tools and
+rules, and every window settled in dollars against hindsight and the battery's real operator.
+
+## The eval
+
+{F.header.models} models ran all {F.env.windows} windows once, each in its maker's own harness ({F.eval.closed}) or in
+{F.eval.open}, with the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most {F.eval.turns} wake-ups a
+window.
+
+<!-- pareto -->
+
+- **{F.eval.lead.a.name} leads at {F.eval.lead.a.C}** of the best possible profit, for {F.eval.lead.a.usd} a window.
+  {F.eval.lead.b.name} is close behind at {F.eval.lead.b.C} for {F.eval.lead.b.usd}; the 95% CI on the gap,
+  {F.eval.lead.lo} to {F.eval.lead.hi} points, includes zero.
+- **Every model scores lower in {F.eval.halves.post} than in {F.eval.halves.pre}**, even {F.eval.halves.old}, trained
+  before any window: the later fronts are harder, not just unseen. On {F.duel.next.span}, a real-time spike to about
+  {F.duel.next.rt} left {F.eval.halves.lost} of the {F.env.models} models in the red.
+- **What to train next: re-planning to the end.** Models that keep sending offers into a window's last hours capture
+  more, a rank correlation of {F.eval.replan.rho} across the {F.env.models}: {F.eval.replan.a}'s last offers come
+  {F.eval.replan.ah} hours before the end, {F.eval.replan.b}'s {F.eval.replan.bh}. Distilling the desk's own planner
+  already lifted {F.eval.replan.base} from {F.eval.replan.baseC} to {F.eval.replan.sftC}, near the planner's
+  {F.eval.replan.planner}.
+
+<!-- board -->
+
+### Watch a rollout
+
+All {F.eval.runs} runs replay in the [viewer Space]({F.eval.viewer}): the battery site in 3D in its real light and
+weather, each wake-up's tool calls and what the agent wrote, the market and the battery as they moved, and the grade.
+
+<!-- rollout -->
+
+### How the reward works
+
+Every window ends in an ERCOT settlement statement: day-ahead and real-time energy, reserves, imbalance and battery
+wear, priced by the market's own rules. The score is that statement's total P, so it is deterministic, with no judge
+model and no sampling. Capture C places P between doing nothing and perfect hindsight,
+C = (P − P<sub>idle</sub>) / (P<sub>hind</sub> − P<sub>idle</sub>): 0% at idle, 100% at hindsight, below zero for a run
+that does worse than idling. The contract's reward R runs from 0.2 at idle to 1 at the desk's own planner,
+R = 0.2 + 0.8 (P − P<sub>idle</sub>) / (P<sub>plan</sub> − P<sub>idle</sub>) clipped to 0 and 1, with the planner's
+margin over idle counted as at least a tenth of the physical hindsight's; it is 0 for a run with no accepted offer.
+
+<!-- reward -->
+
+The references are settled the same way. Hindsight is the best plan the market's rules allow with every price, award
+and deployment of the window known in advance, one linear program solved by the same optimiser the agents can call.
+Idle sends no offers. The planner is that optimiser re-planning at every wake-up on exactly what the agent can see. The
+real operator appears twice: its own disclosed bids replayed through the same clearing and settlement, and what it
+actually did, settled on the same statement. Offers the desk's checks refuse change nothing.
+
+On the film's window {F.reward.name} settles {F.reward.P}, idle settles {F.reward.idle} and hindsight {F.reward.hind},
+so C = ({F.reward.P} − {F.reward.idle}) / ({F.reward.hind} − {F.reward.idle}) = {F.reward.C}. It beat the planner's
+{F.reward.plan}, so its R is capped at 1.
+
+## Training on GridSimEnv
+
+We fine-tuned {F.train.base_name} with TRL on transcripts of the desk's own planner, which calls `optimize` and submits
+its proposal. AgentEnv captured them by playing the planner through OpenCode on {F.train.windows} training windows whose
+operating days stay clear of the benchmark's, and the model learned to make the same calls, with a short rationale at
+each wake-up.
+
+**The recipe**
+
+<table>
+<tr><td><b>Data</b></td><td>{F.train.windows} three-day training windows; {F.train.rows} rows, three a window; {F.train.kept} after the {F.train.cap}-token cap, about {F.train.tokens} tokens, {F.train.trained} of them trained</td></tr>
+<tr><td><b>Model</b></td><td>{F.train.base_name}, LoRA r {F.train.rank} / α {F.train.alpha} on all linear layers</td></tr>
+<tr><td><b>Training</b></td><td>TRL SFTTrainer, lr {F.train.lr}, {F.train.epochs} epoch, {F.train.steps} steps, gradient accumulation {F.train.accum}; activations offloaded to CPU, so rows up to {F.train.cap} tokens fit on one {F.train.mem} GiB GPU ({F.train.gpu_name}, {F.train.box} spot), in {F.train.hours} h</td></tr>
+<tr><td><b>Eval</b></td><td>OpenCode with vLLM at a {F.train.ctx}-token context, the same harness for base and student</td></tr>
+<tr><td><b>Cost</b></td><td>about {F.train.gpu} of GPU for training and the evals on our own servers; the teacher is our own planner, so no LLM API spend</td></tr>
+<tr><td><b>Code</b></td><td><a href="{F.train.rows_code}">desk_distill_sft.py</a> and <a href="{F.train.code}">desk_distill_train.py</a>, and the <a href="{F.train.prereg}">pre-registration</a></td></tr>
+<tr><td><b>Guide</b></td><td><a href="{F.links.training}">AgentEnv's training docs</a>: TRL, Unsloth, NeMo RL, prime-rl, verl and SkyRL on AgentEnv environments</td></tr>
+</table>
+
+<!-- train -->
+
+- **Benchmark:** {F.train.gain} points over the base model [{F.train.lo}, {F.train.hi}], better on {F.train.better} of
+  {F.train.n} windows. The fine-tuned 9B lands near the planner it copied ({F.train.sft} against {F.train.planner}), at
+  {F.train.usd} a window.
+- **Pre-registered primary test:** on {F.train.held} held-out training-period windows the gain was {F.train.hgain}
+  points [{F.train.hlo}, {F.train.hhi}], not significant; the planner itself is only {F.train.hplan} points above base
+  there.
+- **The earlier attempt:** GRPO alone on {F.train.base_name}, {F.train.grpo} steps, did not move the score; imitating a
+  strong policy moved it on the benchmark. What the model learned is the planner's habits: refused day-ahead offers
+  fell from {F.train.refused} to {F.train.refusedSft}.
+
+<small>One benchmark front, 8 to 10 May 2026, falls inside some training windows' spans, but only as their day-ahead
+price history, the week before their operating days; no training transcript names those dates. Base
+{F.train.base_name} was served by Fireworks on the benchmark and by our own vLLM on the held-out windows; the fine-tuned
+model by our own vLLM on both.</small>
+
+## Where models fail
+
+We replayed every one of the {F.eval.runs} benchmark runs on the frozen engine and measured how each model ran the desk.
+Three habits separate the top of the board from the bottom.
+
+<!-- fail -->
+
+## What's in this dataset
+
+<!-- inside -->
+
+## Data sources and licence
+
+| Data | Source | Licence |
+|---|---|---|
+| Day-ahead and real-time prices, reserve prices, system lambda and demand curves | ERCOT public reports NP4-190-CD, NP6-905-CD, NP6-788-CD, NP4-188-CD, NP6-332-CD, NP6-331-CD, NP4-212-CD and NP6-323-CD | ERCOT Website User Agreement, section 5; not relicensed |
+| Load, wind and solar, ERCOT's forecasts as issued, outages | ERCOT public reports NP6-345-CD, NP4-733-CD, NP4-738-CD, NP3-565-CD, NP4-742-CD, NP4-745-CD, NP3-233-CD and NP1-346-ER | ERCOT Website User Agreement, section 5 |
+| Market and operations notices | ERCOT notices | ERCOT Website User Agreement, section 5 |
+| The real operator's bids, awards and output; each battery's limits, round-trip efficiency and standby loss | ERCOT 60-day disclosures NP3-966-ER, NP3-965-ER and NP3-991-EX, and ERCOT's December 2025 CDR report | ERCOT Website User Agreement, section 5; only derived values are published |
+| Weather alerts | NWS watches, warnings and advisories, through the Iowa Environmental Mesonet's VTEC archive | public domain (NWS) |
+| Weather in the replays | ASOS observations, from the Iowa Environmental Mesonet, Iowa State University | public domain (NWS, FAA), credited as the IEM asks |
+| Temperatures that located the fronts | NOAA HRRR model runs | public domain (NOAA) |
+| Solar capacity behind the modelled PV | U.S. Energy Information Administration, Form EIA-860M | public domain |
+| The desk's price forecast | desk-qr-v1, fitted in the plugin on ERCOT's posted prices and forecasts | Apache-2.0 code; ERCOT's terms for the data |
+| The battery sites in 3D | procedural, built in code; three.js | CC0; MIT |
+| The clearing, settlement, grader and environment, and the scripts that build this dataset | `gridsim_core` and the plugin | Apache-2.0 |
+
+The dataset carries several sets of terms, hence `license: other`; the plugin's
+[data/LICENSE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE) holds the ERCOT
+terms in full and [NOTICE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/NOTICE) sets out each
+source. ERCOT data is used under ERCOT's Website User Agreement, section 5, quoted from <https://www.ercot.com/help/terms>:
+
+> 5. The information presented on this website has been compiled by or for ERCOT for general information purposes
+> only. The publicly available contents of this website may be used, reproduced, and redistributed, provided that the
+> contents are not modified and that you maintain all copyright and other notices contained in the contents,
+> including this Agreement. Notwithstanding the foregoing, raw data provided in public portions of this website may
+> be used, reproduced, and redistributed in compilations, charts, and analyses without maintaining such notices.
+> ERCOT does not guarantee the accuracy of any such compilations, charts, or analyses.
+
+The ERCOT data is not relicensed, and anyone using it is bound by ERCOT's terms. No disclosure file is in this
+dataset, and no resource, node, QSE or operator name: the four batteries appear only as anonymous cards (Battery S01
+to S04) by region and size. Source: ERCOT. GridSimEnv is not affiliated with or endorsed by ERCOT, NOAA, the EIA or
+the Iowa Environmental Mesonet.
+
+## Links
+
+- **Article:** [huggingface.co/spaces/earakely-scale/GridSimEnv](https://huggingface.co/spaces/earakely-scale/GridSimEnv)
+- **Environment:** [huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv]({F.links.env})
+- **Replays:** [huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv]({F.links.replays})
+- **Results:** [every model on every window, in the viewer Space]({F.links.results})
+- **Code:** [github.com/earakely-scale/agentenv-gridsim-plugin]({F.links.code})
+- **Pre-registration:** [docs/prereg/v4-bench.md]({F.links.prereg})
+- **Training guide:** [agentenvframework.com/docs/training]({F.links.training})
+
+## More on the benchmark
+
+<details>
+<summary><b>The desk</b>: what the agent does, its eleven tools, how time moves and what a window settles</summary>
 
 - **A real battery, ERCOT's own objects.** The agent is the battery trader at a qualified scheduling entity (QSE) for
   one real ERCOT energy storage resource at its own node, from 06:00 the day before to midnight on the operating day
@@ -61,14 +244,9 @@ and on data as ERCOT posted it, graded in dollars against the hindsight optimum 
 - **Time moves on its own.** The clock stands still while the agent works. It wakes at the market's milestones, at
   each notice, outage and reserve deployment at its real minute and at reminders it sets, and sees each price,
   forecast and report only once ERCOT posted it.
-- **Graded in dollars.** P is the battery's settled ERCOT statement. The headline is C, the share of the hindsight
-  optimum's profit over idle that the desk captures; R, the environment's reward, is reported beside it.
 - **Against the real operator.** ERCOT discloses every resource's bids, awards and metered output 60 days later. Each
   task replays the real operator's own bids through the same clearing and settlement, and settles its actual awards and
   output the same way.
-- **Three versions (v2–v4) plus a price-impact check (v5).** Each version adds one kind of realism to the same desk:
-  v2 trades energy alone, v3 adds ERCOT's reserves and a solar option, v4 three-day weather fronts. v5 re-runs v3's
-  battery-days with the desk's own day-ahead offers re-clearing the market.
 
 <!-- ladder -->
 
@@ -88,18 +266,23 @@ moves the clock there, and the environment runs the market forward to that minut
 day-ahead price (in the v5 price-impact check, at a price re-cleared against the day's real offers with the desk's
 own), every 5-minute dispatch run clears the curve in force at the node's real price within the battery's limits and
 state of charge, and each 15-minute interval settles. A 5-minute price becomes visible one minute after its interval,
-a 15-minute price two minutes after, each forecast vintage as issued and each notice at its minute. The runs here play
-the same desk in process; the environment's tests check that both paths give byte-identical tool outputs and wake-ups.
+a 15-minute price two minutes after, each forecast vintage as issued and each notice at its minute.
 
-**How a task is graded.** P sums the statement's lines: DAM energy, RT imbalance at the node's 15-minute price,
-set-point deviation charges, from v3 ancillary-service capacity and imbalance, and the modelled lines. C = (P −
-P<sub>idle</sub>) / (P<sub>hind</sub> − P<sub>idle</sub>), against the hindsight optimum, which knows every price in
-advance and may hold DAM/RT spread positions. The reward is R = clip(0.2 + 0.8 (P − P<sub>idle</sub>) / d, 0, 1)
-with d = max(P<sub>anchor</sub> − P<sub>idle</sub>, 0.1 (P<sub>hind,phys</sub> − P<sub>idle</sub>)): idle scores
-0.2 and the anchor 1.0, and the floor keeps R defined where the anchor barely beats idle. No valid submission scores
-R = 0.
+**What P sums.** The statement's lines: DAM energy, RT imbalance at the node's 15-minute price, set-point deviation
+charges, from v3 ancillary-service capacity and imbalance, and the modelled lines. The hindsight optimum may hold
+DAM/RT spread positions; its variant with the DAM position tied to dispatch is reported beside it.
 
-## Methods
+</details>
+
+<details>
+<summary><b>How the benchmark ran</b>: harnesses, settings, cost and reliability</summary>
+
+<!-- how -->
+
+</details>
+
+<details>
+<summary><b>Methods</b>: pre-registration, references and uncertainty</summary>
 
 - **Pre-registered, then frozen.** The three versions (v2–v4) plus a price-impact check (v5) each had a
   pre-registration committed before the first scored episode
@@ -109,79 +292,54 @@ R = 0.
   [v5](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/docs/prereg/v5-desk.md)): the pack, the
   models and their settings, the references, what is reported and the prior. The code is frozen at a tag before any
   scored run (`desk-v2-freeze`, `desk-v3-freeze`, `desk-v4-freeze` and `desk-v5-freeze`). Nothing is rerun to improve
-  a score, and anything done differently is logged as a deviation in the pre-registration; v4's are also stated
-  beside its results.
+  a score, and anything done differently is logged as a deviation in the pre-registration.
 - **Reviewed and piloted.** A review of the environment before v2's runs found two information-timing leaks, fixed
   before any scored episode. Each version is then piloted on one or two tasks before its eval; the pilots are
   mechanics checks, not results.
-- **The v4 benchmark** plays v4's desk, frozen at `desk-v4-freeze`, on 32 windows (v4's 16 and 16 after every
-  model's training cutoff) with each model in a native agent harness, under a pre-registration of its own.
-  `scripts/desk_bench_results.py` scores a model's first attempt on a window that reached the grade, counts every
+- **The benchmark** plays v4's desk, frozen at `desk-v4-freeze`, on 32 windows (v4's 16 and 16 from July and August
+  2026, after every reported training cutoff) with each model in its own agent harness, under a pre-registration of its
+  own. `scripts/desk_bench_results.py` scores a model's first attempt on a window that reached the grade, counts every
   attempt in the cost, and never imputes a window a model did not finish.
 <!-- bench-rule -->
 - **Every grade replayed.** `scripts/desk_report.py` re-grades every Episode JSON against frozen references, and each
   version's `summary.json` records the references used and every difference from the runner's own grade.
-- **References on every task,** settled by the same clearing, physics and settlement code: idle; the anchor, the
-  desk's own optimiser re-planning at every wake on the same information, its risk setting and DAM basis chosen blind
-  on a separate tuning pack (`desk-v2-tune`); the hindsight optimum, and its variant with the DAM position tied to
-  dispatch; the real operator's disclosed bids, replayed, and its actual awards and metered output, settled.
+- **References on every task,** settled by the same clearing, physics and settlement code: idle; the planner (the
+  anchor), the desk's own optimiser re-planning at every wake on the same information, its risk setting and DAM basis
+  chosen blind on a separate tuning pack (`desk-v2-tune`); the hindsight optimum, and its variant with the DAM position
+  tied to dispatch; the real operator's disclosed bids, replayed, and its actual awards and metered output, settled.
 - **Uncertainty.** 95% CIs come from a block bootstrap over operating days (in v4, over the four weather fronts; in
   the benchmark, over its eight, four within each side of the cutoffs): 10,000 resamples, seed 0, task-weighted.
   Paired gaps resample the tasks both sides played.
-<!-- models -->
 
-## Limitations
+</details>
 
-- **DAM credit screening is not modelled.** ERCOT screens a QSE's day-ahead bids and offers against its available
-  credit; here, day-ahead positions are bounded only by the battery's MW limits. That favours large DAM/RT spread
-  positions, and the days where those paid carry most of v2's and v4's dollars.
-- **A known env defect in v3 to v5 (K1).** An empty `as_offers` list drew a spurious ASO-02 note while the energy
-  curves in the same call were accepted. It was fixed after the freezes; the reserve figures leave those calls out of
-  the refused offers.
-- **Modelled lines.** The co-located solar profile, degradation, warranty overage, the end-of-day energy charge and
-  the capacity-short charge are modelled and marked as such; so is the desk's own price forecast, built only from
-  data public at the time.
-- **One battery is a price taker.** In v2 to v4 the desk clears at the real prices; the v5 price-impact check
-  re-clears the DAM with the desk's own offers and shows that a 100–150 MW battery moves the day-ahead price by cents.
-- **One run per model per task, and small packs.** 16 to 32 tasks per version over four to eight blocks, so the CIs
-  are wide; the v5 check repeats v3's battery-days, and the gaps between the two runs are the scale of that noise.
+<details>
+<summary><b>Known limitations</b></summary>
 
-## Next steps
+<!-- limits -->
 
-- **A fleet desk:** a QSE trading a portfolio of batteries, bidding them into the DAM at once, where price impact can
-  matter.
-- **More runs per task,** to separate skill from run-to-run noise, and more model families on the same packs.
+</details>
 
-## What's inside
+<details>
+<summary><b>Deviations from the pre-registration</b>, one line each</summary>
 
-<!-- inside -->
+<!-- deviations -->
 
-## Data sources and licence
+</details>
 
-| Source | What it gives | Terms |
-|---|---|---|
-| ERCOT public reports: DAM and RT settlement point prices (NP4-190-CD, NP6-905-CD), SCED LMPs (NP6-788-CD), ancillary-service prices (NP4-188-CD, NP6-332-CD, NP6-331-CD), demand curves (NP4-212-CD), system lambda (NP6-323-CD), load, wind and solar (NP6-345-CD, NP4-733-CD, NP4-738-CD), forecasts as issued (NP3-565-CD, NP4-742-CD, NP4-745-CD), outage capacity (NP3-233-CD), unplanned outages (NP1-346-ER) and operations notices | what the desk sees, as ERCOT posted it | ERCOT's Website User Agreement, section 5; not relicensed |
-| ERCOT 60-day disclosures: DAM (NP3-966-ER), SCED (NP3-965-ER) and COP (NP3-991-EX) | the real operator's bids, awards and output, replayed and settled; each battery's calibrated round-trip efficiency and standby loss | the same; only derived values are published |
-| NWS watches, warnings and advisories, through the Iowa Environmental Mesonet's VTEC archive | the weather alerts that wake the desk | NWS data, public domain |
-| U.S. Energy Information Administration, Form EIA-860M | the solar capacity behind the modelled co-located PV | public domain |
-| `gridsim_core`, the environment and the scripts that build this dataset | the clearing, settlement, grader and env | Apache-2.0 |
+<details>
+<summary><b>Earlier versions</b>: v2 to v4 on the desk's own runner, and the v5 price-impact check</summary>
 
-The dataset carries several sets of terms, hence `license: other`; the plugin's
-[data/LICENSE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/data/LICENSE) holds the ERCOT
-terms in full and [NOTICE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/NOTICE) sets out each
-source. ERCOT data is used under ERCOT's Website User Agreement, section 5, quoted from <https://www.ercot.com/help/terms>:
+<!-- earlier -->
 
-> 5. The information presented on this website has been compiled by or for ERCOT for general information purposes
-> only. The publicly available contents of this website may be used, reproduced, and redistributed, provided that the
-> contents are not modified and that you maintain all copyright and other notices contained in the contents,
-> including this Agreement. Notwithstanding the foregoing, raw data provided in public portions of this website may
-> be used, reproduced, and redistributed in compilations, charts, and analyses without maintaining such notices.
-> ERCOT does not guarantee the accuracy of any such compilations, charts, or analyses.
+</details>
 
-The ERCOT data is not relicensed, and anyone using it is bound by ERCOT's terms. No disclosure file is in this
-dataset, and no resource, node, QSE or operator name: the four batteries appear only as anonymous cards (Battery S01
-to S04) by region and size. Source: ERCOT. GridSimEnv is not affiliated with or endorsed by ERCOT, NOAA, the EIA or
-the Iowa Environmental Mesonet.
+<details>
+<summary><b>Run it yourself</b>: the desk in process, and a benchmark window with <code>agent-env run</code></summary>
+
+<!-- quickstart -->
+
+</details>
 
 ## Citation
 
