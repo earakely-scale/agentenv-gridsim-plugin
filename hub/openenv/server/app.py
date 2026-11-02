@@ -34,7 +34,7 @@ def create_server():
     def builder(web_manager, action_fields, metadata, is_chat_env, title, quick_start_md):
         visitors = PerVisitor(GridSimDeskEnvironment, web_manager.action_cls, web_manager.observation_cls, metadata)
         playground = build_gradio_app(visitors, action_fields, metadata, is_chat_env, title=metadata.name,
-                                      quick_start_md=quick_start_md)
+                                      quick_start_md=installable(quick_start_md))
         return gr.TabbedInterface([build_try(), playground], ["Try Environment", "Playground"], title=TITLE)
 
     os.environ.setdefault("ENABLE_WEB_INTERFACE", "true")
@@ -57,6 +57,14 @@ def create_server():
         return {"status": "ok", "windows": {s: len(w.ids(s)) for s in w.splits()}}
 
     return app
+
+
+def installable(md: str) -> str:
+    """pip installs a git URL from a partial clone, which Hugging Face's git server cannot complete, so the quick start
+    clones the Space and installs the folder."""
+    space = os.environ.get("SPACE_ID", "")
+    return md.replace(f"pip install git+https://huggingface.co/spaces/{space}",
+                      f"git clone https://huggingface.co/spaces/{space}\npip install ./{space.split('/')[-1]}")
 
 
 def __getattr__(name: str):

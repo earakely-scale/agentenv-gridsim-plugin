@@ -1,6 +1,6 @@
 """The GridSimEnv Desk OpenEnv Space (hub/openenv): a recorded benchmark episode replays through it byte for byte, grade
 included; its budgets and its end are the desk's; the play page's view never runs past the desk's minute; and every
-WebSocket session and playground visitor plays alone."""
+WebSocket session and playground visitor plays alone; and the playground's quick start installs the client."""
 
 import asyncio
 import gzip
@@ -19,9 +19,10 @@ sys.path.insert(0, str(ROOT / "hub" / "openenv"))
 from fastapi.testclient import TestClient  # noqa: E402
 from gradio.context import LocalContext  # noqa: E402
 from openenv.core.env_server.mcp_types import CallToolAction, CallToolObservation, ListToolsAction  # noqa: E402
+from openenv.core.env_server.web_interface import get_quick_start_markdown, load_environment_metadata  # noqa: E402
 from server import environment, windows  # noqa: E402
-from server.app import create_server  # noqa: E402
-from server.environment import GridSimDeskEnvironment, describe  # noqa: E402
+from server.app import create_server, installable  # noqa: E402
+from server.environment import ENV_NAME, GridSimDeskEnvironment, describe  # noqa: E402
 from server.playground import PerVisitor  # noqa: E402
 
 from gridsim_core.desk import Session, clock, load_series, load_tasks, text  # noqa: E402
@@ -151,3 +152,12 @@ def test_the_playground_keeps_an_episode_per_visitor():
     asyncio.run(as_visitor("b"))
     a, b = (visitors.managers[k][0].env.s for k in ("a", "b"))
     assert a.turn == 2 and b.turn == 0 and a.now > b.now == clock.START
+
+
+def test_the_playgrounds_quick_start_installs_the_client_by_clone(monkeypatch):
+    monkeypatch.setenv("SPACE_ID", "someone/GridSimEnv-OpenEnv")
+    meta = load_environment_metadata(GridSimDeskEnvironment, ENV_NAME)
+    md = installable(get_quick_start_markdown(meta, CallToolAction, CallToolObservation))
+    assert "git+" not in md and "from gridsim_desk import GridSimDesk" in md
+    clone = "git clone https://huggingface.co/spaces/someone/GridSimEnv-OpenEnv\npip install ./GridSimEnv-OpenEnv\n"
+    assert clone in md
