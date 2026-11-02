@@ -271,9 +271,13 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
         settled = sum(x["dam_energy"] + x["rt_energy_imbalance"] for x in lines)
         assert abs(w["agent"]["energy"] + w["agent"]["position"] - settled) < 1
     data = hub_article.duel_data(pairs, s)
+    assert set(hub_article.MOMENTS) == picked
     for w in data["windows"]:
         assert (len(w["da"]), len(w["rt"]), len(w["op"]["soc"]), len(w["agent"]["sold"])) == (72, 288, 288, 72)
         assert w["agent"]["sold_mwh"] in w["why"] and w["op"]["p"] < w["agent"]["p"]
+        m = w["moment"]
+        assert m["href"] == f"{w['replay']}&t={m['t']}" and m["img"] == f"/media/moment-{w['site'][-3:]}.webp"
+        assert m["text"].startswith(f"Sol discharges {w['p_max']:.0f} MW") and m["when"] in m["alt"]
     f = {"env": hub_article.env(s, hub_dataset), "lead": lead,
          "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset)}
     hub_article.check_prose(f)

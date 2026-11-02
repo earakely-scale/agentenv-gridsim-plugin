@@ -22,7 +22,7 @@ import json
 import re
 import subprocess
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from html import unescape
 from pathlib import Path
 
@@ -36,6 +36,18 @@ DATA = APP / "src" / "content" / "assets" / "data"
 CHAPTERS = APP / "src" / "content" / "chapters"
 MEDIA = APP / "public" / "media"
 FILMS = {MEDIA / "gridsim-run.mp4": 10, MEDIA / "gridsim-run.gif": 10}
+MOMENT_KB = 400
+MOMENTS = {
+    "desk-v4-2026-08-18-S01": {"t": 4080, "kind": "delivers", "shot": "push", "drift": 0.3, "crop": 0.5,
+                               "scene": "the yard at sunset, its containers lit as they discharge"},
+    "desk-v4-2026-08-18-S02": {"t": 4160, "kind": "delivers", "shot": "city", "drift": 0.3, "crop": 0.85,
+                               "scene": "the line carrying the battery's power toward the city's lights at night"},
+    "desk-v4-2026-08-18-S03": {"t": 1170, "kind": "peak", "shot": "establish", "drift": 0.3, "crop": 0.5,
+                               "scene": "the whole yard at dusk, discharging into the line"}}
+"""Each before and after card's moment in 3D: a minute of the run that tells its story, a camera shot of the viewer's
+director, and what the picture shows. The caption's values come from the run and the operator's records at that
+minute, and must bear out its kind: "delivers", the run discharging at full power what it sold a day ahead for that
+hour while the operator holds back; "peak", the run discharging at full power into the window's highest price."""
 SPACE = "earakely-scale/GridSimEnv"
 MDX = APP / "src" / "content" / "article.mdx"
 README = ARTICLE / "README.md"
@@ -84,6 +96,7 @@ def main():
     describe(out["facts.json"]["header"], out["facts.json"]["lead"])
     check_prose(out["facts.json"])
     check_film()
+    check_moments(out["duel.json"])
     leaks(files_to_publish())
     hk = module("hub_desk", "scripts/hub_desk.py")
     hk.anonymous(texts(files_to_publish()), hk.names(args.desk_repo))
@@ -245,9 +258,35 @@ def duel_data(pairs: list[dict], s: dict) -> dict:
                     "op": side(w["op"], w["e_max"]),
                     "agent": side(w["agent"], w["e_max"]) | {"key": b["model"], "name": m["name"]},
                     "n": w["n"], "ahead": w["ahead"], "why": why(w, m.get("tag") or m["name"]), "replay": w["replay"],
-                    "table": table(w)})
+                    "table": table(w), "moment": moment(w, m.get("tag") or m["name"])})
     return {"windows": out, "source": "ERCOT's 60-day disclosures for the operator; the benchmark's episodes for the "
                                       "agents; ERCOT's node prices"}
+
+
+def moment(w: dict, name: str) -> dict:
+    """The card's moment in 3D (MOMENTS): the picture's file, its link to that minute of the run in the viewer, and its
+    caption, checked against what the run and the operator did then."""
+    spec = MOMENTS.get(w["task"])
+    if spec is None:
+        raise SystemExit(f"{w['task']} has no moment in 3D: pick one in hub_article.MOMENTS")
+    t, cap = spec["t"], w["p_max"]
+    mw, op, rt = w["agent"]["mw"][t // 5], w["op"]["mw"][t // 5], w["rt"][t // 15]
+    da, sold = w["da"][t // 60], w["agent"]["award"][t // 60]
+    them = "the real operator's battery sits idle" if abs(op) < 2 else f"the real operator puts out {op:.0f} MW"
+    if spec["kind"] == "delivers" and mw >= 0.95 * cap and sold >= 0.95 * cap and op < 0.3 * cap:
+        text = (f"{name} discharges {mw:.0f} MW that it sold a day ahead at {usd(da)} a MWh, while the real-time "
+                f"price is {usd(rt)}; {them}.")
+    elif spec["kind"] == "peak" and mw >= 0.95 * cap and rt == max(w["rt"]) and op < mw:
+        text = f"{name} discharges {mw:.0f} MW into the window's highest real-time price, {usd(rt)} a MWh; {them}."
+    else:
+        raise SystemExit(f"{w['task']} at minute {t} is not a {spec['kind']!r} moment: {name} {mw:.0f} MW, sold "
+                         f"{sold:.0f} MW a day ahead, operator {op:.0f} MW, real time {usd(rt)}")
+    day = date.fromisoformat(w["g"]["dates"][0]) + timedelta(t // 1440)
+    when = f"{day:%a} {day.day} {day:%b}, {t % 1440 // 60:02d}:{t % 60:02d}"
+    site = w["g"]["site"]
+    return {"t": t, "when": when, "text": text, "img": f"/media/moment-{site}.webp", "href": f"{w['replay']}&t={t}",
+            "alt": f"Watch in 3D: {name}'s run at Battery {site} ({w['g']['region']}), {when}, {spec['scene']}",
+            **{x: spec[x] for x in ("shot", "drift", "crop")}}
 
 
 def side(x: dict, e_max: float) -> dict:
@@ -380,6 +419,21 @@ def describe(head: dict, lead_: dict) -> None:
         path.write_text(text)
 
 
+def check_moments(duel: dict) -> None:
+    """The cards' pictures ship with the Space, like the films: each must be in place, a WebP, at most MOMENT_KB."""
+    for w in duel["windows"]:
+        path = APP / "public" / w["moment"]["img"].lstrip("/")
+        if not path.is_file():
+            raise SystemExit(f"{path.relative_to(ROOT)} is missing: render it with scripts/hub_desk_film.py --moments "
+                             f"{(DATA / 'duel.json').relative_to(ROOT)} --out {path.parent.relative_to(ROOT)}")
+        head = path.read_bytes()[:12]
+        if head[:4] != b"RIFF" or head[8:12] != b"WEBP" or path.stat().st_size > MOMENT_KB * 1e3:
+            raise SystemExit(f"{path.name} is not a WebP of at most {MOMENT_KB} kB")
+    print(f"moments: {len(duel['windows'])} pictures in 3D, "
+          f"{max((APP / 'public' / w['moment']['img'].lstrip('/')).stat().st_size for w in duel['windows']) / 1e3:.0f}"
+          " kB at most")
+
+
 def check_film() -> None:
     """The films ship with the Space, not the repository: they must be in place before a build or a publish, the MP4
     with its index ahead of its media so it plays as it loads."""
@@ -404,6 +458,9 @@ def check_rendered(f: dict) -> None:
                if not (f'href="{known[e]}"' in links if known[e].startswith("https://")
                        else known[e] in text or f'"{known[e]}"' in links)]
     missing += [f"media/{p.name}" for p in FILMS if not (APP / "dist" / "media" / p.name).is_file()]
+    duel = json.loads((DATA / "duel.json").read_text())
+    missing += [w["moment"]["img"] for w in duel["windows"]
+                if not (APP / "dist" / w["moment"]["img"].lstrip("/")).is_file()]
     pitch, shown = f["header"]["pitch"], {
         "the subtitle": re.findall(r'<p class="hero-desc"[^>]*>([^<]*)<', html),
         **{f"the {k} description": re.findall(rf'<meta {a}="{k}" content="([^"]*)"', html)
@@ -412,7 +469,7 @@ def check_rendered(f: dict) -> None:
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
     print(f"rendered check: all {len(used)} facts on the page as formatted, the header's line in the subtitle and the "
-          "page's descriptions, and the films")
+          "page's descriptions, the films and the cards' pictures")
 
 
 def files_to_publish() -> dict[str, Path]:
