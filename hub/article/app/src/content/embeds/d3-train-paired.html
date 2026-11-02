@@ -1,0 +1,145 @@
+<div class="gs-train"></div>
+<style>
+  .gs-train { position: relative; --ink: var(--text-color); --ink-2: color-mix(in srgb, var(--text-color) 80%, var(--surface-bg)); --ink-3: var(--muted-color); --line: var(--grid-color); --halo: var(--surface-bg); --base: color-mix(in srgb, var(--text-color) 38%, var(--surface-bg)); }
+  .html-embed__card.is-frameless .gs-train { --halo: var(--page-bg); }
+  .gs-train svg { display: block; overflow: visible; font-family: inherit; max-width: 100%; height: auto; }
+  .gs-train svg text { paint-order: stroke; stroke: var(--halo); stroke-width: 4px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
+  .gs-train .t-head { font-size: 16px; font-weight: 650; fill: var(--ink); }
+  .gs-train .t-sub, .gs-train .t-tick, .gs-train .t-unit { font-size: 13px; fill: var(--ink-3); }
+  .gs-train .t-key { font-size: 13px; font-weight: 560; fill: var(--ink-2); }
+  .gs-train .t-win { font-size: 12px; fill: var(--ink-3); }
+  .gs-train .t-mean { font-size: 13.5px; font-weight: 700; fill: var(--ink); }
+  .gs-train .t-val { font-size: 12.5px; font-weight: 600; fill: var(--ink-2); }
+  .gs-train .grid { stroke: var(--line); stroke-width: 1; }
+  .gs-train .zero { stroke: var(--ink-3); stroke-width: 1.25; }
+  .gs-train .band { fill: color-mix(in srgb, var(--text-color) 3.5%, transparent); }
+  .gs-train .sep { stroke: var(--line); stroke-width: 1; }
+  .gs-train .up { stroke: color-mix(in srgb, var(--c-qwen9bsft) 55%, transparent); stroke-width: 2.2; }
+  .gs-train .down { stroke: color-mix(in srgb, var(--c-bad) 65%, transparent); stroke-width: 2.2; }
+  .gs-train .mean-line { stroke: var(--c-qwen9bsft); stroke-width: 3.4; }
+  .gs-train .b { fill: var(--base); stroke: var(--halo); stroke-width: 1.2; }
+  .gs-train .s { fill: var(--c-qwen9bsft); stroke: var(--halo); stroke-width: 1.2; }
+  .gs-train .plan { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+  .gs-train .lead { stroke: var(--c-sol); stroke-width: 1.4; stroke-dasharray: 4 3; }
+  .gs-train .hit { fill: transparent; cursor: pointer; outline: none; }
+  .gs-train .hit:focus-visible { stroke: var(--ink); stroke-width: 1.5; }
+  .gs-train .row.on .t-win { fill: var(--ink); }
+</style>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-train");
+    if (!root) return;
+    const NS = "http://www.w3.org/2000/svg";
+    const fonts = Promise.all(["400 13px", "600 13px", "700 13.5px", "650 16px"].map((f) => document.fonts.load(`${f} "Source Sans 3"`))).catch(() => null);
+    const ctx = document.createElement("canvas").getContext("2d");
+    const font = getComputedStyle(document.body).fontFamily;
+    const measure = (s, size, weight = 400) => { ctx.font = `${weight} ${size}px ${font}`; return ctx.measureText(s).width; };
+    const pct = (x) => `${(x * 100).toFixed(1).replace("-", "−")}%`;
+    const pts = (x) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1)} pts`;
+    const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const day = (iso) => `${+iso.slice(8, 10)} ${MON[+iso.slice(5, 7) - 1]}`;
+    const el = (tag, attrs, text) => {
+      const e = document.createElementNS(NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+      if (text != null) e.textContent = text;
+      return e;
+    };
+
+    Promise.all([K.data("train.json"), fonts]).then(([D]) => {
+      const tip = K.tip(root);
+      const plot = document.createElement("div");
+      root.appendChild(plot);
+      const rows = [...D.rows].sort((a, b) => (b.sft - b.base) - (a.sft - a.base));
+      const M = D.means, N = D.names;
+      document.addEventListener("pointerdown", (ev) => { if (!(root.contains(ev.target) && ev.target.classList.contains("hit"))) tip.hide(); });
+      const label = (r) => `${day(r.dates[0])} · ${r.site}`;
+      const card = (box, r) => {
+        K.t.title(box, `${day(r.dates[0])} to ${day(r.dates[2])} ${r.dates[0].slice(0, 4)}, Battery ${r.site}`, "var(--c-qwen9bsft)");
+        K.t.row(box, "front", r.kind);
+        [[N.base, pct(r.base)], ["fine-tuned", pct(r.sft)], ["gain", pts(r.sft - r.base)], ["the planner", pct(r.plan)]].forEach(([a, v]) => K.t.row(box, a, v));
+      };
+      const meanCard = (box) => {
+        K.t.title(box, `Mean over the ${rows.length} windows`, "var(--c-qwen9bsft)");
+        [[N.base, pct(M.base)], ["fine-tuned", pct(M.sft)], ["the planner", pct(M.plan)], [N.lead, pct(M.lead)]].forEach(([a, v]) => K.t.row(box, a, v));
+      };
+
+      function render() {
+        const W = Math.max(300, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 560;
+        const L = Math.ceil(Math.max(measure("Mean", 13.5, 700), ...rows.map((r) => measure(label(r), 12)))) + 14, Rx = W - (narrow ? 6 : 10);
+        const vals = rows.flatMap((r) => [r.base, r.sft, r.plan]);
+        const lo = Math.floor((Math.min(...vals) - 0.02) * 10) / 10, hi = Math.ceil((Math.max(...vals) + 0.02) * 10) / 10;
+        const x = (v) => L + ((v - lo) / (hi - lo)) * (Rx - L);
+        const svg = el("svg", { class: "chart", role: "img", "aria-label": `${N.base} against the fine-tuned model on each of the ${rows.length} benchmark windows: mean C ${pct(M.base)} to ${pct(M.sft)}, the planner ${pct(M.plan)}` });
+        svg.appendChild(el("text", { x: 0, y: 17, class: "t-head" }, narrow ? "Before and after fine-tuning" : `${N.base}, before and after fine-tuning on the planner`));
+        svg.appendChild(el("text", { x: 0, y: 37, class: "t-sub" }, narrow ? "C, % on each bench window" : "C, % on each of the benchmark's windows, paired"));
+        const keys = [["b", N.base], ["s", "fine-tuned"], ["plan", "the planner"], ["lead", `${N.lead}'s mean, ${pct(M.lead)}`]];
+        let kx = 0, ky = 62;
+        for (const [k, t] of keys) {
+          const w = 22 + measure(t, 13, 560);
+          if (kx > 0 && kx + w > W) { kx = 0; ky += 20; }
+          if (k === "plan") svg.appendChild(el("line", { x1: kx + 6, x2: kx + 6, y1: ky - 11, y2: ky + 1, class: "plan" }));
+          else if (k === "lead") svg.appendChild(el("line", { x1: kx, x2: kx + 14, y1: ky - 4.5, y2: ky - 4.5, class: "lead" }));
+          else svg.appendChild(el("circle", { cx: kx + 6, cy: ky - 4.5, r: 5, class: k }));
+          svg.appendChild(el("text", { x: kx + 20, y: ky, class: "t-key" }, t));
+          kx += w + 14;
+        }
+        const top = ky + 18, rowH = narrow ? 15 : 14.5, meanH = 46, first = top + meanH + 8, bottom = first + rows.length * rowH;
+        for (let v = Math.ceil(lo * 4) / 4; v <= hi + 1e-9; v += 0.25) {
+          svg.appendChild(el("line", { x1: x(v), x2: x(v), y1: top, y2: bottom, class: Math.abs(v) < 1e-9 ? "zero" : "grid" }));
+          svg.appendChild(el("text", { x: x(v), y: bottom + 18, class: "t-tick", "text-anchor": "middle" }, `${Math.round(v * 100)}%`.replace("-", "−")));
+        }
+        svg.appendChild(el("text", { x: (L + Rx) / 2, y: bottom + 37, class: "t-unit", "text-anchor": "middle" }, "C, hindsight capture"));
+        svg.appendChild(el("line", { x1: x(M.lead), x2: x(M.lead), y1: top - 2, y2: bottom, class: "lead" }));
+        const my = top + meanH / 2 + 2;
+        const mg = el("g", { class: "row" });
+        mg.appendChild(el("text", { x: L - 10, y: my + 5, class: "t-mean", "text-anchor": "end" }, "Mean"));
+        mg.appendChild(el("line", { x1: x(M.base), x2: x(M.sft), y1: my, y2: my, class: "mean-line" }));
+        mg.appendChild(el("line", { x1: x(M.plan), x2: x(M.plan), y1: my - 9, y2: my + 9, class: "plan" }));
+        mg.appendChild(el("circle", { cx: x(M.base), cy: my, r: 6.5, class: "b" }));
+        mg.appendChild(el("circle", { cx: x(M.sft), cy: my, r: 6.5, class: "s" }));
+        mg.appendChild(el("text", { x: x(M.base) - 10, y: my + 4.5, class: "t-val", "text-anchor": "end" }, pct(M.base)));
+        mg.appendChild(el("text", { x: x(M.sft), y: my - 12, class: "t-val", "text-anchor": "middle" }, pct(M.sft)));
+        mg.appendChild(el("text", { x: x(M.plan), y: my + 22, class: "t-win", "text-anchor": "middle" }, `planner ${pct(M.plan)}`));
+        const mhit = el("rect", { x: 0, y: top, width: W, height: meanH, class: "hit", tabindex: 0, role: "img", "aria-label": `Mean: ${N.base} ${pct(M.base)}, fine-tuned ${pct(M.sft)}, the planner ${pct(M.plan)}` });
+        const hook = (hit, g, build) => {
+          const on = () => { svg.querySelectorAll(".row.on").forEach((n) => n.classList.remove("on")); g.classList.add("on"); };
+          const show = (ev) => { on(); tip.show(build, ev); };
+          hit.addEventListener("pointerenter", show);
+          hit.addEventListener("pointermove", show);
+          hit.addEventListener("pointerdown", show);
+          hit.addEventListener("pointerleave", (ev) => { if (ev.pointerType !== "touch") { g.classList.remove("on"); tip.hide(); } });
+          hit.addEventListener("focus", () => { on(); tip.show(build, { target: hit }); });
+          hit.addEventListener("blur", () => { g.classList.remove("on"); tip.hide(); });
+        };
+        hook(mhit, mg, meanCard);
+        mg.appendChild(mhit);
+        svg.appendChild(mg);
+        svg.appendChild(el("line", { x1: 0, x2: Rx, y1: first - 4, y2: first - 4, class: "sep" }));
+        rows.forEach((r, i) => {
+          const y = first + i * rowH + rowH / 2;
+          const g = el("g", { class: "row" });
+          if (i % 2 === 0) g.appendChild(el("rect", { x: L - 4, y: y - rowH / 2, width: Rx - L + 4, height: rowH, class: "band" }));
+          g.appendChild(el("text", { x: L - 10, y: y + 4, class: "t-win", "text-anchor": "end" }, label(r)));
+          g.appendChild(el("line", { x1: x(r.base), x2: x(r.sft), y1: y, y2: y, class: r.sft >= r.base ? "up" : "down" }));
+          g.appendChild(el("line", { x1: x(r.plan), x2: x(r.plan), y1: y - 5.5, y2: y + 5.5, class: "plan" }));
+          g.appendChild(el("circle", { cx: x(r.base), cy: y, r: 4, class: "b" }));
+          g.appendChild(el("circle", { cx: x(r.sft), cy: y, r: 4, class: "s" }));
+          const hit = el("rect", { x: 0, y: y - rowH / 2, width: W, height: rowH, class: "hit", tabindex: 0, role: "img",
+            "aria-label": `${label(r)}, ${r.kind}: ${N.base} ${pct(r.base)}, fine-tuned ${pct(r.sft)}, the planner ${pct(r.plan)}` });
+          hook(hit, g, (box) => card(box, r));
+          g.appendChild(hit);
+          svg.appendChild(g);
+        });
+        const H = bottom + 46;
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        svg.setAttribute("width", W);
+        plot.replaceChildren(svg);
+      }
+
+      render();
+      document.fonts.addEventListener("loadingdone", render);
+      K.watch(root, render);
+    }).catch((e) => { root.textContent = "The training chart did not load: " + e.message; });
+  })();
+</script>

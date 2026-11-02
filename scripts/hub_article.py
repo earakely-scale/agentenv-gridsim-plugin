@@ -67,13 +67,57 @@ REPLAN = ("sol", "beam")
 COSTLIEST = ("sol", "desk-v4-2026-08-26-S01")
 """The run the rollout opens on, the bench's costliest; its note tells this run's story, so the build stops if the
 costliest run is another."""
+MAKER = {"Claude Code": "Anthropic", "Codex CLI": "OpenAI", "Gemini CLI": "Google"}
+SOURCES = {
+    "sheet": ("ERCOT fact sheet, Oct 2026", "https://www.ercot.com/files/docs/2022/02/08/ERCOT_Fact_Sheet.pdf",
+              "21,537 MW of installed energy storage as of October 2026"),
+    "jul25": ("ERCOT Monthly, Jul 2025", "https://www.ercot.com/files/docs/2025/08/06/ERCOT-Monthly-July-2025.pdf",
+              "also set three new energy storage records, ending with 7,152 MW discharged at 7:59 p.m. on July 30 … "
+              "The installed capacity for batteries is 14,137 MW."),
+    "fern": ("Modo Energy, Apr 2026",
+             "https://modoenergy.com/research/en/ercot-march-2026-bess-benchmark-batteries-fern-revenues",
+             "The top 25% of optimizers achieved at least 76% of their Top-Bottom spread opportunities, while the "
+             "bottom quartile only earned 27%."),
+    "revenue": ("Modo Energy, Feb 2026",
+                "https://modoenergy.com/research/en/why-were-ercot-battery-revenues-so-low-in-2025-weather-energy-"
+                "arbitrage-builodout",
+                "the Modo Energy Nowcast anticipates total-year revenues to land at $29.4/kW. That is roughly half of "
+                "2024's $56/kW and one-sixth of 2023's $193/kW."),
+    "queue": ("ERCOT overview, Jul 2026",
+              "https://www.ercot.com/files/docs/2026/08/17/ERCOT-Monthly-Operational-Overview-July-2026.pdf",
+              "Totals: Solar 158 GW (34.6%), Wind 49 GW (10.7%), Gas 80 GW (17.6%), Battery 166 GW / 398 GWh (36.3%), "
+              "Other 4 GW (0.9%)"),
+    "record": ("Grid Status, Aug 2026", "https://blog.gridstatus.io/ercot-record-july-2026/",
+               "Solar's sister, batteries, also saw a new discharge record, hitting 11,980 MW on Wednesday, July 22.")}
+"""Each outside figure in Why it matters with its source's own words, quoted verbatim when the article was written."""
+TILES = (
+    {"value": "21,537", "scale": 1000, "unit": "GW", "desc": "of batteries on ERCOT's grid, October 2026",
+     "bars": (("Jul 2025", "14,137"), ("Oct 2026", "21,537")), "src": ("sheet", "jul25")},
+    {"value": "76%", "desc": "of what perfect timing allowed, captured by the best quarter of ERCOT battery bidders in "
+     "January 2026", "bars": (("Best quarter", "76%"), ("Worst quarter", "27%")),
+     "share": True, "src": ("fern",)},
+    {"value": "$29.4", "unit": "/kW", "desc": "a year of revenue for ERCOT batteries in 2025, Modo's estimate, down "
+     "from 2023", "bars": (("2023", "$193/kW"), ("2025", "$29.4/kW")), "src": ("revenue",)},
+    {"value": "166", "unit": "GW", "desc": "of batteries waiting to connect to ERCOT in July 2026, more than any other "
+     "kind of plant", "bars": (("Share of the queue", "36.3%"),), "share": True, "src": ("queue",)},
+    {"value": "11,980", "scale": 1000, "unit": "GW",
+     "desc": "discharged at once by ERCOT's batteries, a record, on 22 July 2026",
+     "bars": (("30 Jul 2025", "7,152"), ("22 Jul 2026", "11,980")), "src": ("record", "jul25")})
+"""The outside tiles: a value, its bars and their sources. Every figure is a token of its sources' quotes, shown as is
+or, with a scale, divided and rounded to one decimal; the build checks each token is in a quote."""
+DISTILL = ROOT / "docs" / "prereg" / "desk-distill.md"
+TRAINER = ROOT / "scripts" / "desk_distill_train.py"
+REPO_URL = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+TRAIN_RUN = {"hours": "4.5", "gpu": "$104", "grpo": "18"}
+"""From the training run's log, not a committed file: the SFT's wall time on its one GPU, the GPU spent on training
+and every eval, and the steps of the earlier GRPO run that moved nothing."""
 PITCH = ("{models} AI models run a real Texas battery's trading desk through {fronts} real weather fronts, scored in "
          "dollars against the best possible plan and the battery's real operator.")
 SHORT = "{n} AI models trade a real Texas battery"
 SHORT_MAX = 60
 STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "banner.json", "curve.json")
 BEAT_SHARE = 0.8
-CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%"}
+CONSTANT = {"$5,000", "$2,000", "−$250", "$250", "0.2", "0.8", "0.1", "1.0", "0.0", "95%", "0%", "100%"}
 NUMBER = re.compile(r"[−+-]?⁠?\\?\$[\d,]+(?:\.\d+)?k?|[−+-]?\d+\.\d+¢|[−+-]?\b\d+\.\d{2,}\b|\b\d+(?:\.\d+)?%")
 LEAK = re.compile(r"s3://|amazonaws|airops-runs|scale\.com|\bFD-\d|\bsk-[A-Za-z0-9_-]{12,}|litellm\.[a-z]|ocp-apim|"
                   r"b2clogin|ercot-api|\bhf_[A-Za-z0-9]{30,}|\b(?:10|172|192)\.\d+\.\d+\.\d+\b|"
@@ -100,7 +144,11 @@ def main():
                           "tryit": tryit(args.desk_repo, s, grades, card),
                           "duel": duel_facts(args.desk_repo, s, grades, pairs, card),
                           "eval": evals(args.desk_repo, s, grades, pairs, card)},
-           "duel.json": duel_data(pairs, s), "bench.json": bench_chart(s)}
+           "duel.json": duel_data(pairs, s), "bench.json": bench_chart(s), "reward.json": reward_chart(s, grades),
+           "train.json": train_chart(s, grades)}
+    f = out["facts.json"]
+    f |= {"why": why_tiles(f["eval"]["watch"]), "reward": reward(s, grades, card), "train": train(s, grades, card),
+          "links": links(s, card)}
     DATA.mkdir(parents=True, exist_ok=True)
     for name in STALE:
         (DATA / name).unlink(missing_ok=True)
@@ -181,8 +229,12 @@ def evals(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card) -> d
     rollout the viewer opens on, from the summary, the grades and the episodes."""
     ms, budget = card.bench_models(s), s["run"]["budget"]
     scored = [g for g in grades if g["status"] == "scored"]
-    hs = sorted({m["harness"] for m in ms})
-    return {"harnesses": f"{', '.join(hs[:-1])} or {hs[-1]}", "calls": str(budget["calls_per_turn"]),
+    closed, opened = [m for m in ms if m["weights"] != "open"], {m["harness"] for m in ms if m["weights"] == "open"}
+    if any(MAKER.get(m["harness"]) != m["provider"] for m in closed) or len(opened) != 1:
+        raise SystemExit("the eval says each closed model ran in its maker's own harness and every open-weight model "
+                         "in one harness: rewrite it")
+    hs = sorted({m["harness"] for m in closed})
+    return {"closed": f"{', '.join(hs[:-1])} or {hs[-1]}", "open": opened.pop(), "calls": str(budget["calls_per_turn"]),
             "turns": str(budget["max_turns"]), "runs": str(len(scored)), "viewer": VIEWER,
             "basis": basis_line(ms, card), "m": {m["key"]: point(m, s, card) for m in ms},
             "lead": lead_gap(s, ms, card), "halves": halves(s, ms, grades, pairs[0]["front"]["front"], card),
@@ -311,8 +363,144 @@ def watch(repo: Path, s: dict, scored: list[dict], card) -> dict:
     t = (date.fromisoformat(d) - date.fromisoformat(ep["dates"][0])).days * 1440 + i * 1440 // len(ep["rt"][d]["spp"])
     return {"name": s["models"][g["model"]]["name"], "site": g["site"], "region": g["region"],
             "span": span(g["dates"][0], g["dates"][-1]), "day": f"{date.fromisoformat(d):%-d %B}",
-            "at": f"{t % 1440 // 60:02d}:{t % 60:02d}", "spike": usd(top), "lost": usd(-g["p"]),
-            "op": usd(g["p_operator_actual"]), "app": f"{card.bench_replay(g['model'], g['task_id'])}&t={t}"}
+            "at": f"{t % 1440 // 60:02d}:{t % 60:02d}", "spike": usd(top),
+            "da": usd(ep["dam"][d]["spp"][t % 1440 // 60]),
+            "lost": usd(-g["p"]), "op": usd(g["p_operator_actual"]),
+            "app": f"{card.bench_replay(g['model'], g['task_id'])}&t={t}"}
+
+
+def why_tiles(w: dict) -> dict:
+    """Why it matters' tiles: the outside figures (TILES), each checked against its sources' quotes, and the rollout's
+    own spike against the day-ahead price at that hour."""
+    tiles = []
+    for t in TILES:
+        quotes = " ".join(SOURCES[k][2] for k in t["src"])
+        for tok in (t["value"], *(b for _, b in t["bars"])):
+            if not re.search(rf"(?<![\d,.]){re.escape(tok)}(?![\d,])", quotes):
+                raise SystemExit(f"a Why it matters tile shows {tok!r}, which its sources' quotes do not hold")
+        scale = t.get("scale")
+        show = (lambda x, k=scale: f"{amount(x) / k:.1f}" if k else x)  # noqa: E731
+        top = max(amount(b) for _, b in t["bars"])
+        tiles.append({"value": show(t["value"]), "unit": t.get("unit"), "desc": t["desc"],
+                      "bars": [{"label": a, "text": f"{show(b)} {t['unit']}" if t.get("scale") else b,
+                                "w": f"{amount(b) if t.get('share') else 100 * amount(b) / top:.1f}%",
+                                "hot": len(t["bars"]) == 1 or b == t["value"] or b.startswith(f"{t['value']}/")}
+                               for a, b in t["bars"]],
+                      "src": [{"label": SOURCES[k][0], "url": SOURCES[k][1]} for k in t["src"]]})
+    tiles.append({"value": w["spike"], "unit": "/MWh",
+                  "desc": f"real-time price at Battery {w['site']} at {w['at']} on {w['day']}, the rollout's spike, "
+                          "against that hour's day-ahead price",
+                  "bars": [{"label": "Day ahead", "text": w["da"], "hot": False,
+                            "w": f"{100 * amount(w['da']) / amount(w['spike']):.1f}%"},
+                           {"label": "Real time", "text": w["spike"], "w": "100.0%", "hot": True}],
+                  "src": [{"label": "This benchmark, replayed", "url": w["app"]}]})
+    return {"tiles": tiles}
+
+
+def amount(x: str) -> float:
+    return float(re.sub(r"[^\d.]", "", x))
+
+
+def reward(s: dict, grades: list[dict], card) -> dict:
+    """How the reward works: the film's window, every model's settled P, C and R there, the references, and the worked
+    example of the film's run."""
+    h = s["hero"]
+    gs = [g for g in grades if g["task_id"] == h["task_id"] and g["status"] == "scored"]
+    g, r = next(x for x in gs if x["model"] == h["model"]), gs[0]
+    if g["floored"] or not g["valid"]:
+        raise SystemExit("the reward section's example assumes the film's run is valid and its planner unfloored")
+    c = (g["p"] - r["p_idle"]) / (r["p_hind"] - r["p_idle"])
+    if f"{card.pc(c)}%" != f"{card.pc(g['capture'])}%":
+        raise SystemExit("the worked example's arithmetic does not give the grader's C")
+    cap = lambda p: f"{card.pc((p - r['p_idle']) / (r['p_hind'] - r['p_idle']))}%"  # noqa: E731
+    return {"name": s["models"][g["model"]]["name"], "site": g["site"], "P": usd(g["p"]), "idle": usd(r["p_idle"]),
+            "hind": usd(r["p_hind"]), "C": f"{card.pc(g['capture'])}%", "plan": usd(r["p_anchor"]),
+            "planC": cap(r["p_anchor"]), "op": usd(r["p_operator_actual"]), "opC": cap(r["p_operator_actual"]),
+            "beats": str(sum(x["p"] > r["p_anchor"] for x in gs)), "of": str(len(gs))}
+
+
+def reward_chart(s: dict, grades: list[dict]) -> dict:
+    """What the reward chart draws: the film's window, its references and every model's P, C and R there."""
+    h = s["hero"]
+    gs = sorted((g for g in grades if g["task_id"] == h["task_id"] and g["status"] == "scored"), key=lambda g: -g["p"])
+    r = gs[0]
+    return {"refs": {k: r[k] for k in ("p_idle", "p_anchor", "p_hind", "p_operator_actual", "p_operator_replay")},
+            "den": r["p_anchor"] - r["p_idle"],
+            "runs": [{"key": g["model"], "name": s["models"][g["model"]]["name"], "tag": s["models"][g["model"]]["tag"],
+                      "harness": s["models"][g["model"]]["harness"], "p": g["p"], "c": g["capture"], "r": g["reward"],
+                      "valid": g["valid"]} for g in gs]}
+
+
+def train(s: dict, grades: list[dict], card) -> dict:
+    """Training on GridSimEnv: the recipe from the desk-distill pre-registration and the trainer's own defaults, and
+    the result from the benchmark's rows, each checked against the pre-registration's numbers."""
+    pre, code = re.sub(r"\s+", " ", DISTILL.read_text()), TRAINER.read_text()
+    sft = next(m for m in s["models"].values() if m.get("distilled"))
+    base, pair = s["models"][sft["family"]], s["paired"][f"{sft['key']}-{sft['family']}"]["all"]["C"]
+
+    def arg(name: str) -> str:
+        return re.search(rf'"--{name}", type=\w+, default=([\d.e-]+)\)', code)[1]
+
+    def find(pat: str) -> re.Match:
+        return re.search(pat, pre)
+
+    def pts(x: str) -> str:
+        return card.pc(float(x.replace("−", "-")), 1, True)
+
+    pc = lambda x: f"{card.pc(x)}%"  # noqa: E731
+    kept = find(r"\((\d+) kept, ([\d.]+)M tokens, ([\d.]+)M trained\)")
+    held = find(r"C\(student\) − C\(base\) = ([+−-][\d.]+), 95% window-block interval \[([−-]?[\d.]+), "
+                r"([+−-]?[\d.]+)\]")
+    bench = find(r"C\(student\) − C\(base\) = ([+−-][\d.]+), 95% front-block interval \[([+−-]?[\d.]+), "
+                 r"([+−-]?[\d.]+)\].*?student better on (\d+)")
+    refused = find(r"refused DAM / RT / COP submits \| ([\d.]+)% / [\d.]+% / [\d.]+% \| ([\d.]+)% ")
+    box = find(r"Base ran on one ([\w.]+) \(one ([\w ]+?), ")
+    cap, ctx = int(find(r"the cap is ([\d,]+)")[1].replace(",", "")), int(find(r"--max-model-len (\d+)")[1])
+    accum, lead = int(arg("grad-accum")), s["models"][s["order_by_C"][0]]
+    out = {"windows": find(r"\*\*Training, (\d+) site-windows")[1], "rows": find(r"(\d+) rows, [\d.]+M tokens")[1],
+           "kept": kept[1], "tokens": f"{round(float(kept[2]))}M", "trained": f"{float(kept[3]):.1f}M",
+           "cap": f"{cap // 1000}k", "rank": arg("rank"), "alpha": str(2 * int(arg("rank"))), "lr": arg("lr"),
+           "epochs": str(int(float(arg("epochs")))), "accum": str(accum), "steps": str(-(-int(kept[1]) // accum)),
+           **TRAIN_RUN, "base": pc(base["all"]["C"]["mean"]), "sft": pc(sft["all"]["C"]["mean"]),
+           "planner": pc(s["references"]["anchor"]["all"]["C"]["mean"]), "sol": pc(lead["all"]["C"]["mean"]),
+           "gain": card.pc(pair["mean"], 1, True), "lo": card.pc(pair["ci"][0], 1, True),
+           "hi": card.pc(pair["ci"][1], 1, True), "better": str(round(pair["ahead"] * pair["n"])), "n": str(pair["n"]),
+           "usd": card.bench_usd(sft["cost"]["usd_per_window"]), "held": find(r"Over the committed (\d+) held-out")[1],
+           "hgain": pts(held[1]), "hlo": pts(held[2]), "hhi": pts(held[3]),
+           "hplan": card.pc(float(find(r"the anchor itself is ([\d.]+) above base")[1])),
+           "refused": f"{refused[1]}%", "refusedSft": f"{refused[2]}%", "base_name": base["name"],
+           "mem": find(r"of the GPU's (\d+) GiB")[1], "gpu_name": box[2], "box": box[1], "ctx": f"{ctx:,}",
+           "prereg": f"{REPO_URL}/blob/main/docs/prereg/desk-distill.md",
+           "rows_code": f"{REPO_URL}/blob/main/scripts/desk_distill_sft.py",
+           "code": f"{REPO_URL}/blob/main/scripts/desk_distill_train.py"}
+    if (pts(bench[1]), pts(bench[2]), pts(bench[3]), bench[4]) != (out["gain"], out["lo"], out["hi"], out["better"]):
+        raise SystemExit("the benchmark's paired gain for the fine-tuned model differs from the pre-registration's")
+    return out
+
+
+def train_chart(s: dict, grades: list[dict]) -> dict:
+    """What the training chart draws: each bench window's C for the base model, the fine-tuned one and the planner."""
+    sft = next(m for m in s["models"].values() if m.get("distilled"))
+    by = {(g["model"], g["task_id"]): g for g in grades if g["status"] == "scored"}
+    rows = []
+    for t in sorted({g["task_id"] for g in grades}):
+        a, b = by[(sft["family"], t)], by[(sft["key"], t)]
+        front = next(f for f in s["fronts"] if f["front"] == a["front"])
+        rows.append({"task": t, "site": a["site"], "dates": a["dates"], "kind": front["kind"], "split": a["split"],
+                     "base": a["capture"], "sft": b["capture"],
+                     "plan": (a["p_anchor"] - a["p_idle"]) / (a["p_hind"] - a["p_idle"])})
+    return {"rows": rows, "means": {"base": s["models"][sft["family"]]["all"]["C"]["mean"],
+                                    "sft": sft["all"]["C"]["mean"],
+                                    "plan": s["references"]["anchor"]["all"]["C"]["mean"],
+                                    "lead": s["models"][s["order_by_C"][0]]["all"]["C"]["mean"]},
+            "names": {"base": s["models"][sft["family"]]["name"], "sft": sft["name"],
+                      "lead": s["models"][s["order_by_C"][0]]["name"]}}
+
+
+def links(s: dict, card) -> dict:
+    """The Links section: the environment, the replays and results, the dataset, the code and the pre-registration."""
+    return {"env": TRY_SPACE, "replays": VIEWER, "results": f"{card.APP}/results.html?v=bench", "dataset": card.DATASET,
+            "code": REPO_URL, "prereg": f"{REPO_URL}/blob/main/{s['run']['prereg']}"}
 
 
 def env(s: dict, card) -> dict:
@@ -633,6 +821,10 @@ def check_rendered(f: dict) -> None:
                if not ((f'href="{known[e]}"' in links or f'src="{known[e]}"' in links) if known[e].startswith("https://")
                        else known[e] in text or f'"{known[e]}"' in links)]
     missing += [f"media/{p.name}" for p in FILMS if not (APP / "dist" / "media" / p.name).is_file()]
+    missing += [f"the tile {t['value']} {t['unit'] or ''}" for t in f["why"]["tiles"]
+                if t["value"] not in text or any(b["text"] not in text for b in t["bars"])]
+    missing += [f"a tile's source {x['url']}" for t in f["why"]["tiles"] for x in t["src"]
+                if f'href="{x["url"]}"' not in links]
     duel = json.loads((DATA / "duel.json").read_text())
     missing += [w["moment"]["img"] for w in duel["windows"]
                 if not (APP / "dist" / w["moment"]["img"].lstrip("/")).is_file()]
