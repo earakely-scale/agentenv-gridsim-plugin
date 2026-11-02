@@ -23,6 +23,7 @@ import re
 import subprocess
 from collections import defaultdict
 from datetime import date
+from html import unescape
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +38,11 @@ MEDIA = APP / "public" / "media"
 FILMS = {MEDIA / "gridsim-run.mp4": 10, MEDIA / "gridsim-run.gif": 10}
 SPACE = "earakely-scale/GridSimEnv"
 MDX = APP / "src" / "content" / "article.mdx"
+README = ARTICLE / "README.md"
+PITCH = ("{models} AI models run a real Texas battery's trading desk through {fronts} real weather fronts, scored in "
+         "dollars against the best possible plan and the battery's real operator.")
+SHORT = "{n} AI models trade a real Texas battery"
+SHORT_MAX = 60
 STALE = ("results.json", "anatomy.json", "advantage.json", "timeline.json", "desk.json", "bench.json", "banner.json",
          "curve.json")
 STALE_SCRIPTS = ("desk-charts.js",)
@@ -64,7 +70,7 @@ def main():
     if s["fake"]:
         raise SystemExit("results/desk-v4-bench holds fake data; the article states real runs only")
     pairs = duel(args.desk_repo, s, grades, card)
-    out = {"facts.json": {"env": env(s, card), "lead": lead(s, grades, card),
+    out = {"facts.json": {"header": header(s, card), "env": env(s, card), "lead": lead(s, grades, card),
                           "duel": duel_facts(args.desk_repo, s, grades, pairs, card)},
            "duel.json": duel_data(pairs, s)}
     DATA.mkdir(parents=True, exist_ok=True)
@@ -75,7 +81,7 @@ def main():
     for name, obj in out.items():
         (DATA / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
         print(f"{name:16} {(DATA / name).stat().st_size / 1e3:7.1f} kB")
-    describe(card.bench_pitch(s).strip("*"), out["facts.json"]["lead"])
+    describe(out["facts.json"]["header"], out["facts.json"]["lead"])
     check_prose(out["facts.json"])
     check_film()
     leaks(files_to_publish())
@@ -116,6 +122,15 @@ def span(a: str, b: str, sep: str = " to ") -> str:
         f"{x:%-d %B}{sep}{y:%-d %B %Y}")
 
 
+def header(s: dict, card) -> dict:
+    """The header's line under the title, which is also the page's description, and the Space card's short one."""
+    models, fronts = card.NUM[len(s["models"])], str(s["n_fronts"])
+    short = SHORT.format(n=len(s["models"]))
+    if len(short) > SHORT_MAX:
+        raise SystemExit(f"the Space card's short description is over {SHORT_MAX} characters: {short!r}")
+    return {"models": models, "fronts": fronts, "pitch": PITCH.format(models=models, fronts=fronts), "short": short}
+
+
 def env(s: dict, card) -> dict:
     """The environment's shape, from summary.json: windows, fronts, batteries, models."""
     return {"windows": str(s["n_windows"]), "fronts": str(s["n_fronts"]), "sites": str(len(s["sites"])),
@@ -123,17 +138,18 @@ def env(s: dict, card) -> dict:
 
 
 def lead(s: dict, grades: list[dict], card) -> dict:
-    """The film's run, summary.json's hero, as its caption states it: the model, the window, P and C as the dataset card
-    prints them, the real operator's two figures and the run's 3D replay in the viewer Space."""
+    """The film's run, summary.json's hero, as its caption states it: the model, the battery's power, where and when,
+    its P and C (to the whole percent), the real operator's P, and the run's 3D replay in the viewer Space."""
     h = s["hero"]
     m, g = s["models"][h["model"]], next(x for x in grades if x["model"] == h["model"] and x["task_id"] == h["task_id"])
     front = next(f for f in s["fronts"] if f["front"] == g["front"])
+    a, b = date.fromisoformat(g["dates"][0]), date.fromisoformat(g["dates"][-1])
     who = (f"{m['name']} trades Battery {g['site']} ({g['region']}, {g['battery']}) through the "
            f"{span(g['dates'][0], g['dates'][-1])} {front['kind']}")
-    return {"name": m["name"], "harness": m["harness"], "site": f"Battery {g['site']}", "region": g["region"],
-            "battery": g["battery"], "span": span(g["dates"][0], g["dates"][-1]), "kind": front["kind"],
-            "P": usd(g["p"]), "C": f"{card.pc(g['capture'])}%", "op": usd(g["p_operator_actual"]),
-            "op_replay": usd(g["p_operator_replay"]), "replay": card.bench_replay(h["model"], h["task_id"]),
+    return {"name": m["name"], "mw": g["battery"].split(" / ")[0], "region": g["region"], "kind": front["kind"],
+            "month": f"{a:%B %Y}" if a.month == b.month else f"{a:%B}–{b:%B %Y}",
+            "P": usd(g["p"]), "pct": f"{card.pc(g['capture'], 0)}%", "op": usd(g["p_operator_actual"]),
+            "replay": card.bench_replay(h["model"], h["task_id"]),
             "film_alt": (f"A recorded benchmark run: {who}. The battery site in 3D, the agent's tool calls one by "
                          "one in the desk beside it, the node's price and the battery's charge below as they post, "
                          "then the settled grade beside the real operator's"),
@@ -142,7 +158,7 @@ def lead(s: dict, grades: list[dict], card) -> dict:
 
 
 def duel(repo: Path, s: dict, grades: list[dict], card) -> list[dict]:
-    """The before and after: every window after all the models' reported training cutoffs on which at least BEAT_SHARE
+    """The before and after: every window after every reported training cutoff on which at least BEAT_SHARE
     of the models scored there settled above the real operator, both as it ran and with its own bids replayed, each
     with the run that made the most. The operator's side comes from ERCOT's 60-day disclosures in the window's series:
     its day-ahead awards, its telemetered output and its state of charge; the agent's from its episode."""
@@ -265,6 +281,7 @@ def duel_facts(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card)
            "sites": card.and_join([w["g"]["site"] for w in pairs]),
            "span": span(w0["g"]["dates"][0], w0["g"]["dates"][-1]), "kind": front["kind"],
            "replays": card.and_join([usd(w["op"]["replay"]) for w in pairs]),
+           "half": months(s["splits"]["post_cutoff"]["fronts"]),
            "best": s["models"][best.pop()]["name"] if len(best) == 1 else None}
     if len({w["g"]["front"] for w in pairs}) != 1 or out["best"] is None:
         raise SystemExit("the before and after's prose describes one front and one model: rewrite it for these windows")
@@ -284,6 +301,18 @@ def duel_facts(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card)
         out["next"] = {"span": span(gs[0]["dates"][0], gs[0]["dates"][-1]), "behind": str(behind),
                        "rt": usd(round(top, -1)), "sites": str(len(by))}
     return out
+
+
+def months(fronts: list[str]) -> str:
+    """The months a split's three-day windows cover, as words: 'July and August 2026'."""
+    a = date.fromisoformat(min(fronts))
+    b = date.fromordinal(date.fromisoformat(max(fronts)).toordinal() + 2)
+    names = [date(a.year + (a.month + i - 1) // 12, (a.month + i - 1) % 12 + 1, 1)
+             for i in range((b.year - a.year) * 12 + b.month - a.month + 1)]
+    one = a.year == b.year
+    words = [f"{d:%B}" if one else f"{d:%B %Y}" for d in names]
+    joined = words[0] if len(words) == 1 else f"{', '.join(words[:-1])} and {words[-1]}"
+    return f"{joined} {b:%Y}" if one else joined
 
 
 def majority(grades: list[dict], front: str) -> int:
@@ -336,16 +365,19 @@ def check_prose(f: dict) -> None:
           "and the episodes; none written in")
 
 
-def describe(pitch: str, lead_: dict) -> None:
-    """The front matter's two lines that state results: the description, the hero's subtitle and the page's meta
-    description, is the card's pitch; the social image's alt text names the film's run."""
-    text = MDX.read_text()
-    for key, value in (("description", pitch), ("seoImageAlt", lead_["og_alt"])):
-        text, n = re.subn(rf'^{key}: ".*"$', lambda _, k=key, v=value: f"{k}: {json.dumps(v, ensure_ascii=False)}",
-                          text, count=1, flags=re.M)
-        if n != 1:
-            raise SystemExit(f"{MDX.name} has no one-line {key} to write")
-    MDX.write_text(text)
+def describe(head: dict, lead_: dict) -> None:
+    """The lines that state results outside the chapters: the description (the hero's subtitle and the page's meta,
+    Open Graph and Twitter descriptions) and the social image's alt text in the front matter, and the Space card's
+    short description in its README."""
+    for path, pairs, form in ((MDX, (("description", head["pitch"]), ("seoImageAlt", lead_["og_alt"])), "quoted"),
+                              (README, (("short_description", head["short"]),), "plain")):
+        text = path.read_text()
+        for key, value in pairs:
+            new = f"{key}: {json.dumps(value, ensure_ascii=False) if form == 'quoted' else value}"
+            text, n = re.subn(rf"^{key}: .*$", lambda _, x=new: x, text, count=1, flags=re.M)
+            if n != 1:
+                raise SystemExit(f"{path.name} has no one-line {key} to write")
+        path.write_text(text)
 
 
 def check_film() -> None:
@@ -372,9 +404,15 @@ def check_rendered(f: dict) -> None:
                if not (f'href="{known[e]}"' in links if known[e].startswith("https://")
                        else known[e] in text or f'"{known[e]}"' in links)]
     missing += [f"media/{p.name}" for p in FILMS if not (APP / "dist" / "media" / p.name).is_file()]
+    pitch, shown = f["header"]["pitch"], {
+        "the subtitle": re.findall(r'<p class="hero-desc"[^>]*>([^<]*)<', html),
+        **{f"the {k} description": re.findall(rf'<meta {a}="{k}" content="([^"]*)"', html)
+           for a, k in (("name", "description"), ("property", "og:description"), ("name", "twitter:description"))}}
+    missing += [f"{what} = {pitch!r}" for what, found in shown.items() if [unescape(x) for x in found] != [pitch]]
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
-    print(f"rendered check: all {len(used)} facts on the page as formatted, and the films")
+    print(f"rendered check: all {len(used)} facts on the page as formatted, the header's line in the subtitle and the "
+          "page's descriptions, and the films")
 
 
 def files_to_publish() -> dict[str, Path]:

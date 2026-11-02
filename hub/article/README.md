@@ -8,7 +8,7 @@ app_port: 8080
 header: mini
 pinned: false
 license: cc-by-4.0
-short_description: Models in agent harnesses run a real ERCOT battery desk
+short_description: 15 AI models trade a real Texas battery
 tags:
   - research-article-template
   - rl-environments
