@@ -505,7 +505,7 @@ function paretoNotes(Bn) {
   ];
 }
 
-function paretoChart(Bn, W, phone) {
+function paretoChart(Bn, W, phone, { notes = true } = {}) {
   const narrow = phone || W < 640;
   const pp = bpts(Bn).filter((p) => p.usd > 0 && p.C.mean != null), on = new Set(Bn.plot.frontier || []);
   const anchor = Bn.plot.references.anchor?.all?.mean, ms = Bn.models;
@@ -577,7 +577,7 @@ function paretoChart(Bn, W, phone) {
   });
   for (const p of placeBoxes(want, obst, [2, ptop - 20, W - 2, bottom - 2])) labels += boxText(p);
   let fy = bottom + 48;
-  for (const note of paretoNotes(Bn)) {
+  for (const note of notes ? paretoNotes(Bn) : []) {
     for (const line of wrap(note, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
     fy += 3;
   }

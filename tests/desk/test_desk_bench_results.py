@@ -278,10 +278,16 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
         m = w["moment"]
         assert m["href"] == f"{w['replay']}&t={m['t']}" and m["img"] == f"/media/moment-{w['site'][-3:]}.webp"
         assert m["text"].startswith(f"Sol discharges {w['p_max']:.0f} MW") and m["when"] in m["alt"]
-    f = {"env": hub_article.env(s, hub_dataset), "lead": lead, "tryit": hub_article.tryit(ROOT, s, grades, hub_dataset),
-         "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset)}
+    f = {"header": hub_article.header(s, hub_dataset), "env": hub_article.env(s, hub_dataset), "lead": lead,
+         "tryit": hub_article.tryit(ROOT, s, grades, hub_dataset),
+         "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset),
+         "eval": hub_article.evals(ROOT, s, grades, pairs, hub_dataset)}
     hub_article.check_prose(f)
     assert f["tryit"]["site"] == h["site"] and f["tryit"]["app"].endswith("/web/")
+    e, scored = f["eval"], [g for g in grades if g["status"] == "scored"]
+    assert e["runs"] == str(len(scored)) and e["lead"]["a"]["name"] == s["models"][s["order_by_C"][0]]["name"]
+    assert e["watch"]["lost"] == hub_article.usd(-min(g["p"] for g in scored)) and "&t=" in e["watch"]["app"]
+    assert set(hub_article.bench_chart(s)["models"]) == {p["key"] for p in s["plot"]["points"]}
     assert f["duel"]["n"] == str(len(pairs)) and f["duel"]["of"] == str(len(s["models"]))
     assert hub_article.majority(grades, pairs[0]["g"]["front"]) == len(pairs) and f["env"]["sites_word"] == "four"
     head = hub_article.header(s, hub_dataset)

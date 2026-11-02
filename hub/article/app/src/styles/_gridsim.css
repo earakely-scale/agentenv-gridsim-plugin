@@ -125,7 +125,11 @@
 .gs-try-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0;
   font-size: 13px; color: var(--muted-color); }
 @media (max-width: 760px) { .gs-try-frame { height: 820px; } }
-/* On a desktop the live page needs about 1,100 px for its desk beside the site: the figure spans the page, over the
+/* The cost chart lays its labels out for a phone at about 350 px: on a phone its card gives it that width. */
+@media (max-width: 560px) { #eval-pareto .html-embed__card { padding: 14px 6px 10px; } }
+/* Watch a rollout: the viewer Space's replay, the same frame a little shorter. */
+.gs-watch .gs-try-frame { height: 760px; }
+/* On a desktop the live pages need about 1,100 px for the desk beside the site: the figure spans the page, over the
    table of contents' column, centred as the main column is. */
 @media (min-width: 1101px) {
   .content-grid main figure.gs-try { position: relative; z-index: var(--z-elevated); width: min(1248px, 100vw - 64px);
