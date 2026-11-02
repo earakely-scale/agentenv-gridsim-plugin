@@ -96,7 +96,7 @@ battery to an untested agent, though: here, one bad position in a price spike
 battery a week earlier. GridSimEnv is where to test and train them first: real ERCOT days, the desk's own tools and
 rules, and every window settled in dollars against hindsight and the battery's real operator.
 
-### The eval
+## The eval
 
 {F.header.models} models ran all {F.env.windows} windows once, each in its maker's own harness ({F.eval.closed}) or, for
 the open-weight models, {F.eval.open}, with the same {F.tryit.tools} tools, {F.eval.calls} calls a wake-up and at most
@@ -165,7 +165,7 @@ On the film's window {F.reward.name} settles {F.reward.P}, idle settles {F.rewar
 so C = ({F.reward.P} − {F.reward.idle}) / ({F.reward.hind} − {F.reward.idle}) = {F.reward.C}. It beat the planner's
 {F.reward.plan}, so its R is capped at 1.
 
-### Training on GridSimEnv
+## Training on GridSimEnv
 
 We fine-tuned {F.train.base_name} with TRL on transcripts of the desk's own planner, which calls `optimize` and submits
 its proposal. AgentEnv captured them by playing the planner through OpenCode on {F.train.windows} training windows whose
@@ -181,6 +181,7 @@ rationale at each wake-up.
     <dt>Eval</dt><dd>OpenCode with vLLM at a {F.train.ctx}-token context, the same harness for base and student</dd>
     <dt>Cost</dt><dd>about {F.train.gpu} of GPU for training and the evals on our own servers; the teacher is our own planner, so no LLM API spend</dd>
     <dt>Code</dt><dd><a href={F.train.rows_code}>desk_distill_sft.py</a> and <a href={F.train.code}>desk_distill_train.py</a>, and the <a href={F.train.prereg}>pre-registration</a></dd>
+    <dt>Guide</dt><dd><a href={F.links.training}>AgentEnv's training docs</a></dd>
   </dl>
 </div>
 
@@ -201,7 +202,7 @@ rationale at each wake-up.
   strong policy moved it on the benchmark. What the model learned is the planner's habits: refused day-ahead offers
   fell from {F.train.refused} to {F.train.refusedSft}.
 
-### Data sources
+## Data sources
 
 | Data | Source | Licence |
 |---|---|---|
@@ -221,7 +222,7 @@ the plugin's [data licence](https://github.com/earakely-scale/agentenv-gridsim-p
 ERCOT's terms in full, and its [NOTICE](https://github.com/earakely-scale/agentenv-gridsim-plugin/blob/main/NOTICE) sets
 out each source.
 
-### Links
+## Links
 
 <div class="gs-links">
   <p><b>Environment</b><a href={F.links.env}>huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv</a></p>
@@ -230,6 +231,7 @@ out each source.
   <p><b>Dataset</b><a href={F.links.dataset}>huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv</a></p>
   <p><b>Code</b><a href={F.links.code}>github.com/earakely-scale/agentenv-gridsim-plugin</a></p>
   <p><b>Pre-registration</b><a href={F.links.prereg}>docs/prereg/v4-bench.md</a></p>
+  <p><b>Training guide</b><a href={F.links.training}>agentenvframework.com/docs/training</a></p>
 </div>
 
 [^overlap]: One benchmark front, 8 to 10 May 2026, falls inside some training windows' spans, but only as their

@@ -108,6 +108,7 @@ or, with a scale, divided and rounded to one decimal; the build checks each toke
 DISTILL = ROOT / "docs" / "prereg" / "desk-distill.md"
 TRAINER = ROOT / "scripts" / "desk_distill_train.py"
 REPO_URL = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
+TRAINING_DOCS = "https://www.agentenvframework.com/docs/training"
 TRAIN_RUN = {"hours": "4.5", "gpu": "$104", "grpo": "18"}
 """From the training run's log, not a committed file: the SFT's wall time on its one GPU, the GPU spent on training
 and every eval, and the steps of the earlier GRPO run that moved nothing."""
@@ -498,9 +499,10 @@ def train_chart(s: dict, grades: list[dict]) -> dict:
 
 
 def links(s: dict, card) -> dict:
-    """The Links section: the environment, the replays and results, the dataset, the code and the pre-registration."""
+    """The Links section: the environment, the replays and results, the dataset, the code, the pre-registration and
+    AgentEnv's training guide."""
     return {"env": TRY_SPACE, "replays": VIEWER, "results": f"{card.APP}/results.html?v=bench", "dataset": card.DATASET,
-            "code": REPO_URL, "prereg": f"{REPO_URL}/blob/main/{s['run']['prereg']}"}
+            "code": REPO_URL, "prereg": f"{REPO_URL}/blob/main/{s['run']['prereg']}", "training": TRAINING_DOCS}
 
 
 def env(s: dict, card) -> dict:
