@@ -64,15 +64,21 @@ Playground tab is OpenEnv's MCP playground; the code is in <a href={F.tryit.code
 
 ### Why it matters
 
-A grid battery makes money by buying power cheap and selling it dear, and by being paid to stand ready in reserve. Its
-desk must offer tomorrow's power into the day-ahead market before the weather is known, then replan all day as midday
-solar sinks prices, evening peaks lift them and a heat wave or storm sends them soaring.
+A grid battery makes its money on decisions: when to charge, when to sell and how much to hold in reserve, around the
+clock in ERCOT's day-ahead and real-time markets. ERCOT's grid has
+[21.5 GW of batteries](https://www.ercot.com/files/docs/2022/02/08/ERCOT_Fact_Sheet.pdf), and the same hardware earns very
+different amounts depending on who bids it: in January 2026 [the best quarter of ERCOT battery bidders captured at least
+76% of what perfect timing allowed, the worst quarter 27%](https://modoenergy.com/research/en/ercot-march-2026-bess-benchmark-batteries-fern-revenues).
+Closing that gap is revenue without a single new battery, and well-timed batteries put power on the grid exactly when it
+is scarcest, on heat-wave evenings and storm mornings.
 
-ERCOT counted [21.5 GW of batteries in October 2026](https://www.ercot.com/files/docs/2022/02/08/ERCOT_Fact_Sheet.pdf),
-and vendors sell [AI that forecasts prices and writes the bids](https://fluenceenergy.com/mosaic-for-ercot/). Skill
-pays: in January 2026, [the best quarter of the firms bidding ERCOT's batteries earned at least 76% of what perfect
-timing could, the worst quarter 27%](https://modoenergy.com/research/en/ercot-march-2026-bess-benchmark-batteries-fern-revenues).
-GridSimEnv puts AI agents in that seat, scored against the best plan hindsight allows.
+That work is done today by round-the-clock trading desks and
+[bidding software](https://fluenceenergy.com/mosaic-for-ercot/); an AI agent with the same forecasts, notices and rules
+could watch every interval, act on news in seconds and let one desk run far more batteries. No one should hand a real
+battery to an untested agent, though: here, one bad position in a price spike
+[lost {F.eval.watch.lost} in a single window](#watch-a-rollout), nearly twice what the same model made at the same
+battery a week earlier. GridSimEnv is where to test and train them first: real ERCOT days, the desk's own tools and
+rules, and every window settled in dollars against hindsight and the battery's real operator.
 
 ### The eval
 
