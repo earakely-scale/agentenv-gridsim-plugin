@@ -13,26 +13,34 @@ pushed. Two kinds of files share it:
 - agentenv-hf's, one pair per --bundle folder, as `agent-env hf publish` writes them: the bundle's tasks and runs and
   the bundle itself under bundles/, which `agent-env hf run` plays; the card's `agentenv` table names what it needs.
 
-The card is hub/dataset/README.md, the desk's card, with its blocks filled in from
-results/overview/desk.json (scripts/hub_desk.py writes it and the desk's tables); the v1 tables stay in the
-repo outside every config. --card-only writes the card alone. Every file goes through agentenv-hf's scan for keys
-and token shapes before anything is written. Nothing is pushed: upload the folder with
-`hf upload <repo> <out> --repo-type dataset` after reading it.
+The card is hub/dataset/README.md, the desk's card. It tells the article's story (hub/article) in the article's words
+and with its numbers: its prose reads them from the article's facts.json as the chapters do, checked against
+results/desk-v4-bench/summary.json, and its figures are the article's charts, captured from the built article; the
+rest of its blocks come from summary.json and results/overview/desk.json (scripts/hub_desk.py writes it and the desk's
+tables). The v1 tables stay in the repo outside every config. --card-only writes the card alone; --figures adds the
+card's figures and the article's film beside it. Every file goes through agentenv-hf's scan for keys and token shapes
+before anything is written. Nothing is pushed: upload the folder with `hf upload <repo> <out> --repo-type dataset` after
+reading it.
 
     uv run python scripts/hub_dataset.py --out build/hub/dataset
     uv run python scripts/hub_dataset.py --out build/hub/card --card-only
+    uv run python scripts/hub_article.py --build && uv run python scripts/hub_dataset.py --out build/hub/card \
+        --card-only --figures
     agent-env gridsim tasks generate --pack ercot-dam-v1-eval --out build/bundles/ercot-dam-v1-eval
     uv run python scripts/hub_dataset.py --out build/hub/dataset --runs results/runs --results results \
         --bundle build/bundles/ercot-dam-v1-eval
 """
 
 import argparse
+import base64
 import gzip
 import importlib.util
 import io
 import json
+import math
 import re
 import shutil
+import tempfile
 import tomllib
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -46,6 +54,7 @@ from agentenv_hf import dataset, runs, tables
 from agentenv_hf.messages import to_messages
 from agentenv_hf.scan import known_values, scan
 from huggingface_hub import DatasetCard
+from PIL import Image, ImageChops
 
 from gridsim_core.episode import SCHEMA
 from gridsim_core.grade import grade
@@ -77,14 +86,22 @@ BADGES = (
     '<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv"><img src="https://img.shields.io/badge/'
     '%F0%9F%93%96%20Article-A%20live%20ERCOT%20battery%20desk-0e7d56?style=for-the-badge&labelColor=1a1a1a" '
     'alt="The article: a live ERCOT battery desk" height="32"></a>',
-    f'<a href="{VIEWER}"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Space-Every%20run%2C%20version%20by'
-    '%20version-FFD21E?style=for-the-badge&labelColor=1a1a1a" alt="The viewer Space: every run, version by version" '
-    'height="32"></a>',
+    '<a href="https://huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv"><img src="https://img.shields.io/badge/'
+    '%E2%96%B6%20Playground-Play%20the%20desk%20live-2a78d6?style=for-the-badge&labelColor=1a1a1a" '
+    'alt="Playground: play the desk yourself, or connect your agent" height="32"></a>',
+    f'<a href="{VIEWER}"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Replays-Every%20run%20in%203D-FFD21E?'
+    'style=for-the-badge&labelColor=1a1a1a" alt="Replays: every benchmark run in 3D" height="32"></a>',
     '<a href="https://github.com/earakely-scale/agentenv-gridsim-plugin"><img src="https://img.shields.io/badge/GitHub-'
     'agentenv--gridsim--plugin-181717?style=for-the-badge&logo=github&labelColor=1a1a1a" alt="Code on GitHub" '
     'height="32"></a>',
     '<a href="https://www.agentenvframework.com"><img src="https://img.shields.io/badge/framework-AgentEnv-6f42c1?'
     'style=for-the-badge&labelColor=1a1a1a" alt="AgentEnv Framework" height="32"></a>')
+ARTICLE_APP = ROOT / "hub/article/app"
+ARTICLE_DATA = ARTICLE_APP / "src/content/assets/data"
+FILM = "assets/gridsim-run.gif"
+FIGS = "assets/article"
+CARD_W, PHONE_W, PHONE = 800, 334, "(max-width: 480px)"
+"""The Hub card column's width at 1440 px and on a 390 px phone, and the phone query the card's pictures switch on."""
 CAPTIONS = ROOT / "results/overview/figures/captions.json"
 BEAM = ROOT / "results/beam-agent/beam"
 MANAGED = ("tasks", "references", "episodes", "runs", "results", "raw", "bundles", "leaderboard", "eval_runs")
@@ -761,42 +778,419 @@ def results_blocks(r: dict) -> dict[str, str]:
             "training-results": training_block(r), "worth": worth_block(r), "live": live_block(r)}
 
 
-def desk_blocks(d: dict, bench: tuple[dict, list[dict]] | None = None, gif: bool = False) -> dict[str, str]:
-    """The card's blocks: the v4 benchmark first, from results/desk-v4-bench/ alone (its pitch, lead GIF, charts,
-    table, how it runs and its limitations), then the earlier versions folded, from results/overview/desk.json
-    (scripts/hub_desk.py writes it): the results across the ladder's versions, each version's results and the
-    price-impact check; then the quick start, the versions, the configs and files, and the line to the archived v1."""
-    vs = ladder(d)
+def desk_blocks(d: dict, bench: tuple[dict, list[dict]], f: dict) -> dict[str, str]:
+    """The card's blocks in the article's order: the film, the before and after, Try it, the outside figures, the
+    eval's cost chart and table, the rollout, the reward, the training and where models fail, each figure the article's
+    chart and every number from the article's facts.json, summary.json or the article's chart data; then what is in
+    the dataset and, folded, the desk, how the benchmark ran, its limitations and deviations, the earlier versions
+    from results/overview/desk.json and how to run it, and the line to the archived v1."""
+    s, grades = bench
     results = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: the results</summary>\n\n"
-               f"{desk_results(v, d)}\n\n</details>" for v in reversed(vs)]
+               f"{desk_results(v, d)}\n\n</details>" for v in reversed(ladder(d))]
     checked = [f"<details>\n<summary><b>{v['version']}, {v['name']}</b>: a price-impact check on {v['check_of']}"
                f"</summary>\n\n{price_check(v, d)}\n\n</details>" for v in checks(d)]
-    earlier = "\n\n".join([across(d), *results, *checked])
-    quick = QUICKSTART.replace("{bench}", BENCH_QUICKSTART + "\n\n" if bench else "").replace(
-        "{bench_table}", BENCH_TABLE if bench else "").replace("{latest}", vs[-1]["version"])
-    if bench:
-        quick = quick.replace("{deviations}", bench_deviations(bench[0]))
-    blocks = {"badges": "\n".join(BADGES), "quickstart": quick,
-              "ladder": ladder_block(d), "models": models_block(d), "inside": inside(d, bench), "archive": ARCHIVE}
-    if bench is None:
-        return blocks | {"pitch": "", "gif": gif_block(d["gif"]), "bench": "", "earlier": f"## Results\n\n{earlier}",
-                         "bench-rule": ""}
-    s, grades = bench
-    return blocks | {"pitch": bench_pitch(s), "gif": bench_gif(s, grades, gif),
-                     "bench": "## The v4 benchmark: models in native agent harnesses\n\n"
-                              + bench_block(s, grades, d),
-                     "earlier": "## Earlier versions\n\n<details>\n<summary><b>v2 to v4 on the desk's own runner, and "
-                                "the v5 price-impact check</b></summary>\n\n" + earlier + "\n\n</details>",
-                     "bench-rule": f"- **Which half of the benchmark leads.** {s['text']['rule']}"}
+    return {"badges": "\n".join(BADGES), "film": film_block(f, s, grades),
+            "duel": duel_block(f, article("duel.json")), "tryit": tryit_block(f), "tiles": tiles_block(f),
+            "pareto": pareto_figure(s, f), "board": board_card(s),
+            "rollout": rollout_block(f), "reward": reward_figure(f, article("reward.json")),
+            "train": train_figure(f, article("train.json")), "fail": fail_block(article("failures.json")),
+            "inside": inside_card(d, bench), "ladder": ladder_block(d), "how": how_card(s),
+            "bench-rule": f"- **Which half of the benchmark leads.** {s['text']['rule']} "
+                          + re.split(r"(?<=\.)\s+(?=[A-Z])", s["text"]["halves"])[-1], "limits": limits_card(s),
+            "deviations": deviations_card(s),
+            "earlier": "\n\n".join([across(d), *results, *checked, models_block(d)]), "quickstart": run_card(s),
+            "archive": ARCHIVE}
+
+
+def article(name: str) -> dict:
+    return json.loads((ARTICLE_DATA / name).read_text())
+
+
+def dollars(x: float) -> str:
+    """Whole dollars as the article prints them, the cents rounded half to even."""
+    w = round(abs(x))
+    return f"{'−' if x < 0 and w else ''}${w:,}"
+
+
+def picture(path: str, alt: str, link: str | None = None) -> list[str]:
+    """A card figure as the Hub shows it: the light or the dark version as the Hub's theme is (Tailwind's dark:
+    classes, which the Hub keeps on a card's HTML), and the phone version on a phone (a source the Hub leaves as
+    written, so its URL is absolute), each loaded lazily."""
+    stem, ext = path.rsplit(".", 1)
+    out = []
+    for sfx, cls in (("", "dark:hidden"), ("-dark", "hidden dark:block")):
+        pic = (f'<picture><source media="{PHONE}" srcset="{DATASET}/resolve/main/{stem}-phone{sfx}.{ext}">'
+               f'<img class="{cls}" src="{stem}{sfx}.{ext}" width="{CARD_W}" alt="{escape(alt)}" loading="lazy">'
+               "</picture>")
+        out.append(f'<a href="{link}">{pic}</a>' if link else pic)
+    return out
+
+
+def film_block(f: dict, s: dict, grades: list[dict]) -> str:
+    """The article's film of its lead run as a GIF (scripts/hub_desk_film.py), linking to the run's 3D replay, with the
+    article's caption and the run's Episode JSON."""
+    x, h = f["lead"], s["hero"]
+    g = next(r for r in grades if r["model"] == h["model"] and r["task_id"] == h["task_id"])
+    gif = f'<a href="{x["replay"]}"><img src="{FILM}" alt="{escape(x["film_alt"])}" width="100%"></a>'
+    return "\n".join([gif, "", f"<small>{x['name']} trades a {x['mw']} battery near {x['region']} through the "
+                               f"{x['month']} {x['kind']}. It made {x['P']}, {x['pct']} of the best possible profit; "
+                               f"the battery's real operator made {x['op']}. The panel on the right shows each tool "
+                               f"call as it happens. [Watch it in 3D]({x['replay']}) · "
+                               f"[its Episode JSON]({DATASET}/blob/main/{BENCH_DIR}/{g['episode']})</small>"])
+
+
+def duel_block(f: dict, duel: dict) -> str:
+    """The before and after: the article's three windows where the agents most clearly beat the real operator, as its
+    chart draws them, with each run's replay."""
+    ws, x = duel["windows"], f["duel"]
+    alt = (f"Three windows of the {x['span']} {x['kind']}, one panel each: " + "; ".join(
+        f"{w['site']} ({w['region']}, {w['size']}), the real operator, as it ran, settled {dollars(w['op']['p'])}, "
+        f"selling {w['op']['sold_mwh']} a day ahead, and {w['agent']['name']} {dollars(w['agent']['p'])}, selling "
+        f"{w['agent']['sold_mwh']} a day ahead" for w in ws) + ". Each panel has a 3D still of the run at a moment it "
+        "delivers, the node's day-ahead and real-time prices, what each side sold or bought a day ahead hour by hour, "
+        "and the battery's charge.")
+    links = " · ".join(f"[{w['site']}]({w['replay']})" for w in ws)
+    return "\n".join([*picture(f"{FIGS}/before-after.webp", alt), "",
+                      "<small>Each panel is one window. Top: the node's day-ahead price, hourly, and its real-time "
+                      "price, every 15 minutes. Below, for the real operator as it ran and for the run: what it sold "
+                      "(up) or bought (down) a day ahead in each hour, and the battery's charge. The windows: every "
+                      f"window in {x['half']} on which at least {x['need']} of the {x['of']} models settled above the "
+                      "real operator, both as it ran and with its own bids replayed through the same market; replayed, "
+                      f"its own bids earn {x['replays']}. Replay {x['best']}'s runs in 3D: {links}.</small>"])
+
+
+CONNECT = """Or play it from Python with the Playground's OpenEnv client, after `git clone {space}` and
+`pip install ./{name}`:
+
+```python
+from gridsim_desk import GridSimDesk
+
+with GridSimDesk(base_url="{base}").sync() as env:
+    env.reset(split="bench", index={index})
+    print(env.call_tool("get_forecasts", kind="price", market="dam", day="D0"))
+    print(env.call_tool("end_turn", response="waiting for the DAM results"))
+```"""
+
+
+def tryit_block(f: dict) -> str:
+    """The Playground as it is live on the article's window, linking to it, and its client opening that window."""
+    t = f["tryit"]
+    alt = (f"The Playground's Try Environment tab on window #{t['index']}, Battery {t['site']} in the {t['span']} "
+           f"{t['kind']}: the window picker, the desk's tools, the battery site in 3D, Quick play and the market chart")
+    return "\n".join([*picture(f"{FIGS}/try-it.webp", alt, t["space"]), "",
+                      f"<small>It opens on window #{t['index']}, Battery {t['site']} in the {t['span']} {t['kind']}, "
+                      "the run in the film above. Quick play is three clicks a wake-up (ask the optimizer, submit its "
+                      "proposal, end your turn), Autopilot repeats them to the end as the desk's reference does, and "
+                      f"every tool also takes raw JSON. [Open the Playground ↗]({t['space']})</small>", "",
+                      CONNECT.format(space=t["space"], name=t["space"].rsplit("/", 1)[-1], base=origin(t["app"]),
+                                     index=t["index"])])
+
+
+def origin(url: str) -> str:
+    return "/".join(url.split("/")[:3])
+
+
+def tiles_block(f: dict) -> str:
+    """The article's outside figures, two a row: each value, what it is, its comparison and its sources."""
+    cells = []
+    for t in f["why"]["tiles"]:
+        unit = "" if not t["unit"] else t["unit"] if t["unit"].startswith("/") else f" {t['unit']}"
+        bars = " · ".join(f"{escape(b['label'])} {escape(b['text'])}" for b in t["bars"])
+        src = " · ".join(f'<a href="{x["url"]}">{escape(x["label"])}</a>' for x in t["src"])
+        cells.append(f'<td width="50%"><b>{escape(t["value"])}{escape(unit)}</b> {escape(t["desc"])}<br>'
+                     f"<small>{bars}<br>{src}</small></td>")
+    return "\n".join(["<table>", *(f"<tr>{''.join(cells[i:i + 2])}</tr>" for i in range(0, len(cells), 2)), "</table>"])
+
+
+def pareto_figure(s: dict, f: dict) -> str:
+    """Capture against cost, the article's chart (hub/desk-charts), with its caption and the cost basis."""
+    on, point = s["plot"]["frontier"], lambda m: (f"{m['name']} ({pc(m['all']['C']['mean'])}%, "  # noqa: E731
+                                                   f"{bench_usd(m['cost']['usd_per_window'])})")
+    alt = ("Scatter of hindsight capture C against cost per three-day window on a log scale, the cost frontier a step "
+           f"line through {and_join([point(s['models'][k]) for k in on])}; dominated: "
+           + and_join([point(m) for m in bench_models(s) if m["key"] not in on and m["n"]]) + ".")
+    return "\n".join([*picture(f"{FIGS}/pareto.svg", alt), "",
+                      "<small>Each point is a model: its mean capture C over the windows it finished against its mean "
+                      "cost a window, on a log scale. The step line is the cost frontier, the models no other model "
+                      f"beats on both; each point's 95% CI is in the table below. {f['eval']['basis']}</small>"])
+
+
+CARD_REFS = {"operator_actual": "The real operator, as it ran", "operator_replay": "The real operator's bids, replayed",
+             "anchor": "The desk's planner"}
+CARD_BASIS = {"gpu_time": "GPU time", "metered_rate": "metered rate"}
+
+
+def board_card(s: dict) -> str:
+    """Every model and the references, best first: C with its 95% CI over every window and on each side of the training
+    cutoffs, and the cost a window, all from summary.json."""
+    ms, refs, n, cols = bench_models(s), s["references"], s["n_windows"], ("all", *BENCH_SPLITS)
+
+    def cell(b: dict, bold: bool) -> str:
+        v = f"{pc(b['mean'])}%"
+        return f"{f'**{v}**' if bold else v}<br><small>[{pc(b['ci'][0])}, {pc(b['ci'][1])}]</small>"
+
+    def cost(m: dict) -> str:
+        c = m["cost"]
+        return (f"{bench_usd(c['usd_per_window'])}<br><small>"
+                + (f"{CARD_BASIS[c['basis']]} · " if c["basis"] in CARD_BASIS else "")
+                + f"{bench_usd(c['usd_all_attempts'])} in all</small>")
+
+    rows = [f"| **{m['name']}**<br><small>{m['harness']} · {m['setting']}"
+            + ("" if m["n"] == n else f" · {m['n']} of {n} windows") + "</small> | "
+            + " | ".join(cell(m[c]["C"], c == "all") for c in cols) + f" | {cost(m)} |" for m in ms if m["n"]]
+    rows += [f"| *{label}* | " + " | ".join(f"*{pc(refs[k][c]['C']['mean'])}%*" for c in cols) + " | – |"
+             for k, label in CARD_REFS.items()]
+    head = [f"C, all {n} windows", *(f"{bench_side(s, x)}<br><small>{BENCH_SIDE[x]}</small>" for x in BENCH_SPLITS)]
+    none = [m["name"] for m in ms if not m.get("cutoff")]
+    gaps = {m["name"]: g["ci"] for m in ms if m["n"] and (g := bench_pair(s, m["key"], "operator_replay"))}
+    ahead, behind = ([k for k, c in gaps.items() if c[0] > 0], [k for k, c in gaps.items() if c[1] < 0])
+    return "\n".join([
+        "| Model | " + " | ".join(head) + " | $ a window |", "|---|" + "---:|" * (len(cols) + 1), *rows, "",
+        f"<small>C, hindsight capture, %. Brackets: 95% CIs, a block bootstrap over the {s['n_fronts']} weather "
+        "fronts, four on each side of the cutoffs."
+        + (f" No training cutoff is reported for {and_join(none)}." if none else "")
+        + " $ a window: the graded attempt's tokens at the model maker's list price, or as the chart's note says; in "
+        "all: every attempt, retries and stalls included. How each model ran is under How the benchmark ran, "
+        "below.</small>", "",
+        "**Against the real operator,** paired by window with its own bids replayed, the 95% CI on the gap is above "
+        f"zero for {and_join(ahead) if ahead else 'no model'}"
+        + (f", and below zero for {and_join(behind)}." if behind else ".")])
+
+
+def rollout_block(f: dict) -> str:
+    """The Replays Space as it is live at the minute the article's rollout opens on, linking there."""
+    w = f["eval"]["watch"]
+    alt = (f"The Replays Space at {w['at']} on {w['day']}: {w['name']}'s run at Battery {w['site']} ({w['region']}) "
+           f"over {w['span']}, the battery site in 3D at night beside the node's prices, the battery's charge and the "
+           "statement settled so far")
+    return "\n".join([*picture(f"{FIGS}/rollout.webp", alt, w["app"]), "",
+                      f"<small>At {w['at']} on {w['day']} in the bench's costliest run, {w['name']} at Battery "
+                      f"{w['site']} ({w['region']}) over {w['span']}, the front after the film's: its evening "
+                      "day-ahead sales met an all but empty battery and were bought back as real-time prices hit "
+                      f"{w['spike']}. It lost {w['lost']}; the real operator made {w['op']}. [Open it in Replays "
+                      f"↗]({w['app']}), or pick any model and window under Episodes.</small>"])
+
+
+def reward_figure(f: dict, r: dict) -> str:
+    """Every run on the film's window between idle and hindsight, the article's chart."""
+    x, refs = f["reward"], r["refs"]
+    alt = (f"Every model's settled P on the film's window, Battery {x['site']}, on the scale from idle "
+           f"({dollars(refs['p_idle'])}) to hindsight ({dollars(refs['p_hind'])}), with the desk's planner at "
+           f"{dollars(refs['p_anchor'])} and the real operator at {dollars(refs['p_operator_actual'])} as it ran and "
+           f"{dollars(refs['p_operator_replay'])} with its bids replayed: " + "; ".join(
+               f"{q['name']} C {pc(q['c'])}%, {dollars(q['p'])}, R {q['r']:.2f}" for q in r["runs"])
+           + ". Below, R along the same scale: 0.2 at idle, rising to 1 at the planner and staying there above it.")
+    return "\n".join([*picture(f"{FIGS}/reward.png", alt), "",
+                      f"<small>Every model's settled P on the film's window, Battery {x['site']}, on the scale from "
+                      "idle (C 0%) to hindsight (C 100%), with the desk's planner and the real operator marked; the "
+                      "strip below draws R along the same scale.</small>"])
+
+
+def train_figure(f: dict, t: dict) -> str:
+    """The distilled model against its base on every benchmark window, the article's chart."""
+    x = f["train"]
+    alt = (f"{x['base_name']}, before and after fine-tuning on the planner: C on each of the {x['n']} benchmark "
+           f"windows, paired, from the largest gain to the largest loss. Means: {x['base']} before, {x['sft']} after, "
+           f"the planner {x['planner']}, {t['names']['lead']} {x['sol']}; better on {x['better']} of {x['n']} windows.")
+    return "\n".join([*picture(f"{FIGS}/training.png", alt), "",
+                      f"<small>Each row is a benchmark window: {x['base_name']}'s C (grey) and the fine-tuned model's "
+                      "(blue), with the planner's C on that window as a tick. Rows run from the largest gain to the "
+                      "largest loss.</small>"])
+
+
+FAIL = (("end", "Do they keep trading to the end?", "last_offer_h"),
+        ("live", "Do their real-time offers stay live?", "rt_live"),
+        ("refused", "Does the desk accept their offers?", "refused"))
+"""The article's three failure charts, in its order: each one's key, its question, and the metric it ranks by."""
+
+
+def fail_block(fm: dict) -> str:
+    """Where models fail: the article's three charts with every model shown, each under its question, from the exact
+    replay of every graded episode (failures.json)."""
+    ms = fm["models"]
+    share = lambda v: f"{(Decimal(str(v)) * 100).quantize(Decimal(1), ROUND_HALF_UP)}%"  # noqa: E731
+    rho = f"{fm['corr']['last_offer_vs_C_models']:.2f}".replace("-", "−")
+    alts = {
+        "end": "Hours between each model's last accepted offer and the window's end, the mean over its windows: "
+               + "; ".join(f"{m['name']} {m['last_offer_h']:.1f} h"
+                           for m in sorted(ms, key=lambda m: m["last_offer_h"])),
+        "live": "How each model's 5-minute real-time intervals settled, on its live real-time curve, its day-ahead "
+                f"curve or a proxy: the desk's planner {share(fm['anchor']['rt_live'])}, "
+                f"{share(fm['anchor']['rt_dam'])}, {share(fm['anchor']['rt_proxy'])}; " + "; ".join(
+                    f"{m['name']} {share(m['rt_live'])}, {share(m['rt_dam'])}, {share(m['rt_proxy'])}"
+                    for m in sorted(ms, key=lambda m: -m["rt_live"])),
+        "refused": "The share of each model's submits the desk refused: " + "; ".join(
+            f"{m['name']} {share(m['refused'])}" for m in sorted(ms, key=lambda m: m["refused"]))}
+    how = {"end": "Hours between each model's last accepted offer and the window's end, the mean over its windows. The "
+                  "more hours a model leaves its last offer standing, the lower it scores: a rank correlation of "
+                  f"{rho} across the models.",
+           "live": "Each bar splits a model's 5-minute real-time intervals by what they settled on: its own live "
+                   "real-time curve, its day-ahead curve carried over, or a proxy. The desk's planner is the reference "
+                   "row.",
+           "refused": "The share of each model's submits the desk refused, for breaking its rules or arriving after a "
+                      "gate."}
+    out = []
+    for key, question, _ in FAIL:
+        out += [f"**{question}**", "", *picture(f"{FIGS}/fail-{key}.png", alts[key] + "."), "",
+                f"<small>{how[key]}</small>", ""]
+    return "\n".join([*out, "<small>Means over each model's graded windows, from an exact replay of every episode. "
+                            "[The article](https://huggingface.co/spaces/earakely-scale/GridSimEnv) highlights one "
+                            "model at a time, with its profile.</small>"])
+
+
+LOAD = """```python
+from datasets import load_dataset
+
+repo = "earakely-scale/GridSimEnv-AgentEnv"
+bench = load_dataset(repo, "desk_v4_bench", split="post_cutoff")  # the benchmark, each model's every window
+board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
+runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's every task
+tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
+```"""
+BENCH_COLUMNS = (
+    ("The model", "`model`, `name`, `family`, `model_id`, `harness`, `harness_version`, `setting`, `weights`",
+     ("model", "name", "family", "model_id", "harness", "harness_version", "setting", "weights")),
+    ("The window", "`pack`, `task_id`, `split` (`pre_cutoff` or `post_cutoff`), `front`, `front_kind`, `site` (S01 to "
+     "S04), `region`, `battery`, `dates`",
+     ("pack", "task_id", "split", "front", "front_kind", "site", "region", "battery", "dates")),
+    ("Whether it finished", "`status` (`scored` or `missing`), `missing_reason`, `attempts`, `retries`, `valid`",
+     ("status", "missing_reason", "attempts", "retries", "valid")),
+    ("The grade", "`capture` (C), `capture_phys`, `reward` (R), `p_usd` (P, the settled statement), `floored`, "
+     "`beats_anchor`", ("capture", "capture_phys", "reward", "p_usd", "floored", "beats_anchor")),
+    ("The references", "`p_idle`, `p_anchor` (the planner), `p_hind`, `p_hind_phys`, `p_operator_replay`, "
+     "`p_operator_actual`, `capture_operator_replay`",
+     ("p_idle", "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual",
+      "capture_operator_replay")),
+    ("How it traded", "`turns`, `wakes`, `desk_calls`, `own_tool_calls`, `shell_calls`, `reminders`, `submissions`, "
+     "`rejected`",
+     ("turns", "wakes", "desk_calls", "own_tool_calls", "shell_calls", "reminders", "submissions", "rejected")),
+    ("Usage and cost", "`input_tokens`, `cached_tokens`, `cache_write_tokens`, `output_tokens`, `reasoning_tokens`, "
+     "`usd` (the graded attempt), `usd_all_attempts`, `cost_basis`, `wall_seconds`",
+     ("input_tokens", "cached_tokens", "cache_write_tokens", "output_tokens", "reasoning_tokens", "usd",
+      "usd_all_attempts", "cost_basis", "wall_seconds")),
+    ("The record", "`episode`, the path of its Episode JSON in this dataset", ("episode",)))
+"""The default config's columns by what they tell, every column of hub_desk.BENCH once."""
+
+
+def inside_card(d: dict, bench: tuple[dict, list[dict]]) -> str:
+    """The configs, how to load them, the folders, and the default config's columns."""
+    names = module("hub_desk", "scripts/hub_desk.py").BENCH.names
+    listed = [c for _, _, cs in BENCH_COLUMNS for c in cs]
+    if sorted(listed) != sorted(names):
+        raise SystemExit(f"BENCH_COLUMNS lists {sorted(set(listed) ^ set(names))} unlike hub_desk.BENCH")
+    return "\n".join([inside(d, bench), "", LOAD.replace("{latest}", ladder(d)[-1]["version"]), "",
+                      "<details>", "<summary><b>The columns of <code>desk_v4_bench</code></b>, one row per model and "
+                      "window</summary>", "", "| What | Columns |", "|---|---|",
+                      *(f"| {g} | {text} |" for g, text, _ in BENCH_COLUMNS),
+                      "", "</details>"])
+
+
+def how_card(s: dict) -> str:
+    """How the benchmark ran: the harnesses and where each model was served, the settings, the closed network and the
+    budget, how to reproduce it, what it cost, how reliably it ran and each model's run notes."""
+    ms, run = bench_models(s), s["run"]
+    by, served, settings = {}, {}, {}
+    for m in ms:
+        by.setdefault((m["harness"], m["harness_version"], m.get("harness_note")), []).append(m["name"])
+        settings.setdefault(m["setting"], []).append(m["name"])
+        if m.get("server"):
+            where = m["server"] + ("" if m.get("endpoint") == m["server"] else f" through {m['endpoint']}"
+                                   if m.get("endpoint") else f" on {m['cost']['gpu']['where']}")
+            served.setdefault(where, []).append(m["name"] if m["name"].startswith(m["provider"])
+                                                else f"{m['provider']}'s {m['name']}")
+    paid = sorted((m for m in ms if m["cost"]["usd_per_window"] is not None), key=lambda m: m["cost"]["usd_per_window"])
+    notes = [f"{m['name']} ran" + (f" through {m['endpoint']}," if m.get("endpoint") else "")
+             + f" on agentenv-framework {m['framework']}" + (f"; {m['note']}" if m.get("note") else "") + "."
+             for m in ms if m.get("framework")]
+    gpu = [f"{m['name']}'s cost is {m['cost']['gpu']['note']}." for m in ms if m["cost"].get("gpu")]
+    return "\n".join(f"- {x}" for x in [
+        "**Each model in its own agent harness,** through AgentEnv: " + "; ".join(
+            f"{and_join(xs)} in {h}" + (f" {v}" if v else "") + (f" {note}" if note else "")
+            for (h, v, note), xs in by.items()) + "."
+        + (" Served by " + "; by ".join(f"{w}: {and_join(xs)}" for w, xs in served.items()) + "." if served else ""),
+        "**Settings:** " + "; ".join(f"{k} for {and_join(xs)}" for k, xs in settings.items()) + ".",
+        *bench_how(s)[2:4],
+        "**Reproducible with `agent-env run`:** every episode is a plain run of the bench bundle"
+        + (f" (`{run['bundle']}`)" if run.get("bundle") else "") + " and a config.toml"
+        + (f", on agentenv-framework {run['framework']}" if run.get("framework") else "")
+        + ("; these ran on EC2 boxes with local Docker rather than in the Modal sandboxes the bundle was designed for, "
+           "a deviation logged with the others" if run.get("route") == "ec2" else "")
+        + ". Run it yourself, below, shows how."
+        + (f" Pre-registered in [{run['prereg']}]({REPO}/blob/{run.get('bundle') or 'main'}/{run['prereg']})."
+           if run.get("prereg") else ""),
+        f"**Cost a window** runs from {bench_usd(paid[0]['cost']['usd_per_window'])} ({paid[0]['name']}) to "
+        f"{bench_usd(paid[-1]['cost']['usd_per_window'])} ({paid[-1]['name']}): the graded attempt's tokens in its "
+        "harness's own trajectory at the model maker's list price; the table above also gives every attempt's."
+        + "".join(f" {x}" for x in gpu) + (f" {s['text']['metered']}" if s["text"].get("metered") else "")
+        + "".join(f" {m['price_note']}" for m in ms if m.get("price_note")),
+        *([f"**Valid submissions.** {s['text']['valid']}"] if s["text"].get("valid") else []),
+        f"**Reliability:** {s['text']['reliability']}",
+        "**Run notes.** " + " ".join(notes),
+        f"Every number is in [`{BENCH_DIR}`]({DATASET}/tree/main/{BENCH_DIR}) (its README, `summary.json`, "
+        "`grades.jsonl.gz` and every scored Episode JSON) and in the `desk_v4_bench` config."])
+
+
+DESK_LIMITS = (
+    "**DAM credit screening is not modelled.** ERCOT screens a QSE's day-ahead bids and offers against its available "
+    "credit; here, day-ahead positions are bounded only by the battery's MW limits. That favours large DAM/RT spread "
+    "positions, and the days where those paid carry most of v2's and v4's dollars.",
+    "**K1 in v3 to v5 too.** The earlier versions' reserve figures leave the calls with the spurious ASO-02 note out "
+    "of the refused offers.",
+    "**Modelled lines.** The co-located solar profile, degradation, warranty overage, the end-of-day energy charge and "
+    "the capacity-short charge are modelled and marked as such; so is the desk's own price forecast, built only from "
+    "data public at the time.",
+    "**One battery is a price taker.** In v2 to v4 and the benchmark the desk clears at the real prices; the v5 "
+    "price-impact check re-clears the DAM with the desk's own offers and shows that a 100–150 MW battery moves the "
+    "day-ahead price by cents.",
+    "**Small packs in v2 to v5.** 16 to 32 tasks per version over four to eight blocks, so the CIs are wide; the v5 "
+    "check repeats v3's battery-days, and the gaps between the two runs are the scale of that noise.",
+    "**Next:** a fleet desk, a QSE bidding a portfolio of batteries into the DAM at once, where price impact can "
+    "matter; and more runs per task, to separate skill from run-to-run noise.")
+
+
+def limits_card(s: dict) -> str:
+    return "\n".join(f"- {x}" for x in [*bench_limits(s), *DESK_LIMITS])
+
+
+def deviations_card(s: dict) -> str:
+    """Each deviation by its first sentence; the pre-registration gives each in full."""
+    link, first = bench_deviations(s), [re.split(r"(?<=\.)\s+(?=[A-Z])", x, maxsplit=1)[0] for x in s["deviations"]]
+    return "\n".join([*(f"- {x}" for x in first), *(
+        ["", f"The pre-registration gives each in full: [{s['run']['prereg']}#deviations]({link})."] if link else [])])
+
+
+RUN = """In process, with no Docker and no model key, play the desk's planner on v2's two pilot battery-days:
+
+```bash
+git clone https://github.com/earakely-scale/agentenv-gridsim-plugin
+cd agentenv-gridsim-plugin && uv sync --extra dev
+uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor --out runs/anchor
+```
+
+Each run writes every task's Episode JSON and a results row with its grade. `--policy model --model NAME --base-url URL`
+plays any model behind an OpenAI-compatible endpoint the same way, with its key in `DESK_API_KEY`, and every version's
+packs are under `data/desk/`. On AgentEnv, after `agent-env gridsim setup`, `scripts/desk_e2e.py` plays a task through
+the gateway env, its post-turn hook and its verifier, and checks it against the in-process run byte for byte."""
+
+
+def run_card(s: dict) -> str:
+    keys = and_join([f"`{m['harness_key']}`" for m in bench_models(s)]).replace(" and ", " or ")
+    return "\n\n".join([RUN, BENCH_QUICKSTART.replace("{deviations}", bench_deviations(s)).replace("{harnesses}",
+                                                                                                   keys)])
+
+
+def module(name: str, rel: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / rel)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 BENCH_DIR = "results/desk-v4-bench"
-BENCH_GIF = "assets/gridsim-desk-bench.gif"
 BENCH_SPLITS = ("pre_cutoff", "post_cutoff")
 BENCH_SIDE = {"pre_cutoff": "may be in training data", "post_cutoff": "after every reported cutoff"}
 BENCH_REFS = {"operator_replay": "The real operator's bids, replayed", "anchor": "The anchor, the desk's own optimiser"}
 BENCH_BASIS = {"gpu_time": ", GPU time", "metered_rate": ", no maker price: metered rate"}
-NOT_YET_IN_VIEWER = ()
 BENCH_WHEN = {"pre_cutoff": "a window that may be in the models' training data",
               "post_cutoff": "after every reported training cutoff"}
 FAKE = ("> **FAKE DATA PREVIEW.** Every benchmark number, chart and row on this page was synthesized from the pilot "
@@ -855,39 +1249,6 @@ def bench_pitch(s: dict) -> str:
                         f"trading desk for three days at a time across {s['n_fronts']} real Texas weather fronts, "
                         "graded in dollars against the hindsight optimum and the battery's real operator.**",
                         *([FAKE] if s["fake"] else [])])
-
-
-def bench_gif(s: dict, grades: list[dict], attached: bool) -> str:
-    """The lead GIF: the best-looking run of the model with the highest C (summary.json's `hero`), its caption from
-    that run's grade, with links to that run and to each other model's run of its window in the viewer Space's 3D
-    replay; without the GIF file, the slot it fills."""
-    h = s.get("hero")
-    if not h:
-        return ""
-    g = next(r for r in grades if r["model"] == h["model"] and r["task_id"] == h["task_id"])
-    m, front = s["models"][h["model"]], next(f for f in s["fronts"] if f["front"] == g["front"])
-    where, when = f"Battery {g['site']} ({g['region']}, {g['battery']})", long_(
-        {"days_per_task": len(g["dates"])}, g["dates"][0])
-    others = [f"[{x['name']}]({bench_replay(x['key'], h['task_id'])})" for x in bench_models(s)
-              if x["key"] != h["model"] and x["key"] not in NOT_YET_IN_VIEWER]
-    caption = (f"The v4 benchmark: {m['name']} in {m['harness']} trades {where}, a real ERCOT battery, over {when}, "
-               f"through a {front['kind']}, {BENCH_WHEN[g['split']]}. It settles at {usd0(g['p'])}, hindsight "
-               f"capture C {pc(g['capture'])}%"
-               + (f"; the real operator's own bids, replayed, earn {usd0(g['p_operator_replay'])}"
-                  if g["p_operator_replay"] is not None else "")
-               + f". [Replay it in 3D]({bench_replay(h['model'], h['task_id'])})"
-               + (f", or watch {' or '.join([', '.join(others[:-1]), others[-1]] if len(others) > 1 else others)} "
-                  "trade the same window" if others else "")
-               + f". [Its Episode JSON]({DATASET}/blob/main/{BENCH_DIR}/{g['episode']}). Data: ERCOT and NWS, "
-               "public; not affiliated with or endorsed by ERCOT.")
-    if not attached:
-        return "\n".join([f"> **Lead GIF slot.** {caption}", ">",
-                          f"> Filmed from `{BENCH_DIR}/{g['episode']}` by `scripts/hub_desk_hero.py`: the best-looking "
-                          f"run of the model with the highest C by its ranking ({h['why']})."])
-    alt = (f"{m['name']} at the desk of {where} over {when}: the node's prices as they post, the battery's state of "
-           "charge and dispatch, and each wake-up's tool calls with their results, then the settled grade")
-    return "\n".join([f'<a href="{bench_replay(h["model"], h["task_id"])}"><img src="{BENCH_GIF}" '
-                      f'alt="{escape(alt)}" width="100%"></a>', "", f"<small>{caption}</small>"])
 
 
 def bench_replay(model: str, task: str) -> str:
@@ -1174,47 +1535,21 @@ def inside(d: dict, bench: tuple[dict, list[dict]] | None = None) -> str:
         f"{tick(checks(d))}. Each one's folder, `results/desk-v<N>/`, holds its README, `summary.json`, "
         "`grades.jsonl.gz`, figures, raw runs (`runs/<model>/results.jsonl.gz` and the per-call logs) and every "
         "Episode JSON (`episodes/<model>/*.json.gz`)"
-        + ("; `results/desk-v4-bench/` holds the benchmark's README, `summary.json` (every number on this card's "
-           "benchmark section), `grades.jsonl.gz`, figures and every scored Episode JSON" if bench else "")
-        + "; `assets/` holds the desk GIFs and this card's charts."])
+        + ("; `results/desk-v4-bench/` holds the benchmark's README, `summary.json` (every number of the benchmark on "
+           "this card), `grades.jsonl.gz`, figures and every scored Episode JSON" if bench else "")
+        + "; `assets/` holds the article's film, the earlier desk GIFs and this card's figures."])
 
 
-QUICKSTART = """In process, with no Docker and no model key, play the anchor policy on v2's two pilot battery-days:
-
-```bash
-git clone https://github.com/earakely-scale/agentenv-gridsim-plugin
-cd agentenv-gridsim-plugin && uv sync --extra dev
-uv run python scripts/desk_run.py --pack desk-v2-pilot --policy anchor --out runs/anchor
-```
-
-Each run writes every task's Episode JSON and a results row with its grade. `--policy model --model NAME --base-url URL`
-plays any model behind an OpenAI-compatible endpoint the same way, with its key in `DESK_API_KEY`, and every version's
-packs are under `data/desk/`. On AgentEnv, after `agent-env gridsim setup`, `scripts/desk_e2e.py` plays a task through
-the gateway env, its post-turn hook and its verifier, and checks it against the in-process run byte for byte.
-
-{bench}The tables:
-
-```python
-from datasets import load_dataset
-
-repo = "earakely-scale/GridSimEnv-AgentEnv"
-{bench_table}board = load_dataset(repo, "desk_leaderboard", split="{latest}")  # each model and reference, with CIs
-runs = load_dataset(repo, "desk_runs", split="{latest}")          # each model's every task
-tasks = load_dataset(repo, "desk_tasks", split="{latest}")        # every task, its site card and references
-```"""
-BENCH_QUICKSTART = """The v4 benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py`
-writes for one harness (`claude-code`, `codex-sol`, `codex-luna`, `gemini`, `opencode-beam`, `opencode-glm`,
-`opencode-kimi`, `opencode-qwenmax` or `opencode-qwen`), with a `.agentenv/config.toml` that names the model endpoint
-and its key. By default the bundle's network allowlist holds only the harness vendor's API host, for a sandbox
-provider that enforces it, such as Modal, which the bundle was built for. Our runs took route C instead: local Docker
-on EC2 boxes, with a host egress rule and a per-run model proxy ([deviations]({deviations})):
+BENCH_QUICKSTART = """The benchmark's runs are each a plain `agent-env run` of a bundle that `scripts/desk_bench.py`
+writes for one harness ({harnesses}), with a `.agentenv/config.toml` that names the model endpoint and its key. By
+default the bundle's network allowlist holds only the harness vendor's API host, for a sandbox provider that enforces
+it, such as Modal, which the bundle was built for. Our runs took route C instead: local Docker on EC2 boxes, with a
+host egress rule and a per-run model proxy ([deviations]({deviations})):
 
 ```bash
 uv run python scripts/desk_bench.py tasks --harness codex-luna --pack desk-v4-bench --out bundles/bench-codex-luna
 uv run agent-env run bundles/bench-codex-luna --task desk-v4-2026-07-04-S01
 ```"""
-BENCH_TABLE = ('bench = load_dataset(repo, "desk_v4_bench", split="post_cutoff")  '
-               "# the benchmark, each model's every window\n")
 ARCHIVE = ("GridSimEnv v1 (one-shot day-ahead schedule, training results) is archived at revision "
            f"[6ae10fcc]({DATASET}/tree/6ae10fcc7fea8037716a0ea7f4ef761786a34f87).")
 
@@ -1222,11 +1557,11 @@ ARCHIVE = ("GridSimEnv v1 (one-shot day-ahead schedule, training results) is arc
 def ladder_block(d: dict) -> str:
     done, lad, chk = {v["version"]: v for v in d["versions"]}, [x["version"] for x in d["ladder"]], checks(d)
     rows = [f"| **{x['version']}, {x['name']}**<br><small>" + (
-        f"{done[x['version']]['n_tasks']} {unit(done[x['version']])}s, results above" if x["version"] in done
-        else "next")
+        f"{done[x['version']]['n_tasks']} {unit(done[x['version']])}s, results under Earlier versions"
+        if x["version"] in done else "next")
         + f"</small> | {md(x['adds'])} | {md(x['does'])} |" for x in d["ladder"]] + [
         f"| **{v['version']}, {v['name']}**<br><small>a price-impact check on {v['check_of']}'s {v['n_tasks']} "
-        f"{unit(v)}s, results above</small> | {md(v['adds'])} | {md(v['does'])} |" for v in chk]
+        f"{unit(v)}s, results under Earlier versions</small> | {md(v['adds'])} | {md(v['does'])} |" for v in chk]
     return "\n".join([
         f"**{NUM[len(lad)]} versions ({lad[0]}–{lad[-1]}) plus a price-impact check "
         f"({and_join([v['version'] for v in chk])}).** Each version adds one kind of realism to the same desk, tools "
@@ -1265,7 +1600,7 @@ def desk_results(v: dict, d: dict) -> str:
         f"**How much of the hindsight optimum each desk captured, {by(v)}, {v['version']}**", "",
         *chart(f"desk-{v['version']}-days", days_alt(v, d), charts["width"], charts["phone"]["media"]), "",
         f"<small>{days_caption(v, d)}</small>", "", *(f"- {x}" for x in desk_bullets(v)), "",
-        f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the viewer lists every "
+        f"[{v['version']}'s results page]({APP}/results.html?v={v['version']}) in the Replays Space lists every "
         f"{unit(v)} with a replay of each model's run.", "",
         f"Every number is in [`{v['folder']}`]({DATASET}/tree/main/{v['folder']}) (its README, `summary.json`, "
         "`grades.jsonl.gz`, every Episode JSON and run log) and in the `desk_leaderboard` and `desk_runs` configs, "
@@ -1645,11 +1980,6 @@ SHORTS = {"anchor": "the anchor", "operator_replay": "the operator's bids",
           "operator_actual": "the operator as settled"}
 
 
-def gif_block(gif: dict) -> str:
-    return "\n".join([f'<a href="{gif["link"]}"><img src="{gif["path"]}" alt="{escape(gif["alt"])}" width="100%"></a>',
-                      "", f"<small>{gif['caption']}</small>"])
-
-
 def usd0(x: float, sign: bool = False) -> str:
     v = f"{abs(x):,.0f}"
     return f"{'' if v == '0' else '−' if x < 0 else '+' if sign else ''}\u2060${v}"
@@ -1677,20 +2007,151 @@ def eval_runs() -> dict[str, list[dict]]:
     return hr.eval_runs(BEAM)
 
 
-def card_text(results_dir: Path, gif: bool = False) -> str:
-    """The desk's card: hub/dataset/README.md with each block filled in, the v4 benchmark's from
-    results/desk-v4-bench/ and the rest from results/overview/desk.json, and the desk's configs as the only ones; the
-    v1 files stay in the repo, outside every config. `gif`: the benchmark's lead GIF ships beside the card."""
+def card_text(results_dir: Path) -> str:
+    """The desk's card: hub/dataset/README.md with the article's facts in its prose and each block filled in, from the
+    article's data, results/desk-v4-bench/ and results/overview/desk.json, and the desk's configs as the only ones; the
+    v1 files stay in the repo, outside every config."""
     d = json.loads((results_dir / DESK).read_text())
     bench = bench_read(results_dir / "desk-v4-bench")
+    if bench is None or bench[0]["fake"]:
+        raise SystemExit(f"{results_dir / 'desk-v4-bench'} holds no real benchmark results; the card states real runs")
+    f = facts(*bench)
     text = CARD.read_text()
-    for name, block in desk_blocks(d, bench, gif).items():
+    check_numbers(text)
+    for name, block in desk_blocks(d, bench, f).items():
         text, n = re.subn(rf"^<!-- {name} -->$", lambda m, b=block: b, text, flags=re.M)
         if n != 1:
             raise SystemExit(f"{CARD} has no <!-- {name} --> line")
+    if left := re.findall(r"^<!-- [\w-]+ -->$", text, flags=re.M):
+        raise SystemExit(f"{CARD} has lines no block fills: {left}")
+    text = fill(text, f)
+    banned(text)
     out = DatasetCard(re.sub(r"\n{3,}", "\n\n", text))
     out.data.configs = desk_configs(d, bench)
     return str(out)
+
+
+FACT = re.compile(r"\{(F(?:\.[A-Za-z0-9_]+)+)\}")
+NUMBER = re.compile(r"[−+-]?⁠?\\?\$[\d,]+(?:\.\d+)?k?|[−+-]?\d+\.\d+¢|[−+-]?\b\d+\.\d{2,}\b|\b\d+(?:\.\d+)?%")
+CONSTANT = {"0.2", "0.8", "95%", "0%", "100%"}
+BANNED = ((re.compile(r"every model[’']s (?:\w+ )?training cut-?off", re.I),
+           "the cutoffs are reported ones: say after every reported training cutoff"),
+          (re.compile(r"\$5,000"), "the card states no offer cap"),
+          (re.compile(r"\bTexas has\b"), "write ERCOT's grid"))
+"""What the card must not say, and why."""
+
+
+def facts(s: dict, grades: list[dict]) -> dict:
+    """The article's facts.json (scripts/hub_article.py formats it from summary.json, the grades, the episodes and the
+    failure replay's failures.json), which the card's prose reads as the article's chapters do. Where it states what
+    those files state, they must agree, so a facts.json older than the results stops the build."""
+    f = article("facts.json")
+    ms, plan = s["models"], s["references"]["anchor"]["all"]["C"]["mean"]
+    hero = next(g for g in grades if g["model"] == s["hero"]["model"] and g["task_id"] == s["hero"]["task_id"])
+    sft = next(m for m in ms.values() if m.get("distilled"))
+    want = {"F.env.windows": str(s["n_windows"]), "F.env.fronts": str(s["n_fronts"]), "F.env.models": str(len(ms)),
+            "F.eval.runs": str(sum(m["n"] for m in ms.values())), "F.lead.name": ms[hero["model"]]["name"],
+            "F.lead.P": dollars(hero["p"]), "F.lead.op": dollars(hero["p_operator_actual"]),
+            "F.reward.name": ms[hero["model"]]["name"], "F.reward.P": dollars(hero["p"]),
+            "F.reward.C": f"{pc(hero['capture'])}%", "F.train.base_name": ms[sft["family"]]["name"],
+            "F.train.base": f"{pc(ms[sft['family']]['all']['C']['mean'])}%",
+            "F.train.sft": f"{pc(sft['all']['C']['mean'])}%",
+            "F.train.planner": f"{pc(plan)}%", "F.train.usd": bench_usd(sft["cost"]["usd_per_window"])}
+    for k, m in ms.items():
+        c = m["all"]["C"]
+        want |= {f"F.eval.m.{k}.name": m["name"], f"F.eval.m.{k}.n": str(m["n"]),
+                 f"F.eval.m.{k}.C": f"{pc(c['mean'])}%",
+                 f"F.eval.m.{k}.ci": f"[{pc(c['ci'][0])}, {pc(c['ci'][1])}]",
+                 f"F.eval.m.{k}.usd": bench_usd(m["cost"]["usd_per_window"]),
+                 f"F.eval.m.{k}.spent": bench_usd(m["cost"]["usd_all_attempts"])}
+    fm, r = article("failures.json"), f["eval"]["replan"]
+    late = {m["name"]: m["last_offer_h"] for m in fm["models"]}
+    want |= {"F.eval.replan.rho": f"{-fm['corr']['last_offer_vs_C_models']:.2f}",
+             "F.eval.replan.ah": f"{late[r['a']]:.1f}", "F.eval.replan.bh": f"{late[r['b']]:.1f}"}
+    want |= leaves(beam_facts(article("beam.json"), s, fm), "F.beam")
+    have = leaves(f)
+    if bad := [f"{k} is {have.get(k)!r}, the results give {v!r}" for k, v in want.items() if have.get(k) != v]:
+        raise SystemExit("facts.json does not match the benchmark's results, the failure charts' failures.json or the "
+                         "Beam diagnosis's beam.json; run scripts/hub_article.py:\n  " + "\n  ".join(bad))
+    return f
+
+
+BEAM = "beam"
+BEAM_DIR = "desk-v4-bench/beam-diagnosis"
+BEAM_MINOR = ("as", "repair", "verbatim", "merge")
+"""The changes worth less than the bound the section states: AS left out, refused submits repaired, and Beam's own
+edits to what it copied, dropped or kept."""
+ARTICLE_APP = "https://earakely-scale-gridsimenv.hf.space"
+
+
+def beam_facts(b: dict, s: dict, fm: dict) -> dict:
+    """The Beam-1.0 section's facts, which the card's section and the article's short one both state: beam.json's
+    diagnosis (scripts/hub_article.py's beam_data), summary.json's run of the model and its references, and
+    failures.json's last accepted offer, the measure the eval's re-planning finding states."""
+    m, e, refs = s["models"][b["model"]], b["effects"], s["references"]
+    late = next(x["last_offer_h"] for x in fm["models"] if x["key"] == b["model"])
+    pts = lambda x: pc(x / 100, 1, True)  # noqa: E731
+    ci = lambda x: f"[{pts(x['ci'][0])}, {pts(x['ci'][1])}]"  # noqa: E731
+    share = lambda a, n: f"{pc(a / n, 0)}%"  # noqa: E731
+    minor = math.ceil(max(abs(e[k]["mean"]) for k in BEAM_MINOR) * 2) / 2
+    ident = "-".join(p.upper() if re.search(r"\d", p) and re.search(r"[a-z]", p) else p.capitalize()
+                     for p in m["model_id"].split("-"))
+    heading, seller = f"{m['name']} on GridSimEnv", re.search(r"at (.+?)'s list price", m["price_note"])[1]
+    return {"name": m["name"], "id": ident, "provider": m["provider"], "setting": m["setting"], "seller": seller,
+            "harness": f"{m['harness']} {m['harness_version']}", "server": m["server"], "framework": m["framework"],
+            "n": str(b["windows"]), "days": NUM[int(s["unit"].split("-")[0])].lower(), "wakes": f"{b['wakes']:.0f}",
+            "copied": share(b["dam_curve_hours"]["exact"], b["dam_curve_hours"]["compared"]),
+            "physical": share(b["optimize"]["physical"], b["optimize"]["calls"]), "default": b["planner"]["default"],
+            "position": b["planner"]["dam_position"], "risk": str(b["planner"]["risk"]),
+            "question": pts(e["question"]["mean"]), "question_ci": ci(e["question"]),
+            "storm": b["storm"]["name"], "storm_n": NUM[b["storm"]["windows"]].lower(),
+            "calm": pts(e["calm"]["mean"]), "calm_ci": ci(e["calm"]), "late": f"{late:.1f}",
+            "replan": pts(e["replan"]["mean"]), "replan_ci": ci(e["replan"]),
+            "both": pts(e["both"]["mean"]), "both_ci": ci(e["both"]), "gap": pc(b["gap"] / 100),
+            "share": share(e["both"]["mean"], b["gap"]), "minor": pc(minor / 100),
+            "operator": f"{pc(refs['operator_replay']['all']['C']['mean'])}%",
+            "planner": f"{pc(refs['anchor']['all']['C']['mean'])}%",
+            "replay": bench_replay(b["model"], s["hero"]["task_id"]), "picker": f"{ARTICLE_APP}/#where-models-fail",
+            "files": f"{DATASET}/tree/main/results/{BEAM_DIR}",
+            "report": f"{DATASET}/blob/main/results/{BEAM_DIR}/report.md",
+            "heading": heading, "card": f"{DATASET}#{slug(heading)}"}
+
+
+def slug(heading: str) -> str:
+    """A heading's anchor as the Hub's Markdown renders it: lower case, punctuation dropped, spaces to hyphens."""
+    return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
+
+
+def leaves(f: dict, path: str = "F") -> dict[str, str]:
+    out = {}
+    for k, x in f.items():
+        if isinstance(x, dict):
+            out |= leaves(x, f"{path}.{k}")
+        elif x is not None:
+            out[f"{path}.{k}"] = x
+    return out
+
+
+def check_numbers(text: str) -> None:
+    """The card's prose states no number of its own, as the article's chapters do not: every amount, cent, share and
+    decimal outside code, tags and link targets is a {F.…} expression read from facts.json, or one of the reward's
+    constants. The blocks take theirs from the results files."""
+    prose = re.sub(r"\A---\n.*?\n---\n|```.*?```", "", text, flags=re.S)
+    prose = FACT.sub("", re.sub(r"\]\([^)\s]*\)|<[^>]*>|`[^`]*`", "", prose))
+    if bad := [n for n in NUMBER.findall(prose) if n.replace("⁠", "") not in CONSTANT]:
+        raise SystemExit(f"{CARD.name} writes numbers into its prose; read them from facts.json: {bad}")
+
+
+def fill(text: str, f: dict) -> str:
+    known = leaves(f)
+    if missing := sorted({e for e in FACT.findall(text) if e not in known}):
+        raise SystemExit(f"{CARD.name} names facts that facts.json lacks: {', '.join(missing)}")
+    return FACT.sub(lambda m: str(known[m[1]]), text)
+
+
+def banned(text: str) -> None:
+    if hits := [f"{m[0]!r}: {why}" for rx, why in BANNED for m in rx.finditer(text)]:
+        raise SystemExit("the card says what it must not:\n  " + "\n  ".join(hits))
 
 
 def build(runs_dir: Path, results_dir: Path, bundle_dirs: list[Path], plugin: str) -> dict[str, bytes]:
@@ -1736,8 +2197,8 @@ def write(files: dict[str, bytes], out: Path) -> None:
         (out / path).write_bytes(content)
 
 
-def card_only(results_dir: Path, gif: bool = False) -> str:
-    return card_text(results_dir, gif)
+def card_only(results_dir: Path) -> str:
+    return card_text(results_dir)
 
 
 def main():
@@ -1753,19 +2214,26 @@ def main():
     ap.add_argument("--plugin-ref", default=f"v{VERSION}", help="The plugin tag the card's bundles pin.")
     ap.add_argument("--card-only", action="store_true",
                     help="Write README.md alone, every config as the card lists it.")
+    ap.add_argument("--figures", action="store_true",
+                    help="Also write the card's figures and the article's film: the article's charts from its build "
+                         "(scripts/hub_article.py --build), the cost chart from hub/desk-charts, and the Try it Space "
+                         "and the viewer as they are live.")
     args = ap.parse_args()
+    figs = card_figures(args.results) if args.figures else {}
+    scan(texts(figs), known_values())
     if args.card_only:
-        files = {"README.md": card_only(args.results).encode()}
-        scan(files, known_values())
-        args.out.mkdir(parents=True, exist_ok=True)
-        (args.out / "README.md").write_bytes(files["README.md"])
-        print(f"{len(files['README.md']) / 1e3:.1f} kB  {args.out / 'README.md'}")
+        files = {"README.md": card_only(args.results).encode()} | figs
+        scan(texts(files), known_values())
+        for path, content in files.items():
+            (args.out / path).parent.mkdir(parents=True, exist_ok=True)
+            (args.out / path).write_bytes(content)
+            print(f"{len(content) / 1e3:9.1f} kB  {args.out / path}")
         return
     plugin = f"agentenv-gridsim @ git+{REPO}@{args.plugin_ref}"
     with namespace_routing():
         files = build(args.runs, args.results, args.bundle, plugin)
     scan(files, known_values())
-    write(files, args.out)
+    write(files | figs, args.out)
     for path in sorted(files):
         rows = f"{pq.read_metadata(io.BytesIO(files[path])).num_rows:7} rows" if path.endswith(".parquet") else ""
         if not path.startswith(("runs/", "bundles/")):
@@ -1775,6 +2243,174 @@ def main():
         if sized:
             print(f"{sum(sized) / 1e6:9.2f} MB {len(sized):7} files  {top}")
     print(f"into {args.out}")
+
+
+def texts(files: dict[str, bytes]) -> dict[str, bytes]:
+    """The files the key scan reads: the card and the SVGs, their embedded fonts left out."""
+    return {k: re.sub(rb"base64,[\w+/=]+", b"base64,", v) for k, v in files.items() if k.endswith((".md", ".svg"))}
+
+
+def card_figures(results_dir: Path) -> dict[str, bytes]:
+    """The card's figures and the article's film, beside the card: the article's charts captured from its build, which
+    must have been built from the chart data in this checkout; the cost chart as SVG; the Try it Space and the viewer
+    as they are live; and the article's film GIF, which ships with the article, not the repository."""
+    s, grades = bench_read(results_dir / "desk-v4-bench")
+    f, dist = facts(s, grades), ARTICLE_APP / "dist"
+    built = lambda n: (dist / "data" / n).is_file() and (dist / "data" / n).read_bytes() == (  # noqa: E731
+        ARTICLE_DATA / n).read_bytes()
+    if stale := [n for n in ("facts.json", "duel.json", "reward.json", "train.json", "failures.json", "bench.json")
+                 if not built(n)]:
+        raise SystemExit(f"{dist} is not built from this checkout's {', '.join(stale)}: scripts/hub_article.py --build")
+    film = (ARTICLE_APP / "public/media/gridsim-run.gif").read_bytes()
+    if film[:6] != b"GIF89a" or len(film) > 10e6:
+        raise SystemExit("the article's film is not a GIF of at most 10 MB: scripts/hub_desk_film.py --out "
+                         "hub/article/app/public/media/gridsim-run.gif")
+    hr = module("hub_results", "scripts/hub_results.py")
+    return {FILM: film, **embed_figures(dist, hr), **pareto_svgs(s, hr), **posters(f, hr)}
+
+
+EMBEDS = {"before-after": ("before-after", 940, None), "reward": ("reward-window", CARD_W, None),
+          "training": ("train-paired", CARD_W, None),
+          **{f"fail-{k}": ("failure-modes", CARD_W, i) for i, (k, _, _) in enumerate(FAIL)}}
+"""Each card figure from the article: its embed, the width it is captured at on a desktop (the before and after sets
+its windows side by side from 900 px and keeps its labels on one line from 940, so it is captured there and shown at
+the card's width), and for the failure modes, which of its charts."""
+PHOTOS = ("before-after",)
+CAPTURE = (':root, :root[data-theme="dark"] {{ --page-bg: {bg} !important; --surface-bg: {bg} !important; }} '
+           "html, body {{ background: transparent !important; }} "
+           "figure.card-cap {{ width: {w}px !important; max-width: none !important; min-width: 0 !important; "
+           "margin: 0 !important; padding: 8px !important; box-sizing: content-box !important; "
+           "transform: none !important; "
+           "-webkit-mask: none !important; mask: none !important; }} "
+           "figure.card-cap > :is(.html-embed__title, .html-embed__desc), figure.card-cap .html-embed__download, "
+           ".card-cap :is(.ba-3d, details, .ba-foot a, .pick, .q, .how) {{ display: none !important; }} "
+           "figure.card-cap > .html-embed__card {{ border: 0 !important; background: transparent !important; "
+           "box-shadow: none !important; padding: 0 !important; }}")
+"""The capture's page: the Hub's page colour behind the halos and nothing else, one figure at the width captured, and
+none of what a picture cannot do: the title and caption the card prints itself, the tables behind a click, the links,
+the model picker, and the failure charts' questions and notes, which the card prints above and below each chart."""
+PICK = """(([id, css, panel]) => {
+  document.getElementById('card-cap')?.remove();
+  document.head.insertAdjacentHTML('beforeend', `<style id="card-cap">${css}</style>`);
+  document.querySelectorAll('figure.card-cap').forEach((e) => e.classList.remove('card-cap'));
+  const fig = document.getElementById(id).closest('figure');
+  fig.classList.add('card-cap');
+  [...fig.querySelectorAll('.gs-fail > div')].filter((e) => !e.className)
+    .forEach((e, i) => { e.style.display = panel === null || i === panel ? '' : 'none'; });
+  fig.scrollIntoView();
+  return true;
+})(%s)"""
+SETTLE = ("new Promise((r) => setTimeout(r, 1200)).then(() => Promise.all([...document.querySelectorAll("
+          "'figure.card-cap img')].map((i) => i.decode().catch(() => null))))")
+
+
+def embed_figures(dist: Path, hr) -> dict[str, bytes]:
+    """The article's charts as the card shows them: each embed of the built article on its own, in the article's light
+    and dark themes on the Hub's page colours, at the card's width at 2x and at a phone's at 3x."""
+    out = {}
+    with hr.browser(dist, None) as (page, base):
+        for phone, (width, scale) in ((False, (1440, 2)), (True, (390, 3))):
+            page.call("Emulation.setDeviceMetricsOverride", width=width, height=1000, deviceScaleFactor=scale,
+                      mobile=phone)
+            page.call("Page.navigate", url=f"{base}/index.html")
+            page.js("new Promise((r) => { const f = () => document.readyState === 'complete' ? "
+                    "document.fonts.ready.then(() => setTimeout(r, 2500)) : setTimeout(f, 100); f(); })")
+            page.call("Emulation.setDefaultBackgroundColorOverride", color={"r": 0, "g": 0, "b": 0, "a": 0})
+            for sfx, theme, bg in hr.THEMES:
+                page.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+                for name, (embed, w, panel) in EMBEDS.items():
+                    page.js(PICK % json.dumps([embed, CAPTURE.format(bg=bg, w=PHONE_W if phone else w), panel]))
+                    page.js(SETTLE)
+                    box = page.js("(() => { const r = document.querySelector('figure.card-cap')"
+                                  ".getBoundingClientRect(); return {x: r.x + scrollX, y: r.y + scrollY, "
+                                  "width: r.width, height: r.height, scale: 1}; })()")
+                    im = tight(base64.b64decode(page.call("Page.captureScreenshot", format="png",
+                                                          captureBeyondViewport=True, clip=box)["data"]), bg, 6 * scale)
+                    stem = f"{FIGS}/{name}{'-phone' if phone else ''}{sfx}"
+                    out |= {f"{stem}.webp": encode(im, "WEBP", quality=90, method=6)} if name in PHOTOS else {
+                        f"{stem}.png": encode(im, "PNG", optimize=True)}
+            page.call("Emulation.setDefaultBackgroundColorOverride")
+    return out
+
+
+def tight(png: bytes, bg: str, pad: int) -> Image.Image:
+    """A capture on the Hub's page colour, its empty rows above and below cut to pad pixels; its width kept, so every
+    figure shows at one scale."""
+    im = Image.open(io.BytesIO(png)).convert("RGBA")
+    ground = Image.new("RGBA", im.size, bg)
+    flat = Image.alpha_composite(ground, im).convert("RGB")
+    _, y0, _, y1 = ImageChops.difference(flat, ground.convert("RGB")).getbbox()
+    return flat.crop((0, max(0, y0 - pad), im.width, min(im.height, y1 + pad)))
+
+
+def encode(im: Image.Image, fmt: str, **kw) -> bytes:
+    buf = io.BytesIO()
+    im.save(buf, fmt, **kw)
+    return buf.getvalue()
+
+
+def pareto_svgs(s: dict, hr) -> dict[str, bytes]:
+    """The article's cost chart (hub/desk-charts) as standalone SVG, its notes left to the card's caption, at the
+    card's width and a phone's, light and dark, each theme's text halo the Hub's page colour."""
+    web, out = ROOT / "src/agentenv_gridsim/web/desk", {}
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        shutil.copytree(web / "fonts", root / "fonts")
+        shutil.copy(web / "base.css", root / "base.css")
+        for src in (ROOT / "hub/desk-charts").iterdir():
+            shutil.copy(src, root / src.name)
+        (root / "bench.json").write_text(json.dumps(s, ensure_ascii=False))
+        with hr.browser(root, None) as (page, base):
+            page.call("Emulation.setDeviceMetricsOverride", width=1000, height=900, deviceScaleFactor=2, mobile=False)
+            page.call("Page.navigate", url=f"{base}/charts.html?notes=0&lead={CARD_W}&phone={PHONE_W}")
+            page.js("new Promise((r, j) => { const s = Date.now(); const f = () => window.chartsReady ? r() : "
+                    "Date.now() - s > 30000 ? j('timeout') : setTimeout(f, 50); f(); })")
+            page.js("document.fonts.ready.then(() => new Promise((r) => setTimeout(r, 400)))")
+            for sfx, theme, bg in hr.THEMES:
+                page.js(f"document.documentElement.dataset.theme = '{theme}'; "
+                        f"document.documentElement.style.setProperty('--halo', '{bg}')")
+                svgs = page.js("chartsSvg()")
+                out |= {f"{FIGS}/pareto{sfx}.svg": svgs["bench-pareto"].encode(),
+                        f"{FIGS}/pareto-phone{sfx}.svg": svgs["bench-pareto-phone"].encode()}
+    return out
+
+
+POSTER = {"desk": (1280, 800, 2, (CARD_W * 2, CARD_W * 5 // 4)), "phone": (390, 844, 3, None)}
+"""Each poster's viewport and scale and the size it is stored at: a desktop view at twice the card's width, and a
+phone's screen at 3x, of which each view keeps the top (KEEP)."""
+KEEP = {"try-it": 844, "rollout": 600}
+
+
+DRAWN = ("new Promise((r, j) => { const s = Date.now(); const docs = () => [document, ...[...document.querySelectorAll("
+         "'iframe')].map((i) => { try { return i.contentDocument; } catch (e) { return null; } })].filter(Boolean); "
+         "const f = () => document.readyState === 'complete' && docs().some((d) => d.querySelector('canvas')) ? "
+         "setTimeout(r, 12000) : Date.now() - s > 180000 ? j('timeout') : setTimeout(f, 250); f(); })")
+"""A live view is drawn when its page has loaded and a 3D canvas is up, in the page or a frame of it from the same
+site, and has run a while."""
+
+
+def posters(f: dict, hr) -> dict[str, bytes]:
+    """The two live views the article frames, as they are now: the Try it Space's page as the article embeds it, on the
+    article's window, and the viewer at the minute its rollout opens on, each in its light and dark theme, on a desktop
+    and on a phone."""
+    t = f["tryit"]
+    views = {"try-it": t["app"] + "?__theme={theme}", "rollout": f["eval"]["watch"]["app"]}
+    out = {}
+    with tempfile.TemporaryDirectory() as tmp, hr.browser(Path(tmp), None) as (page, _):
+        for name, url in views.items():
+            for kind, (w, h, scale, size) in POSTER.items():
+                for sfx, theme, _ in hr.THEMES:
+                    page.call("Emulation.setEmulatedMedia", features=[{"name": "prefers-color-scheme", "value": theme}])
+                    page.call("Emulation.setDeviceMetricsOverride", width=w, height=h, deviceScaleFactor=scale,
+                              mobile=kind == "phone")
+                    page.call("Page.navigate", url=url.replace("{theme}", theme))
+                    page.js(DRAWN)
+                    keep = KEEP[name] if kind == "phone" else h
+                    im = Image.open(io.BytesIO(base64.b64decode(page.call("Page.captureScreenshot", format="png", clip={
+                        "x": 0, "y": 0, "width": w, "height": keep, "scale": 1})["data"])))
+                    out[f"{FIGS}/{name}{'-phone' if kind == 'phone' else ''}{sfx}.webp"] = encode(
+                        im.resize(size, Image.LANCZOS) if size else im, "WEBP", quality=86, method=6)
+    return out
 
 
 if __name__ == "__main__":

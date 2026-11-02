@@ -8,7 +8,7 @@ viewer Space builds and publishes itself.
     .venv/bin/python scripts/hub_desk.py --desk results --ref v2=desk-v2-results ... --lead v4 --publish
 
 With results/desk-v4-bench/ (scripts/desk_bench_results.py), the card leads with the v4 benchmark, its folder ships
-under results/ and its rows as the desk_v4_bench config; --bench-gif adds its lead GIF.
+under results/ and its rows as the desk_v4_bench config; --bench-gif adds the article's film, which the card leads with.
 """
 
 import argparse
@@ -114,7 +114,7 @@ BENCH = pa.schema([
     *((f"{k}_tokens", I64) for k in ("input", "cached", "cache_write", "output", "reasoning")),
     ("usd", F64), ("usd_all_attempts", F64), ("cost_basis", STR), ("wall_seconds", F64), ("episode", STR),
 ])
-BENCH_GIF = "assets/gridsim-desk-bench.gif"
+BENCH_GIF = "assets/gridsim-run.gif"
 ROLES = ("pilot", "eval", "tune")
 GRADED = ("p_idle", "p_anchor", "p_hind", "p_hind_phys", "p_operator_replay", "p_operator_actual")
 
@@ -138,8 +138,8 @@ def main():
                                                      "the desk section. Every GIF links its episode's replay.")
     ap.add_argument("--publish", action="store_true", help="Upload to the dataset; the viewer Space publishes itself.")
     ap.add_argument("--only", nargs="+", metavar="vN", help="Publish these versions, though --desk holds more.")
-    ap.add_argument("--bench-gif", type=Path, help="The v4 benchmark's lead GIF (scripts/hub_desk_hero.py) of the "
-                                                   "episode results/desk-v4-bench/summary.json names as its hero.")
+    ap.add_argument("--bench-gif", type=Path, help="The article's film of the benchmark's lead run as a GIF "
+                                                   "(scripts/hub_desk_film.py), which the dataset card leads with.")
     args = ap.parse_args()
     refs = dict(x.split("=", 1) for x in args.ref)
     out = args.results / "overview" / "desk.json"
@@ -186,7 +186,7 @@ def main():
     bench = bench_files(args.results / "desk-v4-bench", args.publish)
     if args.bench_gif:
         bench[BENCH_GIF] = args.bench_gif.read_bytes()
-    card = hd.card_only(args.results, gif=bool(args.bench_gif))
+    card = hd.card_only(args.results)
     ds = files | figs | bench | {"README.md": card.encode(), "results/overview/desk.json": out.read_bytes()}
     text = {k: re.sub(rb"base64,[\w+/=]+", b"base64,", v) if k.endswith(".svg") else v for k, v in ds.items()
             if not k.endswith(".gif")}

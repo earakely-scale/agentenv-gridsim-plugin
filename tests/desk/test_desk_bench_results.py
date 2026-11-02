@@ -204,35 +204,67 @@ def _pc(x: float) -> str:
     return f"{'−' if q < 0 else ''}{abs(q)}"
 
 
-def test_card_numbers_are_summary_json(bench, tmp_path):
-    root, out, s, grades = bench
+def test_card_table_is_summary_json_and_the_card_refuses_fake(bench, tmp_path):
+    _, out, s, _ = bench
+    table, scopes = hub_dataset.board_card(s), ("all", *hub_dataset.BENCH_SPLITS)
+    head = next(x for x in table.splitlines() if x.startswith("| Model |"))
+    assert [h.split("<br>")[0].strip() for h in head.split(" | ")[1:-1]] == [
+        "C, all 32 windows", *(hub_dataset.bench_side(s, x) for x in hub_dataset.BENCH_SPLITS)]
+    for m in s["models"].values():
+        row = next(x for x in table.splitlines() if x.startswith(f"| **{m['name']}**"))
+        cells = [re.sub(r"<[^>]+>|\*", " ", c).split() for c in row.rstrip(" |").split(" | ")[1:]]
+        for c, scope in zip(cells, scopes, strict=False):
+            b = m[scope]["C"]
+            assert c == [f"{_pc(b['mean'])}%", f"[{_pc(b['ci'][0])},", f"{_pc(b['ci'][1])}]"]
+        assert f"${m['cost']['usd_per_window']:,.2f}<br>" in row
+        assert f"{hub_dataset.bench_usd(m['cost']['usd_all_attempts'])} in all" in row
+        assert (f"{m['n']} of 32 windows" in row) == (m["n"] < 32)
+    for k in hub_dataset.CARD_REFS:
+        r = s["references"][k]
+        assert " | ".join(f"*{_pc(r[x]['C']['mean'])}%*" for x in scopes) in table
     results = tmp_path / "results"
     (results / "overview").mkdir(parents=True)
     shutil.copy(ROOT / "results/overview/desk.json", results / "overview/desk.json")
     shutil.copytree(out, results / "desk-v4-bench")
-    card = hub_dataset.card_text(results)
-    section = card[card.index("## The v4 benchmark"):card.index("## Earlier versions")]
-    assert hub_dataset.FAKE in card and "Lead GIF slot" in card and s["lead_rule"]["text"] in card
-    assert s["text"]["halves"] in section and s["text"]["reliability"] in section
-    scopes = ("all", "pre_cutoff", "post_cutoff") if s["lead_split"] == "all" else ("post_cutoff", "all", "pre_cutoff")
-    head = next(x for x in section.splitlines() if x.startswith("| Model |"))
-    assert [h.split("<br>")[0].strip() for h in head.split(" | ")[1:]] == [
-        "C, all 32 windows" if x == "all" else hub_dataset.bench_side(s, x) for x in scopes]
-    for m in s["models"].values():
-        row = next(x for x in section.splitlines() if x.startswith(f"| **{m['name']}**"))
-        cells = [re.sub(r"<[^>]+>|\*", " ", c).split() for c in row.rstrip(" |").split(" | ")[1:]]
-        for c, scope in zip(cells, scopes, strict=True):
-            b = m[scope]["C"]
-            assert c == [f"{_pc(b['mean'])}%", f"[{_pc(b['ci'][0])},", f"{_pc(b['ci'][1])}]"]
-        assert f"${m['cost']['usd_per_window']:,.2f} a window" in row
-        assert (f"{m['n']} of 32 windows" in row) == (m["n"] < 32)
-    for k in ("operator_replay", "anchor"):
-        r = s["references"][k]
-        assert " | ".join(f"*{_pc(r[x]['C']['mean'])}%*" for x in scopes) in section
-    gap = hub_dataset.bench_pair(s, "opus", "qwen")
-    assert f"{_pc(gap['mean']).replace('−', '')} pts" in section
+    with pytest.raises(SystemExit, match="no real benchmark results"):
+        hub_dataset.card_text(results)
+
+
+def test_card_states_the_articles_numbers(monkeypatch):
+    s, grades = hub_dataset.bench_read(ROOT / "results/desk-v4-bench")
+    card, f = hub_dataset.card_text(ROOT / "results"), hub_dataset.facts(s, grades)
+    known, used = hub_dataset.leaves(f), set(hub_dataset.FACT.findall(hub_dataset.CARD.read_text()))
+    assert len(used) > 80 and "{F." not in card and not any(rx.search(card) for rx, _ in hub_dataset.BANNED)
+    assert all((f"({known[e]})" in card or f'"{known[e]}"' in card) if known[e].startswith("https://")
+               else known[e] in card for e in used)
+    assert f'<a href="{f["lead"]["replay"]}"><img src="{hub_dataset.FILM}"' in card
+    for name in ("before-after.webp", "try-it.webp", "pareto.svg", "rollout.webp", "reward.png", "training.png",
+                 *(f"fail-{k}.png" for k, _, _ in hub_dataset.FAIL)):
+        stem, ext = (f"{hub_dataset.FIGS}/{name}").rsplit(".", 1)
+        assert all(x in card for x in (f'src="{stem}.{ext}"', f'src="{stem}-dark.{ext}"',
+                                       f'{hub_dataset.DATASET}/resolve/main/{stem}-phone.{ext}"'))
     assert "desk_v4_bench/pre_cutoff.parquet" in card and "default: true" in card.split("desk_leaderboard")[0]
-    assert f"({dbr.REPO}/blob/desk-v4-bench-results/docs/prereg/v4-bench.md#deviations)" in section
+    assert f"({dbr.REPO}/blob/{s['run']['deviations_ref']}/docs/prereg/v4-bench.md#deviations)" in card
+    with pytest.raises(SystemExit, match="writes numbers into its prose"):
+        hub_dataset.check_numbers("It made $85,771, 71.1% of the best possible profit.")
+    hub_dataset.check_numbers("R runs from 0.2 at idle to 1, and {F.lead.name} made {F.lead.P}.")
+    with pytest.raises(SystemExit, match="must not"):
+        hub_dataset.banned("16 after every model's training cutoff")
+    stale, read = json.loads((hub_dataset.ARTICLE_DATA / "facts.json").read_text()), hub_dataset.article
+    stale["eval"]["m"]["sol"]["C"] = "28.0%"
+    monkeypatch.setattr(hub_dataset, "article", lambda n: stale if n == "facts.json" else read(n))
+    with pytest.raises(SystemExit, match=r"F\.eval\.m\.sol\.C is '28\.0%'"):
+        hub_dataset.facts(s, grades)
+    stale["eval"]["m"]["sol"]["C"], stale["eval"]["replan"]["bh"] = f["eval"]["m"]["sol"]["C"], "24.5"
+    with pytest.raises(SystemExit, match=r"F\.eval\.replan\.bh is '24\.5'"):
+        hub_dataset.facts(s, grades)
+    stale["eval"]["replan"]["bh"], stale["beam"] = f["eval"]["replan"]["bh"], f["beam"] | {"question": "+11.6"}
+    with pytest.raises(SystemExit, match=r"F\.beam\.question is '\+11\.6'"):
+        hub_dataset.facts(s, grades)
+    b = f["beam"]
+    at = card.index(f"\n## {b['heading']}\n")
+    assert card.index("## Where models fail") < at < card.index("## What's in this dataset")
+    assert all(f"({b[k]})" in card for k in ("replay", "picker", "report", "files"))
 
 
 def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
@@ -253,8 +285,9 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     s, grades = hub_dataset.bench_read(folder)
     lead = hub_article.lead(s, grades, hub_dataset)
     h = next(g for g in grades if g["task_id"] == s["hero"]["task_id"] and g["model"] == s["hero"]["model"])
-    gif = hub_dataset.bench_gif(s, grades, True)
-    assert f"({lead['region']}, {lead['mw']} / " in gif and lead["month"] == "August 2026"
+    gif = hub_dataset.film_block(hub_dataset.facts(s, grades), s, grades)
+    assert f"{lead['name']} trades a {lead['mw']} battery near {lead['region']} " in gif
+    assert lead["month"] == "August 2026" and f"through the {lead['month']} {lead['kind']}." in gif
     assert lead["pct"] == f"{Decimal(str(100 * h['capture'])).quantize(Decimal(1), ROUND_HALF_UP)}%"
     assert lead["replay"] == hub_dataset.bench_replay(h["model"], h["task_id"]) and lead["replay"] in gif
     assert (lead["P"], lead["op"]) == (hub_article.usd(h["p"]), hub_article.usd(h["p_operator_actual"]))
@@ -282,9 +315,23 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
          "tryit": hub_article.tryit(ROOT, s, grades, hub_dataset),
          "duel": hub_article.duel_facts(ROOT, s, grades, pairs, hub_dataset),
          "eval": hub_article.evals(ROOT, s, grades, pairs, hub_dataset)}
+    fails, beam = json.loads((hub_article.DATA / "failures.json").read_text()), hub_article.beam_data(folder, s, grades,
+                                                                                                    hub_dataset)
+    assert beam == json.loads((hub_article.DATA / "beam.json").read_text())
     f |= {"why": hub_article.why_tiles(f["eval"]["watch"]), "reward": hub_article.reward(s, grades, hub_dataset),
-          "train": hub_article.train(s, grades, hub_dataset), "links": hub_article.links(s, hub_dataset)}
+          "train": hub_article.train(s, grades, hub_dataset), "links": hub_article.links(s, hub_dataset),
+          "beam": hub_dataset.beam_facts(beam, s, fails)}
     hub_article.check_prose(f)
+    assert not hub_article.check_beam(f, beam, s, fails, hub_dataset)
+    assert hub_article.check_beam(f | {"beam": f["beam"] | {"both": "+14.1"}}, beam, s, fails, hub_dataset)
+    assert f["beam"]["late"] == f["eval"]["replan"]["bh"] and f["beam"]["planner"] == f["eval"]["replan"]["planner"]
+    assert f["beam"]["card"] == f"{hub_dataset.DATASET}#beam-10-on-gridsimenv"
+    assert f["beam"]["replay"].endswith(f"m=beam&task={s['hero']['task_id']}")
+    assert not hub_article.check_replan(f, fails)
+    assert not hub_article.check_replan(json.loads((hub_article.DATA / "facts.json").read_text()), fails)
+    late = {m["name"]: m["last_offer_h"] for m in fails["models"]}
+    assert f["eval"]["replan"]["bh"] == f"{late['Beam-1.0']:.1f}" and float(f["eval"]["replan"]["rho"]) > 0
+    assert hub_article.check_replan(f | {"eval": f["eval"] | {"replan": f["eval"]["replan"] | {"bh": "24.5"}}}, fails)
     assert f["tryit"]["site"] == h["site"] and f["tryit"]["app"].endswith("/web/")
     e, scored = f["eval"], [g for g in grades if g["status"] == "scored"]
     assert e["runs"] == str(len(scored)) and e["lead"]["a"]["name"] == s["models"][s["order_by_C"][0]]["name"]
@@ -531,12 +578,9 @@ def test_space_page_and_card_lead_with_the_benchmark():
     assert ("lists the benchmark's 476 runs first, by\nmodel, side of the cutoffs, front and battery, then the "
             "development runs. Kimi K3's 4 windows stopped at the window cap are listed as capped and unscored."
             ) in text
-    gif = hub_dataset.bench_gif(s, grades, True)
-    assert gif.startswith(f'<a href="{lead}"><img src="{hub_dataset.BENCH_GIF}"')
-    assert f"[Replay it in 3D]({lead})" in gif
-    for k, m in s["models"].items():
-        assert (f"[{m['name']}]({hub_space.APP}/index.html?v=bench&m={k}&task={s['hero']['task_id']})" in gif) == (
-            k != s["hero"]["model"] and k not in hub_dataset.NOT_YET_IN_VIEWER)
+    gif = hub_dataset.film_block(hub_dataset.facts(s, grades), s, grades)
+    assert gif.startswith(f'<a href="{lead}"><img src="{hub_dataset.FILM}"') and f"[Watch it in 3D]({lead})" in gif
+    assert any(f"({hub_space.DATASET}#more-on-the-benchmark)" in x for x in page["card"]["how"])
 
 
 def test_space_scan_reads_gzip_and_refuses_what_it_cannot_read(tmp_path):

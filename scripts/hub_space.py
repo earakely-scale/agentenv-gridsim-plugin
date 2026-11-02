@@ -234,7 +234,8 @@ def bench_page(s: dict, grades: list[dict], desk: dict, card) -> dict:
     quick = "The Quick start below shows how."
     return {k: v for k, v in s.items() if k not in ("attempts", "deviations")} | {"deviations": deviations(s)} | {
         "card": {"pitch": card.bench_pitch(s), "bullets": card.bench_bullets(s), "limits": card.bench_limits(s),
-                 "how": [x.replace(quick, f"The dataset card's [Quick start]({DATASET}#quick-start) shows how.")
+                 "how": [x.replace(quick, f"The dataset card's [Run it yourself]({DATASET}#more-on-the-benchmark) "
+                                          "shows how.")
                          for x in card.bench_how(s)],
                  "captions": dict(zip(("splits", "table", "pareto"), captions(s, grades, desk, card), strict=True)),
                  "refs": card.BENCH_REFS, "sides": sides(s, card)},
@@ -970,7 +971,7 @@ def readme(cat: dict, desk: dict, s: dict, grades: list[dict], card) -> str:
             f"{card.pc(g['capture'])}%; the real operator's own bids, replayed, earn "
             f"{card.usd0(g['p_operator_replay'])}.")
     return f"""---
-title: GridSimEnv Desk
+title: GridSimEnv Replays
 emoji: 🔋
 colorFrom: green
 colorTo: blue
@@ -978,10 +979,10 @@ sdk: static
 app_file: index.html
 pinned: false
 license: apache-2.0
-short_description: {card.NUM[len(s['models'])]} agents trade a real ERCOT battery, replayed in 3D
+short_description: Every benchmark run of {len(s['models'])} AI models, replayed in 3D
 ---
 
-# GridSimEnv Desk
+# GridSimEnv Replays
 
 {card.bench_pitch(s)}
 

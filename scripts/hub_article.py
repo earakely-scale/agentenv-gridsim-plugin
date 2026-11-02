@@ -32,6 +32,8 @@ import numpy as np
 from agentenv_hf.scan import known_values, scan
 
 from gridsim_core.desk import TOOLS
+from gridsim_core.desk.policies import setting
+from gridsim_core.desk.tools import tool_specs
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTICLE = ROOT / "hub" / "article"
@@ -62,9 +64,10 @@ TRY_SCRIPT = ROOT / "scripts" / "hub_openenv.py"
 VIEWER = "https://huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv"
 CHARTS = ROOT / "hub" / "desk-charts" / "charts.js"
 BASIS = {"gpu_time": "GPU time", "metered_rate": "metered rate"}
-OFFERS = ("submit_dam_offers", "submit_rt_offers")
 REPLAN = ("sol", "beam")
 """The models the re-planning finding names: the leader, and the one whose losses were diagnosed run by run."""
+FAIL_KEYS = {"qwen9b-sft": "qwen9bsft", "gemini": "argon"}
+"""failures.json's model keys where they differ from summary.json's."""
 COSTLIEST = ("sol", "desk-v4-2026-08-26-S01")
 """The run the rollout opens on, the bench's costliest; its note tells this run's story, so the build stops if the
 costliest run is another."""
@@ -150,10 +153,11 @@ def main():
                           "eval": evals(args.desk_repo, s, grades, pairs, card)},
            "duel.json": duel_data(pairs, s), "bench.json": bench_chart(s), "reward.json": reward_chart(s, grades),
            "banner.json": banner(folder, s, grades, card),
-           "train.json": train_chart(s, grades)}
+           "train.json": train_chart(s, grades), "beam.json": beam_data(folder, s, grades, card)}
     f = out["facts.json"]
     f |= {"why": why_tiles(f["eval"]["watch"]), "reward": reward(s, grades, card), "train": train(s, grades, card),
-          "links": links(s, card)}
+          "links": links(s, card),
+          "beam": card.beam_facts(out["beam.json"], s, json.loads((DATA / "failures.json").read_text()))}
     DATA.mkdir(parents=True, exist_ok=True)
     for name in STALE:
         (DATA / name).unlink(missing_ok=True)
@@ -170,7 +174,7 @@ def main():
     hk.anonymous(texts(files_to_publish()), hk.names(args.desk_repo))
     if args.build or args.publish:
         build()
-        check_rendered(out["facts.json"])
+        check_rendered(out["facts.json"], s)
     if args.publish:
         print("space:", publish())
 
@@ -243,7 +247,7 @@ def evals(repo: Path, s: dict, grades: list[dict], pairs: list[dict], card) -> d
             "turns": str(budget["max_turns"]), "runs": str(len(scored)), "viewer": VIEWER,
             "basis": basis_line(ms, card), "m": {m["key"]: point(m, s, card) for m in ms},
             "lead": lead_gap(s, ms, card), "halves": halves(s, ms, grades, pairs[0]["front"]["front"], card),
-            "replan": replan(repo, s, ms, scored, card), "watch": watch(repo, s, scored, card)}
+            "replan": replan(s, ms, card), "watch": watch(repo, s, scored, card)}
 
 
 def bench_chart(s: dict) -> dict:
@@ -322,18 +326,12 @@ def month_words(fronts: list[str]) -> str:
     return f"{a:%B}" if n == 0 else f"{a:%B} and {b:%B}" if n == 1 else f"{a:%B} to {b:%B}"
 
 
-def replan(repo: Path, s: dict, ms: list[dict], scored: list[dict], card) -> dict:
-    """The third finding: how late each model sends its last offers, a window's mean hours before its end, against its
-    C, a rank correlation over the models; and what distilling the desk's planner did for the model distilled."""
-    hours = defaultdict(list)
-    for g in scored:
-        ep = json.loads(gzip.decompress((repo / "results" / "desk-v4-bench" / g["episode"]).read_bytes()))
-        offers = [x["t"] for x in ep["submissions"] if x["accepted"] and x["tool"] in OFFERS]
-        t = max(offers, default=ep["wakes"][0]["t"])
-        hours[g["model"]].append((len(ep["dates"]) * 1440 - t) / 60)
-    keys = [m["key"] for m in ms]
-    late = {k: float(np.mean(hours[k])) for k in keys}
-    rho = spearman([s["models"][k]["all"]["C"]["mean"] for k in keys], [-late[k] for k in keys])
+def replan(s: dict, ms: list[dict], card) -> dict:
+    """The third finding, on the measure the "Where models fail" charts draw (failures.json, from the exact replay of
+    every graded episode): the hours left in a window after a model's last accepted offer, the mean over its windows,
+    and their rank correlation with C over the models, stated as the later the last offer, the higher the score; and
+    what distilling the desk's planner did for the model distilled."""
+    late, rho = lateness(s)
     if rho < 0.5:
         raise SystemExit(f"the rank correlation of late offers with C is {rho:.2f}: rewrite the third finding")
     a, b = REPLAN
@@ -343,6 +341,109 @@ def replan(repo: Path, s: dict, ms: list[dict], scored: list[dict], card) -> dic
     return {"rho": f"{rho:.2f}", "a": s["models"][a]["name"], "ah": f"{late[a]:.1f}", "b": s["models"][b]["name"],
             "bh": f"{late[b]:.1f}", "base": base["name"], "baseC": pct(base["all"]["C"]["mean"]),
             "sftC": pct(sft["all"]["C"]["mean"]), "planner": pct(s["references"]["anchor"]["all"]["C"]["mean"])}
+
+
+def lateness(s: dict) -> tuple[dict[str, float], float]:
+    """failures.json's hours left after each model's last accepted offer, by summary.json's keys, and their rank
+    correlation with C signed as the later, the higher: failures.json's own, which must be its rows' rank correlation
+    against summary.json's C over the same models."""
+    fm = json.loads((DATA / "failures.json").read_text())
+    late = {FAIL_KEYS.get(m["key"], m["key"]): m["last_offer_h"] for m in fm["models"]}
+    if late.keys() != s["models"].keys():
+        raise SystemExit(f"failures.json covers {sorted(late)}, summary.json {sorted(s['models'])}: replay them again")
+    keys, rho = list(late), -fm["corr"]["last_offer_vs_C_models"]
+    if abs(rho - spearman([s["models"][k]["all"]["C"]["mean"] for k in keys], [-late[k] for k in keys])) > 1e-9:
+        raise SystemExit("failures.json's rank correlation is not its rows' against summary.json's C: replay again")
+    return late, rho
+
+
+def check_replan(f: dict, fm: dict) -> list[str]:
+    """The eval's re-planning finding states the measure the "Where models fail" charts draw: its rank correlation and
+    its hours are failures.json's, as those charts print them."""
+    late, r = {m["name"]: m["last_offer_h"] for m in fm["models"]}, f["eval"]["replan"]
+    want = {"rho": f"{-fm['corr']['last_offer_vs_C_models']:.2f}", "ah": f"{late[r['a']]:.1f}",
+            "bh": f"{late[r['b']]:.1f}"}
+    return [f"F.eval.replan.{k} = {r[k]!r}, where the failure charts give {v!r}" for k, v in want.items() if r[k] != v]
+
+
+BEAM_EFFECTS = {"question": ("args_anchor", "a_strict"), "replan": ("d_anchor_on_skipped", "as_played"),
+                "both": ("args_anchor+d", "as_played"), "as": ("b_add_as", "as_played"),
+                "repair": ("c_repair", "as_played"), "verbatim": ("a_strict", "as_played"),
+                "merge": ("a_merge", "as_played")}
+"""Each change the Beam section states, as cf_beam.jsonl names it, against what it changes: the planner's question
+against Beam's own with its proposals copied verbatim (a_strict), the rest against Beam as it played. "both" asks the
+planner's question and fills each wake Beam ended without a submit."""
+
+
+def beam_data(folder: Path, s: dict, grades: list[dict], card) -> dict:
+    """beam.json, the Beam-1.0 diagnosis in results/desk-v4-bench/beam-diagnosis: each graded episode replayed call for
+    call on the frozen desk, then with one thing changed and graded again (cf_beam.jsonl, cf_beam_d_no_dam.jsonl), and
+    what its calls held (analysis_beam.jsonl). Each change is its mean paired difference in C, in points, with the
+    bench's block bootstrap over the fronts; the replay as played must reproduce every graded P to the cent, and the
+    planner's gap must be summary.json's."""
+    d, R = folder / "beam-diagnosis", module("desk_bench_results", "scripts/desk_bench_results.py")
+    rows = [json.loads(x) for n in ("cf_beam.jsonl", "cf_beam_d_no_dam.jsonl")
+            for x in (d / n).read_text().splitlines() if x.strip()]
+    an = [json.loads(x) for x in (d / "analysis_beam.jsonl").read_text().splitlines() if x.strip()]
+    g = {x["task_id"]: x for x in grades if x["model"] == card.BEAM and x["status"] == "scored"}
+    by = defaultdict(dict)
+    for r in rows:
+        by[r["variant"]][r["task_id"]] = r
+    played = by["as_played"]
+    if played.keys() != g.keys() or {r["task_id"] for r in an} != g.keys() or any(
+            abs(played[t]["p"] - g[t]["p"]) >= 0.005 or abs(played[t]["C"] - g[t]["capture"]) > 1e-6 for t in g):
+        raise SystemExit("the Beam diagnosis does not replay every graded Beam-1.0 window to the cent: replay it again")
+    ids = sorted(g)
+
+    def effect(v: str, ref: str, out: str | None = None) -> dict:
+        keep = [t for t in ids if g[t]["front"] != out]
+        p = R.paired([100 * by[v][t]["C"] for t in keep], [100 * by[ref][t]["C"] for t in keep],
+                     [g[t]["front"] for t in keep])
+        return {"variant": v, "vs": ref, "windows": len(keep), "fronts": p["fronts"], "mean": p["mean"], "ci": p["ci"]}
+
+    eff = {k: effect(*v) for k, v in BEAM_EFFECTS.items()}
+    per_front = defaultdict(list)
+    for t in ids:
+        per_front[g[t]["front"]].append(by["args_anchor"][t]["C"] - by["a_strict"][t]["C"])
+    storm = max(per_front, key=lambda x: np.mean(per_front[x]))
+    name = next(f["why"] for f in s["fronts"] if f["front"] == storm).split(",")[0]
+    if not name.startswith("Winter Storm"):
+        raise SystemExit(f"the planner's question gains most on the {storm} front, not a winter storm: rewrite the "
+                         "Beam section's caveat")
+    eff["calm"] = effect(*BEAM_EFFECTS["question"], out=storm)
+    if min(eff[k]["ci"][0] for k in ("question", "replan", "both")) <= 0 or eff["calm"]["ci"][0] > 0:
+        raise SystemExit("the Beam section says each fix adds capture and the question leans on the storm: rewrite it")
+    gap = float(np.mean([100 * (r["anchor_C"] - r["C"]) for r in played.values()]))
+    ref = s["references"]["anchor"]["all"]["C"]["mean"] - s["models"][card.BEAM]["all"]["C"]["mean"]
+    if abs(gap - 100 * ref) > 0.02:
+        raise SystemExit(f"the diagnosis's gap to the planner, {gap:.2f} points, is not summary.json's: replay again")
+    opt, dam = defaultdict(int), defaultdict(int)
+    for r in an:
+        for k, n in r["opt"]["args"].items():
+            opt[k.rsplit("|", 1)[-1]] += n
+        for k, n in r["fidelity"]["submit_dam_offers"].items():
+            dam[k] += n
+    compared = sum(n for k, n in dam.items() if k.startswith("curve_") and k not in
+                   ("curve_hours_omitted", "curve_hour_not_in_proposal"))
+    default = re.search(r"(\w+) \(default\): DAM curves", json.dumps(tool_specs(s["layer"])))[1]
+    return {"model": card.BEAM, "windows": len(ids), "unit": "points of C", "gap": round(gap, 4), "effects": eff,
+            "storm": {"front": storm, "name": name, "windows": len(per_front[storm])},
+            "optimize": {"calls": sum(opt.values()), "physical": opt["physical"]},
+            "dam_curve_hours": {"exact": dam["curve_exact"], "compared": compared},
+            "wakes": round(float(np.mean([r["timing"]["wakes"] for r in an])), 2),
+            "last_submit_h": round(float(np.mean([r["timing"]["hours_after_last_submit"] for r in an])), 2),
+            "planner": setting(s["layer"]) | {"default": default}}
+
+
+def check_beam(f: dict, b: dict, s: dict, fm: dict, card) -> list[str]:
+    """The article's Beam-1.0 subsection and the card's section read the same facts.json beam, which must be beam.json's
+    diagnosis as the card formats it; its last accepted offer, failures.json's, must be the diagnosis's last submit."""
+    want = card.beam_facts(b, s, fm)
+    bad = [f"F.beam.{k} = {f['beam'].get(k)!r}, where beam.json gives {v!r}" for k, v in want.items()
+           if f["beam"].get(k) != v]
+    if want["late"] != f"{b['last_submit_h']:.1f}":
+        bad.append(f"Beam-1.0's last accepted offer, {want['late']} h, is not the diagnosis's last submit")
+    return bad
 
 
 def spearman(a: list[float], b: list[float]) -> float:
@@ -885,7 +986,7 @@ def check_film() -> None:
         print(f"film: {path.name}, {path.stat().st_size / 1e6:.1f} MB")
 
 
-def check_rendered(f: dict) -> None:
+def check_rendered(f: dict, s: dict) -> None:
     """After the build: every fact the prose names appears on the page as facts.json formats it, a link as an href."""
     html = (APP / "dist" / "index.html").read_text()
     text = re.sub(r"<[^>]+>", "", html).replace("&#36;", "$").replace("&amp;", "&").replace("&#39;", "'")
@@ -902,6 +1003,11 @@ def check_rendered(f: dict) -> None:
                 if t["value"] not in text or any(b["text"] not in text for b in t["bars"])]
     missing += [f"a tile's source {x['url']}" for t in f["why"]["tiles"] for x in t["src"]
                 if f'href="{x["url"]}"' not in links]
+    built = {n: json.loads((APP / "dist" / "data" / n).read_text())
+             for n in ("facts.json", "failures.json", "beam.json")}
+    missing += check_replan(built["facts.json"], built["failures.json"])
+    missing += check_beam(built["facts.json"], built["beam.json"], s, built["failures.json"],
+                          module("hub_dataset", "scripts/hub_dataset.py"))
     duel = json.loads((DATA / "duel.json").read_text())
     missing += [w["moment"]["img"] for w in duel["windows"]
                 if not (APP / "dist" / w["moment"]["img"].lstrip("/")).is_file()]
@@ -913,7 +1019,8 @@ def check_rendered(f: dict) -> None:
     if missing:
         raise SystemExit("rendered check failed, not on the page:\n  " + "\n  ".join(missing))
     print(f"rendered check: all {len(used)} facts on the page as formatted, the header's line in the subtitle and the "
-          "page's descriptions, the films and the cards' pictures")
+          "page's descriptions, the films and the cards' pictures, the eval's re-planning finding on the failure "
+          "charts' numbers, and the Beam-1.0 section on the diagnosis's beam.json")
 
 
 def files_to_publish() -> dict[str, Path]:

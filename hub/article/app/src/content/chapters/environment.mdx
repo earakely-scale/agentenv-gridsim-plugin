@@ -46,20 +46,20 @@ of at least {F.duel.next.behind} of the models at each of its {F.duel.next.sites
 
 ### Try it
 
-This is GridSimEnv's OpenEnv Space, embedded live. Load a window and run the desk with the agents' own
+This is the GridSimEnv Playground, the environment's OpenEnv Space, embedded live. Load a window and run the desk with the agents' own
 {F.tryit.tools} tools, call budget and grade: ask the optimizer, send its offers, end your turn and watch the market play
-out beside the battery in 3D, then see how you rank against the real operator and the {F.env.models} models. The
+out beside the battery in 3D, then see how you rank against the real operator and the {F.env.models} models. Its
 Playground tab is OpenEnv's MCP playground; the code is in <a href={F.tryit.code}>hub/openenv on GitHub</a>.
 
 <figure class="html-embed gs-try" id="try-it-live">
-  <figcaption class="html-embed__title">The GridSimEnv environment, live</figcaption>
+  <figcaption class="html-embed__title">The GridSimEnv Playground, live</figcaption>
   <div class="html-embed__card is-frameless">
     <div class="gs-try-frame">
-      <p class="gs-try-wait">Loading the live environment from its Space…</p>
-      <iframe src={F.tryit.app} title="The GridSimEnv environment, live: play a benchmark window by hand" loading="lazy" allow="fullscreen" allowfullscreen data-theme-reload="off" data-gradio-theme></iframe>
+      <p class="gs-try-wait">Loading the Playground from its Space…</p>
+      <iframe src={F.tryit.app} title="The GridSimEnv Playground, live: play a benchmark window by hand" loading="lazy" allow="fullscreen" allowfullscreen data-theme-reload="off" data-gradio-theme></iframe>
     </div>
   </div>
-  <figcaption class="html-embed__desc">It opens on window #{F.tryit.index}, Battery {F.tryit.site} in the {F.tryit.span} {F.tryit.kind}, the run in the film above. Quick play is three clicks a wake-up (ask the optimizer, submit its proposal, end your turn), Autopilot repeats them to the end as the desk's reference does, and every tool also takes raw JSON. <a href={F.tryit.space}>Open the Space ↗</a></figcaption>
+  <figcaption class="html-embed__desc">It opens on window #{F.tryit.index}, Battery {F.tryit.site} in the {F.tryit.span} {F.tryit.kind}, the run in the film above. Quick play is three clicks a wake-up (ask the optimizer, submit its proposal, end your turn), Autopilot repeats them to the end as the desk's reference does, and every tool also takes raw JSON. <a href={F.tryit.space}>Open the Playground ↗</a></figcaption>
 </figure>
 
 ### Why it matters
@@ -115,15 +115,15 @@ the open-weight models, {F.eval.open}, with the same {F.tryit.tools} tools, {F.e
 - **Every model scores lower in {F.eval.halves.post} than in {F.eval.halves.pre}**, even {F.eval.halves.old}, trained
   before any window: the later fronts are harder, not just unseen. On {F.duel.next.span}, a real-time spike to about
   {F.duel.next.rt} left {F.eval.halves.lost} of the {F.env.models} models in the red.
-- **What to train next: re-planning to the end.** Models that keep sending offers into a window's last hours capture
-  more, a rank correlation of {F.eval.replan.rho} across the {F.env.models}: {F.eval.replan.a}’s last offers come
-  {F.eval.replan.ah} hours before the end, {F.eval.replan.b}’s {F.eval.replan.bh}. Distilling the desk's own planner
-  already lifted {F.eval.replan.base} from {F.eval.replan.baseC} to {F.eval.replan.sftC}, near the planner's
-  {F.eval.replan.planner}.
+- **What to train next: re-planning to the end.** The later a model's last accepted offer, the higher it scores, a
+  rank correlation of {F.eval.replan.rho} across the {F.env.models}: {F.eval.replan.a}’s last accepted offer comes
+  {F.eval.replan.ah} hours before a window ends on average, {F.eval.replan.b}’s {F.eval.replan.bh}. Distilling the
+  desk's own planner already lifted {F.eval.replan.base} from {F.eval.replan.baseC} to {F.eval.replan.sftC}, near the
+  planner's {F.eval.replan.planner}.
 
 ### Watch a rollout
 
-All {F.eval.runs} runs replay in the <a href={F.eval.viewer}>viewer Space</a>: the battery site in 3D in its real light
+All {F.eval.runs} runs replay in the <a href={F.eval.viewer}>Replays Space</a>: the battery site in 3D in its real light
 and weather, each wake-up's tool calls and what the agent wrote, the market and the battery as they moved, and the
 grade.
 
@@ -131,11 +131,11 @@ grade.
   <figcaption class="html-embed__title">Rollouts in 3D: {F.env.windows} windows, {F.env.models} models</figcaption>
   <div class="html-embed__card is-frameless">
     <div class="gs-try-frame">
-      <p class="gs-try-wait">Loading the replay from the viewer Space…</p>
+      <p class="gs-try-wait">Loading the replay from the Replays Space…</p>
       <iframe src={F.eval.watch.app} title="Rollouts in 3D: a benchmark run replayed on the battery site beside the desk" loading="lazy" allow="fullscreen" allowfullscreen data-theme-reload="off"></iframe>
     </div>
   </div>
-  <figcaption class="html-embed__desc">It opens at {F.eval.watch.at} on {F.eval.watch.day} in the bench's costliest run, {F.eval.watch.name} at Battery {F.eval.watch.site} ({F.eval.watch.region}) over {F.eval.watch.span}, the front after the film's: its evening day-ahead sales met an all but empty battery and were bought back as real-time prices hit {F.eval.watch.spike}. It lost {F.eval.watch.lost}; the real operator made {F.eval.watch.op}. Press play, or pick any model and window under Episodes. <a href={F.eval.watch.app}>Open in the viewer ↗</a></figcaption>
+  <figcaption class="html-embed__desc">It opens at {F.eval.watch.at} on {F.eval.watch.day} in the bench's costliest run, {F.eval.watch.name} at Battery {F.eval.watch.site} ({F.eval.watch.region}) over {F.eval.watch.span}, the front after the film's: its evening day-ahead sales met an all but empty battery and were bought back as real-time prices hit {F.eval.watch.spike}. It lost {F.eval.watch.lost}; the real operator made {F.eval.watch.op}. Press play, or pick any model and window under Episodes. <a href={F.eval.watch.app}>Open in Replays ↗</a></figcaption>
 </figure>
 
 ### How the reward works
@@ -214,6 +214,16 @@ desk. Three habits separate the top of the board from the bottom.
   desc="Means over each model's graded windows, from an exact replay of every episode. Pick a model to highlight it in all three charts and read its profile; hover, tap or tab to a row for its numbers."
 />
 
+### Beam-1.0 on GridSimEnv
+
+We replayed all {F.beam.n} of {F.beam.name}’s runs exactly, every P to the cent, and changed one thing at a time. Beam
+follows the desk's planner faithfully: {F.beam.copied} of the day-ahead curve hours it submits against a proposal copy
+it exactly. Two habits cost it: {F.beam.physical} of its `optimize` calls keep the default <code>{F.beam.default}</code>
+position where the planner asks for <code>{F.beam.position}</code>, a fix that leans on {F.beam.storm}’s windows, and
+its last accepted offer comes {F.beam.late} hours before a window ends. Fixing both in the replay adds {F.beam.both}
+points of C {F.beam.both_ci}, {F.beam.share} of its {F.beam.gap}-point gap to the planner. The
+<a href={F.beam.card}>dataset card</a> gives each effect with its interval, and the published files.
+
 ## Data sources
 
 | Data | Source | Licence |
@@ -237,9 +247,9 @@ out each source.
 ## Links
 
 <div class="gs-links">
-  <p><b>Environment</b><a href={F.links.env}>huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv</a></p>
+  <p><b>Playground</b><a href={F.links.env}>huggingface.co/spaces/earakely-scale/GridSimEnv-OpenEnv</a></p>
   <p><b>Replays</b><a href={F.links.replays}>huggingface.co/spaces/earakely-scale/GridSimEnv-AgentEnv</a></p>
-  <p><b>Results</b><a href={F.links.results}>every model on every window, in the viewer Space</a></p>
+  <p><b>Results</b><a href={F.links.results}>every model on every window, in the Replays Space</a></p>
   <p><b>Dataset</b><a href={F.links.dataset}>huggingface.co/datasets/earakely-scale/GridSimEnv-AgentEnv</a></p>
   <p><b>Code</b><a href={F.links.code}>github.com/earakely-scale/agentenv-gridsim-plugin</a></p>
   <p><b>Pre-registration</b><a href={F.links.prereg}>docs/prereg/v4-bench.md</a></p>

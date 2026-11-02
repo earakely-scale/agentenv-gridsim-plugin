@@ -3,7 +3,9 @@
  * card's width and in a phone layout; and from bench.json (a desk bench's summary.json), capture before and after the
  * training cutoffs. Bare SVG on a transparent page in the theme on <html>; hub_desk.py captures every [data-figure] at
  * 2x and takes chartsSvg(), each chart as a standalone SVG with its styles and font inlined, in light and dark. The
- * article and the viewer's results page import the bench chart and draw it in their own themes. */
+ * article and the viewer's results page import the bench chart and draw it in their own themes. With bench.json alone,
+ * ?lead= and ?phone= set the widths and ?notes=0 leaves the cost chart's notes to its caption, as the dataset card has
+ * them (scripts/hub_dataset.py). */
 const NS = "http://www.w3.org/2000/svg";
 const ORDER = ["sol", "luna", "qwen"];
 const COL = { sol: "var(--c-sol)", luna: "var(--c-luna)", qwen: "var(--c-qwen)" };
@@ -624,8 +626,10 @@ async function main() {
     figs.push(...sizes.flatMap(([sfx, W, narrow]) => [[`desk-across${sfx}`, across(D, W, narrow)], ...ladder(D).map((v) => [`desk-${v.version}-days${sfx}`, daily(v, D, W, narrow, scale)])]));
   }
   if (Bn) {
-    const c = D ? { lead: D.charts.lead, width: D.charts.width, phone: D.charts.phone.width } : SIZES;
-    figs.push(...[["", false], ["-phone", true]].flatMap(([sfx, narrow]) => [[`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)], [`bench-pareto${sfx}`, paretoChart(Bn, narrow ? c.phone : c.lead, narrow)]]));
+    const q = new URLSearchParams(location.search), at = (k) => +q.get(k) || SIZES[k];
+    const c = D ? { lead: D.charts.lead, width: D.charts.width, phone: D.charts.phone.width } : { lead: at("lead"), phone: at("phone") };
+    const notes = q.get("notes") !== "0";
+    figs.push(...[["", false], ["-phone", true]].flatMap(([sfx, narrow]) => [[`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)], [`bench-pareto${sfx}`, paretoChart(Bn, narrow ? c.phone : c.lead, narrow, { notes })]]));
   }
   document.getElementById("figs").innerHTML = figs.map(([id, body]) => `<section class="fig" data-figure="${id}">${body}</section>`).join("");
   const font = await woff2();
