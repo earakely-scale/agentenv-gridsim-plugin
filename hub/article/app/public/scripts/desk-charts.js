@@ -507,11 +507,11 @@ function paretoNotes(Bn) {
   ];
 }
 
-function paretoChart(Bn, W, phone, { notes = true } = {}) {
+function paretoChart(Bn, W, phone, { notes = true, move = null } = {}) {
   const narrow = phone || W < 640;
   const pp = bpts(Bn).filter((p) => p.usd > 0 && p.C.mean != null), on = new Set(Bn.plot.frontier || []);
   const anchor = Bn.plot.references.anchor?.all?.mean, ms = Bn.models;
-  let [s, y] = header("Hindsight capture against cost", narrow ? "C, % · USD a window, log scale" : "C, % · USD per three-day window, log scale", W);
+  let [s, y] = header(move ? move.title : "Hindsight capture against cost", narrow ? "C, % · USD a window, log scale" : "C, % · USD per three-day window, log scale", W);
   const keyItems = [{ k: "step", label: narrow ? "On the frontier" : "On the frontier: no model is cheaper and higher", cls: "t-key b" },
     { k: "dom", label: "Dominated", cls: "t-key" }];
   let kx = 0, ky = y + 26, keyS = "";
@@ -564,8 +564,27 @@ function paretoChart(Bn, W, phone, { notes = true } = {}) {
   for (const p of [...pp].sort((a, b) => on.has(a.key) - on.has(b.key))) {
     const x = xv(p.usd), yy = yv(p.C.mean), m = ms[p.key] || {};
     const tip = `${p.name}: C ${pct(p.C.mean)} [${pts(p.C.ci[0])}, ${pts(p.C.ci[1])}], ${usdVal(p.usd)} a window${BASIS[p.basis] ? `, ${BASIS[p.basis]}` : ""}${on.has(p.key) ? ", on the frontier" : ", dominated"}${m.n && m.n < Bn.n_windows ? `, ${m.n} of ${Bn.n_windows} windows` : ""}`;
-    marks += `<g class="pt" data-k="${p.key}"><title>${esc(tip)}</title>${mark(SHAPE[p.provider], x, yy, rad(p), on.has(p.key) ? bcol(p) : "var(--c-hind)", "mk", p.key !== p.family)}</g>`;
+    const lit = move && p.key === move.from, dim = move && !lit ? ' opacity="0.3"' : "";
+    marks += `<g class="pt" data-k="${p.key}"${dim}><title>${esc(tip)}</title>${mark(SHAPE[p.provider], x, yy, lit ? r : rad(p), on.has(p.key) || lit ? bcol(p) : "var(--c-hind)", "mk", p.key !== p.family)}</g>`;
     obst.boxes.push([x - rad(p) - 3, yy - rad(p) - 3, x + rad(p) + 3, yy + rad(p) + 3]);
+  }
+  if (move) {
+    const a = pp.find((p) => p.key === move.from), x1 = xv(a.usd), y1 = yv(a.C.mean), x2 = xv(move.usd), y2 = yv(move.C);
+    const d = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / d, uy = (y2 - y1) / d, g = r + 5;
+    if (anchor != null) {
+      lines += `<path d="M${f1(L)},${f1(yv(anchor))}H${f1(R)}" stroke="${bcol(a)}" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="5 4" fill="none"/>`;
+      const pl = `The desk's planner ${pct(anchor)}`;
+      labels += T(L + 8, yv(anchor) - 7, pl, "t-dom");
+      obst.boxes.push([L + 4, yv(anchor) - 21, L + 12 + measure(pl, "t-dom"), yv(anchor) + 2]);
+    }
+    marks += `<path d="M${f1(x1 + ux * g)},${f1(y1 + uy * g)}L${f1(x2 - ux * (g + 6))},${f1(y2 - uy * (g + 6))}" stroke="${bcol(a)}" stroke-width="2.4" fill="none"/>`;
+    const hx = x2 - ux * g, hy = y2 - uy * g, bx = hx - ux * 11, by = hy - uy * 11;
+    marks += `<path d="M${f1(hx)},${f1(hy)}L${f1(bx - uy * 6)},${f1(by + ux * 6)}L${f1(bx + uy * 6)},${f1(by - ux * 6)}Z" fill="${bcol(a)}"/>`;
+    marks += mark(SHAPE[a.provider], x2, y2, r, bcol(a), "mk", true);
+    obst.dots.push(...sample([[[x1, y1], [x2, y2]]]));
+    obst.boxes.push([x2 - r - 3, y2 - r - 3, x2 + r + 3, y2 + r + 3]);
+    pp.push({ key: "move", name: move.label, tag: move.label, usd: move.usd, C: { mean: move.C, ci: [] }, provider: a.provider, family: "move" });
+    on.add("move");
   }
   const want = [...pp].sort((a, b) => on.has(b.key) - on.has(a.key) || b.C.mean - a.C.mean).map((p) => {
     const f = on.has(p.key), m = ms[p.key] || {}, n = m.n && m.n < Bn.n_windows ? ` (${m.n} of ${Bn.n_windows})` : "";
@@ -574,12 +593,13 @@ function paretoChart(Bn, W, phone, { notes = true } = {}) {
     const itself = anchor != null ? `(itself ${pct(anchor)})` : "";
     const note = !m.distilled_short || narrow ? [] : [{ t: `${m.distilled_short} ${itself}`.trim(), cls: "t-end-q", size: 12.5 }];
     const at = { key: p.key, x: xv(p.usd), y: yv(p.C.mean), r: rad(p), prefer: xv(p.usd) > (L + R) * 0.62 ? 1 : 0 };
-    if (narrow && !f) return { ...at, alts: [[{ t: p.tag || p.name, cls: "t-tag", size: 12.5 }]] };
+    if ((narrow || move) && !f && p.key !== move?.from) return { ...at, alts: [[{ t: narrow ? p.tag || p.name : p.name, cls: "t-tag", size: 12.5 }]] };
     return { ...at, alts: [[{ t: nm, cls, size: 14 }, { t: v, cls: f ? "t-pv b" : "t-pv", size: 12.5 }, ...note], [{ t: nm, cls, size: 14, tail: `  ${v}` }, ...note]] };
   });
-  for (const p of placeBoxes(want, obst, [2, ptop - 20, W - 2, bottom - 2])) labels += boxText(p);
+  for (const p of placeBoxes(want, obst, [2, ptop - 20, W - 2, bottom - 2]))
+    labels += move && p.key !== move.from && p.key !== "move" ? `<g opacity="0.45">${boxText(p)}</g>` : boxText(p);
   let fy = bottom + 48;
-  for (const note of notes ? paretoNotes(Bn) : []) {
+  for (const note of move ? move.notes : notes ? paretoNotes(Bn) : []) {
     for (const line of wrap(note, "t-foot", W)) labels += T(0, (fy += 17), line, "t-foot");
     fy += 3;
   }
@@ -629,7 +649,9 @@ async function main() {
     const q = new URLSearchParams(location.search), at = (k) => +q.get(k) || SIZES[k];
     const c = D ? { lead: D.charts.lead, width: D.charts.width, phone: D.charts.phone.width } : { lead: at("lead"), phone: at("phone") };
     const notes = q.get("notes") !== "0";
-    figs.push(...[["", false], ["-phone", true]].flatMap(([sfx, narrow]) => [[`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)], [`bench-pareto${sfx}`, paretoChart(Bn, narrow ? c.phone : c.lead, narrow, { notes })]]));
+    const move = q.get("move") ? await get(q.get("move")) : null;
+    figs.push(...[["", false], ["-phone", true]].flatMap(([sfx, narrow]) => move ? [[`beam-move${sfx}`, paretoChart(Bn, narrow ? c.phone : c.lead, narrow, { move })]]
+      : [[`bench-splits${sfx}`, splitsChart(Bn, narrow ? c.phone : c.lead, narrow)], [`bench-pareto${sfx}`, paretoChart(Bn, narrow ? c.phone : c.lead, narrow, { notes })]]));
   }
   document.getElementById("figs").innerHTML = figs.map(([id, body]) => `<section class="fig" data-figure="${id}">${body}</section>`).join("");
   const font = await woff2();

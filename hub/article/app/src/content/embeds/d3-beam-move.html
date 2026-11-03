@@ -1,0 +1,33 @@
+<div class="gs-pareto gs-move"></div>
+<script>
+  (() => {
+    const K = window.GridsimKit;
+    const root = K.mount("gs-move");
+    if (!root) return;
+    if (!document.getElementById("ruler")) {
+      const box = document.createElement("div");
+      box.className = "gs-pareto-ruler";
+      box.setAttribute("aria-hidden", "true");
+      box.innerHTML = '<svg id="ruler" class="chart"></svg>';
+      document.body.appendChild(box);
+    }
+    const fonts = Promise.all(["400 13px", "600 13px", "650 16px", "700 14px"].map((f) => document.fonts.load(`${f} "Source Sans 3"`)))
+      .catch(() => null);
+    Promise.all([K.data("bench.json"), K.data("facts.json"), import("/scripts/desk-charts.js"), fonts]).then(([B, F, C]) => {
+      const plot = document.createElement("div");
+      root.appendChild(plot);
+      const move = { ...F.beam.pb.move, notes: [] };
+      function render() {
+        const W = Math.max(280, Math.floor(plot.clientWidth || root.clientWidth || 640)), narrow = W < 460;
+        plot.innerHTML = C.paretoChart(B, W, narrow, { move });
+        const svg = plot.querySelector("svg");
+        svg.removeAttribute("height");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", F.beam.pb.move.caption);
+      }
+      render();
+      let w = 0;
+      new ResizeObserver(() => { const n = Math.floor(plot.clientWidth); if (n && n !== w) { w = n; render(); } }).observe(plot);
+    });
+  })();
+</script>

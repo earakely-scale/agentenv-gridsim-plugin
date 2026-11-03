@@ -232,6 +232,8 @@ play with the playbook recovered {F.beam.pb.all.d}.
 
 Outside {F.beam.pb.storm}'s front the interval includes zero.
 
+<!-- beam-move -->
+
 It changed how Beam ran the desk: {F.beam.pb.spread} of its {F.beam.pb.calls} answered `optimize` calls asked for
 `{F.beam.position}`, against {F.beam.pb.spread0} of {F.beam.pb.calls0} before, and its last accepted offer came
 {F.beam.pb.late} hours before a window's end on average ({F.beam.pb.late_med} median), against {F.beam.pb.late0}
