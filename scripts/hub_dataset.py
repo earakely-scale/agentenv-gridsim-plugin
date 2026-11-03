@@ -791,7 +791,7 @@ def desk_blocks(d: dict, bench: tuple[dict, list[dict]], f: dict) -> dict[str, s
                f"</summary>\n\n{price_check(v, d)}\n\n</details>" for v in checks(d)]
     return {"badges": "\n".join(BADGES), "film": film_block(f, s, grades),
             "duel": duel_block(f, article("duel.json")), "tryit": tryit_block(f), "tiles": tiles_block(f),
-            "pareto": pareto_figure(s, f), "board": board_card(s),
+            "pareto": pareto_figure(s, f), "beam-move": beam_move_figure(f), "board": board_card(s),
             "rollout": rollout_block(f), "reward": reward_figure(f, article("reward.json")),
             "train": train_figure(f, article("train.json")), "fail": fail_block(article("failures.json")),
             "inside": inside_card(d, bench), "ladder": ladder_block(d), "how": how_card(s),
@@ -2145,7 +2145,42 @@ def beam_playbook_facts(b: dict, s: dict, pts, ci) -> dict:
     for k, x in p["scopes"].items():
         out[k] = {"d": pts(x["mean"]), "ci": ci(x), "n": str(x["windows"]), "ahead": str(x["ahead"]),
                   "fronts": str(x["fronts"]), "fronts_ahead": str(x["fronts_ahead"])}
-    return out
+    return out | {"move": beam_move(b, s, out)}
+
+
+def beam_move(b: dict, s: dict, pb: dict) -> dict:
+    """The before and after figure (hub/desk-charts' cost chart with a move): Beam-1.0 and Beam-1.0 with the playbook
+    on the leaderboard's frontier, whose step line stays the leaderboard models'. The gap below the frontier at a
+    point's own cost is the step line's C there (the costliest frontier model at most that cost) less its own."""
+    pts = {x["key"]: x for x in s["plot"]["points"]}
+    front = sorted((pts[k] for k in s["plot"]["frontier"]), key=lambda x: x["usd"])
+    step = lambda usd: [x for x in front if x["usd"] <= usd][-1]  # noqa: E731
+    a, p = pts[b["model"]], b["playbook"]
+    usd, C = p["usd_list"], p["C"]["mean"] / 100
+    lo, hi = step(a["usd"]), step(usd)
+    if not (hi["C"]["mean"] > C and hi["usd"] < usd and hi["key"] in s["plot"]["frontier"]):
+        raise SystemExit("the playbook point is no longer below the frontier and dominated: rewrite the caption")
+    gap = [pc(lo["C"]["mean"] - a["C"]["mean"]), pc(hi["C"]["mean"] - C)]
+    m = s["models"][b["model"]]
+    name, seller = m["name"], re.search(r"at (.+?)'s list price", m["price_note"])[1]
+    caption = (f"The arrow takes {name} from {pc(a['C']['mean'])}% at {bench_usd(a['usd'])} to {pb['C']} at "
+               f"{pb['usd']} a window with the playbook, toward the cost frontier but still below it: at its own cost "
+               f"the gap to the frontier narrows from {gap[0]} to {gap[1]} points, and {hi['name']} stays cheaper "
+               f"and higher. The frontier and the other models are the leaderboard's; {name} + playbook is not a "
+               f"leaderboard entry, and its playbook was written after seeing {name}'s failures on these same windows.")
+    return {"from": b["model"], "usd": usd, "C": C, "label": f"{name} + playbook", "gap0": gap[0], "gap1": gap[1],
+            "dominant": hi["name"], "title": f"{name} with the playbook: {pb['all']['d']} points, toward the frontier",
+            "caption": caption, "notes": [f"{caption} Cost at {seller}'s list price."]}
+
+
+def beam_move_figure(f: dict) -> str:
+    """The before and after figure under the playbook's table, with its caption."""
+    m = f["beam"]["pb"]["move"]
+    alt = (f"The card's cost chart with the leaderboard's frontier, the other models faded: an arrow from "
+           f"{f['beam']['name']} at {f['eval']['m']['beam']['C']} and {f['eval']['m']['beam']['usd']} to "
+           f"{m['label']} at {f['beam']['pb']['C']} and {f['beam']['pb']['usd']}, still below the frontier, which "
+           f"{m['dominant']} holds at a lower cost.")
+    return "\n".join([*picture(f"{FIGS}/beam-move.svg", alt), "", f"<small>{m['caption']}</small>"])
 
 
 def slug(heading: str) -> str:
@@ -2403,6 +2438,18 @@ def pareto_svgs(s: dict, hr) -> dict[str, bytes]:
                 svgs = page.js("chartsSvg()")
                 out |= {f"{FIGS}/pareto{sfx}.svg": svgs["bench-pareto"].encode(),
                         f"{FIGS}/pareto-phone{sfx}.svg": svgs["bench-pareto-phone"].encode()}
+            move = article("facts.json")["beam"]["pb"]["move"] | {"notes": []}
+            (root / "move.json").write_text(json.dumps(move, ensure_ascii=False))
+            page.call("Page.navigate", url=f"{base}/charts.html?move=./move.json&lead={CARD_W}&phone={PHONE_W}")
+            page.js("new Promise((r, j) => { const s = Date.now(); const f = () => window.chartsReady ? r() : "
+                    "Date.now() - s > 30000 ? j('timeout') : setTimeout(f, 50); f(); })")
+            page.js("document.fonts.ready.then(() => new Promise((r) => setTimeout(r, 400)))")
+            for sfx, theme, bg in hr.THEMES:
+                page.js(f"document.documentElement.dataset.theme = '{theme}'; "
+                        f"document.documentElement.style.setProperty('--halo', '{bg}')")
+                svgs = page.js("chartsSvg()")
+                out |= {f"{FIGS}/beam-move{sfx}.svg": svgs["beam-move"].encode(),
+                        f"{FIGS}/beam-move-phone{sfx}.svg": svgs["beam-move-phone"].encode()}
     return out
 
 

@@ -238,7 +238,8 @@ def test_card_states_the_articles_numbers(monkeypatch):
     assert all((f"({known[e]})" in card or f'"{known[e]}"' in card) if known[e].startswith("https://")
                else known[e] in card for e in used)
     assert f'<a href="{f["lead"]["replay"]}"><img src="{hub_dataset.FILM}"' in card
-    for name in ("before-after.webp", "try-it.webp", "pareto.svg", "rollout.webp", "reward.png", "training.png",
+    for name in ("before-after.webp", "try-it.webp", "pareto.svg", "beam-move.svg", "rollout.webp", "reward.png",
+                 "training.png",
                  *(f"fail-{k}.png" for k, _, _ in hub_dataset.FAIL)):
         stem, ext = (f"{hub_dataset.FIGS}/{name}").rsplit(".", 1)
         assert all(x in card for x in (f'src="{stem}.{ext}"', f'src="{stem}-dark.{ext}"',
@@ -268,6 +269,10 @@ def test_card_states_the_articles_numbers(monkeypatch):
     assert all(f"({b['pb'][k]})" in card for k in ("playbook", "prereg", "record", "results", "files"))
     assert card.index(f"## {b['heading']}") < card.index("### With the playbook") < card.index("## What's in this")
     assert "have not run a" not in card and "leaderboard entry" in card
+    mv = b["pb"]["move"]
+    assert card.index("### With the playbook") < card.index(f"{hub_dataset.FIGS}/beam-move.svg") < card.index(
+        "## What's in this") and f"<small>{mv['caption']}</small>" in card
+    assert (mv["gap0"], mv["gap1"], mv["dominant"]) == ("10.1", "5.6", "DeepSeek V4.1 Flash")
     stale["beam"] = f["beam"] | {"pb": f["beam"]["pb"] | {"all": f["beam"]["pb"]["all"] | {"d": "+12.6"}}}
     with pytest.raises(SystemExit, match=r"F\.beam\.pb\.all\.d is '\+12\.6'"):
         hub_dataset.facts(s, grades)
