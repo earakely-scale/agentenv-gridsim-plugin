@@ -221,8 +221,13 @@ follows the desk's planner faithfully: {F.beam.copied} of the day-ahead curve ho
 it exactly. Two habits cost it: {F.beam.physical} of its `optimize` calls keep the default <code>{F.beam.default}</code>
 position where the planner asks for <code>{F.beam.position}</code>, a fix that leans on {F.beam.storm}’s windows, and
 its last accepted offer comes {F.beam.late} hours before a window ends. Fixing both in the replay adds {F.beam.both}
-points of C {F.beam.both_ci}, {F.beam.share} of its {F.beam.gap}-point gap to the planner. The
-<a href={F.beam.card}>dataset card</a> gives each effect with its interval, and the published files.
+points of C {F.beam.both_ci}, {F.beam.share} of its {F.beam.gap}-point gap to the planner. With a pre-registered
+playbook of those habits, Beam-1.0 itself then reached C {F.beam.pb.C} {F.beam.pb.ci}, up from {F.eval.m.beam.C} and
+near the planner's {F.beam.planner}: {F.beam.pb.all.d} points {F.beam.pb.all.ci}, where the replay predicted
+{F.beam.both}. The playbook was written after seeing Beam's failures on these same windows, so this shows the fixes
+carry over to Beam's own play, not performance on unseen windows; outside {F.beam.pb.storm}’s front the gain is
+{F.beam.pb.calm.d} {F.beam.pb.calm.ci}, an interval that includes zero. The <a href={F.beam.card}>dataset card</a>
+gives each effect with its interval, the playbook run, and the published files.
 
 ## Data sources
 

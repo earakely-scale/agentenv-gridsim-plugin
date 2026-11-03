@@ -210,12 +210,39 @@ one thing at a time and graded each window again. Differences are in points of C
 - AS offers left out, refused submits and its hand edits each move C by less than {F.beam.minor} points.
 
 **What it means.** Beam reads the desk and follows the planner well. It lacks the desk's habits: a `{F.beam.position}`
-position, and re-planning to the end of the window. A short playbook or fine-tuning could teach them; we have not run a
-pilot, so nothing here measures that.
+position, and re-planning to the end of the window.
 
 Watch Beam's runs in the [Replays Space]({F.beam.replay}), opening on the film's window; pick {F.beam.name} in the
 article's [Where models fail]({F.beam.picker}) charts; or read [the diagnosis]({F.beam.report}) and its
 [per-window files]({F.beam.files}).
+
+### With the playbook
+
+Those habits then went into a [playbook]({F.beam.pb.playbook}) for Beam: {F.beam.pb.lines} lines of general desk
+practice, pre-registered and frozen before its first episode. Beam-1.0 ran all {F.beam.n} windows again with it, in the
+same harness at the same settings, and reached C {F.beam.pb.C} {F.beam.pb.ci}, against its own {F.eval.m.beam.C}
+{F.eval.m.beam.ci} and the planner's {F.beam.planner}. The replay put both fixes at {F.beam.both} points; Beam's own
+play with the playbook recovered {F.beam.pb.all.d}.
+
+| Windows | Beam + playbook − Beam, points of C | Windows ahead | Fronts ahead |
+|---|---|---|---|
+| All {F.beam.pb.all.n} | {F.beam.pb.all.d} {F.beam.pb.all.ci} | {F.beam.pb.all.ahead} of {F.beam.pb.all.n} | {F.beam.pb.all.fronts_ahead} of {F.beam.pb.all.fronts} |
+| {F.eval.halves.post} ({F.beam.pb.jul_aug.n}) | {F.beam.pb.jul_aug.d} {F.beam.pb.jul_aug.ci} | {F.beam.pb.jul_aug.ahead} of {F.beam.pb.jul_aug.n} | {F.beam.pb.jul_aug.fronts_ahead} of {F.beam.pb.jul_aug.fronts} |
+| Outside {F.beam.pb.storm} ({F.beam.pb.calm.n}) | {F.beam.pb.calm.d} {F.beam.pb.calm.ci} | {F.beam.pb.calm.ahead} of {F.beam.pb.calm.n} | {F.beam.pb.calm.fronts_ahead} of {F.beam.pb.calm.fronts} |
+
+Outside {F.beam.pb.storm}'s front the interval includes zero.
+
+It changed how Beam ran the desk: {F.beam.pb.spread} of its {F.beam.pb.calls} answered `optimize` calls asked for
+`{F.beam.position}`, against {F.beam.pb.spread0} of {F.beam.pb.calls0} before, and its last accepted offer came
+{F.beam.pb.late} hours before a window's end on average ({F.beam.pb.late_med} median), against {F.beam.pb.late0}
+({F.beam.pb.late0_med}). A window cost {F.beam.pb.usd} against {F.beam.pb.usd0} at {F.beam.seller}'s list price, the
+card's basis; metered at the Hugging Face router's price, {F.beam.pb.metered} against {F.beam.pb.metered0}.
+
+**Read it with this caveat.** The playbook was written after seeing Beam's failures on these same windows. The run
+shows that the diagnosed fixes carry over to Beam's own play; it is not performance on unseen windows, and Beam +
+playbook is not a leaderboard entry. The [pre-registration]({F.beam.pb.prereg}) gives the design, the
+[run record]({F.beam.pb.record}) what happened, and [the results]({F.beam.pb.results}) every number, beside the
+[graded episodes]({F.beam.pb.files}).
 
 ## What's in this dataset
 
