@@ -66,6 +66,8 @@ CARD = ROOT / "hub/dataset/README.md"
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
 REPO = "https://github.com/earakely-scale/agentenv-gridsim-plugin"
 SETUP = "agent-env gridsim setup --agent"
+# The commit bundles/gridsim-v1 was published from; `setup --agent` builds the gridsim-llm its tasks deploy from it.
+V1_PLUGIN = f"agentenv-gridsim @ git+{REPO}@3db7869e9df6ce6c9754a1b7166dd11c2906cbc7"
 PACKS = {"train": "ercot-dam-v1-train", "eval_2025": "ercot-dam-v1-eval", "eval_iid": "ercot-dam-v1-eval-iid",
          "rtcb": "ercot-dam-v1-rtcb", "showcase": "showcase"}
 SPLITS = ("train", "eval_2025", "eval_iid", "rtcb")
@@ -2028,6 +2030,7 @@ def card_text(results_dir: Path) -> str:
     banned(text)
     out = DatasetCard(re.sub(r"\n{3,}", "\n\n", text))
     out.data.configs = desk_configs(d, bench)
+    out.data.agentenv = {"bundles": {"gridsim-v1": {"plugins": [V1_PLUGIN], "setup": SETUP}}}
     return str(out)
 
 
