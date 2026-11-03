@@ -439,3 +439,57 @@ Pilot window 2026-02-03..05 at S01, one episode per harness (information only, n
     `optimize` calls asking `spread`; and the hours left after the last accepted offer. The playbook was written after
     seeing Beam's failures on these same windows, so this measures whether the diagnosed fixes carry over to Beam's own
     play, not performance on unseen windows.
+
+#### Deviations and run record, Beam-1.0 with the desk playbook
+
+68. Ran from 20:04:11 UTC on 2026-11-02 to 00:08:46 UTC on 2026-11-03 on the route-C box Beam used
+    (i-0b5437b2bcfbb608e, now m7i.4xlarge), at most 3 windows at once, in Beam's pack order. All 32 windows were
+    graded, 31 on attempt 1 and 2026-04-03 S04 on attempt 2 (72); none was capped or missing. The run had its own
+    state (port cursor 30000), its own proxy service running Beam's proxy unchanged on lanes 4710-4712 (netcheck
+    4719) under the label `opencode-beam-playbook` with a $150 total stop, and Beam's driver unchanged, with $20 a
+    window and $149.98 in all ($150 less the netcheck). Beam's state, lanes, proxy and results were left as they were.
+69. The bundle was generated on the box as Beam's was, from the repo at `desk-v4-bench-run1` (2523700) with the
+    `opencode-beam-playbook` preset of d2792d8 and d2792d8's harness folder. That commit was fetched into the box's
+    clone without moving HEAD, so the desk tasks are those Beam played, and the folder was taken from it with
+    `git archive` (PLAYBOOK.md sha256 0dc7cb47eb500057…, opencode.json 44a1d967cef50889…). All 33 task files
+    matched Beam's bundle apart from the harness-config artifact id, and the hook and verifier matched byte for byte.
+    agentenv-framework 0.9.1396 and OpenCode 1.17.18, the image Beam ran.
+70. Netcheck ($0.014), run first as in 19. From the agent container on docker0, ercot.com, github.com, pypi.org and
+    router.huggingface.co did not resolve, 1.1.1.1 was refused, and the model was reachable only through the proxy.
+    The agent held the placeholder key, and PLAYBOOK.md and opencode.json were in /data/config/opencode with the
+    hashes in 69. The netcheck's own reply check scored 0: Beam answered "84.0" (the state of charge it had read)
+    without pasting the shell output, which its trajectory shows (every host unreachable). The netcheck is not scored.
+71. Before more windows started, the playbook was confirmed loaded on the first three (2026-01-23 S01 to S03,
+    launched together at 20:04). Each agent container held the two files with the hashes in 69. Each window's first
+    agent request was 3,719 bytes larger than Beam's on the same window: the playbook's 3,663 JSON-escaped bytes plus
+    OpenCode's instruction header, in the system message. Every optimize call so far asked `dam_position` spread with
+    `price_view` desk. No window ran without the playbook, and none was excluded.
+72. Hand intervention, decided while the run was in progress: 2026-04-03 S04 attempt 1 started at 21:42:48. Apart
+    from OpenCode's title call ($0.0006) it got no model answer and made no desk call, and it stayed in OpenCode's
+    HTTP 429 backoff, which doubles with each retry. Its retry at 22:54:12 (4,096 s after the one before) was refused
+    with a 429 again, and the next was due 8,192 s later (about 01:11 UTC), past the time set for results. It was
+    stopped by hand at 22:57:09 and treated as an attempt ending on HTTP 429: infrastructure under 20, not counted.
+    The driver had classed it agent-side ("cancelled by SIGTERM"); it was reclassified by hand, keeping the original
+    class. The driver was stopped and relaunched at 22:57:48 with the same arguments, adopting the 3 running windows.
+    Attempt 2 (22:58:49 to 23:06:48, $1.61) was graded. No attempt that had reached the desk was stopped.
+73. Admission estimate, not pre-registered: before three windows were graded, each window was projected at $4 rather
+    than Beam's $5 (22), since $5 × 32 = $160 would have blocked the first window under the $150 total. It never bound:
+    the projection stayed at or under $128.01 of $149.98.
+74. Provider errors: of 6,072 requests through the proxy, 1,600 (26.4%) were HTTP 429, the account's rate limit, and
+    1,846 (30.4%) were HTTP 503, the router pausing Baseten ("paused by the circuit breaker"). There was no HTTP 402.
+    OpenCode retried them within the turn, and apart from 72 none ended an attempt. Its 429 backoff reached 1,024 s
+    between retries in graded windows, so windows took 19.7 minutes on average (3.1 to 54.0). The run was bound by
+    the account's 1,000,000 tokens a minute, not by the 3-window limit.
+75. Spend: $94.05 metered at the router's price of 15 for the 33 attempts ($94.05 for the 32 graded, $0.0006 for the
+    stopped one) plus $0.014 for the netcheck, $94.06 of the $150. That is $2.94 a graded window, against Beam's $1.97
+    in its bench run; the most expensive window was $6.08. At the cost basis of 47 it is $0.4449 a graded window
+    ($14.24 for all attempts), against Beam's $0.3064. 96.5% of input tokens were cached.
+76. Result, as pre-registered in 67, from `scripts/desk_bench_results.py` on the run's attempts. Every graded episode
+    was regraded from its Episode JSON, with no difference from the verifier's grade. C is 0.189 [0.060, 0.358] and R
+    0.739 [0.550, 0.900], against 0.067 [0.005, 0.120] in Beam's bench run. The paired difference in C from Beam's
+    bench run, front-block bootstrap (10,000 resamples, seed 0):
+    - all 32 windows: +0.122 [+0.016, +0.269], ahead on 19 windows and 6 of 8 fronts;
+    - the 16 July–August windows: +0.112 [+0.055, +0.195], ahead on 11 windows and 4 of 4 fronts;
+    - the 28 windows outside the 2026-01-23 front: +0.058 [−0.003, +0.128], ahead on 15 windows and 5 of 7 fronts.
+    By exact replay, 95.2% of the 765 answered `optimize` calls asked `spread` (Beam's bench run: 9.3% of 268). The
+    hours left after the last accepted offer were 6.3 on average (median 6.0), against Beam's 23.5 (30.0).
