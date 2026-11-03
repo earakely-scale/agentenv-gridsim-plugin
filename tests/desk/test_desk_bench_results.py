@@ -265,6 +265,12 @@ def test_card_states_the_articles_numbers(monkeypatch):
     at = card.index(f"\n## {b['heading']}\n")
     assert card.index("## Where models fail") < at < card.index("## What's in this dataset")
     assert all(f"({b[k]})" in card for k in ("replay", "picker", "report", "files"))
+    assert all(f"({b['pb'][k]})" in card for k in ("playbook", "prereg", "record", "results", "files"))
+    assert card.index(f"## {b['heading']}") < card.index("### With the playbook") < card.index("## What's in this")
+    assert "have not run a" not in card and "leaderboard entry" in card
+    stale["beam"] = f["beam"] | {"pb": f["beam"]["pb"] | {"all": f["beam"]["pb"]["all"] | {"d": "+12.6"}}}
+    with pytest.raises(SystemExit, match=r"F\.beam\.pb\.all\.d is '\+12\.6'"):
+        hub_dataset.facts(s, grades)
 
 
 def test_hub_checks_bench_grades_and_refuses_fake(bench, monkeypatch):
@@ -327,6 +333,12 @@ def test_article_opens_on_the_lead_run_and_the_operator_from_the_records():
     assert f["beam"]["late"] == f["eval"]["replan"]["bh"] and f["beam"]["planner"] == f["eval"]["replan"]["planner"]
     assert f["beam"]["card"] == f"{hub_dataset.DATASET}#beam-10-on-gridsimenv"
     assert f["beam"]["replay"].endswith(f"m=beam&task={s['hero']['task_id']}")
+    pb = beam["playbook"]
+    assert f["beam"]["pb"]["late0"] == f["beam"]["late"] and pb["scopes"]["all"]["windows"] == len(beam_ids := {
+        g["task_id"] for g in grades if g["model"] == "beam"}) and pb["lines"] == 46
+    assert pb["scopes"]["calm"]["ci"][0] < 0 < pb["scopes"]["all"]["ci"][0] and len(beam_ids) == 32
+    assert hub_article.check_beam(f | {"beam": f["beam"] | {"pb": f["beam"]["pb"] | {"C": "19.0%"}}}, beam, s, fails,
+                                  hub_dataset)
     assert not hub_article.check_replan(f, fails)
     assert not hub_article.check_replan(json.loads((hub_article.DATA / "facts.json").read_text()), fails)
     late = {m["name"]: m["last_offer_h"] for m in fails["models"]}

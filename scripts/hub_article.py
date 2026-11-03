@@ -18,6 +18,7 @@ The films are uploaded with the Space, not committed (hub/article/app/public/med
 
 import argparse
 import gzip
+import hashlib
 import importlib.util
 import json
 import re
@@ -432,7 +433,57 @@ def beam_data(folder: Path, s: dict, grades: list[dict], card) -> dict:
             "dam_curve_hours": {"exact": dam["curve_exact"], "compared": compared},
             "wakes": round(float(np.mean([r["timing"]["wakes"] for r in an])), 2),
             "last_submit_h": round(float(np.mean([r["timing"]["hours_after_last_submit"] for r in an])), 2),
-            "planner": setting(s["layer"]) | {"default": default}}
+            "planner": setting(s["layer"]) | {"default": default},
+            "playbook": beam_playbook(folder / "beam-playbook", s, g, storm, opt["spread"], sum(opt.values()), R)}
+
+
+PLAYBOOK = ROOT / "bench" / "harness" / "bench-opencode-beam-playbook" / "PLAYBOOK.md"
+PLAYBOOK_SHA = "0dc7cb47eb500057"
+"""The playbook as pre-registered and frozen (docs/prereg/v4-bench.md), the prefix of its sha256."""
+
+
+def beam_playbook(d: Path, s: dict, g: dict, storm: str, spread: int, calls: int, R) -> dict:
+    """The playbook pilot in results/desk-v4-bench/beam-playbook (pre-registered in docs/prereg/v4-bench.md, not a
+    leaderboard entry): Beam-1.0 with the desk playbook on the bench's windows. C and its paired difference from Beam's
+    bench run, in points, over every window, July and August, and outside the storm front, recomputed from score.json's
+    windows with the bench's block bootstrap; Beam's side must be the bench's grades and the diagnosis's calls, the
+    recomputation score.json's own, and the playbook the one that ran."""
+    sc = json.loads((d / "score.json").read_text())
+    w = {x["task_id"]: x for x in sc["windows"]}
+    if w.keys() != g.keys() or any(abs(w[t]["beam_C"] - g[t]["capture"]) > 1e-6 or w[t]["front"] != g[t]["front"]
+                                   or w[t]["beampb_status"] != "scored" for t in g):
+        raise SystemExit("the playbook run's windows are not the bench's Beam-1.0 windows: score it again")
+    if hashlib.sha256(PLAYBOOK.read_bytes()).hexdigest()[:len(PLAYBOOK_SHA)] != PLAYBOOK_SHA:
+        raise SystemExit(f"{PLAYBOOK.relative_to(ROOT)} is not the playbook that ran")
+    before, after = sc["process"]["beam"], sc["process"]["beampb"]
+    if (before["spread_calls"], before["optimize_ok"]) != (spread, calls):
+        raise SystemExit("the playbook run's process metrics for Beam-1.0 are not the diagnosis's: replay them again")
+    ids = sorted(w)
+
+    def scope(key: str, keep) -> dict:
+        k = [t for t in ids if keep(w[t])]
+        p = R.paired([100 * w[t]["beampb_C"] for t in k], [100 * w[t]["beam_C"] for t in k], [w[t]["front"] for t in k])
+        ref = sc["paired"][key]["dC"]
+        if any(abs(a - 100 * x) > 0.01 for a, x in zip([p["mean"], *p["ci"]], [ref["mean"], *ref["ci"]], strict=True)):
+            raise SystemExit(f"score.json's paired difference over {key} is not its windows': score it again")
+        return {"windows": len(k), "fronts": p["fronts"], "mean": p["mean"], "ci": p["ci"],
+                "ahead": round(p["ahead"] * len(k)), "fronts_ahead": p["fronts_ahead"]}
+
+    scopes = {"all": scope("all", lambda x: True), "jul_aug": scope("jul_aug", lambda x: x["split"] == "post_cutoff"),
+              "calm": scope(f"outside_{storm}", lambda x: x["front"] != storm)}
+    if scopes["all"]["ci"][0] <= 0 or scopes["calm"]["ci"][0] > 0:
+        raise SystemExit("the playbook section says the gain excludes zero over every window and not outside the "
+                         "storm: rewrite it")
+    C = R.boot([100 * w[t]["beampb_C"] for t in ids], [w[t]["front"] for t in ids])
+    spend = sc["spend"]
+    return {"C": {"mean": C["mean"], "ci": C["ci"]}, "scopes": scopes, "lines": len(PLAYBOOK.read_text().splitlines()),
+            "spread": {"before": [before["spread_calls"], before["optimize_ok"]],
+                       "after": [after["spread_calls"], after["optimize_ok"]]},
+            "late_h": {"before": [before["hours_after_last_accepted_mean"], before["hours_after_last_accepted_median"]],
+                       "after": [after["hours_after_last_accepted_mean"], after["hours_after_last_accepted_median"]]},
+            "usd_list": sc["beampb"]["cost"]["usd_per_window"],
+            "usd_metered": {"before": spend["beam"]["metered_per_graded_window_usd"],
+                            "after": spend["beampb"]["metered_per_graded_window_usd"]}}
 
 
 def check_beam(f: dict, b: dict, s: dict, fm: dict, card) -> list[str]:
@@ -441,8 +492,9 @@ def check_beam(f: dict, b: dict, s: dict, fm: dict, card) -> list[str]:
     want = card.beam_facts(b, s, fm)
     bad = [f"F.beam.{k} = {f['beam'].get(k)!r}, where beam.json gives {v!r}" for k, v in want.items()
            if f["beam"].get(k) != v]
-    if want["late"] != f"{b['last_submit_h']:.1f}":
-        bad.append(f"Beam-1.0's last accepted offer, {want['late']} h, is not the diagnosis's last submit")
+    if not want["late"] == f"{b['last_submit_h']:.1f}" == want["pb"]["late0"]:
+        bad.append(f"Beam-1.0's last accepted offer, {want['late']} h, is not the diagnosis's last submit or the "
+                   "playbook run's replay of Beam")
     return bad
 
 

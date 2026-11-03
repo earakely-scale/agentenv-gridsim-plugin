@@ -2078,6 +2078,7 @@ def facts(s: dict, grades: list[dict]) -> dict:
 
 BEAM = "beam"
 BEAM_DIR = "desk-v4-bench/beam-diagnosis"
+BEAM_PLAYBOOK_DIR = "desk-v4-bench/beam-playbook"
 BEAM_MINOR = ("as", "repair", "verbatim", "merge")
 """The changes worth less than the bound the section states: AS left out, refused submits repaired, and Beam's own
 edits to what it copied, dropped or kept."""
@@ -2114,7 +2115,37 @@ def beam_facts(b: dict, s: dict, fm: dict) -> dict:
             "replay": bench_replay(b["model"], s["hero"]["task_id"]), "picker": f"{ARTICLE_APP}/#where-models-fail",
             "files": f"{DATASET}/tree/main/results/{BEAM_DIR}",
             "report": f"{DATASET}/blob/main/results/{BEAM_DIR}/report.md",
-            "heading": heading, "card": f"{DATASET}#{slug(heading)}"}
+            "heading": heading, "card": f"{DATASET}#{slug(heading)}", "pb": beam_playbook_facts(b, s, pts, ci)}
+
+
+PLAYBOOK_REF = "a4be130"
+"""The plugin commit the section links the playbook and its pre-registration at: the run's record and result."""
+
+
+def beam_playbook_facts(b: dict, s: dict, pts, ci) -> dict:
+    """The playbook pilot as the Beam section states it: C, the paired difference from Beam's bench run over each
+    scope, what changed in how Beam ran the desk, and the cost a window at the card's basis and as metered."""
+    p, m = b["playbook"], s["models"][b["model"]]
+    pct = lambda a, n: f"{pc(a / n)}%"  # noqa: E731
+    out = {"C": f"{pc(p['C']['mean'] / 100)}%", "ci": f"[{pc(p['C']['ci'][0] / 100)}, {pc(p['C']['ci'][1] / 100)}]",
+           "lines": str(p["lines"]), "storm": b["storm"]["name"],
+           "spread": pct(*p["spread"]["after"]), "calls": f"{p['spread']['after'][1]:,}",
+           "spread0": pct(*p["spread"]["before"]), "calls0": f"{p['spread']['before'][1]:,}",
+           "late": f"{p['late_h']['after'][0]:.1f}", "late_med": f"{p['late_h']['after'][1]:.1f}",
+           "late0": f"{p['late_h']['before'][0]:.1f}", "late0_med": f"{p['late_h']['before'][1]:.1f}",
+           "usd": bench_usd(p["usd_list"]), "usd0": bench_usd(m["cost"]["usd_per_window"]),
+           "metered": bench_usd(p["usd_metered"]["after"]), "metered0": bench_usd(p["usd_metered"]["before"]),
+           "playbook": f"{REPO}/blob/{PLAYBOOK_REF}/bench/harness/bench-opencode-beam-playbook/PLAYBOOK.md",
+           "prereg": f"{REPO}/blob/{PLAYBOOK_REF}/docs/prereg/v4-bench.md#"
+                     f"{slug(m['name'] + ' with the desk playbook (exploratory, added after the bench)')}",
+           "record": f"{REPO}/blob/{PLAYBOOK_REF}/docs/prereg/v4-bench.md#"
+                     f"{slug('Deviations and run record, ' + m['name'] + ' with the desk playbook')}",
+           "results": f"{DATASET}/blob/main/results/{BEAM_PLAYBOOK_DIR}/RESULTS.md",
+           "files": f"{DATASET}/tree/main/results/{BEAM_PLAYBOOK_DIR}"}
+    for k, x in p["scopes"].items():
+        out[k] = {"d": pts(x["mean"]), "ci": ci(x), "n": str(x["windows"]), "ahead": str(x["ahead"]),
+                  "fronts": str(x["fronts"]), "fronts_ahead": str(x["fronts_ahead"])}
+    return out
 
 
 def slug(heading: str) -> str:
